@@ -1,0 +1,42 @@
+﻿## .NET
+bin/
+obj/
+out/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+artifacts/
+*.user
+*.suo
+*.userprefs
+*.cache
+*.pidb
+*.binlog
+.vs/
+
+## Node / Vite
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+## Rider / VS Code
+.idea/
+.vscode/ 
+.claude/
+.codex/
+
+## Secrets
+.env
+*.pfx
+appsettings.Production.json
+# Auto-generated encryption key / JWT secret persisted next to the database.
+.secrets/ 
+
+## Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+/graphify-out
