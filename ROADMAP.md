@@ -34,8 +34,8 @@ existing file untouched.
 - **MAM-3 Docker and CI** (built): one Docker image for amd64 and arm64 (API + built web app +
   `ffprobe`, running unprivileged), `docker-compose.yml` for the published image and
   `docker-compose.build.yml` for a local build, both publishing the port on `127.0.0.1` until
-  sign-in exists, `deploy.sh`, and a Jenkins pipeline that tests every commit to `main` and pushes
-  it to Docker Hub as `latest` and `sha-<commit>`, plus `X.Y.Z` and `X.Y` for a `vX.Y.Z` tag
+  sign-in exists, `deploy.sh`, a Jenkins CI pipeline that tests every commit to `main`, and a
+  release pipeline, started by hand, that pushes `X.Y.Z`, `X.Y` and `latest` to Docker Hub
   ([PUBLISHING.md](PUBLISHING.md)).
 - **MAM-4 Accounts:** multi-user sign-in with an installation owner and owner-only settings,
   short-lived access tokens with a refresh cookie, per-IP rate limits on sign-in, and an audit

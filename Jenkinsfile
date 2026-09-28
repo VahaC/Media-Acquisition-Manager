@@ -1,9 +1,6 @@
-// Builds, tests and publishes Media Acquisition Manager (MAM-3).
-//
-// Every build of main runs the .NET build and tests and the frontend lint, build and tests, then
-// pushes a multi-architecture image to Docker Hub as :latest and :sha-<commit>. When the commit
-// carries a release tag vX.Y.Z, the same image is also pushed as :X.Y.Z and :X.Y. PUBLISHING.md has
-// the one-time Jenkins setup and the release steps.
+// CI for Media Acquisition Manager (MAM-3): every commit to main runs the .NET build and tests and
+// the frontend lint, build and tests. It never pushes an image: a push to Docker Hub is a release,
+// and a release is started by hand from Jenkinsfile.publish. PUBLISHING.md has the Jenkins setup.
 pipeline {
     agent none
 
@@ -20,10 +17,6 @@ pipeline {
         pollSCM('H/2 * * * *')
     }
 
-    environment {
-        IMAGE = 'vahac/media-acquisition-manager'
-    }
-
     stages {
         stage('Checkout') {
             agent any
@@ -36,29 +29,6 @@ pipeline {
                         credentialsId: 'github-pat',
                         url: 'https://github.com/VahaC/Media-Acquisition-Manager.git'
                     stash name: 'source', includes: '**'
-
-                    env.SHORT_SHA = scmVars.GIT_COMMIT.substring(0, 7)
-
-                    // The highest vX.Y.Z tag on the built commit, if any. The git step fetches tags,
-                    // so a tag pushed with its commit is seen by that commit's build; a tag added to
-                    // an already built commit needs a manual "Build Now".
-                    def releaseVersion = sh(
-                        script: '''git tag --points-at HEAD | grep -E '^v[0-9]+[.][0-9]+[.][0-9]+$' | sed 's/^v//' | sort -V | tail -n 1''',
-                        returnStdout: true
-                    ).trim()
-                    if (releaseVersion) {
-                        // frontend/package.json is the version of record: the web app shows it and
-                        // the API is stamped with it. A tag that disagrees would publish an image
-                        // whose tag and "About" say different versions, so it stops the build.
-                        def packageVersion = sh(
-                            script: '''grep -m1 '"version"' frontend/package.json | cut -d'"' -f4''',
-                            returnStdout: true
-                        ).trim()
-                        if (releaseVersion != packageVersion) {
-                            error "Tag v${releaseVersion} does not match the version in frontend/package.json (${packageVersion})."
-                        }
-                        env.RELEASE_VERSION = releaseVersion
-                    }
 
                     // The backend stage is skipped when every change since the last successful build
                     // is documentation (*.md, docs/). Anything else runs it, frontend files included:
@@ -119,52 +89,6 @@ pipeline {
                     sh 'npm run lint'
                     sh 'npm run build'
                     sh 'npm run test'
-                }
-            }
-        }
-
-        stage('Publish') {
-            // Reached only when every stage above passed or was skipped.
-            agent any
-            steps {
-                unstash 'source'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
-                    sh '''
-                        set -eu
-
-                        tags="--tag $IMAGE:latest --tag $IMAGE:sha-$SHORT_SHA"
-                        version_arg=""
-                        if [ -n "${RELEASE_VERSION:-}" ]; then
-                            # X.Y follows the newest patch of its minor; X.Y.Z never moves.
-                            tags="$tags --tag $IMAGE:$RELEASE_VERSION --tag $IMAGE:${RELEASE_VERSION%.*}"
-                            version_arg="--build-arg APP_VERSION=$RELEASE_VERSION"
-                        fi
-
-                        printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
-
-                        # A builder that outlives the build keeps BuildKit's layer and package caches,
-                        # so an unchanged apt or npm layer isn't rebuilt under arm64 emulation every
-                        # time. --pull still checks the base images on every build, and a new base
-                        # (Microsoft rebuilds aspnet:10.0 for every .NET patch) invalidates the cached
-                        # layers above it, which is how Ubuntu's security fixes reach the image.
-                        docker buildx inspect mam-builder > /dev/null 2>&1 \
-                            || docker buildx create --name mam-builder --driver docker-container --bootstrap
-
-                        docker buildx build \
-                            --builder mam-builder \
-                            --platform linux/amd64,linux/arm64 \
-                            --pull \
-                            --build-arg APP_REVISION="$SHORT_SHA" \
-                            $version_arg \
-                            $tags \
-                            --push \
-                            .
-                    '''
-                }
-            }
-            post {
-                always {
-                    sh 'docker logout || true'
                 }
             }
         }

@@ -67,7 +67,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   sizes count in 1024 steps as `7.94 GiB`, the same number qBittorrent and Toloka show. A lint rule
   refuses literal text in component markup. API messages stay English sentences. The `<html lang>`
   attribute and the tab title follow the UI locale.
-- **One Docker image, built and pushed to Docker Hub by Jenkins (MAM-3).**
+- **One Docker image, tested by Jenkins CI and published to Docker Hub by hand (MAM-3).**
   `vahac/media-acquisition-manager` holds the API with the built web app in its `wwwroot`, for
   `linux/amd64` and `linux/arm64`, and brings `ffprobe` (Ubuntu's FFmpeg 6.1) for the file
   inspection of MAM-9. The app runs as user `mam` (uid 10001), can't modify its own files, and
@@ -81,9 +81,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   on `127.0.0.1` only, because there is no sign-in until MAM-4; `APP_BIND_ADDRESS` opens it, and
   `APP_PORT` changes the host port. `deploy.sh` pulls the image, recreates the container and waits
   until it is healthy. The `Jenkinsfile` runs the .NET build and tests (skipped when only
-  documentation changed) and the frontend lint, build and tests on every commit to `main`, then
-  pushes `latest` and `sha-<commit>`, plus `X.Y.Z` and `X.Y` when the commit is tagged `vX.Y.Z`; a
-  tag that differs from `frontend/package.json` stops the build. The API is stamped with the version
+  documentation changed) and the frontend lint, build and tests on every commit to `main`, and
+  pushes nothing. A release is `Jenkinsfile.publish`, started by hand with a `VERSION`: it refuses a
+  version that differs from `frontend/package.json` or is already on Docker Hub, runs the same
+  checks as CI, and pushes `X.Y.Z`, `X.Y` and `latest`. The API is stamped with the version
   and the commit (`0.1.0+abc1234`). `.env.example` documents the Compose variables, and tests keep it
   covering every setting of `appsettings.json` and every variable the Compose files read. See
   [PUBLISHING.md](PUBLISHING.md).

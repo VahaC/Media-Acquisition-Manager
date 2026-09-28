@@ -31,7 +31,7 @@ application.
 | Web app | React 19, React Router 7, TanStack Query 5, axios, Radix Dialog, lucide-react, react-i18next |
 | Build | Vite + React Compiler, strict TypeScript, ESLint, Vitest + Testing Library |
 | Styling | CSS tokens and semantic classes, no CSS framework |
-| Ship | One Docker image (API + web app) for amd64 and arm64, built and pushed to Docker Hub by Jenkins |
+| Ship | One Docker image (API + web app) for amd64 and arm64; Jenkins tests every commit and publishes releases to Docker Hub |
 
 ## Features
 
@@ -158,10 +158,11 @@ The image is `vahac/media-acquisition-manager` on Docker Hub, for `linux/amd64` 
 
 | Tag | What it is |
 | --- | --- |
-| `latest` | The newest build of `main`, released or not. |
+| `latest` | The newest release. |
 | `X.Y.Z`, e.g. `0.1.0` | A release. It never changes once published. |
 | `X.Y`, e.g. `0.1` | The newest release of that minor version. |
-| `sha-<commit>` | One exact build of `main`, by its short commit hash. |
+
+Only releases are published; a commit to `main` is tested but never pushed.
 
 How the image is built and released is in [PUBLISHING.md](PUBLISHING.md).
 
@@ -372,7 +373,8 @@ Dockerfile                                     the image: API + built web app + 
 docker-compose.yml                             runs the published image
 docker-compose.build.yml                       builds the image from the checkout (:local)
 deploy.sh                                      pulls, recreates and waits for healthy
-Jenkinsfile                                    tests every build of main, pushes to Docker Hub
+Jenkinsfile                                    CI: tests every commit to main, pushes nothing
+Jenkinsfile.publish                            a release, started by hand: tests, pushes to Docker Hub
 src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, health checks,
                                                security headers, EF Core migrations

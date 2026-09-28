@@ -7,7 +7,7 @@
 # lists them all with their trade-offs.
 services:
   app:
-    # APP_TAG: latest (the newest build of main), a release such as 0.1.0, or sha-<commit>.
+    # APP_TAG: latest (the newest release), a release such as 0.1.0, or a minor version such as 0.1.
     image: vahac/media-acquisition-manager:${APP_TAG:-latest}
     container_name: media-acquisition-manager
     restart: unless-stopped

@@ -28,7 +28,7 @@ RUN npm run build
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS api-build
 # APP_VERSION: the version stamped into the API assembly. Unset, it is read from
 # frontend/package.json, the version of record, so a plain `docker buildx build` stamps the right
-# number without a flag to remember. Jenkins passes the release tag's version (vX.Y.Z → X.Y.Z).
+# number without a flag to remember. The release job passes the VERSION it was started with.
 # APP_REVISION: the commit, appended as build metadata (0.1.0+abc1234). .git is not in the build
 # context, so without the argument there is no revision and none is appended.
 ARG APP_VERSION

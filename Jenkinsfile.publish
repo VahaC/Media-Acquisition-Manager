@@ -1,0 +1,158 @@
+// Publishes a release of Media Acquisition Manager to Docker Hub (MAM-3).
+//
+// Started only by hand, with Build with Parameters: a push to Docker Hub is a release. The job that
+// loads this file must have no SCM, cron or upstream trigger. It rebuilds and retests the current
+// main exactly as CI does, then pushes a multi-architecture image as :X.Y.Z, :X.Y and :latest.
+// PUBLISHING.md has the Jenkins setup and the release steps.
+pipeline {
+    agent none
+
+    options {
+        disableConcurrentBuilds()
+        // Every stage below declares an agent, and a declarative stage with an agent runs its own
+        // implicit `checkout scm` first. The source is fetched once, in Checkout, and stashed.
+        skipDefaultCheckout(true)
+    }
+
+    parameters {
+        string(name: 'VERSION', defaultValue: '', trim: true,
+            description: 'The version to release, e.g. 0.1.0. It must be the version in frontend/package.json on main.')
+    }
+
+    environment {
+        IMAGE = 'vahac/media-acquisition-manager'
+    }
+
+    stages {
+        stage('Checkout') {
+            agent any
+            steps {
+                // A fresh clone: files left over from an earlier build must not reach the image.
+                deleteDir()
+                script {
+                    // Checked before the clone, so a blank or mistyped version fails in a second.
+                    if (!(params.VERSION ==~ /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/)) {
+                        error "VERSION '${params.VERSION}' must be X.Y.Z, e.g. 0.1.0."
+                    }
+
+                    def scmVars = git branch: 'main',
+                        credentialsId: 'github-pat',
+                        url: 'https://github.com/VahaC/Media-Acquisition-Manager.git'
+                    stash name: 'source', includes: '**'
+
+                    // frontend/package.json is the version of record: the web app shows it and the
+                    // API is stamped with it. A VERSION that disagrees would publish an image whose
+                    // tag and "About" say different versions.
+                    def packageVersion = sh(
+                        script: '''grep -m1 '"version"' frontend/package.json | cut -d'"' -f4''',
+                        returnStdout: true
+                    ).trim()
+                    if (params.VERSION != packageVersion) {
+                        error "VERSION ${params.VERSION} does not match the version in frontend/package.json (${packageVersion})."
+                    }
+
+                    env.SHORT_SHA = scmVars.GIT_COMMIT.substring(0, 7)
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} v${params.VERSION}"
+                }
+            }
+        }
+
+        stage('Check the version is unreleased') {
+            // A released X.Y.Z never changes. Asked here, before the tests and the image build, so a
+            // version that is already out fails in seconds rather than after a full build.
+            agent any
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
+                    sh '''
+                        set -eu
+                        printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
+                        if docker buildx imagetools inspect "$IMAGE:$VERSION" > /dev/null 2>&1; then
+                            echo "$IMAGE:$VERSION is already published and will not be overwritten." >&2
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+            post {
+                always {
+                    sh 'docker logout || true'
+                }
+            }
+        }
+
+        // The same checks as CI (Jenkinsfile), none of them skipped: a release must pass the gate
+        // every commit passes, on the exact tree the image is built from.
+        stage('Backend') {
+            agent {
+                docker { image 'mcr.microsoft.com/dotnet/sdk:10.0' }
+            }
+            steps {
+                unstash 'source'
+                sh 'dotnet restore MediaAcquisitionManager.slnx'
+                sh 'dotnet build MediaAcquisitionManager.slnx -c Release --no-restore'
+                sh 'NO_BUILD=1 bash run-tests.sh'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'tests/**/TestResults/test-results-*.xml'
+                }
+            }
+        }
+
+        stage('Frontend') {
+            agent {
+                docker { image 'node:24-alpine' }
+            }
+            steps {
+                unstash 'source'
+                dir('frontend') {
+                    sh 'npm ci'
+                    sh 'npm run lint'
+                    sh 'npm run build'
+                    sh 'npm run test'
+                }
+            }
+        }
+
+        stage('Publish') {
+            // Reached only when every stage above passed.
+            agent any
+            steps {
+                unstash 'source'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
+                    sh '''
+                        set -eu
+
+                        printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
+
+                        # A builder that outlives the build keeps BuildKit's layer and package caches,
+                        # so an unchanged apt or npm layer isn't rebuilt under arm64 emulation every
+                        # time. --pull still checks the base images on every build, and a new base
+                        # (Microsoft rebuilds aspnet:10.0 for every .NET patch) invalidates the cached
+                        # layers above it, which is how Ubuntu's security fixes reach the image.
+                        docker buildx inspect mam-builder > /dev/null 2>&1 \
+                            || docker buildx create --name mam-builder --driver docker-container --bootstrap
+
+                        # X.Y.Z never moves; X.Y and latest follow the newest release.
+                        docker buildx build \
+                            --builder mam-builder \
+                            --platform linux/amd64,linux/arm64 \
+                            --pull \
+                            --build-arg APP_VERSION="$VERSION" \
+                            --build-arg APP_REVISION="$SHORT_SHA" \
+                            --tag "$IMAGE:$VERSION" \
+                            --tag "$IMAGE:${VERSION%.*}" \
+                            --tag "$IMAGE:latest" \
+                            --push \
+                            .
+                    '''
+                }
+            }
+            post {
+                always {
+                    sh 'docker logout || true'
+                }
+            }
+        }
+    }
+}
