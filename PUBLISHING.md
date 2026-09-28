@@ -24,12 +24,11 @@ It has no trigger: pushing to Docker Hub is a release, and a release is a decisi
 
 1. **Checkout** — a fresh clone of `main`. `VERSION` must be `X.Y.Z` and equal the version in
    `frontend/package.json`, or the job stops.
-2. **Check the version is unreleased** — a published `X.Y.Z` never changes, so a version already
-   on Docker Hub stops the job before anything is built.
-3. **Backend** and **Frontend** — the same checks as CI, none skipped, on the tree the image is
+2. **Backend** and **Frontend** — the same checks as CI, none skipped, on the tree the image is
    built from.
-4. **Publish** — builds the image for `linux/amd64` and `linux/arm64` and pushes it to
-   `vahac/media-acquisition-manager` as `X.Y.Z`, `X.Y` and `latest`.
+3. **Publish** — builds the image for `linux/amd64` and `linux/arm64` and pushes it to
+   `vahac/media-acquisition-manager` as `X.Y.Z`, `X.Y` and `latest`. A version that is already on
+   Docker Hub is rebuilt, and its tags move to the new image.
 
 The API inside the image is stamped with the version and the commit, for example `0.1.0+abc1234`.
 
@@ -64,6 +63,9 @@ The API inside the image is stamped with the version and the commit, for example
    release, and that CI is green for that commit.
 2. Open `Media-Acquisition-Manager-publish` → *Build with Parameters*, enter the version (e.g.
    `0.1.0`) and start it. When it finishes, `0.1.0`, `0.1` and `latest` point at the new image.
+3. To rebuild a release that is already out — a fix, or newer base images for security updates —
+   without a new version number, start the job again with the same version, as often as you need.
+   Installations that run that tag pick up the rebuild with their next `bash deploy.sh`.
 
 ## Building by hand
 

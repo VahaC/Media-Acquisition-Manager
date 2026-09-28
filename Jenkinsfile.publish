@@ -3,6 +3,8 @@
 // Started only by hand, with Build with Parameters: a push to Docker Hub is a release. The job that
 // loads this file must have no SCM, cron or upstream trigger. It rebuilds and retests the current
 // main exactly as CI does, then pushes a multi-architecture image as :X.Y.Z, :X.Y and :latest.
+// Running it again for a version that is already out is allowed on purpose: it rebuilds that release
+// and moves its tags to the new image, so a fix or newer base images need no new version number.
 // PUBLISHING.md has the Jenkins setup and the release steps.
 pipeline {
     agent none
@@ -53,29 +55,6 @@ pipeline {
 
                     env.SHORT_SHA = scmVars.GIT_COMMIT.substring(0, 7)
                     currentBuild.displayName = "#${env.BUILD_NUMBER} v${params.VERSION}"
-                }
-            }
-        }
-
-        stage('Check the version is unreleased') {
-            // A released X.Y.Z never changes. Asked here, before the tests and the image build, so a
-            // version that is already out fails in seconds rather than after a full build.
-            agent any
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
-                    sh '''
-                        set -eu
-                        printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
-                        if docker buildx imagetools inspect "$IMAGE:$VERSION" > /dev/null 2>&1; then
-                            echo "$IMAGE:$VERSION is already published and will not be overwritten." >&2
-                            exit 1
-                        fi
-                    '''
-                }
-            }
-            post {
-                always {
-                    sh 'docker logout || true'
                 }
             }
         }
@@ -133,8 +112,9 @@ pipeline {
                         docker buildx rm --force mam-builder > /dev/null 2>&1 || true
                         docker buildx create --name mam-builder --driver docker-container --bootstrap
 
-                        # X.Y.Z never moves; X.Y and latest follow the newest release. --pull fetches
-                        # the newest base images, which is how Ubuntu's security fixes reach the image.
+                        # X.Y.Z, X.Y and latest all move to this build, also when X.Y.Z was published
+                        # before (see the top of this file). --pull fetches the newest base images,
+                        # which is how Ubuntu's security fixes reach the image.
                         docker buildx build \
                             --builder mam-builder \
                             --platform linux/amd64,linux/arm64 \

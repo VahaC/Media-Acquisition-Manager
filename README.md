@@ -212,7 +212,7 @@ The image is `vahac/media-acquisition-manager` on Docker Hub, for `linux/amd64` 
 | Tag | What it is |
 | --- | --- |
 | `latest` | The newest release. |
-| `X.Y.Z`, e.g. `0.1.0` | A release. It never changes once published. |
+| `X.Y.Z`, e.g. `0.1.0` | A release. Rebuilding it (a fix, newer base images) publishes it again under the same tag. |
 | `X.Y`, e.g. `0.1` | The newest release of that minor version. |
 
 Only releases are published; a commit to `main` is tested but never pushed.

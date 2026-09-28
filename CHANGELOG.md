@@ -85,8 +85,9 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `Jenkinsfile` runs the .NET build and tests (skipped when only documentation changed) and the
   frontend lint, build and tests on every commit to `main`, and pushes nothing. A release is
   `Jenkinsfile.publish`, started by hand with a `VERSION`: it refuses a version that differs from
-  `frontend/package.json` or is already on Docker Hub, runs the same checks as CI, and pushes
-  `X.Y.Z`, `X.Y` and `latest`. The API is stamped with the version and the commit (`0.1.0+abc1234`).
+  `frontend/package.json`, runs the same checks as CI, and pushes `X.Y.Z`, `X.Y` and `latest`.
+  Starting it again with a version that is already out rebuilds that release and moves its tags to
+  the new image. The API is stamped with the version and the commit (`0.1.0+abc1234`).
   `.env.example` documents the Compose variables, and tests keep it covering every setting of
   `appsettings.json` and every variable the Compose files read. See [PUBLISHING.md](PUBLISHING.md).
 - **Accounts and sign-in: the first visitor creates the installation owner, and everyone signs in
