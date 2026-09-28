@@ -94,11 +94,14 @@ public sealed class HealthReadinessFailureHttpTests
             Assert.Single(body.Checks, check => check.Name == "database"));
     }
 
-    // The app migrated on startup; deleting the newest history row makes that one migration pending
-    // again without touching the schema — the state an older build's database is in. Only the newest,
-    // so the expected count stays 1 however many migrations the app gains.
+    // The app migrated on startup; deleting the history row of its newest migration makes that one
+    // migration pending again without touching the schema — the state an older build's database is
+    // in. Only the newest, so the expected count stays 1 however many migrations the app gains. The
+    // newest migration the app knows, not the newest row left in the table: both tests here share one
+    // database and ResetAsync doesn't restore the history, so once the other test had run first, the
+    // newest row was the migration before it, and a second delete left two pending.
     private Task ForgetTheNewestAppliedMigrationAsync(CancellationToken cancellationToken) =>
-        _factory.WithDbAsync(db => db.Database.ExecuteSqlRawAsync(
-            "DELETE FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" = (SELECT MAX(\"MigrationId\") FROM \"__EFMigrationsHistory\");",
+        _factory.WithDbAsync(db => db.Database.ExecuteSqlAsync(
+            $"DELETE FROM \"__EFMigrationsHistory\" WHERE \"MigrationId\" = {db.Database.GetMigrations().Last()};",
             cancellationToken));
 }
