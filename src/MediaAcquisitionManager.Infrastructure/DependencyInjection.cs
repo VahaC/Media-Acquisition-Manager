@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Storage;
 using MediaAcquisitionManager.Infrastructure.Persistence;
+using MediaAcquisitionManager.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaAcquisitionManager.Infrastructure;
@@ -19,6 +20,7 @@ public static class DependencyInjection
         // resolving configuration again against a possibly different base directory.
         services.AddSingleton(storage);
         services.AddMediaAcquisitionManagerPersistence(storage);
+        services.AddSecurityInfrastructure();
         return services;
     }
 

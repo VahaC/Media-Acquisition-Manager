@@ -177,6 +177,29 @@ public sealed class FirstRunSecretsTests : IDisposable
         Assert.Equal(content, File.ReadAllText(EncryptionKeyFile));
     }
 
+    [Fact]
+    public void AddFirstRunSecrets_with_an_empty_jwt_secret_file_says_a_new_value_signs_nobody_out()
+    {
+        //Arrange
+        Directory.CreateDirectory(SecretsDirectory);
+        File.WriteAllText(JwtSecretFile, "");
+        var configuration = new ConfigurationManager();
+
+        //Act
+        var exception = Record.Exception(() => configuration.AddMediaAcquisitionManagerFirstRunSecrets(SecretsDirectory));
+
+        //Assert
+        // MAM-4 — the refresh cookie is a random value checked against the session table, not signed
+        // with this key: an operator who rotates it to evict someone must not be told it does.
+        var refusal = Assert.IsType<InvalidOperationException>(exception);
+        Assert.Equal(
+            $"The secret file {JwtSecretFile} is empty, so Jwt:Secret has no value. Restore the file " +
+            "from a backup or set Jwt:Secret explicitly. Deleting the file makes the app generate a new " +
+            "value, which makes every access token already issued stop working; open tabs quietly get a " +
+            "new one from their refresh cookie, and nobody is signed out.",
+            refusal.Message);
+    }
+
     [Fact(Skip = "Unix file modes do not exist on Windows.", SkipWhen = nameof(IsWindows))]
     [UnsupportedOSPlatform("windows")]
     public void AddFirstRunSecrets_on_Unix_keeps_the_directory_and_the_files_owner_only()

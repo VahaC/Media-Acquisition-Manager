@@ -50,7 +50,13 @@ public class Program
         builder.Services.AddSectionOptions<StorageOptions>(builder.Configuration);
         builder.Services.AddMediaAcquisitionManagerApi();
         builder.Services.TryAddSingletonTimeProvider();
+        builder.Services.AddMediaAcquisitionManagerAuth(builder.Configuration);
+        builder.Services.AddMediaAcquisitionManagerRateLimiting();
         builder.Services.AddMediaAcquisitionManagerInfrastructure(storage);
+        builder.Services.AddMediaAcquisitionManagerMappers();
+        builder.Services.AddMediaAcquisitionManagerAudit();
+        builder.Services.AddSetupFeatures();
+        builder.Services.AddAccountFeatures();
         builder.Services.AddMediaAcquisitionManagerHealthChecks();
 
         var app = builder.Build();
@@ -59,6 +65,11 @@ public class Program
         app.UseExceptionHandler();
         app.UseSecurityHeaders();
         app.UseStaticFiles();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        // After authentication and routing, so an endpoint's [EnableRateLimiting] is known; the
+        // sign-in policy partitions by address, not by user, so it needs nothing from authentication.
+        app.UseRateLimiter();
         // Includes UnknownApiController: an /api URL nothing else claims answers 404 { error }
         // instead of falling through to the SPA shell below.
         app.MapControllers();

@@ -1,0 +1,258 @@
+/* MAM-4 — the Users settings page: its header, the search box, the users table (one card per user
+   on a phone), the pager, and the layout of its two dialogs. */
+
+.users-page {
+  display: grid;
+  gap: 1rem;
+}
+
+/* `flex-wrap` so Add user drops under the title on a phone instead of squeezing it. */
+.users-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.users-intro {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.users-title {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.users-lead {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.users-search {
+  max-width: 20rem;
+}
+
+.users-muted {
+  color: var(--muted-foreground);
+}
+
+.users-error {
+  color: var(--destructive);
+}
+
+/* A failed refresh or a refused action, above the rows that stay on screen — tinted, so it reads as
+   news about the last request rather than as part of the list. */
+.users-banner {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+
+.users-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.users-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.users-table {
+  width: 100%;
+}
+
+.users-table th,
+.users-table td {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.users-table th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.users-table th:last-child {
+  text-align: right;
+}
+
+.users-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.users-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* A long name without spaces breaks rather than widening the table past the screen. */
+.users-name-text {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.users-table tr[data-disabled] .users-name-text {
+  color: var(--muted-foreground);
+}
+
+.users-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Carries the reason a button is disabled. `.ui-button:disabled` has `pointer-events: none`, so the
+   button's own title would never show on hover; the pointer lands on this wrapper instead. */
+.users-action-reason {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+
+.users-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+}
+
+.users-pager-status {
+  margin-right: auto;
+  color: var(--muted-foreground);
+}
+
+.users-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+}
+
+/* `.ui-input` is a full-width text field; a four-option select needs only its own width. */
+.users-page-size .ui-input {
+  width: auto;
+  height: 2rem;
+  padding: 0 0.5rem;
+  color: var(--foreground);
+}
+
+.users-pager-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+/* The dialogs. `.ui-dialog-content` scrolls as a whole, which would carry the buttons away with the
+   fields on a short phone screen. As a flex column capped by its max-height, the form body shrinks
+   and scrolls on its own, while the error line and the buttons stay below it. */
+.ui-dialog-content.users-dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: 28rem;
+  overflow: hidden;
+}
+
+.users-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+/* The 2px padding keeps the inputs' focus ring inside the scroller, which would clip it. */
+.users-dialog-body {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+  padding: 2px;
+  overflow-y: auto;
+}
+
+.users-dialog-error {
+  color: var(--destructive);
+}
+
+@media (max-width: 48rem) {
+  /* One card per user: the header row goes, and every cell becomes a line named by its data-label. */
+  .users-table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    overflow: visible;
+  }
+
+  .users-table thead {
+    display: none;
+  }
+
+  .users-table,
+  .users-table tbody,
+  .users-table tr {
+    display: block;
+  }
+
+  .users-table tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .users-table tr {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+  }
+
+  .users-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.375rem 0;
+    border-bottom: 0;
+    text-align: right;
+  }
+
+  .users-table td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+    text-align: left;
+  }
+
+  .users-name {
+    justify-content: flex-end;
+  }
+
+  .users-table td.users-actions-cell {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+  }
+}
+
+@media (max-width: 560px) {
+  /* Icons only on a phone; each button keeps its label in title=, which also names it. */
+  .users-actions .label-text,
+  .users-pager .label-text {
+    display: none;
+  }
+}

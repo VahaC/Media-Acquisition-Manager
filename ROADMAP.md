@@ -1,7 +1,8 @@
 # Roadmap
 
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
-localisation) and MAM-3 (the Docker image and CI) are built; no phase has shipped yet.
+localisation), MAM-3 (the Docker image and CI) and MAM-4 (accounts and sign-in) are built; no phase
+has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -33,13 +34,19 @@ existing file untouched.
   ([ADR 0001](docs/adr/0001-every-ui-string-comes-from-a-locale-resource.md)).
 - **MAM-3 Docker and CI** (built): one Docker image for amd64 and arm64 (API + built web app +
   `ffprobe`, running unprivileged), `docker-compose.yml` for the published image and
-  `docker-compose.build.yml` for a local build, both publishing the port on `127.0.0.1` until
-  sign-in exists, `deploy.sh`, a Jenkins CI pipeline that tests every commit to `main`, and a
+  `docker-compose.build.yml` for a local build, both publishing the port on `127.0.0.1` by
+  default, `deploy.sh`, a Jenkins CI pipeline that tests every commit to `main`, and a
   release pipeline, started by hand, that pushes `X.Y.Z`, `X.Y` and `latest` to Docker Hub
   ([PUBLISHING.md](PUBLISHING.md)).
-- **MAM-4 Accounts:** multi-user sign-in with an installation owner and owner-only settings,
-  short-lived access tokens with a refresh cookie, per-IP rate limits on sign-in, and an audit
-  trail.
+- **MAM-4 Accounts** (built): a first-run setup page that creates the installation owner and then
+  closes, sign-in by user name with a 15-minute access token and a rotating `HttpOnly`,
+  `SameSite=Strict` refresh cookie (sessions end after 30 days unused), a session check on every
+  request so sign-out, disable, delete and a password reset act at once
+  ([ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)), one identical 401
+  for every failed sign-in, 10 sign-in attempts a minute per client address, an owner-only Users
+  page (server-side search and paging; add, disable and enable, reset password, delete with a
+  confirmation), owner-only settings writes by namespace convention, and an audit trail. Two-factor
+  sign-in and password reset by email are out of scope.
 - **MAM-5 Personal access tokens** for scripts and other tools.
 - **MAM-6 Live environment facts:** answer the specification's open questions (§7) against the
   real installation — mount paths and which directories active torrents manage, qBittorrent
@@ -63,9 +70,10 @@ existing file untouched.
 - **MAM-14 Job tracking:** persisted jobs that follow the client's status and survive a restart.
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
-- **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db` and
-  `.secrets/`); copy it while the app is stopped. A secret set through `MAM_Encryption__Key` or
-  `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so back it up there.
+- **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
+  the accounts, sessions and audit trail too, and `.secrets/`); copy it while the app is stopped. A
+  secret set through `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead
+  of `.secrets/`, so back it up there.
 
 **Out of scope:** removing, moving or replacing any library file (Phase C); duplicate detection
 (Phase B); a second search or client adapter, Plex and Emby (Phase D); TV shows (specification

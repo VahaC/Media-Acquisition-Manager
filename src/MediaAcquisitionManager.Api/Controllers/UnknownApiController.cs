@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaAcquisitionManager.Api.Controllers;
@@ -14,8 +15,14 @@ namespace MediaAcquisitionManager.Api.Controllers;
 /// a puzzling 405. Literal routes (controllers, the health endpoints) always outrank this
 /// catch-all, so it only ever sees what nothing else claimed; the action has no HTTP-method
 /// attribute on purpose, so it matches every method.
+/// <para>
+/// MAM-4 — anonymous, and says so, as every action declares its access: an unknown path must answer
+/// 404 to everyone, signed in or not. Behind sign-in, a visitor's typo would come back as 401 and
+/// read as an expired session.
+/// </para>
 /// </remarks>
 [ApiController]
+[AllowAnonymous]
 [Route("api/{**path}")]
 public class UnknownApiController : ControllerBase
 {

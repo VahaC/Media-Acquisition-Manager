@@ -4,6 +4,7 @@
   "versionTitle": "The version you are running",
   "loading": "Loading…",
   "close": "Close",
+  "cancel": "Cancel",
   "fileSize": {
     "B": "{{value}} B",
     "KiB": "{{value}} KiB",

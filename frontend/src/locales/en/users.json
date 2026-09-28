@@ -1,0 +1,59 @@
+{
+  "title": "Users",
+  "lead": "The people who can sign in to this installation.",
+  "add": "Add user",
+  "search": {
+    "label": "Search users",
+    "placeholder": "Search by user name"
+  },
+  "columns": {
+    "userName": "User name",
+    "created": "Created",
+    "lastSignIn": "Last sign-in",
+    "actions": "Actions"
+  },
+  "owner": "Owner",
+  "disabled": "Disabled",
+  "never": "Never",
+  "actions": {
+    "enable": "Enable",
+    "disable": "Disable",
+    "resetPassword": "Reset password",
+    "delete": "Delete"
+  },
+  "ownerCannotBeDisabled": "The installation owner can't be disabled.",
+  "ownerCannotBeDeleted": "The installation owner can't be deleted.",
+  "actionFailed": "Could not change this user. Reload the page and try again.",
+  "loadFailed": "Could not load the users.",
+  "refreshFailed": "Refresh failed, showing the last loaded users.",
+  "noMatch": "No users match “{{search}}”.",
+  "clearSearch": "Clear search",
+  "pager": {
+    "label": "Pages",
+    "status": "Page {{page}} of {{pages}}",
+    "pageSize": "Per page",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "create": {
+    "title": "Add user",
+    "description": "They sign in with this user name and password. You can reset the password later.",
+    "submit": "Add user",
+    "submitting": "Adding…",
+    "failed": "Could not add the user."
+  },
+  "reset": {
+    "title": "Reset the password of {{name}}",
+    "description": "{{name}} is signed out on every device and signs in again with the new password.",
+    "descriptionSelf": "Your other devices are signed out. This one stays signed in.",
+    "newPassword": "New password",
+    "submit": "Reset password",
+    "submitting": "Saving…",
+    "failed": "Could not reset the password."
+  },
+  "delete": {
+    "title": "Delete {{name}}?",
+    "message": "{{name}} can no longer sign in and is signed out everywhere. This can't be undone.",
+    "confirm": "Delete"
+  }
+}

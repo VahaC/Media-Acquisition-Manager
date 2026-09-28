@@ -1,0 +1,33 @@
+/* MAM-4 — the user menu in the AppLayout header: a trigger with the user icon and name, and the
+   shared `.ui-menu` popup under it. */
+
+.user-menu {
+  position: relative;
+}
+
+/* A long user name is cut with an ellipsis rather than pushing the header wider than a phone. */
+.user-menu-trigger {
+  max-width: 14rem;
+}
+
+.user-menu-trigger .label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* `.ui-menu` is `position: fixed` for menus placed at the pointer. This one hangs under its button,
+   so it is positioned against `.user-menu` instead and scrolls away with the header. Two classes, so
+   it wins over `.ui-menu` whichever sheet loads first. */
+.ui-menu.user-menu-popup {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+}
+
+@media (max-width: 480px) {
+  /* The icon alone on a phone; the button keeps the name in its aria-label and title. */
+  .user-menu-trigger .label-text {
+    display: none;
+  }
+}

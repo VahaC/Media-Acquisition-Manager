@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -5,10 +6,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
+using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Options;
 using MediaAcquisitionManager.Core.Storage;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
+using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
 using MediaAcquisitionManager.TestInfrastructure.Time;
@@ -37,9 +40,13 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// </para>
 /// <para>
 /// Only seams to the outside world are replaced — today that is the clock; later the vendor
-/// clients. The app's own hosted services are removed, so a background loop never races a test;
-/// tests drive that logic directly instead. Subclass to flip behaviour (see
-/// <see cref="FirstRunApiFactory"/>, <see cref="PipelineProbeApiFactory"/>).
+/// clients. Two more stand-ins keep the suite fast and its tests independent without faking any
+/// behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
+/// records what it verifies — see <see cref="PasswordHasher"/>), and a synthetic client address per
+/// request (see <see cref="PinClientAddress"/>). The app's own hosted
+/// services are removed, so a background loop never races a test; tests drive that logic directly
+/// instead. Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
+/// <see cref="PipelineProbeApiFactory"/>).
 /// </para>
 /// </remarks>
 public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
@@ -51,8 +58,17 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     public const string TestJwtSecret =
         "o2WgVHs0skFjSqlIC1nhOoFK78306PBQmljIUxDq/v3uZXmTAxcZ3tRxz+W8ND5OsUlB8u5LPJHvduMqtio63g==";
 
+    /// <summary>
+    /// The PBKDF2 iteration count of the host's hasher. The production count costs a few hundred
+    /// milliseconds per hash, and a suite that seeds users and signs in hundreds of times would spend
+    /// minutes on nothing but that; the algorithm and the format are the real ones.
+    /// </summary>
+    public const int TestPasswordHashIterations = 1_000;
+
     private IServiceScope? _scope;
     private HttpClient? _client;
+    private int _clientAddressCount;
+    private IPAddress? _pinnedClientAddress;
 
     public MediaAcquisitionManagerApiFactory()
     {
@@ -82,6 +98,13 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     public RecordingLoggerProvider Logs { get; } = new();
 
     /// <summary>
+    /// The host's password hasher, at <see cref="TestPasswordHashIterations"/>: every hash it verifies
+    /// is recorded, and a test can run code inside the next verification. Emptied by
+    /// <see cref="ResetAsync"/>.
+    /// </summary>
+    public RecordingPasswordHasher PasswordHasher { get; } = new(TestPasswordHashIterations);
+
+    /// <summary>
     /// A DI scope for seeders and assertions, created on first use and renewed by
     /// <see cref="ResetAsync"/>, so a test never sees a DbContext that tracked the previous test's rows.
     /// </summary>
@@ -94,30 +117,53 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     protected virtual bool StartFromMigratedDatabase => true;
 
     // One client per factory, never one per test: every request is built as its own message, so
-    // nothing (a token, a header) carries over from one test to the next.
+    // nothing (a token, a header) carries over from one test to the next. MAM-4 — for the same
+    // reason no cookie jar: with one, the refresh cookie a test's sign-in set would ride along on the
+    // next test's requests. A test sends the cookie it means to, through the helpers' cookie argument.
     private HttpClient Client =>
-        _client ??= CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        _client ??= CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = false });
 
     // ── HTTP helpers ───────────────────────────────────────────────────────────────────────────
+    // token: the bearer access token, none = anonymous. cookie: the Cookie header, sent verbatim
+    // (ResponseCookie.RequestHeader, AuthorizedUser.RefreshCookie).
 
-    public Task<HttpResponseMessage> GetHttpRequest(string url, string? token = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Get, url, token, body: null));
+    public Task<HttpResponseMessage> GetHttpRequest(string url, string? token = null, string? cookie = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Get, url, token, body: null, cookie));
 
-    public Task<HttpResponseMessage> PostHttpRequest(string url, string? token = null, object? body = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Post, url, token, body));
+    public Task<HttpResponseMessage> PostHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Post, url, token, body, cookie));
 
-    public Task<HttpResponseMessage> PutHttpRequest(string url, string? token = null, object? body = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Put, url, token, body));
+    public Task<HttpResponseMessage> PutHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Put, url, token, body, cookie));
 
-    public Task<HttpResponseMessage> PatchHttpRequest(string url, string? token = null, object? body = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Patch, url, token, body));
+    public Task<HttpResponseMessage> PatchHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Patch, url, token, body, cookie));
 
-    public Task<HttpResponseMessage> DeleteHttpRequest(string url, string? token = null, object? body = null) =>
-        SendHttpRequest(CreateRequest(HttpMethod.Delete, url, token, body));
+    public Task<HttpResponseMessage> DeleteHttpRequest(string url, string? token = null, object? body = null, string? cookie = null) =>
+        SendHttpRequest(CreateRequest(HttpMethod.Delete, url, token, body, cookie));
 
     /// <summary>Sends a hand-built request — for the rare test that needs a header the helpers
     /// above don't set (a <c>traceparent</c>, say).</summary>
     public Task<HttpResponseMessage> SendHttpRequest(HttpRequestMessage request) => Client.SendAsync(request);
+
+    // ── Client address ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Makes every following request come from one new address — to trip a per-address rate limit
+    /// on purpose — until <see cref="ResetAsync"/> or the next pin. Unpinned, each request comes from
+    /// an address of its own, so no test is ever limited by another's requests.
+    /// </summary>
+    /// <remarks>
+    /// Always a fresh address, never one used before: the limiter's counters live in the host, which
+    /// outlives <see cref="ResetAsync"/>, so an address an earlier test exhausted would still be
+    /// exhausted. Pin again to get "another address" within a test.
+    /// </remarks>
+    public IPAddress PinClientAddress()
+    {
+        var address = NewClientAddress();
+        Volatile.Write(ref _pinnedClientAddress, address);
+        return address;
+    }
 
     // ── DI and database access ─────────────────────────────────────────────────────────────────
 
@@ -135,8 +181,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Puts the factory back to a clean state; every test calls it first. Empties every table of the
     /// EF model in one batched command (a round trip per table adds up across a suite), rewinds the
-    /// clock, empties <see cref="Logs"/> and renews <see cref="Scope"/>. Model-driven: a new entity
-    /// needs no line here.
+    /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, unpins the client address and
+    /// renews <see cref="Scope"/>.
+    /// Model-driven: a new entity needs no line here.
     /// </summary>
     public async Task ResetAsync()
     {
@@ -144,6 +191,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         _scope = null;
         Time.Reset();
         Logs.Clear();
+        PasswordHasher.Clear();
+        Volatile.Write(ref _pinnedClientAddress, null);
 
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -191,6 +240,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         {
             RemoveAppHostedServices(services);
             ReplaceSingleton<TimeProvider>(services, Time);
+            ReplaceSingleton<IPasswordHasher>(services, PasswordHasher);
+            // TestServer leaves the remote address empty, which would put every request of the suite
+            // into one rate-limit partition, and a sign-in test would be limited by its neighbours.
+            services.AddSingleton<IStartupFilter>(new ClientAddressStartupFilter(NextClientAddress));
             // Added beside the default providers, not instead of them: a failing run still shows
             // the host's log in the test output.
             services.AddSingleton<ILoggerProvider>(Logs);
@@ -233,14 +286,26 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         File.Copy(RepositoryPaths.FrontendIndexHtml, Path.Combine(WebRootDirectory, "index.html"), overwrite: true);
     }
 
-    private static HttpRequestMessage CreateRequest(HttpMethod method, string url, string? token, object? body)
+    private static HttpRequestMessage CreateRequest(HttpMethod method, string url, string? token, object? body, string? cookie)
     {
         var request = new HttpRequestMessage(method, url);
         if (token is not null)
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         if (body is not null)
             request.Content = JsonContent.Create(body, body.GetType(), options: JsonOptions);
+        if (cookie is not null)
+            request.Headers.Add("Cookie", cookie);
         return request;
+    }
+
+    private IPAddress NextClientAddress() => Volatile.Read(ref _pinnedClientAddress) ?? NewClientAddress();
+
+    // Counted up through 10.0.0.0/8: 16 million addresses before one repeats, far more requests than
+    // a factory ever serves.
+    private IPAddress NewClientAddress()
+    {
+        var number = Interlocked.Increment(ref _clientAddressCount);
+        return new IPAddress((byte[])[10, (byte)(number >> 16), (byte)(number >> 8), (byte)number]);
     }
 
     /// <summary>

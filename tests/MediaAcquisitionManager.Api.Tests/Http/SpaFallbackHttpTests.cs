@@ -60,6 +60,21 @@ public sealed class SpaFallbackHttpTests : IClassFixture<MediaAcquisitionManager
         Assert.Equal($"No API endpoint matches {method} {UnknownApiUrl}.", await response.ReadErrorAsync(cancellationToken));
     }
 
+    [Fact]
+    public async Task Unknown_api_route_with_an_invalid_token_is_still_404_not_401()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var response = await _factory.GetHttpRequest(UnknownApiUrl, "not-a-token");
+
+        //Assert
+        // MAM-4 — the catch-all is anonymous: a typo must not read as an expired session.
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal($"No API endpoint matches GET {UnknownApiUrl}.", await response.ReadErrorAsync(cancellationToken));
+    }
+
     [Theory]
     [InlineData("/api/v2/libraries/42/items")]
     [InlineData("/api")]

@@ -6,10 +6,11 @@ namespace MediaAcquisitionManager.TestInfrastructure.Time;
 /// </summary>
 /// <remarks>
 /// It starts at the real current time, not a fixed date. Some framework code checks against the
-/// system clock rather than the injected <see cref="TimeProvider"/> — a JWT validator, for one — and
-/// would reject anything stamped with a date in the past. For the same reason <see cref="Reset"/>
-/// returns to the real time, not to the instant the clock was created: in a long run the latter
-/// drifts further behind the system clock with every test.
+/// system clock rather than the injected <see cref="TimeProvider"/> and would reject anything stamped
+/// with a date in the past — a JWT validator does unless told otherwise (the app tells it to read
+/// this clock, MAM-4, so a test can age a token out by advancing it). For the same reason
+/// <see cref="Reset"/> returns to the real time, not to the instant the clock was created: in a long
+/// run the latter drifts further behind the system clock with every test.
 /// </remarks>
 public sealed class TestTimeProvider : TimeProvider
 {

@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { Link, Outlet } from 'react-router-dom'
 import { AppLogo } from '@/components/AppLogo'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
+import { UserMenu } from '@/components/UserMenu'
+import { useAuthStore } from '@/lib/auth-store'
 import '@/styles/app-layout.css' // .app-* — the header and content column around every page
 
 /**
- * The shell every page renders in: a header with the app name and the running version, and the
- * page itself in `<main>`. Pages are lazy, so the Suspense boundary sits here, around the outlet
- * only — the header stays put while a page's code loads.
+ * The shell every page renders in: a header with the app name, the running version and — once
+ * signed in — the user menu, and the page itself in `<main>`. Pages are lazy, so the Suspense
+ * boundary sits here, around the outlet only — the header stays put while a page's code loads.
  *
  * A page that crashes is caught here too, so its fallback fills `<main>` and the header (the way
  * back home) stays on screen. The boundary around the whole router in App.tsx is only for a
@@ -16,6 +18,7 @@ import '@/styles/app-layout.css' // .app-* — the header and content column aro
  */
 export function AppLayout() {
   const { t } = useTranslation()
+  const user = useAuthStore((state) => state.user)
 
   return (
     <div className="app-shell">
@@ -24,9 +27,12 @@ export function AppLayout() {
           <AppLogo />
           <span>{t('appName')}</span>
         </Link>
-        <span className="app-version" title={t('versionTitle')}>
-          {t('version', { version: __APP_VERSION__ })}
-        </span>
+        <div className="app-header-end">
+          <span className="app-version" title={t('versionTitle')}>
+            {t('version', { version: __APP_VERSION__ })}
+          </span>
+          {user && <UserMenu user={user} />}
+        </div>
       </header>
       <main className="app-main">
         <Suspense fallback={<p className="app-loading">{t('loading')}</p>}>

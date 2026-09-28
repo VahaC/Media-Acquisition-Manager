@@ -11,8 +11,9 @@ services:
     image: vahac/media-acquisition-manager:${APP_TAG:-latest}
     container_name: media-acquisition-manager
     restart: unless-stopped
-    # Loopback only by default: there is no sign-in until MAM-4, so publishing the port on every
-    # interface would let anyone on the network use the app. APP_BIND_ADDRESS=0.0.0.0 opens it.
+    # Loopback only by default: the app speaks plain HTTP, and until the owner account exists its
+    # setup page makes whoever opens it first the owner. APP_BIND_ADDRESS=0.0.0.0 opens it; create
+    # the owner first (.env.example has the trade-off).
     ports:
       - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8118}:8118"
     # .env is optional (required: false needs Docker Compose 2.24+). Without one the app generates

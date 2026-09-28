@@ -2,9 +2,10 @@
 
 # Media Acquisition Manager
 
-**Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built. Today the app is a
-scaffold: an API and a web shell that report their own health. Search, downloads and every
-integration are still to come; see [ROADMAP.md](ROADMAP.md).
+**Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built. Today the app is an
+API and a web shell that report their own health, with accounts: the installation owner created on
+first run, the users the owner manages, and sign-in. Search, downloads and every integration are
+still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -16,19 +17,19 @@ The initial workflow targets Jellyfin, Toloka through a Torznab-compatible index
 qBittorrent. These are intended to be the first integrations, not permanent limits on the
 application.
 
-> **Security:** there is no sign-in yet — accounts arrive with MAM-4. Until then, anyone who can
-> reach the port can use the app: run it on your own machine only and don't expose it to a network.
-> The Docker Compose file publishes the port on `127.0.0.1` for that reason. See
-> [Security](#security).
+> **Security:** until the owner account exists, whoever opens the app first becomes the owner, and
+> the app speaks plain HTTP. Create the owner first, then open the port only on a network you trust
+> or behind a reverse proxy that adds HTTPS. The Docker Compose file publishes the port on
+> `127.0.0.1` for that reason. See [Security](#security).
 
 ## Stack
 
 | Layer | Choice |
 | --- | --- |
-| API | ASP.NET Core on .NET 10, controllers |
+| API | ASP.NET Core on .NET 10, controllers, JWT bearer access tokens |
 | Data | EF Core + SQLite in WAL mode; migrations applied on startup |
 | Tests | xunit.v3, Moq, `WebApplicationFactory` over real HTTP with a throwaway SQLite database |
-| Web app | React 19, React Router 7, TanStack Query 5, axios, Radix Dialog, lucide-react, react-i18next |
+| Web app | React 19, React Router 7, TanStack Query 5, zustand, axios, Radix Dialog, lucide-react, react-i18next |
 | Build | Vite + React Compiler, strict TypeScript, ESLint, Vitest + Testing Library |
 | Styling | CSS tokens and semantic classes, no CSS framework |
 | Ship | One Docker image (API + web app) for amd64 and arm64; Jenkins tests every commit and publishes releases to Docker Hub |
@@ -37,6 +38,14 @@ application.
 
 ### Available now
 
+- **Accounts and sign-in.** The first visit creates the installation owner; everyone else signs in
+  with the user name and password the owner gave them. A session lasts 30 days from its last use,
+  and signing out, disabling a user or resetting a password takes effect at once. See
+  [Security](#security).
+- **User management for the owner.** The Users page (**Users** in the owner's user menu) searches
+  and pages through the users on the server, adds a user, disables or enables one, resets a
+  password, and deletes one after a confirmation. The owner's own account can't be disabled or
+  deleted.
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -95,9 +104,10 @@ docker compose up -d
 ```
 
 Open <http://localhost:8118>. With no configuration at all, the app creates its database and
-generates its secrets on the first start, on the `mam-data` volume. To change the image tag, the
-port or who can reach the app, copy [.env.example](.env.example) to `.env` next to the compose file
-and set only what you need; see [Deployment](#deployment).
+generates its secrets on the first start, on the `mam-data` volume, and the first page asks you to
+create the owner account, who then adds the other users. To change the image tag, the port or who
+can reach the app, copy [.env.example](.env.example) to `.env` next to the compose file and set only
+what you need; see [Deployment](#deployment).
 
 To build the image from a checkout of this repository instead of pulling it:
 
@@ -134,9 +144,52 @@ gateway proves unsuitable.
 
 ## Security
 
-- **No sign-in yet.** Accounts (an installation owner, other users, owner-only settings) arrive with
-  MAM-4 and personal access tokens with MAM-5. Until then keep the API bound to `localhost`; the
-  Docker Compose file publishes the port on `127.0.0.1` unless `APP_BIND_ADDRESS` says otherwise.
+- **Create the owner before anyone else can reach the app.** Until the owner exists, every page
+  leads to the setup page, and whoever submits it first becomes the owner; after that setup answers
+  409 for good. Every API endpoint but health, setup, sign-in, refresh and sign-out needs a
+  signed-in user, and every page of the web app but setup and sign-in leads to sign-in without one.
+  The Docker Compose file publishes the port on `127.0.0.1` unless `APP_BIND_ADDRESS` says
+  otherwise. Personal access tokens for scripts arrive with MAM-5.
+- **Plain HTTP only.** The app serves no TLS, so passwords and tokens cross the network as they are.
+  Open it only on a network you trust, or put a reverse proxy that terminates HTTPS in front of it.
+- **Passwords.** User names are 3–32 ASCII letters, digits, `.`, `-` and `_`, in any letter case;
+  passwords are 8–128 characters with no composition rules, and there is no email reset and no
+  second factor. Passwords are stored as PBKDF2-HMAC-SHA256 with 600 000 iterations and a 16-byte
+  random salt, never in a form that can be read back.
+- **Short-lived access tokens and a refresh cookie.** Sign-in returns a 15-minute access token
+  (HS256, signed with `Jwt:Secret`) that the web app keeps in memory only, and a refresh token in
+  the `mam_refresh` cookie: `HttpOnly`, `SameSite=Strict`, `Path=/api/auth`, and `Secure` when the
+  request came over HTTPS (a browser won't store a `Secure` cookie from a plain-HTTP address). A
+  session ends 30 days after its last use. Every refresh rotates the cookie, and the database keeps
+  only its SHA-256 hash; a replaced cookie presented again more than 30 seconds later revokes the
+  session, since that is what a copied cookie looks like.
+- **Every request checks its session.** A valid token is not enough: its session must still be live
+  and its user enabled, so signing out, disabling or deleting a user and resetting a password take
+  effect on the next request, not when the token expires. Disable and delete end every session of
+  the user; a reset ends all but the one it was made from. Rotating `Jwt:Secret` signs nobody out —
+  to lock someone out, disable them or reset their password
+  ([ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)).
+- **One answer to every failed sign-in.** An unknown user, a wrong password, a disabled account and
+  a blank field all get the same 401 `{ "error": "The user name or password is incorrect." }` after
+  the same single password hash, so neither the answer nor its timing tells which user names exist.
+- **Rate limit.** Sign-in and setup allow 10 attempts a minute per client address; more get 429
+  `{ "error": "Too many attempts. Wait a minute and try again." }` with `Retry-After: 60`. Refresh
+  isn't limited: its cookie holds 256 random bits.
+- **Owner-only settings.** Every action of a controller under `Controllers/Settings` that changes
+  something is owner-only because of where the controller lives, not because someone remembered an
+  attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users endpoints are
+  owner-only for reading as well. Anyone else gets 403
+  `{ "error": "Only the installation owner can do this." }`, logged as a warning.
+- **Audit trail.** Setup and every change to a user (create, disable, enable, password reset,
+  delete) write an audit row in the same transaction as the change: what happened, when, who did it
+  and to whom, with both names copied so the row outlives the users. There is no screen for it yet.
+- **Behind a reverse proxy.** The app takes the client's address from the connection and ignores
+  `X-Forwarded-For`, which any client can write. Behind a reverse proxy that address is the proxy's,
+  and a connection Docker's own proxy relays (one from the host itself to a port published on
+  `127.0.0.1`, or any connection on Docker Desktop) comes from Docker's gateway. All those clients
+  then share one sign-in limit: ten failed attempts a minute from anyone keep everyone from signing
+  in for as long as they keep at it. The app also sees plain HTTP behind a TLS-terminating proxy, so
+  the refresh cookie is not marked `Secure` there; `HttpOnly` and `SameSite=Strict` still apply.
 - **The container runs unprivileged.** The app runs as user `mam` (uid 10001), its own files belong
   to root and are read-only to it, and the only persistent place it can write is `/data` (besides
   the usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
@@ -173,7 +226,7 @@ explains each one. Every other variable in `.env` is passed to the app (see
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `APP_TAG` | `latest` | The image tag to run. Pin a release to update only when you choose to. |
-| `APP_BIND_ADDRESS` | `127.0.0.1` | The host address the port is published on. `0.0.0.0` opens the app to your network — without sign-in until MAM-4. |
+| `APP_BIND_ADDRESS` | `127.0.0.1` | The host address the port is published on. `0.0.0.0` opens the app to your network, over plain HTTP: create the owner account first, and keep to a network you trust or a reverse proxy that adds HTTPS. |
 | `APP_PORT` | `8118` | The host port. The app listens on 8118 inside the container too. |
 
 **Updating.** Keep [deploy.sh](deploy.sh) next to `docker-compose.yml` and run it from that
@@ -269,7 +322,7 @@ underscore separates sections: `MAM_Storage__DataDirectory` sets `Storage:DataDi
 | --- | --- | --- |
 | `MAM_Storage__DataDirectory` | `Data` (`/data` in the Docker image) | Directory for the SQLite database `mam.db` and the `.secrets/` directory. A relative path resolves against the API's content root. The Docker Compose file pins it to `/data`, the volume. |
 | `MAM_Encryption__Key` | generated on first run | Base64 of 32 random bytes. Will encrypt stored integration credentials (AES-256-GCM) from MAM-7 on; nothing uses it yet. |
-| `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes. Will sign sign-in tokens from MAM-4 on; nothing uses it yet. |
+| `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes (at least 32). Signs the 15-minute access tokens. Rotating it signs nobody out: the tokens already issued stop working, and open tabs quietly get new ones through their refresh cookie, which this key doesn't sign. |
 
 The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`).
 
@@ -277,8 +330,10 @@ The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCO
 `<data>/.secrets/encryption-key` or `<data>/.secrets/jwt-secret`, or generates it there on the first
 start (directory 0700 and files 0600 on Linux and macOS). A value you set explicitly always wins,
 and then no file is written. An existing file is never overwritten, and an empty one stops the
-startup with a message that says what to do: silently generating a new key would orphan everything
-encrypted with the old one. Back up `.secrets/` together with `mam.db`.
+startup with a message that says what to do and what a new value would cost: a new encryption key
+would orphan everything encrypted with the old one, while a new JWT secret only makes the access
+tokens already issued stop working (nobody is signed out). Back up `.secrets/` together with
+`mam.db`, which holds the accounts and sessions.
 
 **User Secrets (development).** A fresh checkout needs none: first-run generation covers it. To pin
 a value in development without committing it, the Api project has a `UserSecretsId`:
@@ -293,13 +348,33 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | --- | --- |
 | `GET /api/health` | Liveness: 200 while the process is up. Runs no checks. |
 | `GET /api/health/ready` | Readiness: 200 when the service is ready, 503 when a check fails. |
-| Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }` |
+| `GET /api/setup` | 200 `{ "isRequired": true }` until the owner exists, `false` after. Anonymous. |
+| `POST /api/setup` with `{ userName, password }` | Creates the owner and signs them in: 200 as for sign-in. 400 with the broken rule's sentence; 409 once an owner exists; 429 over the rate limit. Anonymous. |
+| `POST /api/auth/sign-in` with `{ userName, password }` | 200 `{ accessToken, accessTokenExpiresUtc, user: { id, userName, isOwner } }` and the `mam_refresh` cookie. Any failure: 401 `{ "error": "The user name or password is incorrect." }`; 429 over the rate limit. Anonymous. |
+| `POST /api/auth/refresh` with the cookie | 200 as for sign-in, with the cookie rotated. 401 `{ "error": "Your session has ended. Sign in again." }` and the cookie deleted; 409 when a refresh with the same cookie won a moment ago (retry). Anonymous. |
+| `POST /api/auth/sign-out` with the cookie | 204; ends the cookie's session and deletes the cookie. Needs no access token. |
+| `GET /api/auth/me` | 200 `{ id, userName, isOwner }` |
+| `GET /api/settings/users?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, userName, isOwner, isDisabled, createdUtc, lastSignInUtc }`, ordered by user name; `search` matches part of the name in any letter case. 400 for a page below 1 or a page size outside 1–100. |
+| `GET /api/settings/users/{id}` | Owner only. 200 with the user; 404. |
+| `POST /api/settings/users` with `{ userName, password }` | Owner only. 201 with the user and its `Location`; 400 with the broken rule's sentence; 409 when the name exists in any letter case. |
+| `POST /api/settings/users/{id}/disable` | Owner only. 200 with the user, whose sessions all end. 409 for the owner; 404. |
+| `POST /api/settings/users/{id}/enable` | Owner only. 200 with the user; the sessions the disable ended stay ended. 404. |
+| `POST /api/settings/users/{id}/password` with `{ password }` | Owner only. 204; every session of the user ends except the caller's own. 400 with the rule's sentence; 404. |
+| `DELETE /api/settings/users/{id}` | Owner only. 204; the user's sessions go with it. 409 for the owner; 404. |
+| Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
 Apart from the health endpoints, which answer with their own report (see
 [Health endpoints](#health-endpoints)), every failure that carries a message answers
 `{ "error": "<readable sentence>" }`. An unknown API path answers 404 JSON instead of the web app's
-page, so a mistyped API call can't look like a success.
+page, so a mistyped API call can't look like a success. A 404 for an id that doesn't exist has no
+body at all.
+
+Health, setup, sign-in, refresh and sign-out need no access token; every other endpoint needs
+`Authorization: Bearer <access token>`, and answers 401 `{ "error": "Sign in to continue." }`
+without one or when the token's session has ended. An owner-only request from anyone else answers
+403 `{ "error": "Only the installation owner can do this." }`. The refresh cookie is sent only to
+`/api/auth`. Instants are UTC with a trailing `Z`.
 
 ### Health endpoints
 
@@ -376,12 +451,16 @@ deploy.sh                                      pulls, recreates and waits for he
 Jenkinsfile                                    CI: tests every commit to main, pushes nothing
 Jenkinsfile.publish                            a release, started by hand: tests, pushes to Docker Hub
 src/
-  MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, health checks,
-                                               security headers, EF Core migrations
-  MediaAcquisitionManager.Core/                options and pure logic; no package references
-  MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets
+  MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
+                                               and sessions, user management, audit trail, health
+                                               checks, security headers, EF Core migrations
+  MediaAcquisitionManager.Core/                entities, options and pure logic (user name and
+                                               password rules); no package references
+  MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
+                                               password hashing
 tests/
-  MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock
+  MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
+                                               seeders
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
