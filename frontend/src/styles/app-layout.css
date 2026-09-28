@@ -1,0 +1,81 @@
+/* The app shell (AppLayout): a header bar and one centred content column. */
+
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* `flex-wrap` so the version label drops under the name on a narrow phone instead of squeezing
+   it or pushing the page sideways. */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* AppLogo. `flex-shrink: 0` so a long name wraps instead of squeezing the tile out of shape.
+   Fill and stroke come from tokens, which is why the logo is inline rather than an <img> of
+   favicon.svg: the tile follows the theme's primary colour. */
+.app-logo {
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+}
+
+.app-logo-tile {
+  fill: var(--primary);
+}
+
+.app-logo-mark {
+  stroke: var(--primary-foreground);
+}
+
+.app-brand:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.app-version {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.app-loading {
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0.625rem 1rem;
+  }
+
+  .app-main {
+    padding: 1rem;
+  }
+}

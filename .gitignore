@@ -40,3 +40,11 @@ coverage/
 *.coveragexml
 
 /graphify-out
+
+## Runtime data
+# SQLite database (mam.db) and first-run secrets that `dotnet run` creates in the Api project.
+src/MediaAcquisitionManager.Api/Data/
+
+## Built SPA
+# frontend/dist copied into the API web root to serve it without the Vite dev server.
+src/MediaAcquisitionManager.Api/wwwroot/

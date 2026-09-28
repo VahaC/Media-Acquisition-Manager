@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>37b5a530-7ad5-494b-a983-ed80f60eb873</UserSecretsId>
+    <!-- The version of record is frontend/package.json; a release build is stamped from it. This
+         fallback only names a local build, and says "dev" so nobody mistakes it for a release. -->
+    <Version>0.0.0-dev</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MediaAcquisitionManager.Core\MediaAcquisitionManager.Core.csproj" />
+    <ProjectReference Include="..\MediaAcquisitionManager.Infrastructure\MediaAcquisitionManager.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Design-time only (dotnet ef): PrivateAssets keeps Roslyn and the scaffolder out of the app's
+       runtime dependencies. Same exact version as every other EF Core package. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MediaAcquisitionManager.Api.Tests" />
+    <InternalsVisibleTo Include="MediaAcquisitionManager.TestInfrastructure" />
+  </ItemGroup>
+
+</Project>

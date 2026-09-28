@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- xunit.v3 test projects are executables; the VSTest adapter launches them. -->
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- Applies the default filter (no Category=RequiresDocker) to every `dotnet test` of this
+         project, so no command-line settings flag is needed. -->
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)/.runsettings</RunSettingsFilePath>
+  </PropertyGroup>
+
+  <!-- Pinned exactly. xunit.v3 stays on 3.x: 4.x (and JunitXml.TestLogger 8.x) run on
+       Microsoft.Testing.Platform v2, which refuses the VSTest target that `dotnet test` and
+       run-tests.sh use on the .NET 10 SDK. -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="JunitXml.TestLogger" Version="7.1.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="Moq" Version="4.21.0" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MediaAcquisitionManager.Infrastructure\MediaAcquisitionManager.Infrastructure.csproj" />
+    <ProjectReference Include="..\MediaAcquisitionManager.TestInfrastructure\MediaAcquisitionManager.TestInfrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

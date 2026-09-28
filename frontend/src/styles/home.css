@@ -1,0 +1,75 @@
+/* HomePage: the introduction and the service status card. */
+
+.home-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.home-intro {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.home-title {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.home-lead {
+  max-width: 42rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.home-muted {
+  color: var(--muted-foreground);
+}
+
+.home-error {
+  color: var(--destructive);
+}
+
+/* Sits above the kept status after a failed refresh — tinted, so it reads as news about the
+   refresh rather than as the status itself. */
+.home-banner {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+
+.home-status {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.home-status-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* Only the icon takes the status colour; the label stays in --foreground. The status greens and
+   ambers reach about 3.3:1 on the light card, short of the 4.5:1 WCAG AA wants for 15px text. */
+.home-status[data-status='Healthy'] .home-status-line svg {
+  color: var(--status-up);
+}
+
+.home-status[data-status='Degraded'] .home-status-line svg {
+  color: var(--status-attention);
+}
+
+.home-status[data-status='Unhealthy'] .home-status-line svg {
+  color: var(--status-down);
+}
+
+.home-status-checks {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1.5rem;
+  list-style: disc;
+}

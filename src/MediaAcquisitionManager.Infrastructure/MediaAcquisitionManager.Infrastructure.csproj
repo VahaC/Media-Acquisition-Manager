@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MediaAcquisitionManager.Core\MediaAcquisitionManager.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Pinned exactly: a floating range lets a build pick up a package the moment it is published,
+       before its own dependencies have propagated. Every EF Core package shares one version. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <!-- AddInMemoryCollection for the first-run secrets; EF Core only brings the abstractions. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MediaAcquisitionManager.Api" />
+    <InternalsVisibleTo Include="MediaAcquisitionManager.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="MediaAcquisitionManager.TestInfrastructure" />
+  </ItemGroup>
+
+</Project>

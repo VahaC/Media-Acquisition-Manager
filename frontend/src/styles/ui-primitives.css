@@ -1,0 +1,432 @@
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.ui-badge-default {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ui-badge-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.ui-badge-destructive {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+}
+
+.ui-badge-outline {
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+  cursor: pointer;
+}
+
+.ui-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.ui-button:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.ui-button-default {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ui-button-default:hover {
+  background: color-mix(in srgb, var(--primary) 90%, transparent);
+}
+
+.ui-button-destructive {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+}
+
+.ui-button-destructive:hover {
+  background: color-mix(in srgb, var(--destructive) 90%, transparent);
+}
+
+.ui-button-outline {
+  border: 1px solid var(--input);
+  background: var(--background);
+}
+
+.ui-button-outline:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ui-button-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.ui-button-secondary:hover {
+  background: color-mix(in srgb, var(--secondary) 80%, transparent);
+}
+
+.ui-button-ghost:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ui-button-link {
+  color: var(--primary);
+  text-underline-offset: 4px;
+}
+
+.ui-button-link:hover {
+  text-decoration: underline;
+}
+
+.ui-button-size-default {
+  height: 2.25rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.ui-button-size-sm {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+}
+
+.ui-button-size-lg {
+  height: 2.5rem;
+  padding: 0 1.5rem;
+  font-size: 0.875rem;
+}
+
+.ui-button-size-icon {
+  height: 2rem;
+  width: 2rem;
+}
+
+.ui-button-danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--destructive);
+}
+.ui-button-danger:hover {
+  color: var(--destructive);
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+}
+
+.ui-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--card-foreground);
+}
+
+.ui-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1rem;
+}
+
+.ui-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.ui-card-description {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.ui-card-content {
+  padding: 0 1rem 1rem;
+}
+
+.ui-card-footer {
+  display: flex;
+  align-items: center;
+  padding: 0 1rem 1rem;
+}
+
+.ui-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.ui-dialog-content.confirm-dialog {
+  max-width: 26rem;
+}
+
+.confirm-dialog .ui-dialog-description {
+  white-space: pre-line;
+}
+
+/* The type-the-name field, on the confirmations where a mis-click costs an outage. Its own block
+   between the message and the footer so the name being asked for sits directly under the sentence
+   that explains why. */
+.confirm-dialog-typed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+
+.confirm-dialog-typed code {
+  color: var(--foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.ui-dialog-content {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  display: grid;
+  width: 100%;
+  max-width: 42rem;
+  transform: translate(-50%, -50%);
+  gap: 1rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 1rem;
+  box-shadow: var(--shadow-lg);
+  max-height: 95dvh;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.ui-dialog-close {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  border-radius: var(--radius-sm);
+  opacity: 0.7;
+  transition: opacity 160ms ease;
+}
+
+.ui-dialog-close:hover {
+  opacity: 1;
+}
+
+.ui-dialog-close:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.ui-dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  text-align: center;
+}
+
+/* Stacked on narrow screens, in DOM order: the primary on top, Cancel at the bottom — the
+   same reading order the >=640px row lays out left to right. shadcn ships `column-reverse`
+   here because its own footers put Cancel first in the DOM; this app puts the primary first,
+   so the reverse flipped Cancel to the top, and it carried no gap, leaving the two buttons
+   stacked edge to edge. */
+.ui-dialog-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ui-dialog-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: var(--tracking-tight);
+}
+
+.ui-dialog-description {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.ui-input {
+  display: flex;
+  height: 2.25rem;
+  width: 100%;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.ui-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.ui-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.ui-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ui-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ui-label:has(+ .peer:disabled),
+.peer:disabled ~ .ui-label,
+.peer:disabled + .ui-label {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ui-textarea {
+  display: flex;
+  min-height: 60px;
+  width: 100%;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.ui-textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+.ui-textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.ui-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (min-width: 640px) {
+  .ui-card-header {
+    padding: 1.5rem;
+  }
+
+  .ui-card-content {
+    padding: 0 1.5rem 1.5rem;
+  }
+
+  .ui-card-footer {
+    padding: 0 1.5rem 1.5rem;
+  }
+
+  .ui-dialog-content {
+    max-height: 90vh;
+    padding: 1.5rem;
+  }
+
+  .ui-dialog-header {
+    text-align: left;
+  }
+
+  .ui-dialog-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+/* ── Popup menus ──────────────────────────────────────────────────────────
+   The shared context / kebab menu, used by every page and by `FloatingMenu` /
+   `MenuSubmenu`. Lives here rather than in a page stylesheet so a menu never
+   depends on which page imported what. */
+
+.ui-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 160px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  /* A long menu no longer fits a phone in landscape. FloatingMenu only flips
+     the menu to the other side of the pointer; without a cap it would simply be
+     clipped at the other edge and the rows past the fold would be unreachable. */
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+}
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--foreground);
+  background: none;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.ui-menu-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.ui-menu-item:disabled { opacity: .5; cursor: not-allowed; }
+.ui-menu-item--danger { color: var(--destructive); }
+.ui-menu-item--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+}
+.ui-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* A submenu inside any of the above (`MenuSubmenu`). The flyout reuses
+   `ui-menu` for its chrome and `ui-menu-item` for its rows, so only the
+   anchor, the side panel and the caret are new. */
+.ui-menu-subwrap { position: relative; }
+.ui-menu-caret { margin-left: auto; color: var(--muted-foreground); }
+/* The parent row stays highlighted while its flyout is open — that band is what
+   tells you which row the panel belongs to. */
+.ui-menu-item.is-open { background: color-mix(in srgb, var(--foreground) 10%, transparent); }
+/* The flyout is portaled to <body> and placed in viewport coordinates by
+   MenuSubmenu, so it needs no offsets of its own — it inherits `position: fixed`
+   from `.ui-menu`. It has to leave the parent menu's DOM subtree because
+   `.ui-menu` has a `max-height` + `overflow-y: auto`, and a box that
+   scrolls on one axis clips on both: an absolutely-positioned panel at
+   `left: 100%` could no longer paint outside it, and widened the menu's scroll
+   area instead of appearing beside it. `.is-left` is kept as a marker for the
+   side it opened on. */
+.ui-menu-flyout { margin: 0; }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default filter for every `dotnet test` of this project: tests tagged Category=RequiresDocker need
+  a real Docker daemon and run in their own CI job. VSTest ANDs this filter with a command-line
+  filter, so to run those tests pass an empty RunSettingsFilePath property together with the
+  command-line filter Category=RequiresDocker.
+-->
+<RunSettings>
+  <RunConfiguration>
+    <TestCaseFilter>Category!=RequiresDocker</TestCaseFilter>
+  </RunConfiguration>
+</RunSettings>

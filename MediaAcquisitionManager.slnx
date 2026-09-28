@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MediaAcquisitionManager.Api/MediaAcquisitionManager.Api.csproj" />
+    <Project Path="src/MediaAcquisitionManager.Core/MediaAcquisitionManager.Core.csproj" />
+    <Project Path="src/MediaAcquisitionManager.Infrastructure/MediaAcquisitionManager.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MediaAcquisitionManager.Api.Tests/MediaAcquisitionManager.Api.Tests.csproj" />
+    <Project Path="tests/MediaAcquisitionManager.Core.Tests/MediaAcquisitionManager.Core.Tests.csproj" />
+    <Project Path="tests/MediaAcquisitionManager.Infrastructure.Tests/MediaAcquisitionManager.Infrastructure.Tests.csproj" />
+    <Project Path="tests/MediaAcquisitionManager.TestInfrastructure/MediaAcquisitionManager.TestInfrastructure.csproj" />
+  </Folder>
+</Solution>

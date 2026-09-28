@@ -1,0 +1,27 @@
+# Normalize line endings across platforms. Without this, a Windows checkout with
+# core.autocrlf=true materializes source files (including the .cs tests whose
+# multi-line YAML fixtures are compared against LF-escaped expectations) as CRLF,
+# which fails byte-exact string assertions. Pin all text to LF in the working tree
+# so checkouts are consistent everywhere (local, CI, fresh clone).
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF to run correctly.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+*.sln   text eol=crlf
+
+# Common binary assets — never touch their bytes.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
