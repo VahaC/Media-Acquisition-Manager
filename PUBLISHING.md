@@ -45,9 +45,9 @@ The API inside the image is stamped with the version and the commit, for example
 3. **The Jenkins host** needs the Docker CLI with the buildx plugin and access to the Docker daemon,
    and the Docker Pipeline and JUnit plugins (Backend and Frontend run inside the
    `mcr.microsoft.com/dotnet/sdk:10.0` and `node:24-alpine` images). The release job creates a
-   buildx builder named `mam-builder` (the `docker-container` driver) on its first run and keeps it:
-   it brings its own emulation for the arm64 half of the image, and its cache makes later builds
-   faster. `docker buildx rm mam-builder` drops it and its cache.
+   buildx builder named `mam-builder` (the `docker-container` driver, which brings its own emulation
+   for the arm64 half of the image) for each run and removes it afterwards, so no BuildKit container
+   stays running between releases.
 4. **The jobs.** Two items of the kind *Pipeline*, each with *Pipeline script from SCM*: Git,
    repository `https://github.com/VahaC/Media-Acquisition-Manager.git`, credentials `github-pat`,
    branch `*/main`.

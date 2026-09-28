@@ -125,15 +125,16 @@ pipeline {
 
                         printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
 
-                        # A builder that outlives the build keeps BuildKit's layer and package caches,
-                        # so an unchanged apt or npm layer isn't rebuilt under arm64 emulation every
-                        # time. --pull still checks the base images on every build, and a new base
-                        # (Microsoft rebuilds aspnet:10.0 for every .NET patch) invalidates the cached
-                        # layers above it, which is how Ubuntu's security fixes reach the image.
-                        docker buildx inspect mam-builder > /dev/null 2>&1 \
-                            || docker buildx create --name mam-builder --driver docker-container --bootstrap
+                        # A docker-container builder: the default docker driver can't build two
+                        # platforms at once, and this one brings its own arm64 emulation. It lives only
+                        # for this build (removed in post below), so no BuildKit container keeps
+                        # running on the Jenkins host between releases. One left behind by a killed
+                        # build is replaced here.
+                        docker buildx rm --force mam-builder > /dev/null 2>&1 || true
+                        docker buildx create --name mam-builder --driver docker-container --bootstrap
 
-                        # X.Y.Z never moves; X.Y and latest follow the newest release.
+                        # X.Y.Z never moves; X.Y and latest follow the newest release. --pull fetches
+                        # the newest base images, which is how Ubuntu's security fixes reach the image.
                         docker buildx build \
                             --builder mam-builder \
                             --platform linux/amd64,linux/arm64 \
@@ -150,6 +151,7 @@ pipeline {
             }
             post {
                 always {
+                    sh 'docker buildx rm --force mam-builder || true'
                     sh 'docker logout || true'
                 }
             }
