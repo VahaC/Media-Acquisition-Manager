@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { ChunkRecoveryOutcome } from '@/lib/chunk-reload'
 
@@ -20,23 +21,26 @@ interface AppErrorFallbackProps {
  * deliberately plain: it has to work when an arbitrary part of the app is
  * broken, so it pulls in no data, no icons, and no page-specific stylesheet —
  * only the always-loaded primitives from `index.css` / `ui-primitives.css`.
+ * Its text comes from the `errors` resources, which are bundled and in memory
+ * before the first render, so no failing request can take them away.
  */
 export function AppErrorFallback({ kind, onRetry }: AppErrorFallbackProps) {
-  const { title, body, action } = describe(kind)
+  const { t } = useTranslation('errors')
+  const { copy, action } = describe(kind)
 
   return (
     <div className="app-error-fallback" role="alert">
       <div className="ui-card app-error-card">
         <div className="ui-card-header">
-          <h2 className="ui-card-title">{title}</h2>
-          <p className="ui-card-description">{body}</p>
+          <h2 className="ui-card-title">{t(`fallback.${copy}.title`)}</h2>
+          <p className="ui-card-description">{t(`fallback.${copy}.body`)}</p>
         </div>
         <div className="ui-card-footer">
           {action === 'retry' && onRetry && (
-            <Button type="button" onClick={onRetry}>Try again</Button>
+            <Button type="button" onClick={onRetry}>{t('fallback.tryAgain')}</Button>
           )}
           {action === 'reload' && (
-            <Button type="button" onClick={() => window.location.reload()}>Reload the page</Button>
+            <Button type="button" onClick={() => window.location.reload()}>{t('fallback.reload')}</Button>
           )}
         </div>
       </div>
@@ -44,32 +48,19 @@ export function AppErrorFallback({ kind, onRetry }: AppErrorFallbackProps) {
   )
 }
 
+/** Which `errors:fallback.*` text to show, and which button goes with it. */
 function describe(kind: AppErrorKind): {
-  title: string
-  body: string
+  copy: 'reloading' | 'exhausted' | 'crash'
   action: 'retry' | 'reload' | 'none'
 } {
   switch (kind) {
     case 'reloading':
       // A reload is already under way; this frame is on screen for a moment at
       // most. No button — offering one invites a second reload mid-flight.
-      return {
-        title: 'Loading the new version…',
-        body: 'The app was updated while this page was open. Reloading to pick up the new build.',
-        action: 'none',
-      }
+      return { copy: 'reloading', action: 'none' }
     case 'exhausted':
-      return {
-        title: 'Could not load this page',
-        body: 'Part of the app failed to load even after a refresh. If this keeps happening, '
-          + 'the running build may be incomplete — check the container logs.',
-        action: 'reload',
-      }
+      return { copy: 'exhausted', action: 'reload' }
     default:
-      return {
-        title: 'Something went wrong',
-        body: 'This page hit an unexpected error. The rest of the app is still usable.',
-        action: 'retry',
-      }
+      return { copy: 'crash', action: 'retry' }
   }
 }

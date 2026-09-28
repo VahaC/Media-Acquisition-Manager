@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios'
 import { clsx, type ClassValue } from 'clsx'
+import { i18n } from './i18n'
 
 /**
  * Joins class names, dropping falsy ones. Plain clsx: there is no Tailwind, so there are no
@@ -13,10 +14,11 @@ export function cn(...inputs: ClassValue[]): string {
  * The sentence to show for a failed request.
  *
  * The API answers every failure that carries a message with `{ "error": "<sentence>" }`, so that
- * sentence wins. A request that got no response at all never reached the API, and saying so is
- * more useful than axios's "Network Error". Anything else — a proxy's HTML error page, a bare
- * status — has nothing readable in it and gets `fallback`, which the caller words for its context
- * (`getApiErrorMessage(error) ?? 'Could not load …'`).
+ * sentence wins. It stays the API's English sentence in every UI language (ADR 0001). A request
+ * that got no response at all never reached the API, and saying so is more useful than axios's
+ * "Network Error". Anything else — a proxy's HTML error page, a bare status — has nothing readable
+ * in it and gets `fallback`, which the caller words for its context
+ * (`getApiErrorMessage(error) ?? t('loadFailed')`).
  */
 export function getApiErrorMessage(error: unknown): string | undefined
 export function getApiErrorMessage(error: unknown, fallback: string): string
@@ -29,7 +31,7 @@ export function getApiErrorMessage(error: unknown, fallback?: string): string | 
     }
     // A cancelled request has no response either, but it is not a failure anyone should read.
     if (!error.response && error.code !== 'ERR_CANCELED') {
-      return 'The server could not be reached. Check that it is running, then try again.'
+      return i18n.t('errors:serverUnreachable')
     }
   }
   return fallback

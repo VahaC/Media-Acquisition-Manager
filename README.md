@@ -27,7 +27,7 @@ application.
 | API | ASP.NET Core on .NET 10, controllers |
 | Data | EF Core + SQLite in WAL mode; migrations applied on startup |
 | Tests | xunit.v3, Moq, `WebApplicationFactory` over real HTTP with a throwaway SQLite database |
-| Web app | React 19, React Router 7, TanStack Query 5, axios, Radix Dialog, lucide-react |
+| Web app | React 19, React Router 7, TanStack Query 5, axios, Radix Dialog, lucide-react, react-i18next |
 | Build | Vite + React Compiler, strict TypeScript, ESLint, Vitest + Testing Library |
 | Styling | CSS tokens and semantic classes, no CSS framework |
 | Ship | One Docker image (API + web app), Jenkins, Docker Hub — planned for MAM-3 |
@@ -230,6 +230,20 @@ Readiness checks the database: it must open and have every migration applied. `s
 }
 ```
 
+## Translations
+
+The web app is in English, and every text it shows comes from
+`frontend/src/locales/en/<feature>.json` through react-i18next — never from a component
+([ADR 0001](docs/adr/0001-every-ui-string-comes-from-a-locale-resource.md)). New text gets a key in
+the feature's file and is rendered with `t()`; `npm run lint` refuses literal text in markup, and
+`npm run build` fails on a key that doesn't exist. Show dates, numbers and file sizes with the
+helpers in `frontend/src/lib/format.ts`, which follow the UI locale.
+
+To add a language, copy `frontend/src/locales/en/` to a folder named after its language code,
+translate the values (keep the keys and the `{{placeholders}}`), and add it to `resources` in
+`frontend/src/lib/i18n.ts`. Browsers that prefer that language then get it; anything not yet
+translated falls back to English. Messages from the API stay in English.
+
 ## Tests
 
 The whole .NET suite:
@@ -274,6 +288,7 @@ tests/
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
 frontend/                                      React web app (Vite, TypeScript, React Compiler)
+  src/locales/                                 UI text, one folder per language, one file per feature
   src/release-notes/                           user-facing What's new, one file per version
 docs/
   Media_Acquisition_Manager_Spec.md            development specification

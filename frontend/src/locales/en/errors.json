@@ -1,0 +1,19 @@
+{
+  "serverUnreachable": "The server could not be reached. Check that it is running, then try again.",
+  "fallback": {
+    "reloading": {
+      "title": "Loading the new version…",
+      "body": "The app was updated while this page was open. Reloading to pick up the new build."
+    },
+    "exhausted": {
+      "title": "Could not load this page",
+      "body": "Part of the app failed to load even after a refresh. If this keeps happening, the running build may be incomplete — check the container logs."
+    },
+    "crash": {
+      "title": "Something went wrong",
+      "body": "This page hit an unexpected error. The rest of the app is still usable."
+    },
+    "tryAgain": "Try again",
+    "reload": "Reload the page"
+  }
+}

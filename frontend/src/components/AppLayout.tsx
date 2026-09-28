@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Outlet } from 'react-router-dom'
 import { AppLogo } from '@/components/AppLogo'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
@@ -14,19 +15,21 @@ import '@/styles/app-layout.css' // .app-* — the header and content column aro
  * failure in this shell itself.
  */
 export function AppLayout() {
+  const { t } = useTranslation()
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <Link to="/" className="app-brand">
           <AppLogo />
-          <span>Media Acquisition Manager</span>
+          <span>{t('appName')}</span>
         </Link>
-        <span className="app-version" title="The version you are running">
-          v{__APP_VERSION__}
+        <span className="app-version" title={t('versionTitle')}>
+          {t('version', { version: __APP_VERSION__ })}
         </span>
       </header>
       <main className="app-main">
-        <Suspense fallback={<p className="app-loading">Loading…</p>}>
+        <Suspense fallback={<p className="app-loading">{t('loading')}</p>}>
           <RouteErrorBoundary>
             <Outlet />
           </RouteErrorBoundary>

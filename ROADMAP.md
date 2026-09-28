@@ -1,7 +1,7 @@
 # Roadmap
 
-**Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold) is being built;
-no phase has shipped yet.
+**Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold) and MAM-2 (UI
+localisation) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -23,12 +23,14 @@ existing file untouched.
 
 **Scope:**
 
-- **MAM-1 Scaffold** (in progress): the solution and its test projects, the React web app shell
+- **MAM-1 Scaffold** (built): the solution and its test projects, the React web app shell
   with a service status card, `/api/health` and `/api/health/ready`, security headers with a
   hash-pinned CSP, SQLite in WAL mode with migrations applied on startup, first-run secrets, the
   real-HTTP test harness, and the project docs.
-- **MAM-2 Internationalisation:** react-i18next with English resources; every UI string goes
-  through `t()`, so other languages can be added later.
+- **MAM-2 Internationalisation** (built): react-i18next with English resources split by feature;
+  every UI string goes through `t()`, dates, numbers and file sizes are formatted in the UI locale,
+  and lint refuses literal text in markup, so other languages can be added later
+  ([ADR 0001](docs/adr/0001-every-ui-string-comes-from-a-locale-resource.md)).
 - **MAM-3 Docker and CI:** one Docker image (API + built web app), `docker-compose.yml`, a Jenkins
   pipeline, and images published to Docker Hub.
 - **MAM-4 Accounts:** multi-user sign-in with an installation owner and owner-only settings,

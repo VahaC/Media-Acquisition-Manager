@@ -57,3 +57,13 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **Project docs (MAM-1).** A README, this changelog, a ROADMAP with phases A–D, the development
   specification moved to `docs/`, an ADR template, `.env.example`, and a `.gitattributes` that keeps
   text files LF (Windows scripts stay CRLF).
+- **Every text in the web app comes from a translation resource (MAM-2, ADR 0001).** react-i18next
+  reads English resources from `frontend/src/locales/en/`, one JSON file per feature, bundled so the
+  first render already has its text. English is the only language; the UI runs in the first locale
+  the browser prefers whose language has resources, and there is no language picker until a second
+  one exists. Adding a language means adding its resource folder and registering it in
+  `lib/i18n.ts`. Keys are typed, so a mistyped key fails the build. Dates, numbers and file sizes are
+  formatted with Intl in the UI locale (`lib/format.ts`): a British browser gets `28/09/2026`, and
+  sizes count in 1024 steps as `7.94 GiB`, the same number qBittorrent and Toloka show. A lint rule
+  refuses literal text in component markup. API messages stay English sentences. The `<html lang>`
+  attribute and the tab title follow the UI locale.

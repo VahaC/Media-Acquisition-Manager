@@ -1,0 +1,14 @@
+{
+  "appName": "Media Acquisition Manager",
+  "version": "v{{version}}",
+  "versionTitle": "The version you are running",
+  "loading": "Loading…",
+  "close": "Close",
+  "fileSize": {
+    "B": "{{value}} B",
+    "KiB": "{{value}} KiB",
+    "MiB": "{{value}} MiB",
+    "GiB": "{{value}} GiB",
+    "TiB": "{{value}} TiB"
+  }
+}

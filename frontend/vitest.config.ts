@@ -11,6 +11,9 @@ export default mergeConfig(
       globals: true,
       css: false,
       setupFiles: ['./src/test/setup.ts'],
+      // One zone on every machine, and not UTC: a date shown in UTC instead of local time then
+      // fails a test instead of passing by coincidence on a UTC build agent.
+      env: { TZ: 'Europe/Kyiv' },
     },
   }),
 )

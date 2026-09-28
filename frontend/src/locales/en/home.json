@@ -1,0 +1,14 @@
+{
+  "title": "Welcome",
+  "lead": "Media Acquisition Manager is a self-hosted place to search your media library and release sources side by side, and to send the release you choose to your download client.",
+  "status": {
+    "title": "Service status",
+    "description": "Whether the server and its database are ready. Checked again every minute.",
+    "refreshFailed": "Refresh failed, showing the last known status.",
+    "loadFailed": "Could not check the service status.",
+    "ready": "Ready",
+    "readyWithWarnings": "Ready, with warnings",
+    "notReady": "Not ready",
+    "checkFailed": "The {{name}} check failed."
+  }
+}

@@ -1,9 +1,11 @@
 /* eslint-disable react-refresh/only-export-components -- useConfirm and ConfirmProvider share one private context, so they live in one module */
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
+/** Every text is already translated by the caller; the defaults come from the `confirm` resources. */
 export interface ConfirmOptions {
   /** Heading. Defaults to "Are you sure?". */
   title?: string
@@ -44,6 +46,7 @@ export function useConfirm(): ConfirmFn {
 
 /** App-wide provider that hosts the single confirmation modal. Mount once near the root. */
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation('confirm')
   const [options, setOptions] = useState<ConfirmOptions | null>(null)
   const [typed, setTyped] = useState('')
   const resolver = useRef<((value: boolean) => void) | null>(null)
@@ -72,7 +75,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
         {options && (
           <DialogContent className="confirm-dialog">
             <DialogHeader>
-              <DialogTitle>{options.title ?? 'Are you sure?'}</DialogTitle>
+              <DialogTitle>{options.title ?? t('title')}</DialogTitle>
               <DialogDescription asChild>
                 <div>{options.message}</div>
               </DialogDescription>
@@ -81,11 +84,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             {options.requireTyped !== undefined && (
               <label className="confirm-dialog-typed">
                 <span>
-                  Type <code>{options.requireTyped}</code> to confirm
+                  {/* The name is a React child of the <code> element, never part of the string
+                      Trans parses and interpolates: a name containing "<strong>" or "{{text}}"
+                      shows those characters instead of becoming markup or a placeholder. */}
+                  <Trans t={t} i18nKey="typeToConfirm" components={{ name: <code>{options.requireTyped}</code> }} />
                 </span>
                 <Input
                   value={typed}
-                  aria-label={`Type ${options.requireTyped} to confirm`}
+                  aria-label={t('typeToConfirmLabel', { text: options.requireTyped })}
                   autoComplete="off"
                   autoFocus
                   onChange={(event) => setTyped(event.target.value)}
@@ -101,9 +107,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 disabled={!confirmable}
                 onClick={() => settle(true)}
               >
-                {options.confirmLabel ?? 'Confirm'}
+                {options.confirmLabel ?? t('confirm')}
               </Button>
-              <Button variant="outline" onClick={() => settle(false)}>{options.cancelLabel ?? 'Cancel'}</Button>
+              <Button variant="outline" onClick={() => settle(false)}>{options.cancelLabel ?? t('cancel')}</Button>
             </DialogFooter>
           </DialogContent>
         )}

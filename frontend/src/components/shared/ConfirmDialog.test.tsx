@@ -79,6 +79,20 @@ describe('ConfirmDialog', () => {
     expect(labels).toEqual(['Delete', 'Cancel'])
   })
 
+  it('uses its default title and labels when the caller gives none', async () => {
+    // Arrange
+    const { user } = renderAsker({ message: 'This removes it from the app.' })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Ask' }))
+
+    // Assert
+    const dialog = screen.getByRole('dialog', { name: 'Are you sure?' })
+    const footer = within(dialog).getByRole('button', { name: 'Confirm' }).parentElement!
+    expect(within(footer).getAllByRole('button').map((button) => button.textContent)).toEqual(['Confirm', 'Cancel'])
+    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
   it('keeps the confirm button disabled until the required text is typed', async () => {
     // Arrange
     const { onAnswer, user } = renderAsker({ ...deleteOptions, requireTyped: 'Movies 4K' })
@@ -93,6 +107,23 @@ describe('ConfirmDialog', () => {
     // Assert
     expect(disabledBefore).toBe(true)
     expect(onAnswer).toHaveBeenCalledWith(true)
+  })
+
+  it('shows a name to type exactly as written, even when it looks like markup or a placeholder', async () => {
+    // Arrange
+    const name = 'Movies <strong>4K</strong> & <code>/HDR</code> {{text}} {{ns}} &amp;'
+    const { user } = renderAsker({ ...deleteOptions, requireTyped: name })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Ask' }))
+
+    // Assert
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.querySelectorAll('code')).toHaveLength(1)
+    expect(dialog.querySelector('code')!.textContent).toBe(name)
+    expect(dialog.querySelector('code')!.parentElement!.textContent).toBe(`Type ${name} to confirm`)
+    expect(dialog.querySelector('strong')).toBeNull()
+    expect(screen.getByRole('textbox', { name: `Type ${name} to confirm` })).toBeInTheDocument()
   })
 
   it('does not accept a partly typed name', async () => {

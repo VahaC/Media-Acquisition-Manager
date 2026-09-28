@@ -1,0 +1,7 @@
+{
+  "title": "Are you sure?",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "typeToConfirm": "Type <name/> to confirm",
+  "typeToConfirmLabel": "Type {{text}} to confirm"
+}
