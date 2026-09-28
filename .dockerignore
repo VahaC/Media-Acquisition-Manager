@@ -1,0 +1,26 @@
+# The build context is an allowlist (MAM-3): the image is built from src/ and frontend/ only, so
+# everything else — .git, tests, docs, a local .env, tool output — never reaches the builder. Docker
+# doesn't read .gitignore, and a denylist quietly lets in whatever nobody thought to list.
+*
+!src/
+!frontend/
+
+# Inside the allowed folders, drop what the build regenerates.
+**/bin
+**/obj
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# State a local `dotnet run` created: a database, generated secrets or a copied web app must never be
+# baked into an image layer, where every pull of the image would get them.
+src/MediaAcquisitionManager.Api/Data
+src/MediaAcquisitionManager.Api/wwwroot
+**/*.user
+
+# The Secrets group of .gitignore, repeated because Docker doesn't read .gitignore. An
+# appsettings.Production.json would even be loaded: the image runs as Production.
+**/.secrets
+**/.env*
+**/*.pfx
+**/appsettings.Production.json

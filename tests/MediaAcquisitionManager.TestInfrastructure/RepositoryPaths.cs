@@ -17,6 +17,21 @@ public static class RepositoryPaths
     /// inline theme script whose hash the CSP pins lives.</summary>
     public static string FrontendIndexHtml => Path.Combine(Root, "frontend", "index.html");
 
+    /// <summary>The image definition: its HEALTHCHECK probes the app, and it sets the data directory.</summary>
+    public static string Dockerfile => Path.Combine(Root, "Dockerfile");
+
+    /// <summary>The Compose file that runs the published image.</summary>
+    public static string DockerCompose => Path.Combine(Root, "docker-compose.yml");
+
+    /// <summary>The Compose file that builds the image from the checkout.</summary>
+    public static string DockerComposeBuild => Path.Combine(Root, "docker-compose.build.yml");
+
+    /// <summary>The documented list of every variable an installation can set.</summary>
+    public static string EnvExample => Path.Combine(Root, ".env.example");
+
+    /// <summary>The API's base settings: every setting the app reads, secrets included as <c>null</c>.</summary>
+    public static string ApiAppSettings => Path.Combine(Root, "src", "MediaAcquisitionManager.Api", "appsettings.json");
+
     private static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

@@ -1,7 +1,7 @@
 # Roadmap
 
-**Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold) and MAM-2 (UI
-localisation) are built; no phase has shipped yet.
+**Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
+localisation) and MAM-3 (the Docker image and CI) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -31,8 +31,12 @@ existing file untouched.
   every UI string goes through `t()`, dates, numbers and file sizes are formatted in the UI locale,
   and lint refuses literal text in markup, so other languages can be added later
   ([ADR 0001](docs/adr/0001-every-ui-string-comes-from-a-locale-resource.md)).
-- **MAM-3 Docker and CI:** one Docker image (API + built web app), `docker-compose.yml`, a Jenkins
-  pipeline, and images published to Docker Hub.
+- **MAM-3 Docker and CI** (built): one Docker image for amd64 and arm64 (API + built web app +
+  `ffprobe`, running unprivileged), `docker-compose.yml` for the published image and
+  `docker-compose.build.yml` for a local build, both publishing the port on `127.0.0.1` until
+  sign-in exists, `deploy.sh`, and a Jenkins pipeline that tests every commit to `main` and pushes
+  it to Docker Hub as `latest` and `sha-<commit>`, plus `X.Y.Z` and `X.Y` for a `vX.Y.Z` tag
+  ([PUBLISHING.md](PUBLISHING.md)).
 - **MAM-4 Accounts:** multi-user sign-in with an installation owner and owner-only settings,
   short-lived access tokens with a refresh cookie, per-IP rate limits on sign-in, and an audit
   trail.

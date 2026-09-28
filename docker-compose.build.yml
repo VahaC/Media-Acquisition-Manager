@@ -1,0 +1,20 @@
+# Builds the image from this checkout instead of pulling the published one (MAM-3):
+#
+#   docker compose -f docker-compose.build.yml up -d --build
+#
+# The service extends the one in docker-compose.yml, so ports, .env, the pinned data directory and
+# the volume stay identical. The image is tagged :local, so it never collides with, or gets replaced
+# by, a pulled image.
+services:
+  app:
+    extends:
+      file: docker-compose.yml
+      service: app
+    build:
+      context: .
+    image: vahac/media-acquisition-manager:local
+    pull_policy: build
+
+# extends copies the service, not the top-level volume it names, so the volume is declared again.
+volumes:
+  mam-data:

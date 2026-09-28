@@ -2,8 +2,8 @@
 
 All notable changes to Media Acquisition Manager are recorded here. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
-[semantic versioning](https://semver.org/) — released as Docker image tags once the image exists
-(MAM-3).
+[semantic versioning](https://semver.org/) — released as tags of the Docker image
+`vahac/media-acquisition-manager`.
 
 ## [0.1.0] — 2026-09-28
 
@@ -67,3 +67,23 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   sizes count in 1024 steps as `7.94 GiB`, the same number qBittorrent and Toloka show. A lint rule
   refuses literal text in component markup. API messages stay English sentences. The `<html lang>`
   attribute and the tab title follow the UI locale.
+- **One Docker image, built and pushed to Docker Hub by Jenkins (MAM-3).**
+  `vahac/media-acquisition-manager` holds the API with the built web app in its `wwwroot`, for
+  `linux/amd64` and `linux/arm64`, and brings `ffprobe` (Ubuntu's FFmpeg 6.1) for the file
+  inspection of MAM-9. The app runs as user `mam` (uid 10001), can't modify its own files, and
+  keeps everything persistent in `/data`: the database and the secrets. It listens on port 8118
+  inside the container and out, clear of the 8080 that qBittorrent's web UI and many other
+  self-hosted services use. The image's health check probes `/api/health/ready`, so `healthy` means
+  the database is open and fully migrated, and SQL commands now log at Warning outside Development,
+  so that probe doesn't write its queries to `docker logs` every 30 seconds. `docker-compose.yml`
+  runs the published image with a `mam-data` volume and read-only media mounts as commented
+  examples; `docker-compose.build.yml` builds it from the checkout as `:local`. Both publish the port
+  on `127.0.0.1` only, because there is no sign-in until MAM-4; `APP_BIND_ADDRESS` opens it, and
+  `APP_PORT` changes the host port. `deploy.sh` pulls the image, recreates the container and waits
+  until it is healthy. The `Jenkinsfile` runs the .NET build and tests (skipped when only
+  documentation changed) and the frontend lint, build and tests on every commit to `main`, then
+  pushes `latest` and `sha-<commit>`, plus `X.Y.Z` and `X.Y` when the commit is tagged `vX.Y.Z`; a
+  tag that differs from `frontend/package.json` stops the build. The API is stamped with the version
+  and the commit (`0.1.0+abc1234`). `.env.example` documents the Compose variables, and tests keep it
+  covering every setting of `appsettings.json` and every variable the Compose files read. See
+  [PUBLISHING.md](PUBLISHING.md).

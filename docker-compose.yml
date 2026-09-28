@@ -1,0 +1,41 @@
+# Media Acquisition Manager, pulled from Docker Hub (MAM-3). Start it with:
+#
+#   docker compose up -d
+#
+# and open http://localhost:8118. To build from this checkout instead, use docker-compose.build.yml.
+# Every variable below is optional; put overrides in a .env file next to this one. .env.example
+# lists them all with their trade-offs.
+services:
+  app:
+    # APP_TAG: latest (the newest build of main), a release such as 0.1.0, or sha-<commit>.
+    image: vahac/media-acquisition-manager:${APP_TAG:-latest}
+    container_name: media-acquisition-manager
+    restart: unless-stopped
+    # Loopback only by default: there is no sign-in until MAM-4, so publishing the port on every
+    # interface would let anyone on the network use the app. APP_BIND_ADDRESS=0.0.0.0 opens it.
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8118}:8118"
+    # .env is optional (required: false needs Docker Compose 2.24+). Without one the app generates
+    # its secrets on the first start and runs on its defaults, so `docker compose up -d` needs no
+    # configuration at all.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Pinned here as well as in the image, because environment beats env_file: a
+      # MAM_Storage__DataDirectory left in .env from a local run can't point the database away from
+      # the volume below — the app would fail to start, or keep its data where the next recreate of
+      # the container deletes it.
+      MAM_Storage__DataDirectory: /data
+    volumes:
+      # The whole state of the installation: mam.db and the generated secrets in .secrets/. Back
+      # them up together.
+      - mam-data:/data
+      # Media folders, for reading only: nothing in Phase A writes to them, and :ro makes sure of it.
+      # Mount each folder at the same path Jellyfin and qBittorrent see it at, so a path means the
+      # same file in all three. Examples — adjust the host side and uncomment:
+      # - /mnt/media/movies:/media/movies:ro
+      # - /mnt/downloads:/downloads:ro
+
+volumes:
+  mam-data:

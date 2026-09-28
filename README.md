@@ -18,7 +18,8 @@ application.
 
 > **Security:** there is no sign-in yet — accounts arrive with MAM-4. Until then, anyone who can
 > reach the port can use the app: run it on your own machine only and don't expose it to a network.
-> See [Security](#security).
+> The Docker Compose file publishes the port on `127.0.0.1` for that reason. See
+> [Security](#security).
 
 ## Stack
 
@@ -30,7 +31,7 @@ application.
 | Web app | React 19, React Router 7, TanStack Query 5, axios, Radix Dialog, lucide-react, react-i18next |
 | Build | Vite + React Compiler, strict TypeScript, ESLint, Vitest + Testing Library |
 | Styling | CSS tokens and semantic classes, no CSS framework |
-| Ship | One Docker image (API + web app), Jenkins, Docker Hub — planned for MAM-3 |
+| Ship | One Docker image (API + web app) for amd64 and arm64, built and pushed to Docker Hub by Jenkins |
 
 ## Features
 
@@ -42,6 +43,9 @@ application.
   [Health endpoints](#health-endpoints).
 - **Zero-config start.** On first run the API creates its SQLite database, applies the migrations
   and generates its own secrets. See [Configuration](#configuration).
+- **One Docker container.** `docker compose up -d` runs the published image with nothing to
+  configure; the container reports healthy only when the database is ready. See
+  [Quick start](#quick-start-docker-compose) and [Deployment](#deployment).
 
 ### What it will do
 
@@ -81,6 +85,26 @@ These rules apply to any future implementation:
   review.
 - Record every state transition and make recovery after a process restart safe.
 
+## Quick start (Docker Compose)
+
+You need Docker with Compose 2.24 or newer. Put [docker-compose.yml](docker-compose.yml), and
+[deploy.sh](deploy.sh) for later updates, in an empty directory and start the app there:
+
+```bash
+docker compose up -d
+```
+
+Open <http://localhost:8118>. With no configuration at all, the app creates its database and
+generates its secrets on the first start, on the `mam-data` volume. To change the image tag, the
+port or who can reach the app, copy [.env.example](.env.example) to `.env` next to the compose file
+and set only what you need; see [Deployment](#deployment).
+
+To build the image from a checkout of this repository instead of pulling it:
+
+```bash
+docker compose -f docker-compose.build.yml up -d --build
+```
+
 ## Planned architecture
 
 ```mermaid
@@ -111,7 +135,11 @@ gateway proves unsuitable.
 ## Security
 
 - **No sign-in yet.** Accounts (an installation owner, other users, owner-only settings) arrive with
-  MAM-4 and personal access tokens with MAM-5. Until then keep the API bound to `localhost`.
+  MAM-4 and personal access tokens with MAM-5. Until then keep the API bound to `localhost`; the
+  Docker Compose file publishes the port on `127.0.0.1` unless `APP_BIND_ADDRESS` says otherwise.
+- **The container runs unprivileged.** The app runs as user `mam` (uid 10001), its own files belong
+  to root and are read-only to it, and the only persistent place it can write is `/data` (besides
+  the usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
 - **Security headers on every response:** `X-Content-Type-Options: nosniff`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a Content Security Policy that
   forbids inline scripts. The only inline script, which applies dark mode before the first paint
@@ -124,10 +152,73 @@ gateway proves unsuitable.
 - **Errors never leak internals.** An unhandled exception answers 500 with a trace id to quote,
   never the exception text.
 
+## Deployment
+
+The image is `vahac/media-acquisition-manager` on Docker Hub, for `linux/amd64` and `linux/arm64`:
+
+| Tag | What it is |
+| --- | --- |
+| `latest` | The newest build of `main`, released or not. |
+| `X.Y.Z`, e.g. `0.1.0` | A release. It never changes once published. |
+| `X.Y`, e.g. `0.1` | The newest release of that minor version. |
+| `sha-<commit>` | One exact build of `main`, by its short commit hash. |
+
+How the image is built and released is in [PUBLISHING.md](PUBLISHING.md).
+
+**Compose settings.** Set them in `.env` next to `docker-compose.yml`; [.env.example](.env.example)
+explains each one. Every other variable in `.env` is passed to the app (see
+[Configuration](#configuration)).
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `APP_TAG` | `latest` | The image tag to run. Pin a release to update only when you choose to. |
+| `APP_BIND_ADDRESS` | `127.0.0.1` | The host address the port is published on. `0.0.0.0` opens the app to your network — without sign-in until MAM-4. |
+| `APP_PORT` | `8118` | The host port. The app listens on 8118 inside the container too. |
+
+**Updating.** Keep [deploy.sh](deploy.sh) next to `docker-compose.yml` and run it from that
+directory:
+
+```bash
+bash deploy.sh
+```
+
+It pulls the image `APP_TAG` names, recreates the container and waits until it reports healthy; if
+it doesn't, it prints the recent health probes and the container log. The app migrates its database
+on startup, so there is no separate migration step.
+
+**Health.** The image's health check probes `GET /api/health/ready` every 30 seconds (every 2
+seconds during the first 150 seconds after a start), so `docker ps` shows `healthy` only when the app
+answers and its database is open and fully migrated. When it isn't,
+`docker inspect media-acquisition-manager` shows the failing check's reason under `State.Health`.
+
+**Data and backups.** Everything the installation keeps is in `/data` inside the container, on the
+`mam-data` volume: `mam.db` and the generated secrets in `.secrets/`. Back them up together, with the
+container stopped:
+
+```bash
+docker compose stop app
+docker run --rm --volumes-from media-acquisition-manager -v "$PWD:/backup" alpine tar czf /backup/mam-data.tgz -C /data .
+docker compose start app
+```
+
+To keep the data in a host directory instead of the volume, replace `mam-data:/data` with that
+directory, and create it for the container's user and for that user alone first, as the image does
+with `/data` (the database files inside are otherwise readable by every user on the host):
+
+```bash
+sudo install -d -o 10001 -g 10001 -m 700 <directory>
+```
+
+**Media folders.** Mount them read-only (`:ro`) — nothing in Phase A writes to the library — at the
+same paths Jellyfin and qBittorrent see them at, so a path means the same file in all three. The
+compose file has commented examples. The container's user (uid 10001) needs read access: files
+readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
+them to the service with `group_add`.
+
 ## Local development
 
-There is no Docker image yet; the Docker quick start arrives with it in MAM-3. Until then, run the
-app from source.
+To work on the app, run it from source; to just run it, see
+[Quick start](#quick-start-docker-compose).
 
 **Prerequisites:** the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and
 [Node.js 24](https://nodejs.org/) with npm. The `dotnet-ef` tool is needed only to add migrations
@@ -151,7 +242,7 @@ with the SQLite database `mam.db` and the generated secrets in `.secrets/`; both
 
 ### Serving the built web app from the API
 
-This is how the Docker image will serve it: one process, one port. Build the frontend, then point
+This is how the Docker image serves it: one process, one port. Build the frontend, then point
 the API's web root at `frontend/dist`. Pass an absolute path, because a relative one resolves
 against the API project directory rather than your shell's. From the repository root (bash or
 PowerShell):
@@ -175,7 +266,7 @@ underscore separates sections: `MAM_Storage__DataDirectory` sets `Storage:DataDi
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `MAM_Storage__DataDirectory` | `Data` | Directory for the SQLite database `mam.db` and the `.secrets/` directory. A relative path resolves against the API's content root. |
+| `MAM_Storage__DataDirectory` | `Data` (`/data` in the Docker image) | Directory for the SQLite database `mam.db` and the `.secrets/` directory. A relative path resolves against the API's content root. The Docker Compose file pins it to `/data`, the volume. |
 | `MAM_Encryption__Key` | generated on first run | Base64 of 32 random bytes. Will encrypt stored integration credentials (AES-256-GCM) from MAM-7 on; nothing uses it yet. |
 | `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes. Will sign sign-in tokens from MAM-4 on; nothing uses it yet. |
 
@@ -277,6 +368,11 @@ npm run test
 ```text
 MediaAcquisitionManager.slnx
 run-tests.sh                                   sharded .NET test runner
+Dockerfile                                     the image: API + built web app + ffprobe
+docker-compose.yml                             runs the published image
+docker-compose.build.yml                       builds the image from the checkout (:local)
+deploy.sh                                      pulls, recreates and waits for healthy
+Jenkinsfile                                    tests every build of main, pushes to Docker Hub
 src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, health checks,
                                                security headers, EF Core migrations
@@ -333,6 +429,7 @@ of each, and the tickets of Phase A (MAM-1 to MAM-15).
   model, acceptance criteria for each phase, and the open questions (§7) that Phase A answers
   against the real installation before configuring live integrations.
 - [Roadmap](ROADMAP.md) and [Changelog](CHANGELOG.md).
+- [Publishing](PUBLISHING.md) — the Jenkins pipeline, the image tags and how to cut a release.
 - [Release notes](frontend/src/release-notes/0.1.0.md) — the user-facing What's new, one file per
   version.
 - Architecture decision records live in `docs/adr/`; new ones start from the
