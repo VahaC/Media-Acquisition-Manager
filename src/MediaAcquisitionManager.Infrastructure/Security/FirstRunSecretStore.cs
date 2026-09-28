@@ -55,9 +55,16 @@ internal sealed class FirstRunSecretStore(string secretsDirectory)
 
     private static string ReadExisting(string path, FirstRunSecret secret)
     {
+        // FileShare.Delete, which File.ReadAllText doesn't pass: on Windows the process whose move
+        // just published this file still holds it open with delete access for a moment after the
+        // rename, and an open that doesn't share delete fails then with a sharing violation. The
+        // callers that lost the move race read at exactly that moment, so a concurrent first start
+        // failed roughly once in 300 races. Sharing delete weakens nothing: the file only ever
+        // appears whole, through the move, and is never written in place.
+        using var reader = new StreamReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete));
         // Trimmed, so a file an operator wrote with `openssl rand -base64 32 > file` (trailing
         // newline) holds the same value as one the app wrote.
-        var value = File.ReadAllText(path).Trim();
+        var value = reader.ReadToEnd().Trim();
         if (value.Length > 0)
             return value;
 

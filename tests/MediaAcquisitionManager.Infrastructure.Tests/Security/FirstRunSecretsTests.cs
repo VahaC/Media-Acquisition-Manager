@@ -105,6 +105,27 @@ public sealed class FirstRunSecretsTests : IDisposable
     }
 
     [Fact]
+    public void GetOrCreate_reads_a_secret_file_another_handle_holds_open_with_delete_access()
+    {
+        //Arrange
+        // What the winner of a first-start race holds for a moment after its move publishes the file:
+        // a handle with delete access, which DeleteOnClose asks for. On Windows a read that doesn't
+        // share delete fails with a sharing violation while such a handle is open — the intermittent
+        // failure of the race test above, made deterministic.
+        Directory.CreateDirectory(SecretsDirectory);
+        File.WriteAllText(EncryptionKeyFile, "existing-encryption-key");
+        using var publisher = new FileStream(
+            EncryptionKeyFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 1, FileOptions.DeleteOnClose);
+
+        //Act
+        var value = new FirstRunSecretStore(SecretsDirectory).GetOrCreate(FirstRunSecrets.EncryptionKey);
+
+        //Assert
+        Assert.Equal("existing-encryption-key", value);
+    }
+
+    [Fact]
     public void AddFirstRunSecrets_with_both_secrets_configured_keeps_them_and_writes_nothing()
     {
         //Arrange
