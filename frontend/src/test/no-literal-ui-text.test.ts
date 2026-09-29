@@ -31,7 +31,9 @@ function component(lines: string[]): string {
   ].join('\n')
 }
 
-describe('the literal UI text lint rule', () => {
+// ESLint loads the whole config — typescript-eslint and its parser included — on the first lint of
+// the file: 2.9 s on the CI agent, and past Vitest's default 5 s once in a cold, fully parallel run.
+describe('the literal UI text lint rule', { timeout: 30_000 }, () => {
   it('flags text written between tags in a component', async () => {
     // Arrange
     const code = [
