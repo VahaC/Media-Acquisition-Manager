@@ -40,7 +40,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   minutes old, so an interrupted upgrade can't block every later start.
 - **Secrets are generated on first run (MAM-1).** When `Encryption:Key` or `Jwt:Secret` is blank,
   the API reads it from `<data>/.secrets/` or generates it there once (directory 0700, files 0600
-  on Linux and macOS), with an atomic write that never overwrites an existing file. An empty key
+  on Linux and macOS), with an atomic write that never overwrites an existing file. Generating
+  happens under a lock on `.secrets/.creating.lock`, because on Linux a move without overwrite is
+  not atomic: two instances starting at once could each keep a key of their own while only one
+  reached the disk (`FirstRunSecretsTests` failed 23 runs in 40 in a Linux container). An empty key
   file stops the startup with a message instead of being replaced, because a new key would orphan
   data encrypted with the old one. An explicit value always wins and writes no file. `Jwt:Secret`
   signs the access tokens of MAM-4; `Encryption:Key` has no consumer until the encrypted integration

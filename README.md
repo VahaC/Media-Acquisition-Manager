@@ -364,7 +364,9 @@ The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCO
 **First-run secrets.** When `Encryption:Key` or `Jwt:Secret` is blank, the API reads it from
 `<data>/.secrets/encryption-key` or `<data>/.secrets/jwt-secret`, or generates it there on the first
 start (directory 0700 and files 0600 on Linux and macOS). A value you set explicitly always wins,
-and then no file is written. An existing file is never overwritten, and an empty one stops the
+and then no file is written. An existing file is never overwritten: a start that has to generate
+one does it under a lock (the empty file `.secrets/.creating.lock`, which stays), so two instances
+started at once against one data directory agree on one value. An empty secret file stops the
 startup with a message that says what to do and what a new value would cost: a new encryption key
 would orphan everything encrypted with the old one, while a new JWT secret only makes the access
 tokens already issued stop working (nobody is signed out). Back up `.secrets/` together with

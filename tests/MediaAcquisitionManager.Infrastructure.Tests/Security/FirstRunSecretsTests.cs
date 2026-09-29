@@ -21,6 +21,8 @@ public sealed class FirstRunSecretsTests : IDisposable
 
     private string JwtSecretFile => Path.Combine(SecretsDirectory, "jwt-secret");
 
+    private string LockFile => Path.Combine(SecretsDirectory, FirstRunSecretStore.LockFileName);
+
     public void Dispose() => _root.Delete(recursive: true);
 
     [Fact]
@@ -101,7 +103,31 @@ public sealed class FirstRunSecretsTests : IDisposable
         //Assert
         var onDisk = File.ReadAllText(EncryptionKeyFile);
         Assert.All(values, value => Assert.Equal(onDisk, value));
-        Assert.Equal([EncryptionKeyFile], Directory.GetFiles(SecretsDirectory));
+        // The lock file stays (FirstRunSecretStore.LockFileName says why); no temp file may.
+        Assert.Equal([LockFile, EncryptionKeyFile], Directory.GetFiles(SecretsDirectory).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task GetOrCreate_waits_for_a_process_holding_the_lock_and_then_uses_the_file_it_wrote()
+    {
+        //Arrange
+        // Another process in the middle of creating the key: it holds the lock, and its file appears
+        // before it lets go.
+        Directory.CreateDirectory(SecretsDirectory);
+        var otherProcess = new FileStream(LockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        var waiting = Task.Run(() => new FirstRunSecretStore(SecretsDirectory).GetOrCreate(FirstRunSecrets.EncryptionKey));
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+        var finishedWhileLocked = waiting.IsCompleted;
+        File.WriteAllText(EncryptionKeyFile, "the-other-process-key");
+
+        //Act
+        otherProcess.Dispose();
+        var value = await waiting;
+
+        //Assert
+        Assert.False(finishedWhileLocked);
+        Assert.Equal("the-other-process-key", value);
+        Assert.Equal("the-other-process-key", File.ReadAllText(EncryptionKeyFile));
     }
 
     [Fact]
