@@ -33,10 +33,10 @@ services:
       # them up together.
       - mam-data:/data
       # Media folders, for reading only: nothing in Phase A writes to them, and :ro makes sure of it.
-      # Mount each folder at the same path Jellyfin and qBittorrent see it at, so a path means the
-      # same file in all three. Examples — adjust the host side and uncomment:
-      # - /mnt/media/movies:/media/movies:ro
-      # - /mnt/downloads:/downloads:ro
+      # Mount them at the path Jellyfin sees them at. A download client that sees them elsewhere
+      # (qBittorrent at /downloads, say) will get a path mapping in its settings (MAM-7), not a
+      # second mount; docs/adr/0003 says why. Example — adjust the host side and uncomment:
+      # - /mnt/media:/media:ro
 
 volumes:
   mam-data:

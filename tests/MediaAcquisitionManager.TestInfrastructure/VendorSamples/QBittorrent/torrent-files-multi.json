@@ -1,0 +1,39 @@
+[
+  {
+    "availability": -1,
+    "index": 0,
+    "is_seed": true,
+    "name": "Taken. Trilogy [Extended] (2008-2014) BDRemux 1080p [Hurtom]/Taken (2008) BDRemux 1080p UkrEng  Sub UkrEng [Hurtom].mkv",
+    "piece_range": [
+      0,
+      3405
+    ],
+    "priority": 1,
+    "progress": 1,
+    "size": 28571138185
+  },
+  {
+    "availability": -1,
+    "index": 1,
+    "name": "Taken. Trilogy [Extended] (2008-2014) BDRemux 1080p [Hurtom]/Taken 2 [Extended Cut] (2012) BDRemux 1080p 2xUkrEng  Sub Eng [Hurtom].mkv",
+    "piece_range": [
+      3405,
+      6417
+    ],
+    "priority": 1,
+    "progress": 1,
+    "size": 25264485639
+  },
+  {
+    "availability": -1,
+    "index": 2,
+    "name": "Taken. Trilogy [Extended] (2008-2014) BDRemux 1080p [Hurtom]/Taken 3 (Extended Cut) (2014) BDRemux 1080p UkrEng  Sub UkrEng [Hurtom].mkv",
+    "piece_range": [
+      6417,
+      9757
+    ],
+    "priority": 1,
+    "progress": 1,
+    "size": 28015314085
+  }
+]

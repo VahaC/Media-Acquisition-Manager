@@ -32,6 +32,10 @@ public static class RepositoryPaths
     /// <summary>The API's base settings: every setting the app reads, secrets included as <c>null</c>.</summary>
     public static string ApiAppSettings => Path.Combine(Root, "src", "MediaAcquisitionManager.Api", "appsettings.json");
 
+    /// <summary>Real answers of Jellyfin, qBittorrent, Prowlarr's Torznab feed and ffprobe from the
+    /// reference installation, sanitized (MAM-6): what the adapters are tested against.</summary>
+    public static string VendorSamples => Path.Combine(Root, "tests", "MediaAcquisitionManager.TestInfrastructure", "VendorSamples");
+
     private static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

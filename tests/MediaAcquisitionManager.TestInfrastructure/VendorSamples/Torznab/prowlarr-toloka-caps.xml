@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caps>
+  <server title="Prowlarr" />
+  <limits default="100" max="100" />
+  <searching>
+    <search available="yes" supportedParams="q" searchEngine="raw" />
+    <tv-search available="yes" supportedParams="q,season,ep" searchEngine="raw" />
+    <movie-search available="yes" supportedParams="q" searchEngine="raw" />
+    <music-search available="yes" supportedParams="q" searchEngine="raw" />
+    <audio-search available="yes" supportedParams="q" searchEngine="raw" />
+    <book-search available="yes" supportedParams="q" searchEngine="raw" />
+  </searching>
+  <categories>
+    <category id="2000" name="Movies">
+      <subcat id="2020" name="Movies/Other" />
+      <subcat id="2040" name="Movies/HD" />
+      <subcat id="2070" name="Movies/DVD" />
+    </category>
+    <category id="3000" name="Audio">
+      <subcat id="3020" name="Audio/Video" />
+      <subcat id="3030" name="Audio/Audiobook" />
+      <subcat id="3040" name="Audio/Lossless" />
+    </category>
+    <category id="4000" name="PC">
+      <subcat id="4030" name="PC/Mac" />
+      <subcat id="4040" name="PC/Mobile-Other" />
+      <subcat id="4050" name="PC/Games" />
+      <subcat id="4060" name="PC/Mobile-iOS" />
+      <subcat id="4070" name="PC/Mobile-Android" />
+    </category>
+    <category id="5000" name="TV">
+      <subcat id="5040" name="TV/HD" />
+      <subcat id="5050" name="TV/Other" />
+      <subcat id="5060" name="TV/Sport" />
+      <subcat id="5070" name="TV/Anime" />
+      <subcat id="5080" name="TV/Documentary" />
+    </category>
+    <category id="7000" name="Books">
+      <subcat id="7010" name="Books/Mags" />
+      <subcat id="7030" name="Books/Comics" />
+    </category>
+    <category id="100211" name="|-Android" />
+    <category id="100212" name="|-Android" />
+    <category id="100226" name="|-BBC" />
+    <category id="100227" name="|-Discovery" />
+    <category id="100229" name="|-History Channel" />
+    <category id="100122" name="|-iOS" />
+    <category id="100041" name="|-iOS" />
+    <category id="100026" name="|-Linux" />
+    <category id="100027" name="|-Mac OS" />
+    <category id="100259" name="|-Mac ігри" />
+    <category id="100228" name="|-National Geographic" />
+    <category id="100028" name="|-PC ігри" />
+    <category id="100025" name="|-Windows" />
+    <category id="100160" name="|-Авто, мото" />
+    <category id="100219" name="|-Аматорське відео" />
+    <category id="100127" name="|-Аніме" />
+    <category id="100194" name="|-Аніме" />
+    <category id="100200" name="|-Антивіруси та безпека" />
+    <category id="100129" name="|-АртХаус" />
+    <category id="100055" name="|-АртХаус" />
+    <category id="100196" name="|-АртХаус" />
+    <category id="100158" name="|-Баскетбол, хоккей, волейбол, гандбол, футзал" />
+    <category id="100182" name="|-Батькам та малятам" />
+    <category id="100159" name="|-Бокс, реслінг, бойові мистецтва" />
+    <category id="100184" name="|-Графіка (комікси, манґа, BD та інше)" />
+    <category id="100024" name="|-Джаз, Блюз" />
+    <category id="100101" name="|-Джаз, Блюз" />
+    <category id="100138" name="|-Документальні фільми в DVD" />
+    <category id="100140" name="|-Документальні фільми в HD" />
+    <category id="100038" name="|-Електронна музика" />
+    <category id="100106" name="|-Електронна музика" />
+    <category id="100043" name="|-Етно, Фольклор, Народна, Бардівська" />
+    <category id="100102" name="|-Етно, Фольклор, Народна, Бардівська" />
+    <category id="100167" name="|-Єврокубки" />
+    <category id="100169" name="|-Закордонні чемпіонати" />
+    <category id="100178" name="|-Зарубіжна художня література" />
+    <category id="100186" name="|-Зарубіжна художня література" />
+    <category id="100168" name="|-Збірна України" />
+    <category id="100035" name="|-Інструментальна, Класична та неокласична" />
+    <category id="100103" name="|-Інструментальна, Класична та неокласична" />
+    <category id="100161" name="|-Інший спорт, активний відпочинок" />
+    <category id="100230" name="|-Інші іноземні документальні фільми" />
+    <category id="100040" name="|-Інші мобільні платформи" />
+    <category id="100187" name="|-Історія, біографістика, спогади" />
+    <category id="100144" name="|-Короткометражні" />
+    <category id="100197" name="|-Короткометражні" />
+    <category id="100030" name="|-Мобільні та консольні ігри" />
+    <category id="100018" name="|-Музичне відео" />
+    <category id="100201" name="|-Мультимедія" />
+    <category id="100125" name="|-Мультсеріали" />
+    <category id="100044" name="|-Мультсеріали" />
+    <category id="100195" name="|-Мультсеріали" />
+    <category id="100174" name="|-Мультсеріали в HD" />
+    <category id="100019" name="|-Мультфільми" />
+    <category id="100193" name="|-Мультфільми" />
+    <category id="100139" name="|-Мультфільми в HD" />
+    <category id="100084" name="|-Мультфільми і казки" />
+    <category id="100137" name="|-Мультфільми та мультсеріали в DVD" />
+    <category id="100137" name="|-Мультфільми та мультсеріали в DVD" />
+    <category id="100183" name="|-Навчальна та довідкова" />
+    <category id="100179" name="|-Наукова література (гуманітарні дисципліни)" />
+    <category id="100180" name="|-Наукова література (природничі дисципліни)" />
+    <category id="100056" name="|-Невидане" />
+    <category id="100235" name="|-Олімпіада" />
+    <category id="100199" name="|-Офіс" />
+    <category id="100181" name="|-Періодика" />
+    <category id="100023" name="|-Поп, Естрада" />
+    <category id="100100" name="|-Поп, Естрада" />
+    <category id="100036" name="|-Реп, Хіп-хоп, РнБ" />
+    <category id="100105" name="|-Реп, Хіп-хоп, РнБ" />
+    <category id="100037" name="|-Рок, Метал, Альтернатива, Панк, СКА" />
+    <category id="100104" name="|-Рок, Метал, Альтернатива, Панк, СКА" />
+    <category id="100173" name="|-Серіали в HD" />
+    <category id="100189" name="|-Сирий матеріал" />
+    <category id="100132" name="|-Телевізійні шоу та програми" />
+    <category id="100124" name="|-Телесеріали" />
+    <category id="100032" name="|-Телесеріали" />
+    <category id="100192" name="|-Телесеріали" />
+    <category id="100094" name="|-Трейлери" />
+    <category id="100029" name="|-Українізації, доповнення, патчі..." />
+    <category id="100135" name="|-Українська художня література" />
+    <category id="100134" name="|-Українська художня література (до 1991 р.)" />
+    <category id="100177" name="|-Українська художня література (після 1991 р.)" />
+    <category id="100131" name="|-Українські історичні документальні фільми" />
+    <category id="100021" name="|-Українські наукові документальні фільми" />
+    <category id="100202" name="|-Утиліти, обслуговування, мережа" />
+    <category id="100016" name="|-Фільми" />
+    <category id="100070" name="|-Фільми" />
+    <category id="100096" name="|-Фільми в HD" />
+    <category id="100054" name="|-Футбольне відео" />
+    <category id="100042" name="|-Художні фільми" />
+    <category id="100066" name="|-Художні фільми та серіали в DVD" />
+    <category id="100166" name="|-Чемпіонат та Кубок України з футболу" />
+    <category id="100170" name="|-Чемпіонати Європи з футболу" />
+    <category id="100162" name="|-Чемпіонати світу з футболу" />
+    <category id="100120" name="DVD українською" />
+    <category id="100239" name="Linux, Mac OS" />
+    <category id="100009" name="Windows" />
+    <category id="100185" name="Аудіокниги українською" />
+    <category id="100237" name="Відео для мобільних (iOS, Android, Windows Phone)" />
+    <category id="100225" name="Документальні фільми українською" />
+    <category id="100011" name="Друкована література" />
+    <category id="100033" name="Звукові доріжки та субтитри" />
+    <category id="100010" name="Ігри українською" />
+    <category id="100205" name="Переклад ігор українською" />
+    <category id="100119" name="Телепередачі українською" />
+    <category id="100098" name="Українська музика (lossless)" />
+    <category id="100008" name="Українська музика (lossy)" />
+    <category id="100117" name="Українське кіно" />
+    <category id="100118" name="Українське озвучення" />
+    <category id="100157" name="Український спорт" />
+    <category id="100190" name="Українські субтитри" />
+  </categories>
+  <tags />
+</caps>

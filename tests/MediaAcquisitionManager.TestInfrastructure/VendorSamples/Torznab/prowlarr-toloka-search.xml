@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="1.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <atom:link rel="self" type="application/rss+xml" />
+    <title>Prowlarr</title>
+    <item>
+      <title>Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]</description>
+      <guid>https://toloka.to/t699400?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699400?sid=REDACTED</comments>
+      <pubDate>Mon, 03 Aug 2026 00:00:00 +0300</pubDate>
+      <size>36711232962</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D" length="36711232962" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip 1080p Ukr/Eng | Sub Eng [IMAX Edition]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip 1080p Ukr/Eng | Sub Eng [IMAX Edition]</description>
+      <guid>https://toloka.to/t699348?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699348?sid=REDACTED</comments>
+      <pubDate>Sat, 01 Aug 2026 00:00:00 +0300</pubDate>
+      <size>23901493002</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D" length="23901493002" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip 4K 2160p H.265 HDR [IMAX] Ukr/Eng | Sub Eng</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip 4K 2160p H.265 HDR [IMAX] Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t685514?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t685514?sid=REDACTED</comments>
+      <pubDate>Thu, 20 Feb 2025 00:00:00 +0200</pubDate>
+      <size>39041252720</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+4K+2160p+H.265+HDR+%5BIMAX%5D+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+4K+2160p+H.265+HDR+%5BIMAX%5D+Ukr%2FEng+%7C+Sub+Eng" length="39041252720" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="halfleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="33" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="33" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) [DTS, AC3]</title>
+      <description>Інтерстеллар / Interstellar (2014) [DTS, AC3]</description>
+      <guid>https://toloka.to/t667650?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t667650?sid=REDACTED</comments>
+      <pubDate>Sun, 21 May 2023 00:00:00 +0300</pubDate>
+      <size>2276332666</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+%5BDTS%2C+AC3%5D</link>
+      <category>3020</category>
+      <category>100033</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+%5BDTS%2C+AC3%5D" length="2276332666" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="3020" />
+      <torznab:attr name="category" value="100033" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRemux 4K 2160p HDR Dolby Vision H.265 [Hybrid] [IMAX Edition] Ukr/Eng | Sub Eng</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRemux 4K 2160p HDR Dolby Vision H.265 [Hybrid] [IMAX Edition] Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t660243?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t660243?sid=REDACTED</comments>
+      <pubDate>Mon, 18 Jul 2022 00:00:00 +0300</pubDate>
+      <size>72080288645</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRemux+4K+2160p+HDR+Dolby+Vision+H.265+%5BHybrid%5D+%5BIMAX+Edition%5D+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRemux+4K+2160p+HDR+Dolby+Vision+H.265+%5BHybrid%5D+%5BIMAX+Edition%5D+Ukr%2FEng+%7C+Sub+Eng" length="72080288645" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="77" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="77" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) [IMAX] BDRip 1080p H.265 Ukr/Eng | Sub Eng</title>
+      <description>Інтерстеллар / Interstellar (2014) [IMAX] BDRip 1080p H.265 Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t98831?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t98831?sid=REDACTED</comments>
+      <pubDate>Sun, 03 Nov 2019 00:00:00 +0200</pubDate>
+      <size>13582834073</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+%5BIMAX%5D+BDRip+1080p+H.265+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+%5BIMAX%5D+BDRip+1080p+H.265+Ukr%2FEng+%7C+Sub+Eng" length="13582834073" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="89" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="90" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) UHD BDRemux 4K 2160p [IMAX] Ukr/Eng | Sub Eng</title>
+      <description>Інтерстеллар / Interstellar (2014) UHD BDRemux 4K 2160p [IMAX] Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t86597?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t86597?sid=REDACTED</comments>
+      <pubDate>Wed, 17 Jan 2018 00:00:00 +0200</pubDate>
+      <size>71854802862</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+UHD+BDRemux+4K+2160p+%5BIMAX%5D+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+UHD+BDRemux+4K+2160p+%5BIMAX%5D+Ukr%2FEng+%7C+Sub+Eng" length="71854802862" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="16" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip [640x360]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip [640x360]</description>
+      <guid>https://toloka.to/t67459?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t67459?sid=REDACTED</comments>
+      <pubDate>Fri, 31 Jul 2015 00:00:00 +0300</pubDate>
+      <size>1138166333</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+%5B640x360%5D</link>
+      <category>2000</category>
+      <category>100237</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+%5B640x360%5D" length="1138166333" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100237" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip [IMAX Edition] Ukr/Eng | Sub Eng</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip [IMAX Edition] Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t52429?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t52429?sid=REDACTED</comments>
+      <pubDate>Sun, 29 Mar 2015 00:00:00 +0200</pubDate>
+      <size>3672197038</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+%5BIMAX+Edition%5D+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+%5BIMAX+Edition%5D+Ukr%2FEng+%7C+Sub+Eng" length="3672197038" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="17" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip 720p-mini [60fps] Ukr/Eng | Sub Eng [IMAX Edition]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip 720p-mini [60fps] Ukr/Eng | Sub Eng [IMAX Edition]</description>
+      <guid>https://toloka.to/t64427?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t64427?sid=REDACTED</comments>
+      <pubDate>Wed, 25 Mar 2015 00:00:00 +0200</pubDate>
+      <size>12509092249</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+720p-mini+%5B60fps%5D+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+720p-mini+%5B60fps%5D+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D" length="12509092249" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="0" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="0" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) [2-Disc IMAX Edition] Blu-ray CEE Multi | Sub Multi</title>
+      <description>Інтерстеллар / Interstellar (2014) [2-Disc IMAX Edition] Blu-ray CEE Multi | Sub Multi</description>
+      <guid>https://toloka.to/t64409?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t64409?sid=REDACTED</comments>
+      <pubDate>Tue, 24 Mar 2015 00:00:00 +0200</pubDate>
+      <size>72917807267</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+%5B2-Disc+IMAX+Edition%5D+Blu-ray+CEE+Multi+%7C+Sub+Multi</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+%5B2-Disc+IMAX+Edition%5D+Blu-ray+CEE+Multi+%7C+Sub+Multi" length="72917807267" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip 720p-mini | IMAX</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip 720p-mini | IMAX</description>
+      <guid>https://toloka.to/t64393?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t64393?sid=REDACTED</comments>
+      <pubDate>Tue, 24 Mar 2015 00:00:00 +0200</pubDate>
+      <size>4692251770</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+720p-mini+%7C+IMAX</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+720p-mini+%7C+IMAX" length="4692251770" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]</description>
+      <guid>https://toloka.to/t64226?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t64226?sid=REDACTED</comments>
+      <pubDate>Tue, 24 Mar 2015 00:00:00 +0200</pubDate>
+      <size>38332583116</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D" length="38332583116" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="15" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip 1080p Ukr/Eng | Sub Eng [IMAX Edition]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip 1080p Ukr/Eng | Sub Eng [IMAX Edition]</description>
+      <guid>https://toloka.to/t64268?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t64268?sid=REDACTED</comments>
+      <pubDate>Mon, 23 Mar 2015 00:00:00 +0200</pubDate>
+      <size>22924387942</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D" length="22924387942" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="16" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip-AVC</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip-AVC</description>
+      <guid>https://toloka.to/t64224?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t64224?sid=REDACTED</comments>
+      <pubDate>Mon, 23 Mar 2015 00:00:00 +0200</pubDate>
+      <size>3113851289</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip-AVC</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip-AVC" length="3113851289" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="18" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip 720p Ukr/Eng | Sub Eng [IMAX Edition]</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip 720p Ukr/Eng | Sub Eng [IMAX Edition]</description>
+      <guid>https://toloka.to/t63235?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t63235?sid=REDACTED</comments>
+      <pubDate>Mon, 23 Mar 2015 00:00:00 +0200</pubDate>
+      <size>9169755176</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+720p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip+720p+Ukr%2FEng+%7C+Sub+Eng+%5BIMAX+Edition%5D" length="9169755176" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="23" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="23" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Interstellar (2014) BDRip</title>
+      <description>Інтерстеллар / Interstellar (2014) BDRip</description>
+      <guid>https://toloka.to/t63234?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t63234?sid=REDACTED</comments>
+      <pubDate>Mon, 23 Mar 2015 00:00:00 +0200</pubDate>
+      <size>2351494594</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Interstellar+(2014)+BDRip" length="2351494594" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="12" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+  </channel>
+</rss>

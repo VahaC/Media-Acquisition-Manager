@@ -149,3 +149,20 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   with a page size remembered per device, adds users and resets passwords in dialogs, disables and
   enables at once, and deletes after a confirmation; the owner's own Disable and Delete are
   unavailable, with the reason on hover.
+- **The real installation is described, and its services' own answers are the adapters' test
+  samples (MAM-6, ADR 0003, ADR 0004).** Jellyfin 12.1, qBittorrent 5.2.3 and the app share one
+  media folder, which Jellyfin and the app see as `/media` and qBittorrent as `/downloads`: each
+  integration's paths will reach the app through an explicit prefix mapping, and the README and
+  `docker-compose.yml` no longer ask for the same path in every service, which that layout makes
+  impossible. Toloka is searched through the Prowlarr 2.6.5 already running beside them, not a new
+  Jackett, and a live search worked. Prowlarr's download links carry its API key, so they stay on
+  the server; Toloka's topic links can carry the forum session, which is dropped before a link is
+  stored or shown. Sanitized answers of every service (Jellyfin
+  libraries and movies, qBittorrent categories, preferences, torrents and files, Toloka's Torznab
+  caps and search, ffprobe of two files) live in
+  `tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/` with a README on where each came
+  from and what it taught, among others that Jellyfin hides a collection's movies behind one item
+  unless `collapseBoxSetItems=false` is sent. `VendorSamplesTests` fails the build if a sample
+  carries an API key, a session, a password, a tracker URL or a magnet's tracker list. The questions
+  left open (TV shows, the quarantine policy, whether library files are seeding originals) are
+  listed under Phases B and C.

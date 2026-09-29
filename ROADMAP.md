@@ -1,8 +1,8 @@
 # Roadmap
 
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
-localisation), MAM-3 (the Docker image and CI) and MAM-4 (accounts and sign-in) are built; no phase
-has shipped yet.
+localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in) and MAM-6 (the live
+environment facts) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -48,18 +48,32 @@ existing file untouched.
   confirmation), owner-only settings writes by namespace convention, and an audit trail. Two-factor
   sign-in and password reset by email are out of scope.
 - **MAM-5 Personal access tokens** for scripts and other tools.
-- **MAM-6 Live environment facts:** answer the specification's open questions (§7) against the
-  real installation — mount paths and which directories active torrents manage, qBittorrent
-  categories and save paths, the indexing route that works with Toloka, and how the app is exposed.
+- **MAM-6 Live environment facts** (built): the specification's open questions (§7) answered
+  against the real installation. One folder on one ext4 filesystem holds every media library and
+  every download; Jellyfin and the app see it as `/media`, qBittorrent as `/downloads`, so each
+  integration's paths reach the app through an explicit prefix mapping
+  ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
+  qBittorrent 5.2.3 has one category per media library, automatic torrent management on and no
+  separate folder for incomplete downloads, so torrents download straight into the library. Toloka
+  is searched through the Prowlarr that already runs there, not a new Jackett, and Prowlarr's
+  download links stay on the server
+  ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
+  The app runs beside them with its own sign-in, published on the local network at port 8118. Real,
+  sanitized answers of every service are the adapters' test fixtures
+  (`tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`). Questions 3, 4 and 6 stay
+  open and are listed under Phases B and C.
 - **MAM-7 Core model and integration settings:** the core entities of specification §4 that Phase A
   needs, and owner-only settings for each integration. Credentials are encrypted at rest
   (AES-256-GCM with `Encryption:Key`) and never returned by the API.
 - **MAM-8 Jellyfin inventory:** paginated library listing with IDs and their sources, versions,
   file paths and state snapshots; items in nested `Collection` folders work without being moved.
+  Movies are listed with collection grouping switched off: with it on, Jellyfin shows a collection
+  in place of its movies (670 items instead of 870 on the reference installation).
 - **MAM-9 ffprobe inspection** of local files under configured media roots: resolution, codecs,
   audio and subtitle tracks, duration and HDR, shown as unknown when not available.
 - **MAM-10 Torznab search:** one Torznab provider with per-indexer configuration; Toloka tested
-  through Jackett with a real query.
+  through Prowlarr with a real query. The provider speaks plain Torznab, so it has no code specific
+  to Prowlarr or Toloka.
 - **MAM-11 qBittorrent and destinations:** connection test, category listing, magnet and `.torrent`
   submission, job and file monitoring, and logical destinations (`Movies`, `Movies 4K`) mapped to
   existing categories without an overriding save path.
@@ -110,6 +124,17 @@ how much space could really be recovered — without the app guessing.
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C.
 
+**Open questions (specification §7, left open by MAM-6):**
+
+- Question 3: does the scan cover TV shows, seasons, anime and documentaries, or movies only? On
+  the reference installation the movie library holds a TV miniseries too, the cartoon library mixes
+  movies and series, and the documentary library holds series.
+- Question 6: are the library files original seeding files, hardlinks of them, or independent
+  copies? It decides how often two names share one set of bytes, and so how much space a
+  duplicate really takes. None of the files MAM-6 listed had a second link, so those at least are
+  not hardlinks; Radarr, which runs beside qBittorrent, was not inspected and may import files its
+  own way.
+
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
 versions; conflicting IDs require manual review.
@@ -141,6 +166,18 @@ downloaded, verified and visible in Jellyfin, and you can get it back.
 **Out of scope:** automatic quarantine cleanup (it needs retention and disk-space policies first),
 Jellyfin's `DELETE /Items/{id}`, and deleting a torrent or its data from the client.
 
+**Open questions (specification §7, left open by MAM-6):**
+
+- Question 3: can a replacement target an episode or a season, or only a movie?
+- Question 4: which quarantine mode and retention period, and is a second manual approval needed
+  before a quarantined file is finally deleted?
+- Question 6: are the old files original seeding files, hardlinks of them, or independent copies?
+  A seeding file must stay untouched (specification §3.4, check 6), so the answer decides how often
+  a replacement can move the old copy at all. On the reference installation torrents download
+  straight into the library folders, so an old copy is often a seeding torrent's own data; how often
+  was not measured
+  ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
+
 **Tests:** each failure case of the acceptance bar ends in `NeedsReview` or `Failed` with the old
 file untouched; a successful replacement writes the audit trail and leaves a restorable
 quarantined copy.
@@ -153,7 +190,7 @@ audit trail and a way to restore the quarantined copy.
 ### Phase D — Practical extensibility
 
 **Complexity:** Medium
-**Value:** use the app with other tools than Jackett and qBittorrent without losing any of the
+**Value:** use the app with other tools than Prowlarr and qBittorrent without losing any of the
 safety of the first workflow.
 
 **Scope:**

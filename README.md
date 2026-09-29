@@ -134,13 +134,16 @@ adapters exists yet; the solution already has the layers they will live in (see
 | Integration type | First candidate | Planned extension examples |
 | --- | --- | --- |
 | Media library | Jellyfin | Plex, Emby |
-| Release search | Torznab via Jackett or a compatible gateway | Other Torznab/Newznab providers, direct adapters |
+| Release search | Torznab via Prowlarr (Jackett should work the same way) | Other Torznab/Newznab providers, direct adapters |
 | Download client | qBittorrent | Transmission, SABnzbd, others |
 | File inspection | Configured media roots and `ffprobe` | Additional inventory backends if needed |
 
-Toloka appears in Jackett's supported-tracker list, but login and search must be verified against a
-real installation during the first implementation phase. A direct Toloka adapter is an option if a
-gateway proves unsuitable.
+Toloka is searched through Prowlarr: it signs in to the tracker with your account, reads its search
+pages, and serves the results as a standard Torznab feed, so the app needs no code specific to
+Toloka. A search through Prowlarr worked against the real installation (MAM-6); Prowlarr's download
+links carry its API key, so the app will fetch them itself and never show them
+([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
+A direct Toloka adapter is an option if the gateway proves unsuitable.
 
 ## Security
 
@@ -264,10 +267,13 @@ sudo install -d -o 10001 -g 10001 -m 700 <directory>
 ```
 
 **Media folders.** Mount them read-only (`:ro`) — nothing in Phase A writes to the library — at the
-same paths Jellyfin and qBittorrent see them at, so a path means the same file in all three. The
-compose file has commented examples. The container's user (uid 10001) needs read access: files
-readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
-them to the service with `group_add`.
+path Jellyfin sees them at, so a library path means the same file to the app. A download client
+often sees the same folders under another path (qBittorrent under `/downloads`, say); don't mount
+them a second time for it: the client's settings will map its paths onto yours, as
+[ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)
+explains. The compose file has a commented example. The container's user (uid 10001) needs read
+access: files readable by everyone (the usual 644 and 755) need nothing more; otherwise add the
+group that owns them to the service with `group_add`.
 
 ## Local development
 
@@ -431,6 +437,11 @@ API tests go over real HTTP through `WebApplicationFactory`, each test class aga
 throwaway SQLite database, so they never touch your `Data/` directory. Tests tagged
 `Category=RequiresDocker` are excluded by default; there are none yet.
 
+The adapters will be tested against real, sanitized answers of Jellyfin, qBittorrent, Prowlarr's
+Torznab feed and ffprobe, kept in `tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`
+with a README saying where each came from and how it was sanitized. `VendorSamplesTests` already
+fails the build if a sample carries a credential.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -460,7 +471,7 @@ src/
                                                password hashing
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
-                                               seeders
+                                               seeders, vendor samples
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
@@ -521,6 +532,7 @@ Integration references:
 
 - [Jellyfin movie organization and multiple versions](https://jellyfin.org/docs/general/server/media/movies/)
 - [Jellyfin API](https://api.jellyfin.org/)
+- [Prowlarr](https://wiki.servarr.com/prowlarr) — the indexer manager that serves Toloka as Torznab
 - [Jackett API and Torznab](https://github.com/Jackett/Jackett/wiki/Jackett-API)
 - [qBittorrent WebUI API](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-%28qBittorrent-4.1%29)
 - [ffprobe reference](https://ffmpeg.org/ffprobe.html)

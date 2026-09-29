@@ -1,0 +1,38 @@
+{
+  "Cartoons": {
+    "download_path": null,
+    "inactive_seeding_time_limit": -2,
+    "name": "Cartoons",
+    "ratio_limit": -2,
+    "savePath": "/downloads/cartoons",
+    "seeding_time_limit": -2,
+    "share_limit_action": "Default"
+  },
+  "Documentary": {
+    "download_path": null,
+    "inactive_seeding_time_limit": -2,
+    "name": "Documentary",
+    "ratio_limit": -2,
+    "savePath": "/downloads/documentary",
+    "seeding_time_limit": -2,
+    "share_limit_action": "Default"
+  },
+  "Movies": {
+    "download_path": null,
+    "inactive_seeding_time_limit": -2,
+    "name": "Movies",
+    "ratio_limit": -2,
+    "savePath": "/downloads/movies",
+    "seeding_time_limit": -2,
+    "share_limit_action": "Default"
+  },
+  "TV Shows": {
+    "download_path": null,
+    "inactive_seeding_time_limit": -2,
+    "name": "TV Shows",
+    "ratio_limit": -2,
+    "savePath": "/downloads/tv-shows",
+    "seeding_time_limit": -2,
+    "share_limit_action": "Default"
+  }
+}
