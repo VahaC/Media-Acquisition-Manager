@@ -8,6 +8,7 @@ public static class MappingServiceCollectionExtensions
     public static IServiceCollection AddMediaAcquisitionManagerMappers(this IServiceCollection services)
     {
         services.AddSingleton<IUserMapper, UserMapper>();
+        services.AddSingleton<IIntegrationMapper, IntegrationMapper>();
         return services;
     }
 }

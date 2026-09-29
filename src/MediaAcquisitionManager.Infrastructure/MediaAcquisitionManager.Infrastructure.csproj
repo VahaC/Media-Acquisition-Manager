@@ -16,6 +16,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <!-- AddInMemoryCollection for the first-run secrets; EF Core only brings the abstractions. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+    <!-- IHttpClientFactory and named clients for the integration adapters (MAM-7). -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

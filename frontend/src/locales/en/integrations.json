@@ -1,0 +1,102 @@
+{
+  "title": "Integrations",
+  "lead": "The services this app works with: your media library, the sources it searches for releases, and your download clients.",
+  "add": "Add integration",
+  "search": {
+    "label": "Search integrations",
+    "placeholder": "Search by name"
+  },
+  "kindFilter": {
+    "label": "Kind",
+    "all": "All kinds"
+  },
+  "kindFilterOptions": {
+    "MediaLibrary": "Media libraries",
+    "ReleaseSearch": "Release sources",
+    "DownloadClient": "Download clients"
+  },
+  "kinds": {
+    "MediaLibrary": "Media library",
+    "ReleaseSearch": "Release source",
+    "DownloadClient": "Download client"
+  },
+  "columns": {
+    "name": "Name",
+    "service": "Service",
+    "address": "Address",
+    "actions": "Actions"
+  },
+  "disabled": "Disabled",
+  "actions": {
+    "test": "Test",
+    "testing": "Testing…",
+    "edit": "Edit",
+    "remove": "Remove"
+  },
+  "unknownType": "This version of the app can't connect to “{{type}}”. You can only remove this integration.",
+  "actionFailed": "Could not change this integration. Reload the page and try again.",
+  "testFailed": "Could not test the connection.",
+  "loadFailed": "Could not load the integrations.",
+  "refreshFailed": "Refresh failed, showing the last loaded integrations.",
+  "empty": "No integrations yet. Click Add integration to connect Jellyfin, a Torznab source such as Prowlarr, or qBittorrent.",
+  "noMatch": "No integrations match these filters.",
+  "clearFilters": "Clear filters",
+  "testResult": "{{name}}: {{message}}",
+  "remove": {
+    "title": "Remove {{name}}?",
+    "message": "The app forgets {{name}}, its stored credentials and its path mappings. Nothing changes in the service itself. This can't be undone.",
+    "confirm": "Remove"
+  },
+  "dialog": {
+    "createTitle": "Add integration",
+    "createDescription": "Connect a service. You can test the connection before you save it.",
+    "editTitle": "Edit {{name}}",
+    "editDescription": "Credentials are stored encrypted and never shown again. Leave a field empty to keep what is stored.",
+    "typesFailed": "Could not load the services this app can connect to.",
+    "service": "Service",
+    "servicePlaceholder": "Choose a service",
+    "serviceFixed": "The service can't be changed. To connect another one, add a new integration.",
+    "name": "Name",
+    "address": "Address",
+    "addressPlaceholder": {
+      "generic": "http://192.168.1.10",
+      "jellyfin": "http://192.168.1.10:8096",
+      "torznab": "http://192.168.1.10:9696/1/api",
+      "qbittorrent": "http://192.168.1.10:8080"
+    },
+    "addressHelp": {
+      "generic": "The address the service answers at, starting with http:// or https://.",
+      "jellyfin": "Jellyfin's address, with its base path if it has one, such as http://192.168.1.10:8096.",
+      "torznab": "The feed's Torznab address. Prowlarr shows it in the indexer's details, such as http://192.168.1.10:9696/1/api.",
+      "qbittorrent": "The address of qBittorrent's Web UI, such as http://192.168.1.10:8080."
+    },
+    "userName": "User name",
+    "password": "Password",
+    "apiKey": "API key",
+    "optional": "(optional)",
+    "secretStored": "Stored. Leave empty to keep it.",
+    "removePassword": "Remove the stored password",
+    "removeApiKey": "Remove the stored API key",
+    "enabled": "Use this integration",
+    "enabledHint": "Switched off, the app keeps the settings but leaves the service alone.",
+    "test": "Test connection",
+    "testing": "Testing…",
+    "createSubmit": "Add integration",
+    "createSubmitting": "Adding…",
+    "editSubmit": "Save changes",
+    "editSubmitting": "Saving…",
+    "createFailed": "Could not add the integration.",
+    "editFailed": "Could not save the integration."
+  },
+  "mappings": {
+    "title": "Path mappings",
+    "help": "If {{service}} sees your media under other paths than this app does, map each of its folders to this app's, for example /downloads → /media.",
+    "none": "No mappings: {{service}} sees your media at the same paths as this app.",
+    "servicePath": "Path in {{service}}",
+    "appPath": "Path in this app",
+    "servicePlaceholder": "/downloads",
+    "appPlaceholder": "/media",
+    "add": "Add mapping",
+    "remove": "Remove mapping"
+  }
+}

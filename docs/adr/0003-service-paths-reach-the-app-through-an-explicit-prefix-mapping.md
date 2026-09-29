@@ -83,3 +83,38 @@ installation mounts it read-write today; nothing in Phase A writes there, but `:
 This doesn't let the app trust a path an indexer or a torrent's metadata suggests (specification
 §4), and it doesn't make a mapped path safe to change: every write in Phase C still goes through the
 §3.4 checks.
+
+## Implementation (added 0.1.0, MAM-7)
+
+**The pairs belong to the integration.** Each Jellyfin or qBittorrent integration keeps its ordered
+pairs (at most 20), edited in its Add or Edit dialog and saved by that dialog's one Save; a type that
+reports no file paths, such as a Torznab feed, takes none. A path is read by its own shape, never by
+the platform the app runs on: `/a/b` is Linux-style, `D:\a\b`, `D:/a/b` and `\\server\share\a`
+Windows-style. Repeated and trailing separators collapse, `.` and `..` are refused rather than
+resolved, and the pair is stored in that canonical form.
+
+**Matching is folder by folder**: `/downloads` covers `/downloads/movies` but never `/downloads2`.
+Letter case counts in a Linux path and not in a Windows one; names are not Unicode-normalised.
+
+**Pairs must agree, and the longest prefix never wins on its own.** At save, a folder mapped twice,
+service paths of two styles, and nested pairs that send one folder to two places are refused with a
+sentence naming both; nested pairs that agree, two service folders mapped onto one app folder, and
+Linux folders that differ only in letter case are accepted. Nested pairs from Windows service paths
+onto Linux app paths are refused even when they agree as typed: the service's path matches in any
+letter case, the outer pair carries the case it reports into a Linux path, where case counts, and
+the inner pair gives its path as typed, so `D:\Torrents` → `/media` with `D:\Torrents\movies` →
+`/media/movies` would send `D:\Torrents\Movies\x.mkv` to two places. At use, `PathMapper` applies
+every pair that covers the path: one place is `Mapped`, two are `Ambiguous` (a row older than these
+rules, or a hand-edited database). With no pairs a path is the `Identity`; with pairs, a path none covers is
+`NotCovered`, not the identity. The path inside the app is worked out when it is needed and never
+stored (ADR 0006), so an edited mapping leaves nothing stale. Nothing calls `PathMapper` yet; MAM-8
+and MAM-11 are its first users, and anything without an app path keeps automatic replacement off.
+
+`PathMapperTests.Map_with_pairs_that_disagree_is_ambiguous_and_names_both_places` and
+`PathMapperTests.Map_of_the_adr_0003_samples_puts_every_qbittorrent_category_inside_a_jellyfin_library`
+(`categories.json` through `/downloads` → `/media` lands in `virtual-folders.json`'s libraries) pin
+it, and `IntegrationsPathMappingsHttpTests.Create_with_nested_path_mappings_that_disagree_is_400_naming_both`
+the refusal at save. `PathMappingRulesTests.Validate_with_nested_windows_service_paths_mapped_to_posix_app_paths_is_the_rule`
+pins the Windows-onto-Linux refusal, and
+`PathMapperTests.Map_with_nested_windows_service_pairs_onto_posix_paths_is_ambiguous_in_another_letter_case`
+the ambiguity it prevents.

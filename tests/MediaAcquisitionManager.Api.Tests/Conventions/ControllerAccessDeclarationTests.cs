@@ -52,6 +52,8 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("AuthController.Me", actions);
         Assert.Contains("SetupController.Complete", actions);
         Assert.Contains("UsersController.Delete", actions);
+        Assert.Contains("IntegrationsController.Create", actions);
+        Assert.Contains("IntegrationsController.TestDraft", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

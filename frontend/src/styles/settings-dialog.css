@@ -1,0 +1,42 @@
+/* MAM-7 — the layout of a settings dialog (Add user, Reset password, Add or edit an integration).
+   Moved out of the MAM-4 Users page sheet so every settings dialog scrolls and keeps its buttons
+   the same way; each dialog imports this sheet itself.
+
+   `.ui-dialog-content` scrolls as a whole, which would carry the buttons away with the fields on a
+   short phone screen. As a flex column capped by its max-height, the form body shrinks and scrolls
+   on its own, while the error line and the buttons stay below it. */
+.ui-dialog-content.settings-dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: 28rem;
+  overflow: hidden;
+}
+
+.settings-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+/* The 2px padding keeps the inputs' focus ring inside the scroller, which would clip it. */
+.settings-dialog-body {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+  padding: 2px;
+  overflow-y: auto;
+}
+
+.settings-dialog-error {
+  color: var(--destructive);
+}
+
+/* New in MAM-7: the Users dialogs had no checkbox; an integration's switch and "remove the stored
+   secret" do. The box sits before its label, tinted like the rest of the app's controls. */
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  accent-color: var(--primary);
+}

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronDown, CircleUser, LogOut, Users } from 'lucide-react'
+import { ChevronDown, CircleUser, LogOut, Plug, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -8,10 +8,11 @@ import type { CurrentUser } from '@/lib/types'
 import '@/styles/user-menu.css' // .user-menu* — the trigger and the popup's placement under it
 
 /**
- * The signed-in user's menu in the header: Users (the installation owner only) and Sign out.
+ * The signed-in user's menu in the header: Integrations and Users (the installation owner only) and
+ * Sign out.
  *
  * A disclosure — a button that shows and hides a small panel — rather than an ARIA `menu`, which
- * would promise arrow-key navigation for two entries that Tab already reaches. Escape, a click
+ * would promise arrow-key navigation for a few entries that Tab already reaches. Escape, a click
  * anywhere outside and the focus moving out of it close it.
  */
 export function UserMenu({ user }: { user: CurrentUser }) {
@@ -78,12 +79,18 @@ export function UserMenu({ user }: { user: CurrentUser }) {
       </Button>
       {open && (
         <div id={popupId} className="ui-menu user-menu-popup">
-          {/* Owner-only: the page would only answer every other user with a 403. */}
+          {/* Owner-only: the pages would only answer every other user with a 403. */}
           {user.isOwner && (
-            <Link to="/settings/users" className="ui-menu-item" onClick={() => setOpen(false)}>
-              <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('menu.users')}
-            </Link>
+            <>
+              <Link to="/settings/integrations" className="ui-menu-item" onClick={() => setOpen(false)}>
+                <Plug className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('menu.integrations')}
+              </Link>
+              <Link to="/settings/users" className="ui-menu-item" onClick={() => setOpen(false)}>
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('menu.users')}
+              </Link>
+            </>
           )}
           <button
             type="button"

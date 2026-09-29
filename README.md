@@ -3,9 +3,10 @@
 # Media Acquisition Manager
 
 **Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built. Today the app is an
-API and a web shell that report their own health, with accounts: the installation owner created on
-first run, the users the owner manages, and sign-in. Search, downloads and every integration are
-still to come; see [ROADMAP.md](ROADMAP.md).
+API and a web shell that report their own health, with accounts and integration settings: the
+installation owner created on first run, the users the owner manages, and sign-in; the owner
+connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, and tests each connection.
+Search, downloads and library import are still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -46,6 +47,15 @@ application.
   and pages through the users on the server, adds a user, disables or enables one, resets a
   password, and deletes one after a confirmation. The owner's own account can't be disabled or
   deleted.
+- **Integration settings for the owner.** The Integrations page (**Integrations** in the owner's
+  user menu) searches by name, filters by kind (media library, release source, download client)
+  and pages on the server; adds Jellyfin, a Torznab feed or qBittorrent, edits one, switches it off
+  and removes it after a confirmation. **Test connection** checks an unsaved integration from its
+  dialog, and a row's **Test** checks a saved one, each answering with a sentence that says what the
+  service did. Services that report file paths take path mappings onto the app's own mounts
+  ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
+  Credentials are stored encrypted and never shown again. Nothing uses the integrations yet: library
+  import, search and downloads build on them.
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -126,10 +136,13 @@ flowchart TD
     Core --> Inventory["Filesystem inventory + SQLite"]
 ```
 
-The core works with media works, versions, physical files, releases, and persisted jobs. Adapter
-contracts keep it independent of any one media server, indexer, or download client. None of the
-adapters exists yet; the solution already has the layers they will live in (see
-[Project structure](#project-structure)).
+The core works with media works, versions, physical files, releases, and persisted jobs, and every
+title, identifier, version, file and release it stores names the source that reported it
+([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
+Adapter contracts keep it independent of any one media server, indexer, or download client. The
+first three adapters exist and, so far, only test a connection; the core's contracts for libraries,
+release search, download clients, file inventory and metadata live in Core and name no product
+([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
 
 | Integration type | First candidate | Planned extension examples |
 | --- | --- | --- |
@@ -180,12 +193,27 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   isn't limited: its cookie holds 256 random bits.
 - **Owner-only settings.** Every action of a controller under `Controllers/Settings` that changes
   something is owner-only because of where the controller lives, not because someone remembered an
-  attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users endpoints are
-  owner-only for reading as well. Anyone else gets 403
+  attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users and Integrations
+  endpoints are owner-only for reading as well. Anyone else gets 403
   `{ "error": "Only the installation owner can do this." }`, logged as a warning.
-- **Audit trail.** Setup and every change to a user (create, disable, enable, password reset,
-  delete) write an audit row in the same transaction as the change: what happened, when, who did it
-  and to whom, with both names copied so the row outlives the users. There is no screen for it yet.
+- **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete)
+  and every change to an integration (add, edit, remove) write an audit row in the same transaction
+  as the change: what happened, when, who did it and to whom or what, with both names copied so the
+  row outlives them. A save that changes nothing and a connection test write none. There is no
+  screen for it yet.
+- **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
+  stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
+  field, so a value copied to another row or column doesn't open. The API never returns one, nor
+  what it is sealed as: an integration says only `hasPassword` and `hasApiKey`, and a field left
+  empty on an edit keeps what is stored. A stored secret that can't be read (the key changed, or the
+  value was copied) fails only that integration's test, with 409 and a sentence asking to enter it
+  again; it is never cleared on its own. A secret a service repeats in its answer is masked before
+  the sentence reaches the page, and none is logged: the integration HTTP clients log no request
+  URLs, because a Torznab key rides in the query. Requests that carry credentials never follow a
+  redirect (the test reports where it pointed, without its query), share no cookies and are never
+  retried. An address can't hold a user name, a password or a query. There is no guard against
+  private addresses: the services live on the owner's network, and only the owner can enter one
+  ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
 - **Behind a reverse proxy.** The app takes the client's address from the connection and ignores
   `X-Forwarded-For`, which any client can write. Behind a reverse proxy that address is the proxy's,
   and a connection Docker's own proxy relays (one from the host itself to a port published on
@@ -269,7 +297,8 @@ sudo install -d -o 10001 -g 10001 -m 700 <directory>
 **Media folders.** Mount them read-only (`:ro`) — nothing in Phase A writes to the library — at the
 path Jellyfin sees them at, so a library path means the same file to the app. A download client
 often sees the same folders under another path (qBittorrent under `/downloads`, say); don't mount
-them a second time for it: the client's settings will map its paths onto yours, as
+them a second time for it: map its paths onto yours under **Integrations** → the client →
+**Path mappings** (`/downloads` → `/media`), as
 [ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)
 explains. The compose file has a commented example. The container's user (uid 10001) needs read
 access: files readable by everyone (the usual 644 and 755) need nothing more; otherwise add the
@@ -327,7 +356,7 @@ underscore separates sections: `MAM_Storage__DataDirectory` sets `Storage:DataDi
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `MAM_Storage__DataDirectory` | `Data` (`/data` in the Docker image) | Directory for the SQLite database `mam.db` and the `.secrets/` directory. A relative path resolves against the API's content root. The Docker Compose file pins it to `/data`, the volume. |
-| `MAM_Encryption__Key` | generated on first run | Base64 of 32 random bytes. Will encrypt stored integration credentials (AES-256-GCM) from MAM-7 on; nothing uses it yet. |
+| `MAM_Encryption__Key` | generated on first run | Base64 of 32 random bytes. Encrypts the stored integration credentials (AES-256-GCM). A value that isn't base64 of exactly 32 bytes makes saving a credential, or testing with a stored one, fail with a trace id, and the log names this variable; changing it makes every stored credential unreadable until it is entered again. |
 | `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes (at least 32). Signs the 15-minute access tokens. Rotating it signs nobody out: the tokens already issued stop working, and open tabs quietly get new ones through their refresh cookie, which this key doesn't sign. |
 
 The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`).
@@ -339,7 +368,8 @@ and then no file is written. An existing file is never overwritten, and an empty
 startup with a message that says what to do and what a new value would cost: a new encryption key
 would orphan everything encrypted with the old one, while a new JWT secret only makes the access
 tokens already issued stop working (nobody is signed out). Back up `.secrets/` together with
-`mam.db`, which holds the accounts and sessions.
+`mam.db`, which holds the accounts, sessions and integrations: the integrations' stored credentials
+open only with the encryption key they were sealed with.
 
 **User Secrets (development).** A fresh checkout needs none: first-run generation covers it. To pin
 a value in development without committing it, the Api project has a `UserSecretsId`:
@@ -367,14 +397,22 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/settings/users/{id}/enable` | Owner only. 200 with the user; the sessions the disable ended stay ended. 404. |
 | `POST /api/settings/users/{id}/password` with `{ password }` | Owner only. 204; every session of the user ends except the caller's own. 400 with the rule's sentence; 404. |
 | `DELETE /api/settings/users/{id}` | Owner only. 204; the user's sessions go with it. 409 for the owner; 404. |
+| `GET /api/settings/integrations?search=&kind=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, adapterType, adapterDisplayName, kind, isEnabled, baseUrl, userName, hasPassword, hasApiKey, pathMappings: [{ servicePrefix, appPrefix }], createdUtc }`, ordered by name; `adapterDisplayName` is `null` when this version no longer connects to the type. `search` matches part of the name in any letter case; `kind` is `MediaLibrary`, `ReleaseSearch` or `DownloadClient`. 400 for a page below 1, a page size outside 1–100 or an unknown kind. |
+| `GET /api/settings/integrations/adapter-types` | Owner only. 200 `{ items }`, each `{ typeId, displayName, kind, userName, password, apiKey, reportsFilePaths }`, a credential being `NotUsed`, `Optional` or `Required`; the types are `jellyfin`, `torznab` and `qbittorrent`. |
+| `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
+| `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. |
+| `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. |
+| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings; download jobs and facts it reported keep its name. 404. |
+| `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
+| `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
 Apart from the health endpoints, which answer with their own report (see
 [Health endpoints](#health-endpoints)), every failure that carries a message answers
 `{ "error": "<readable sentence>" }`. An unknown API path answers 404 JSON instead of the web app's
-page, so a mistyped API call can't look like a success. A 404 for an id that doesn't exist has no
-body at all.
+page, so a mistyped API call can't look like a success. A 404 for an id in the path that doesn't
+exist has no body at all.
 
 Health, setup, sign-in, refresh and sign-out need no access token; every other endpoint needs
 `Authorization: Bearer <access token>`, and answers 401 `{ "error": "Sign in to continue." }`
@@ -437,10 +475,11 @@ API tests go over real HTTP through `WebApplicationFactory`, each test class aga
 throwaway SQLite database, so they never touch your `Data/` directory. Tests tagged
 `Category=RequiresDocker` are excluded by default; there are none yet.
 
-The adapters will be tested against real, sanitized answers of Jellyfin, qBittorrent, Prowlarr's
-Torznab feed and ffprobe, kept in `tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`
-with a README saying where each came from and how it was sanitized. `VendorSamplesTests` already
-fails the build if a sample carries a credential.
+Real, sanitized answers of Jellyfin, qBittorrent, Prowlarr's Torznab feed and ffprobe are kept in
+`tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`, with a README saying where each
+came from and how it was sanitized. The adapters' connection tests run against them: the tests swap
+each integration's HTTP handler for one that answers with a sample, so no test reaches a real
+service. `VendorSamplesTests` fails the build if a sample carries a credential.
 
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
@@ -463,12 +502,15 @@ Jenkinsfile                                    CI: tests every commit to main, p
 Jenkinsfile.publish                            a release, started by hand: tests, pushes to Docker Hub
 src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
-                                               and sessions, user management, audit trail, health
-                                               checks, security headers, EF Core migrations
-  MediaAcquisitionManager.Core/                entities, options and pure logic (user name and
-                                               password rules); no package references
+                                               and sessions, user management, integration
+                                               settings, audit trail, health checks, security
+                                               headers, EF Core migrations
+  MediaAcquisitionManager.Core/                entities of the accounts, the media model and
+                                               integrations, adapter contracts, options, rules and
+                                               path mapping; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
-                                               password hashing
+                                               password hashing, credential encryption, the
+                                               Jellyfin, Torznab and qBittorrent adapters
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples

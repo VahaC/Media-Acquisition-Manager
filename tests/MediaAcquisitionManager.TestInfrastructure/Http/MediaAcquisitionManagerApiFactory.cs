@@ -7,12 +7,17 @@ using System.Text.Json.Serialization;
 using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Options;
 using MediaAcquisitionManager.Core.Storage;
+using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
+using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
+using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
 using MediaAcquisitionManager.TestInfrastructure.Time;
 using Microsoft.AspNetCore.Hosting;
@@ -22,6 +27,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Http;
@@ -39,9 +45,13 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// The directory goes when the factory is disposed.
 /// </para>
 /// <para>
-/// Only seams to the outside world are replaced — today that is the clock; later the vendor
-/// clients. Two more stand-ins keep the suite fast and its tests independent without faking any
-/// behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
+/// Only seams to the outside world are replaced — the clock and the vendor HTTP: each integration
+/// client's primary handler is a <see cref="RecordingHttpHandler"/> (<see cref="JellyfinHttp"/>,
+/// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>), so the real adapters run with the app's
+/// own client configuration and only the network is faked. One more adapter type,
+/// <see cref="FakeAdapter"/>, is registered beside the real ones for tests about what the API does with
+/// an adapter's answer. Two more stand-ins keep the suite fast and its tests independent without
+/// faking any behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
 /// records what it verifies — see <see cref="PasswordHasher"/>), and a synthetic client address per
 /// request (see <see cref="PinClientAddress"/>). The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
@@ -103,6 +113,22 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <see cref="ResetAsync"/>.
     /// </summary>
     public RecordingPasswordHasher PasswordHasher { get; } = new(TestPasswordHashIterations);
+
+    /// <summary>The <c>fake</c> integration type, registered beside the real ones. Reset by
+    /// <see cref="ResetAsync"/>.</summary>
+    public FakeIntegrationAdapter FakeAdapter { get; } = new();
+
+    /// <summary>The network behind the Jellyfin adapter's client; 503 until armed. Reset by
+    /// <see cref="ResetAsync"/>.</summary>
+    public RecordingHttpHandler JellyfinHttp { get; } = new();
+
+    /// <summary>The network behind the Torznab adapter's client; 503 until armed. Reset by
+    /// <see cref="ResetAsync"/>.</summary>
+    public RecordingHttpHandler TorznabHttp { get; } = new();
+
+    /// <summary>The network behind the qBittorrent adapter's client; 503 until armed. Reset by
+    /// <see cref="ResetAsync"/>.</summary>
+    public RecordingHttpHandler QBittorrentHttp { get; } = new();
 
     /// <summary>
     /// A DI scope for seeders and assertions, created on first use and renewed by
@@ -181,8 +207,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Puts the factory back to a clean state; every test calls it first. Empties every table of the
     /// EF model in one batched command (a round trip per table adds up across a suite), rewinds the
-    /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, unpins the client address and
-    /// renews <see cref="Scope"/>.
+    /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
+    /// <see cref="FakeAdapter"/> and the vendor handlers, unpins the client address and renews
+    /// <see cref="Scope"/>.
     /// Model-driven: a new entity needs no line here.
     /// </summary>
     public async Task ResetAsync()
@@ -192,6 +219,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         Time.Reset();
         Logs.Clear();
         PasswordHasher.Clear();
+        FakeAdapter.Reset();
+        JellyfinHttp.Reset();
+        TorznabHttp.Reset();
+        QBittorrentHttp.Reset();
         Volatile.Write(ref _pinnedClientAddress, null);
 
         await using var scope = Services.CreateAsyncScope();
@@ -247,6 +278,14 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             // Added beside the default providers, not instead of them: a failing run still shows
             // the host's log in the test output.
             services.AddSingleton<ILoggerProvider>(Logs);
+            // Beside the real adapters, not instead of them: the registry takes every one registered.
+            services.AddSingleton<IIntegrationAdapter>(FakeAdapter);
+            // Registered after the app's own client configuration, so these actions run after its
+            // ConfigurePrimaryHttpMessageHandler and win; everything else about each client (timeout,
+            // buffer limit, user agent, no logging handlers) stays the app's.
+            UsePrimaryHandler(services, JellyfinAdapter.HttpClientName, JellyfinHttp);
+            UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
+            UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
         });
     }
 
@@ -265,6 +304,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         services.RemoveAll<T>();
         services.AddSingleton(instance);
     }
+
+    private static void UsePrimaryHandler(IServiceCollection services, string clientName, RecordingHttpHandler handler) =>
+        services.Configure<HttpClientFactoryOptions>(
+            clientName, options => options.HttpMessageHandlerBuilderActions.Add(builder => builder.PrimaryHandler = handler));
 
     public override async ValueTask DisposeAsync()
     {

@@ -8,7 +8,7 @@ import { useResetUserPassword } from '@/lib/queries'
 import type { UserSummary } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field — the same credential fields as the sign-in and setup forms
-import '@/styles/users.css' // .users-dialog* — the scrolling body, the error line
+import '@/styles/settings-dialog.css' // .settings-dialog* — the scrolling body, the error line
 
 /**
  * Sets a new password for a user, the owner's own included — there is no other way to change a
@@ -40,7 +40,7 @@ export function ResetPasswordDialog({ user, onClose }: { user: UserSummary; onCl
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="users-dialog">
+      <DialogContent className="settings-dialog">
         <DialogHeader>
           <DialogTitle>{t('reset.title', { name: user.userName })}</DialogTitle>
           <DialogDescription>
@@ -48,8 +48,8 @@ export function ResetPasswordDialog({ user, onClose }: { user: UserSummary; onCl
           </DialogDescription>
         </DialogHeader>
         {/* noValidate: the rules live on the server, and its sentence is the one to show. */}
-        <form className="users-dialog-form" noValidate onSubmit={(event) => void save(event)}>
-          <div className="users-dialog-body">
+        <form className="settings-dialog-form" noValidate onSubmit={(event) => void save(event)}>
+          <div className="settings-dialog-body">
             <label className="auth-field">
               <span className="ui-label">{t('reset.newPassword')}</span>
               <Input
@@ -70,7 +70,7 @@ export function ResetPasswordDialog({ user, onClose }: { user: UserSummary; onCl
               />
             </label>
           </div>
-          {error && <p className="users-dialog-error" role="alert">{error}</p>}
+          {error && <p className="settings-dialog-error" role="alert">{error}</p>}
           {/* Primary first, Cancel last — the order every dialog in the app uses. */}
           <DialogFooter>
             <Button type="submit" disabled={reset.isPending}>

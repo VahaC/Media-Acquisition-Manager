@@ -28,13 +28,6 @@
   "refreshFailed": "Refresh failed, showing the last loaded users.",
   "noMatch": "No users match “{{search}}”.",
   "clearSearch": "Clear search",
-  "pager": {
-    "label": "Pages",
-    "status": "Page {{page}} of {{pages}}",
-    "pageSize": "Per page",
-    "previous": "Previous",
-    "next": "Next"
-  },
   "create": {
     "title": "Add user",
     "description": "They sign in with this user name and password. You can reset the password later.",

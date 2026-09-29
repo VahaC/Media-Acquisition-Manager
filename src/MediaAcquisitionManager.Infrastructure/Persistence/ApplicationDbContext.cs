@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace MediaAcquisitionManager.Infrastructure.Persistence;
 
@@ -16,6 +17,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<UserSessionEntity> UserSessions => Set<UserSessionEntity>();
 
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
+
+    public DbSet<IntegrationConnectionEntity> IntegrationConnections => Set<IntegrationConnectionEntity>();
+
+    public DbSet<PathMappingEntity> PathMappings => Set<PathMappingEntity>();
+
+    public DbSet<DestinationMappingEntity> DestinationMappings => Set<DestinationMappingEntity>();
+
+    public DbSet<MediaWorkEntity> MediaWorks => Set<MediaWorkEntity>();
+
+    public DbSet<MediaWorkTitleEntity> MediaWorkTitles => Set<MediaWorkTitleEntity>();
+
+    public DbSet<MediaWorkIdentifierEntity> MediaWorkIdentifiers => Set<MediaWorkIdentifierEntity>();
+
+    public DbSet<MediaVersionEntity> MediaVersions => Set<MediaVersionEntity>();
+
+    public DbSet<PhysicalFileEntity> PhysicalFiles => Set<PhysicalFileEntity>();
+
+    public DbSet<ReleaseEntity> Releases => Set<ReleaseEntity>();
+
+    public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,5 +86,139 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey(x => x.ActorUserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
+
+        // Every enum below is stored by name (the AuditAction reason): a member added or reordered
+        // later never changes what a stored row means, and needs no migration.
+
+        modelBuilder.Entity<IntegrationConnectionEntity>(e =>
+        {
+            // MAM-7 — uniqueness on the normalised name, for the NormalizedUserName reason: SQLite
+            // compares text case-sensitively. The service answers 409 first; this settles two
+            // creates racing each other.
+            e.HasIndex(x => x.NormalizedName).IsUnique();
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // The settings list filters by kind in SQL.
+            e.HasIndex(x => x.Kind);
+            // Cascade: the mappings are part of the connection (its one navigation, replaced by its
+            // one Save), meaningless without it.
+            e.HasMany(x => x.PathMappings).WithOne()
+                .HasForeignKey(x => x.IntegrationConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PathMappingEntity>(e =>
+        {
+            // A backstop for PathMappingRules, which also catch the letter-case variants of a
+            // Windows path that this ordinal index can't. Leading with the owner, so it also serves
+            // the foreign key.
+            e.HasIndex(x => new { x.IntegrationConnectionId, x.ServicePrefix }).IsUnique();
+        });
+
+        modelBuilder.Entity<DestinationMappingEntity>(e =>
+        {
+            // One logical name per client, in any letter case. Leading with the client, so it also
+            // serves the foreign key.
+            e.HasIndex(x => new { x.DownloadClientConnectionId, x.NormalizedName }).IsUnique();
+            // Cascade: a destination of a removed client can't be used any more; the jobs that were
+            // sent to it keep its name in DestinationName.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.DownloadClientConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MediaWorkEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<MediaWorkTitleEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // Cascade: a title says something only about its work.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MediaWorkIdentifierEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
+            // "Which works claim TMDb 679". Not unique: two works claiming one id is a conflict to
+            // show the owner (specification §3.1), not one to forbid and lose.
+            e.HasIndex(x => new { x.Scheme, x.Value });
+            // Cascade: an identifier says something only about its work.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MediaVersionEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            // Cascade: a version is a version of its work; forgetting the work forgets it (never a
+            // file on disk).
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PhysicalFileEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            // Groups the names of one inode (hardlinks), which are counted once. Not unique: two
+            // names of one file are exactly two rows sharing it.
+            e.HasIndex(x => new { x.DeviceId, x.Inode });
+            // MAM-7 — Cascade, not SetNull: a row is a name reported for a version, and a name with
+            // no version is nothing the core can use. Forgetting a version forgets its names, never a
+            // file on disk.
+            e.HasOne<MediaVersionEntity>().WithMany()
+                .HasForeignKey(x => x.MediaVersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReleaseEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            e.Property(x => x.PayloadKind).HasConversion<string>().HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<DownloadJobEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            // Restrict: the release snapshot is the job's evidence of what was sent; it can't go
+            // while a job points at it.
+            e.HasOne<ReleaseEntity>().WithMany()
+                .HasForeignKey(x => x.ReleaseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // MAM-7 — SetNull, not Restrict: job history outlives the client (DownloadClientName keeps
+            // who it was), and Restrict would forbid removing any client that ever had a job —
+            // relaxing that later is a SQLite table rebuild.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.DownloadClientConnectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // SetNull: the job outlives its destination mapping; DestinationName and
+            // ClientDestinationKey keep what was sent.
+            e.HasOne<DestinationMappingEntity>().WithMany()
+                .HasForeignKey(x => x.DestinationMappingId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    // The provenance columns of every ProvenancedEntity table (ADR 0006), in one place: the five
+    // blocks above would otherwise repeat the same lines, and one of them would drift.
+    private static void ConfigureProvenance<TEntity>(EntityTypeBuilder<TEntity> e)
+        where TEntity : ProvenancedEntity
+    {
+        e.Property(x => x.SourceKind).HasConversion<string>().HasMaxLength(32);
+        // Re-sync finds a row by the source's own id (MAM-8). Not unique: two assertions may share
+        // it. Leading with SourceConnectionId, so it also serves the foreign key.
+        e.HasIndex(x => new { x.SourceConnectionId, x.SourceItemId });
+        // MAM-7 — SetNull: a fact outlives the integration that reported it; SourceName keeps who
+        // that was. Whether a removed library's facts are purged is MAM-8's decision, not a cascade.
+        e.HasOne<IntegrationConnectionEntity>().WithMany()
+            .HasForeignKey(x => x.SourceConnectionId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

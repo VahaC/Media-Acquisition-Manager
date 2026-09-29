@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { useCreateUser } from '@/lib/queries'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field — the same credential fields as the sign-in and setup forms
-import '@/styles/users.css' // .users-dialog* — the scrolling body, the error line
+import '@/styles/settings-dialog.css' // .settings-dialog* — the scrolling body, the error line
 
 /**
  * Adds a user who signs in with a user name and password. The parent mounts it only while it is
@@ -40,14 +40,14 @@ export function CreateUserDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="users-dialog">
+      <DialogContent className="settings-dialog">
         <DialogHeader>
           <DialogTitle>{t('create.title')}</DialogTitle>
           <DialogDescription>{t('create.description')}</DialogDescription>
         </DialogHeader>
         {/* noValidate: the rules live on the server, and its sentence is the one to show. */}
-        <form className="users-dialog-form" noValidate onSubmit={(event) => void save(event)}>
-          <div className="users-dialog-body">
+        <form className="settings-dialog-form" noValidate onSubmit={(event) => void save(event)}>
+          <div className="settings-dialog-body">
             <label className="auth-field">
               <span className="ui-label">{t('auth:userName')}</span>
               <Input
@@ -78,7 +78,7 @@ export function CreateUserDialog({ onClose }: { onClose: () => void }) {
               />
             </label>
           </div>
-          {error && <p className="users-dialog-error" role="alert">{error}</p>}
+          {error && <p className="settings-dialog-error" role="alert">{error}</p>}
           {/* Primary first, Cancel last — the order every dialog in the app uses. */}
           <DialogFooter>
             <Button type="submit" disabled={create.isPending}>

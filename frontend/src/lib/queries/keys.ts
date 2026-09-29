@@ -1,4 +1,4 @@
-import type { UsersQuery } from '../types'
+import type { IntegrationsQuery, UsersQuery } from '../types'
 
 /**
  * Every query key in the app. Hierarchical arrays that mirror the URL, so a prefix invalidates a
@@ -17,6 +17,17 @@ export const qk = {
       all: ['settings', 'users'] as const,
       /** The whole query object is part of the key, so each page and search is cached apart. */
       list: (query: UsersQuery) => ['settings', 'users', 'list', query] as const,
+    },
+    integrations: {
+      /**
+       * Every page and filter: what a change to any integration invalidates. `lists`, not the
+       * `['settings', 'integrations']` family, which would refetch the adapter types too.
+       */
+      lists: ['settings', 'integrations', 'list'] as const,
+      /** The whole query object is part of the key, so each page and filter is cached apart. */
+      list: (query: IntegrationsQuery) => ['settings', 'integrations', 'list', query] as const,
+      /** Fixed by the build; never invalidated by a change. */
+      adapterTypes: ['settings', 'integrations', 'adapter-types'] as const,
     },
   },
 }

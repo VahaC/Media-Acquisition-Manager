@@ -10,6 +10,8 @@ import { queryClient } from '@/lib/query-client'
 // Every page is its own chunk, loaded on first visit. AppLayout holds the Suspense boundary, so
 // the header stays on screen while a page's code arrives.
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
+const IntegrationsPage = lazy(() =>
+  import('@/pages/settings/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })))
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })))
@@ -30,6 +32,7 @@ export default function App() {
                     visitor without one to /login, and back to the address once signed in. */}
                 <Route element={<ProtectedRoute />}>
                   <Route index element={<HomePage />} />
+                  <Route path="settings/integrations" element={<IntegrationsPage />} />
                   <Route path="settings/users" element={<UsersPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Route>

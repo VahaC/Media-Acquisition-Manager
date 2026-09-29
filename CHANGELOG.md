@@ -166,3 +166,74 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   carries an API key, a session, a password, a tracker URL or a magnet's tracker list. The questions
   left open (TV shows, the quarantine policy, whether library files are seeding originals) are
   listed under Phases B and C.
+- **The installation owner connects Jellyfin, a Torznab source and qBittorrent under Integrations,
+  and the core gets a media model and adapter contracts that name no product (MAM-7, ADR 0005,
+  ADR 0006, ADR 0007).** One migration (`AddIntegrationsAndMediaModel`) adds ten tables:
+  integrations, their path mappings and download destinations, works with their titles and
+  identifiers, versions, physical files, releases and download jobs. Only integrations and path
+  mappings are written yet; the rest wait for MAM-8 to MAM-14, their shape pinned by persistence
+  tests. Every title, identifier, version, file and release names its source — the kind, the
+  integration, that integration's name copied, the source's own item id and when it was observed —
+  so two sources that disagree stay two rows, and removing an integration keeps what it reported
+  with its name. The model refuses three assumptions by its columns: a work has no title, year or
+  library id of its own, so a Jellyfin item is only the source of a version (two items of one movie
+  can be two versions of one work, one item with two media sources two versions sharing its id); a
+  release has no file list and no work, as one release can hold several of both; a physical file row
+  is one name of a file, so hardlinks are rows sharing `(DeviceId, Inode)` and count once. A file's
+  path inside the app is worked out through its integration's current path mappings when it is
+  needed, never stored. Removing a download client keeps its jobs with the client's name; its
+  destinations go with it. A release's download link is stored encrypted like a credential, ready
+  for the server-side fetch of MAM-13. Core holds `IIntegrationAdapter` and five contracts with
+  their Phase A members only: four integration kinds — `IMediaLibraryProvider`,
+  `IReleaseSearchProvider`, `IDownloadClient` and `IMetadataResolver` — whose calls return one
+  `IntegrationCallStatus`, and `IFileInventory`, the app's own look at its local mounts rather than
+  a connection, which answers its own `FileInventoryStatus`; none throws on an expected failure.
+  `CoreIsVendorNeutralTests` refuses a product name in any Core namespace, type or member. Adapter types are ids registered by Infrastructure and stored on each
+  integration (`jellyfin`, `torznab`, `qbittorrent`); the registry picks the adapter by id
+  (Strategy), and a type serves a kind by implementing its contract. The three adapters implement
+  only a connection test for now: Jellyfin reads `/System/Info` with the key in its `MediaBrowser
+  Token` header ("Connected to Jellyfin 12.1.0 (VahaC media)."); Torznab asks the feed for `t=caps`,
+  at the address as entered when its last folder is `api` (Prowlarr's `/1/api`) and with `/api`
+  appended otherwise (Jackett's `…/torznab/`) ("Connected to Prowlarr over Torznab; movie search by
+  title."); qBittorrent signs in once when a user name is set and reads its version ("Connected to
+  qBittorrent v5.2.3.", or "… without signing in" when it lets the app's address in). A failure gets
+  a fixed sentence for what happened — unreachable, no connection accepted within 5 seconds or no
+  answer within 15, credentials refused, refused for now, the service's own error, or an answer that isn't the
+  service's — never an exception's text. The Integrations page (**Integrations** in the owner's user
+  menu) searches by name, filters by kind and pages on the server, with the page size remembered per
+  device; its dialog picks the service, shows only the credentials it takes, tests the unsaved
+  settings with **Test connection**, edits the path mappings of a service that reports file paths,
+  and has a **Use this integration** switch that is kept but not yet read by anything; a row's
+  **Test** shows its sentence in a banner, and **Remove** asks first and changes nothing in the
+  service. The endpoints under `/api/settings/integrations` are owner-only, reads included; a
+  connection test answers 200 `{ status, message }` whatever the service said, because the test ran,
+  and 409 when a stored secret can't be read or this version no longer connects to the type, whose
+  integrations can then only be removed; `PUT` answers 204 and keeps a switch or mappings it isn't
+  sent. Credentials are sealed with AES-256-GCM as `v1:` + base64 of a fresh 12-byte nonce, the
+  ciphertext and the tag, with the integration's id and the field as associated data, so a value
+  copied to another row or column doesn't open. `MAM_Encryption__Key` has its consumer now; like
+  `Jwt:Secret` it is read on first use, so a value that isn't base64 of 32 bytes fails the first
+  save or test that needs it with a trace id and a log line naming the variable instead of stopping
+  the app. No answer carries a secret, only `hasPassword` and `hasApiKey`; a secret is set, cleared,
+  or kept by leaving it out, and keeping one never decrypts it. A stored secret that can't be read
+  fails only its own integration's test with 409 and a sentence asking to enter it again, is never
+  cleared on its own, and is logged as a warning. An API key is 8–256 visible ASCII characters
+  without spaces, quotes or backslashes, so it can be masked and sent in a header; a password is up
+  to 256 characters without line breaks. Every test message is masked of the call's secrets in the
+  adapter and again in the service, and text a service sent is masked before it is cut to length,
+  where half a key would no longer match. The integration HTTP clients follow no redirect (the test names
+  where it pointed, without the query), keep no cookies, retry nothing and log no request URL,
+  because a Torznab key rides in the query; answers are capped at 4 MiB, and XML with a DTD is
+  refused. An address is a full http or https address without user info, query or fragment; the
+  owner may enter a private one, as these services live on the LAN. Path mappings are ordered pairs
+  per integration, at most 20, saved by the dialog's one Save and only for services that report file
+  paths; paths are Linux- or Windows-style, matched folder by folder (`/downloads` never covers
+  `/downloads2`), minding letter case for Linux paths and not for Windows ones, and `.` or `..` is
+  refused. A path mapped twice, service paths of two styles, nested pairs that send one folder to two
+  places, or nested pairs from Windows service paths onto Linux paths (they disagree as soon as the
+  service reports another letter case) are refused at save, and a stored set that still disagrees resolves as ambiguous rather
+  than by the longest prefix; with pairs, a path none covers is not covered, and without any it is
+  taken as is (ADR 0003, Implementation). Adding, editing and removing an integration write the
+  audit rows `IntegrationCreated`, `IntegrationUpdated` (only when something changed) and
+  `IntegrationDeleted` with its name copied; a connection test writes none. The paging rules of the
+  Users and Integrations lists are shared (`PagingRules`).

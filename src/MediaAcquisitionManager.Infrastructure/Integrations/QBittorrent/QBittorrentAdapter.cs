@@ -1,0 +1,204 @@
+using System.Net;
+using System.Text.RegularExpressions;
+using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Enums;
+
+namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
+
+/// <summary>
+/// qBittorrent's Web API behind the core's contracts (Adapter, ADR 0005). MAM-7 builds the
+/// registration and the connection test; MAM-11, MAM-13 and MAM-14 add the download client contract
+/// to this class.
+/// </summary>
+internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients) : HttpIntegrationAdapter(httpClients, HttpClientName)
+{
+    /// <summary>The stored type id — part of the on-disk contract (ADR 0005).</summary>
+    public const string TypeId = "qbittorrent";
+
+    /// <summary>The named client this adapter's requests go through, so a test can swap its handler.</summary>
+    public const string HttpClientName = TypeId;
+
+    /// <summary>Far longer than qBittorrent's 32-character session id; a longer name or value is not
+    /// one this app sends back.</summary>
+    private const int CookiePartMaximumLength = 256;
+
+    /// <summary>Longer than any version qBittorrent reports (<c>v5.2.3</c>).</summary>
+    private const int VersionMaximumLength = 32;
+
+    private const string CredentialsRefusedError = "qBittorrent refused the user name or password.";
+
+    private const string BannedError =
+        "qBittorrent has banned this app's address after too many failed sign-ins. Wait for the ban to end (qBittorrent's Web UI options set how long), then try again.";
+
+    private const string NotQBittorrentSignInError =
+        "The service at this address answered the sign-in, but not the way qBittorrent does.";
+
+    private const string NotFoundError =
+        "qBittorrent's Web API wasn't found at this address (404 Not Found). Use the address of qBittorrent's Web UI, such as http://192.168.1.10:8080.";
+
+    private const string NoCookieError = "qBittorrent accepted the sign-in but sent no session cookie.";
+
+    private const string UnusableCookieError = "qBittorrent sent a session cookie this app can't use.";
+
+    private const string NotAVersionError = "The service at this address answered, but not with a qBittorrent version.";
+
+    private const string SignInNeededError =
+        "qBittorrent asks for a user name and password. Enter them, or let this app's address skip authentication in qBittorrent's Web UI options.";
+
+    private const string SessionRefusedError = "qBittorrent refused the session it had just opened.";
+
+    /// <inheritdoc/>
+    public override IntegrationAdapterDescriptor Descriptor { get; } = new(
+        TypeId,
+        "qBittorrent",
+        IntegrationKind.DownloadClient,
+        // Optional: qBittorrent can let whitelisted subnets in without signing in (decision 1).
+        UserName: CredentialRequirement.Optional,
+        Password: CredentialRequirement.Optional,
+        ApiKey: CredentialRequirement.NotUsed,
+        ReportsFilePaths: true);
+
+    /// <summary>
+    /// Signs in when a user name is set (the credential rules make the password come with it), then
+    /// reads <c>GET /api/v2/app/version</c> — with the session cookie when there is one.
+    /// </summary>
+    protected override async Task<ConnectionTestResult> TestAsync(
+        HttpClient client, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
+    {
+        string? sessionCookie = null;
+        if (!string.IsNullOrEmpty(settings.UserName))
+        {
+            var signIn = await SignInAsync(client, settings, cancellationToken);
+            if (signIn.Failure is { } failure)
+                return failure;
+            sessionCookie = signIn.Cookie;
+            // The session is as good as the password until it expires: masked like one.
+            sessionSecrets.Add(signIn.SessionValue!);
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, settings.Resolve("api/v2/app/version"));
+        // The one cookie this call means to send; the client keeps no cookie container.
+        if (sessionCookie is not null)
+            request.Headers.TryAddWithoutValidation("Cookie", sessionCookie);
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        var signedIn = sessionCookie is not null;
+        return response.StatusCode switch
+        {
+            HttpStatusCode.OK => DescribeVersion(await ReadTextAsync(response, cancellationToken), signedIn),
+            HttpStatusCode.Forbidden when signedIn => ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, SessionRefusedError),
+            HttpStatusCode.Forbidden => ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, SignInNeededError),
+            HttpStatusCode.NotFound => ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotFoundError),
+            _ => DescribeUnexpectedStatus(response, settings, sessionSecrets),
+        };
+    }
+
+    /// <summary>
+    /// <c>POST /api/v2/auth/login</c>, exactly once: a failed sign-in counts towards qBittorrent's ban
+    /// of the address, so it is never repeated.
+    /// </summary>
+    /// <remarks>
+    /// The credentials travel form-encoded in the body, never in the URL. No <c>Referer</c> or
+    /// <c>Origin</c>: by its source, qBittorrent compares them with <c>Host</c> only when present, and
+    /// a proxy that rewrites <c>Host</c> would make a <c>Referer</c> fail the sign-in.
+    /// </remarks>
+    private async Task<SignInResult> SignInAsync(HttpClient client, IntegrationConnectionSettings settings, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, settings.Resolve("api/v2/auth/login"))
+        {
+            Content = new FormUrlEncodedContent(
+            [
+                new KeyValuePair<string, string>("username", settings.UserName!),
+                new KeyValuePair<string, string>("password", settings.Password ?? ""),
+            ]),
+        };
+
+        using var response = await client.SendAsync(request, cancellationToken);
+        switch (response.StatusCode)
+        {
+            // 5.2 and later answer a good sign-in with 204.
+            case HttpStatusCode.NoContent:
+                return ReadSessionCookie(response);
+            // Earlier versions answer 200 "Ok." or 200 "Fails.".
+            case HttpStatusCode.OK:
+                var body = (await ReadTextAsync(response, cancellationToken)).Trim();
+                if (string.Equals(body, "Ok.", StringComparison.Ordinal))
+                    return ReadSessionCookie(response);
+                return SignInResult.Failed(string.Equals(body, "Fails.", StringComparison.Ordinal)
+                    ? ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, CredentialsRefusedError)
+                    : ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotQBittorrentSignInError));
+            case HttpStatusCode.Unauthorized:
+                return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, CredentialsRefusedError));
+            case HttpStatusCode.Forbidden:
+                return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.Refused, BannedError));
+            case HttpStatusCode.NotFound:
+                return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotFoundError));
+            default:
+                // No session yet: this is the call that would open one.
+                return SignInResult.Failed(DescribeUnexpectedStatus(response, settings, sessionSecrets: []));
+        }
+    }
+
+    /// <summary>
+    /// The first <c>Set-Cookie</c>'s <c>name=value</c>, whatever its name: <c>QBT_SID_&lt;port&gt;</c>
+    /// since 5.2, <c>SID</c> before (VendorSamples README). Its attributes are dropped; the cookie is
+    /// sent back once, to the same address, straight away.
+    /// </summary>
+    private static SignInResult ReadSessionCookie(HttpResponseMessage response)
+    {
+        // Raw values: a header value that doesn't parse is still something the service sent, and
+        // it is judged below instead of silently skipped.
+        if (!response.Headers.NonValidated.TryGetValues("Set-Cookie", out var values) || values.Count == 0)
+            return SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NoCookieError));
+
+        var setCookie = values.First();
+        var end = setCookie.IndexOf(';', StringComparison.Ordinal);
+        var pair = (end < 0 ? setCookie : setCookie[..end]).Trim();
+        var separator = pair.IndexOf('=', StringComparison.Ordinal);
+        if (separator <= 0)
+            return Unusable();
+
+        var name = pair[..separator].Trim();
+        var value = pair[(separator + 1)..].Trim();
+        // A control character (CR and LF above all) would split the Cookie header this value is sent
+        // back in; an oversized part is not a session id.
+        if (name.Length == 0 || value.Length == 0
+            || name.Length > CookiePartMaximumLength || value.Length > CookiePartMaximumLength
+            || name.Any(char.IsControl) || value.Any(char.IsControl))
+            return Unusable();
+
+        return new SignInResult(null, $"{name}={value}", value);
+
+        static SignInResult Unusable() =>
+            SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, UnusableCookieError));
+    }
+
+    /// <summary>The version as qBittorrent reports it (<c>v5.2.3</c>), when the body is one.</summary>
+    private static ConnectionTestResult DescribeVersion(string body, bool signedIn)
+    {
+        var version = body.Trim();
+        if (version.Length > VersionMaximumLength || !VersionPattern().IsMatch(version))
+            return ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotAVersionError);
+
+        return ConnectionTestResult.Succeeded(signedIn
+            ? $"Connected to qBittorrent {version}."
+            : $"Connected to qBittorrent {version} without signing in: it lets this app's address skip authentication.");
+    }
+
+    /// <summary>
+    /// <c>v5.2.3</c> or <c>4.6.7</c>: ASCII digits only (<c>\d</c> would take any script's), and
+    /// <c>\z</c> rather than <c>$</c>, which would also accept a trailing line break.
+    /// </summary>
+    [GeneratedRegex(@"^v?[0-9]+(\.[0-9]+){1,3}\z")]
+    private static partial Regex VersionPattern();
+
+    /// <summary>How a sign-in went: a failure to answer with, or the cookie to send and the session
+    /// value to mask. Private: nothing outside the connection test needs it.</summary>
+    private sealed record SignInResult(ConnectionTestResult? Failure, string? Cookie, string? SessionValue)
+    {
+        public static SignInResult Failed(ConnectionTestResult failure) => new(failure, null, null);
+
+        // A record's generated ToString prints every property, the live session included.
+        public override string ToString() => $"SignInResult {{ Failure = {Failure} }}";
+    }
+}

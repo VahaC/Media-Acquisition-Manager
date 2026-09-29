@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Storage;
+using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddSingleton(storage);
         services.AddMediaAcquisitionManagerPersistence(storage);
         services.AddSecurityInfrastructure();
+        services.AddIntegrationsInfrastructure();
         return services;
     }
 

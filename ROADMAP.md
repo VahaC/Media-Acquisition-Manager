@@ -1,8 +1,9 @@
 # Roadmap
 
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
-localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in) and MAM-6 (the live
-environment facts) are built; no phase has shipped yet.
+localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
+environment facts) and MAM-7 (the core model and integration settings) are built; no phase has
+shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -62,9 +63,25 @@ existing file untouched.
   sanitized answers of every service are the adapters' test fixtures
   (`tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`). Questions 3, 4 and 6 stay
   open and are listed under Phases B and C.
-- **MAM-7 Core model and integration settings:** the core entities of specification §4 that Phase A
-  needs, and owner-only settings for each integration. Credentials are encrypted at rest
-  (AES-256-GCM with `Encryption:Key`) and never returned by the API.
+- **MAM-7 Core model and integration settings** (built): the core entities of specification §4
+  that Phase A needs — works, their titles and identifiers, versions, physical files, releases,
+  download jobs and destinations — where every title, identifier, version, file and release names
+  the source that reported it, a work is not a library item, a release is not one file and a file
+  row is one name of a set of bytes
+  ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md));
+  contracts for media libraries, release search, download clients and metadata behind adapter types
+  registered by id, and one for the app's own file inventory, none naming a product
+  ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md));
+  and an owner-only Integrations page (server-side search, kind filter and paging; add, edit, switch
+  off, remove after a confirmation) with a real connection test for Jellyfin, a Torznab feed and
+  qBittorrent, from the dialog before saving and from the list. Credentials are encrypted at rest
+  (AES-256-GCM with `Encryption:Key`, sealed to their integration and field) and never returned by
+  the API
+  ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
+  Path mappings are stored per integration and resolved folder by folder, never by a guess
+  ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
+  The adapters only test a connection so far; MAM-8, MAM-10 and MAM-11 add their library, search
+  and download contracts.
 - **MAM-8 Jellyfin inventory:** paginated library listing with IDs and their sources, versions,
   file paths and state snapshots; items in nested `Collection` folders work without being moved.
   Movies are listed with collection grouping switched off: with it on, Jellyfin shows a collection
@@ -74,9 +91,9 @@ existing file untouched.
 - **MAM-10 Torznab search:** one Torznab provider with per-indexer configuration; Toloka tested
   through Prowlarr with a real query. The provider speaks plain Torznab, so it has no code specific
   to Prowlarr or Toloka.
-- **MAM-11 qBittorrent and destinations:** connection test, category listing, magnet and `.torrent`
-  submission, job and file monitoring, and logical destinations (`Movies`, `Movies 4K`) mapped to
-  existing categories without an overriding save path.
+- **MAM-11 qBittorrent and destinations:** category listing (its connection test came with
+  MAM-7), magnet and `.torrent` submission, job and file monitoring, and logical destinations
+  (`Movies`, `Movies 4K`) mapped to existing categories without an overriding save path.
 - **MAM-12 Unified search page:** library copies beside available releases, verified properties
   beside claimed ones; a failing source shows its own error without hiding the others.
 - **MAM-13 Send to client:** pick a release, client and destination; one click creates one job,
@@ -85,9 +102,10 @@ existing file untouched.
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
-  the accounts, sessions and audit trail too, and `.secrets/`); copy it while the app is stopped. A
-  secret set through `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead
-  of `.secrets/`, so back it up there.
+  the accounts, sessions, integrations and audit trail too, and `.secrets/`, whose encryption key
+  alone opens the stored credentials); copy it while the app is stopped. A secret set through
+  `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
+  back it up there.
 
 **Out of scope:** removing, moving or replacing any library file (Phase C); duplicate detection
 (Phase B); a second search or client adapter, Plex and Emby (Phase D); TV shows (specification

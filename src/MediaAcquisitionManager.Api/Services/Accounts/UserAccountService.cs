@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Paging;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,23 +22,13 @@ public sealed class UserAccountService(
     TimeProvider time,
     ILogger<UserAccountService> logger) : IUserAccountService
 {
-    /// <summary>
-    /// The largest page the list serves: a page-size menu offers up to this, and anything bigger
-    /// would only let one request read a whole large user table at once.
-    /// </summary>
-    private const int MaximumPageSize = 100;
-
-    private const string PageError = "Page must be 1 or more.";
-    private const string PageSizeError = "Page size must be between 1 and 100.";
     private const string OwnerCannotBeDisabled = "The installation owner can't be disabled.";
     private const string OwnerCannotBeDeleted = "The installation owner can't be deleted.";
 
     public async Task<UserListResult> ListAsync(string? search, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        if (page < 1)
-            return UserListResult.Invalid(PageError);
-        if (pageSize is < 1 or > MaximumPageSize)
-            return UserListResult.Invalid(PageSizeError);
+        if (PagingRules.Validate(page, pageSize) is { } pagingError)
+            return UserListResult.Invalid(pagingError);
 
         var users = db.Users.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search))

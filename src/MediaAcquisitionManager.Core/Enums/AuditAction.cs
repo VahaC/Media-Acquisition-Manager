@@ -21,4 +21,14 @@ public enum AuditAction
 
     /// <summary>The owner deleted a user.</summary>
     UserDeleted = 6,
+
+    /// <summary>The owner added an integration.</summary>
+    IntegrationCreated = 7,
+
+    /// <summary>The owner changed an integration's settings (never its secrets' values, which no
+    /// audit row holds).</summary>
+    IntegrationUpdated = 8,
+
+    /// <summary>The owner removed an integration.</summary>
+    IntegrationDeleted = 9,
 }

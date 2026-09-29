@@ -3,9 +3,7 @@ namespace MediaAcquisitionManager.Infrastructure.Security;
 /// <summary>
 /// The secrets an installation can run without configuring: generated once into the secrets
 /// directory, then reused on every start. The JWT secret signs the access tokens (MAM-4); the
-/// encryption key's consumer arrives with the integration credentials (MAM-7, AES-256-GCM) — but
-/// provisioning it from the first release means an installation never has to be reconfigured when
-/// that lands.
+/// encryption key seals the integration credentials (MAM-7, AES-256-GCM).
 /// </summary>
 internal static class FirstRunSecrets
 {

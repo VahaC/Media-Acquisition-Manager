@@ -1,8 +1,8 @@
 # Vendor samples
 
-Real answers from the reference installation, collected on 2026-09-29 for MAM-6, so the adapters of
-MAM-8 to MAM-11 are tested against what the services actually send rather than against their
-documentation. `RepositoryPaths.VendorSamples` points here.
+Real answers from the reference installation, collected on 2026-09-29 for MAM-6, so the connection
+tests of MAM-7 and the adapters of MAM-8 to MAM-11 are tested against what the services actually send
+rather than against their documentation. `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
 | --- | --- |

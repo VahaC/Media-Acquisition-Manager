@@ -1,0 +1,42 @@
+/* MAM-7 — the pager under a server-paged list: the page it shows, the page-size select and
+   Previous/Next. Moved out of the MAM-4 Users page sheet with ListPager, which imports it. */
+
+.list-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+}
+
+.list-pager-status {
+  margin-right: auto;
+  color: var(--muted-foreground);
+}
+
+.list-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+}
+
+/* `.ui-input` is a full-width text field; a four-option select needs only its own width. */
+.list-page-size .ui-input {
+  width: auto;
+  height: 2rem;
+  padding: 0 0.5rem;
+  color: var(--foreground);
+}
+
+.list-pager-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 560px) {
+  /* Icons only on a phone; each button keeps its label in title=, which also names it. */
+  .list-pager .label-text {
+    display: none;
+  }
+}

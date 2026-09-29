@@ -48,6 +48,7 @@ public class Program
         }
 
         builder.Services.AddSectionOptions<StorageOptions>(builder.Configuration);
+        builder.Services.AddSectionOptions<EncryptionOptions>(builder.Configuration);
         builder.Services.AddMediaAcquisitionManagerApi();
         builder.Services.TryAddSingletonTimeProvider();
         builder.Services.AddMediaAcquisitionManagerAuth(builder.Configuration);
@@ -57,6 +58,7 @@ public class Program
         builder.Services.AddMediaAcquisitionManagerAudit();
         builder.Services.AddSetupFeatures();
         builder.Services.AddAccountFeatures();
+        builder.Services.AddIntegrationFeatures();
         builder.Services.AddMediaAcquisitionManagerHealthChecks();
 
         var app = builder.Build();

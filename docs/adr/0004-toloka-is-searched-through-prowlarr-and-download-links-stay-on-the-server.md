@@ -72,3 +72,36 @@ from vendor error text, never returned by the API.
 The owner sees the app as the replacement for Prowlarr's search page and may later want to drop
 Prowlarr. A direct Toloka adapter would then be a new search provider beside the Torznab one, which
 the core's provider contract allows; nothing in this decision has to be undone for it.
+
+## Implementation (added 0.1.0, MAM-7)
+
+**The integration's address is the feed.** A Torznab integration stores the feed's address, and the
+adapter uses it as entered when its last folder is `api` in any letter case (Prowlarr's per-indexer
+`http://…:9696/1/api`), and appends `/api` otherwise (Jackett's copied `…/results/torznab/`): a
+fixed rule about the address, not a guess about which product serves it. The adapter knows neither
+Prowlarr nor Toloka. Its connection test asks for `t=caps`, reads a feed's own
+`<error code description>` whatever HTTP status it came with (codes 100–102 are a refused key, 910
+an API switched off), and names the movie-search parameters the feed offers: "Connected to Prowlarr
+over Torznab; movie search by title." A 429 is the feed refusing requests for now, with the feed's
+own description when it gave one. Prowlarr answers an indexer it paused, or one at its query limit,
+with HTTP 429 and
+`<error code="429" description="Indexer is disabled till … due to recent failures."/>`, so error
+code 429, and any `<error>` that comes with HTTP 429, reads that way, as does an HTTP 429 without a
+Torznab body.
+
+**The key travels as `apikey` in the query**, where Torznab reads it. So the integration HTTP clients
+have no logging handlers and never write a request URI, an error description that echoes the key is
+masked, and the key itself is required, stored encrypted and never returned
+([ADR 0007](0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
+
+**The release is ready for the server-side fetch.** `ReleaseEntity.PayloadLocatorEncrypted` holds a
+release's download link sealed like a credential, for its own release
+(`release/{id:N}/payload-locator`), and `ReleasePayloadLocator` prints masked. Nothing writes a
+release yet: stripping `sid` and fetching the link stay with MAM-10 and MAM-13, whose tests pin them
+as said above.
+
+`TorznabAdapterTests.EndpointFor_uses_an_address_ending_in_api_and_appends_api_otherwise`,
+`TorznabAdapterTests.TestConnection_maps_each_torznab_error_code` (Prowlarr's 429 among them),
+`TorznabAdapterTests.TestConnection_masks_an_api_key_the_error_description_echoes` and
+`IntegrationsInfrastructureExtensionsTests.Every_integration_client_has_no_logging_or_retry_handler`
+assert it.

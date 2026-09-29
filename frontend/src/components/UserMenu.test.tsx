@@ -24,6 +24,7 @@ function renderMenu(user: CurrentUser) {
         <button type="button">Next on the page</button>
         <Routes>
           <Route path="/" element={<p>Home page</p>} />
+          <Route path="/settings/integrations" element={<p>Integrations page</p>} />
           <Route path="/settings/users" element={<p>Users page</p>} />
         </Routes>
       </MemoryRouter>
@@ -68,7 +69,22 @@ describe('UserMenu', () => {
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
 
-  it('does not offer Users to anyone else', async () => {
+  it('offers Integrations above Users to the installation owner, and opens the page from there', async () => {
+    // Arrange
+    const { user } = renderMenu(owner)
+    await user.click(screen.getByRole('button', { name: 'Signed in as vasyl' }))
+    const entries = screen.getAllByRole('link').map((link) => link.textContent)
+
+    // Act
+    await user.click(screen.getByRole('link', { name: 'Integrations' }))
+
+    // Assert
+    expect(entries).toEqual(['Integrations', 'Users'])
+    expect(screen.getByText('Integrations page')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Integrations' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer Integrations or Users to anyone else', async () => {
     // Arrange
     const { user } = renderMenu(member)
 
@@ -77,6 +93,7 @@ describe('UserMenu', () => {
 
     // Assert
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Integrations' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
 
@@ -128,6 +145,7 @@ describe('UserMenu', () => {
     // Arrange
     const { user } = renderMenu(owner)
     await user.click(screen.getByRole('button', { name: 'Signed in as vasyl' }))
+    await user.tab()
     await user.tab()
     await user.tab()
     const lastEntry = screen.getByRole('button', { name: 'Sign out' })

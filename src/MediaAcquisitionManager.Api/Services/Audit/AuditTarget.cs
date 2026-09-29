@@ -10,4 +10,7 @@ namespace MediaAcquisitionManager.Api.Services.Audit;
 public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
 {
     public static AuditTarget User(UserEntity user) => new(AuditTargetKind.User, user.Id, user.UserName);
+
+    public static AuditTarget Integration(IntegrationConnectionEntity connection) =>
+        new(AuditTargetKind.Integration, connection.Id, connection.Name);
 }
