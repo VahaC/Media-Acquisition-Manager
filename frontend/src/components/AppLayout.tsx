@@ -10,9 +10,9 @@ import '@/styles/app-layout.css' // .app-* — the header, its nav links and the
 
 /**
  * The shell every page renders in: a header with the app name, the running version and — once
- * signed in — the header links of the shared nav list (MAM-8: Library) and the user menu, and the
- * page itself in `<main>`. Pages are lazy, so the Suspense boundary sits here, around the outlet
- * only — the header stays put while a page's code loads.
+ * signed in — the header links of the shared nav list (MAM-12: Search, then MAM-8: Library) and
+ * the user menu, and the page itself in `<main>`. Pages are lazy, so the Suspense boundary sits
+ * here, around the outlet only — the header stays put while a page's code loads.
  *
  * A page that crashes is caught here too, so its fallback fills `<main>` and the header (the way
  * back home) stays on screen. The boundary around the whole router in App.tsx is only for a

@@ -134,11 +134,12 @@ public sealed class MediaModelPersistenceTests : DatabaseTestBase
         Assert.Equal(search.Id, stored.SourceConnectionId);
         Assert.Equal(0, await db.MediaWorks.CountAsync(cancellationToken));
         Assert.Equal(0, await db.PhysicalFiles.CountAsync(cancellationToken));
-        // Its only relationship is to the source that listed it: no work, no file, no path.
+        // Its only relationships are to the source that listed it and, since MAM-12, the stored search's
+        // source that found it: no work, no file, no path.
         var references = await db.Database
             .SqlQueryRaw<string>("SELECT \"table\" AS \"Value\" FROM pragma_foreign_key_list('Releases')")
             .ToListAsync(cancellationToken);
-        Assert.Equal(["IntegrationConnections"], references);
+        Assert.Equal(["IntegrationConnections", "SearchSources"], references.Order(StringComparer.Ordinal));
         // The download link is sealed like a credential for this release (ADR 0004).
         Assert.DoesNotContain("planted-release-key", stored.PayloadLocatorEncrypted, StringComparison.Ordinal);
         Assert.True(Encryption.TryDecrypt(stored.PayloadLocatorEncrypted, ReleasePayloadLocatorPurpose.For(release.Id), out var locator));

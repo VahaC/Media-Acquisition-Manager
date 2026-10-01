@@ -34,14 +34,7 @@ public sealed class LibraryMapper : ILibraryMapper
             originalTitle?.Text,
             // Unknown stays unknown: no year is made up from another source's title.
             title?.Year ?? originalTitle?.Year,
-            // MAM-8 — one entry per claim (scheme, value, source): the items of one library that share their
-            // ids (two files of one movie, both "Чужі") each store the id, and the card shows it once.
-            [.. identifiers
-                .OrderBy(identifier => identifier.Scheme)
-                .ThenBy(identifier => identifier.Value, StringComparer.Ordinal)
-                .ThenBy(identifier => identifier.SourceName, StringComparer.Ordinal)
-                .Select(identifier => new LibraryIdentifierDto(identifier.Scheme, identifier.Value, identifier.SourceName))
-                .Distinct()],
+            ToDtos(identifiers),
             [.. ReliableSchemes.Where(scheme => !schemes.Contains(scheme))],
             [.. versions
                 .OrderBy(version => version.SourceName, LibraryTitleOrder.Comparer)
@@ -56,6 +49,16 @@ public sealed class LibraryMapper : ILibraryMapper
                     version.ObservedUtc,
                     [.. filesOf(version).OrderBy(file => file.ServicePath, StringComparer.Ordinal)]))]);
     }
+
+    public IReadOnlyList<LibraryIdentifierDto> ToDtos(IReadOnlyList<MediaWorkIdentifierEntity> identifiers) =>
+        // MAM-8 — one entry per claim (scheme, value, source): the items of one library that share their
+        // ids (two files of one movie, both "Чужі") each store the id, and the card shows it once.
+        [.. identifiers
+            .OrderBy(identifier => identifier.Scheme)
+            .ThenBy(identifier => identifier.Value, StringComparer.Ordinal)
+            .ThenBy(identifier => identifier.SourceName, StringComparer.Ordinal)
+            .Select(identifier => new LibraryIdentifierDto(identifier.Scheme, identifier.Value, identifier.SourceName))
+            .Distinct()];
 
     public LibraryFileDto ToDto(
         PhysicalFileEntity file,

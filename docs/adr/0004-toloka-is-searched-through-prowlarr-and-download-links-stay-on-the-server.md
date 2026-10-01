@@ -176,3 +176,39 @@ the plan; `TorznabAdapterPayloadTests.FetchPayload_refuses_a_link_off_the_feeds_
 `TorznabAdapterPayloadTests.FetchPayload_maps_each_error_the_feed_answers_a_download_with` the fetch;
 and `ReleaseSearchSecretsHttpTests.Search_answers_no_planted_credential_or_ciphertext_to_the_owner_or_a_member`
 that none of it reaches the browser.
+
+## Implementation (added 0.1.0, MAM-12)
+
+**Identifiers are read out of a listing now, and matched on the app's own side.** The MAM-10
+section's "MAM-10 reads no identifier out of a listing" no longer holds. The adapter reads the
+Torznab attributes `imdbid` (`tt0816692`, or its digits), `imdb` (the digits, which Jackett writes
+without their leading zeros, `816692`) and `tmdbid`, in any attribute namespace, into the hit's
+identifiers: at most one per scheme, IMDb first, an IMDb id as a lower-case `tt` and its digits
+padded to seven, so it equals the one a library holds. A blank value, one of zeros only (Jackett
+writes `0` for none) or one `MediaIdentifierRules` refuses is no id, and a listing whose attributes
+give two different values of one scheme gives none of that scheme: a listing that contradicts
+itself can't be matched to anything, the `LibraryWorkGrouping` rule for an item that names two. Both
+searches store them with the release (`ImdbId`, `TmdbId`), and the stored search matches each
+release to the library's works by them and by the title and year read from its title
+([ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)):
+the Decision's "matches identifiers on its own side", against the snapshot the library sync
+imported. Toloka through Prowlarr lists no id (both samples), so on the reference installation its
+releases match by title and year, and an id is still never sent to it.
+
+**The stored search asks the way the release search does.** `POST /api/searches` asks every source
+through the same code as `POST /api/releases/search` — the same plan, the same categories, the same
+limit — and stores the same sealed rows
+([ADR 0011](0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)); none
+of its three answers carries a download link, a key or a link token, and neither do the rows it
+stores outside the sealed link or the log.
+
+`TorznabAdapterSearchIdentifiersTests.Search_reads_an_imdb_id_in_the_form_a_library_holds`,
+`TorznabAdapterSearchIdentifiersTests.Search_ignores_a_value_that_is_not_an_id_and_keeps_the_release`,
+`TorznabAdapterSearchIdentifiersTests.Search_drops_an_imdb_id_the_listing_contradicts_and_keeps_its_other_ids`
+and `TorznabAdapterSearchIdentifiersTests.Search_of_the_toloka_sample_reads_no_ids` pin the reading;
+`SearchesCreateHttpTests.Create_stores_the_registry_ids_a_listing_gives_with_its_release` and
+`SearchesCreateHttpTests.Create_sends_each_source_what_the_release_search_sends` the stored search;
+and `SearchesSecretsHttpTests.Searches_answer_no_planted_credential_or_ciphertext_to_the_owner_or_a_member`,
+`SearchesSecretsHttpTests.Search_stores_no_planted_credential_outside_the_sealed_download_link` and
+`SearchesSecretsHttpTests.Nothing_logged_while_searching_and_reading_a_search_carries_a_planted_credential`
+that the links still stay on the server.

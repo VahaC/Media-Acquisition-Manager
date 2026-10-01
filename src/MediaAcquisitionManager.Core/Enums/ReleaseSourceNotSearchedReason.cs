@@ -1,4 +1,4 @@
-namespace MediaAcquisitionManager.Api.Contracts;
+namespace MediaAcquisitionManager.Core.Enums;
 
 /// <summary>
 /// Why a search didn't ask one release source (MAM-10). Where a connection test or a sync answers 409

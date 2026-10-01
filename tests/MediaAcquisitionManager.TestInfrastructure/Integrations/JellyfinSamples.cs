@@ -149,6 +149,34 @@ public static class JellyfinSamples
     }
 
     /// <summary>
+    /// A movie of its own with these facts (MAM-12): "13-й район" with its id, titles, year, provider ids
+    /// and path replaced, for the titles and ids the reference library doesn't hold — a search page's
+    /// "Інтерстеллар", a remake of another year. An original title or id that is <c>null</c> is left out,
+    /// the way Jellyfin leaves out what it doesn't know.
+    /// </summary>
+    public static JsonObject MovieWith(
+        string id, string title, string? originalTitle, int year, string path, string? imdbId = null, string? tmdbId = null)
+    {
+        var movie = Movie(District13Id);
+        movie["Id"] = id;
+        movie["Name"] = title;
+        movie.Remove("OriginalTitle");
+        if (originalTitle is not null)
+            movie["OriginalTitle"] = originalTitle;
+        movie["ProductionYear"] = year;
+        var providerIds = new JsonObject();
+        if (imdbId is not null)
+            providerIds["Imdb"] = imdbId;
+        if (tmdbId is not null)
+            providerIds["Tmdb"] = tmdbId;
+        movie["ProviderIds"] = providerIds;
+        movie["Path"] = path;
+        movie["MediaSources"]![0]!["Id"] = id;
+        movie["MediaSources"]![0]!["Path"] = path;
+        return movie;
+    }
+
+    /// <summary>
     /// One further part of a stacked movie as <c>GET /Videos/{id}/AdditionalParts</c> lists it: an item
     /// of its own with the part's path, and its size on its media source.
     /// </summary>

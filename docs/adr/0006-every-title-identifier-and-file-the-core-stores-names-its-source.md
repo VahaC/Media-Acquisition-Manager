@@ -173,3 +173,38 @@ removal unless a job holds them.
 `ReleaseSearchSourcesHttpTests.Search_of_a_source_removed_while_it_was_searched_leaves_it_and_its_releases_out`;
 `IntegrationsDeleteHttpTests.Delete_of_a_release_source_keeps_its_releases_with_the_source_name` stays as
 it was.
+
+## Implementation (added 0.1.0, MAM-12)
+
+**How titles and ids from several sources sit beside a release.** The MAM-8 section left it to
+MAM-12, and the Consequences' "who said what beside each title" is now shown. A release is never
+joined to a work. The search page shows each matching work as the Library page's card, the display
+rule above unchanged, and beside it what matched, each with who said it: the identifier, with every
+source that reported it — two sources holding the same id are two entries, never a conflict — and
+the title that matched, with its kind (displayed or original), its year and its source; of several
+titles that match, one of the year searched for first, then a displayed one before an original,
+then the Library's title order. A scheme on which the work's own rows disagree, or on which it
+disagrees with the id searched for, is flagged as conflicting and never merged: a work two sources
+give two IMDb ids shows both, and the warning. What a release claims stays the release's: the
+titles and year read from its title, and the ids its listing gives, stored on its own row
+(`ImdbId`, `TmdbId`), whose provenance columns say which source claimed them. The match itself is
+never stored
+([ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)).
+
+**A release row keeps more of its listing, and still no work.** Besides those ids, a release row
+keeps its seeders and peers, its 0-based place in its source's answer and, for a stored search, the
+search source that found it (`SearchSourceId`)
+([ADR 0011](0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
+That link sets null when the search is removed: a release a download job sent outlives its search,
+as the job's evidence. The Decision holds — no path, no file list, no work — and a search still
+writes new rows, never an update of earlier ones. A search source copies its integration's name
+like every row here, so removing the integration keeps who answered the search.
+
+`SearchesLibraryMatchingHttpTests.Create_lists_every_source_that_holds_a_matched_id_without_calling_it_a_conflict`,
+`SearchesLibraryMatchingHttpTests.Create_lists_a_work_two_sources_give_two_imdb_ids_with_the_conflict_and_both_ids`,
+`SearchesLibraryMatchingHttpTests.Create_by_both_ids_lists_each_matched_id_and_the_title_of_the_year_asked_for`
+and `SearchesLibraryMatchingHttpTests.Create_answers_a_works_card_exactly_as_the_library_page_shows_it`
+pin what sits beside a work; `SearchReleasesMatchingHttpTests.Releases_lists_the_ids_each_listing_gives_and_keeps_them_with_the_release`
+the release's own claims; and `SearchPersistenceTests.A_release_a_download_job_keeps_outlives_its_search`
+and `SearchPersistenceTests.Deleting_an_integration_keeps_the_searches_sources_with_their_names` the
+rows.

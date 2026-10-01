@@ -3,8 +3,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Media;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
@@ -25,6 +27,13 @@ internal sealed partial class TorznabAdapter
 
     /// <summary>The longest origin a sentence repeats: an address the owner would type is far shorter.</summary>
     private const int OriginMaximumLength = 100;
+
+    /// <summary>
+    /// The digits an IMDb title id has at least: <c>tt0816692</c>. Newznab's <c>imdb</c> attribute is the
+    /// number, which Jackett writes without its leading zeros (<c>816692</c>), and an id read so must
+    /// equal the one a library holds.
+    /// </summary>
+    private const int ImdbIdMinimumDigits = 7;
 
     /// <summary>
     /// The listed releases in the feed's order, at most the query's limit, those in none of the asked
@@ -118,6 +127,7 @@ internal sealed partial class TorznabAdapter
             // otherwise the fetch decides.
             webLink is null ? ReleasePayloadKind.Magnet : null,
             InfoHash(AttributeValues(attributes, "infohash").FirstOrDefault()),
+            Identifiers(attributes),
             new ReleasePayloadLocator(stored));
         return (hit, webLink);
     }
@@ -148,6 +158,55 @@ internal sealed partial class TorznabAdapter
     /// <summary>A v1 (40) or v2 (64) info hash in hex, lower-cased like the client reports it.</summary>
     private static string? InfoHash(string? value) =>
         value?.Trim() is { } hash && InfoHashPattern().IsMatch(hash) ? hash.ToLowerInvariant() : null;
+
+    /// <summary>
+    /// The registry ids the listing gives (MAM-12): IMDb from <c>imdbid</c> and <c>imdb</c>, TMDb from
+    /// <c>tmdbid</c>, at most one per scheme and IMDb first. A listing that gives two different values of
+    /// one scheme gives none of it: a listing that contradicts itself can't be matched to anything (the
+    /// <c>LibraryWorkGrouping</c> rule for an item naming two values of one scheme). Toloka lists none.
+    /// </summary>
+    private static List<MediaIdentifier> Identifiers(IReadOnlyList<XElement> attributes)
+    {
+        var identifiers = new List<MediaIdentifier>(2);
+        var imdbValues = AttributeValues(attributes, "imdbid").Concat(AttributeValues(attributes, "imdb"));
+        if (OnlyValue(imdbValues.Select(ImdbId)) is { } imdb)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Imdb, imdb));
+        if (OnlyValue(AttributeValues(attributes, "tmdbid").Select(TmdbId)) is { } tmdb)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tmdb, tmdb));
+        return identifiers;
+    }
+
+    /// <summary>The one id among <paramref name="values"/> (<c>null</c> ones are none); <c>null</c> when
+    /// there is none or more than one.</summary>
+    private static string? OnlyValue(IEnumerable<string?> values)
+    {
+        var distinct = values.OfType<string>().Distinct(StringComparer.Ordinal).Take(2).ToList();
+        return distinct.Count == 1 ? distinct[0] : null;
+    }
+
+    /// <summary>
+    /// An IMDb title id from <c>tt0816692</c> or its digits alone, with or without leading zeros, as
+    /// <c>tt</c> and at least <see cref="ImdbIdMinimumDigits"/> digits — <c>tt</c> lower-cased as IMDb
+    /// writes it. <c>null</c> for anything else: blank, all zeros (Jackett writes <c>0</c> for none), or a
+    /// value <see cref="MediaIdentifierRules"/> refuses.
+    /// </summary>
+    private static string? ImdbId(string? value)
+    {
+        var text = value?.Trim() ?? "";
+        var digits = text.StartsWith("tt", StringComparison.OrdinalIgnoreCase) ? text[2..] : text;
+        if (digits.Length == 0 || !digits.All(char.IsAsciiDigit) || digits.All(digit => digit == '0'))
+            return null;
+        var id = "tt" + digits.PadLeft(ImdbIdMinimumDigits, '0');
+        return MediaIdentifierRules.IsImdbId(id) ? id : null;
+    }
+
+    /// <summary>A TMDb movie id, digits only; <c>null</c> for anything else, blank and all zeros
+    /// included.</summary>
+    private static string? TmdbId(string? value)
+    {
+        var text = value?.Trim() ?? "";
+        return MediaIdentifierRules.IsTmdbId(text) && text.Any(digit => digit != '0') ? text : null;
+    }
 
     /// <summary>
     /// An RSS <c>pubDate</c> ("Mon, 03 Aug 2026 00:00:00 +0300") in UTC; <c>null</c> when it can't be

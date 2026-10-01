@@ -52,6 +52,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
 
+    public DbSet<SearchEntity> Searches => Set<SearchEntity>();
+
+    public DbSet<SearchSourceEntity> SearchSources => Set<SearchSourceEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -303,6 +307,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             ConfigureProvenance(e);
             e.Property(x => x.PayloadKind).HasConversion<string>().HasMaxLength(32);
+            // MAM-12 — "the releases of this search source", which every read of a stored search's list
+            // asks for.
+            e.HasIndex(x => x.SearchSourceId);
+            // SetNull: a release a download job sent outlives its search — it is the job's evidence of
+            // what was sent (Restrict, below) — and the prune removes searches by age alone. Adding the
+            // key rebuilds this table on upgrade, in three transactions (the ADR 0009 concern that kept
+            // PhysicalFiles without one): accepted here because the table holds a day of search results,
+            // a few thousand rows at most, so the rebuild is a moment's copy, not the whole library's.
+            e.HasOne<SearchSourceEntity>().WithMany()
+                .HasForeignKey(x => x.SearchSourceId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<DownloadJobEntity>(e =>
@@ -323,6 +338,35 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // ClientDestinationKey keep what was sent.
             e.HasOne<DestinationMappingEntity>().WithMany()
                 .HasForeignKey(x => x.DestinationMappingId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SearchEntity>(e =>
+        {
+            // MAM-12 — "this user's search", which every read of a stored search checks first.
+            e.HasIndex(x => x.UserId);
+            // Cascade: a search is its user's, meaningless to anyone else; deleting the user forgets
+            // what they searched for.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SearchSourceEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.NotSearchedReason).HasConversion<string>().HasMaxLength(32);
+            // MAM-12 — "the sources of this search", read with it every time.
+            e.HasIndex(x => x.SearchId);
+            // Cascade: a source row says something only about its search, and the prune's one
+            // ExecuteDelete of old searches takes their sources with them in the database itself.
+            e.HasOne<SearchEntity>().WithMany()
+                .HasForeignKey(x => x.SearchId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // SetNull: the search still says which source answered after the integration is removed;
+            // Name keeps which one.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.IntegrationConnectionId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

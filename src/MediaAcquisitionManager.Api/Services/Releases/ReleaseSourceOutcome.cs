@@ -1,6 +1,6 @@
-using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
+using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Services.Releases;
 

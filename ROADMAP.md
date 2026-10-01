@@ -4,8 +4,8 @@
 localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
 environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
 library inventory), MAM-9 (the ffprobe inspection of the library's files), MAM-10 (the Torznab
-release search) and MAM-11 (qBittorrent's categories and the download destinations) are built; no
-phase has shipped yet.
+release search), MAM-11 (qBittorrent's categories and the download destinations) and MAM-12 (the
+search page of library copies and releases) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -157,8 +157,36 @@ existing file untouched.
   installation and through the app; 4.4.1 to 5.1 are accepted from qBittorrent's source. Verified
   live on 2026-10-01: qBittorrent v5.2.4's connection test and its four categories, and the
   destination Movies landing in the Jellyfin library "Фільми" at `/media/movies`.
-- **MAM-12 Unified search page:** library copies beside available releases, verified properties
-  beside claimed ones; a failing source shows its own error without hiding the others.
+- **MAM-12 Unified search page** (built): every signed-in user searches by title — required, with a
+  year, an IMDb id and a TMDb id in fields of their own (owner's choice) — and the library and every
+  enabled release source are asked at once, the library through a database context of its own.
+  **In your library** lists every work of the snapshot MAM-8 imported that matches, strongest first:
+  by identifier, then by original or localised title with its year, then by title alone as a
+  candidate to check, each with its versions and the facts MAM-9 verified, the id or title that
+  matched with the source that reported it, and a conflict of ids flagged, never merged
+  ([ADR 0012](docs/adr/0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)).
+  **Available releases** lists every release found, even for a movie already owned, its claimed
+  quality marked as claimed, with every library work it matches, by the title and year read from its
+  title and by the IMDb or TMDb id its listing gives (owner's choice; Toloka gives none), and each
+  source's own status, a failed one never hiding the others. The search is stored with how each
+  source answered and every release, so the server's filters (source, audio language, quality,
+  size), sorts and pages read what it stored and a reload asks no source again; a search is its
+  creator's and lives a day, as long as its releases
+  ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
+  Each release has Details (its listing and claims beside the matching copies' verified facts), Open
+  source and Download, shown disabled with its reason until MAM-13. MAM-10's
+  `POST /api/releases/search` stays as it was (owner's choice), and both searches ask and store
+  through one implementation; `IMetadataResolver` stays unimplemented, as the snapshot needs no call
+  to Jellyfin. The HTTP tests cover the concurrent asking
+  (`SearchesConcurrencyHttpTests.Create_asks_the_library_and_every_source_at_once`), one failing
+  source (`SearchesFailingSourcesHttpTests.Create_with_one_failing_source_is_201_with_its_error_beside_the_other_sources_answer`),
+  the filters and sorts (`SearchReleasesListHttpTests.Releases_filters_and_orders_the_searchs_releases_on_the_server`),
+  matching by id against title and year
+  (`SearchReleasesMatchingHttpTests.Releases_lists_every_work_of_the_search_a_release_matches_strongest_first`,
+  `SearchesLibraryMatchingHttpTests`), and a movie in a `Collection` folder found where it is
+  (`SearchesLibraryMatchingHttpTests.Create_finds_a_movie_inside_a_collection_folder_with_each_version_where_it_is`).
+  The page was checked in a browser at desktop and phone width against fake services, not yet
+  against the reference installation.
 - **MAM-13 Send to client:** magnet and `.torrent` submission to qBittorrent, in the destination's
   category and without a save path (the contract's submission member comes back with it); pick a
   release, client and destination; one click creates one job, and repeated clicks or retries never
@@ -174,7 +202,8 @@ existing file untouched.
   the next inspection; the media folders the owner allowed are in `mam.db` too, and so are the
   download destinations and the library folders the last sync stored (those come back with the next
   sync); qBittorrent's session, and a sign-in it refused, are held in memory only. The releases a
-  search found are kept there for a day, and those a download job sent for as long as the job. A secret set through
+  search found are kept there for a day, and those a download job sent for as long as the job; the
+  Search page's searches, with how each source answered, for a day too. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.
 

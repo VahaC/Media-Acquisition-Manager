@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Releases;
+using MediaAcquisitionManager.Core.Search;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -13,4 +14,8 @@ public interface IReleaseSearchMapper
     /// <paramref name="forOwner"/>: it can name the service's address.
     /// </summary>
     ReleaseSourceResultDto ToDto(ReleaseSourceOutcome outcome, IReadOnlyList<Guid> releaseIds, bool forOwner);
+
+    /// <summary>The quality and languages a release's title claims, as every release list shows them
+    /// (MAM-12: the stored search's too).</summary>
+    ClaimedReleaseQualityDto ToDto(ClaimedReleaseQuality claims);
 }

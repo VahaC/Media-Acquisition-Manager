@@ -27,11 +27,17 @@ public sealed class ReleaseSearchMapper : IReleaseSearchMapper
             [.. outcome.Hits.Select((hit, index) => ToDto(releaseIds[index], hit, categoryNames))]);
     }
 
-    private static FoundReleaseDto ToDto(Guid releaseId, ReleaseSearchHit hit, IReadOnlyDictionary<string, string> categoryNames)
-    {
-        // Read from the title every time it is shown (specification §3.1: claimed, never verified).
-        var claims = ReleaseTitleClaims.Read(hit.Title);
-        return new FoundReleaseDto(
+    public ClaimedReleaseQualityDto ToDto(ClaimedReleaseQuality claims) =>
+        new(
+            claims.Resolution,
+            claims.Medium,
+            claims.VideoCodec,
+            claims.DynamicRanges,
+            claims.AudioLanguages,
+            claims.SubtitleLanguages);
+
+    private FoundReleaseDto ToDto(Guid releaseId, ReleaseSearchHit hit, IReadOnlyDictionary<string, string> categoryNames) =>
+        new(
             releaseId,
             hit.Title,
             hit.SizeBytes,
@@ -41,12 +47,6 @@ public sealed class ReleaseSearchMapper : IReleaseSearchMapper
             hit.SourcePageUrl,
             [.. hit.CategoryIds.Select(id => new ReleaseCategoryDto(id, categoryNames.GetValueOrDefault(id)))],
             hit.PayloadKind,
-            new ClaimedReleaseQualityDto(
-                claims.Resolution,
-                claims.Medium,
-                claims.VideoCodec,
-                claims.DynamicRanges,
-                claims.AudioLanguages,
-                claims.SubtitleLanguages));
-    }
+            // Read from the title every time it is shown (specification §3.1: claimed, never verified).
+            ToDto(ReleaseTitleClaims.Read(hit.Title)));
 }

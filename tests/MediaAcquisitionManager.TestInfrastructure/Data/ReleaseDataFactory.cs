@@ -13,7 +13,8 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
         Guid? sourceConnectionId,
         string sourceName = "Torznab",
         string title = "Interstellar (2014)",
-        string locator = "http://127.0.0.1:9/1/download?apikey=planted-release-key")
+        string locator = "http://127.0.0.1:9/1/download?apikey=planted-release-key",
+        Guid? searchSourceId = null)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var release = new ReleaseEntity
@@ -22,6 +23,7 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
             SourceConnectionId = sourceConnectionId,
             SourceName = sourceName,
             Title = title,
+            SearchSourceId = searchSourceId,
             CreatedUtc = now,
             ObservedUtc = now,
         };

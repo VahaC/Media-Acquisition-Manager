@@ -1,4 +1,4 @@
-import type { DestinationsQuery, IntegrationsQuery, LibraryWorksQuery, UsersQuery } from '../types'
+import type { DestinationsQuery, IntegrationsQuery, LibraryWorksQuery, SearchReleasesQuery, UsersQuery } from '../types'
 
 /**
  * Every query key in the app. Hierarchical arrays that mirror the URL, so a prefix invalidates a
@@ -20,6 +20,14 @@ export const qk = {
     works: (query: LibraryWorksQuery) => ['library', 'works', query] as const,
     locations: ['library', 'locations'] as const,
     sources: ['library', 'sources'] as const,
+  },
+  search: {
+    /** MAM-12 — every stored search and its releases: the prefix of the keys below. */
+    all: ['searches'] as const,
+    /** One stored search: its query, library matches and sources. */
+    detail: (id: string) => ['searches', id] as const,
+    /** The whole query object is part of the key, so each page, filter and sort is cached apart. */
+    releases: (id: string, query: SearchReleasesQuery) => ['searches', id, 'releases', query] as const,
   },
   settings: {
     /** MAM-9 — the media folders: what saving them invalidates, with the library sources. */

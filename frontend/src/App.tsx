@@ -19,6 +19,7 @@ const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default:
 const MediaFoldersPage = lazy(() =>
   import('@/pages/settings/MediaFoldersPage').then((m) => ({ default: m.MediaFoldersPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
+const SearchPage = lazy(() => import('@/pages/SearchPage').then((m) => ({ default: m.SearchPage })))
 const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })))
 const UsersPage = lazy(() => import('@/pages/settings/UsersPage').then((m) => ({ default: m.UsersPage })))
 
@@ -37,6 +38,7 @@ export default function App() {
                     visitor without one to /login, and back to the address once signed in. */}
                 <Route element={<ProtectedRoute />}>
                   <Route index element={<HomePage />} />
+                  <Route path="search" element={<SearchPage />} />
                   <Route path="library" element={<LibraryPage />} />
                   <Route path="settings/integrations" element={<IntegrationsPage />} />
                   <Route path="settings/destinations" element={<DestinationsPage />} />

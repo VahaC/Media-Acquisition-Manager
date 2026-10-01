@@ -332,6 +332,40 @@ public sealed class ReleaseSearchHttpTests : IClassFixture<MediaAcquisitionManag
     }
 
     [Fact]
+    public async Task Search_stores_each_releases_place_seeders_peers_and_listed_ids_outside_any_stored_search()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("torznab", "Toloka", FeedAddress, apiKey: ApiKey);
+        const string movie = "<category>2000</category>";
+        new FakeTorznabServer(FeedAddress, ApiKey)
+        {
+            SearchXml = TorznabSamples.Feed(
+                TorznabSamples.Item(
+                    "Interstellar (2014) 2160p",
+                    $"{TorznabSamples.DownloadBaseFor(FeedAddress)}download?file=1",
+                    extra: movie + """<torznab:attr name="seeders" value="33" /><torznab:attr name="peers" value="40" /><torznab:attr name="imdbid" value="tt0816692" /><torznab:attr name="tmdbid" value="157336" />"""),
+                TorznabSamples.Item("Interstellar (2014) 1080p", $"{TorznabSamples.DownloadBaseFor(FeedAddress)}download?file=2", extra: movie)),
+        }.Arm(_factory.TorznabHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _member.AccessToken, new ReleaseSearchRequest("Interstellar"));
+
+        //Assert
+        // MAM-12 — one store for both searches: a plain search's rows carry what a stored search's list
+        // filters and sorts by, linked to no stored search.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(
+                [
+                    ((int?)0, (int?)33, (int?)40, "tt0816692", "157336", (Guid?)null),
+                    (1, null, null, null, (string?)null, null),
+                ],
+                (await db.Releases.AsNoTracking().OrderBy(release => release.Position).ToListAsync(cancellationToken))
+                    .Select(release => (release.Position, release.Seeders, release.Peers, release.ImdbId, release.TmdbId, release.SearchSourceId))));
+    }
+
+    [Fact]
     public async Task Search_of_a_magnet_release_answers_and_stores_its_kind_and_info_hash()
     {
         //Arrange

@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Core.Abstractions.Search;
@@ -24,6 +25,9 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// <param name="CategoryIds">The source's categories it is listed in.</param>
 /// <param name="PayloadKind">What it is downloaded from; <c>null</c> when the listing doesn't say.</param>
 /// <param name="InfoHash">The info hash when the source states it.</param>
+/// <param name="Identifiers">The registry ids the listing gives (MAM-12): claims of the listing, as its
+/// title's are, at most one per scheme, IMDb first; none of a scheme the listing gives two values of, and
+/// empty when it gives none.</param>
 /// <param name="Locator">Where the server fetches the payload from; never sent to the browser.</param>
 public sealed record ReleaseSearchHit(
     string? SourceItemId,
@@ -36,4 +40,5 @@ public sealed record ReleaseSearchHit(
     IReadOnlyList<string> CategoryIds,
     ReleasePayloadKind? PayloadKind,
     string? InfoHash,
+    IReadOnlyList<MediaIdentifier> Identifiers,
     ReleasePayloadLocator Locator);

@@ -1,0 +1,173 @@
+{
+  "title": "Search",
+  "lead": "Look for a movie in your library and in every release source at once. What the sources list is kept for a day, so filtering and sorting never ask them again.",
+  "form": {
+    "label": "Search for a movie",
+    "title": "Title",
+    "titlePlaceholder": "Interstellar",
+    "year": "Year",
+    "yearPlaceholder": "2014",
+    "imdbId": "IMDb id",
+    "imdbIdPlaceholder": "tt0816692",
+    "tmdbId": "TMDb id",
+    "tmdbIdPlaceholder": "157336",
+    "optional": "(optional)",
+    "submit": "Search",
+    "submitting": "Searching…",
+    "failed": "Could not search."
+  },
+  "expired": "This search is no longer available. Search again.",
+  "loadFailed": "Could not load this search.",
+  "refreshFailed": "Refresh failed, showing the search as it was last loaded.",
+  "library": {
+    "title": "In your library",
+    "empty": "Nothing in your library matches this search."
+  },
+  "match": {
+    "label": "Why it matched",
+    "identifier": "Matched by {{scheme}} id",
+    "identifierAny": "Matched by id",
+    "titleAndYear": "Matched by title and year",
+    "titleOnly": "Possible match — check it",
+    "inLibrary": {
+      "Identifier": "In your library: {{work}} — matched by id",
+      "TitleAndYear": "In your library: {{work}} — matched by title and year",
+      "TitleOnly": "Possible match in your library: {{work}}"
+    },
+    "identifierSource": "{{scheme}} {{value}}, reported by {{source}}",
+    "identifierValue": "{{scheme}} {{value}}",
+    "matchedTitle": "“{{title}}”, {{year}}",
+    "matchedTitleNoYear": "“{{title}}”",
+    "titleKind": {
+      "Display": "The title the library shows",
+      "Original": "The original title"
+    },
+    "titleSource": "{{kind}}, reported by {{source}}",
+    "conflict": "Conflicting {{scheme}} ids",
+    "conflictHint": "The ids reported for this movie, or the one searched for, don't agree. Nothing was merged: check which one is right.",
+    "work": "{{title}} ({{year}})",
+    "workYearUnknown": "{{title}} (year unknown)"
+  },
+  "releases": {
+    "title": "Available releases",
+    "loadFailed": "Could not load the releases.",
+    "refreshFailed": "Refresh failed, showing the last loaded releases.",
+    "none": "No source listed a release for this search.",
+    "noSources": "No release source was searched: none is switched on. The owner adds one under Integrations.",
+    "noMatch": "No release matches these filters.",
+    "clearFilters": "Clear filters"
+  },
+  "sources": {
+    "label": "Release sources",
+    "releases_one": "{{value}} release",
+    "releases_other": "{{value}} releases",
+    "noReleases": "No releases",
+    "notSearched": "Couldn't search: {{reason}}",
+    "reasons": {
+      "SecretUnreadable": "its stored API key can't be read. The owner enters it again under Integrations.",
+      "TypeUnavailable": "this version of the app can't search through its type.",
+      "NoUsableSearch": "it offers no search this app can use."
+    },
+    "status": {
+      "Unreachable": "Couldn't be reached.",
+      "TimedOut": "Didn't answer in time.",
+      "AuthenticationFailed": "Refused the API key.",
+      "Refused": "Refused the search.",
+      "ServiceError": "Answered with an error.",
+      "UnexpectedResponse": "Answered in a way this app can't read.",
+      "NotFound": "Wasn't found at its address.",
+      "UnsupportedVersion": "Runs a version this app can't read."
+    }
+  },
+  "filters": {
+    "source": "Source",
+    "allSources": "All sources",
+    "language": "Audio language",
+    "allLanguages": "All languages",
+    "unknownLanguage": "Unknown",
+    "quality": "Quality",
+    "allQualities": "All qualities",
+    "unknownQuality": "Unknown",
+    "size": "Size, GiB",
+    "minSize": "Smallest size in GiB",
+    "minSizePlaceholder": "From",
+    "maxSize": "Largest size in GiB",
+    "maxSizePlaceholder": "To",
+    "sizeInvalid": "Enter a size in GiB, such as 4.5.",
+    "sort": "Sort",
+    "sorts": {
+      "seeders": "Most seeders",
+      "largest": "Largest",
+      "smallest": "Smallest",
+      "newest": "Newest",
+      "quality": "Best quality"
+    }
+  },
+  "release": {
+    "sizeUnknown": "Size unknown",
+    "seeders_one": "{{value}} seeder",
+    "seeders_other": "{{value}} seeders",
+    "seedersUnknown": "Seeders unknown",
+    "peers_one": "{{value}} peer",
+    "peers_other": "{{value}} peers",
+    "peersUnknown": "Peers unknown",
+    "published": "Published {{date}}",
+    "publishedUnknown": "Publish date unknown",
+    "library": "In your library",
+    "actions": "Actions",
+    "details": "Details",
+    "openSource": "Open source",
+    "noSourcePage": "The source gave no page for this release.",
+    "download": "Download",
+    "downloadLater": "Sending a release to a download client comes in a later update."
+  },
+  "claimed": {
+    "label": "Claimed",
+    "resolution": "{{value}}p",
+    "resolutionUnknown": "Resolution unknown",
+    "medium": {
+      "BluRayRemux": "BDRemux",
+      "BluRay": "Blu-ray",
+      "BluRayRip": "BDRip",
+      "WebDownload": "WEB-DL",
+      "WebRip": "WEBRip",
+      "Hdtv": "HDTV",
+      "Dvd": "DVD",
+      "DvdRip": "DVDRip",
+      "TvRip": "TVRip",
+      "Camera": "CAMRip"
+    },
+    "mediumUnknown": "Medium unknown",
+    "codecUnknown": "Codec unknown",
+    "dynamicRangeUnknown": "HDR unknown",
+    "audio": "Audio: {{languages}}",
+    "audioUnknown": "Audio language unknown",
+    "subtitles": "Subtitles: {{languages}}",
+    "subtitlesUnknown": "Subtitles unknown"
+  },
+  "details": {
+    "description": "What {{source}} lists for this release, and the copies in your library it may be. Everything on the left is the listing's claim; the facts on the right were read from your files.",
+    "listing": "The listing",
+    "source": "Source",
+    "size": "Size",
+    "seeders": "Seeders",
+    "peers": "Peers",
+    "published": "Published",
+    "payload": "Downloaded as",
+    "payloadKind": {
+      "TorrentFile": "A torrent file",
+      "Magnet": "A magnet link",
+      "Nzb": "An NZB file"
+    },
+    "payloadUnknown": "Known once it is fetched",
+    "unknown": "Unknown",
+    "readAs": "Read from the title",
+    "titles": "Titles",
+    "year": "Year",
+    "noClaimedWork": "The title gives no year, so the app can't tell the movie's name from the rest of it. This release matches your library by an id only.",
+    "identifiers": "Ids in the listing",
+    "noIdentifiers": "The listing gives no IMDb or TMDb id.",
+    "library": "In your library",
+    "noLibrary": "Nothing in your library matches this release."
+  }
+}

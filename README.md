@@ -8,8 +8,9 @@ library: the installation owner created on first run, the users the owner manage
 the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each
 connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
 file really holds once the app has inspected it inside the media folders the owner allows; the owner
-also maps download destinations to qBittorrent's categories. Release sources can be searched through
-the API; the search page and sending downloads are still to come; see [ROADMAP.md](ROADMAP.md).
+also maps download destinations to qBittorrent's categories. Every signed-in user searches the
+library and the release sources together on the Search page; sending downloads is still to come; see
+[ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -86,13 +87,27 @@ application.
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
   The Library page shows how many files of each source were inspected, couldn't be read or wait,
   and why a file couldn't be read (the reason to the owner only).
-- **Release search, through the API so far.** Every signed-in user can search all enabled release
-  sources at once for a title, with a year and an IMDb or TMDb id where a source can take them
-  (`POST /api/releases/search`; the page that shows it comes with MAM-12). Each source answers for
-  itself, so one that fails says why beside the others' releases. A release comes with its size,
-  seeders, publish date, the page at the source and its categories, and with what its title claims —
-  resolution, medium, codec, dynamic range, audio and subtitle languages — marked as claims. Movies
-  only; Toloka through Prowlarr is searched by title and year. Download links stay on the server
+- **Search: your library and the release sources side by side.** The Search page (**Search** in the
+  header, first, for every signed-in user) looks for a movie by its title, with a year, an IMDb id
+  and a TMDb id in fields of their own when you have them (owner's choice), in the library and in
+  every enabled release source at once. **In your library** shows each matching movie as the
+  Library page does, versions and verified file facts included, with how it matched — by IMDb or
+  TMDb id, by title and year, or by title alone as a possible match to check — and a warning when
+  ids conflict; every match is listed, strongest first, and nothing is picked or merged
+  ([ADR 0012](docs/adr/0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)).
+  **Available releases** lists every release found, even for a movie already in the library, with
+  its source, size, seeders and peers, publish date and what its title claims — resolution, medium,
+  codec, dynamic range, audio and subtitle languages — marked as claims, and the library copies it
+  matches, by the title and year read from its title and by the ids its listing gives. Each source
+  answers for itself, so one that fails says why beside the others' releases. The server filters by
+  source, audio language, quality and size, sorts by seeders, size, date or quality, and pages; the
+  search is stored for a day, so a filter, a page or a reload never asks the sources again
+  ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
+  Each release has **Details**, its listing beside the matching copies' verified facts, **Open
+  source** and **Download**, greyed out until sending downloads arrives (MAM-13). The API also keeps
+  MAM-10's single-answer search (`POST /api/releases/search`). Movies only; Toloka through Prowlarr
+  is searched by title and year and lists no ids, so its releases match by title and year. Download
+  links stay on the server
   ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
 - **Download destinations for the owner.** The Destinations page (**Destinations** in the owner's
   user menu) names where downloads go — `Movies`, `Movies 4K` — each one a category qBittorrent
@@ -118,11 +133,6 @@ application.
 
 ### What it will do
 
-- **Search your library and release sources together.** Keep showing available releases even when
-  the title is already in your library.
-- **Show meaningful comparisons.** Display verified properties of files you own alongside the
-  *claimed* properties of releases, including resolution, video and audio formats, languages, size,
-  and HDR when known. The user decides whether a release is an upgrade.
 - **Send downloads to the right destination.** Select a release, a compatible client and one of the
   logical destinations above, such as `Movies` or `Movies 4K`; the client gets the destination's
   category, a qBittorrent category or another client's equivalent, and never a folder of the app's.
@@ -257,13 +267,21 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   and expects 403. A failed sync's reason can name the service's address, a path problem quotes the
   owner's path mappings, and who started a sync is the owner's sign-in name, so only the owner gets
   them; everyone else gets `null`.
-- **Release search is everyone's; why a source failed is the owner's.** Every signed-in user may
-  search (owner's choice), which sends the stored Torznab key to the owner's gateway and, through it,
-  searches the tracker with the owner's account. A source's failure can name its address, so only the
-  owner reads the sentence; everyone gets its status. A release reaches the browser without its
-  download link: the link is sealed to the release's row, without the gateway's key, which the fetch
-  puts back. Page links lose the forum session (`sid`), and a link or id that could carry a credential
-  isn't shown or stored as it is
+- **Release search is everyone's, and each search its creator's; why a source failed is the
+  owner's.** Every signed-in user may search (owner's choice), which sends the stored Torznab key to
+  the owner's gateway and, through it, searches the tracker with the owner's account. A search the
+  Search page stores is its creator's alone: asked for by anyone else, the owner included, it answers
+  the same bare 404 as one that doesn't exist or is more than a day old, so nobody reads through the
+  app what someone else searched for, and deleting a user removes their searches
+  ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
+  The search endpoints are every signed-in user's, so their controller lives outside
+  `Controllers/Settings` and `Controllers/Library`. A source's failure can name its address, so only
+  the owner reads the sentence, also when a stored search is read again; everyone gets its status. A
+  search's library side keeps the Library's rules: why a file couldn't be read and why a file has no
+  app path go to the owner only. A release reaches the browser without its download link: the link
+  is sealed to the release's row, without the gateway's key, which the fetch puts back. Page links
+  lose the forum session (`sid`), and a link or id that could carry a credential isn't shown or
+  stored as it is
   ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
 - **The app reads files only inside the allowed roots.** It opens a library file only when the
   path, and every link on the way to it, lies inside a folder the owner allowed on the **Media
@@ -530,6 +548,9 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/library/inspections/{runId}` | 200 `{ id, trigger, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesTotal, filesChecked, filesProbed, error }`, `trigger` being `Requested`, `LibrarySynced` or `AppStarted`; `requestedByUserName` and `error` only for the owner. 404. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
 | `POST /api/releases/search` with `{ text, year, imdbId, tmdbId }` | Every signed-in user. Searches every enabled release source at once and stores each release found. 200 `{ sources }` whatever the sources answered, by name, each `{ integrationId, name, status, notSearchedReason, error, releases }`: `status` is the call's outcome (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, …) or `null` when the app didn't ask the source, `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) says why, `error` the sentence for the owner only; each release `{ id, title, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, categories: [{ id, name }], payloadKind, claimed: { resolution, medium, videoCodec, dynamicRanges, audioLanguages, subtitleLanguages } }` in the source's order, at most 100 per source, `payloadKind` `Magnet` or `null`, the release's download link never included. 400 with the broken rule's sentence: no title, one longer than 200 characters, a year that isn't one, an id that isn't an IMDb (`tt0816692`) or a TMDb (`157336`) id; every field is a string. |
+| `POST /api/searches` with `{ text, year, imdbId, tmdbId }` | Every signed-in user. Asks the library — the snapshot the last sync imported — and every enabled release source at once, the sources the way `POST /api/releases/search` does, and stores the search, how each source answered and every release found, for a day. 201 with the search and its `Location` whatever the sources answered: `{ id, text, year, imdbId, tmdbId, createdUtc, library, sources, facets }`, the search as asked and trimmed. `library` is every matching work, strongest first, each `{ work, evidence, matchedIdentifiers: [{ scheme, value, sourceName }], matchedTitle: { text, kind, year, sourceName }, conflictingSchemes }`: `work` exactly as `GET /api/library/works` gives it, its owner-only fields `null` for everyone else; `evidence` `Identifier`, `TitleAndYear` or `TitleOnly`; `matchedIdentifiers` every source's row of a matched id; `matchedTitle` the title that matched, `null` when none did; `conflictingSchemes` (`Imdb`, `Tmdb`) the schemes the search and the work, or the work's own sources, disagree on. `sources` by name, each `{ id, integrationId, name, status, notSearchedReason, error, releaseCount }` as for the release search, `id` being what the releases' `source` filter takes and `integrationId` `null` once the integration is removed. `facets` `{ audioLanguages, hasUnknownAudioLanguage, resolutions, hasUnknownResolution }`: what the search's releases claim, for the filters. 400 with the broken rule's sentence, nothing stored and no source asked: "Enter the title to search for.", "The search text can be at most 200 characters long.", "The search text can't contain line breaks or other control characters.", "“twenty” is not a year.", "“816692” is not an IMDb id, which looks like tt0816692.", "“tt157336” is not a TMDb id, which is a number such as 157336." (a value is repeated trimmed, cut at 32 characters with "…"). |
+| `GET /api/searches/{id}` | Every signed-in user, for their own searches. 200 as for `POST`: the sources as stored, never asked again, and the library matched again as it is now. A bare 404 for a search that doesn't exist, is someone else's (asked for by the owner too) or is more than a day old, whether or not it has been removed yet. |
+| `GET /api/searches/{id}/releases?source=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes }] }`: `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (none of either when it names no year), `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, strongest first; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -620,6 +641,25 @@ against the reference installation is checked through the app itself: the Toloka
 under Integrations, then a search through the API (16 movie releases for "Interstellar" 2014 on
 2026-10-01).
 
+The stored search is tested over HTTP against a real sync of `FakeJellyfinServer`'s library (works
+are seeded directly only where no sync can give the case, such as two sources' conflicting ids) and
+one or several `FakeTorznabServer` feeds, one class per area in
+`tests/MediaAcquisitionManager.Api.Tests/Search/`: `SearchesCreateHttpTests` (the answer, every 400
+sentence and the rows stored), `SearchesConcurrencyHttpTests` (the library and every source asked
+at once: `DbCommandHook`, a command interceptor of the test harness, holds the library's first read
+until a feed is asked, so a search that asked one after the other would wait in vain),
+`SearchesFailingSourcesHttpTests` (each way a source fails, beside the others' releases),
+`SearchesLibraryMatchingHttpTests` and `SearchReleasesMatchingHttpTests` (evidence, order and
+conflicts, ADR 0012), `SearchReleasesListHttpTests` (every filter, every sort with its ties and
+missing values, paging and every 400 sentence), `SearchesAccessHttpTests` (another user's search,
+the day's lifetime and the prune) and `SearchesSecretsHttpTests` (no planted key, link token,
+session or passkey in the three answers, the stored rows or the log). The rules are tested on their
+own in the core — `TitleMatchKeyTests`, `ReleaseWorkClaimsTests`, `WorkMatchingTests` and
+`SearchReleaseListRulesTests` — and in Infrastructure the ids a listing gives
+(`TorznabAdapterSearchIdentifiersTests`) and the new tables' keys (`SearchPersistenceTests`). The
+Search page was checked in a browser at desktop and phone width against fake services; it has not
+been tried against the reference installation yet.
+
 The download destinations are tested against the real qBittorrent 5.2.3 answers: the adapter lists
 the categories of `categories.json` with their folders, and qBittorrent's recorded answer to a
 session it has forgotten (`expired-session-response.txt`, a 403) drives the sign-in that renews it;
@@ -670,16 +710,19 @@ src/
                                                and sessions, user management, integration
                                                settings, the library and its background sync,
                                                the media folders and the file inspection, the
-                                               release search, the download destinations, audit
+                                               release search, the stored searches and their
+                                               library matches, the download destinations, audit
                                                trail, health checks, security headers, EF Core
                                                migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
                                                path mapping, the allowed roots' rules, the
                                                library's grouping and title order, the release
-                                               search's planning and title claims, and the
-                                               destinations' rules and path check; no package
-                                               references
+                                               search's planning and title claims, the matching
+                                               of a search and its releases to the library's
+                                               works, the release list's filters and sorts, and
+                                               the destinations' rules and path check; no
+                                               package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab and qBittorrent adapters, the

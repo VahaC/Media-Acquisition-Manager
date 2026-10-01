@@ -24,6 +24,12 @@ public interface ILibraryMapper
         Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf);
 
     /// <summary>
+    /// Identifier claims the way a work lists them: by scheme, then value, then source name, each claim
+    /// (scheme, value, source) once. MAM-12 — also the matched ids of a search's library match.
+    /// </summary>
+    IReadOnlyList<LibraryIdentifierDto> ToDtos(IReadOnlyList<MediaWorkIdentifierEntity> identifiers);
+
+    /// <summary>
     /// A file with where this app finds it: its service path through <paramref name="pathMappings"/>, the
     /// reporting integration's current ones (<see cref="PathMapper"/>, ADR 0003); none maps it as it is.
     /// <paramref name="locationName"/> is the name of the library that holds it, when one does. Why it has

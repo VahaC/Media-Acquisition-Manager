@@ -521,6 +521,92 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   destinations too, and the Integrations page's confirmation of a download client's removal says that
   every destination using it goes with it, the default too if it is one of them, while its categories
   stay in the client. Anyone else who opens the page's address gets the API's 403 sentence.
+- **Every signed-in user searches the library and every release source at once, and the search is
+  stored, so every filter, sort and page reads what it found (MAM-12, ADR 0011).**
+  `POST /api/searches` with `{ text, year, imdbId, tmdbId }` — every field a string, the title
+  required, with MAM-10's rules and sentences — asks the library and every enabled release source at
+  the same time, the library through a database context of its own, and answers 201 with its
+  `Location` (`/api/searches/{id}`) whatever the sources answered: the search as asked, trimmed; the
+  works of the library that match it (see below); each source in name order with its `status`, its
+  `notSearchedReason`, the sentence of a failure (`error`, for the owner only) and how many releases
+  it listed; and the audio languages and resolutions those releases claim, for the filters. A broken
+  rule answers 400 with its sentence, stores nothing and asks no source. The search is a `Searches`
+  row of the caller's, with a `SearchSources` row per source — its name copied, its sentence masked
+  and cut to 1000 characters — and every release a new MAM-10 row linked to its source, with its
+  place in the source's answer, its seeders and peers and the ids its listing gives.
+  `GET /api/searches/{id}` reads it again: the sources as stored, never asked again, and the library
+  matched again as it is now, so a sync since shows. `GET /api/searches/{id}/releases` filters the
+  stored releases by source (`source`, a search source's id), audio language (`language`, a
+  three-letter code in any letter case, or `unknown`), resolution (`quality`, such as `1080`, or
+  `unknown`) and size (`minSizeBytes` and `maxSizeBytes`, both inclusive, a release of unknown size
+  left out once either is set), sorts them (`seeders` by default, `largest`, `smallest`, `newest`,
+  `quality`; a value the listing doesn't give always last, and ties by the source's place in the
+  search, then the release's in its source's answer) and pages them (page size 1–100, default 25),
+  on the server and in memory, since what a title claims is read from it on every read and a search
+  holds at most 100 releases per source. A value it can't read answers 400 with its sentence ("“uk”
+  is not a language code. Use a three-letter code such as ukr, or unknown."), and a well-formed source
+  id of another search lists nothing. Each release carries what its title claims — MAM-10's quality
+  and languages, and the titles and year it is read as — the ids its listing gives, and every work of
+  the search's library side it matches. A search is its creator's: asked for by anyone else, the
+  owner included, it answers a bare 404 on both reads, and so does one more than a day old, even
+  before a prune removes it. The next search, stored or plain, removes the searches more than a day
+  old with their sources, and a release a download job sent stays without its search; deleting a
+  user removes their searches. MAM-10's `POST /api/releases/search` stays as it was (owner's
+  choice), and both searches ask and store through one implementation (see Changed). One migration
+  (`AddStoredSearches`) adds the `Searches` and `SearchSources` tables and the new release columns
+  (see Notes for upgraders). `SearchesConcurrencyHttpTests` holds the library's first read until a
+  feed is asked, so a search that asked one after the other fails, and `SearchesSecretsHttpTests`
+  finds no planted key, link token, session or passkey in the three answers, the stored rows or the
+  log.
+- **A search and each of its releases are matched to the library's works by identifier, then by
+  title and year, then by title alone, and every match is listed, strongest first — never picked,
+  merged or acted on (MAM-12, ADR 0012).** The library side reads the snapshot the last sync
+  imported, never Jellyfin itself. A work matches by `Identifier` when it holds an IMDb or TMDb id
+  asked for (trimmed, in any letter case), by `TitleAndYear` when one of its titles — displayed or
+  original, from any source — has a claimed title's key and that title's own year is the year
+  claimed, and by `TitleOnly`, a candidate to check, when only the key does; nothing else counts, no
+  distance between titles and no year ± 1. A title's key is the title upper-cased, its apostrophes
+  dropped so the letters around them join ("Ocean's Eleven" is `OCEANS ELEVEN`, like the scene's
+  "Oceans.Eleven", and "Дев'ять", "Дев’ять" and "Девʼять" are one key), and every other run of
+  characters that aren't letters, digits or combining marks one space. Each match carries the ids
+  that matched with every source that holds them, the title that matched with its kind, year and
+  source, and `conflictingSchemes`: a scheme the claim and the work both hold values of but share
+  none of, or one the work itself holds two values of — flagged, never resolved, and no bar to a
+  title match. The works come by evidence, then by title in Ukrainian alphabetical order, each as the
+  Library page's card, versions, files and verified facts included, with the owner-only fields kept
+  the owner's. A release is matched to the works its search found by the ids its listing gives and by
+  the titles and year read from its title (owner's choice): the first bracketed year with a title
+  before it ("Interstellar (2014) BDRemux 1080p" is "Interstellar" of 2014), else the scene's bare
+  year ("Interstellar.2014.1080p.BluRay"), the part before it split at " / " into alternatives
+  ("Інтерстеллар / Interstellar"), and no title at all without a year, since nothing then says where
+  the title ends; it lists every work it matches, strongest first. Nothing is stored about a match.
+- **The Torznab adapter reads the IMDb and TMDb ids a listing gives (MAM-12, ADR 0004).** The
+  attributes `imdbid` (`tt0816692` or its digits), `imdb` (the digits, which Jackett writes without
+  their leading zeros: `816692`) and `tmdbid` give a release at most one id per scheme, IMDb first,
+  an IMDb id as a lower-case `tt` and its digits padded to seven, so it equals the id a library
+  holds. A blank value, one of zeros only (Jackett's `0` for none) or one `MediaIdentifierRules`
+  refuses is no id, and a listing whose attributes give two different values of one scheme gives none
+  of it, as a listing that contradicts itself can't be matched. Both searches store the ids with the
+  release (`ImdbId`, `TmdbId`). Toloka through Prowlarr lists none, so its releases match by title
+  and year.
+- **The Search page (MAM-12).** **Search** in the header, first, before **Library**, opens it for
+  every signed-in user. Its form takes the title and, optionally, the year, the IMDb id and the TMDb
+  id, each a field of its own (owner's choice), and shows the API's sentence under it; the search's
+  id goes into the address (`/search?id=…`), so a reload or Back keeps it, and a search that is gone
+  says "This search is no longer available. Search again." **In your library** shows each matching
+  work as the Library page's card with a badge for how it matched — "Matched by IMDb id", "Matched by
+  title and year", "Possible match — check it" — the matched title or id with its source on hover,
+  and a warning badge per conflicting scheme. **Available releases** shows a line per source — how
+  many releases it listed, its failure's status with the owner's sentence, or why it wasn't searched
+  — then the filters (source, audio language, quality, size in GiB from and to, sort), each change
+  going back to page 1, and each release with its listed facts, its claimed quality under a visible
+  **Claimed** label, a badge for its strongest library match, and **Details** (a dialog with the
+  listing, what its title was read as and its ids, beside every matching work's versions and
+  verified facts), **Open source** (the source's page in a new tab, greyed out with the reason when
+  there is none) and **Download**, greyed out with "Sending a release to a download client comes in a
+  later update." The list is paged with a page size remembered per device; the dialog has two
+  columns on a wide screen and one on a phone. The Library page's version, file and track lines are
+  components of their own now, shared with the dialog.
 
 ### Changed
 
@@ -582,6 +668,23 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   a folder; they go with a library the sync no longer reports, and with the integration's snapshot
   when it is removed. Only the destination check reads them: which library holds a file is still
   decided from the folders the sync has just read.
+- **MAM-10's release search keeps more of each listing, and asks and stores through the code the
+  stored search uses (MAM-12, ADR 0006, ADR 0011).** `POST /api/releases/search` answers exactly as
+  before, but each release row it stores now also keeps its seeders and peers, its place in its
+  source's answer and the ids its listing gives, with no search source
+  (`ReleaseSearchHttpTests.Search_stores_each_releases_place_seeders_peers_and_listed_ids_outside_any_stored_search`).
+  Asking the sources, storing in one transaction and the prune are one implementation for both
+  searches (`ReleaseSources`, `ReleaseStore`), moved rather than rewritten: its prune also removes the
+  stored searches more than a day old, and its log lines, worded as before, now log under the
+  categories `MediaAcquisitionManager.Api.Services.Releases.ReleaseSources` and `….ReleaseStore`.
+- **`ReleaseSourceNotSearchedReason` moved to the core (MAM-12).** From
+  `MediaAcquisitionManager.Api.Contracts` to `MediaAcquisitionManager.Core.Enums`, with the same
+  members, values and docs, since a stored column (`SearchSources.NotSearchedReason`) holds it now;
+  the JSON is unchanged.
+- **`IMetadataResolver` stays unimplemented (MAM-12, ADR 0005).** MAM-7 said MAM-12 would first
+  implement it from the media server's data. MAM-12 matches a search and its releases against the
+  library snapshot MAM-8 imported instead, which needs no call to the media server, so the contract's
+  summary says so and its members are as they were.
 
 ### Notes for upgraders
 
@@ -608,3 +711,17 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   installation), choose **Sync now** on the Library page, then add destinations under
   **Destinations** in the user menu. A qBittorrent older than 4.4.1 now fails its connection test:
   update it first.
+- **Applying `AddStoredSearches` rebuilds the `Releases` table, and logs EF Core warning 20410 once
+  (MAM-12).** Giving each release a foreign key to the search source that found it makes SQLite
+  rebuild `Releases`, which EF Core does in three transactions with foreign keys off between them: it
+  copies the rows into `ef_temp_Releases` and commits, switches foreign keys off, drops `Releases`,
+  renames the copy and commits, then switches them on again and recreates the indexes. So the log
+  shows `Microsoft.EntityFrameworkCore.Migrations[20410]` for `PRAGMA foreign_keys = 0`, as for
+  `AddLibraryInventory`. A process killed between the transactions leaves the migration half
+  applied, and the next start can't apply it again without a repair by hand — the reason ADR 0009
+  kept `PhysicalFiles` without such a key. It is accepted here because `Releases` holds only a day
+  of search results, a few thousand rows at most, so the copy takes a moment: let the first start
+  after the upgrade finish before you stop the container. Releases stored before the upgrade keep no
+  seeders, place or ids and belong to no search; the next search a day later removes them, as no
+  download job uses one yet. Searching needs no setting: the Search page works once a release source
+  is switched on under Integrations, and its library side once the library is synced.

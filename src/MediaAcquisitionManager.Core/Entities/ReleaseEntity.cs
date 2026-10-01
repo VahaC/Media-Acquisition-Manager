@@ -12,12 +12,19 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// <para>
 /// A new row for every search that lists it, never an update of an earlier one: a download job points at
 /// the snapshot it sent (Restrict), and that must not change when the listing is found again. One no job
-/// points at is removed a day after it was stored, by the next search (<c>ReleaseSearchService</c>).
+/// points at is removed a day after it was stored, by the next search (<c>ReleaseStore</c>).
 /// </para>
 /// <para>
 /// No path, no file list and no work: one release can hold several files and several works (the
 /// three-movie pack in <c>VendorSamples/QBittorrent/torrent-files-multi.json</c>). Its files are known
 /// only from the client once it has the release (MAM-14).
+/// </para>
+/// <para>
+/// MAM-12 — a stored search's list filters, sorts and pages these rows rather than asking the sources
+/// again (ADR 0011), so a row keeps what the list reads: the seeders and peers, its place in its source's
+/// answer, and the search source that found it. It is still matched to no work in a column: which works a
+/// release may be is read from its title and its listing's ids on every read, and listed, never stored
+/// (ADR 0012). The ids are the listing's own claims; who claimed them is the row's own source columns.
 /// </para>
 /// </remarks>
 public class ReleaseEntity : ProvenancedEntity
@@ -58,4 +65,32 @@ public class ReleaseEntity : ProvenancedEntity
     /// the client's job (§3.2, step 6).</summary>
     [MaxLength(64)]
     public string? InfoHash { get; set; }
+
+    /// <summary>
+    /// The stored search's source that found it (MAM-12); <c>null</c> for a release found by a plain
+    /// release search (MAM-10), and once its search is removed while a download job keeps the release.
+    /// </summary>
+    public Guid? SearchSourceId { get; set; }
+
+    /// <summary>Its 0-based place in its source's answer, in the source's own order (MAM-12): every order
+    /// of a stored search's releases breaks a tie by its source's place in the search, then by this, and
+    /// only then by the release's id, so the order is total.</summary>
+    public int? Position { get; set; }
+
+    /// <summary>The seeders the listing claims; <c>null</c> when it gives none.</summary>
+    public int? Seeders { get; set; }
+
+    /// <summary>The peers the listing claims: seeders and leechers together, as the source counts them
+    /// (MAM-10).</summary>
+    public int? Peers { get; set; }
+
+    /// <summary>The IMDb id the listing gives (<c>tt0816692</c>), a claim like its title (MAM-12);
+    /// <c>null</c> when it gives none or two.</summary>
+    [MaxLength(64)]
+    public string? ImdbId { get; set; }
+
+    /// <summary>The TMDb id the listing gives (<c>157336</c>), a claim like its title (MAM-12);
+    /// <c>null</c> when it gives none or two.</summary>
+    [MaxLength(64)]
+    public string? TmdbId { get; set; }
 }

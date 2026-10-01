@@ -6,14 +6,13 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paging;
-using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Library;
 
 /// <inheritdoc cref="ILibraryService"/>
-public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mapper) : ILibraryService
+public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mapper, ILibraryWorkReader reader) : ILibraryService
 {
     /// <summary>How much of a location id that isn't one a sentence repeats: a Guid is 36 characters, and
     /// a pasted page of text shouldn't come back whole.</summary>
@@ -78,7 +77,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
-        var items = await ToDtosAsync(pageWorks, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken);
+        var items = await reader.ReadAsync(pageWorks, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken);
         return LibraryWorkListResult.Listed(new LibraryWorkListResponse(items, totalCount, page, pageSize));
     }
 
@@ -156,80 +155,6 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
                 ?? "",
                 LibraryTitleOrder.CollationName))
             .ThenBy(work => work.Id);
-
-    /// <summary>
-    /// The page's works with everything the cards show, a file's path problem only
-    /// <paramref name="forOwner"/>. Batched, no N+1: one query each for the titles, the identifiers, the
-    /// versions, their files, the files' libraries, the path mappings of the integrations that
-    /// reported them, and the readings of the files the app inspected with their tracks (MAM-9) —
-    /// whatever the page size.
-    /// </summary>
-    private async Task<List<LibraryWorkDto>> ToDtosAsync(List<MediaWorkEntity> works, bool forOwner, CancellationToken cancellationToken)
-    {
-        var workIds = works.Select(work => work.Id).ToList();
-        var titles = (await db.MediaWorkTitles.AsNoTracking()
-                .Where(title => workIds.Contains(title.MediaWorkId))
-                .ToListAsync(cancellationToken))
-            .ToLookup(title => title.MediaWorkId);
-        var identifiers = (await db.MediaWorkIdentifiers.AsNoTracking()
-                .Where(identifier => workIds.Contains(identifier.MediaWorkId))
-                .ToListAsync(cancellationToken))
-            .ToLookup(identifier => identifier.MediaWorkId);
-        var versions = await db.MediaVersions.AsNoTracking()
-            .Where(version => workIds.Contains(version.MediaWorkId))
-            .ToListAsync(cancellationToken);
-
-        var versionIds = versions.Select(version => version.Id).ToList();
-        var files = await db.PhysicalFiles.AsNoTracking()
-            .Where(file => versionIds.Contains(file.MediaVersionId))
-            .ToListAsync(cancellationToken);
-
-        var locationIds = files.Select(file => file.LibraryLocationId).OfType<Guid>().Distinct().ToList();
-        var locationNames = await db.LibraryLocations.AsNoTracking()
-            .Where(location => locationIds.Contains(location.Id))
-            .ToDictionaryAsync(location => location.Id, location => location.Name, cancellationToken);
-
-        // ADR 0003 — the reporting integration's mappings as they are now; a file whose integration has
-        // none (or that the app read itself) maps as it is.
-        var connectionIds = files.Select(file => file.SourceConnectionId).OfType<Guid>().Distinct().ToList();
-        var pathMappings = (await db.PathMappings.AsNoTracking()
-                .Where(mapping => connectionIds.Contains(mapping.IntegrationConnectionId))
-                .ToListAsync(cancellationToken))
-            .GroupBy(mapping => mapping.IntegrationConnectionId)
-            .ToDictionary(
-                integration => integration.Key,
-                integration => (IReadOnlyList<PathMappingPair>)[.. integration
-                    .OrderBy(mapping => mapping.Position)
-                    .Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))]);
-
-        // MAM-9 — what the media inspector read from each file's bytes; two names of one inode share one.
-        var readingIds = files.Select(file => file.MediaInspectionId).OfType<Guid>().Distinct().ToList();
-        var readings = await db.MediaInspections.AsNoTracking()
-            .Where(reading => readingIds.Contains(reading.Id))
-            .ToDictionaryAsync(reading => reading.Id, cancellationToken);
-        var tracks = (await db.MediaInspectionTracks.AsNoTracking()
-                .Where(track => readingIds.Contains(track.MediaInspectionId))
-                .ToListAsync(cancellationToken))
-            .ToLookup(track => track.MediaInspectionId);
-
-        var versionsByWork = versions.ToLookup(version => version.MediaWorkId);
-        var filesByVersion = files.ToLookup(file => file.MediaVersionId);
-        return
-        [
-            .. works.Select(work => mapper.ToDto(
-                work,
-                [.. titles[work.Id]],
-                [.. identifiers[work.Id]],
-                [.. versionsByWork[work.Id]],
-                version => [.. filesByVersion[version.Id].Select(file => mapper.ToDto(
-                    file,
-                    file.SourceConnectionId is { } connectionId ? pathMappings.GetValueOrDefault(connectionId) ?? [] : [],
-                    file.LibraryLocationId is { } location ? locationNames.GetValueOrDefault(location) : null,
-                    file.MediaInspectionId is { } readingId ? readings.GetValueOrDefault(readingId) : null,
-                    file.MediaInspectionId is { } trackReadingId ? [.. tracks[trackReadingId]] : [],
-                    forOwner))])),
-        ];
-    }
 
     private static string Echo(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : string.Concat(value.AsSpan(0, maximumLength), "…");

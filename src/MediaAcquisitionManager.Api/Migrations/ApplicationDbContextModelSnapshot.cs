@@ -850,6 +850,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ImdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("InfoHash")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
@@ -866,8 +870,20 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(8192)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("Peers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("PublishedUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SearchSourceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Seeders")
+                        .HasColumnType("INTEGER");
 
                     b.Property<long?>("SizeBytes")
                         .HasColumnType("INTEGER");
@@ -897,11 +913,93 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TmdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SearchSourceId");
 
                     b.HasIndex("SourceConnectionId", "SourceItemId");
 
                     b.ToTable("Releases");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SearchEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TmdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Searches");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SearchSourceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("IntegrationConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NotSearchedReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SearchId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IntegrationConnectionId");
+
+                    b.HasIndex("SearchId");
+
+                    b.ToTable("SearchSources");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.UserEntity", b =>
@@ -1151,10 +1249,38 @@ namespace MediaAcquisitionManager.Api.Migrations
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReleaseEntity", b =>
                 {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.SearchSourceEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SearchSourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
                         .WithMany()
                         .HasForeignKey("SourceConnectionId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SearchEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SearchSourceEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("IntegrationConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.SearchEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.UserSessionEntity", b =>

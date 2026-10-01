@@ -10,6 +10,7 @@ public static class LibraryServiceCollectionExtensions
     {
         // Scoped: each works on its scope's DbContext — a request's, or the one the worker opens per run.
         services.AddScoped<ILibraryService, LibraryService>();
+        services.AddScoped<ILibraryWorkReader, LibraryWorkReader>();
         services.AddScoped<ILibrarySyncService, LibrarySyncService>();
         services.AddScoped<ILibrarySyncRunner, LibrarySyncRunner>();
         services.AddScoped<ILibrarySnapshotStore, LibrarySnapshotStore>();

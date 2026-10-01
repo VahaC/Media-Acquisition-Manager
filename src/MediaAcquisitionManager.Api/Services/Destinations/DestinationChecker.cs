@@ -42,7 +42,7 @@ public sealed class DestinationChecker(
             return new Dictionary<Guid, DestinationPathCheckResult>();
 
         // Every database read happens before the clients are asked: the context is not safe to share
-        // between the concurrent calls below (ReleaseSearchService's rule).
+        // between the concurrent calls below (ReleaseSources' rule).
         var clientIds = destinations.Select(destination => destination.DownloadClientConnectionId).Distinct().ToList();
         var clients = await db.IntegrationConnections
             .AsNoTracking()
@@ -95,7 +95,7 @@ public sealed class DestinationChecker(
     private async Task<ClientAnswer> AskAsync(IntegrationConnectionEntity client, CancellationToken cancellationToken)
     {
         // Every client starts on its own: one whose call runs synchronously up to its first wait would
-        // otherwise hold the others back until it is done (ReleaseSearchService).
+        // otherwise hold the others back until it is done (ReleaseSources).
         await Task.Yield();
 
         // MAM-11 — the order a save refuses in (decision 3): a switched-off client is left alone, the way
@@ -128,7 +128,7 @@ public sealed class DestinationChecker(
             // An adapter never throws on an expected failure; this is a bug meeting an answer nobody
             // foresaw. It costs this client its answer, never the others': escaping, it would fault the
             // Task.WhenAll above and answer 500 for the whole page. Error, with the type and the stack,
-            // never the message: a parser's message can quote what the client sent (ReleaseSearchService).
+            // never the message: a parser's message can quote what the client sent (ReleaseSources).
             logger.LogError(
                 "Destination listing of integration {IntegrationId} ({AdapterType}) threw {ExceptionType} {StackTrace}",
                 client.Id,

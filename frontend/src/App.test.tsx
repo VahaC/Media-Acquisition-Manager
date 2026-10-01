@@ -7,18 +7,21 @@ import { destinationsApi } from '@/lib/destinations-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
 import { queryClient } from '@/lib/query-client'
+import { searchApi } from '@/lib/search-api'
 import { setupApi } from '@/lib/setup-api'
 import { usersApi } from '@/lib/users-api'
 import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
 import { sourcesOf } from '@/test/library'
+import { aliensSearch, releasesPage, searchId, tolokaRemux } from '@/test/search'
 
 vi.mock('@/lib/allowed-roots-api')
 vi.mock('@/lib/auth-api')
 vi.mock('@/lib/destinations-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
+vi.mock('@/lib/search-api')
 vi.mock('@/lib/setup-api')
 vi.mock('@/lib/users-api')
 
@@ -75,6 +78,37 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/library')
     expect(libraryApi.works).toHaveBeenCalledOnce()
+  })
+
+  it('opens Search from the header link, asking nothing until a search is made', async () => {
+    // Arrange
+    const { user } = renderAt('/')
+
+    // Act
+    await user.click(await screen.findByRole('link', { name: 'Search' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'Search' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/search')
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('')
+    expect(searchApi.get).not.toHaveBeenCalled()
+    expect(searchApi.releases).not.toHaveBeenCalled()
+  })
+
+  it('brings a stored search back from its address, as F5 does', async () => {
+    // Arrange
+    vi.mocked(searchApi.get).mockResolvedValue(aliensSearch)
+    vi.mocked(searchApi.releases).mockImplementation(async (_, query) => releasesPage(query, [tolokaRemux]))
+
+    // Act
+    renderAt(`/search?id=${searchId}`)
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Чужі' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Aliens')
+    expect(searchApi.get).toHaveBeenCalledExactlyOnceWith(searchId)
+    expect(searchApi.create).not.toHaveBeenCalled()
   })
 
   it('opens Media folders from the user menu of the owner', async () => {

@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Contracts;
 

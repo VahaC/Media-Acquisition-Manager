@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next'
-import { FolderInput, FolderOpen, LibraryBig, Plug, Users, type LucideIcon } from 'lucide-react'
+import { FolderInput, FolderOpen, LibraryBig, Plug, Search, Users, type LucideIcon } from 'lucide-react'
 import type { CurrentUser } from './types'
 
 /** Where an entry is offered: the header bar, or the signed-in user's menu. */
@@ -22,6 +22,8 @@ export interface NavItem {
  * menu's entries come from this one list, so a new page is added here once rather than in each.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
+  // MAM-12 — first: searching the library and the release sources side by side is what the app is for.
+  { path: '/search', labelKey: 'nav.search', icon: Search, ownerOnly: false, placement: 'header' },
   { path: '/library', labelKey: 'nav.library', icon: LibraryBig, ownerOnly: false, placement: 'header' },
   { path: '/settings/integrations', labelKey: 'nav.integrations', icon: Plug, ownerOnly: true, placement: 'userMenu' },
   // MAM-11 — right after Integrations: a destination is a category of a download client set up there.
