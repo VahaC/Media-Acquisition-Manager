@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
+using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
@@ -21,6 +22,7 @@ public sealed class LibrarySyncService(
     IIntegrationAdapterRegistry adapters,
     LibrarySyncQueue queue,
     ILibraryMapper mapper,
+    IFileInspectionService inspections,
     TimeProvider time,
     ILogger<LibrarySyncService> logger) : ILibrarySyncService
 {
@@ -118,15 +120,16 @@ public sealed class LibrarySyncService(
         var lastSucceededRuns = await LatestRunsAsync(ids, succeededOnly: true, cancellationToken);
 
         // MAM-8 — counted now with the current mappings, not stored with the run, so the warning
-        // always agrees with the paths the works list shows. One query for every listed library's paths.
-        var paths = (await db.PhysicalFiles
+        // always agrees with the paths the works list shows. One query for every listed library's paths,
+        // and what the app's last look at each found (MAM-9), so the counts move as a run writes them.
+        var files = (await db.PhysicalFiles
                 .AsNoTracking()
                 .Where(file => file.SourceKind == ProvenanceSourceKind.MediaLibrary
                     && file.SourceConnectionId != null
                     && ids.Contains(file.SourceConnectionId.Value))
-                .Select(file => new { IntegrationId = file.SourceConnectionId!.Value, file.ServicePath })
+                .Select(file => new SourceFile(file.SourceConnectionId!.Value, file.ServicePath, file.InspectionStatus, file.InspectionError))
                 .ToListAsync(cancellationToken))
-            .ToLookup(file => file.IntegrationId, file => file.ServicePath);
+            .ToLookup(file => file.IntegrationId);
 
         var items = integrations.Select(integration =>
         {
@@ -135,11 +138,11 @@ public sealed class LibrarySyncService(
                 .Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))
                 .ToList();
             // In path order, so "the first problem" is the same one on every poll.
-            var unmapped = paths[integration.Id]
-                .Order(StringComparer.Ordinal)
-                .Select(path => PathMapper.Map(path, pairs))
-                .Where(path => !path.HasAppPath)
+            var sourceFiles = files[integration.Id]
+                .OrderBy(file => file.ServicePath, StringComparer.Ordinal)
+                .Select(file => new MappedSourceFile(file, PathMapper.Map(file.ServicePath, pairs)))
                 .ToList();
+            var unmapped = sourceFiles.Select(file => file.Path).Where(path => !path.HasAppPath).ToList();
             return mapper.ToDto(
                 integration,
                 adapters.Find(integration.AdapterType)?.Descriptor,
@@ -149,10 +152,11 @@ public sealed class LibrarySyncService(
                 unmapped.Count,
                 // MAM-8 — the reason quotes the path and the mapping; integrations are the owner's. The
                 // works list keeps each file's reason to the owner by the same rule (LibraryService).
-                isOwner ? unmapped.FirstOrDefault()?.Reason : null);
+                isOwner ? unmapped.FirstOrDefault()?.Reason : null,
+                InspectionOf(sourceFiles, isOwner));
         });
 
-        return new LibrarySourceListResponse([.. items]);
+        return new LibrarySourceListResponse([.. items], await inspections.GetOverviewAsync(isOwner, cancellationToken));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -177,6 +181,33 @@ public sealed class LibrarySyncService(
             .ToListAsync(cancellationToken);
         return latest.ToDictionary(run => run.IntegrationConnectionId!.Value);
     }
+
+    // MAM-9 — where the app's look at one source's files stands: the files it read, those it couldn't
+    // (whatever the reason, a missing app path included), and those it hasn't looked at; the first
+    // problem's sentence, in path order, to the owner only, like each file's (LibraryMapper). A file
+    // the last run found no app path for, which the mappings give one now, waits for the next run,
+    // the works list's rule: a fixed mapping shows at once, as the path warning does.
+    private static LibrarySourceInspectionDto InspectionOf(List<MappedSourceFile> sourceFiles, bool isOwner)
+    {
+        var looks = sourceFiles
+            .Where(file => !(file.File.InspectionStatus == FileInspectionStatus.NoAppPath && file.Path.HasAppPath))
+            .Select(file => file.File)
+            .ToList();
+        var problems = looks
+            .Where(file => file.InspectionStatus is { } status && status != FileInspectionStatus.Inspected)
+            .ToList();
+        return new LibrarySourceInspectionDto(
+            looks.Count(file => file.InspectionStatus == FileInspectionStatus.Inspected),
+            problems.Count,
+            sourceFiles.Count - looks.Count + looks.Count(file => file.InspectionStatus is null),
+            isOwner ? problems.FirstOrDefault()?.InspectionError : null);
+    }
+
+    /// <summary>What the sources list reads of one file.</summary>
+    private sealed record SourceFile(Guid IntegrationId, string ServicePath, FileInspectionStatus? InspectionStatus, string? InspectionError);
+
+    /// <summary>A file with where the current path mappings put it.</summary>
+    private sealed record MappedSourceFile(SourceFile File, PathMapResult Path);
 
     private Task<bool> HasActiveRunAsync(Guid integrationId, CancellationToken cancellationToken) =>
         db.LibrarySyncRuns.AnyAsync(

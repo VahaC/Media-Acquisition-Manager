@@ -61,6 +61,35 @@
     "failedHidden": "The last sync failed. The owner can see why.",
     "lastSucceeded": "Showing the library as synced {{time}}."
   },
+  "inspection": {
+    "off": "File inspection is off: no media folder is allowed yet.",
+    "chooseFolders": "Choose media folders",
+    "queued": "Waiting to inspect files…",
+    "running": "Inspecting files…",
+    "runningProgress_one": "Inspecting files… {{checked}} of {{total}} checked",
+    "runningProgress_other": "Inspecting files… {{checked}} of {{total}} checked",
+    "followedBy": "{{line}}; another inspection starts after this one.",
+    "succeeded_one": "Files last inspected {{time}}: {{checked}} checked, {{probed}} read by ffprobe.",
+    "succeeded_other": "Files last inspected {{time}}: {{checked}} checked, {{probed}} read by ffprobe.",
+    "failed": "File inspection failed {{time}}: {{error}}",
+    "failedHidden": "The last file inspection failed. The owner can see why.",
+    "never": "Files have not been inspected yet.",
+    "inspect": "Inspect files",
+    "starting": "Starting…",
+    "startFailed": "Could not start the file inspection.",
+    "reasons": {
+      "notOwner": "Only the owner can inspect the files.",
+      "noFolders": "No media folder is allowed yet. Choose the folders the app may read under Media folders first.",
+      "queued": "An inspection is already waiting to start."
+    },
+    "sourceFiles": "Files: {{counts}}",
+    "inspected_one": "{{value}} inspected",
+    "inspected_other": "{{value}} inspected",
+    "problems_one": "{{value}} couldn't be read",
+    "problems_other": "{{value}} couldn't be read",
+    "notInspected_one": "{{value}} not inspected yet",
+    "notInspected_other": "{{value}} not inspected yet"
+  },
   "paths": {
     "ownerWarning_one": "{{value}} file has no path in this app.",
     "ownerWarning_other": "{{value}} files have no path in this app.",
@@ -92,5 +121,41 @@
     "sizeUnknown": "Size unknown",
     "location": "Library: {{name}}",
     "locationUnknown": "Library unknown"
+  },
+  "media": {
+    "notInspected": "Not inspected yet",
+    "durationUnknown": "Duration unknown",
+    "resolution": "{{width}}×{{height}}",
+    "resolutionUnknown": "Resolution unknown",
+    "noVideo": "No video track",
+    "codecProfile": "{{codec}} {{profile}}",
+    "codecUnknown": "Codec unknown",
+    "dynamicRange": {
+      "Sdr": "SDR",
+      "Hdr10": "HDR10",
+      "Hlg": "HLG",
+      "DolbyVision": "Dolby Vision"
+    },
+    "dynamicRangeUnknown": "HDR unknown",
+    "bitRateUnknown": "Bit rate unknown",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "noAudio": "No audio tracks",
+    "noSubtitles": "No subtitles",
+    "unknownLanguage": "Unknown language",
+    "channels_one": "{{count}} ch",
+    "channels_other": "{{count}} ch",
+    "default": "default",
+    "forced": "forced",
+    "hearingImpaired": "SDH",
+    "status": {
+      "MediaUnreadable": "ffprobe couldn't read this file as a video.",
+      "OutsideAllowedRoots": "This file is outside the media folders the app may read.",
+      "NotFound": "Nothing was found at this path.",
+      "NotARegularFile": "This path isn't a regular file.",
+      "Unreadable": "The app can't read this file.",
+      "IdentityUnknown": "This system can't tell files apart, so the app keeps nothing it read.",
+      "InspectorUnavailable": "ffprobe isn't available to the app."
+    }
   }
 }

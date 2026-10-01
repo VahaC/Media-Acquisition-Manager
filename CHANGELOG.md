@@ -305,6 +305,68 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   shows each library's progress or outcome, the last successful sync after a failure, a warning
   when files have no app path, and **Sync now**, disabled with its reason for anyone but the owner,
   for a switched-off integration, for a type that can't be read and while a sync is under way.
+- **The app reads the library's own files, only inside the folders the owner allows, and keeps
+  what ffprobe read by each file's identity (MAM-9, ADR 0009).** An inspection runs in the
+  background after every successful library sync, when the app starts, and when the owner asks:
+  `POST /api/library/inspections` answers 202 with the queued run and its `Location`
+  (`/api/library/inspections/{runId}`, readable by every signed-in user, owner-only fields `null`
+  for the rest). It is owner-only (`[RequireInstallationOwner]`, swept by
+  `LibraryWritesAreOwnerOnlyHttpTests`), 409 with "No media folders are allowed yet. Add the folders
+  the app may read under Media folders in the user menu, then inspect again." while no folder is allowed,
+  and 503 when the queue is full. At most one run is queued and one running
+  (`IX_FileInspectionRuns_OneRunPerActiveStatus`): a request or trigger that finds one queued joins
+  it. A run maps every file name the libraries reported through its integration's path mappings
+  (`NoAppPath` when they give none), looks at each app path through the file inventory, answers from
+  the cache what it holds for the file's device, inode, size and modification time, and reads the
+  rest with ffprobe, once per key and two files at a time; each file's outcome is written as it
+  comes, and at the end the run deletes the readings no name points at that were its to forget —
+  those orphaned before it started and a changed file's old one. A file the run found nothing at
+  keeps its last reading, so a mount that was away for a run costs no reading, and a reading a sync
+  orphaned while the run went waits for the run that sync queued. A file it can't read is
+  an outcome with its sentence — `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`,
+  `Unreadable`, `MediaUnreadable` (cached like a success, so a damaged file isn't read again until it
+  changes), `IdentityUnknown` or `InspectorUnavailable` (never cached; the files still waiting in the
+  run get the same sentence without starting ffprobe again) — never a failure of the run. The
+  reconciler fails a run a stop interrupted ("The app restarted before this inspection finished. What
+  it had read is kept."), queues a queued one again and queues the start's run; a run left running
+  by a worker that couldn't mark it failed is failed by the next run's claim. The local file
+  inventory resolves every link on the way, folder by folder (40 at most), and refuses a path, or a
+  link, that leaves the allowed roots; it reads the identity with `statx` on Linux (`st_dev` as
+  glibc's `makedev`, so it matches `stat -c %d`) and the NTFS file index on Windows. It opens the file
+  it checked without following a link (on Linux name by name with `O_NOFOLLOW`, a pipe or a device
+  never opened for reading) and asks the open file again after ffprobe reads it, so a file that changed
+  meanwhile is not cached. ffprobe reads that open file — on Linux the inherited descriptor, as
+  `/proc/self/fd/<n>` — as `file:<path>` with `-protocol_whitelist file` and a `-format_whitelist` of
+  the containers films come in, so neither a URL nor a file a crafted list or playlist names is
+  opened, through an argument list, for at most 2 minutes and 8 MiB of answer; when it fails, the
+  sentence quotes its verdict, the last line it wrote. Its JSON is read field by field: duration, overall bit rate, and
+  each video, audio and subtitle track with its codec, profile, size, dynamic range (Dolby Vision from
+  its configuration record, else PQ as HDR10, HLG, any other declared transfer as SDR, and unknown
+  when the stream declares none), channels, layout, language tag (`und` is none) and its default,
+  forced and SDH flags; cover art is not a track, and track titles are not kept. One migration
+  (`AddFileInspection`) adds the `AllowedRoots`, `MediaInspections`, `MediaInspectionTracks` and
+  `FileInspectionRuns` tables and the link count and inspection columns of `PhysicalFiles` (its
+  identity columns came with MAM-7; MAM-9 fills them).
+- **The Media folders settings page sets where the app may read files (MAM-9, ADR 0009).**
+  `GET /api/settings/allowed-roots` lists the folders and `PUT` replaces them (204), both owner-only,
+  as they describe the host; each save that changes them writes an `AllowedRootsChanged` audit row. None by default, so
+  nothing is read until the owner names a folder as the app sees it (`/media` in the Docker image's
+  examples). A list that breaks a rule answers 400 with its sentence: more than 20 folders, a path
+  that isn't full, a `.` or `..` folder, the whole file system, a path in the other operating
+  system's style than the app runs on, a folder listed twice or one inside another. Saving starts no
+  inspection.
+- **The Library page shows each file's verified facts and where the inspection stands (MAM-9).**
+  Each file of a version shows its duration, resolution, video codec and profile, dynamic range and
+  overall bit rate, then its audio tracks (language, codec, channels, default and forced) and its
+  subtitles (language, codec, default, forced and SDH); a value the file didn't give says unknown, and
+  a file not inspected yet says so. A file the app couldn't read shows why to the owner and a short
+  reason by its status to everyone else. `GET /api/library/works` gives each file an `inspection`
+  (`null` until the app has looked), `GET /api/library/sources` each source's inspected, problem and
+  not-yet-inspected counts with the first problem's sentence for the owner, and the list where
+  inspections stand: whether a folder is allowed, the run under way and the last finished one. The
+  sources panel shows that line with **Inspect files**, disabled with its reason for anyone but the
+  owner, with no folder allowed and while a run waits — on its own or behind the running one, which
+  the line then says (`hasQueuedRun`) — and polls while a run is under way.
 
 ### Changed
 
@@ -326,6 +388,15 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **The Use this integration switch is read now (MAM-8).** MAM-7 kept it, but nothing read it. A
   switched-off media library can't be synced (409, and a run queued before the switch fails), while
   the library it imported last stays listed.
+- **A successful library sync queues a file inspection (MAM-9).** Once a sync has replaced its
+  library's snapshot, it queues an inspection of the files, or joins the one waiting; with no folder
+  allowed it queues nothing, and a sync never fails because of it. A sync still never touches what
+  the app read itself: a file keeps its identity, link count and inspection across syncs while its
+  path stays.
+- **`IFileInventory` takes the allowed roots on every call and reads media (MAM-9, ADR 0005).**
+  MAM-7's contract described a file inside "the configured roots"; now the caller passes the roots
+  it read from the owner's setting, and `InspectMediaAsync` reads the streams. `FileInventoryStatus`
+  gained `MediaUnreadable`, `InspectorUnavailable` and `ChangedWhileReading`.
 
 ### Notes for upgraders
 
@@ -337,3 +408,9 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   rebuild outside the migration's transaction, so a process killed at that moment could leave the
   migration half applied. Nothing can be lost to it: no earlier build writes a row to
   `PhysicalFiles`, so the table rebuilt is empty everywhere. There is nothing to do.
+- **File inspection is off until the owner allows a folder (MAM-9).** After the upgrade, open
+  **Media folders** in the user menu and add the folder the app sees your media at — `/media` when
+  the compose file mounts it there. The first inspection then starts with the next sync, the next
+  start of the app, or **Inspect files** on the Library page; it reads every file once, which takes
+  minutes on a large library, and later runs read only what changed. `AddFileInspection` rebuilds no
+  table, so it logs no warning 20410.

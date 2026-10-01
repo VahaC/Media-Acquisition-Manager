@@ -160,8 +160,9 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     /// <summary>
     /// The page's works with everything the cards show, a file's path problem only
     /// <paramref name="forOwner"/>. Batched, no N+1: one query each for the titles, the identifiers, the
-    /// versions, their files, the files' libraries and the path mappings of the integrations that
-    /// reported them — whatever the page size.
+    /// versions, their files, the files' libraries, the path mappings of the integrations that
+    /// reported them, and the readings of the files the app inspected with their tracks (MAM-9) —
+    /// whatever the page size.
     /// </summary>
     private async Task<List<LibraryWorkDto>> ToDtosAsync(List<MediaWorkEntity> works, bool forOwner, CancellationToken cancellationToken)
     {
@@ -201,6 +202,16 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
                     .OrderBy(mapping => mapping.Position)
                     .Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))]);
 
+        // MAM-9 — what the media inspector read from each file's bytes; two names of one inode share one.
+        var readingIds = files.Select(file => file.MediaInspectionId).OfType<Guid>().Distinct().ToList();
+        var readings = await db.MediaInspections.AsNoTracking()
+            .Where(reading => readingIds.Contains(reading.Id))
+            .ToDictionaryAsync(reading => reading.Id, cancellationToken);
+        var tracks = (await db.MediaInspectionTracks.AsNoTracking()
+                .Where(track => readingIds.Contains(track.MediaInspectionId))
+                .ToListAsync(cancellationToken))
+            .ToLookup(track => track.MediaInspectionId);
+
         var versionsByWork = versions.ToLookup(version => version.MediaWorkId);
         var filesByVersion = files.ToLookup(file => file.MediaVersionId);
         return
@@ -214,6 +225,8 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
                     file,
                     file.SourceConnectionId is { } connectionId ? pathMappings.GetValueOrDefault(connectionId) ?? [] : [],
                     file.LibraryLocationId is { } location ? locationNames.GetValueOrDefault(location) : null,
+                    file.MediaInspectionId is { } readingId ? readings.GetValueOrDefault(readingId) : null,
+                    file.MediaInspectionId is { } trackReadingId ? [.. tracks[trackReadingId]] : [],
                     forOwner))])),
         ];
     }

@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Storage;
+using MediaAcquisitionManager.Infrastructure.Files;
 using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
@@ -23,6 +24,7 @@ public static class DependencyInjection
         services.AddMediaAcquisitionManagerPersistence(storage);
         services.AddSecurityInfrastructure();
         services.AddIntegrationsInfrastructure();
+        services.AddFilesInfrastructure();
         return services;
     }
 

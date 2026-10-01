@@ -9,6 +9,7 @@
     "label": "Main",
     "library": "Library",
     "integrations": "Integrations",
+    "mediaFolders": "Media folders",
     "users": "Users"
   },
   "pager": {
@@ -24,5 +25,12 @@
     "MiB": "{{value}} MiB",
     "GiB": "{{value}} GiB",
     "TiB": "{{value}} TiB"
-  }
+  },
+  "bitRate": {
+    "bps": "{{value}} b/s",
+    "kbps": "{{value}} kb/s",
+    "Mbps": "{{value}} Mb/s",
+    "Gbps": "{{value}} Gb/s"
+  },
+  "separator": " · "
 }

@@ -44,9 +44,10 @@ public interface ILibrarySnapshotStore
     /// </summary>
     /// <remarks>
     /// A removed version takes all its files with it by the database's cascade, whatever source
-    /// reported them — so does a version a sync no longer reports. Today only the library itself puts
-    /// files on its versions; whether a file the app's own inspection records under one (MAM-9's
-    /// <c>FileInspection</c> rows) should outlive it is an open point for MAM-9.
+    /// reported them — so does a version a sync no longer reports. Only the library itself puts files on
+    /// its versions: MAM-9's inspection writes what it found on the library's own names and keeps what it
+    /// read in readings keyed by the file's identity, which no name owns, so nothing it read goes with a
+    /// version (ADR 0009); the next inspection forgets the readings no name points at.
     /// </remarks>
     Task PurgeAsync(Guid integrationId, CancellationToken cancellationToken = default);
 }

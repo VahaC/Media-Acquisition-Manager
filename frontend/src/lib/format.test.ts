@@ -1,4 +1,4 @@
-import { formatDate, formatDateTime, formatFileSize, formatNumber } from './format'
+import { formatBitRate, formatDate, formatDateTime, formatDuration, formatFileSize, formatNumber } from './format'
 import { i18n } from './i18n'
 
 // A fixed zone, so the expected strings don't depend on the machine running the tests.
@@ -110,5 +110,81 @@ describe('format', () => {
 
     // Assert
     expect(text).toBe('7,94 GiB')
+  })
+
+  it.each([
+    [0, '0:00'],
+    [999, '0:01'],
+    [59_499, '0:59'],
+    [59_500, '1:00'],
+    [1_579_000, '26:19'],
+    [3_599_499, '59:59'],
+    [3_599_500, '1:00:00'],
+    [5_179_000, '1:26:19'],
+    [8_237_456, '2:17:17'],
+    [36_061_000, '10:01:01'],
+  ])('writes a length of %i ms as %s', (milliseconds, expected) => {
+    // Arrange
+    const length = milliseconds
+
+    // Act
+    const text = formatDuration(length)
+
+    // Assert
+    expect(text).toBe(expected)
+  })
+
+  it('writes a length with plain digits whatever the UI locale', async () => {
+    // Arrange — Arabic would write its own digits through Intl; a clock time stays as it is.
+    await i18n.changeLanguage('ar-EG')
+
+    // Act
+    const text = formatDuration(5_179_000)
+
+    // Assert
+    expect(text).toBe('1:26:19')
+  })
+
+  it.each([
+    [0, '0 b/s'],
+    [999, '999 b/s'],
+    [1000, '1 kb/s'],
+    [640_000, '640 kb/s'],
+    [1_536_000, '1.54 Mb/s'],
+    [6_012_345, '6.01 Mb/s'],
+    [14_418_920, '14.42 Mb/s'],
+    [1_500_000_000, '1.5 Gb/s'],
+    [2_000_000_000_000, '2,000 Gb/s'],
+  ])('writes %i bits per second as %s', (bitsPerSecond, expected) => {
+    // Arrange
+    const rate = bitsPerSecond
+
+    // Act
+    const text = formatBitRate(rate)
+
+    // Assert
+    expect(text).toBe(expected)
+  })
+
+  it('moves to the next unit when rounding would show 1,000 of the smaller one', () => {
+    // Arrange — 999.996 kb/s.
+    const bitsPerSecond = 999_996
+
+    // Act
+    const text = formatBitRate(bitsPerSecond)
+
+    // Assert
+    expect(text).toBe('1 Mb/s')
+  })
+
+  it('writes a bit rate with the decimal separator of the UI locale', async () => {
+    // Arrange
+    await i18n.changeLanguage('de-DE')
+
+    // Act
+    const text = formatBitRate(6_012_345)
+
+    // Assert
+    expect(text).toBe('6,01 Mb/s')
   })
 })

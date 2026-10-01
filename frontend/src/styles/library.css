@@ -37,6 +37,12 @@
   padding-bottom: 0;
 }
 
+/* MAM-9 — the file inspection's row under the sources: a source row's layout, set off from the list
+   by the same line that parts two sources. */
+.library-source.library-inspection {
+  border-top: 1px solid var(--border);
+}
+
 .library-source-body {
   display: grid;
   gap: 0.25rem;
@@ -240,6 +246,45 @@
   gap: 0.25rem 0.75rem;
   font-size: var(--text-xs);
   color: var(--muted-foreground);
+}
+
+/* MAM-9 — what ffprobe read from the file, laid out like the library's facts above it but in the
+   text colour: these are the facts the app verified, and the ones a reader looks for. */
+.library-file-facts.library-inspection-summary {
+  color: var(--foreground);
+}
+
+/* A kind of track ("Audio") before its tracks, which wrap beside it; the label keeps its line. */
+.library-inspection-tracks {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.library-inspection-kind {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+
+.library-inspection-track-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* One track as a light outline chip, so "Ukrainian · AC-3 · 5.1" reads as one entry and the next
+   track as another, and an entry wraps whole onto the next line. Not `.ui-badge`: its weight and
+   padding would make a row of tracks outshout the identifier badges of the card's header. A chip
+   wider than a phone line breaks inside rather than widening the card. */
+.library-inspection-track {
+  padding: 0 0.375rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 48rem) {

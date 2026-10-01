@@ -22,6 +22,8 @@ export const qk = {
     sources: ['library', 'sources'] as const,
   },
   settings: {
+    /** MAM-9 — the media folders: what saving them invalidates, with the library sources. */
+    allowedRoots: ['settings', 'allowed-roots'] as const,
     users: {
       /** Every page of every search: what a change to any user invalidates. */
       all: ['settings', 'users'] as const,

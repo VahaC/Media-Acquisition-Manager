@@ -89,9 +89,9 @@ public sealed class LibraryWorksDetailsHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(
             [
                 (JellyfinSamples.AliensTheatricalId, "Living room", null, syncedAt,
-                    new LibraryFileDto(fileIds[AliensTheatricalPath], AliensTheatricalPath, AliensTheatricalPath, PathMapStatus.Identity, null, 14_845_708_473, "Фільми")),
+                    new LibraryFileDto(fileIds[AliensTheatricalPath], AliensTheatricalPath, AliensTheatricalPath, PathMapStatus.Identity, null, 14_845_708_473, "Фільми", null)),
                 (JellyfinSamples.AliensSpecialEditionId, "Living room", null, syncedAt,
-                    new LibraryFileDto(fileIds[AliensSpecialEditionPath], AliensSpecialEditionPath, AliensSpecialEditionPath, PathMapStatus.Identity, null, 19_620_073_340, "Фільми")),
+                    new LibraryFileDto(fileIds[AliensSpecialEditionPath], AliensSpecialEditionPath, AliensSpecialEditionPath, PathMapStatus.Identity, null, 19_620_073_340, "Фільми", null)),
             ],
             work.Versions
                 .OrderBy(version => version.SourceItemId, StringComparer.Ordinal)

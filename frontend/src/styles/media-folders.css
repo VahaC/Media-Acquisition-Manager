@@ -1,0 +1,49 @@
+/* MAM-9 — Settings → Media folders: one path per row with its Remove button beside it, like the path
+   mappings of the integration dialog (integrations.css), which pair two paths in a row instead of one.
+   Tokens only, so dark mode needs nothing of its own. Imported by the page. */
+
+/* Add folder, the error line and the Save row keep their own width under the rows. */
+.media-folders-form {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* The rows take the card's width up to what a path needs; a phone gets all of it. */
+.media-folders-list {
+  display: grid;
+  gap: 0.5rem;
+  justify-self: stretch;
+  max-width: 36rem;
+  min-width: 0;
+}
+
+/* `min-width: 0` lets a long path shrink its input instead of pushing Remove past the screen. */
+.media-folders-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.media-folders-row > .ui-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.media-folders-row > .ui-button {
+  flex-shrink: 0;
+}
+
+/* Save with "Saved." beside it, wrapping under it if a translation runs long. */
+.media-folders-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.media-folders-saved {
+  color: var(--status-up);
+}

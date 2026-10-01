@@ -16,6 +16,11 @@ public enum ProvenanceSourceKind
     /// <summary>A download client reported it.</summary>
     DownloadClient = 3,
 
-    /// <summary>The app read it from the file itself (MAM-9); no integration was involved.</summary>
+    /// <summary>The app read it from the file itself; no integration was involved.</summary>
+    /// <remarks>
+    /// MAM-9 writes no row of this kind: it writes what it found on the library's own file names, and its
+    /// readings, keyed by the file's identity, are the app's own by their table (ADR 0009). A name the app
+    /// finds on disk that no library reported (Phase B's scan) would be one.
+    /// </remarks>
     FileInspection = 4,
 }

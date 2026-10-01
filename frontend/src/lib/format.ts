@@ -42,3 +42,37 @@ export function formatFileSize(bytes: number): string {
   const number = formatNumber(value, { maximumFractionDigits: unit === 0 ? 0 : 2 })
   return i18n.t(`fileSize.${FILE_SIZE_UNITS[unit]}`, { value: number })
 }
+
+/**
+ * MAM-9 — how long a file plays, from milliseconds, to the nearest second: `1:26:19` from an hour up,
+ * `26:19` under it, the way media players show a length. Plain digits in every locale: a clock time
+ * is read the same everywhere, and no locale groups or translates its digits here.
+ */
+export function formatDuration(milliseconds: number): string {
+  const total = Math.max(0, Math.round(milliseconds / 1000))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = String(total % 60).padStart(2, '0')
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`
+}
+
+const BIT_RATE_UNITS = ['bps', 'kbps', 'Mbps', 'Gbps'] as const
+
+/**
+ * MAM-9 — a bit rate in bits per second, in decimal units (1 kb/s = 1000 b/s) with up to two
+ * decimals: `6.01 Mb/s`, `640 kb/s`. Bit rates are counted in steps of 1000 everywhere — ffprobe,
+ * MediaInfo and trackers alike — unlike file sizes (formatFileSize).
+ *
+ * The labels come from `common:bitRate.*`, like the file size units.
+ */
+export function formatBitRate(bitsPerSecond: number): string {
+  let unit = 0
+  let value = bitsPerSecond
+  // 999.996 kb/s would round to "1,000 kb/s"; it is shown as 1 Mb/s instead.
+  while (unit < BIT_RATE_UNITS.length - 1 && Math.abs(value) >= (unit === 0 ? 1000 : 999.995)) {
+    value /= 1000
+    unit += 1
+  }
+  const number = formatNumber(value, { maximumFractionDigits: unit === 0 ? 0 : 2 })
+  return i18n.t(`bitRate.${BIT_RATE_UNITS[unit]}`, { value: number })
+}

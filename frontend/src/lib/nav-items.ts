@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next'
-import { LibraryBig, Plug, Users, type LucideIcon } from 'lucide-react'
+import { FolderOpen, LibraryBig, Plug, Users, type LucideIcon } from 'lucide-react'
 import type { CurrentUser } from './types'
 
 /** Where an entry is offered: the header bar, or the signed-in user's menu. */
@@ -24,6 +24,8 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: '/library', labelKey: 'nav.library', icon: LibraryBig, ownerOnly: false, placement: 'header' },
   { path: '/settings/integrations', labelKey: 'nav.integrations', icon: Plug, ownerOnly: true, placement: 'userMenu' },
+  // MAM-9 — beside Integrations: the folders the app may read are the other half of its path mappings.
+  { path: '/settings/media-folders', labelKey: 'nav.mediaFolders', icon: FolderOpen, ownerOnly: true, placement: 'userMenu' },
   { path: '/settings/users', labelKey: 'nav.users', icon: Users, ownerOnly: true, placement: 'userMenu' },
 ]
 

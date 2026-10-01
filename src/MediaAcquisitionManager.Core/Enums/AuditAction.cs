@@ -31,4 +31,8 @@ public enum AuditAction
 
     /// <summary>The owner removed an integration.</summary>
     IntegrationDeleted = 9,
+
+    /// <summary>The owner changed the allowed roots, the folders the app may read files in (MAM-9).
+    /// The row has no target: the roots belong to the installation.</summary>
+    AllowedRootsChanged = 10,
 }

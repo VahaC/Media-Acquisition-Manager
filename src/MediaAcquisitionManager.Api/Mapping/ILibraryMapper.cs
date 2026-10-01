@@ -5,8 +5,8 @@ using MediaAcquisitionManager.Core.Paths;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
-/// <summary>Turns the library's rows — works with their facts, libraries, integrations and sync runs —
-/// into the contracts of the Library page (MAM-8).</summary>
+/// <summary>Turns the library's rows — works with their facts, libraries, integrations, sync runs, and
+/// the app's own inspections of the files (MAM-9) — into the contracts of the Library page (MAM-8).</summary>
 public interface ILibraryMapper
 {
     /// <summary>
@@ -28,9 +28,17 @@ public interface ILibraryMapper
     /// reporting integration's current ones (<see cref="PathMapper"/>, ADR 0003); none maps it as it is.
     /// <paramref name="locationName"/> is the name of the library that holds it, when one does. Why it has
     /// no app path only when <paramref name="forOwner"/> — for the installation owner, as the reason
-    /// quotes the owner's path mappings.
+    /// quotes the owner's path mappings. MAM-9 — what the app's last look at it found, with the facts of
+    /// <paramref name="reading"/> and its <paramref name="tracks"/> (in their order) when the media
+    /// inspector read them; the sentence saying why it didn't, again only <paramref name="forOwner"/>.
     /// </summary>
-    LibraryFileDto ToDto(PhysicalFileEntity file, IReadOnlyList<PathMappingPair> pathMappings, string? locationName, bool forOwner);
+    LibraryFileDto ToDto(
+        PhysicalFileEntity file,
+        IReadOnlyList<PathMappingPair> pathMappings,
+        string? locationName,
+        MediaInspectionEntity? reading,
+        IReadOnlyList<MediaInspectionTrackEntity> tracks,
+        bool forOwner);
 
     /// <summary>A library as the works filter offers it.</summary>
     LibraryLocationDto ToDto(LibraryLocationEntity location);
@@ -39,6 +47,10 @@ public interface ILibraryMapper
     /// installation owner, as the error can name the service's address and the name is the owner's
     /// sign-in name.</summary>
     LibrarySyncRunDto ToDto(LibrarySyncRunEntity run, bool forOwner);
+
+    /// <summary>A file inspection run (MAM-9); its error and who asked for it only when
+    /// <paramref name="forOwner"/>, the sync run's rule.</summary>
+    FileInspectionRunDto ToDto(FileInspectionRunEntity run, bool forOwner);
 
     /// <summary>
     /// A media library integration with where its syncs stand. <paramref name="adapter"/> is the
@@ -52,5 +64,6 @@ public interface ILibraryMapper
         LibrarySyncRunDto? latestRun,
         LibrarySyncRunDto? lastSucceededRun,
         int filesWithoutAppPathCount,
-        string? pathProblem);
+        string? pathProblem,
+        LibrarySourceInspectionDto inspection);
 }

@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { libraryApi } from '@/lib/library-api'
-import { locations, runOf, sourceOf, sourcesOf, worksPage, aliens } from '@/test/library'
+import { inspectionRunOf, locations, runOf, sourceOf, sourcesOf, worksPage, aliens } from '@/test/library'
 
 /**
  * Answers every request with `status` and `body`, and keeps the requests it was sent. A replaced
@@ -117,5 +117,32 @@ describe('libraryApi', () => {
       isAxiosError: true,
       response: { status: 409, data: { error: '“Home Jellyfin” is already being synced.' } },
     })
+  })
+
+  it('starts an inspection of the library files and resolves with the queued run (202)', async () => {
+    // Arrange
+    const queued = inspectionRunOf({ trigger: 'Requested', status: 'Queued', requestedByUserName: 'vasyl', startedUtc: null, finishedUtc: null, filesTotal: null, filesChecked: 0, filesProbed: 0 })
+    const requests = respondWith(202, queued)
+
+    // Act
+    const run = await libraryApi.startInspection()
+
+    // Assert
+    expect(run).toEqual(queued)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('post')
+    expect(api.getUri(requests[0])).toBe('/api/library/inspections')
+  })
+
+  it('rejects an inspection without a media folder with the API sentence in the body (409)', async () => {
+    // Arrange
+    const sentence = 'No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then inspect again.'
+    respondWith(409, { error: sentence })
+
+    // Act
+    const result = libraryApi.startInspection()
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 409, data: { error: sentence } } })
   })
 })

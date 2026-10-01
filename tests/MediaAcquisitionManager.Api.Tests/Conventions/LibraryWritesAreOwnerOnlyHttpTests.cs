@@ -47,7 +47,14 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
         //Assert
         // Guards the guard: a discovery that misses this would let the sweep below pass for nothing. A
         // superset, so a library write added later passes here and is swept below.
-        Assert.Superset(new HashSet<string> { "POST api/library/sources/{integrationId:guid}/syncs" }, writes);
+        Assert.Superset(
+            new HashSet<string>
+            {
+                "POST api/library/sources/{integrationId:guid}/syncs",
+                // MAM-9 — the owner's Inspect files.
+                "POST api/library/inspections",
+            },
+            writes);
     }
 
     [Fact]
@@ -55,6 +62,9 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-9 — a folder allowed, so a write that slipped past the owner check would queue an inspection
+        // rather than stop at "no media folders" and write nothing anyway.
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
         var writes = LibraryWrites();
 
         //Act
@@ -77,7 +87,10 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
             Assert.Equal(OwnerOnlyBody, answer.Body);
         });
         await _factory.WithDbAsync(async db =>
-            Assert.Equal(0, await db.LibrarySyncRuns.CountAsync(cancellationToken)));
+        {
+            Assert.Equal(0, await db.LibrarySyncRuns.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken));
+        });
     }
 
     // Every write of a Library controller as the running app routes it: each method an endpoint answers

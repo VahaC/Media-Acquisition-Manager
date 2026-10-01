@@ -19,6 +19,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="SizeBytes">The size the service reported; <c>null</c> when it reported none.</param>
 /// <param name="LocationName">The service's library that holds the file ("Фільми"); <c>null</c> when
 /// none or several of its libraries cover it.</param>
+/// <param name="Inspection">What the app's own look at the file found (MAM-9); <c>null</c> until it has
+/// looked.</param>
 public sealed record LibraryFileDto(
     Guid Id,
     string ServicePath,
@@ -26,4 +28,5 @@ public sealed record LibraryFileDto(
     PathMapStatus PathStatus,
     string? PathProblem,
     long? SizeBytes,
-    string? LocationName);
+    string? LocationName,
+    LibraryFileInspectionDto? Inspection);

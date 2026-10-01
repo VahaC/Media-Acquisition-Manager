@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 
 namespace MediaAcquisitionManager.Core.Entities;
@@ -57,8 +58,40 @@ public class PhysicalFileEntity : ProvenancedEntity
     /// never inferred. An unsigned value is stored bit for bit (<c>unchecked</c>): only equality
     /// matters.
     /// </summary>
+    /// <remarks>
+    /// MAM-9 — the identity of the file the name leads to, links inside the allowed roots followed;
+    /// set back to <c>null</c> when the last look found nothing there.
+    /// </remarks>
     public long? DeviceId { get; set; }
 
     /// <summary><c>st_ino</c>, read and stored like <see cref="DeviceId"/>.</summary>
     public long? Inode { get; set; }
+
+    /// <summary>
+    /// How many names the file has (<c>st_nlink</c>), read with <see cref="DeviceId"/> (MAM-9); recorded
+    /// for Phase B, which counts a file with several names once. <c>null</c> until read.
+    /// </summary>
+    public int? LinkCount { get; set; }
+
+    /// <summary>
+    /// What the app's last look at this name found (MAM-9); <c>null</c> until it has looked. A library
+    /// sync never touches it, nor anything below.
+    /// </summary>
+    public FileInspectionStatus? InspectionStatus { get; set; }
+
+    /// <summary>The sentence saying why the last look didn't read the file's streams; <c>null</c> when
+    /// it did, or hasn't looked yet.</summary>
+    [MaxLength(MediaInspectionEntity.ErrorMaximumLength)]
+    public string? InspectionError { get; set; }
+
+    /// <summary>When the app last looked at this name; <c>null</c> until it has.</summary>
+    public DateTime? InspectedUtc { get; set; }
+
+    /// <summary>
+    /// The last reading of the bytes the name led to (MAM-9); <c>null</c> until the media inspector, or
+    /// the cache, gave one. Kept when a later look finds nothing there or can't read the file, so a
+    /// mount that was away costs no reading; its facts count only while <see cref="InspectionStatus"/>
+    /// is <see cref="FileInspectionStatus.Inspected"/>. No foreign key: see <c>ApplicationDbContext</c>.
+    /// </summary>
+    public Guid? MediaInspectionId { get; set; }
 }

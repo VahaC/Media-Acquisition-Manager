@@ -1,0 +1,61 @@
+using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Accounts;
+using MediaAcquisitionManager.Core.Enums;
+
+namespace MediaAcquisitionManager.Core.Entities;
+
+/// <summary>
+/// One inspection of the library's files (MAM-9): queued by a library sync, by the app's start or by
+/// the installation owner, worked through in the background, and polled by the Library page.
+/// <see cref="AuditableEntity.CreatedUtc"/> is when it was queued.
+/// </summary>
+/// <remarks>
+/// <para>
+/// A run looks at every file name every library reported, so it is not tied to one integration; at
+/// most one is queued and one running at a time. A run queued while another runs exists for the files
+/// a sync added meanwhile.
+/// </para>
+/// <para>
+/// History, not state: the requester's name is copied onto the row (the audit-row pattern), and what
+/// each file showed is on the file, written as the run goes — a run that stops keeps what it had read.
+/// </para>
+/// </remarks>
+public class FileInspectionRunEntity : AuditableEntity
+{
+    /// <summary>The longest <see cref="Error"/> the column holds; a longer sentence is cut to it.</summary>
+    public const int ErrorMaximumLength = 1000;
+
+    /// <summary>What started it.</summary>
+    public FileInspectionTrigger Trigger { get; set; }
+
+    /// <summary>The owner who asked for it; <c>null</c> when a sync or the app's start queued it, or once
+    /// that user is deleted.</summary>
+    public Guid? RequestedByUserId { get; set; }
+
+    /// <summary>The requester's user name at the time; <c>null</c> when nobody asked for it.</summary>
+    [MaxLength(UserNameRules.MaximumLength)]
+    public string? RequestedByUserName { get; set; }
+
+    /// <summary>Where the run stands.</summary>
+    public FileInspectionRunStatus Status { get; set; }
+
+    /// <summary>When the worker took it; <c>null</c> while it is queued.</summary>
+    public DateTime? StartedUtc { get; set; }
+
+    /// <summary>When it succeeded or failed; <c>null</c> until then.</summary>
+    public DateTime? FinishedUtc { get; set; }
+
+    /// <summary>How many file names it looks at; <c>null</c> until it has listed them.</summary>
+    public int? FilesTotal { get; set; }
+
+    /// <summary>How many of them it has looked at so far: the progress the page shows.</summary>
+    public int FilesChecked { get; set; }
+
+    /// <summary>How many files the media inspector read in this run; the others were answered from the
+    /// cache or could not be read at all.</summary>
+    public int FilesProbed { get; set; }
+
+    /// <summary>A readable sentence saying why the run failed; <c>null</c> unless it failed.</summary>
+    [MaxLength(ErrorMaximumLength)]
+    public string? Error { get; set; }
+}

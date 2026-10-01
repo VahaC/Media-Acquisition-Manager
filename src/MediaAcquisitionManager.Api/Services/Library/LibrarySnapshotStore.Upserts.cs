@@ -113,9 +113,9 @@ public sealed partial class LibrarySnapshotStore
         }
 
         /// <summary>Deletes every stored row of the snapshot this sync didn't reach. A version's files go
-        /// with it by cascade, whatever source reported them (an open point for MAM-9,
-        /// <see cref="ILibrarySnapshotStore"/>); a removed library leaves its files known, without a
-        /// library.</summary>
+        /// with it by cascade, whatever source reported them (<see cref="ILibrarySnapshotStore"/>; what the
+        /// app read from a file outlives its name, ADR 0009); a removed library leaves its files known,
+        /// without a library.</summary>
         public void RemoveUntouched()
         {
             db.PhysicalFiles.RemoveRange(existing.Files.Where(Untouched));
@@ -163,7 +163,8 @@ public sealed partial class LibrarySnapshotStore
             row.NormalizedServicePath = LibrarySearchText.Normalize(file.ServicePath);
             row.SizeBytes = file.SizeBytes;
             // Decided now, from the libraries just read (LibraryLocationMatcher): none or several → none.
-            // DeviceId and Inode are the app's own reading (MAM-9) and never touched here.
+            // DeviceId, Inode, LinkCount and the inspection columns are the app's own reading (MAM-9) and
+            // never touched here.
             row.LibraryLocationId = LibraryLocationMatcher.Find(file.ServicePath, _reportedLocations) is { } location
                 ? _locations[location.SourceLocationId].Id
                 : null;

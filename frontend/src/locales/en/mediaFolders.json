@@ -1,0 +1,17 @@
+{
+  "title": "Media folders",
+  "lead": "The folders inside this app where it may read your library's files, such as /media inside its container. Files outside them, or reached through a link that leads out of them, are never read.",
+  "listTitle": "Folders the app may read",
+  "listDescription": "Give each folder's path as the app sees it. Saving doesn't inspect the files: use Inspect files on the Library page, or wait for the next sync.",
+  "folder": "Folder {{number}}",
+  "placeholder": "/media",
+  "remove": "Remove folder {{number}}",
+  "add": "Add folder",
+  "empty": "No folder yet: the app reads no file until you add one.",
+  "save": "Save",
+  "saving": "Saving…",
+  "saved": "Saved.",
+  "saveFailed": "Could not save the media folders.",
+  "loadFailed": "Could not load the media folders.",
+  "refreshFailed": "Refresh failed, showing the last loaded folders."
+}

@@ -1,4 +1,7 @@
 import type {
+  FileInspectionOverview,
+  FileInspectionRun,
+  LibraryFileInspection,
   LibraryLocationList,
   LibrarySource,
   LibrarySourceList,
@@ -6,6 +9,8 @@ import type {
   LibraryWork,
   LibraryWorkList,
   LibraryWorksQuery,
+  MediaTrack,
+  MediaTrackKind,
 } from '@/lib/types'
 
 // The Library as GET /api/library/* describes it after a sync of the MAM-6 Jellyfin samples: the two
@@ -13,6 +18,49 @@ import type {
 // only, and a work the library knew nothing about. Integration ids match test/integrations.ts.
 
 export const homeJellyfinId = '5d1c7a90-0000-4000-8000-000000000001'
+
+/** A track as ffprobe reads it; `changes` sets the fields a test is about. */
+export function trackOf(kind: MediaTrackKind, changes: Partial<MediaTrack> = {}): MediaTrack {
+  return {
+    kind,
+    codec: null,
+    profile: null,
+    width: null,
+    height: null,
+    dynamicRange: null,
+    channels: null,
+    channelLayout: null,
+    language: null,
+    isDefault: false,
+    isForced: false,
+    isHearingImpaired: false,
+    ...changes,
+  }
+}
+
+/**
+ * MAM-9 — what ffprobe read from the Theatrical Cut of the MAM-6 samples: HEVC Main 10, two Ukrainian
+ * dubs and the English DTS-HD MA original, forced Ukrainian subtitles and English ones for the hearing
+ * impaired. The tracks' titles ("MVO | DniproFilm") are not part of the API.
+ */
+export const aliensInspection: LibraryFileInspection = {
+  status: 'Inspected',
+  problem: null,
+  inspectedUtc: '2026-09-30T08:05:00Z',
+  media: {
+    durationMilliseconds: 8_237_456,
+    bitRate: 14_418_920,
+    tracks: [
+      trackOf('Video', { codec: 'hevc', profile: 'Main 10', width: 1920, height: 1040, dynamicRange: 'Sdr', isDefault: true }),
+      trackOf('Audio', { codec: 'ac3', channels: 6, channelLayout: '5.1(side)', language: 'ukr', isDefault: true }),
+      trackOf('Audio', { codec: 'ac3', channels: 6, channelLayout: '5.1(side)', language: 'ukr' }),
+      trackOf('Audio', { codec: 'dts', profile: 'DTS-HD MA', channels: 6, channelLayout: '5.1(side)', language: 'eng' }),
+      trackOf('Subtitle', { codec: 'subrip', language: 'ukr', isForced: true }),
+      trackOf('Subtitle', { codec: 'subrip', language: 'eng', isHearingImpaired: true }),
+      trackOf('Subtitle', { codec: 'hdmv_pgs_subtitle', language: 'eng' }),
+    ],
+  },
+}
 
 export const aliens: LibraryWork = {
   id: '7a1e0000-0000-4000-8000-000000000001',
@@ -41,6 +89,7 @@ export const aliens: LibraryWork = {
         pathProblem: null,
         sizeBytes: 14_845_708_473,
         locationName: 'Фільми',
+        inspection: aliensInspection,
       }],
     },
     {
@@ -57,6 +106,8 @@ export const aliens: LibraryWork = {
         pathProblem: null,
         sizeBytes: 19_620_073_340,
         locationName: 'Фільми',
+        // Synced after the last inspection: the app hasn't looked at it yet.
+        inspection: null,
       }],
     },
   ],
@@ -85,6 +136,7 @@ export const continental: LibraryWork = {
       pathProblem: null,
       sizeBytes: 3_891_719_630,
       locationName: 'Фільми',
+      inspection: null,
     }],
   }],
 }
@@ -113,6 +165,13 @@ export const unknownWork: LibraryWork = {
         pathProblem: 'No path mapping of “Home Jellyfin” covers /srv/other/untitled.mkv.',
         sizeBytes: null,
         locationName: null,
+        // The inspection's sentence for a file without an app path is the mapper's own.
+        inspection: {
+          status: 'NoAppPath',
+          problem: 'No path mapping of “Home Jellyfin” covers /srv/other/untitled.mkv.',
+          inspectedUtc: '2026-09-30T08:05:00Z',
+          media: null,
+        },
       }],
     },
     {
@@ -172,10 +231,38 @@ export function sourceOf(changes: Partial<LibrarySource>): LibrarySource {
     lastSucceededRun: lastRun,
     filesWithoutAppPathCount: 0,
     pathProblem: null,
+    inspection: { inspectedCount: 870, problemCount: 0, notInspectedCount: 0, problem: null },
     ...changes,
   }
 }
 
+/** An inspection of the library's files that read them all; `changes` sets the fields a test is about. */
+export function inspectionRunOf(changes: Partial<FileInspectionRun>): FileInspectionRun {
+  return {
+    id: '1a000000-0000-4000-8000-000000000001',
+    trigger: 'LibrarySynced',
+    status: 'Succeeded',
+    requestedByUserName: null,
+    createdUtc: '2026-09-30T08:00:00Z',
+    startedUtc: '2026-09-30T08:00:01Z',
+    finishedUtc: '2026-09-30T08:05:00Z',
+    filesTotal: 870,
+    filesChecked: 870,
+    filesProbed: 870,
+    error: null,
+    ...changes,
+  }
+}
+
+/**
+ * Where the inspection stands; by default a media folder is allowed and the inspection after the
+ * last sync has finished. `changes` sets the fields a test is about.
+ */
+export function inspectionOf(changes: Partial<FileInspectionOverview>): FileInspectionOverview {
+  return { hasAllowedRoots: true, activeRun: null, lastFinishedRun: inspectionRunOf({}), hasQueuedRun: false, ...changes }
+}
+
+/** The sources list of `items`, with the inspection as `inspectionOf({})` describes it. */
 export function sourcesOf(...items: LibrarySource[]): LibrarySourceList {
-  return { items }
+  return { items, inspection: inspectionOf({}) }
 }

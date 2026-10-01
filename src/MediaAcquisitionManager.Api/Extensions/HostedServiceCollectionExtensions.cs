@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
 
 namespace MediaAcquisitionManager.Api.Extensions;
@@ -22,6 +23,13 @@ public static class HostedServiceCollectionExtensions
         services.AddHostedService(provider => provider.GetRequiredService<LibrarySyncReconciler>());
         services.AddSingleton<LibrarySyncWorker>();
         services.AddHostedService(provider => provider.GetRequiredService<LibrarySyncWorker>());
+        // MAM-9 — the same order for file inspections: the reconciler fails the run a stop interrupted and
+        // queues the start's run before the worker takes any, so the worker never claims a run while a
+        // dead one still holds the running slot (IX_FileInspectionRuns_OneRunPerActiveStatus).
+        services.AddSingleton<FileInspectionReconciler>();
+        services.AddHostedService(provider => provider.GetRequiredService<FileInspectionReconciler>());
+        services.AddSingleton<FileInspectionWorker>();
+        services.AddHostedService(provider => provider.GetRequiredService<FileInspectionWorker>());
         return services;
     }
 }

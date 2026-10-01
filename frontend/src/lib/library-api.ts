@@ -1,5 +1,12 @@
 import { api } from './api'
-import type { LibraryLocationList, LibrarySourceList, LibrarySyncRun, LibraryWorkList, LibraryWorksQuery } from './types'
+import type {
+  FileInspectionRun,
+  LibraryLocationList,
+  LibrarySourceList,
+  LibrarySyncRun,
+  LibraryWorkList,
+  LibraryWorksQuery,
+} from './types'
 
 const BASE_URL = '/api/library'
 
@@ -9,6 +16,9 @@ const BASE_URL = '/api/library'
  * A run's `error` can name the service's address, and a path problem names the owner's mappings, so
  * they — with a run's `requestedByUserName` and every `pathProblem`, a source's or a file's — come
  * back to the owner only and are null for everyone else.
+ *
+ * MAM-9 — the same holds for the file inspection: a run's `error` and `requestedByUserName`, and
+ * every inspection `problem` (they quote paths inside the app), are the owner's only.
  */
 export const libraryApi = {
   /**
@@ -42,4 +52,13 @@ export const libraryApi = {
    */
   startSync: async (integrationId: string): Promise<LibrarySyncRun> =>
     (await api.post<LibrarySyncRun>(`${BASE_URL}/sources/${integrationId}/syncs`)).data,
+
+  /**
+   * `POST /api/library/inspections`, owner-only. 202 with the queued run (Location
+   * `/api/library/inspections/{id}`); the run reads the files in the background, and `sources` shows
+   * how it goes. Idempotent: when a run is already queued it answers 202 with that one. 409
+   * `{ error }` when no media folder is allowed yet; 403 `{ error }` for anyone but the owner.
+   */
+  startInspection: async (): Promise<FileInspectionRun> =>
+    (await api.post<FileInspectionRun>(`${BASE_URL}/inspections`)).data,
 }

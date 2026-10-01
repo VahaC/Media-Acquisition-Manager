@@ -57,7 +57,13 @@ public sealed class LibraryMapper : ILibraryMapper
                     [.. filesOf(version).OrderBy(file => file.ServicePath, StringComparer.Ordinal)]))]);
     }
 
-    public LibraryFileDto ToDto(PhysicalFileEntity file, IReadOnlyList<PathMappingPair> pathMappings, string? locationName, bool forOwner)
+    public LibraryFileDto ToDto(
+        PhysicalFileEntity file,
+        IReadOnlyList<PathMappingPair> pathMappings,
+        string? locationName,
+        MediaInspectionEntity? reading,
+        IReadOnlyList<MediaInspectionTrackEntity> tracks,
+        bool forOwner)
     {
         // ADR 0003 — worked out now, never stored: the integration's current mappings decide.
         var path = PathMapper.Map(file.ServicePath, pathMappings);
@@ -70,7 +76,8 @@ public sealed class LibraryMapper : ILibraryMapper
             // same sentence the sources list keeps to the owner; everyone else still gets the status.
             forOwner ? path.Reason : null,
             file.SizeBytes,
-            locationName);
+            locationName,
+            ToInspectionDto(file, path.HasAppPath, reading, tracks, forOwner));
     }
 
     public LibraryLocationDto ToDto(LibraryLocationEntity location) => new(location.Id, location.Name, location.SourceName);
@@ -96,6 +103,22 @@ public sealed class LibraryMapper : ILibraryMapper
             // owner's.
             forOwner ? run.Error : null);
 
+    public FileInspectionRunDto ToDto(FileInspectionRunEntity run, bool forOwner) =>
+        new(
+            run.Id,
+            run.Trigger,
+            run.Status,
+            // MAM-9 — only the owner asks for one, so this is the owner's sign-in name (the sync run's
+            // reason).
+            forOwner ? run.RequestedByUserName : null,
+            run.CreatedUtc,
+            run.StartedUtc,
+            run.FinishedUtc,
+            run.FilesTotal,
+            run.FilesChecked,
+            run.FilesProbed,
+            forOwner ? run.Error : null);
+
     public LibrarySourceDto ToDto(
         IntegrationConnectionEntity integration,
         IntegrationAdapterDescriptor? adapter,
@@ -103,7 +126,8 @@ public sealed class LibraryMapper : ILibraryMapper
         LibrarySyncRunDto? latestRun,
         LibrarySyncRunDto? lastSucceededRun,
         int filesWithoutAppPathCount,
-        string? pathProblem) =>
+        string? pathProblem,
+        LibrarySourceInspectionDto inspection) =>
         new(
             integration.Id,
             integration.Name,
@@ -113,7 +137,43 @@ public sealed class LibraryMapper : ILibraryMapper
             latestRun,
             lastSucceededRun,
             filesWithoutAppPathCount,
-            pathProblem);
+            pathProblem,
+            inspection);
+
+    // MAM-9 — null until the app has looked; the facts only for a file the inspector read, so a cached
+    // failure or a file that has since gone never shows the facts of other bytes. A file the last run
+    // found no app path for, which the mappings give one now, is waiting for the next run rather than
+    // still a problem: the owner fixed the mapping, and the page shows it at once (ADR 0003, MAM-8).
+    private static LibraryFileInspectionDto? ToInspectionDto(
+        PhysicalFileEntity file, bool hasAppPath, MediaInspectionEntity? reading, IReadOnlyList<MediaInspectionTrackEntity> tracks, bool forOwner)
+    {
+        if (file is not { InspectionStatus: { } status, InspectedUtc: { } inspectedUtc })
+            return null;
+        if (status == FileInspectionStatus.NoAppPath && hasAppPath)
+            return null;
+
+        var media = status == FileInspectionStatus.Inspected && reading is not null
+            ? new MediaFactsDto(
+                reading.DurationMilliseconds,
+                reading.BitRate,
+                [.. tracks.OrderBy(track => track.Position).Select(track => new MediaTrackDto(
+                    track.Kind,
+                    track.Codec,
+                    track.Profile,
+                    track.Width,
+                    track.Height,
+                    track.DynamicRange,
+                    track.Channels,
+                    track.ChannelLayout,
+                    track.Language,
+                    track.IsDefault,
+                    track.IsForced,
+                    track.IsHearingImpaired))])
+            : null;
+        // MAM-9 — the sentence quotes paths inside the app and what the inspector said about the file:
+        // the owner's diagnostics, like the path problem; everyone else reads the status.
+        return new LibraryFileInspectionDto(status, forOwner ? file.InspectionError : null, inspectedUtc, media);
+    }
 
     private static MediaWorkTitleEntity? FirstInTitleOrder(IReadOnlyList<MediaWorkTitleEntity> titles, MediaTitleKind kind) =>
         titles

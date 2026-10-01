@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
+import { allowedRootsApi } from '@/lib/allowed-roots-api'
 import { authApi } from '@/lib/auth-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
@@ -9,7 +10,9 @@ import { setupApi } from '@/lib/setup-api'
 import { usersApi } from '@/lib/users-api'
 import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
+import { sourcesOf } from '@/test/library'
 
+vi.mock('@/lib/allowed-roots-api')
 vi.mock('@/lib/auth-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
@@ -59,7 +62,7 @@ describe('App', () => {
     // Arrange
     vi.mocked(libraryApi.works).mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 25 })
     vi.mocked(libraryApi.locations).mockResolvedValue({ items: [] })
-    vi.mocked(libraryApi.sources).mockResolvedValue({ items: [] })
+    vi.mocked(libraryApi.sources).mockResolvedValue(sourcesOf())
     const { user } = renderAt('/')
 
     // Act
@@ -69,6 +72,21 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/library')
     expect(libraryApi.works).toHaveBeenCalledOnce()
+  })
+
+  it('opens Media folders from the user menu of the owner', async () => {
+    // Arrange
+    vi.mocked(allowedRootsApi.get).mockResolvedValue({ paths: ['/media'] })
+    const { user } = renderAt('/')
+    await user.click(await screen.findByRole('button', { name: 'Signed in as vasyl' }))
+
+    // Act
+    await user.click(screen.getByRole('link', { name: 'Media folders' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'Media folders' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/settings/media-folders')
+    expect(await screen.findByRole('textbox', { name: 'Folder 1' })).toHaveValue('/media')
   })
 
   it('renders the not-found page for an unknown address, inside the shell', async () => {

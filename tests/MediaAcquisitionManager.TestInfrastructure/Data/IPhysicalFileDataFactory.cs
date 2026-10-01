@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -21,4 +22,10 @@ public interface IPhysicalFileDataFactory
         Guid? sourceConnectionId = null,
         string? sourceName = null,
         Guid? libraryLocationId = null);
+
+    /// <summary>
+    /// Writes on the name <paramref name="fileId"/> what an inspection run writes when it read the file (MAM-9):
+    /// <paramref name="status"/>, the reading <paramref name="readingId"/> it points at, and the factory's now.
+    /// </summary>
+    Task Link(Guid fileId, Guid readingId, FileInspectionStatus status = FileInspectionStatus.Inspected);
 }

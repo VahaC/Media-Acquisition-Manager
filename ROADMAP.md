@@ -2,8 +2,9 @@
 
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
 localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
-environment facts), MAM-7 (the core model and integration settings) and MAM-8 (the Jellyfin
-library inventory) are built; no phase has shipped yet.
+environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
+library inventory) and MAM-9 (the ffprobe inspection of the library's files) are built; no phase has
+shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -98,8 +99,20 @@ existing file untouched.
   (`LibraryAcceptanceHttpTests` against the samples). Removing a Jellyfin integration removes the
   library it imported, not the files
   ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
-- **MAM-9 ffprobe inspection** of local files under configured media roots: resolution, codecs,
-  audio and subtitle tracks, duration and HDR, shown as unknown when not available.
+- **MAM-9 ffprobe inspection** (built): the app reads the library's files itself, only inside the
+  folders the owner allows on a Media folders settings page (none by default; owner's choice over an
+  environment variable), resolving every link and refusing one that leads out of them. An inspection
+  runs in the background after every successful sync, at each start and on the owner's **Inspect
+  files** (202 + run row + reconciler), two files at a time, and writes each file's outcome as it
+  goes; a file it can't read is an outcome with its reason, never a failure of the run. ffprobe's
+  facts — duration, bit rate, and every video, audio and subtitle track with codec, resolution,
+  dynamic range, channels, language and flags, unknown where the file doesn't say — are kept by the
+  file's device, inode, size and modification time, so the same bytes are read once whatever names
+  lead to them and again when any of the four changes; the identity and link count of every name
+  are recorded for Phase B
+  ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+  The Library page shows the facts under each file and each source's inspected, unreadable and
+  waiting files. Track titles are not shown (owner's choice).
 - **MAM-10 Torznab search:** one Torznab provider with per-indexer configuration; Toloka tested
   through Prowlarr with a real query. The provider speaks plain Torznab, so it has no code specific
   to Prowlarr or Toloka.
@@ -116,7 +129,8 @@ existing file untouched.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
   the accounts, sessions, integrations, audit trail, imported library and its sync runs too, and
   `.secrets/`, whose encryption key alone opens the stored credentials); copy it while the app is
-  stopped. A lost library snapshot comes back with the next sync. A secret set through
+  stopped. A lost library snapshot comes back with the next sync, and the files' inspection with
+  the next inspection; the media folders the owner allowed are in `mam.db` too. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.
 
@@ -142,9 +156,12 @@ how much space could really be recovered — without the app guessing.
 
 **Scope:**
 
-- Scan only configured roots, without following symlinks outside them.
-- Account for hardlinks (same device and inode), verify metadata, and hash candidate files lazily,
-  with the hash cache keyed by file identity, size and modification time.
+- Scan the allowed roots for files no library reported, inside them only and without following
+  links out of them — the rules MAM-9's inspection already applies to the library's own files
+  (ADR 0009).
+- Account for hardlinks (same device and inode, which MAM-9 records on every file name with its link
+  count), and hash candidate files lazily, with the hash cache keyed by file identity, size and
+  modification time like MAM-9's inspection cache.
 - Separate the duplicate classes of specification §3.3: the same file or a hardlink,
   byte-identical copies, other versions of the same work, and possible matches.
 - A Duplicates page with a filter per class and the evidence behind each grouping; a recoverable

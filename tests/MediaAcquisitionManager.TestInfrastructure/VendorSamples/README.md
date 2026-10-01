@@ -92,3 +92,17 @@ The four movies in `movies-page.json`:
   `100237`, video for mobile devices), so filtering may need both.
 - **ffprobe reports cover art as a video stream** (`mjpeg` with `disposition.attached_pic: 1`),
   after the real video stream; it is not a second video track.
+- **A 10-bit stream need not say whether it is HDR** (MAM-9). The Continental's HEVC Main 10 video
+  declares no transfer characteristic, primaries or matrix at all, so the app shows its dynamic
+  range as unknown rather than guessing SDR or HDR10 from the bit depth; Taken's declares BT.709.
+- **Track titles reach ffprobe's JSON in whatever encoding the muxer used** (MAM-9). Some of the
+  Ukrainian titles here were written in a legacy code page, and arrive as invalid UTF-8 (shown as
+  `�`). The app reads ffprobe's answer leniently and keeps no track titles, so they never matter.
+- **ffprobe picks a demuxer by a file's content, not its name** (MAM-9). A file named `.mkv` whose
+  content starts `ffconcat version 1.0` is read as a concat list, and ffprobe opens the files it
+  names; `-protocol_whitelist file` doesn't stop that, `-format_whitelist` does (8.0.1 and 6.1.1:
+  `[concat @ 0x…] Format not on whitelist '…'`, then `file:<path>: Invalid argument`).
+- **ffprobe's verdict on a file it can't read is its last line** (MAM-9), `file:<path>: <reason>`;
+  the lines before it are what a demuxer said on the way ("Truncating packet of size 83 to 70",
+  "[matroska,webm @ 0x…] EBML header parsing failed"). A cut-off MKV ends in "I/O error", a text or
+  random file in "Invalid data found when processing input".

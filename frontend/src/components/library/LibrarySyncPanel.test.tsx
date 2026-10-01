@@ -35,6 +35,9 @@ const rowOf = (name: string) => screen.getByText(name).closest('li')!
 /** The status line of the source named `name`. */
 const statusOf = (name: string) => within(rowOf(name)).getByRole('status')
 
+/** The status line of the source named `name`, once the sources have arrived. */
+const findStatusOf = async (name: string) => within((await screen.findByText(name)).closest('li')!).getByRole('status')
+
 const failedRun = runOf({
   id: '5e000000-0000-4000-8000-000000000002',
   status: 'Failed',
@@ -79,7 +82,7 @@ describe('LibrarySyncPanel', () => {
     renderPanel()
 
     // Assert
-    expect(await screen.findByRole('status')).toHaveTextContent('Never synced.')
+    expect(await findStatusOf('Home Jellyfin')).toHaveTextContent('Never synced.')
   })
 
   it.each([
@@ -95,7 +98,7 @@ describe('LibrarySyncPanel', () => {
     renderPanel()
 
     // Assert
-    expect(await screen.findByRole('status')).toHaveTextContent(line)
+    expect(await findStatusOf('Home Jellyfin')).toHaveTextContent(line)
     const button = screen.getByRole('button', { name: 'Syncing…' })
     expect(button).toBeDisabled()
     expect(button.parentElement).toHaveAttribute('title', 'Home Jellyfin is already being synced.')
@@ -109,7 +112,7 @@ describe('LibrarySyncPanel', () => {
     renderPanel()
 
     // Assert
-    const status = await screen.findByRole('status')
+    const status = await findStatusOf('Home Jellyfin')
     expect(status).toHaveTextContent(
       /^Sync failed Sep 30, 2026, 12:00\sPM: Jellyfin could not be reached at http:\/\/127\.0\.0\.1:9\. Check the address/)
     expect(status).toHaveAttribute('data-status', 'Failed')
@@ -125,7 +128,7 @@ describe('LibrarySyncPanel', () => {
     renderPanel(member)
 
     // Assert
-    expect(await screen.findByRole('status')).toHaveTextContent('The last sync failed. The owner can see why.')
+    expect(await findStatusOf('Home Jellyfin')).toHaveTextContent('The last sync failed. The owner can see why.')
     expect(screen.queryByText(/^Showing the library as synced/)).not.toBeInTheDocument()
     expect(screen.queryByText(/127\.0\.0\.1/)).not.toBeInTheDocument()
   })

@@ -128,3 +128,18 @@ identifier. `JellyfinAdapterItemsTests.ListItems_gives_a_media_source_that_is_no
 and `JellyfinAdapterItemsTests.ListItems_reads_the_imdb_and_tmdb_ids_and_never_a_collection_id`
 pin both. Which items are one work, and how the rows keep their ids across syncs, is
 [ADR 0008](0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md).
+
+## Implementation (added 0.1.0, MAM-9)
+
+**The open point is settled: the inspection writes no file rows of its own.** What the app's last
+look at a name found — its status, the sentence, when, the identity and link count it read — is
+written on the library's own `PhysicalFiles` row, which a sync never touches beyond what MAM-8 lists,
+and what the media inspector read is kept in `MediaInspections`, keyed by the file's identity, size
+and modification time, which no name owns. So a version a sync removes takes only names with it, and
+a file moved under a new name within one sync finds its reading again; a file gone for a whole sync
+loses it at the inspection that sync queues
+([ADR 0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+A reading needs no provenance columns: every one is the app's own, so its table names its source.
+`ProvenanceSourceKind.FileInspection` stays unused until a name that no library reported is stored
+(Phase B's scan). Rows sharing `(DeviceId, Inode)` are now real: both names of a hardlinked file carry
+the identity the app read, and `LinkCount` says how many names the file has.

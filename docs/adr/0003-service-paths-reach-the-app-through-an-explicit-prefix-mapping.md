@@ -153,3 +153,15 @@ and
 the count and who reads its reason, and
 `LibraryLocationMatcherTests.Find_of_a_file_under_the_roots_of_two_libraries_is_null` the refusal
 to guess a library.
+
+## Implementation (added 0.1.0, MAM-9)
+
+**The file inspection is the mapper's next user, before MAM-11.** A run maps every stored file name
+through its reporting integration's pairs as they are when the run starts, the way the works list
+does, and looks only at the app path that comes out; a name the pairs give none is recorded as
+`NoAppPath` with the mapper's sentence, and the inventory never sees it. The mapped path is still
+where to look and nothing more: the inspection reads the device and inode itself, inside the allowed
+roots only, every link resolved
+([ADR 0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)),
+and those decide which names are one set of bytes. Fixing a mapping shows on the next run, which the
+owner can start from the Library page.

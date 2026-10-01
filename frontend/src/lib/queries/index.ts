@@ -1,4 +1,5 @@
 export * from './keys'
+export * from './allowed-roots'
 export * from './auth'
 export * from './health'
 export * from './integrations'

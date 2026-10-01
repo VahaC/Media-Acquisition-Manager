@@ -1,12 +1,16 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Library;
 
@@ -16,13 +20,44 @@ namespace MediaAcquisitionManager.Api.Tests.Library;
 // signed-in user, except a run's error, which can name an address, the path problem, which quotes the
 // owner's mappings, and who started a run, the owner's sign-in name: the owner's only (LibraryMapper,
 // LibrarySyncService).
+// MAM-9 — and where the app's own look at the files stands: per library, how many files it read, how
+// many it couldn't (a file without an app path included) and how many it hasn't looked at, counted from
+// the files when asked, with the first problem's sentence in path order for the owner only; for the whole
+// list, whether any media folder is allowed, the inspection under way (the running one before the queued
+// one) and the latest finished one, who asked for a run and why one failed again the owner's only.
 public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library/sources";
+    private const string InspectionsUrl = "/api/library/inspections";
+    private const string AllowedRootsUrl = "/api/settings/allowed-roots";
     private const string ApiKey = "0123456789abcdef0123456789abcdef";
+
+    /// <summary>A second Jellyfin, beside the factory's default address.</summary>
+    private const string BedroomBaseUrl = "http://127.0.0.2:9";
+
+    /// <summary>MAM-9 — a source whose files the app hasn't looked at, or that has none.</summary>
+    private static readonly LibrarySourceInspectionDto NoInspection = new(0, 0, 0, null);
 
     private const string AliensTheatricalPath =
         "/media/movies/Alien. Collection/[02.1] Aliens (1986) [Theatrical Cut, Fundamental Collection] BDRip 1080p H.265 [2xUKR_ENG] [Hurtom].mkv";
+
+    private const string AliensSpecialEditionPath =
+        "/media/movies/Alien. Collection/[02.2] Aliens (1986) [Special Edition] BDRip 1080p H.265 [2xUKR_ENG] [Hurtom, UTOPIA].mkv";
+
+    private const string District13Path =
+        "/media/movies/District 13. Dilogy (2004-2009) BDRip 1080p H.265 [2xUKR_FRE] [Hurtom]/[01] Banlieue 13 (2004) BDRip 1080p H.265 [2xUKR_FRE] [Hurtom].mkv";
+
+    private const string ContinentalPath =
+        "/media/movies/John Wick. Collection/[01] The Continental (2023) - (Season 1)/[01] The Continental (2023) - S01E01 - BDRip 1080p x265 [3xUKR_ENG] [Hurtom].mkv";
+
+    private const string ContinentalLockedError = "The app may not read “" + ContinentalPath + "”: permission denied.";
+
+    /// <summary>What the fake file inventory says about a path nothing is at.</summary>
+    private const string AliensTheatricalGoneError = "Nothing is at “" + AliensTheatricalPath + "”.";
+
+    private const string AliensTheatricalNotCoveredError = "No path mapping of this integration covers “" + AliensTheatricalPath + "”.";
+
+    private const string RestartedError = "The app restarted before this inspection finished. What it had read is kept.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -30,6 +65,10 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
     private AuthorizedUser _member = null!;
 
     public LibrarySourcesHttpTests(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
+
+    /// <summary>A folder the allowed-roots API accepts on the platform the app runs on: its rules refuse
+    /// a path of the other style (AllowedRootRules.PlatformStyle).</summary>
+    private static string MediaFolder => OperatingSystem.IsWindows() ? @"D:\Media" : "/media";
 
     public async ValueTask InitializeAsync()
     {
@@ -78,10 +117,10 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
             [
-                new LibrarySourceDto(attic.Id, "Attic", FakeIntegrationAdapter.DisplayName, true, false, null, null, 0, null),
-                new LibrarySourceDto(basement.Id, "Basement", null, true, false, null, null, 0, null),
-                new LibrarySourceDto(cellar.Id, "Cellar", "Jellyfin", false, true, null, null, 0, null),
-                new LibrarySourceDto(livingRoom.Id, "living room", "Jellyfin", true, true, null, null, 0, null),
+                new LibrarySourceDto(attic.Id, "Attic", FakeIntegrationAdapter.DisplayName, true, false, null, null, 0, null, NoInspection),
+                new LibrarySourceDto(basement.Id, "Basement", null, true, false, null, null, 0, null, NoInspection),
+                new LibrarySourceDto(cellar.Id, "Cellar", "Jellyfin", false, true, null, null, 0, null, NoInspection),
+                new LibrarySourceDto(livingRoom.Id, "living room", "Jellyfin", true, true, null, null, 0, null, NoInspection),
             ],
             (await ReadListAsync(response, cancellationToken)).Items);
     }
@@ -204,6 +243,329 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         // Counted when asked, not stored with the run: the warning agrees with the works list at once.
         var source = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
         Assert.Equal((0, null), (source.FilesWithoutAppPathCount, source.PathProblem));
+    }
+
+    [Fact]
+    public async Task Sources_counts_each_librarys_read_problem_and_unread_files_and_gives_the_first_problem_to_the_owner_only()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var livingRoom = await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        var bedroom = await _integrations.Create("jellyfin", "Bedroom", BedroomBaseUrl, apiKey: ApiKey);
+        var bedroomServer = new FakeJellyfinServer(BedroomBaseUrl) { ApiKey = ApiKey };
+        // Two other movies, with paths of their own.
+        bedroomServer.Movies.Clear();
+        bedroomServer.Movies.AddRange(JellyfinSamples.Library(2));
+        FakeJellyfinServer.Arm(_factory.JellyfinHttp, new FakeJellyfinServer { ApiKey = ApiKey }, bedroomServer);
+        var snapshots = new LibrarySnapshotSeeder(_factory.Scope);
+        await snapshots.Sync(livingRoom, _owner.User);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        // In path order the two "Чужі" come first and the Continental last, the other way round from the
+        // order the library listed them: a locked Continental, an unreadable District 13, nothing at the
+        // theatrical "Чужі" and the special edition read.
+        _factory.Files.AddProblem(ContinentalPath, FileInventoryStatus.Unreadable, ContinentalLockedError);
+        _factory.Files.AddFile(District13Path, TestMedia.File(inode: 1_002), media: null);
+        _factory.Files.AddFile(AliensSpecialEditionPath, TestMedia.File(inode: 1_004), TestMedia.Taken());
+        await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+        // Synced after the inspection: files the app hasn't looked at yet.
+        var bedroomSync = await snapshots.Sync(bedroom, _owner.User);
+
+        //Act
+        var owners = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+        var members = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+
+        //Assert
+        Assert.Equal((LibrarySyncStatus.Succeeded, 2), (bedroomSync.Status, bedroomSync.FilesCount));
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
+        // Every reason the streams weren't read is a problem; the first in path order is the one named.
+        Assert.Equal(
+            [("Bedroom", new LibrarySourceInspectionDto(0, 0, 2, null)), ("Living room", new LibrarySourceInspectionDto(1, 3, 0, AliensTheatricalGoneError))],
+            (await ReadListAsync(owners, cancellationToken)).Items.Select(item => (item.Name, item.Inspection)));
+        // The sentence quotes a path inside the app: the owner's, like each file's; the counts are everyone's.
+        Assert.Equal(
+            [("Bedroom", new LibrarySourceInspectionDto(0, 0, 2, null)), ("Living room", new LibrarySourceInspectionDto(1, 3, 0, null))],
+            (await ReadListAsync(members, cancellationToken)).Items.Select(item => (item.Name, item.Inspection)));
+        await _factory.WithDbAsync(async db =>
+        {
+            var files = await db.PhysicalFiles.AsNoTracking().ToListAsync(cancellationToken);
+            Assert.Equal(
+                [
+                    (AliensTheatricalPath, FileInspectionStatus.NotFound),
+                    (AliensSpecialEditionPath, FileInspectionStatus.Inspected),
+                    (District13Path, FileInspectionStatus.MediaUnreadable),
+                    (ContinentalPath, FileInspectionStatus.Unreadable),
+                ],
+                files
+                    .Where(file => file.SourceConnectionId == livingRoom.Id)
+                    .OrderBy(file => file.ServicePath, StringComparer.Ordinal)
+                    .Select(file => (file.ServicePath, file.InspectionStatus!.Value)));
+            Assert.Equal([null, null], files.Where(file => file.SourceConnectionId == bedroom.Id).Select(file => file.InspectionStatus));
+        });
+    }
+
+    [Fact]
+    public async Task Sources_counts_a_file_without_an_app_path_as_a_problem_with_the_mappers_reason()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // A mapping for the shows only: none of the four movie files has a path in the app.
+        var jellyfin = await _integrations.Create(
+            "jellyfin", "Living room", apiKey: ApiKey, pathMappings: [new PathMappingPair("/media/tv-shows", "/data/tv")]);
+        await new LibrarySnapshotSeeder(_factory.Scope).Sync(jellyfin, _owner.User);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        // A file at the service's path, inside the allowed root: still not the app's to guess at.
+        _factory.Files.AddFile(ContinentalPath, TestMedia.File(inode: 1_001), TestMedia.Continental());
+        await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var source = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
+        Assert.Equal(new LibrarySourceInspectionDto(0, 4, 0, AliensTheatricalNotCoveredError), source.Inspection);
+        Assert.Equal(4, source.FilesWithoutAppPathCount);
+        Assert.Empty(_factory.Files.DescribedPaths);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(
+                [FileInspectionStatus.NoAppPath, FileInspectionStatus.NoAppPath, FileInspectionStatus.NoAppPath, FileInspectionStatus.NoAppPath],
+                await db.PhysicalFiles.Select(file => file.InspectionStatus!.Value).ToListAsync(cancellationToken)));
+    }
+
+    [Fact]
+    public async Task Sources_counts_a_file_whose_mappings_were_fixed_since_the_run_as_not_inspected_yet()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await _integrations.Create(
+            "jellyfin", "Living room", apiKey: ApiKey, pathMappings: [new PathMappingPair("/media/tv-shows", "/data/tv")]);
+        await new LibrarySnapshotSeeder(_factory.Scope).Sync(jellyfin, _owner.User);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+        // The owner removes the mapping that left the movies without a path: they map as they are now.
+        await _factory.WithDbAsync(db => db.PathMappings.Where(mapping => mapping.IntegrationConnectionId == jellyfin.Id).ExecuteDeleteAsync(cancellationToken));
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        // MAM-9 — the stored "no app path" of the last run is stale once the mappings give one: the four
+        // files wait for the next run instead of staying problems with an old sentence, the way the path
+        // warning, worked out now, drops at once (ADR 0003).
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var source = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
+        Assert.Equal((0, new LibrarySourceInspectionDto(0, 0, 4, null)), (source.FilesWithoutAppPathCount, source.Inspection));
+        await _factory.WithDbAsync(async db =>
+            Assert.All(
+                await db.PhysicalFiles.Select(file => file.InspectionStatus).ToListAsync(cancellationToken),
+                status => Assert.Equal(FileInspectionStatus.NoAppPath, status)));
+    }
+
+    [Fact]
+    public async Task Sources_gives_a_library_without_files_no_inspection_counts()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var livingRoom = await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        var bedroom = await _integrations.Create("jellyfin", "Bedroom", BedroomBaseUrl, apiKey: ApiKey);
+        await new LibrarySnapshotSeeder(_factory.Scope).Sync(livingRoom, _owner.User);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        _factory.Files.AddFile(ContinentalPath, TestMedia.File(inode: 1_001), TestMedia.Continental());
+        await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        // An inspection reads every library's files; one that has none has nothing to count.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            [(bedroom.Id, NoInspection), (livingRoom.Id, new LibrarySourceInspectionDto(1, 3, 0, AliensTheatricalGoneError))],
+            (await ReadListAsync(response, cancellationToken)).Items.Select(item => (item.IntegrationId, item.Inspection)));
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(0, await db.PhysicalFiles.CountAsync(file => file.SourceConnectionId == bedroom.Id, cancellationToken)));
+    }
+
+    [Fact]
+    public async Task Sources_says_no_media_folder_is_allowed_until_the_owner_saves_one_and_saving_queues_no_inspection()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        var before = await ReadListAsync(await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken), cancellationToken);
+        var saved = await _factory.PutHttpRequest(AllowedRootsUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([MediaFolder]));
+
+        //Act
+        var owners = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+        var members = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+
+        //Assert
+        // None by default: the app reads nothing, and the page says so — to everyone, with the way to
+        // the settings for the owner.
+        Assert.Equal(new FileInspectionOverviewDto(false, null, null, false), before.Inspection);
+        Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
+        // Saving starts nothing: the owner inspects when ready.
+        Assert.Equal(new FileInspectionOverviewDto(true, null, null, false), (await ReadListAsync(owners, cancellationToken)).Inspection);
+        Assert.Equal(new FileInspectionOverviewDto(true, null, null, false), (await ReadListAsync(members, cancellationToken)).Inspection);
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal(1, await db.AllowedRoots.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken));
+        });
+    }
+
+    [Fact]
+    public async Task Sources_gives_the_inspection_the_owner_asked_for_as_the_active_run_while_it_waits()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        var queuedAt = _factory.Time.GetUtcNow().UtcDateTime;
+        var start = await _factory.PostHttpRequest(InspectionsUrl, _owner.AccessToken);
+        var started = await start.Content.ReadFromJsonAsync<FileInspectionRunDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+
+        //Act
+        var owners = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+        var members = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
+        var queued = new FileInspectionRunDto(
+            started!.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Queued, "owner", queuedAt, null, null, null, 0, 0, null);
+        Assert.Equal(new FileInspectionOverviewDto(true, queued, null, true), (await ReadListAsync(owners, cancellationToken)).Inspection);
+        // Who asked is the owner's sign-in name, so the owner's only.
+        Assert.Equal(
+            new FileInspectionOverviewDto(true, queued with { RequestedByUserName = null }, null, true),
+            (await ReadListAsync(members, cancellationToken)).Inspection);
+        await _factory.WithDbAsync(async db =>
+        {
+            var run = await db.FileInspectionRuns.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(
+                (started.Id, FileInspectionRunStatus.Queued, _owner.User.Id, "owner"),
+                (run.Id, run.Status, run.RequestedByUserId!.Value, run.RequestedByUserName));
+        });
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Sources_gives_the_running_inspection_as_the_active_run_before_the_queued_one(bool queuedFirst)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        var runs = new FileInspectionRunSeeder(_factory.Scope);
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        // Either one created and inserted first, so the answer is the status's, not the clock's or the
+        // insert order's.
+        var (queuedAt, runningAt) = queuedFirst ? (now.AddMinutes(-2), now.AddMinutes(-1)) : (now.AddMinutes(-1), now.AddMinutes(-2));
+        FileInspectionRunEntity running;
+        if (queuedFirst)
+        {
+            await runs.Create(FileInspectionRunStatus.Queued, FileInspectionTrigger.LibrarySynced, createdUtc: queuedAt);
+            running = await runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.Requested, _owner.User, runningAt, filesTotal: 4, filesChecked: 1);
+        }
+        else
+        {
+            running = await runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.Requested, _owner.User, runningAt, filesTotal: 4, filesChecked: 1);
+            await runs.Create(FileInspectionRunStatus.Queued, FileInspectionTrigger.LibrarySynced, createdUtc: queuedAt);
+        }
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        // What is happening now; the queued one only means "and again after this", which the page says.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new FileInspectionOverviewDto(
+                true,
+                new FileInspectionRunDto(
+                    running.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Running, "owner", runningAt, runningAt, null, 4, 1, 0, null),
+                null,
+                true),
+            (await ReadListAsync(response, cancellationToken)).Inspection);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(
+                [FileInspectionRunStatus.Queued, FileInspectionRunStatus.Running],
+                (await db.FileInspectionRuns.Select(run => run.Status).ToListAsync(cancellationToken)).Order()));
+    }
+
+    [Theory]
+    [InlineData(FileInspectionRunStatus.Succeeded)]
+    [InlineData(FileInspectionRunStatus.Failed)]
+    public async Task Sources_gives_the_latest_succeeded_or_failed_inspection_as_the_last_finished_run(FileInspectionRunStatus latestStatus)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        var runs = new FileInspectionRunSeeder(_factory.Scope);
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        var latestError = latestStatus == FileInspectionRunStatus.Failed ? RestartedError : null;
+        // Seeded out of order and at explicit times, so "latest" is the clock's answer, not the insert
+        // order's or the ids'; and a newer run still under way is not a finished one.
+        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.AppStarted, createdUtc: now.AddMinutes(-2), error: RestartedError, filesTotal: 4, filesChecked: 2);
+        var latest = await runs.Create(latestStatus, FileInspectionTrigger.LibrarySynced, createdUtc: now.AddMinutes(-1), error: latestError, filesTotal: 4, filesChecked: 4, filesProbed: 2);
+        await runs.Create(FileInspectionRunStatus.Succeeded, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-3), filesTotal: 4, filesChecked: 4, filesProbed: 4);
+        var running = await runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.AppStarted, createdUtc: now, filesTotal: 4, filesChecked: 1);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var latestAt = now.AddMinutes(-1);
+        Assert.Equal(
+            new FileInspectionOverviewDto(
+                true,
+                new FileInspectionRunDto(running.Id, FileInspectionTrigger.AppStarted, FileInspectionRunStatus.Running, null, now, now, null, 4, 1, 0, null),
+                new FileInspectionRunDto(latest.Id, FileInspectionTrigger.LibrarySynced, latestStatus, null, latestAt, latestAt, latestAt, 4, 4, 2, latestError),
+                false),
+            (await ReadListAsync(response, cancellationToken)).Inspection);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(4, await db.FileInspectionRuns.CountAsync(cancellationToken)));
+    }
+
+    [Fact]
+    public async Task Sources_gives_who_asked_for_an_inspection_and_why_one_failed_to_the_owner_only()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        var runs = new FileInspectionRunSeeder(_factory.Scope);
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        await runs.Create(FileInspectionRunStatus.Failed, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-5), RestartedError, filesTotal: 4, filesChecked: 2);
+        await runs.Create(FileInspectionRunStatus.Running, FileInspectionTrigger.Requested, _owner.User, now.AddMinutes(-1), filesTotal: 4);
+
+        //Act
+        var owners = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+        var members = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+
+        //Assert
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
+        var ownersOverview = (await ReadListAsync(owners, cancellationToken)).Inspection;
+        Assert.Equal(
+            ("owner", "owner", RestartedError),
+            (ownersOverview.ActiveRun!.RequestedByUserName, ownersOverview.LastFinishedRun!.RequestedByUserName, ownersOverview.LastFinishedRun.Error));
+        // Everyone else learns that one failed and that one runs, never why or who asked: the error is
+        // the owner's diagnostics, and only the owner asks for one.
+        Assert.DoesNotContain(RestartedError, await members.Content.ReadAsStringAsync(cancellationToken), StringComparison.Ordinal);
+        Assert.Equal(
+            ownersOverview with
+            {
+                ActiveRun = ownersOverview.ActiveRun with { RequestedByUserName = null },
+                LastFinishedRun = ownersOverview.LastFinishedRun with { RequestedByUserName = null, Error = null },
+            },
+            (await ReadListAsync(members, cancellationToken)).Inspection);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(
+                RestartedError,
+                await db.FileInspectionRuns.Where(run => run.Status == FileInspectionRunStatus.Failed).Select(run => run.Error).SingleAsync(cancellationToken)));
     }
 
     private static async Task<LibrarySourceListResponse> ReadListAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>

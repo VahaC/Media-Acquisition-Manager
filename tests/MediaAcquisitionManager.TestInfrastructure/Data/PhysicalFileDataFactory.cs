@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -39,5 +40,19 @@ public sealed class PhysicalFileDataFactory(ApplicationDbContext db, TimeProvide
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return file;
+    }
+
+    // Set-based, like FileInspectionRunner.WriteAsync.
+    public Task Link(Guid fileId, Guid readingId, FileInspectionStatus status = FileInspectionStatus.Inspected)
+    {
+        FileInspectionStatus? inspectionStatus = status;
+        Guid? mediaInspectionId = readingId;
+        var inspectedUtc = time.GetUtcNow().UtcDateTime;
+        return db.PhysicalFiles
+            .Where(file => file.Id == fileId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(file => file.InspectionStatus, inspectionStatus)
+                .SetProperty(file => file.InspectedUtc, inspectedUtc)
+                .SetProperty(file => file.MediaInspectionId, mediaInspectionId));
     }
 }

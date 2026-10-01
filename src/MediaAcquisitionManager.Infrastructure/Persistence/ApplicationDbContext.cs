@@ -38,6 +38,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<LibrarySyncRunEntity> LibrarySyncRuns => Set<LibrarySyncRunEntity>();
 
+    public DbSet<AllowedRootEntity> AllowedRoots => Set<AllowedRootEntity>();
+
+    public DbSet<MediaInspectionEntity> MediaInspections => Set<MediaInspectionEntity>();
+
+    public DbSet<MediaInspectionTrackEntity> MediaInspectionTracks => Set<MediaInspectionTrackEntity>();
+
+    public DbSet<FileInspectionRunEntity> FileInspectionRuns => Set<FileInspectionRunEntity>();
+
     public DbSet<ReleaseEntity> Releases => Set<ReleaseEntity>();
 
     public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
@@ -185,6 +193,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<LibraryLocationEntity>().WithMany()
                 .HasForeignKey(x => x.LibraryLocationId)
                 .OnDelete(DeleteBehavior.SetNull);
+            e.Property(x => x.InspectionStatus).HasConversion<string>().HasMaxLength(32);
+            // ADR 0009 — an index and no foreign key, on purpose. SQLite adds a key to a table only by
+            // rebuilding it, and EF Core runs that rebuild as three transactions with foreign keys off
+            // between them: on an upgrade, where this table holds the library, a stop in between would
+            // leave a migration that can't be applied again. The key would guard nothing reachable:
+            // a run removes only the readings no name points at (FileInspectionRunner), and a name
+            // whose reading is missing reads as having no facts (LibraryMapper). The index serves
+            // that "no name points at it" query and the works list's join.
+            e.HasIndex(x => x.MediaInspectionId);
         });
 
         modelBuilder.Entity<LibraryLocationEntity>(e =>
@@ -209,6 +226,50 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey(x => x.IntegrationConnectionId)
                 .OnDelete(DeleteBehavior.SetNull);
             // SetNull: the run outlives the user who started it; RequestedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AllowedRootEntity>(e =>
+        {
+            // MAM-9 — a case-sensitive backstop for two saves racing; the rules already refuse one
+            // folder listed twice in any letter case a Windows path ignores.
+            e.HasIndex(x => x.Path).IsUnique();
+        });
+
+        modelBuilder.Entity<MediaInspectionEntity>(e =>
+        {
+            // ADR 0009 — the cache key of specification §3.3: identity, size and modification time. Unique,
+            // so one set of bytes is read once however many names lead to it; a change in any of the
+            // four is a new key, and so a new read.
+            e.HasIndex(x => new { x.DeviceId, x.Inode, x.SizeBytes, x.ModifiedUtc }).IsUnique();
+        });
+
+        modelBuilder.Entity<MediaInspectionTrackEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.DynamicRange).HasConversion<string>().HasMaxLength(32);
+            // Cascade: a track is part of its inspection, read and forgotten with it.
+            e.HasOne<MediaInspectionEntity>().WithMany()
+                .HasForeignKey(x => x.MediaInspectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FileInspectionRunEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Trigger).HasConversion<string>().HasMaxLength(32);
+            // MAM-9 — at most one queued and one running inspection: unique over the status of the
+            // active rows only. A trigger that finds one queued joins it instead of adding another (the
+            // service checks first; this settles two triggers racing), and a finished run never blocks
+            // the next one.
+            e.HasIndex(x => x.Status, "IX_FileInspectionRuns_OneRunPerActiveStatus")
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Queued', 'Running')");
+            // "The latest finished run", which the Library page asks for on every poll.
+            e.HasIndex(x => x.CreatedUtc);
+            // SetNull: the run outlives the user who asked for it; RequestedByUserName keeps who.
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.RequestedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);

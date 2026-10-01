@@ -6,8 +6,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
+using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Options;
 using MediaAcquisitionManager.Core.Storage;
@@ -18,6 +20,7 @@ using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
 using MediaAcquisitionManager.TestInfrastructure.Time;
@@ -47,10 +50,11 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// The directory goes when the factory is disposed.
 /// </para>
 /// <para>
-/// Only seams to the outside world are replaced — the clock and the vendor HTTP: each integration
-/// client's primary handler is a <see cref="RecordingHttpHandler"/> (<see cref="JellyfinHttp"/>,
+/// Only seams to the outside world are replaced — the clock, the vendor HTTP and the host's files: each
+/// integration client's primary handler is a <see cref="RecordingHttpHandler"/> (<see cref="JellyfinHttp"/>,
 /// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>), so the real adapters run with the app's
-/// own client configuration and only the network is faked. One more adapter type,
+/// own client configuration and only the network is faked; and the file inventory, the Core seam to the
+/// app's mounts and the media inspector, is <see cref="Files"/> (MAM-9). One more adapter type,
 /// <see cref="FakeAdapter"/>, is registered beside the real ones for tests about what the API does with
 /// an adapter's answer. Two more stand-ins keep the suite fast and its tests independent without
 /// faking any behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
@@ -58,7 +62,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// request (see <see cref="PinClientAddress"/>). One save interceptor, <see cref="SaveChangesHook"/>,
 /// does nothing until a test arms it to stage a race. The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
-/// instead — the library sync worker and reconciler through their singletons (<see cref="Resolve{T}"/>).
+/// instead — the library sync and file inspection workers and reconcilers through their singletons
+/// (<see cref="Resolve{T}"/>).
 /// Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
 /// <see cref="PipelineProbeApiFactory"/>).
 /// </para>
@@ -138,6 +143,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// save; does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
     public SaveChangesHook SaveChangesHook { get; } = new();
 
+    /// <summary>The app's mounts and media inspector (MAM-9); nothing is anywhere until a test adds a
+    /// file. Emptied by <see cref="ResetAsync"/>.</summary>
+    public FakeFileInventory Files { get; } = new();
+
     /// <summary>
     /// A DI scope for seeders and assertions, created on first use and renewed by
     /// <see cref="ResetAsync"/>, so a test never sees a DbContext that tracked the previous test's rows.
@@ -216,9 +225,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// Puts the factory back to a clean state; every test calls it first. Empties every table of the
     /// EF model in one batched command (a round trip per table adds up across a suite), rewinds the
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
-    /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>, drains the
-    /// library sync queue (a run id a test queued but never ran would otherwise reach the next test's
-    /// worker), unpins the client address and renews <see cref="Scope"/>.
+    /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>, empties
+    /// <see cref="Files"/>, drains the library sync and file inspection queues (a run id a test queued but
+    /// never ran would otherwise reach the next test's worker), unpins the client address and renews
+    /// <see cref="Scope"/>.
     /// Model-driven: a new entity needs no line here.
     /// </summary>
     public async Task ResetAsync()
@@ -233,8 +243,14 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         TorznabHttp.Reset();
         QBittorrentHttp.Reset();
         SaveChangesHook.Reset();
+        Files.Reset();
         var libraryQueue = Services.GetRequiredService<LibrarySyncQueue>();
         while (libraryQueue.Reader.TryRead(out _))
+        {
+        }
+
+        var inspectionQueue = Services.GetRequiredService<FileInspectionQueue>();
+        while (inspectionQueue.Reader.TryRead(out _))
         {
         }
 
@@ -297,6 +313,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IIntegrationAdapter>(FakeAdapter);
             // The app attaches every save interceptor in the container; unarmed, this one does nothing.
             services.AddSingleton<ISaveChangesInterceptor>(SaveChangesHook);
+            // MAM-9 — instead of the local one: the host's folders and its ffprobe are the outside world
+            // here, the way the vendors' networks are.
+            ReplaceSingleton<IFileInventory>(services, Files);
             // Registered after the app's own client configuration, so these actions run after its
             // ConfigurePrimaryHttpMessageHandler and win; everything else about each client (timeout,
             // buffer limit, user agent, no logging handlers) stays the app's.

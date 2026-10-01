@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Integrations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -21,6 +22,7 @@ public sealed class LibrarySyncRunner(
     IIntegrationAdapterRegistry adapters,
     IIntegrationSettingsFactory settingsFactory,
     ILibrarySnapshotStore snapshots,
+    IFileInspectionService inspections,
     TimeProvider time,
     ILogger<LibrarySyncRunner> logger) : ILibrarySyncRunner
 {
@@ -132,6 +134,7 @@ public sealed class LibrarySyncRunner(
                     snapshot.WorksCount,
                     snapshot.VersionsCount,
                     snapshot.FilesCount);
+                await QueueInspectionAsync(runId, cancellationToken);
                 break;
             case LibrarySnapshotStatus.SourceRemoved:
                 await FailAsync(runId, integration.Id, "IntegrationRemoved", RemovedWhileSyncingError, settings);
@@ -216,6 +219,23 @@ public sealed class LibrarySyncRunner(
                     .SetProperty(run => run.ItemsRead, itemsRead)
                     .SetProperty(run => run.ItemsTotal, itemsTotal),
                 cancellationToken);
+
+    /// <summary>
+    /// MAM-9 — a new snapshot may name files the app hasn't read, so a successful sync queues an
+    /// inspection (or joins the one waiting). The sync has succeeded by now and stays so: a failure here
+    /// is logged, and the next sync, the app's start or the owner's Inspect files queues one again.
+    /// </summary>
+    private async Task QueueInspectionAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await inspections.EnsureQueuedAsync(FileInspectionTrigger.LibrarySynced, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Library sync {RunId} succeeded, but no file inspection could be queued after it.", runId);
+        }
+    }
 
     /// <summary>
     /// Ends the run as failed with <paramref name="error"/>, masked again with the call's secrets — a

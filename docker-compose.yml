@@ -35,7 +35,9 @@ services:
       # Media folders, for reading only: nothing in Phase A writes to them, and :ro makes sure of it.
       # Mount them at the path Jellyfin sees them at. A download client that sees them elsewhere
       # (qBittorrent at /downloads, say) gets a path mapping under Integrations → the client → Path
-      # mappings, not a second mount; docs/adr/0003 says why. Example — adjust the host side and
+      # mappings, not a second mount; docs/adr/0003 says why. The app reads files only inside the
+      # folders the owner then allows in the app (user menu → Media folders: /media for the example
+      # below), and none until then; docs/adr/0009 says why. Example — adjust the host side and
       # uncomment:
       # - /mnt/media:/media:ro
 

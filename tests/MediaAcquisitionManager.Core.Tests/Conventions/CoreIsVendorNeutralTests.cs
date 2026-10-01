@@ -26,6 +26,8 @@ public sealed partial class CoreIsVendorNeutralTests
     [
         "jellyfin", "torznab", "newznab", "prowlarr", "jackett", "toloka", "hurtom",
         "qbittorrent", "sabnzbd", "nzbget", "rtorrent", "utorrent", "radarr", "sonarr",
+        // MAM-9: the media inspector is a tool behind IFileInventory, named in Infrastructure only (ADR 0005).
+        "ffprobe", "ffmpeg", "mediainfo",
     ];
 
     /// <summary>

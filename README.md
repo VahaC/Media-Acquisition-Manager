@@ -6,8 +6,9 @@
 API and a web shell that report their own health, with accounts, integration settings and the
 library: the installation owner created on first run, the users the owner manages, and sign-in;
 the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each
-connection, and imports the Jellyfin library, which every signed-in user can browse. Search and
-downloads are still to come; see [ROADMAP.md](ROADMAP.md).
+connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
+file really holds once the app has inspected it inside the media folders the owner allows. Search
+and downloads are still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -70,6 +71,18 @@ application.
   and nothing in the library or in Jellyfin is moved, renamed or changed
   ([ADR 0008](docs/adr/0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)).
   Removing a Jellyfin integration removes the library it imported from the app, never the files.
+- **Verified file facts.** Each file shows what it really holds, read by `ffprobe` from the file
+  itself: duration, resolution, video codec and profile, dynamic range (SDR, HDR10, HLG, Dolby
+  Vision), overall bit rate, and every audio track (language, codec, channels) and subtitle
+  (language, codec, forced, SDH); what the file doesn't say shows as unknown, never guessed. The app
+  reads only inside the media folders the owner allows on the **Media folders** page — none by
+  default — resolving every link and refusing one that leads out of them. An inspection runs in the
+  background after every successful sync, at each start and on **Inspect files**, two files at a
+  time; a file is read again only when its identity, size or modification time changes, and two
+  names of one file are read once
+  ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+  The Library page shows how many files of each source were inspected, couldn't be read or wait,
+  and why a file couldn't be read (the reason to the owner only).
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -164,7 +177,7 @@ and metadata live in Core and name no product
 | Media library | Jellyfin | Plex, Emby |
 | Release search | Torznab via Prowlarr (Jackett should work the same way) | Other Torznab/Newznab providers, direct adapters |
 | Download client | qBittorrent | Transmission, SABnzbd, others |
-| File inspection | Configured media roots and `ffprobe` | Additional inventory backends if needed |
+| File inspection | The local mounts inside the allowed roots, and `ffprobe` | Additional inventory backends if needed |
 
 Toloka is searched through Prowlarr: it signs in to the tracker with your account, reads its search
 pages, and serves the results as a standard Torznab feed, so the app needs no code specific to
@@ -219,11 +232,24 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   and expects 403. A failed sync's reason can name the service's address, a path problem quotes the
   owner's path mappings, and who started a sync is the owner's sign-in name, so only the owner gets
   them; everyone else gets `null`.
-- **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete)
-  and every change to an integration (add, edit, remove) write an audit row in the same transaction
-  as the change: what happened, when, who did it and to whom or what, with both names copied so the
-  row outlives them. A save that changes nothing and a connection test write none, and neither does
-  a library sync, whose run row records who started it. There is no screen for it yet.
+- **The app reads files only inside the allowed roots.** It opens a library file only when the
+  path, and every link on the way to it, lies inside a folder the owner allowed on the **Media
+  folders** page (owner-only, reading included); none is allowed by default, and the whole file
+  system, a relative path or a `..` can't be. A link that leads out of the folders, into the app's
+  own `/data` say, is refused like any other path outside them, and so is a link swapped in after
+  the check: the file is opened without following one, and `ffprobe` reads that open file only, as
+  `file:<path>` with `-protocol_whitelist file` and a `-format_whitelist` of video containers, so a
+  crafted file can't make it open a URL or the files a list inside it names, through an argument
+  list (no shell), for at most 2 minutes and 8 MiB of answer. Asking for
+  an inspection is owner-only; why a file couldn't be read, which quotes paths and what ffprobe said,
+  goes to the owner only
+  ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+- **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
+  every change to an integration (add, edit, remove) and every save of the media folders write an
+  audit row in the same transaction as the change: what happened, when, who did it and to whom or
+  what, with both names copied so the row outlives them. A save that changes nothing and a
+  connection test write none, and neither does a library sync or a file inspection, whose run rows
+  record who started them. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
   stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
@@ -328,7 +354,10 @@ explains. The compose file has a commented example. If you can't mount them wher
 them, give the Jellyfin integration path mappings the same way; the Library page shows any file
 they leave without a path in the app. The container's user (uid 10001) needs read access: files
 readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
-them to the service with `group_add`.
+them to the service with `group_add`. Mounting is not enough for the app to read a file: the owner
+also adds the folder, as the app sees it (`/media` in the compose file's example), under the user
+menu → **Media folders**. Until then the app reads no file, and **Inspect files** on the Library
+page says so. A mount the app doesn't see shows on the Library page as files it found nothing at.
 
 ## Local development
 
@@ -386,6 +415,10 @@ underscore separates sections: `MAM_Storage__DataDirectory` sets `Storage:DataDi
 | `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes (at least 32). Signs the 15-minute access tokens. Rotating it signs nobody out: the tokens already issued stop working, and open tabs quietly get new ones through their refresh cookie, which this key doesn't sign. |
 
 The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`).
+The folders the app may read files in are not configuration: the owner sets them on the **Media
+folders** page, and they live in the database
+([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+The image brings `ffprobe`; run from source, the app finds it on the `PATH` (install FFmpeg).
 
 **First-run secrets.** When `Encryption:Key` or `Jwt:Secret` is blank, the API reads it from
 `<data>/.secrets/encryption-key` or `<data>/.secrets/jwt-secret`, or generates it there on the first
@@ -430,13 +463,17 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
 | `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. |
 | `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. |
+| `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths }`: the media folders the app may read files in, as the owner entered them, in canonical form; `[]` until the owner adds one. |
+| `PUT /api/settings/allowed-roots` with `{ paths }` | Owner only. 204; replaces the whole list, `[]` or `null` allowing nothing, and writes an audit row. 400 with the broken rule's sentence (more than 20, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another). Starts no inspection. |
 | `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings; a media library's imported library goes with it (its titles, identifiers, versions, files and libraries, and the works left empty), while its sync runs, the download jobs sent to it and what any other kind of integration reported keep its name. 404. |
 | `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
 | `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
-| `GET /api/library/works?search=&locationId=&identifiers=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName }] }] }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb or TMDb id, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an IMDb or a TMDb id. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id or another `identifiers` value. |
+| `GET /api/library/works?search=&locationId=&identifiers=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }] }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb or TMDb id, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an IMDb or a TMDb id. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id or another `identifiers` value. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
-| `GET /api/library/sources` | 200 `{ items }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem }`, by name; `pathProblem` and each run's `requestedByUserName` and `error` only for the owner, `null` for everyone else. |
+| `GET /api/library/sources` | 200 `{ items, inspection }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem } }`, by name, and `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun }` for the whole library, the active run being the running one, else the queued one; `pathProblem`, `problem` and each run's `requestedByUserName` and `error` only for the owner, `null` for everyone else. |
 | `POST /api/library/sources/{integrationId}/syncs` | Owner only. 202 with the queued run and its `Location`; the sync runs in the background. 404 for an unknown integration or one that isn't a media library; 409 when it is switched off, its type can't read a library, or a sync of it is under way; 503 when too many syncs are waiting. |
+| `POST /api/library/inspections` | Owner only. 202 with the queued file inspection and its `Location`, or with the one already waiting, which the request joins; the inspection runs in the background. 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then inspect again." }`; 503 when too many inspections are waiting. |
+| `GET /api/library/inspections/{runId}` | 200 `{ id, trigger, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesTotal, filesChecked, filesProbed, error }`, `trigger` being `Requested`, `LibrarySynced` or `AppStarted`; `requestedByUserName` and `error` only for the owner. 404. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
@@ -517,6 +554,15 @@ versions, stacked parts, a library of any size for paging). The API tests sync l
 handler for one that answers with a sample, so no test reaches a real service.
 `VendorSamplesTests` fails the build if a sample carries a credential.
 
+The file inspection is tested in two halves. The local file inventory runs against real folders in
+a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable
+files — and a stub `ffprobe` script; its parser reads the two real ffprobe samples and variants made
+from them (HDR10, HLG, Dolby Vision). Links, hardlinks and file modes are Linux's and Windows'
+business, so a few of those tests run on one platform only and say why on the other. The API tests
+replace the inventory with `FakeFileInventory`, the way they replace the vendors' networks, and
+drive real inspection runs over HTTP: the cache and its invalidation, every outcome of a file, two
+reads at a time and the triggers.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -540,18 +586,22 @@ src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
                                                and sessions, user management, integration
                                                settings, the library and its background sync,
-                                               audit trail, health checks, security headers, EF
-                                               Core migrations
+                                               the media folders and the file inspection, audit
+                                               trail, health checks, security headers, EF Core
+                                               migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
-                                               path mapping and the library's grouping and title
-                                               order; no package references
+                                               path mapping, the allowed roots' rules and the
+                                               library's grouping and title order; no package
+                                               references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
-                                               Jellyfin, Torznab and qBittorrent adapters
+                                               Jellyfin, Torznab and qBittorrent adapters, the
+                                               local file inventory and ffprobe
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
-                                               seeders, vendor samples, a fake Jellyfin
+                                               seeders, vendor samples, a fake Jellyfin, a fake
+                                               file inventory
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
@@ -584,10 +634,11 @@ Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests an
 of each, and the tickets of Phase A (MAM-1 to MAM-15).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
-   Jellyfin inventory, one Torznab search adapter, qBittorrent submission and status tracking, and
-   persisted jobs. Search and download must work while leaving existing files untouched.
-2. **Phase B: inventory and duplicate detection.** Scan only authorized paths, account for
-   hardlinks, inspect media, and hash candidate files when useful. Label exact, same-work, and
+   Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
+   submission and status tracking, and persisted jobs. Search and download must work while leaving
+   existing files untouched.
+2. **Phase B: inventory and duplicate detection.** Scan the allowed folders for files no library
+   reported, count hardlinks once, and hash candidate files when useful. Label exact, same-work, and
    possible matches separately.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.

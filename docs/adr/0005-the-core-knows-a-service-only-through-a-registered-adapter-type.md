@@ -131,3 +131,19 @@ pin the gate, `IntegrationsConnectionTestHttpTests.Test_is_200_with_the_adapters
 its 200, and `IntegrationsInfrastructureExtensionsTests.The_registry_finds_jellyfin_and_nothing_else_as_a_media_library`
 and `LibrarySyncStartHttpTests.Start_of_a_media_library_whose_type_cant_read_a_library_is_409_with_its_sentence`
 the registry's answer.
+
+## Implementation (added 0.1.0, MAM-9)
+
+**The file inventory has its implementation, outside the registry as decided.** `LocalFileInventory`
+(Infrastructure) is registered as `IFileInventory` itself, not found by a type id, and answers
+`FileInventoryStatus`, which gained `MediaUnreadable`, `InspectorUnavailable` and
+`ChangedWhileReading`. The contract gained the media read (`InspectMediaAsync`, returning
+`MediaFacts`: duration, bit rate and tracks), and both members now take the allowed roots of the call,
+read by the caller once per inspection from the owner's setting instead of a value cached in the
+inventory
+([ADR 0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+ffprobe is named in Infrastructure only (the process seam, its arguments and the parser of its JSON);
+the core speaks of a media inspector and of `DynamicRange`, and `CoreIsVendorNeutralTests` now
+refuses `ffprobe`, `ffmpeg` and `mediainfo` in a name in Core, so it stays that way. The API tests replace `IFileInventory` with `FakeFileInventory`, the way they replace the
+vendors' networks; the local implementation is tested against real folders and a stub ffprobe in
+Infrastructure.Tests.

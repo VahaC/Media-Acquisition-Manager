@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { libraryApi } from '@/lib/library-api'
@@ -43,6 +43,9 @@ function twoSources(officeRun: LibrarySyncRun, homeRun: LibrarySyncRun = earlier
   )
 }
 
+/** The status line of Home Jellyfin's latest sync. */
+const syncStatus = () => within(screen.getByText('Home Jellyfin').closest('li')!).getByRole('status')
+
 /** Lets the polling interval pass once, with the answers it brings. */
 const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 
@@ -80,7 +83,7 @@ describe('LibraryPage while a sync runs', () => {
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     latestRunIs(running)
     await nextPoll()
-    const progress = screen.getByRole('status').textContent
+    const progress = syncStatus().textContent
     const worksWhileRunning = vi.mocked(libraryApi.works).mock.calls.length
     latestRunIs(succeeded)
 

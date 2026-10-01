@@ -93,7 +93,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         // Set-based deletes inside the caller's transaction. Only this library's own rows: a title,
         // identifier or version another source (or a source of another kind) reported stays, and so does
         // a work that still holds one. A version's files go with it by the database's cascade, whatever
-        // source reported them (an open point for MAM-9's FileInspection rows, ILibrarySnapshotStore);
+        // source reported them (what the app read from a file outlives its name, ADR 0009);
         // files reported under another source's version are removed explicitly; removing the libraries
         // sets any remaining file's library null.
         await db.MediaVersions.Where(ReportedBy<MediaVersionEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);

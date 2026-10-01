@@ -22,6 +22,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// give no path in this app, counted when asked, so it always agrees with the works list.</param>
 /// <param name="PathProblem">Why the first of those files has none; for the installation owner only,
 /// <c>null</c> for everyone else and when every file has a path.</param>
+/// <param name="Inspection">Where the app's own look at its files stands (MAM-9), counted when
+/// asked.</param>
 public sealed record LibrarySourceDto(
     Guid IntegrationId,
     string Name,
@@ -31,4 +33,5 @@ public sealed record LibrarySourceDto(
     LibrarySyncRunDto? LatestRun,
     LibrarySyncRunDto? LastSucceededRun,
     int FilesWithoutAppPathCount,
-    string? PathProblem);
+    string? PathProblem,
+    LibrarySourceInspectionDto Inspection);

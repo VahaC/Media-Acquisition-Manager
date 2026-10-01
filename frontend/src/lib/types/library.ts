@@ -41,6 +41,75 @@ export interface LibraryFile {
   sizeBytes: number | null
   /** The service's library (a Jellyfin library such as "Фільми") holding it; null when unknown. */
   locationName: string | null
+  /** MAM-9: what the app's last look at the file found; null until it has looked. */
+  inspection: LibraryFileInspection | null
+}
+
+/**
+ * MAM-9 — what the app's last look at a file found. Only Inspected comes with the media facts; every
+ * other status says why the streams weren't read.
+ */
+export type FileInspectionStatus =
+  | 'Inspected'
+  | 'MediaUnreadable'
+  | 'NoAppPath'
+  | 'OutsideAllowedRoots'
+  | 'NotFound'
+  | 'NotARegularFile'
+  | 'Unreadable'
+  | 'IdentityUnknown'
+  | 'InspectorUnavailable'
+
+/** What a track of a file carries. */
+export type MediaTrackKind = 'Video' | 'Audio' | 'Subtitle'
+
+/** A video track's dynamic range, as the stream declares it. */
+export type DynamicRange = 'Sdr' | 'Hdr10' | 'Hlg' | 'DolbyVision'
+
+/** One file's inspection on the Library page (MAM-9). */
+export interface LibraryFileInspection {
+  status: FileInspectionStatus
+  /**
+   * Why the streams weren't read, one sentence that can quote paths inside the app. The installation
+   * owner only: null for everyone else, and when the status is Inspected.
+   */
+  problem: string | null
+  /** UTC with a trailing `Z`: when the app last looked. */
+  inspectedUtc: string
+  /** What ffprobe read; null unless the status is Inspected. */
+  media: MediaFacts | null
+}
+
+/** What ffprobe read from a file. Every value the file didn't give is null, shown as unknown. */
+export interface MediaFacts {
+  durationMilliseconds: number | null
+  /** The overall bit rate, in bits per second. */
+  bitRate: number | null
+  /** In the file's own order; cover art and attachments left out. */
+  tracks: MediaTrack[]
+}
+
+/** One track as ffprobe read it. A value that doesn't apply to its kind is null. */
+export interface MediaTrack {
+  kind: MediaTrackKind
+  /** ffprobe's codec name: `hevc`, `h264`, `ac3`, `dts`, `subrip`, `hdmv_pgs_subtitle`. */
+  codec: string | null
+  /** ffprobe's profile name: `Main 10`, `High`, `DTS-HD MA`, `LC`. */
+  profile: string | null
+  /** Video only. */
+  width: number | null
+  height: number | null
+  /** Video only; null when the stream doesn't say. */
+  dynamicRange: DynamicRange | null
+  /** Audio only. */
+  channels: number | null
+  /** Audio only: `5.1(side)`, `stereo`. */
+  channelLayout: string | null
+  /** As tagged, lower case (`ukr`, `eng`); null when untagged or tagged undetermined. */
+  language: string | null
+  isDefault: boolean
+  isForced: boolean
+  isHearingImpaired: boolean
 }
 
 /** One version of a work: a cut, an edition or another copy, with its files. */
@@ -140,9 +209,64 @@ export interface LibrarySource {
   filesWithoutAppPathCount: number
   /** The first of those files' mapping problems. The installation owner only: null for everyone else. */
   pathProblem: string | null
+  /** MAM-9: how far the app's look at its files has got, counted when asked. */
+  inspection: LibrarySourceInspection
+}
+
+/** MAM-9 — one source's files by what the app's last look at each found. */
+export interface LibrarySourceInspection {
+  /** Files whose streams were read. */
+  inspectedCount: number
+  /** Files the last look couldn't read, whatever the reason (no path in the app included). */
+  problemCount: number
+  /** Files the app hasn't looked at yet. */
+  notInspectedCount: number
+  /** Why the first problem file (by path) wasn't read. The installation owner only: null for everyone else. */
+  problem: string | null
 }
 
 /** `GET /api/library/sources`, ordered by name. */
 export interface LibrarySourceList {
   items: LibrarySource[]
+  /** MAM-9: one for the whole library, as a run reads the files of every source. */
+  inspection: FileInspectionOverview
+}
+
+/** Where an inspection of the library's files is. Queued and Running are under way; the other two are final. */
+export type FileInspectionRunStatus = 'Queued' | 'Running' | 'Succeeded' | 'Failed'
+
+/** What queued an inspection: the owner's Inspect files, a finished sync, or the app's start. */
+export type FileInspectionTrigger = 'Requested' | 'LibrarySynced' | 'AppStarted'
+
+/** MAM-9 — where the inspection of the library's files stands. */
+export interface FileInspectionOverview {
+  /** Whether the owner has allowed any media folder; without one the app reads no file. */
+  hasAllowedRoots: boolean
+  /** The run under way: the running one, else the queued one; null when none is. */
+  activeRun: FileInspectionRun | null
+  /** The latest run that succeeded or failed; null before the first. */
+  lastFinishedRun: FileInspectionRun | null
+  /** Whether a run waits to start: the active one, or one queued behind the running one. */
+  hasQueuedRun: boolean
+}
+
+/** One inspection of the library's files, from the request to its outcome (MAM-9). */
+export interface FileInspectionRun {
+  id: string
+  trigger: FileInspectionTrigger
+  status: FileInspectionRunStatus
+  /** Who asked for it. The installation owner only, and null when a sync or the app's start queued it. */
+  requestedByUserName: string | null
+  /** UTC with a trailing `Z`: when it was queued. */
+  createdUtc: string
+  startedUtc: string | null
+  finishedUtc: string | null
+  /** How many files it looks at; null until it has listed them. */
+  filesTotal: number | null
+  /** How many it has looked at so far. */
+  filesChecked: number
+  /** How many ffprobe read in this run; the rest came from the cache or couldn't be read. */
+  filesProbed: number
+  /** Why it failed. The installation owner only: null for everyone else. */
+  error: string | null
 }
