@@ -3,8 +3,9 @@
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
 localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
 environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
-library inventory), MAM-9 (the ffprobe inspection of the library's files) and MAM-10 (the Torznab
-release search) are built; no phase has shipped yet.
+library inventory), MAM-9 (the ffprobe inspection of the library's files), MAM-10 (the Torznab
+release search) and MAM-11 (qBittorrent's categories and the download destinations) are built; no
+phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -82,7 +83,8 @@ existing file untouched.
   Path mappings are stored per integration and resolved folder by folder, never by a guess
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   MAM-7's adapters only tested a connection; MAM-8 added the library contract to Jellyfin's, MAM-10
-  the search contract to Torznab's, and MAM-11 adds the download contract.
+  the search contract to Torznab's, and MAM-11 the destinations of the download contract to
+  qBittorrent's (submission and job reading come with MAM-13 and MAM-14).
 - **MAM-8 Jellyfin inventory** (built): the owner syncs a Jellyfin library (10.9 or later) from the
   Library page in the background (202 + run row + reconciler), reading its libraries and every
   movie in pages that overlap by one, each asking for collection grouping off
@@ -129,21 +131,49 @@ existing file untouched.
   [ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
   The live Toloka search was verified through the app on 2026-10-01: 16 movie releases for
   "Interstellar" 2014.
-- **MAM-11 qBittorrent and destinations:** category listing (its connection test came with
-  MAM-7), magnet and `.torrent` submission, job and file monitoring, and logical destinations
-  (`Movies`, `Movies 4K`) mapped to existing categories without an overriding save path.
+- **MAM-11 qBittorrent and destinations** (built): the owner maps logical destinations (`Movies`,
+  `Movies 4K`) to qBittorrent's own categories on an owner-only Destinations page, and no save path is
+  ever stored or sent: a destination is the category's name exactly as qBittorrent spells it, saved
+  only once qBittorrent confirms it has that category, and one destination is the installation's
+  default, never replaced on the owner's behalf
+  ([ADR 0010](docs/adr/0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)).
+  Each destination shows where its category saves — qBittorrent's folder, through its path mappings —
+  and whether that lies inside a Jellyfin library folder, which the library sync now stores; a folder
+  outside every library, one that can't be determined, and libraries not synced yet are flagged with
+  the reason, and will keep automatic replacement off in Phase C
+  ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)). The
+  qBittorrent adapter (4.4.1 or later) lists the categories and works each one's folder out the way
+  qBittorrent does, a Windows host's network folders included, keeping one session per integration
+  and signing in again once when qBittorrent has forgotten it, but never again with credentials
+  qBittorrent refused, or after it banned the app's address, until the address or credentials change
+  or a connection test with them works
+  ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md));
+  it sends only the sign-in and GETs
+  (`DestinationsClientDestinationsHttpTests.Every_call_the_destinations_make_to_a_client_is_the_sign_in_or_a_get_and_none_names_a_save_path`).
+  Submission and job monitoring, once listed here, moved to MAM-13 and MAM-14 with their members of
+  the download client contract, which MAM-11 left out rather than stub
+  ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
+  Only qBittorrent 5.2 was verified live, through the answers recorded from the reference
+  installation and through the app; 4.4.1 to 5.1 are accepted from qBittorrent's source. Verified
+  live on 2026-10-01: qBittorrent v5.2.4's connection test and its four categories, and the
+  destination Movies landing in the Jellyfin library "Фільми" at `/media/movies`.
 - **MAM-12 Unified search page:** library copies beside available releases, verified properties
   beside claimed ones; a failing source shows its own error without hiding the others.
-- **MAM-13 Send to client:** pick a release, client and destination; one click creates one job,
-  and repeated clicks or retries never create a second download.
-- **MAM-14 Job tracking:** persisted jobs that follow the client's status and survive a restart.
+- **MAM-13 Send to client:** magnet and `.torrent` submission to qBittorrent, in the destination's
+  category and without a save path (the contract's submission member comes back with it); pick a
+  release, client and destination; one click creates one job, and repeated clicks or retries never
+  create a second download.
+- **MAM-14 Job tracking:** the client's jobs and their files read back (the contract's job members
+  come back with it); persisted jobs that follow the client's status and survive a restart.
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
   the accounts, sessions, integrations, audit trail, imported library and its sync runs too, and
   `.secrets/`, whose encryption key alone opens the stored credentials); copy it while the app is
   stopped. A lost library snapshot comes back with the next sync, and the files' inspection with
-  the next inspection; the media folders the owner allowed are in `mam.db` too. The releases a
+  the next inspection; the media folders the owner allowed are in `mam.db` too, and so are the
+  download destinations and the library folders the last sync stored (those come back with the next
+  sync); qBittorrent's session, and a sign-in it refused, are held in memory only. The releases a
   search found are kept there for a day, and those a download job sent for as long as the job. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.

@@ -36,7 +36,11 @@ internal static class IntegrationsInfrastructureExtensions
     /// 50 movies, so it bounds reading one page, never the whole library. MAM-10 — a Toloka search
     /// through Prowlarr took 2.7 s (ADR 0004) and a feed answers its caps from memory, so 15 s leaves a
     /// slow tracker five times that; a payload fetch, where the gateway fetches the .torrent from the
-    /// tracker, is one request of the same kind. MAM-11 re-justifies it for its own calls.
+    /// tracker, is one request of the same kind. MAM-11 — listing a download client's destinations is
+    /// three reads (the version, the categories, the default save path), each answered from qBittorrent's
+    /// memory on a LAN like a connection test, plus a sign-in when no session is kept, or a sign-in and one
+    /// read sent again when qBittorrent has forgotten the kept one: at most five requests of a few
+    /// milliseconds, each bounded on its own.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
@@ -51,7 +55,10 @@ internal static class IntegrationsInfrastructureExtensions
         AddIntegrationClient(services, JellyfinAdapter.HttpClientName);
         AddIntegrationClient(services, TorznabAdapter.HttpClientName);
         AddIntegrationClient(services, QBittorrentAdapter.HttpClientName);
-        // Stateless apart from the client factory: one instance per type serves every request.
+        // One instance per type serves every request. Jellyfin's and Torznab's are stateless apart from the
+        // client factory; MAM-11 — qBittorrent's keeps its sessions and the sign-ins qBittorrent refused
+        // (QBittorrentSessions), so it must stay a singleton: a scoped or transient one would sign in on
+        // every call and send refused credentials again until qBittorrent banned the app's address.
         services.AddSingleton<IIntegrationAdapter, JellyfinAdapter>();
         services.AddSingleton<IIntegrationAdapter, TorznabAdapter>();
         services.AddSingleton<IIntegrationAdapter, QBittorrentAdapter>();

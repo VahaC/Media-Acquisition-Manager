@@ -320,6 +320,70 @@ public sealed class QBittorrentAdapterTests : IDisposable
         Assert.Equal("The service at this address answered, but not with a qBittorrent version.", result.Message);
     }
 
+    [Theory]
+    [InlineData("v4.3.9")]
+    [InlineData("v4.4.0")]
+    [InlineData("v4.1.9.1")]
+    [InlineData("v3.3.16")]
+    [InlineData("4.2")]
+    public async Task TestConnection_of_a_qbittorrent_older_than_4_4_1_is_an_unsupported_version(string version)
+    {
+        //Arrange
+        // MAM-11 — 4.4.0 lists a category's folder under another key (qBittorrent issue #15969): the owner
+        // hears it here, before saving a destination on it.
+        _harness.QBittorrentHttp.Handler = Route(
+            signIn: () => VendorResponses.WithSetCookie(new HttpResponseMessage(HttpStatusCode.NoContent), $"SID={SessionId}; path=/"),
+            version: () => VendorResponses.Text(version, HttpStatusCode.OK));
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(SignedIn, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
+        Assert.Equal($"This is qBittorrent {version}; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", result.Message);
+    }
+
+    [Theory]
+    [InlineData("v4.4.1")]
+    [InlineData("4.4.1")]
+    [InlineData("v4.4.1.1")]
+    [InlineData("v4.5.0")]
+    [InlineData("v5.0.0")]
+    [InlineData("v10.0")]
+    public async Task TestConnection_of_qbittorrent_4_4_1_or_later_succeeds(string version)
+    {
+        //Arrange
+        _harness.QBittorrentHttp.Handler = Route(
+            signIn: () => VendorResponses.WithSetCookie(new HttpResponseMessage(HttpStatusCode.NoContent), $"SID={SessionId}; path=/"),
+            version: () => VendorResponses.Text(version, HttpStatusCode.OK));
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(SignedIn, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Equal($"Connected to qBittorrent {version}.", result.Message);
+    }
+
+    [Fact]
+    public async Task TestConnection_of_a_version_it_can_not_compare_is_refused_rather_than_guessed()
+    {
+        //Arrange
+        // Matches the version pattern, but its minor number doesn't fit an int.
+        _harness.QBittorrentHttp.Handler = Route(
+            signIn: () => new HttpResponseMessage(HttpStatusCode.InternalServerError),
+            version: () => VendorResponses.Text("v4.99999999999.0", HttpStatusCode.OK));
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Anonymous, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
+        Assert.Equal(
+            "qBittorrent reported the version “v4.99999999999.0”, which the app can't compare with 4.4.1, the oldest version it works with.",
+            result.Message);
+    }
+
     [Fact]
     public async Task TestConnection_masks_the_password_and_the_session_in_its_message()
     {

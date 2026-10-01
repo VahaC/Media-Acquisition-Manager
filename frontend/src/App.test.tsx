@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import App from '@/App'
 import { allowedRootsApi } from '@/lib/allowed-roots-api'
 import { authApi } from '@/lib/auth-api'
+import { destinationsApi } from '@/lib/destinations-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
 import { queryClient } from '@/lib/query-client'
@@ -10,10 +11,12 @@ import { setupApi } from '@/lib/setup-api'
 import { usersApi } from '@/lib/users-api'
 import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
+import { destinationsPage, movies } from '@/test/destinations'
 import { sourcesOf } from '@/test/library'
 
 vi.mock('@/lib/allowed-roots-api')
 vi.mock('@/lib/auth-api')
+vi.mock('@/lib/destinations-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
 vi.mock('@/lib/setup-api')
@@ -87,6 +90,22 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Media folders' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/settings/media-folders')
     expect(await screen.findByRole('textbox', { name: 'Folder 1' })).toHaveValue('/media')
+  })
+
+  it('opens Destinations from the user menu of the owner', async () => {
+    // Arrange
+    vi.mocked(destinationsApi.list).mockImplementation(async (query) => destinationsPage(query, [movies]))
+    const { user } = renderAt('/')
+    await user.click(await screen.findByRole('button', { name: 'Signed in as vasyl' }))
+
+    // Act
+    await user.click(screen.getByRole('link', { name: 'Destinations' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'Destinations' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/settings/destinations')
+    expect(await screen.findByText('In the media library Фільми')).toBeInTheDocument()
+    expect(destinationsApi.list).toHaveBeenCalledExactlyOnceWith({ search: undefined, page: 1, pageSize: 25 })
   })
 
   it('renders the not-found page for an unknown address, inside the shell', async () => {

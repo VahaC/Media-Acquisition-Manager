@@ -66,10 +66,17 @@ export const useDeleteIntegration = () => {
  * path mapping changes the sources and the files' paths. The cached Library is dropped rather than
  * invalidated, so the next visit starts from Loading… instead of showing a removed library until
  * its refetch lands.
+ *
+ * MAM-11 — the destinations and the clients' categories are invalidated too: removing a download
+ * client removes its destinations, and its name, switch, credentials and path mappings — or a media
+ * library's — are part of every destination's check.
  */
 function afterIntegrationChange(queryClient: QueryClient) {
   queryClient.removeQueries({ queryKey: qk.library.all })
-  return queryClient.invalidateQueries({ queryKey: qk.settings.integrations.lists })
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: qk.settings.integrations.lists }),
+    queryClient.invalidateQueries({ queryKey: qk.settings.destinations.all }),
+  ])
 }
 
 /** A test of a saved integration. It changes nothing, so it invalidates nothing. */

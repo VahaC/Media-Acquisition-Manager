@@ -179,3 +179,51 @@ pin the kind, `ReleaseSearchPlanningTests` the planning, and
 `ReleaseSearchSourcesHttpTests.Search_of_a_source_whose_key_can_not_be_read_says_so_without_asking_it`
 and `ReleaseSearchSourcesHttpTests.Search_of_a_source_whose_answer_the_app_can_not_read_keeps_the_others`
 the answer per source.
+
+## Implementation (added 0.1.0, MAM-11)
+
+**qBittorrent serves its kind.** `QBittorrentAdapter` implements `IDownloadClient`, so
+`Find<IDownloadClient>("qbittorrent")` returns it while `jellyfin` and `torznab` return nothing, and
+the convention test covers download clients too: every kind an adapter is registered for now has its
+contract implemented. The destinations ask the registry by the stored type, and a download client
+whose type this build can't send downloads to is refused by type ("This version of the app can't
+send downloads to “…”."), never by a product name.
+
+**The contract carries only what is implemented (Vasyl's choice).** The Decision rejected stub kind
+implementations, and the Consequences let a ticket change its contract's Phase A members. So
+`IDownloadClient` lost `SubmitAsync`, `ListJobsAsync` and `ListJobFilesAsync`, which MAM-13 and
+MAM-14 add back with their implementations, and keeps `Capabilities` and `ListDestinationsAsync`; the
+records the removed members use (`DownloadSubmission`, `SubmissionReceipt`, `ClientJob`,
+`ClientJobFile`, `ClientJobState`) stay in Core for them. qBittorrent's capabilities take a .torrent
+file and a magnet link, give each category a folder, and promise no job id from a submission:
+`torrents/add` answers only `Ok.` before 5.2, so with 4.4.1 the oldest version taken, the info hash
+will correlate instead (MAM-13).
+
+**The version gate covers the listing too.** As for Jellyfin, the connection test refuses an old
+server with `UnsupportedVersion` and still answers 200: "This is qBittorrent v4.3.9; the app works
+with qBittorrent 4.4.1 or later. Update qBittorrent, then test again." The minimum is Vasyl's choice:
+4.4.0 lists a category's folder as `save_path` instead of `savePath` (qBittorrent issue #15969), and
+older versions differ more. The destination listing reads `app/version` anyway, since the folder rules
+depend on it, and refuses the same versions before it reads a category, so a save on an old
+qBittorrent answers 502 with that sentence. Only 5.2 was verified live (5.2.3 in the samples, 5.2.4
+through the app on 2026-10-01); 4.4.1 to 5.1 are accepted from reading qBittorrent's source. A version it can't compare is refused, never guessed.
+
+**A client that can't be asked is part of the answer.** As a connection test and a search do, the
+destination list and a client's category list answer 200 whatever the clients said: a switched-off
+client isn't asked (`ClientDisabled`), and one that couldn't be — its call failed, its type isn't
+registered, its stored secret can't be read — gives each of its destinations `ClientUnavailable` and
+the sentence. Each client on a page is asked once, all of them at once, and an exception an adapter
+should never have thrown costs its client the answer, logged with its type and stack but never its
+message. Only a save, which needs the client to confirm the category (ADR 0010), turns the failure
+into 409 (not asked) or 502 (asked, and it couldn't answer).
+
+`AdapterKindContractTests.Every_download_client_adapter_implements_the_download_client_contract` and
+`IntegrationsInfrastructureExtensionsTests.The_registry_finds_qbittorrent_and_nothing_else_as_a_download_client`
+pin the kind, `QBittorrentAdapterTests.TestConnection_of_a_qbittorrent_older_than_4_4_1_is_an_unsupported_version`,
+`QBittorrentAdapterTests.TestConnection_of_a_version_it_can_not_compare_is_refused_rather_than_guessed`
+and `QBittorrentAdapterDestinationsTests.ListDestinations_of_a_qbittorrent_older_than_4_4_1_is_an_unsupported_version_and_reads_no_categories`
+the gate, `QBittorrentAdapterDestinationsTests.Capabilities_take_torrent_files_and_magnets_into_categories_with_folders_and_promise_no_job_id`
+the capabilities, and `DestinationsListHttpTests.List_of_a_client_that_could_not_be_asked_is_200_with_client_unavailable_and_the_reason`,
+`DestinationsListHttpTests.List_of_a_client_whose_answer_the_app_can_not_read_keeps_the_others_and_logs_no_message`
+and `DestinationsCreateHttpTests.Create_when_the_client_could_not_answer_is_502_with_its_sentence_and_writes_nothing`
+the answer per client.

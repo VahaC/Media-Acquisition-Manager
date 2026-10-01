@@ -35,4 +35,15 @@ public enum AuditAction
     /// <summary>The owner changed the allowed roots, the folders the app may read files in (MAM-9).
     /// The row has no target: the roots belong to the installation.</summary>
     AllowedRootsChanged = 10,
+
+    /// <summary>The owner added a destination (MAM-11). A default it took over from another destination
+    /// in the same save is part of this change, not a row of its own.</summary>
+    DestinationCreated = 11,
+
+    /// <summary>The owner changed a destination: its name, client, category or whether it is the
+    /// default. A default taken off another destination by the same save is part of this change.</summary>
+    DestinationUpdated = 12,
+
+    /// <summary>The owner removed a destination.</summary>
+    DestinationDeleted = 13,
 }

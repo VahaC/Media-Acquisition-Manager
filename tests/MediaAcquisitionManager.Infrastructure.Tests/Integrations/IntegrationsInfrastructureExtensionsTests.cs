@@ -1,3 +1,5 @@
+using System.Net;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Search;
@@ -7,6 +9,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
+using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Logging;
@@ -172,6 +175,56 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Same(registry.Find("torznab"), torznab);
         Assert.Null(jellyfin);
         Assert.Null(qBittorrent);
+    }
+
+    [Fact]
+    public void The_registry_finds_qbittorrent_and_nothing_else_as_a_download_client()
+    {
+        //Arrange
+        using var services = BuildServices();
+        var registry = services.GetRequiredService<IIntegrationAdapterRegistry>();
+
+        //Act
+        var qBittorrent = registry.Find<IDownloadClient>("qbittorrent");
+        var jellyfin = registry.Find<IDownloadClient>("jellyfin");
+        var torznab = registry.Find<IDownloadClient>("torznab");
+
+        //Assert
+        // MAM-11 — the same instance the connection test uses: no second registration to forget, and one
+        // set of kept sessions.
+        Assert.Same(registry.Find("qbittorrent"), qBittorrent);
+        Assert.Null(jellyfin);
+        Assert.Null(torznab);
+    }
+
+    [Fact]
+    public async Task A_destination_listing_logs_nothing_from_the_http_client()
+    {
+        //Arrange
+        // Every level recorded; qBittorrent answers, so the listing signs in and reads everything it reads.
+        using var harness = new IntegrationAdapterHarness();
+        var settings = new IntegrationConnectionSettings(Guid.NewGuid(), "http://service.test:8080", "admin", "correct-horse-battery", null);
+        harness.QBittorrentHttp.Handler = (request, _) => request.RequestUri!.AbsolutePath switch
+        {
+            "/api/v2/auth/login" => VendorResponses.WithSetCookie(
+                new HttpResponseMessage(HttpStatusCode.NoContent), "QBT_SID_8080=Zq3xY9LmN2pQ7rT4vW8sK1aB6cD0eF5g; path=/"),
+            "/api/v2/app/version" => VendorResponses.Sample("QBittorrent/app-version.txt", "text/plain; charset=UTF-8"),
+            "/api/v2/torrents/categories" => VendorResponses.Sample("QBittorrent/categories.json", "application/json"),
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+        };
+        var client = harness.Adapter<IDownloadClient>("qbittorrent");
+
+        //Act
+        var destinations = await client.ListDestinationsAsync(settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.True(destinations.IsSuccess);
+        Assert.Equal(3, harness.QBittorrentHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains("correct-horse-battery", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains("Zq3xY9LmN2pQ7rT4vW8sK1aB6cD0eF5g", StringComparison.Ordinal));
     }
 
     [Fact]

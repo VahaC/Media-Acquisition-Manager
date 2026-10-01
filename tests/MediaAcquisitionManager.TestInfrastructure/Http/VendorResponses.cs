@@ -25,18 +25,24 @@ public static class VendorResponses
 
     /// <summary>
     /// The answer recorded at <paramref name="relativePath"/> under <c>VendorSamples/</c> as its status
-    /// line and headers (MAM-10): for an answer whose status and headers are all it says, such as
-    /// Prowlarr's bare 401 to a wrong key. Its body is empty, as recorded.
+    /// line and headers (MAM-10), and — MAM-11 — the body after the blank line that ends the headers, as
+    /// recorded: qBittorrent's <c>403 Forbidden</c> to a session it doesn't know says <c>Forbidden</c>. A
+    /// recording without a blank line, such as Prowlarr's bare 401 to a wrong key, has an empty body.
     /// </summary>
     public static HttpResponseMessage Recorded(string relativePath)
     {
         var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.VendorSamples, relativePath));
+        var blank = Array.FindIndex(lines, line => line.Length == 0);
+        var headers = blank < 0 ? lines[1..] : lines[1..blank];
+        // The body's lines as the file keeps them, joined with LF and without the file's final line
+        // break: "Forbidden" is the 9 bytes its recorded Content-Length says.
+        var body = blank < 0 ? "" : string.Join('\n', lines[(blank + 1)..]);
         // "HTTP/1.1 401 Unauthorized": the code is the second word.
         var response = new HttpResponseMessage((HttpStatusCode)int.Parse(lines[0].Split(' ')[1], CultureInfo.InvariantCulture))
         {
-            Content = new ByteArrayContent([]),
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes(body)),
         };
-        foreach (var line in lines.Skip(1).Where(line => line.Contains(':', StringComparison.Ordinal)))
+        foreach (var line in headers.Where(line => line.Contains(':', StringComparison.Ordinal)))
         {
             var name = line[..line.IndexOf(':', StringComparison.Ordinal)];
             var value = line[(name.Length + 1)..].Trim();

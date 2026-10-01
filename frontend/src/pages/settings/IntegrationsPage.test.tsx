@@ -9,6 +9,7 @@ import type { ConnectionTestResult, CurrentUser, IntegrationList, IntegrationSum
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
+import { destinationsPage, movies, sampleCategories } from '@/test/destinations'
 import { adapterTypes, homeJellyfin, localQbittorrent, retiredClient, toloka } from '@/test/integrations'
 import { aliens, locations, sourceOf, sourcesOf, worksPage } from '@/test/library'
 
@@ -299,7 +300,7 @@ describe('IntegrationsPage', () => {
     expect(integrationsApi.remove).not.toHaveBeenCalled()
   })
 
-  it('says nothing about a library when removing an integration of another kind', async () => {
+  it('warns before removing a download client that the destinations using it go with it, the default too', async () => {
     // Arrange
     const { user } = renderPage()
     await screen.findByText('Local qBittorrent')
@@ -310,8 +311,25 @@ describe('IntegrationsPage', () => {
     // Assert
     const confirmation = await screen.findByRole('dialog', { name: 'Remove Local qBittorrent?' })
     expect(confirmation).toHaveTextContent(
-      'The app forgets Local qBittorrent, its stored credentials and its path mappings. Nothing changes in the service itself.')
+      'The app forgets Local qBittorrent, its stored credentials and its path mappings, and removes every destination that uses it, including the default destination if it is one of them. Their categories stay in qBittorrent, and qBittorrent itself is not touched. This can\'t be undone.')
     expect(confirmation).not.toHaveTextContent('Library page')
+    expect(integrationsApi.remove).not.toHaveBeenCalled()
+  })
+
+  it('says nothing about a library or destinations when removing a release source', async () => {
+    // Arrange
+    const { user } = renderPage()
+    await screen.findByText('Toloka')
+
+    // Act
+    await user.click(within(rowOf('Toloka')).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    const confirmation = await screen.findByRole('dialog', { name: 'Remove Toloka?' })
+    expect(confirmation).toHaveTextContent(
+      'The app forgets Toloka, its stored credentials and its path mappings. Nothing changes in the service itself.')
+    expect(confirmation).not.toHaveTextContent('Library page')
+    expect(confirmation).not.toHaveTextContent('destination')
   })
 
   it('drops the cached library once an integration is removed, so the Library page loads afresh', async () => {
@@ -334,6 +352,27 @@ describe('IntegrationsPage', () => {
     await vi.waitFor(() => expect(client.getQueryCache().findAll({ queryKey: qk.library.all })).toEqual([]))
     expect(cachedBefore).toBe(3)
     expect(integrationsApi.remove).toHaveBeenCalledExactlyOnceWith(homeJellyfin.id)
+  })
+
+  it('marks the cached destinations and categories stale once an integration is removed', async () => {
+    // Arrange — the Destinations page was opened earlier in this visit, and its answers are still cached.
+    vi.mocked(integrationsApi.remove).mockResolvedValue()
+    const { client, user } = renderPage()
+    const destinationsQuery = { search: undefined, page: 1, pageSize: 25 }
+    client.setQueryData(qk.settings.destinations.list(destinationsQuery), destinationsPage(destinationsQuery, [movies]))
+    client.setQueryData(qk.settings.destinations.clientDestinations(localQbittorrent.id), sampleCategories)
+    await screen.findByText('Local qBittorrent')
+    await user.click(within(rowOf('Local qBittorrent')).getByRole('button', { name: 'Remove' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Remove Local qBittorrent?' })
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    await vi.waitFor(() =>
+      expect(client.getQueryState(qk.settings.destinations.list(destinationsQuery))?.isInvalidated).toBe(true))
+    expect(client.getQueryState(qk.settings.destinations.clientDestinations(localQbittorrent.id))?.isInvalidated).toBe(true)
+    expect(integrationsApi.remove).toHaveBeenCalledExactlyOnceWith(localQbittorrent.id)
   })
 
   it('steps back a page after removing the only integration of the last page', async () => {

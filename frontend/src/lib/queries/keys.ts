@@ -1,4 +1,4 @@
-import type { IntegrationsQuery, LibraryWorksQuery, UsersQuery } from '../types'
+import type { DestinationsQuery, IntegrationsQuery, LibraryWorksQuery, UsersQuery } from '../types'
 
 /**
  * Every query key in the app. Hierarchical arrays that mirror the URL, so a prefix invalidates a
@@ -40,6 +40,20 @@ export const qk = {
       list: (query: IntegrationsQuery) => ['settings', 'integrations', 'list', query] as const,
       /** Fixed by the build; never invalidated by a change. */
       adapterTypes: ['settings', 'integrations', 'adapter-types'] as const,
+    },
+    destinations: {
+      /**
+       * MAM-11 — the lists and the clients' categories: what a change to an integration invalidates,
+       * as a client's name, switch, credentials and path mappings are part of every check.
+       */
+      all: ['settings', 'destinations'] as const,
+      /** Every page and search: what a change to any destination invalidates. */
+      lists: ['settings', 'destinations', 'list'] as const,
+      /** The whole query object is part of the key, so each page and search is cached apart. */
+      list: (query: DestinationsQuery) => ['settings', 'destinations', 'list', query] as const,
+      /** The categories one download client offers, asked live; a destination change leaves them be. */
+      clientDestinations: (downloadClientId: string) =>
+        ['settings', 'destinations', 'client-destinations', downloadClientId] as const,
     },
   },
 }

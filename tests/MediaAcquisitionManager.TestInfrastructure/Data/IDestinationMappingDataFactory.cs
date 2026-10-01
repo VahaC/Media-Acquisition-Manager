@@ -6,6 +6,12 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 public interface IDestinationMappingDataFactory
 {
     /// <summary>A saved logical destination <paramref name="name"/> of the client
-    /// <paramref name="downloadClientConnectionId"/>, sent to it as <paramref name="clientDestinationKey"/>.</summary>
-    Task<DestinationMappingEntity> Create(Guid downloadClientConnectionId, string name = "Movies", string clientDestinationKey = "Movies");
+    /// <paramref name="downloadClientConnectionId"/>, sent to it as <paramref name="clientDestinationKey"/>;
+    /// the installation's default destination when <paramref name="isDefault"/> (MAM-11), which the
+    /// database refuses while another row is.</summary>
+    Task<DestinationMappingEntity> Create(
+        Guid downloadClientConnectionId,
+        string name = "Movies",
+        string clientDestinationKey = "Movies",
+        bool isDefault = false);
 }

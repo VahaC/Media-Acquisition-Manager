@@ -7,9 +7,9 @@ API and a web shell that report their own health, with accounts, integration set
 library: the installation owner created on first run, the users the owner manages, and sign-in;
 the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each
 connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
-file really holds once the app has inspected it inside the media folders the owner allows. Release
-sources can be searched through the API; the search page and downloads are still to come; see
-[ROADMAP.md](ROADMAP.md).
+file really holds once the app has inspected it inside the media folders the owner allows; the owner
+also maps download destinations to qBittorrent's categories. Release sources can be searched through
+the API; the search page and sending downloads are still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -59,8 +59,9 @@ application.
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   Credentials are stored encrypted and never shown again. Jellyfin feeds the library, and a
   switched-off one can't be synced; a Torznab feed is searched for releases, and a switched-off one
-  is left alone; downloads will build on qBittorrent. The Jellyfin
-  connection test refuses a Jellyfin older than 10.9, the oldest the app reads libraries from.
+  is left alone; qBittorrent's categories are what download destinations name, and a switched-off
+  one isn't asked for them. The Jellyfin connection test refuses a Jellyfin older than 10.9, the
+  oldest the app reads libraries from, and the qBittorrent one a qBittorrent older than 4.4.1.
 - **The library.** The Library page (**Library** in the header, for every signed-in user) lists the
   movies of the owner's Jellyfin libraries as works: items that share an IMDb or TMDb id are one
   work with several versions, never merged by title and year. Each shows its titles, year and
@@ -93,6 +94,18 @@ application.
   resolution, medium, codec, dynamic range, audio and subtitle languages — marked as claims. Movies
   only; Toloka through Prowlarr is searched by title and year. Download links stay on the server
   ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
+- **Download destinations for the owner.** The Destinations page (**Destinations** in the owner's
+  user menu) names where downloads go — `Movies`, `Movies 4K` — each one a category qBittorrent
+  already has, which qBittorrent confirms before the destination is saved; the app never sends a
+  folder of its own, so the category decides where a download lands. Each destination shows where
+  its category saves, as qBittorrent sees it and as the app does through the path mappings, and
+  whether that is inside a Jellyfin library folder; when it isn't, or when the app can't tell, it
+  says why. One destination is the default, the first one added unless the owner picks another, and
+  removing it leaves none until the owner picks one. Searched and paged on the server; qBittorrent
+  4.4.1 or later
+  ([ADR 0010](docs/adr/0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)).
+  Removing a qBittorrent under Integrations removes its destinations too, and its confirmation says
+  so. Sending a release to a destination comes with MAM-13.
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -110,9 +123,9 @@ application.
 - **Show meaningful comparisons.** Display verified properties of files you own alongside the
   *claimed* properties of releases, including resolution, video and audio formats, languages, size,
   and HDR when known. The user decides whether a release is an upgrade.
-- **Send downloads to the right destination.** Select a compatible client and a logical destination
-  such as `Movies` or `Movies 4K`; an adapter maps that destination to a qBittorrent category or
-  another client's equivalent.
+- **Send downloads to the right destination.** Select a release, a compatible client and one of the
+  logical destinations above, such as `Movies` or `Movies 4K`; the client gets the destination's
+  category, a qBittorrent category or another client's equivalent, and never a folder of the app's.
 - **Detect duplicates without conflating different editions.** Distinguish hardlinks,
   byte-identical files, different versions of the same title, and uncertain matches.
 - **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
@@ -178,8 +191,9 @@ title, identifier, version, file and release it stores names the source that rep
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 Adapter contracts keep it independent of any one media server, indexer, or download client. The
 first three adapters exist: Jellyfin's reads the library, the Torznab adapter searches releases and
-fetches a release's download, and qBittorrent's, so far, only tests a connection. The core's contracts for libraries, release search, download clients, file inventory
-and metadata live in Core and name no product
+fetches a release's download, and qBittorrent's lists its categories with the folders they save to;
+submitting a download and reading its progress come next. The core's contracts for libraries,
+release search, download clients, file inventory and metadata live in Core and name no product
 ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
 
 | Integration type | First candidate | Planned extension examples |
@@ -232,8 +246,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   isn't limited: its cookie holds 256 random bits.
 - **Owner-only settings.** Every action of a controller under `Controllers/Settings` that changes
   something is owner-only because of where the controller lives, not because someone remembered an
-  attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users and Integrations
-  endpoints are owner-only for reading as well. Anyone else gets 403
+  attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users, Integrations and
+  Destinations endpoints are owner-only for reading as well. Anyone else gets 403
   `{ "error": "Only the installation owner can do this." }`, logged as a warning.
 - **The library is everyone's to read; syncing it is the owner's.** Every signed-in user reads the
   Library's works, libraries, sources and sync runs, which carry no address or key. Starting a sync
@@ -264,11 +278,12 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   goes to the owner only
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
-  every change to an integration (add, edit, remove) and every save of the media folders write an
-  audit row in the same transaction as the change: what happened, when, who did it and to whom or
-  what, with both names copied so the row outlives them. A save that changes nothing and a
-  connection test write none, and neither does a library sync or a file inspection, whose run rows
-  record who started them. There is no screen for it yet.
+  every change to an integration (add, edit, remove), every save of the media folders and every
+  change to a destination (add, edit, remove) write an audit row in the same transaction as the
+  change: what happened, when, who did it and to whom or what, with both names copied so the row
+  outlives them. A save that changes nothing and a connection test write none, and neither does a
+  library sync or a file inspection, whose run rows record who started them. There is no screen for
+  it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
   stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
@@ -279,13 +294,21 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   the sentence reaches the page or a failed sync's stored reason, and none is logged: the
   integration HTTP clients log no request URLs, because a Torznab key rides in the query. Requests
   that carry credentials never follow a redirect (the test reports where it pointed, without its
-  query), share no cookies and are never retried. An address can't hold a user name, a password or
-  a query. There is no guard against private addresses: the services live on the owner's network,
-  and only the owner can enter one. The one address a service supplies, a release's download link, is
-  fetched only from the Torznab feed's own scheme, host and port, and only once: a redirect to a
-  magnet is the release, any other redirect is refused. A feed's error text has every address cut to
-  its host and every `passkey=`-like value masked before it is shown, since it can quote a tracker's
-  URL with a passkey the app doesn't hold
+  query), share no cookies and are never retried. The qBittorrent adapter keeps the session it signed
+  in for in memory, one per integration and only while its address and credentials stay the same,
+  masked like the password and never logged; when qBittorrent has forgotten it, the adapter signs in
+  once more and sends that one read again, and never a write. No call repeats a failed sign-in, and
+  a sign-in qBittorrent refused — the credentials, or the app's address banned — is remembered in
+  memory the same way, so no later call sends it while the address and credentials stay the same,
+  since each refused one counts towards qBittorrent's ban of the address: the page says so until the
+  owner corrects them or a connection test with them works. It never reads qBittorrent's preferences,
+  which carry the Web UI's API key and the proxy and mail passwords. An address can't hold a user
+  name, a password or a query. There is no guard against private addresses: the services live on the
+  owner's network, and only the owner can enter one. The one address a service supplies, a release's
+  download link, is fetched only from the Torznab feed's own scheme, host and port, and only once: a
+  redirect to a magnet is the release, any other redirect is refused. A feed's error text has every
+  address cut to its host and every `passkey=`-like value masked before it is shown, since it can
+  quote a tracker's URL with a passkey the app doesn't hold
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
 - **Behind a reverse proxy.** The app takes the client's address from the connection and ignores
   `X-Forwarded-For`, which any client can write. Behind a reverse proxy that address is the proxy's,
@@ -375,8 +398,10 @@ them a second time for it: map its paths onto yours under **Integrations** → t
 [ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)
 explains. The compose file has a commented example. If you can't mount them where Jellyfin sees
 them, give the Jellyfin integration path mappings the same way; the Library page shows any file
-they leave without a path in the app. The container's user (uid 10001) needs read access: files
-readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
+they leave without a path in the app. The Destinations page reads both integrations' mappings to
+tell whether each qBittorrent category saves inside a Jellyfin library, and says so when they leave
+a category's folder without a path in the app. The container's user (uid 10001) needs read access:
+files readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
 them to the service with `group_add`. Mounting is not enough for the app to read a file: the owner
 also adds the folder, as the app sees it (`/media` in the compose file's example), under the user
 menu → **Media folders**. Until then the app reads no file, and **Inspect files** on the Library
@@ -489,8 +514,14 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths }`: the media folders the app may read files in, as the owner entered them, in canonical form; `[]` until the owner adds one. |
 | `PUT /api/settings/allowed-roots` with `{ paths }` | Owner only. 204; replaces the whole list, `[]` or `null` allowing nothing, and writes an audit row. 400 with the broken rule's sentence (more than 20, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another). Starts no inspection. |
 | `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings; a media library's imported library goes with it (its titles, identifiers, versions, files and libraries, and the works left empty), while its sync runs, the download jobs sent to it and what any other kind of integration reported keep its name. 404. |
-| `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
+| `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9 or a qBittorrent older than 4.4.1); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
 | `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
+| `GET /api/settings/destinations?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, isDefault, downloadClientId, downloadClientName, clientDestinationKey, check, createdUtc }`, ordered by name, then by the client's name; `search` matches part of the name in any letter case. `check` is `{ status, servicePath, appPath, libraryNames, problem }`, worked out when the list is read by asking each download client on the page once: `status` is `InLibrary`, `OutsideLibraries`, `PathUnknown`, `LibrariesUnknown`, `CategoryMissing`, `ClientDisabled` or `ClientUnavailable`; `servicePath` is the folder the client says the category saves to and `appPath` the same folder through its path mappings, each `null` when unknown; `libraryNames` the media libraries one of whose folders holds it; `problem` the sentence why, for every status but `InLibrary`. 200 whatever the clients answered. 400 for a page below 1 or a page size outside 1–100. |
+| `GET /api/settings/destinations/{id}` | Owner only. 200 with the destination, checked; 404. |
+| `POST /api/settings/destinations` with `{ name, downloadClientId, clientDestinationKey, isDefault }` | Owner only. Asks the client whether it has the category spelled exactly so, then 201 with the destination, its check and its `Location`. The first destination, or one sent with `isDefault: true`, becomes the default and takes it from the one that had it. 400 with the broken rule's sentence (a name of 1–64 characters, a client, a category name of up to 256 characters, no control characters); 404 with a sentence when `downloadClientId` is not a download client; 409 when the client already has a destination of that name in any letter case, is switched off, is of a type this version can't send downloads to, has a stored secret the app can't read, or has no such category; 502 with the client's sentence when it couldn't answer. Writes an audit row. |
+| `PUT /api/settings/destinations/{id}` with the same fields; `isDefault` left out to keep | Owner only. 204. Asks the client only when the client or the category changes; `isDefault: false` on the default leaves none; a save that changes nothing writes no audit row. 404; otherwise as `POST`. |
+| `DELETE /api/settings/destinations/{id}` | Owner only. 204 and an audit row; nothing changes in the client, a removed default leaves none, and the download jobs sent to it keep its name and category. 404. |
+| `GET /api/settings/destinations/client-destinations/{downloadClientId}` | Owner only. What the download client offers right now: 200 `{ items, error }`, each item `{ key, displayName, check }` in the client's order, `check` as above. When the client couldn't be asked — switched off, a type this version can't send downloads to, a stored secret it can't read, or its call failed — `items` is empty and `error` says why. 404 when the id is not a download client. |
 | `GET /api/library/works?search=&locationId=&identifiers=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }] }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb or TMDb id, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an IMDb or a TMDb id. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id or another `identifiers` value. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
 | `GET /api/library/sources` | 200 `{ items, inspection }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem } }`, by name, and `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun }` for the whole library, the active run being the running one, else the queued one; `pathProblem`, `problem` and each run's `requestedByUserName` and `error` only for the owner, `null` for everyone else. |
@@ -589,6 +620,23 @@ against the reference installation is checked through the app itself: the Toloka
 under Integrations, then a search through the API (16 movie releases for "Interstellar" 2014 on
 2026-10-01).
 
+The download destinations are tested against the real qBittorrent 5.2.3 answers: the adapter lists
+the categories of `categories.json` with their folders, and qBittorrent's recorded answer to a
+session it has forgotten (`expired-session-response.txt`, a 403) drives the sign-in that renews it;
+hand-written answers cover what the samples don't show — other versions' folder rules, empty and
+relative save paths, a Windows host and its network shares, names the app can't keep, old versions,
+broken answers and refused sign-ins. The folder rules themselves (`QBittorrentCategoryPaths`) and the
+kept sessions and refusals (`QBittorrentSessions`) are tested on their own.
+The API tests ask `FakeQBittorrentServer`, which answers the sign-in with a session cookie, the
+version, the categories and the default save path from the same samples, and the recorded 403 to a
+session it doesn't know, with knobs for an old version, a missing category, refused credentials,
+an unreachable client and sessions that expire. The library folders the checks need come from a
+real sync of `virtual-folders.json` through `FakeJellyfinServer`, so the samples' four categories
+land in their four libraries end to end. `DestinationsClientDestinationsHttpTests` checks that every
+request the destinations send is the sign-in or a GET and none names a save path. The connection
+and the category listing were also checked live through the app on 2026-10-01, against the
+reference installation's qBittorrent v5.2.4.
+
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable
 files — and a stub `ffprobe` script; its parser reads the two real ffprobe samples and variants made
@@ -622,14 +670,15 @@ src/
                                                and sessions, user management, integration
                                                settings, the library and its background sync,
                                                the media folders and the file inspection, the
-                                               release search, audit
+                                               release search, the download destinations, audit
                                                trail, health checks, security headers, EF Core
                                                migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
                                                path mapping, the allowed roots' rules, the
-                                               library's grouping and title order, and the release
-                                               search's planning and title claims; no package
+                                               library's grouping and title order, the release
+                                               search's planning and title claims, and the
+                                               destinations' rules and path check; no package
                                                references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
@@ -638,7 +687,8 @@ src/
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
-                                               Torznab feed, a fake file inventory
+                                               Torznab feed, a fake qBittorrent, a fake file
+                                               inventory
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
@@ -672,8 +722,8 @@ of each, and the tickets of Phase A (MAM-1 to MAM-15).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
-   submission and status tracking, and persisted jobs. Search and download must work while leaving
-   existing files untouched.
+   destinations, submission and status tracking, and persisted jobs. Search and download must work
+   while leaving existing files untouched.
 2. **Phase B: inventory and duplicate detection.** Scan the allowed folders for files no library
    reported, count hardlinks once, and hash candidate files when useful. Label exact, same-work, and
    possible matches separately.

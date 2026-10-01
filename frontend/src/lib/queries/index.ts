@@ -1,6 +1,7 @@
 export * from './keys'
 export * from './allowed-roots'
 export * from './auth'
+export * from './destinations'
 export * from './health'
 export * from './integrations'
 export * from './library'

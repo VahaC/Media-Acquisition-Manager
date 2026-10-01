@@ -36,6 +36,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<LibraryLocationEntity> LibraryLocations => Set<LibraryLocationEntity>();
 
+    public DbSet<LibraryLocationFolderEntity> LibraryLocationFolders => Set<LibraryLocationFolderEntity>();
+
     public DbSet<LibrarySyncRunEntity> LibrarySyncRuns => Set<LibrarySyncRunEntity>();
 
     public DbSet<AllowedRootEntity> AllowedRoots => Set<AllowedRootEntity>();
@@ -136,6 +138,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<IntegrationConnectionEntity>().WithMany()
                 .HasForeignKey(x => x.DownloadClientConnectionId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // MAM-11 — at most one default destination for the whole installation: unique over the
+            // default rows only, so any number of others can sit beside it, and none at all is allowed
+            // (a removed default is never replaced automatically). Moving the default clears the old one
+            // before setting the new, in one save: SQLite checks the index as each row changes, not at
+            // commit. The service answers first; this settles two saves racing each other. SQLite
+            // stores a bool as 0 or 1.
+            e.HasIndex(x => x.IsDefault, "IX_DestinationMappings_OneDefault")
+                .IsUnique()
+                .HasFilter("\"IsDefault\" = 1");
         });
 
         modelBuilder.Entity<MediaWorkEntity>(e =>
@@ -207,6 +218,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<LibraryLocationEntity>(e =>
         {
             ConfigureProvenance(e);
+        });
+
+        modelBuilder.Entity<LibraryLocationFolderEntity>(e =>
+        {
+            // MAM-11 — one folder per place in the server's list of a library's folders. Leading with
+            // the library, so it also serves the foreign key.
+            e.HasIndex(x => new { x.LibraryLocationId, x.Position }).IsUnique();
+            // Cascade: a folder says something only about its library. A library a sync no longer
+            // reports, or one purged with its integration by ExecuteDelete (LibrarySnapshotStore), takes
+            // its folders with it in the database itself, whatever EF tracks.
+            e.HasOne<LibraryLocationEntity>().WithMany()
+                .HasForeignKey(x => x.LibraryLocationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<LibrarySyncRunEntity>(e =>

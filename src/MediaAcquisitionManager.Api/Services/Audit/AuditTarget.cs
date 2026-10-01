@@ -13,4 +13,7 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
 
     public static AuditTarget Integration(IntegrationConnectionEntity connection) =>
         new(AuditTargetKind.Integration, connection.Id, connection.Name);
+
+    public static AuditTarget Destination(DestinationMappingEntity destination) =>
+        new(AuditTargetKind.Destination, destination.Id, destination.Name);
 }

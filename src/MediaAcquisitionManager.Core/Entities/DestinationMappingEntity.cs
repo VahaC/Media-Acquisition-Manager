@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Downloads;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -16,14 +17,20 @@ public class DestinationMappingEntity : AuditableEntity
     public Guid DownloadClientConnectionId { get; set; }
 
     /// <summary>The logical destination's name, trimmed.</summary>
-    [Required, MaxLength(64)]
+    [Required, MaxLength(DestinationRules.NameMaximumLength)]
     public string Name { get; set; } = default!;
 
     /// <summary>The name trimmed and upper-cased; unique per client in any letter case.</summary>
-    [Required, MaxLength(64)]
+    [Required, MaxLength(DestinationRules.NameMaximumLength)]
     public string NormalizedName { get; set; } = default!;
 
     /// <summary>The client's own name for the destination, such as a qBittorrent category.</summary>
-    [Required, MaxLength(256)]
+    [Required, MaxLength(DestinationRules.ClientDestinationKeyMaximumLength)]
     public string ClientDestinationKey { get; set; } = default!;
+
+    /// <summary>
+    /// The installation's default destination (MAM-11): at most one row has it, enforced by a partial
+    /// unique index. None may have it — a removed or un-marked default is never replaced automatically.
+    /// </summary>
+    public bool IsDefault { get; set; }
 }

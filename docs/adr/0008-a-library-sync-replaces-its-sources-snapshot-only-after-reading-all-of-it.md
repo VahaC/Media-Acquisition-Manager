@@ -102,3 +102,24 @@ app's rows.
 This rule is about one source's snapshot. It doesn't make a work with facts of one library the
 work of every source: release search (MAM-10) and a second library match against works by the
 identifiers of ADR 0006, under their own rules.
+
+## Implementation (added 0.1.0, MAM-11)
+
+**A library's root folders join its snapshot, replaced rather than kept.** For the destination check
+([ADR 0010](0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)) the sync now
+stores, with each library it upserts, the root folders Jellyfin listed for it
+(`LibraryLocationFolders`: the library, the folder's place in Jellyfin's order, its path as Jellyfin
+reports it), written in the same transaction as the rest, so a failed sync keeps the folders of the
+last good one. Unlike every other row of the snapshot they are removed and added again on each sync,
+with new ids each time, which the rejected "delete and re-insert" option above seems to forbid: that
+rule protects the rows later tickets point at, and nothing points at a folder — it is nothing but its
+place in its library's list, and its library row keeps the stable id and the provenance. A library
+the sync no longer reports takes its folders with it, and so does the purge when the integration is
+removed, both by the database's cascade (the purge's `ExecuteDelete` included). Which library holds a
+file is still decided from the folders the sync has just read, never the stored ones.
+
+`LibraryLocationFoldersHttpTests.Resync_replaces_every_librarys_folders_with_those_the_server_lists_now`,
+`LibraryLocationFoldersHttpTests.Sync_that_fails_after_reading_the_libraries_keeps_the_folders_the_last_good_sync_stored`,
+`LibraryLocationFoldersHttpTests.Delete_of_the_library_integration_leaves_none_of_its_folders_and_keeps_the_others`
+and `LibraryPersistenceTests.Deleting_a_library_integration_with_its_libraries_leaves_no_folders` pin
+it.

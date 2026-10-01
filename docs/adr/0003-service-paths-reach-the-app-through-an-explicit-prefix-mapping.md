@@ -165,3 +165,69 @@ roots only, every link resolved
 ([ADR 0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)),
 and those decide which names are one set of bytes. Fixing a mapping shows on the next run, which the
 owner can start from the Library page.
+
+## Implementation (added 0.1.0, MAM-11)
+
+**Destinations are checked, as the Consequences planned.** `DestinationPathCheck` (Core, pure) takes
+the folder qBittorrent says a category saves to, maps it through the qBittorrent integration's pairs,
+and requires the app path to lie inside the app path of a Jellyfin library's root folder, folder by
+folder (`NormalizedPath.IsUnder`), the root itself included. Each root folder is mapped through its
+own Jellyfin integration's pairs, so both sides keep their own mappings. On the samples, Movies'
+`/downloads/movies` is `/media/movies`, the folder of "Фільми", and the other three categories land in
+their own libraries. A folder that only holds a library folder (`/media` above `/media/movies`) is
+outside it: what lands there isn't in the library.
+
+**The library root folders are stored now.** MAM-8 read them at sync time and kept none. The sync now
+stores each library's folders as Jellyfin reports them (`LibraryLocationFolders`, replaced by every
+sync, gone with the library and with the integration,
+[ADR 0008](0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)) and
+never their app path: the check maps them when it looks, like everything else here, so an edited
+mapping on either integration shows at the next look. Which library holds a file is still decided by
+service paths alone, from the folders the sync has just read.
+
+**No guess, and each unknown says why.** A category whose folder qBittorrent doesn't say, or whose
+folder the client's pairs give no app path (`NotCovered`, `Ambiguous`, not a full path), is
+`PathUnknown`, with the mapper's sentence when the pairs are why. With no library folder stored yet
+the answer is `LibrariesUnknown`, never "outside every library", which would be a claim about
+libraries the app has never read; when folders are stored but none of them maps into the app, its
+sentence sends the owner to the media library's mappings rather than to another sync. Every status
+but `InLibrary` keeps automatic replacement off for the destination (Phase C). Nothing of it is
+stored: every read of the destinations asks the client and maps again.
+
+**A Windows host's network folder is read as qBittorrent lists it.** From 4.5 qBittorrent keeps a
+category's save path as its own `Path`, cleaned by Qt's `QDir::cleanPath` and listed with `/`
+(`Path::data()`), and that cleaning keeps a leading `//` only on Windows, where it starts a UNC
+folder. So a save path that starts with exactly two `/` is that folder, Windows-style:
+`//nas/media/Movies` is `\\nas\media\Movies`, which a pair such as `\\nas\media` → `/media` maps, and
+a 5.2 subcategory without a save path of its own is `\\nas\media\Movies\4K`. Read by its shape alone,
+the text would be the Linux `/nas/media/Movies`: the wrong folder, in the wrong style for the owner's
+pairs. 4.4 lists a save path as it was saved, uncleaned, where a leading `//` may be either, so
+there it is `PathUnknown`, and so are `///…`, a server without a share, and every category under a
+default save path that starts with `//` (4.4 turns a Windows host's backslashes into `/` there, so it
+may be either too, and 4.5 and later never send one: a Windows host's comes with backslashes). The
+mirror case holds as well: from 4.5 no Windows host lists a backslash in a save path, so
+`\\nas\media\Movies` or `D:\Torrents\Movies` comes from another host, where it is a relative folder
+under the default save path whose name holds the backslashes — never the Windows folder its shape
+suggests — and under a Windows default save path the two answers contradict each other and the folder
+is unknown
+(`QBittorrentCategoryPathsTests.FolderOf_a_save_path_with_a_backslash_from_4_5_is_a_relative_folder_of_a_posix_host`,
+`QBittorrentCategoryPathsTests.FolderOf_a_save_path_with_a_backslash_from_4_5_under_a_windows_default_is_unknown`).
+This is read from qBittorrent's (4.4.5, 4.5.0) and Qt's source; no Windows qBittorrent was asked.
+
+`DestinationPathCheckTests.Check_of_the_adr_0003_samples_puts_every_qbittorrent_category_in_its_jellyfin_library`
+and, end to end through a real sync of `virtual-folders.json` and `categories.json`,
+`DestinationsListHttpTests.List_checks_every_sample_category_into_the_sample_library_that_holds_it`
+pin the rule promised in the Decision above.
+`DestinationPathCheckTests.Check_of_the_parent_of_library_folders_is_outside_libraries`,
+`DestinationPathCheckTests.Check_compares_posix_paths_with_their_letter_case`,
+`DestinationPathCheckTests.Check_without_library_folders_is_libraries_unknown_with_both_paths`,
+`DestinationsListHttpTests.List_of_a_category_no_path_mapping_covers_is_path_unknown_with_the_mappings_reason`
+and `DestinationsListHttpTests.List_while_no_stored_library_folder_maps_into_the_app_says_to_check_the_mappings_not_to_sync`
+pin the edges, and `LibraryLocationFoldersHttpTests.Resync_replaces_every_librarys_folders_with_those_the_server_lists_now`
+the stored folders.
+`QBittorrentCategoryPathsTests.FolderOf_a_save_path_with_a_leading_double_slash_from_4_5_is_a_windows_hosts_unc_folder`,
+`QBittorrentCategoryPathsTests.FolderOf_a_save_path_with_a_leading_double_slash_on_4_4_is_unknown`,
+`QBittorrentCategoryPathsTests.FolderOf_a_save_path_with_a_leading_double_slash_that_names_no_unc_folder_is_unknown`,
+`QBittorrentCategoryPathsTests.FolderOf_a_category_under_a_default_save_path_with_a_leading_double_slash_is_unknown`
+and `QBittorrentAdapterDestinationsTests.ListDestinations_lists_a_windows_hosts_unc_category_and_its_subcategory_inside_that_share`
+pin the network folders.

@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 
@@ -7,10 +9,18 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
 /// <summary>
 /// qBittorrent's Web API behind the core's contracts (Adapter, ADR 0005). MAM-7 builds the
-/// registration and the connection test; MAM-11, MAM-13 and MAM-14 add the download client contract
-/// to this class.
+/// registration and the connection test; MAM-11 adds the destinations of the download client contract
+/// (<see cref="IDownloadClient"/>): the categories and the folders they save to in
+/// <c>QBittorrentAdapter.Destinations.cs</c> and <see cref="QBittorrentCategoryPaths"/>, and the session
+/// the calls share in <c>QBittorrentAdapter.Sessions.cs</c> and <see cref="QBittorrentSessions"/>. MAM-13
+/// and MAM-14 add submission and job reading.
 /// </summary>
-internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients) : HttpIntegrationAdapter(httpClients, HttpClientName)
+/// <remarks>
+/// Read-only so far: the sign-in and GETs, never a request that changes anything in qBittorrent. Every
+/// answer is read as an allowlist, property by property by name (house rule 8).
+/// </remarks>
+internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
+    : HttpIntegrationAdapter(httpClients, HttpClientName), IDownloadClient
 {
     /// <summary>The stored type id — part of the on-disk contract (ADR 0005).</summary>
     public const string TypeId = "qbittorrent";
@@ -47,6 +57,16 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
 
     private const string SessionRefusedError = "qBittorrent refused the session it had just opened.";
 
+    /// <summary>
+    /// MAM-11 — the oldest qBittorrent the app works with (the owner's choice). 4.4.0 lists each
+    /// category's folder as <c>save_path</c> instead of the <c>savePath</c> every other version sends
+    /// (qBittorrent issue #15969, fixed in 4.4.1), and older versions differ more. The adapter was
+    /// sampled live against 5.2.3 only (VendorSamples); 4.4.1 to 5.1 are accepted from reading
+    /// qBittorrent's source. An older one is refused with a sentence rather than read through answers
+    /// nobody has checked.
+    /// </summary>
+    private static readonly Version MinimumVersion = new(4, 4, 1);
+
     /// <inheritdoc/>
     public override IntegrationAdapterDescriptor Descriptor { get; } = new(
         TypeId,
@@ -57,6 +77,19 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
         Password: CredentialRequirement.Optional,
         ApiKey: CredentialRequirement.NotUsed,
         ReportsFilePaths: true);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// MAM-11 — <c>torrents/add</c> takes a .torrent file and a magnet link alike, and a category saves to a
+    /// folder qBittorrent says (<see cref="QBittorrentCategoryPaths"/>). No job id from a submission:
+    /// <c>torrents/add</c> answers only <c>Ok.</c> before 5.2, and 5.2's JSON lists ids only for magnet
+    /// links and uploaded files, so with 4.4.1 the oldest version taken the type can't promise one; the
+    /// info hash correlates instead (MAM-13).
+    /// </remarks>
+    public DownloadClientCapabilities Capabilities { get; } = new(
+        PayloadKinds: [ReleasePayloadKind.TorrentFile, ReleasePayloadKind.Magnet],
+        DestinationsHavePaths: true,
+        SubmissionReturnsJobId: false);
 
     /// <summary>
     /// Signs in when a user name is set (the credential rules make the password come with it), then
@@ -70,7 +103,16 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
         {
             var signIn = await SignInAsync(client, settings, cancellationToken);
             if (signIn.Failure is { } failure)
+            {
+                // MAM-11 — a test qBittorrent refused counts towards its ban like any other sign-in, so the
+                // download client calls don't send the same credentials again after it (ADR 0010).
+                if (failure.Status is IntegrationCallStatus.AuthenticationFailed or IntegrationCallStatus.Refused)
+                    _sessions.KeepTestRefusal(settings, failure.Status);
                 return failure;
+            }
+            // MAM-11 — the test is the owner's way to try refused credentials again, so it never asks
+            // whether they were refused; once qBittorrent takes them, the download client calls may too.
+            _sessions.ForgetRefusal(settings);
             sessionCookie = signIn.Cookie;
             // The session is as good as the password until it expires: masked like one.
             sessionSecrets.Add(signIn.SessionValue!);
@@ -173,17 +215,62 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
             SignInResult.Failed(ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, UnusableCookieError));
     }
 
-    /// <summary>The version as qBittorrent reports it (<c>v5.2.3</c>), when the body is one.</summary>
+    /// <summary>The version as qBittorrent reports it (<c>v5.2.3</c>), when the body is one this app works
+    /// with.</summary>
     private static ConnectionTestResult DescribeVersion(string body, bool signedIn)
     {
-        var version = body.Trim();
-        if (version.Length > VersionMaximumLength || !VersionPattern().IsMatch(version))
+        if (ReportedVersion(body) is not { } version)
             return ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotAVersionError);
+
+        // MAM-11 — the version gate, as in every download client call: an owner testing an old
+        // qBittorrent hears it here, before a destination is saved on it.
+        if (UnsupportedVersionError(version) is { } unsupported)
+            return ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported);
 
         return ConnectionTestResult.Succeeded(signedIn
             ? $"Connected to qBittorrent {version}."
             : $"Connected to qBittorrent {version} without signing in: it lets this app's address skip authentication.");
     }
+
+    /// <summary>The version in <paramref name="body"/> as qBittorrent reports it (<c>v5.2.3</c>), or
+    /// <c>null</c> when the body is not one.</summary>
+    private static string? ReportedVersion(string body)
+    {
+        var version = body.Trim();
+        return version.Length > VersionMaximumLength || !VersionPattern().IsMatch(version) ? null : version;
+    }
+
+    /// <summary>
+    /// The major, minor and build numbers of a version <see cref="ReportedVersion"/> accepted (a missing
+    /// build counts as 0), or <c>null</c> when one of them doesn't fit an <see cref="int"/>. A fourth part,
+    /// as in 4.1.9.1, is a rebuild of the same release and isn't compared.
+    /// </summary>
+    private static Version? ComparableVersion(string reported)
+    {
+        var parts = (reported.StartsWith('v') ? reported[1..] : reported).Split('.');
+        var numbers = new int[3];
+        for (var index = 0; index < numbers.Length && index < parts.Length; index++)
+        {
+            if (!int.TryParse(parts[index], NumberStyles.None, CultureInfo.InvariantCulture, out numbers[index]))
+                return null;
+        }
+
+        return new Version(numbers[0], numbers[1], numbers[2]);
+    }
+
+    /// <summary>
+    /// The sentence refusing <paramref name="reported"/>, or <c>null</c> when it is
+    /// <see cref="MinimumVersion"/> or later. A version that can't be compared is refused, never guessed
+    /// at.
+    /// </summary>
+    private static string? UnsupportedVersionError(string reported) =>
+        ComparableVersion(reported) switch
+        {
+            null => $"qBittorrent reported the version “{reported}”, which the app can't compare with {MinimumVersion}, the oldest version it works with.",
+            var version when version < MinimumVersion =>
+                $"This is qBittorrent {reported}; the app works with qBittorrent {MinimumVersion} or later. Update qBittorrent, then test again.",
+            _ => null,
+        };
 
     /// <summary>
     /// <c>v5.2.3</c> or <c>4.6.7</c>: ASCII digits only (<c>\d</c> would take any script's), and
@@ -193,7 +280,7 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     private static partial Regex VersionPattern();
 
     /// <summary>How a sign-in went: a failure to answer with, or the cookie to send and the session
-    /// value to mask. Private: nothing outside the connection test needs it.</summary>
+    /// value to mask. Private: nothing outside this adapter's calls needs it.</summary>
     private sealed record SignInResult(ConnectionTestResult? Failure, string? Cookie, string? SessionValue)
     {
         public static SignInResult Failed(ConnectionTestResult failure) => new(failure, null, null);

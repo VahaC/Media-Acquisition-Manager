@@ -9,6 +9,8 @@ import { queryClient } from '@/lib/query-client'
 
 // Every page is its own chunk, loaded on first visit. AppLayout holds the Suspense boundary, so
 // the header stays on screen while a page's code arrives.
+const DestinationsPage = lazy(() =>
+  import('@/pages/settings/DestinationsPage').then((m) => ({ default: m.DestinationsPage })))
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
 const IntegrationsPage = lazy(() =>
   import('@/pages/settings/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })))
@@ -37,6 +39,7 @@ export default function App() {
                   <Route index element={<HomePage />} />
                   <Route path="library" element={<LibraryPage />} />
                   <Route path="settings/integrations" element={<IntegrationsPage />} />
+                  <Route path="settings/destinations" element={<DestinationsPage />} />
                   <Route path="settings/media-folders" element={<MediaFoldersPage />} />
                   <Route path="settings/users" element={<UsersPage />} />
                   <Route path="*" element={<NotFoundPage />} />

@@ -61,6 +61,9 @@ public sealed class SettingsWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcq
                 "POST api/settings/integrations/{id:guid}/test",
                 "POST api/settings/integrations/test",
                 "PUT api/settings/allowed-roots",
+                "POST api/settings/destinations",
+                "PUT api/settings/destinations/{id:guid}",
+                "DELETE api/settings/destinations/{id:guid}",
             },
             writes);
     }
@@ -96,6 +99,8 @@ public sealed class SettingsWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcq
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
             // MAM-9 — and no media folder: the allowed roots are a settings write like any other.
             Assert.Equal(0, await db.AllowedRoots.CountAsync(cancellationToken));
+            // MAM-11 — and no destination.
+            Assert.Equal(0, await db.DestinationMappings.CountAsync(cancellationToken));
         });
     }
 

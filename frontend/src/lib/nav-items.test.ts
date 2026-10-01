@@ -13,7 +13,7 @@ describe('navItemsFor', () => {
     expect(header).toEqual([['/library'], ['/library']])
   })
 
-  it('offers Integrations, Media folders and Users in the user menu to the installation owner only', () => {
+  it('offers Integrations, Destinations, Media folders and Users in the user menu to the installation owner only', () => {
     // Arrange
     const users = [owner, member]
 
@@ -21,7 +21,7 @@ describe('navItemsFor', () => {
     const menu = users.map((user) => navItemsFor('userMenu', user).map((item) => item.path))
 
     // Assert
-    expect(menu).toEqual([['/settings/integrations', '/settings/media-folders', '/settings/users'], []])
+    expect(menu).toEqual([['/settings/integrations', '/settings/destinations', '/settings/media-folders', '/settings/users'], []])
   })
 
   it('lists every page once', () => {

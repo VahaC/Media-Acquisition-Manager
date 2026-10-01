@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
@@ -8,8 +9,8 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Conventions;
 // ADR 0005 — every adapter whose descriptor names a kind implements that kind's contract, so the
 // registry never lists a type for a kind it can't serve (the type would pass its connection test and
 // then fail at the first sync). Over the registry the app builds, so a new adapter is checked the
-// moment it is registered. Kinds whose contracts are implemented so far: MediaLibrary (MAM-8) and
-// ReleaseSearch (MAM-10); DownloadClient joins with MAM-11.
+// moment it is registered. Every kind's contract is implemented now: MediaLibrary (MAM-8),
+// ReleaseSearch (MAM-10) and DownloadClient (MAM-11).
 public sealed class AdapterKindContractTests
 {
     [Fact]
@@ -49,6 +50,26 @@ public sealed class AdapterKindContractTests
         //Assert
         // Guard the guard: a scan that found no media library type would pass whatever the adapters do.
         Assert.NotEmpty(libraries);
+        Assert.Empty(withoutContract);
+    }
+
+    [Fact]
+    public void Every_download_client_adapter_implements_the_download_client_contract()
+    {
+        //Arrange
+        using var harness = new IntegrationAdapterHarness();
+        var registry = harness.Registry;
+
+        //Act
+        var clients = registry.Descriptors
+            .Where(descriptor => descriptor.Kind == IntegrationKind.DownloadClient)
+            .Select(descriptor => descriptor.TypeId)
+            .ToList();
+        var withoutContract = clients.Where(typeId => registry.Find<IDownloadClient>(typeId) is null).ToList();
+
+        //Assert
+        // Guard the guard: a scan that found no download client type would pass whatever the adapters do.
+        Assert.NotEmpty(clients);
         Assert.Empty(withoutContract);
     }
 }

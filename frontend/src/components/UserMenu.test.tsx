@@ -69,7 +69,7 @@ describe('UserMenu', () => {
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
 
-  it('offers Integrations, Media folders and Users to the installation owner, and opens the page from there', async () => {
+  it('offers Integrations, Destinations, Media folders and Users to the installation owner, and opens the page from there', async () => {
     // Arrange
     const { user } = renderMenu(owner)
     await user.click(screen.getByRole('button', { name: 'Signed in as vasyl' }))
@@ -79,12 +79,12 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('link', { name: 'Integrations' }))
 
     // Assert
-    expect(entries).toEqual(['Integrations', 'Media folders', 'Users'])
+    expect(entries).toEqual(['Integrations', 'Destinations', 'Media folders', 'Users'])
     expect(screen.getByText('Integrations page')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Integrations' })).not.toBeInTheDocument()
   })
 
-  it('does not offer Integrations, Media folders or Users to anyone else', async () => {
+  it('does not offer Integrations, Destinations, Media folders or Users to anyone else', async () => {
     // Arrange
     const { user } = renderMenu(member)
 
@@ -94,6 +94,7 @@ describe('UserMenu', () => {
     // Assert
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Integrations' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Destinations' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Media folders' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument()
   })
@@ -146,7 +147,8 @@ describe('UserMenu', () => {
     // Arrange
     const { user } = renderMenu(owner)
     await user.click(screen.getByRole('button', { name: 'Signed in as vasyl' }))
-    // Integrations, Media folders, Users, then Sign out.
+    // Integrations, Destinations, Media folders, Users, then Sign out.
+    await user.tab()
     await user.tab()
     await user.tab()
     await user.tab()

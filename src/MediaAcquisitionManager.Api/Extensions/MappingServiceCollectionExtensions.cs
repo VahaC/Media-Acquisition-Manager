@@ -11,6 +11,7 @@ public static class MappingServiceCollectionExtensions
         services.AddSingleton<IIntegrationMapper, IntegrationMapper>();
         services.AddSingleton<ILibraryMapper, LibraryMapper>();
         services.AddSingleton<IReleaseSearchMapper, ReleaseSearchMapper>();
+        services.AddSingleton<IDestinationMapper, DestinationMapper>();
         return services;
     }
 }

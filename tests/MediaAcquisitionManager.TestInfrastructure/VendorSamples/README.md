@@ -43,6 +43,7 @@ the same way, or `VendorSamplesTests` fails the build:
 | `QBittorrent/preferences.json` | `GET /api/v2/app/preferences` (allowlisted) | Automatic torrent management on, no separate folder for incomplete downloads, content layout `Original` |
 | `QBittorrent/torrents-info.json` | `GET /api/v2/torrents/info` (four picked) | A three-movie pack, and a single-file torrent for each category that has torrents (the documentary one has none) |
 | `QBittorrent/torrent-files-multi.json` | `GET /api/v2/torrents/files?hash=…` | The pack's files: one torrent, three movies |
+| `QBittorrent/expired-session-response.txt` | `GET /api/v2/torrents/categories` and `GET /api/v2/app/version`, each with a session cookie qBittorrent doesn't know (2026-10-01, MAM-11) | The status line, headers and body of the one answer both got: `403 Forbidden` with the text `Forbidden`. Read by `VendorResponses.Recorded` |
 | `Torznab/prowlarr-toloka-caps.xml` | `GET /1/api?t=caps` | Toloka's categories and search modes |
 | `Torznab/prowlarr-toloka-search.xml` | `GET /1/api?t=search&q=Interstellar` | 17 releases, not all of them movies |
 | `Torznab/prowlarr-toloka-movie-search.xml` | `GET /1/api?t=movie&q=Interstellar` | The same releases through the movie search, this time with topic links that carry no `sid` |
@@ -84,6 +85,20 @@ The four movies in `movies-page.json`:
   `200 Fails.`; the sign-in here took the first cookie whatever its name. Seen in the samples: in
   `torrents/files`, `is_seed` appears on the first file only, and `content_path` is the file itself
   for a single-file torrent and the torrent's folder otherwise.
+- **qBittorrent answers a session it doesn't know with 403, never 401** (MAM-11): `torrents/categories`
+  and `app/version` with a forgotten cookie both got `403 Forbidden` and the text `Forbidden`, as a
+  request without any cookie does. By its source, every version from 4.3 on answers alike, whether the
+  session sat idle past its timeout (an hour by default) or qBittorrent restarted (it keeps sessions in
+  memory only). So a 403 to a session the app kept means "sign in again", once; a 403 to a session it
+  has just been handed is a failure.
+- **A category's `savePath` is what was saved, not where it saves** (MAM-11, qBittorrent's source). The
+  samples' four are absolute, but it may be empty — the default save path and the category's name; from
+  5.2 a subcategory goes under its parent's folder instead, and 5.0 and 5.1 do either, as
+  `use_subcategories` says — or relative to the default save path. The app works the folder out the
+  way qBittorrent does, reading the default save path from `app/defaultSavePath` and never from
+  `app/preferences`, which also carries the Web UI's API key (5.2) and the proxy and mail passwords.
+- **qBittorrent 4.4.0 lists a category's folder as `save_path`** rather than `savePath` (qBittorrent
+  issue #15969, fixed in 4.4.1), so the app works with 4.4.1 and later.
 - **Prowlarr's download link carries its API key** (`/1/download?apikey=…&link=…`), and a Toloka
   topic link can carry the owner's forum session (`?sid=…`): every one in the `t=search` answer did,
   none in the `t=movie` answer taken seconds later. Toloka's movie search takes only `q`, so it

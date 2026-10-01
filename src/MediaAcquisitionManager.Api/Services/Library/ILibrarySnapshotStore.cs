@@ -4,7 +4,8 @@ namespace MediaAcquisitionManager.Api.Services.Library;
 
 /// <summary>
 /// Stores what a media library integration reported as that integration's snapshot of works, versions,
-/// files and libraries, and forgets it again when the integration is removed (MAM-8, ADR 0008).
+/// files and libraries with their root folders (MAM-11), and forgets it again when the integration is
+/// removed (MAM-8, ADR 0008).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -39,8 +40,8 @@ public interface ILibrarySnapshotStore
 
     /// <summary>
     /// Deletes the snapshot of <paramref name="integrationId"/> — its titles, identifiers, versions,
-    /// files and libraries, and the works left with none — inside the caller's transaction. Titles,
-    /// identifiers and versions of any other integration or source kind stay.
+    /// files and libraries with their root folders, and the works left with none — inside the caller's
+    /// transaction. Titles, identifiers and versions of any other integration or source kind stay.
     /// </summary>
     /// <remarks>
     /// A removed version takes all its files with it by the database's cascade, whatever source

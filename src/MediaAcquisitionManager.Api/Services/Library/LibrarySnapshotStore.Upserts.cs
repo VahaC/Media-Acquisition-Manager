@@ -59,6 +59,8 @@ public sealed partial class LibrarySnapshotStore
         private readonly Dictionary<(Guid, string), PhysicalFileEntity> _files = FirstByKey(
             existing.Files, file => (file.MediaVersionId, file.ServicePath));
 
+        private readonly ILookup<Guid, LibraryLocationFolderEntity> _folders = existing.Folders.ToLookup(folder => folder.LibraryLocationId);
+
         // Every stored or added row this sync reached, across the tables (ids are unique across them).
         private readonly HashSet<Guid> _touched = [];
 
@@ -68,8 +70,8 @@ public sealed partial class LibrarySnapshotStore
 
         public int FilesCount { get; private set; }
 
-        /// <summary>Upserts the libraries, the first of two with one id winning; the files' libraries
-        /// are then matched against them.</summary>
+        /// <summary>Upserts the libraries, the first of two with one id winning, each with the root
+        /// folders just read (MAM-11); the files' libraries are then matched against them.</summary>
         public void UpsertLocations(IReadOnlyList<LibraryLocation> locations)
         {
             _reportedLocations = [.. locations.DistinctBy(location => location.SourceLocationId, StringComparer.Ordinal)];
@@ -79,6 +81,7 @@ public sealed partial class LibrarySnapshotStore
                     continue;
                 row.Name = location.Name;
                 Observe(row, location.SourceLocationId);
+                ReplaceFolders(row, location.ServicePaths);
             }
         }
 
@@ -115,7 +118,7 @@ public sealed partial class LibrarySnapshotStore
         /// <summary>Deletes every stored row of the snapshot this sync didn't reach. A version's files go
         /// with it by cascade, whatever source reported them (<see cref="ILibrarySnapshotStore"/>; what the
         /// app read from a file outlives its name, ADR 0009); a removed library leaves its files known,
-        /// without a library.</summary>
+        /// without a library, and takes its root folders with it by cascade (MAM-11).</summary>
         public void RemoveUntouched()
         {
             db.PhysicalFiles.RemoveRange(existing.Files.Where(Untouched));
@@ -123,6 +126,23 @@ public sealed partial class LibrarySnapshotStore
             db.MediaWorkIdentifiers.RemoveRange(existing.Identifiers.Where(Untouched));
             db.MediaWorkTitles.RemoveRange(existing.Titles.Where(Untouched));
             db.LibraryLocations.RemoveRange(existing.Locations.Where(Untouched));
+        }
+
+        /// <summary>
+        /// MAM-11 — puts the root folders <paramref name="servicePaths"/> of the library
+        /// <paramref name="location"/> in place of the stored ones, in the server's order. Removed and added
+        /// rather than matched: a folder is nothing but its place in the library's list, so there is no
+        /// identity to keep, and its library row keeps the provenance.
+        /// </summary>
+        private void ReplaceFolders(LibraryLocationEntity location, IReadOnlyList<string> servicePaths)
+        {
+            db.LibraryLocationFolders.RemoveRange(_folders[location.Id]);
+            db.LibraryLocationFolders.AddRange(servicePaths.Select((servicePath, position) => new LibraryLocationFolderEntity
+            {
+                LibraryLocationId = location.Id,
+                Position = position,
+                ServicePath = servicePath,
+            }));
         }
 
         private void UpsertTitle(LibraryItem item, ReportedTitle title, Guid workId)

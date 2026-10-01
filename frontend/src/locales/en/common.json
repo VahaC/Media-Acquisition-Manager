@@ -9,6 +9,7 @@
     "label": "Main",
     "library": "Library",
     "integrations": "Integrations",
+    "destinations": "Destinations",
     "mediaFolders": "Media folders",
     "users": "Users"
   },

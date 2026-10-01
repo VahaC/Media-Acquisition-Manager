@@ -13,8 +13,8 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 
 // MAM-8 — the library inventory's promises, pinned on the migrated schema: one active sync per
 // integration however two starts race, sync history that outlives the integration and the user, and a
-// file that outlives its library location. Deletes go through ExecuteDelete, so what happens to the
-// dependent rows is the database's own doing, not EF's tracking.
+// file that outlives its library location — whose root folders (MAM-11) don't. Deletes go through
+// ExecuteDelete, so what happens to the dependent rows is the database's own doing, not EF's tracking.
 public sealed class LibraryPersistenceTests : DatabaseTestBase
 {
     private static readonly IEncryptionService Encryption = new AesGcmEncryptionService(
@@ -176,6 +176,98 @@ public sealed class LibraryPersistenceTests : DatabaseTestBase
         Assert.Equal(file.Id, stored.Id);
         Assert.Null(stored.LibraryLocationId);
         Assert.Equal(version.Id, stored.MediaVersionId);
+    }
+
+    [Fact]
+    public async Task Deleting_a_library_location_removes_its_folders_and_no_other()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
+        var locations = new LibraryLocationDataFactory(db, TimeProvider.System);
+        var movies = await locations.Create(library.Id, library.Name, "78ee018b5034640ba414833f0fe9d6b3", "Фільми");
+        var cartoons = await locations.Create(library.Id, library.Name, "2e7d31f7c627f72ad0912eff1c00353d", "Мульфільми");
+        var folders = new LibraryLocationFolderDataFactory(db);
+        await folders.Create(movies.Id, "/media/movies");
+        await folders.Create(movies.Id, "/media/movies-4k", position: 1);
+        var cartoonsFolder = await folders.Create(cartoons.Id, "/media/cartoons");
+
+        //Act
+        // ExecuteDelete, as the integration delete purges a library (LibrarySnapshotStore.PurgeAsync).
+        await db.LibraryLocations.Where(x => x.Id == movies.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // MAM-11 — Cascade in the database itself: a folder says something only about its library.
+        var stored = await db.LibraryLocationFolders.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal((cartoonsFolder.Id, cartoons.Id, "/media/cartoons"), (stored.Id, stored.LibraryLocationId, stored.ServicePath));
+    }
+
+    [Fact]
+    public async Task Deleting_a_library_integration_with_its_libraries_leaves_no_folders()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
+        var movies = await new LibraryLocationDataFactory(db, TimeProvider.System).Create(library.Id, library.Name, "78ee018b5034640ba414833f0fe9d6b3", "Фільми");
+        await new LibraryLocationFolderDataFactory(db).Create(movies.Id, "/media/movies");
+
+        //Act
+        // The libraries first, as the integration delete does: removing the integration alone would only set
+        // their source null (ADR 0006), and their folders would stay with them.
+        await db.LibraryLocations.Where(x => x.SourceConnectionId == library.Id).ExecuteDeleteAsync(cancellationToken);
+        await db.IntegrationConnections.Where(x => x.Id == library.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        Assert.Equal(0, await db.LibraryLocationFolders.CountAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task A_library_can_not_list_two_folders_at_one_position()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
+        var locations = new LibraryLocationDataFactory(db, TimeProvider.System);
+        var movies = await locations.Create(library.Id, library.Name, "78ee018b5034640ba414833f0fe9d6b3", "Фільми");
+        var cartoons = await locations.Create(library.Id, library.Name, "2e7d31f7c627f72ad0912eff1c00353d", "Мульфільми");
+        var folders = new LibraryLocationFolderDataFactory(db);
+        await folders.Create(movies.Id, "/media/movies");
+        // Another library's first folder is a place of its own.
+        await folders.Create(cartoons.Id, "/media/cartoons");
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => folders.Create(movies.Id, "/media/movies-4k"));
+
+        //Assert
+        var sqlite = Assert.IsType<SqliteException>(Assert.IsType<DbUpdateException>(exception).InnerException);
+        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Contains(
+            "UNIQUE constraint failed: LibraryLocationFolders.LibraryLocationId, LibraryLocationFolders.Position",
+            sqlite.Message,
+            StringComparison.Ordinal);
+        await using var check = CreateContext();
+        Assert.Equal(2, await check.LibraryLocationFolders.CountAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task A_folder_can_not_name_a_library_location_that_does_not_exist()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => new LibraryLocationFolderDataFactory(db).Create(Guid.NewGuid(), "/media/movies"));
+
+        //Assert
+        var sqlite = Assert.IsType<SqliteException>(Assert.IsType<DbUpdateException>(exception).InnerException);
+        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Contains("FOREIGN KEY constraint failed", sqlite.Message, StringComparison.Ordinal);
+        await using var check = CreateContext();
+        Assert.Equal(0, await check.LibraryLocationFolders.CountAsync(cancellationToken));
     }
 
     [Fact]

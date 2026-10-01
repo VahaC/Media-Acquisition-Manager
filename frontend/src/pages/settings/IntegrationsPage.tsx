@@ -103,16 +103,19 @@ export function IntegrationsPage() {
     }, t('testFailed'))
 
   const removeIntegration = async (integration: IntegrationSummary) => {
+    const service = integration.adapterDisplayName ?? integration.adapterType
     const confirmed = await confirm({
       title: t('remove.title', { name: integration.name }),
       // MAM-8 — removing a media library also purges the library it imported (ADR 0006), which
       // every user sees on the Library page; the owner is told before, not after.
+      // MAM-11 — removing a download client also removes every destination that uses it (the rows
+      // cascade with the integration), the default among them: told before too, not found missing on
+      // the Destinations page after.
       message: integration.kind === 'MediaLibrary'
-        ? t('remove.messageLibrary', {
-          name: integration.name,
-          service: integration.adapterDisplayName ?? integration.adapterType,
-        })
-        : t('remove.message', { name: integration.name }),
+        ? t('remove.messageLibrary', { name: integration.name, service })
+        : integration.kind === 'DownloadClient'
+          ? t('remove.messageDownloadClient', { name: integration.name, service })
+          : t('remove.message', { name: integration.name }),
       confirmLabel: t('remove.confirm'),
       destructive: true,
     })

@@ -97,6 +97,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<Guid>("DownloadClientConnectionId")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -111,6 +114,10 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.HasIndex("DownloadClientConnectionId", "NormalizedName")
                         .IsUnique();
+
+                    b.HasIndex(new[] { "IsDefault" }, "IX_DestinationMappings_OneDefault")
+                        .IsUnique()
+                        .HasFilter("\"IsDefault\" = 1");
 
                     b.ToTable("DestinationMappings");
                 });
@@ -347,6 +354,31 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasIndex("SourceConnectionId", "SourceItemId");
 
                     b.ToTable("LibraryLocations");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibraryLocationFolderEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("LibraryLocationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServicePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LibraryLocationId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("LibraryLocationFolders");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibrarySyncRunEntity", b =>
@@ -1014,6 +1046,15 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .WithMany()
                         .HasForeignKey("SourceConnectionId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibraryLocationFolderEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.LibraryLocationEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LibraryLocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibrarySyncRunEntity", b =>

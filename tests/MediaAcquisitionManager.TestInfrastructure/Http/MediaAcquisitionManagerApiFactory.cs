@@ -60,7 +60,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// faking any behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
 /// records what it verifies — see <see cref="PasswordHasher"/>), and a synthetic client address per
 /// request (see <see cref="PinClientAddress"/>). One save interceptor, <see cref="SaveChangesHook"/>,
-/// does nothing until a test arms it to stage a race. The app's own hosted
+/// and one transaction interceptor, <see cref="TransactionHook"/>, do nothing until a test arms them to
+/// stage a race. The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
 /// instead — the library sync and file inspection workers and reconcilers through their singletons
 /// (<see cref="Resolve{T}"/>).
@@ -142,6 +143,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>A save interceptor on every DbContext of the host that runs a test's code before a chosen
     /// save; does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
     public SaveChangesHook SaveChangesHook { get; } = new();
+
+    /// <summary>A transaction interceptor on every DbContext of the host that runs a test's code before a
+    /// chosen transaction begins (MAM-11); does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
+    public TransactionHook TransactionHook { get; } = new();
 
     /// <summary>The app's mounts and media inspector (MAM-9); nothing is anywhere until a test adds a
     /// file. Emptied by <see cref="ResetAsync"/>.</summary>
@@ -225,7 +230,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// Puts the factory back to a clean state; every test calls it first. Empties every table of the
     /// EF model in one batched command (a round trip per table adds up across a suite), rewinds the
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
-    /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>, empties
+    /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/> and
+    /// <see cref="TransactionHook"/>, empties
     /// <see cref="Files"/>, drains the library sync and file inspection queues (a run id a test queued but
     /// never ran would otherwise reach the next test's worker), unpins the client address and renews
     /// <see cref="Scope"/>.
@@ -243,6 +249,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         TorznabHttp.Reset();
         QBittorrentHttp.Reset();
         SaveChangesHook.Reset();
+        TransactionHook.Reset();
         Files.Reset();
         var libraryQueue = Services.GetRequiredService<LibrarySyncQueue>();
         while (libraryQueue.Reader.TryRead(out _))
@@ -313,6 +320,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IIntegrationAdapter>(FakeAdapter);
             // The app attaches every save interceptor in the container; unarmed, this one does nothing.
             services.AddSingleton<ISaveChangesInterceptor>(SaveChangesHook);
+            // MAM-11 — added to the context's options after the app's own configuration, beside its
+            // interceptors: the app takes no transaction interceptor from the container. Unarmed, it does
+            // nothing.
+            services.ConfigureDbContext<ApplicationDbContext>(options => options.AddInterceptors(TransactionHook));
             // MAM-9 — instead of the local one: the host's folders and its ffprobe are the outside world
             // here, the way the vendors' networks are.
             ReplaceSingleton<IFileInventory>(services, Files);

@@ -69,6 +69,9 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
         Assert.Superset(
             new HashSet<string>
             {
+                "GET api/settings/destinations",
+                "GET api/settings/destinations/{id:guid}",
+                "GET api/settings/destinations/client-destinations/{downloadClientId:guid}",
                 "GET api/settings/integrations",
                 "GET api/settings/integrations/adapter-types",
                 "GET api/settings/integrations/{id:guid}",

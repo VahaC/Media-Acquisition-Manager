@@ -400,6 +400,127 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `ReleaseSearchSecretsHttpTests` plants the key, the gateway's link token, the session and tracker
   passkeys wherever a feed puts them and finds none in the answers to the owner or a member, in the
   log or in the release rows outside the sealed link.
+- **The installation owner keeps download destinations — each a category the download client
+  confirms it has, never a folder — with one default for the whole installation (MAM-11,
+  ADR 0010).** `/api/settings/destinations` lists them (part of the name in any letter case, page size
+  1–100, default 25, ordered by name, then by the client's name), reads one, adds one (201 with its
+  `Location`), changes one (204) and removes one (204), and
+  `GET /api/settings/destinations/client-destinations/{downloadClientId}` lists what a download client
+  offers right now, each category checked. All of it is owner-only, the reads included, as a row
+  quotes the client's folders and the owner's path mappings. A destination is a name (up to 64
+  characters, unique per client in any letter case) and the client's own category name, stored
+  exactly as the client spells it — never trimmed or matched in another letter case, as it is what a
+  download will send — and no save path: the table has no column for one and no request carries one.
+  Adding a destination, and a change of its client or category, asks the client first: 409
+  "“qBittorrent” has no category “Movies 4K”. Create it in the client first, or pick one it has." when
+  it has no category spelled exactly so; 502 with the client's own sentence when it was asked and
+  couldn't answer (unreachable, timed out, credentials refused, a version too old, …); 409 when it
+  can't be asked at all — switched off ("“qBittorrent” is switched off. Switch it on under
+  Integrations to use it for destinations."), a type this version can't send downloads to, or a
+  stored secret it can't read. A rename or a change of the default alone saves without asking the
+  client, so it works while the client is away. A broken rule answers 400 with its sentence ("A
+  destination needs a name.", "Pick the download client this destination belongs to.", "Pick the
+  category of the download client this destination saves to.", at most 64 and 256 characters, no
+  control characters), an id that isn't a download client 404 with "The download client you picked no
+  longer exists. Reload the page and pick one again.", and a name the client's destinations already
+  have 409 ("“qBittorrent” already has a destination named “Movies”."), also to the loser of two saves
+  racing for one name. The first destination becomes the default whatever it asks; a later one only
+  with `isDefault: true`, which takes the default from the one that had it in the same transaction.
+  Un-marking or removing the default leaves none until the owner picks one, and a partial unique index
+  (`IX_DestinationMappings_OneDefault`) keeps two saves that each take it from leaving two. Adding,
+  changing and removing write the audit rows `DestinationCreated`, `DestinationUpdated` (only when
+  something changed; a default taken off another destination is part of that row) and
+  `DestinationDeleted`, with the name copied; a download job sent to a removed destination keeps its
+  name and category. One migration (`AddDestinationDefaultAndLibraryFolders`) adds the `IsDefault`
+  column and the `LibraryLocationFolders` table (see Changed).
+- **Each destination says where its category saves and whether that is inside a media library,
+  worked out when it is read and never stored (MAM-11, ADR 0003, ADR 0010).** Every read asks each
+  download client on the page once, all of them at once, and answers 200 whatever they said. A
+  destination's `check` carries the folder the client says the category saves to, the same folder in
+  the app through the client's path mappings, and the media libraries one of whose root folders holds
+  it, folder by folder, the root itself included — or a status and its sentence: `OutsideLibraries`
+  ("“/media/incoming” is outside every media library folder, so automatic replacement stays off for
+  this destination."); `PathUnknown`, when the client doesn't say where or the mappings give no app
+  path, with the mapper's reason; `LibrariesUnknown` ("The app doesn't know the media library folders
+  yet. Sync a library from the Library page, then look again.", or, when folders are stored but none
+  of them maps into the app, a sentence sending the owner to the media library's path mappings
+  instead); `CategoryMissing`; `ClientDisabled`, as a switched-off client isn't asked; and
+  `ClientUnavailable`, with the client's sentence masked of the call's secrets again. A folder that
+  only holds a library folder (`/media` above `/media/movies`) is outside it. Every status but
+  `InLibrary` will keep automatic replacement off for the destination (Phase C); it stays usable for
+  downloads. On the reference installation's samples the four qBittorrent categories land in their
+  four Jellyfin libraries (`/downloads/movies` → `/media/movies`, "Фільми"). The library root folders
+  this needs are stored by the library sync now (see Changed), and each is mapped through its own
+  Jellyfin integration's current mappings when a destination is checked. A client that fails, or
+  whose answer the app can't read, costs only its own destinations their check.
+- **qBittorrent lists its categories and the folders they save to (MAM-11, ADR 0005, ADR 0007,
+  ADR 0010).** The adapter implements the download client contract now: its capabilities (.torrent
+  files and magnet links, categories that have folders, no job id promised by a submission) and the
+  destinations. A listing reads `app/version` and refuses a qBittorrent older than 4.4.1 (see
+  Changed), reads `torrents/categories` field by field — each category's name as qBittorrent keys it
+  and its `savePath`, nothing else — and asks `app/defaultSavePath` only when some category's folder
+  sits under the default save path. It never reads `app/preferences`, which carries the Web UI's API
+  key and the proxy and mail passwords, and sends nothing but the sign-in and GETs. Each folder is
+  worked out the way qBittorrent's own source does for the version that answered: an absolute
+  `savePath` as it is, a relative one under the default save path, an empty one as the default save
+  path and the category's name — except that from 5.2 a subcategory goes under its parent category's
+  folder. From 4.5 qBittorrent lists a Windows host's network folder with `/`, so a save path that
+  starts with exactly two `/` is that UNC folder (`//nas/media/Movies` is `\\nas\media\Movies`, and a
+  5.2 subcategory without a save path of its own goes inside it); 4.4 lists a save path as it was
+  saved, where a leading `//` may be a POSIX folder too, so there it is unknown, as is a category under
+  a default save path that starts with `//`. From 4.5 no Windows host lists a backslash, so a save
+  path such as `D:\Torrents\Movies` comes from another host, where it is a relative folder under the
+  default save path whose name holds the backslashes; under a Windows default save path it is unknown. On 5.0 and 5.1 a subcategory without a save path follows
+  an option only `app/preferences` reports, so its folder is unknown, and so is the folder of a name
+  qBittorrent would rewrite on disk. A category whose name the app couldn't store or send back intact
+  (blank, over 256 characters, a control character) is left out of the list, and an answer that isn't
+  qBittorrent's categories fails the listing ("The service at this address answered, but not with
+  qBittorrent's categories."). The adapter keeps one session per saved integration in memory, for as
+  long as its address and credentials stay the same, so a page that lists destinations doesn't sign
+  in on every load. When qBittorrent has forgotten the session — it answers 403, recorded from the
+  reference installation — the adapter signs in once more and sends that one read again, once. A
+  session it refuses right after handing it out fails the call ("qBittorrent refused the session it
+  had just opened.") and is dropped, so the next call signs in. No call repeats a failed sign-in, and
+  a sign-in qBittorrent refused — the user name or password (401, or 200 `Fails.`), or the app's
+  address banned (403) — is remembered in memory for the integration, by the same fingerprint of its
+  address and credentials, so no later call sends it again while they stay the same: qBittorrent
+  counts each refused sign-in towards banning the address (five in a row by default), and every page
+  load, dialog and save lists destinations. Such a call sends nothing and answers the same status
+  with "qBittorrent refused the user name or password the last time the app signed in, so the app
+  won't try them again: each refused sign-in counts towards qBittorrent's ban of this app's address.
+  Correct them under Integrations, or test the connection there once qBittorrent accepts them." or
+  "qBittorrent had banned this app's address the last time the app signed in, so the app won't sign
+  in again on its own. Once the ban has ended (qBittorrent's Web UI options set how long), test the
+  connection under Integrations.", which the Destinations list, the dialog's categories and a save's
+  502 then show. The refusal goes once the address or credentials change, once a call signs in with
+  other ones, and once a connection test of the integration signs in with the very same ones; a test
+  of other credentials typed into the Edit dialog leaves it, as they may never be saved. A connection
+  test qBittorrent refuses is remembered the same way, but never in place of a refusal of other
+  credentials. A restart forgets it. A failure qBittorrent didn't count — unreachable, timed out, a server error, an answer
+  that isn't qBittorrent's — isn't remembered, and the next call tries again; an unsaved integration
+  keeps neither a session nor a refusal, and the connection test still signs in afresh every time
+  without asking whether its credentials were refused
+  (`QBittorrentAdapterSessionsTests.ListDestinations_twice_with_refused_credentials_signs_in_once_and_answers_the_second_from_memory`).
+  Only qBittorrent 5.2 was verified live — the samples and the answer to a forgotten session come
+  from the reference installation — and 4.4.1 to 5.1 are accepted from reading qBittorrent's source,
+  as is how a Windows host lists a network folder (with Qt's). Verified live on 2026-10-01 through the
+  app against the reference installation: the connection test signed in to qBittorrent v5.2.4, the
+  category listing answered its four categories, and the destination Movies (with the path mapping
+  `/downloads` → `/media`) saves to `/media/movies`, inside the Jellyfin library "Фільми", after a
+  live sync stored that library's folders.
+- **The Destinations settings page (MAM-11).** **Destinations** in the owner's user menu, right after
+  Integrations, lists the destinations with their client, their category and where they save — the
+  client's folder, the app's when it differs and the media libraries it lands in, or a warning badge
+  with the API's sentence — with a **Default** badge, searched and paged on the server, the page size
+  remembered per device. **Add destination** and a row's **Edit** open one dialog: a name, the
+  download client (a switched-off one marked), its categories asked from the client once one is
+  picked, the chosen one showing where it saves before anything is saved, and **Default
+  destination**. On an edit, a category the client no longer has stays choosable, marked missing, so
+  the destination can still be renamed. **Remove** asks first, and warns that no destination is the
+  default after the default is removed. Adding, changing or removing an integration refreshes the
+  destinations too, and the Integrations page's confirmation of a download client's removal says that
+  every destination using it goes with it, the default too if it is one of them, while its categories
+  stay in the client. Anyone else who opens the page's address gets the API's 403 sentence.
 
 ### Changed
 
@@ -444,6 +565,23 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   the capabilities, which now say whether the source searches by text, whether its movie search takes
   text, its result limit and which categories hold movies; a hit carries its peers, and its id may be
   missing.
+- **`IDownloadClient` carries only what MAM-11 implements (MAM-11, ADR 0005).** MAM-7 gave it every
+  Phase A member; now it has `Capabilities` and `ListDestinationsAsync`. `SubmitAsync`,
+  `ListJobsAsync` and `ListJobFilesAsync` come back with MAM-13 and MAM-14, which implement them,
+  rather than stay as members qBittorrent would have to stub until then; the records they take and
+  give stay in Core.
+- **The qBittorrent connection test refuses a qBittorrent older than 4.4.1 (MAM-11, ADR 0005).** It
+  answers `UnsupportedVersion` with "This is qBittorrent v4.3.9; the app works with qBittorrent 4.4.1
+  or later. Update qBittorrent, then test again.": 4.4.0 lists a category's folder under another name
+  (qBittorrent issue #15969), and older versions differ more. A version it can't compare is refused
+  rather than guessed, and the test still answers 200. Listing the destinations applies the same gate.
+- **A library sync stores each library's root folders (MAM-11, ADR 0008).** With each library, the
+  sync now keeps the folders Jellyfin lists for it (`LibraryLocationFolders`), in Jellyfin's order and
+  as Jellyfin reports them, in the same transaction as the rest of the snapshot, so a failed sync
+  keeps the last good one's. They are replaced on every sync rather than matched, as nothing points at
+  a folder; they go with a library the sync no longer reports, and with the integration's snapshot
+  when it is removed. Only the destination check reads them: which library holds a file is still
+  decided from the folders the sync has just read.
 
 ### Notes for upgraders
 
@@ -461,3 +599,12 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   start of the app, or **Inspect files** on the Library page; it reads every file once, which takes
   minutes on a large library, and later runs read only what changed. `AddFileInspection` rebuilds no
   table, so it logs no warning 20410.
+- **Destinations start empty, and their check needs one library sync after the upgrade (MAM-11).**
+  No earlier build wrote a destination. `AddDestinationDefaultAndLibraryFolders` adds a column and a
+  table and rebuilds none, so it logs no warning 20410. The library folders a destination is checked
+  against are stored by the next sync, so until each Jellyfin library is synced once more every
+  destination you add says **Media libraries not known yet**. After the upgrade, check that the
+  qBittorrent integration has its path mappings (`/downloads` → `/media` on the reference
+  installation), choose **Sync now** on the Library page, then add destinations under
+  **Destinations** in the user menu. A qBittorrent older than 4.4.1 now fails its connection test:
+  update it first.

@@ -95,7 +95,8 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         // a work that still holds one. A version's files go with it by the database's cascade, whatever
         // source reported them (what the app read from a file outlives its name, ADR 0009);
         // files reported under another source's version are removed explicitly; removing the libraries
-        // sets any remaining file's library null.
+        // sets any remaining file's library null and takes their root folders with them, by the database's
+        // cascade too (MAM-11).
         await db.MediaVersions.Where(ReportedBy<MediaVersionEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.PhysicalFiles.Where(ReportedBy<PhysicalFileEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.MediaWorkTitles.Where(ReportedBy<MediaWorkTitleEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
@@ -113,6 +114,16 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
     /// </summary>
     private static Expression<Func<TFact, bool>> ReportedBy<TFact>(Guid integrationId) where TFact : ProvenancedEntity =>
         fact => fact.SourceConnectionId == integrationId && fact.SourceKind == ProvenanceSourceKind.MediaLibrary;
+
+    /// <summary>
+    /// The root folders of the snapshot's libraries (MAM-11): part of their library, so found through it
+    /// rather than by a provenance of their own.
+    /// </summary>
+    private IQueryable<LibraryLocationFolderEntity> FoldersReportedBy(Guid integrationId)
+    {
+        var locations = db.LibraryLocations.Where(ReportedBy<LibraryLocationEntity>(integrationId));
+        return db.LibraryLocationFolders.Where(folder => locations.Any(location => location.Id == folder.LibraryLocationId));
+    }
 
     private IQueryable<Guid> WorksReportedBy(Guid integrationId) =>
         db.MediaWorkTitles.Where(ReportedBy<MediaWorkTitleEntity>(integrationId)).Select(title => title.MediaWorkId)
@@ -132,6 +143,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
     private async Task<ExistingSnapshot> LoadExistingAsync(Guid integrationId, CancellationToken cancellationToken) =>
         new(
             await Ordered(db.LibraryLocations.AsTracking().Where(ReportedBy<LibraryLocationEntity>(integrationId))).ToListAsync(cancellationToken),
+            await FoldersReportedBy(integrationId).AsTracking().ToListAsync(cancellationToken),
             await Ordered(db.MediaWorkTitles.AsTracking().Where(ReportedBy<MediaWorkTitleEntity>(integrationId))).ToListAsync(cancellationToken),
             await Ordered(db.MediaWorkIdentifiers.AsTracking().Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId))).ToListAsync(cancellationToken),
             await Ordered(db.MediaVersions.AsTracking().Where(ReportedBy<MediaVersionEntity>(integrationId))).ToListAsync(cancellationToken),
@@ -180,6 +192,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
     /// <summary>The rows of one integration's snapshot as they were before the sync.</summary>
     private sealed record ExistingSnapshot(
         List<LibraryLocationEntity> Locations,
+        List<LibraryLocationFolderEntity> Folders,
         List<MediaWorkTitleEntity> Titles,
         List<MediaWorkIdentifierEntity> Identifiers,
         List<MediaVersionEntity> Versions,

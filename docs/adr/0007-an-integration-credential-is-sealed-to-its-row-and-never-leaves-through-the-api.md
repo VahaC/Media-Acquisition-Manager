@@ -132,3 +132,52 @@ cleaned and cut to length (ADR 0004).
 `TorznabAdapterTests.TestConnection_masks_a_credential_the_error_description_quotes_wherever_its_address_ends`
 pin it, and `ReleaseSearchSecretsHttpTests` sweeps the search's answers, the log and the release rows
 for every planted credential.
+
+## Implementation (added 0.1.0, MAM-11)
+
+**A qBittorrent session lives between calls now, and is guarded like the password.** The listing of
+a download client's destinations keeps the session it signed in for, so a page doesn't sign in on
+every load ([ADR 0010](0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)).
+It is held in memory only, one per saved integration, beside a SHA-256 fingerprint of the address,
+user name and password, each prefixed with its length, so an edited address or credential never
+reuses it and the password itself isn't kept; an unsaved draft keeps none. Every session value a call
+sends is masked in that call's sentence, the session prints masked (`ToString`), and nothing logs it.
+A sign-in qBittorrent refused is kept beside it the same way, as its status and that fingerprint,
+never the credentials, so a later call can answer it without sending them (ADR 0010). The connection
+test still signs in afresh, never asks whether its credentials were refused and leaves the kept
+session alone; when its sign-in works with the very address and credentials refused, it forgets the
+refusal, and when qBittorrent refuses it, it keeps that refusal the same way — never in place of one
+kept for other credentials.
+
+**"Retry nothing" still holds where it was decided.** The HTTP clients still keep no cookie container
+— the adapter sends the one cookie it means to — and have no retry handler, and no call repeats a
+failed sign-in, since each refused one counts towards qBittorrent's ban. A sign-in qBittorrent
+refused — the credentials, or the app's address banned — isn't sent by a later call either while the
+address and credentials stay the same: only once they change or a connection test with them works.
+A failure qBittorrent didn't count (unreachable, timed out, a server error) isn't remembered, and the
+next call the owner's page makes tries again. The one thing sent twice is a read: qBittorrent
+answers a session it has forgotten with 403 (recorded from the reference installation,
+`VendorSamples/QBittorrent/expired-session-response.txt`), so a 403 to a kept session drops it, signs
+in once more and sends that read again, once. A 403 to a session the call has just signed in for is a
+failure, and the session is dropped. No write is ever sent again; MAM-11 sends none.
+
+**Nothing asks for more than it needs.** The listing reads the default save path from
+`app/defaultSavePath`, never from `app/preferences`, which holds it too but also carries the Web UI's
+API key (5.2) and the proxy and mail passwords — none of which the app should ever receive.
+
+`QBittorrentSessionsTests.Find_tells_apart_credentials_that_run_together_into_the_same_text`,
+`QBittorrentSessionsTests.ToString_of_a_session_shows_neither_its_cookie_nor_its_value`,
+`QBittorrentAdapterSessionsTests.ListDestinations_signs_in_again_once_the_address_or_credentials_have_changed`,
+`QBittorrentAdapterSessionsTests.ListDestinations_of_an_unsaved_draft_signs_in_for_every_call`,
+`QBittorrentAdapterSessionsTests.ListDestinations_masks_the_kept_session_and_the_password_in_its_error`
+and `QBittorrentAdapterSessionsTests.TestConnection_signs_in_afresh_and_leaves_the_kept_session_alone`
+pin the session, `QBittorrentSessionsTests.FindRefusal_once_the_address_or_credentials_have_changed_finds_nothing`,
+`QBittorrentSessionsTests.KeepRefusal_of_an_unsaved_draft_keeps_nothing` and
+`QBittorrentSessionsTests.ForgetRefusal_with_other_credentials_leaves_the_refusal_kept` the refusal
+kept beside it, `QBittorrentAdapterSessionsTests.ListDestinations_whose_renewing_sign_in_fails_does_not_sign_in_again`,
+`QBittorrentAdapterSessionsTests.ListDestinations_twice_with_refused_credentials_signs_in_once_and_answers_the_second_from_memory`
+and `QBittorrentAdapterSessionsTests.ListDestinations_whose_fresh_session_is_refused_fails_without_signing_in_again`
+what is never repeated, `IntegrationsInfrastructureExtensionsTests.A_destination_listing_logs_nothing_from_the_http_client`
+and `DestinationsListHttpTests.List_and_get_log_neither_the_address_the_password_the_session_nor_a_sentence`
+the log, and `QBittorrentAdapterDestinationsTests.ListDestinations_sends_nothing_but_the_sign_in_and_gets_and_never_a_save_path_or_the_preferences`
+the reads.

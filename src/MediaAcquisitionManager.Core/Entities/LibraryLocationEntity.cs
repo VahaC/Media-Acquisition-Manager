@@ -8,9 +8,10 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// library's own id.
 /// </summary>
 /// <remarks>
-/// No root folders: a sync decides which library holds each file
-/// (<see cref="PhysicalFileEntity.LibraryLocationId"/>) from the folders it has just read, and nothing
-/// reads them afterwards yet; MAM-11 may store them for its destination check.
+/// Its root folders are rows of their own (<see cref="LibraryLocationFolderEntity"/>, MAM-11), replaced by
+/// each sync, for the destination check. A sync decides which library holds each file
+/// (<see cref="PhysicalFileEntity.LibraryLocationId"/>) from the folders it has just read, never from the
+/// stored ones.
 /// </remarks>
 public class LibraryLocationEntity : ProvenancedEntity
 {
