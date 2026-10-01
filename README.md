@@ -586,7 +586,8 @@ and statuses. The API tests search through `FakeTorznabServer`, one or several f
 `ReleaseSearchSecretsHttpTests` plants the gateway's key, its link token, the forum session and
 tracker passkeys and checks that none reaches an answer, the log or a release row. The live search
 against the reference installation is checked through the app itself: the Toloka integration added
-under Integrations, then a search through the API.
+under Integrations, then a search through the API (16 movie releases for "Interstellar" 2014 on
+2026-10-01).
 
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable

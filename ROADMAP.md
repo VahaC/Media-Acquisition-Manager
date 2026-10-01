@@ -127,7 +127,8 @@ existing file untouched.
   (`ReleaseSearchSecretsHttpTests`;
   [ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md),
   [ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
-  The live Toloka search is checked through the app (the owner adds Toloka under Integrations).
+  The live Toloka search was verified through the app on 2026-10-01: 16 movie releases for
+  "Interstellar" 2014.
 - **MAM-11 qBittorrent and destinations:** category listing (its connection test came with
   MAM-7), magnet and `.torrent` submission, job and file monitoring, and logical destinations
   (`Movies`, `Movies 4K`) mapped to existing categories without an overriding save path.

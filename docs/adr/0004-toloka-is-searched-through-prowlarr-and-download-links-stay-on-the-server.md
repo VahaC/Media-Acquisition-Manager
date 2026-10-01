@@ -159,8 +159,11 @@ specification describes. The adapter reads both the same way ("The Torznab feed 
 (`VendorSamples/Torznab/prowlarr-wrong-key-response.txt`); the download errors above (410, 429, 500)
 are written from Prowlarr's source, since triggering them takes the owner's key.
 
-**The live search.** Pending: checked through the app, with the Toloka integration added under
-Integrations and a search through the API; its result is recorded here.
+**The live search works.** On 2026-10-01 the owner searched through the app itself — the reference
+installation's Toloka integration (Prowlarr's indexer 1, saved under Integrations) and
+`POST /api/releases/search` for "Interstellar", 2014. The source answered `Succeeded` with 16
+releases, the first "Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]": the 17
+releases of the MAM-6 sample but the audio-only one, which the movie categories leave out.
 
 `TorznabAdapterSearchTests.Search_gives_both_samples_the_same_ids_and_page_links_without_the_session`,
 `TorznabAdapterSearchLinksTests.Search_removes_the_session_from_a_page_link_and_an_id` and
