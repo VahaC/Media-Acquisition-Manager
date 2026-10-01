@@ -94,3 +94,40 @@ them, and amend this record when a decision changes.
 This keeps product names out of the core's code, not out of its knowledge: doc comments name the
 products a contract was shaped against, and the Torznab adapter speaks Torznab, not Prowlarr. It
 doesn't make a type id free to rename.
+
+## Implementation (added 0.1.0, MAM-8)
+
+**Jellyfin serves its kind.** `JellyfinAdapter` implements `IMediaLibraryProvider` (one item can
+hold several versions), so `Find<IMediaLibraryProvider>("jellyfin")` returns it while `torznab` and
+`qbittorrent` still return nothing. The library sync asks the registry by the stored type, and a
+media library integration whose type can't read a library is refused with 409 ("This version of the
+app can't read a library from “…”."), never by a product name. Kind calls get the test's
+guarantees: `HttpIntegrationAdapter.CallAsync<T>` (the Template Method, extended) maps transport
+failures and timeouts to the same statuses and sentences and masks the call's secrets, from one
+source of sentences shared with the test.
+
+**The version gate is the connection test; the contract has no member for it.** An adapter refuses
+a server version it can't read in `TestConnectionAsync`, with the new status `UnsupportedVersion`
+(the list above gains it), and a sync runs that test before asking for anything else: the owner's
+**Test** button and a sync answer with the same sentence, and the test still answers 200. Jellyfin's
+minimum is 10.9, Vasyl's choice. Only 12.1.0 was sampled live; 10.9 to 10.11 are accepted from
+reading Jellyfin's source (a user-less `/Items` with an API key, and the `MediaBrowser Token`
+header, work since 10.9). An older version gets "This is Jellyfin 10.8.13; the app reads libraries
+from Jellyfin 10.9 or later. Update Jellyfin, then test again.", and one without a leading
+`major.minor` the sentence that it can't be compared with 10.9: refused, not read through answers
+nobody has seen.
+
+**The convention test exists, for the kinds implemented so far.**
+`AdapterKindContractTests.Every_media_library_adapter_implements_the_media_library_contract`
+(Infrastructure.Tests) takes the registry the app builds and checks that every type whose
+descriptor names `MediaLibrary` implements `IMediaLibraryProvider`, and that it found at least one.
+Release search joins it with MAM-10 and download clients with MAM-11, when their contracts are
+implemented; their adapters still only test a connection.
+
+`JellyfinAdapterTests.TestConnection_of_jellyfin_before_10_9_is_an_unsupported_version`,
+`JellyfinAdapterTests.TestConnection_of_a_version_it_can_not_compare_is_an_unsupported_version` and
+`LibrarySyncFailureHttpTests.Sync_of_a_jellyfin_older_than_10_9_fails_before_asking_for_anything_else`
+pin the gate, `IntegrationsConnectionTestHttpTests.Test_is_200_with_the_adapters_status_and_message`
+its 200, and `IntegrationsInfrastructureExtensionsTests.The_registry_finds_jellyfin_and_nothing_else_as_a_media_library`
+and `LibrarySyncStartHttpTests.Start_of_a_media_library_whose_type_cant_read_a_library_is_409_with_its_sentence`
+the registry's answer.

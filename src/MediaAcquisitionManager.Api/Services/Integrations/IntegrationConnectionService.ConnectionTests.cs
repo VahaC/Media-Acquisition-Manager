@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -86,10 +87,10 @@ public sealed partial class IntegrationConnectionService
         SecretChange apiKey,
         CancellationToken cancellationToken)
     {
-        if (!TryResolveSecret(password, stored, IntegrationSecretField.Password, out var passwordValue))
-            return IntegrationTestResult.SecretUnreadable(SecretUnreadableError(stored!, IntegrationSecretField.Password));
-        if (!TryResolveSecret(apiKey, stored, IntegrationSecretField.ApiKey, out var apiKeyValue))
-            return IntegrationTestResult.SecretUnreadable(SecretUnreadableError(stored!, IntegrationSecretField.ApiKey));
+        if (!TryResolveSecret(password, stored, IntegrationSecretField.Password, out var passwordValue, out var passwordError))
+            return IntegrationTestResult.SecretUnreadable(passwordError);
+        if (!TryResolveSecret(apiKey, stored, IntegrationSecretField.ApiKey, out var apiKeyValue, out var apiKeyError))
+            return IntegrationTestResult.SecretUnreadable(apiKeyError);
 
         var settings = new IntegrationConnectionSettings(stored?.Id, baseUrl, userName, passwordValue, apiKeyValue);
         var outcome = await adapter.TestConnectionAsync(settings, cancellationToken);
@@ -104,13 +105,18 @@ public sealed partial class IntegrationConnectionService
         return IntegrationTestResult.Tested(mapper.ToResponse(outcome with { Message = message }));
     }
 
-    // Set sends the new value, Clear sends none, Keep sends the stored one — decrypted with the purpose
-    // it was sealed for, so a value copied from another row or column fails here instead of being sent
-    // to this row's server. False only for a stored value that can't be decrypted; the column is never
-    // cleared for it.
-    private bool TryResolveSecret(SecretChange change, IntegrationConnectionEntity? stored, IntegrationSecretField field, out string? secret)
+    // Set sends the new value, Clear sends none, Keep sends the stored one, opened by the settings
+    // factory — the one implementation a library sync uses too (MAM-8). False only for a stored value
+    // that can't be decrypted, with the sentence for the owner; the column is never cleared for it.
+    private bool TryResolveSecret(
+        SecretChange change,
+        IntegrationConnectionEntity? stored,
+        IntegrationSecretField field,
+        out string? secret,
+        [NotNullWhen(false)] out string? error)
     {
         secret = null;
+        error = null;
         switch (change.Mode)
         {
             case SecretUpsertMode.Set:
@@ -120,27 +126,6 @@ public sealed partial class IntegrationConnectionService
                 return true;
         }
 
-        var sealedValue = field == IntegrationSecretField.Password ? stored?.PasswordEncrypted : stored?.ApiKeyEncrypted;
-        if (stored is null || sealedValue is null)
-            return true;
-        if (encryption.TryDecrypt(sealedValue, IntegrationSecretPurpose.For(stored.Id, field), out secret))
-            return true;
-
-        // Warning, so it ships off the box: an operator must act (a changed key, a restored or edited
-        // database). Neither the value nor the key is named.
-        logger.LogWarning(
-            "The stored {SecretField} of integration {IntegrationId} could not be decrypted with the configured encryption key.",
-            SecretFieldName(field),
-            stored.Id);
-        return false;
+        return stored is null || settingsFactory.TryReadSecret(stored, field, out secret, out error);
     }
-
-    private static string SecretUnreadableError(IntegrationConnectionEntity integration, IntegrationSecretField field)
-    {
-        var secret = SecretFieldName(field);
-        return $"The stored {secret} of “{integration.Name}” can't be read with this installation's encryption key. Enter the {secret} again and save.";
-    }
-
-    private static string SecretFieldName(IntegrationSecretField field) =>
-        field == IntegrationSecretField.Password ? "password" : "API key";
 }

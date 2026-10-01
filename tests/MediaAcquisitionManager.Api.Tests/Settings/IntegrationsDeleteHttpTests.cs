@@ -3,16 +3,21 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
+using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Settings;
 
 // Removing an integration: its own settings go with it, while what it reported and the download jobs
-// sent to it stay with its name (ADR 0006), and its audit row keeps the name too.
+// sent to it stay with its name (ADR 0006), and its audit row keeps the name too — except a media
+// library's snapshot, which goes with it (MAM-8), its sync runs staying as history.
 public sealed class IntegrationsDeleteHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/integrations";
+
+    /// <summary>A second fake Jellyfin, beside the one at <see cref="FakeJellyfinServer.DefaultBaseUrl"/>.</summary>
+    private const string SecondJellyfinAddress = "http://127.0.0.2:9";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -111,37 +116,81 @@ public sealed class IntegrationsDeleteHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Fact]
-    public async Task Delete_keeps_the_facts_it_reported_with_their_source_name()
+    public async Task Delete_of_a_media_library_purges_its_snapshot_and_keeps_its_sync_runs_with_its_name()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        var library = await _integrations.Create("jellyfin", "Living room", apiKey: "stored-api-key-1234");
-        var work = await new MediaWorkSeeder(_factory.Scope).Create(library);
+        var removed = await _integrations.Create("jellyfin", "Living room", apiKey: "stored-api-key-1234");
+        var kept = await _integrations.Create("jellyfin", "Bedroom", SecondJellyfinAddress, apiKey: "stored-api-key-5678");
+        // Two servers with the same four sample movies, so the two snapshots are alike in all but their
+        // source: whatever stays after the removal can only be the other library's.
+        FakeJellyfinServer.Arm(_factory.JellyfinHttp, new FakeJellyfinServer(), new FakeJellyfinServer(SecondJellyfinAddress));
+        var snapshots = new LibrarySnapshotSeeder(_factory.Scope);
+        var removedRun = await snapshots.Sync(removed, _owner.User);
+        var keptRun = await snapshots.Sync(kept, _owner.User);
 
         //Act
-        var response = await _factory.DeleteHttpRequest($"{BaseUrl}/{library.Id}", _owner.AccessToken);
+        var response = await _factory.DeleteHttpRequest($"{BaseUrl}/{removed.Id}", _owner.AccessToken);
 
         //Assert
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         await _factory.WithDbAsync(async db =>
         {
-            Assert.Equal(work.Id, (await db.MediaWorks.SingleAsync(cancellationToken)).Id);
-            var title = await db.MediaWorkTitles.SingleAsync(cancellationToken);
-            var identifier = await db.MediaWorkIdentifiers.SingleAsync(cancellationToken);
-            var version = await db.MediaVersions.SingleAsync(cancellationToken);
-            var file = await db.PhysicalFiles.SingleAsync(cancellationToken);
-            // Who said so still reads after the integration is gone; only the link to it is cut.
+            // The other library's snapshot, whole: three works (the two "Чужі" items are one), seven
+            // titles, seven identifiers, four versions, four files and five libraries — every row its own.
+            // The removed library's works went with their facts, as nothing else held them.
+            var works = await db.MediaWorks.Select(work => work.Id).ToListAsync(cancellationToken);
+            var titles = await db.MediaWorkTitles.ToListAsync(cancellationToken);
+            var identifiers = await db.MediaWorkIdentifiers.ToListAsync(cancellationToken);
+            var versions = await db.MediaVersions.ToListAsync(cancellationToken);
+            var files = await db.PhysicalFiles.ToListAsync(cancellationToken);
+            var locations = await db.LibraryLocations.ToListAsync(cancellationToken);
+            Assert.Equal(3, works.Count);
+            Assert.Equal(works.Order(), titles.Select(title => title.MediaWorkId).Distinct().Order());
+            Assert.Equal((7, 7, 4, 4, 5), (titles.Count, identifiers.Count, versions.Count, files.Count, locations.Count));
             Assert.All(
                 [
-                    (title.SourceConnectionId, title.SourceName, title.SourceItemId),
-                    (identifier.SourceConnectionId, identifier.SourceName, identifier.SourceItemId),
-                    (version.SourceConnectionId, version.SourceName, version.SourceItemId),
+                    .. titles.Select(title => title.SourceConnectionId),
+                    .. identifiers.Select(identifier => identifier.SourceConnectionId),
+                    .. versions.Select(version => version.SourceConnectionId),
+                    .. files.Select(file => file.SourceConnectionId),
+                    .. locations.Select(location => location.SourceConnectionId),
                 ],
-                provenance => Assert.Equal((null, "Living room", MediaWorkSeeder.SourceItemId), provenance));
-            Assert.Null(file.SourceConnectionId);
-            Assert.Equal("Living room", file.SourceName);
-            Assert.Equal("Чужі", title.Text);
-            Assert.Equal("679", identifier.Value);
+                source => Assert.Equal(kept.Id, source));
+            // The runs are history: the removed library's stays, with its name and no link, and still
+            // says what it stored before the removal.
+            var removedRow = await db.LibrarySyncRuns.SingleAsync(run => run.Id == removedRun.Id, cancellationToken);
+            Assert.Null(removedRow.IntegrationConnectionId);
+            Assert.Equal("Living room", removedRow.IntegrationName);
+            Assert.Equal(LibrarySyncStatus.Succeeded, removedRow.Status);
+            Assert.Equal(3, removedRow.WorksCount);
+            Assert.Equal(kept.Id, (await db.LibrarySyncRuns.SingleAsync(run => run.Id == keptRun.Id, cancellationToken)).IntegrationConnectionId);
+        });
+    }
+
+    [Fact]
+    public async Task Delete_of_a_release_source_keeps_its_releases_with_the_source_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var search = await _integrations.Create("torznab", "Toloka", apiKey: "stored-api-key-1234");
+        var release = await new ReleaseSeeder(_factory.Scope).Create(search);
+
+        //Act
+        var response = await _factory.DeleteHttpRequest($"{BaseUrl}/{search.Id}", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            // ADR 0006 — only a library's snapshot is purged (MAM-8). What a search source listed stays:
+            // who said so still reads after the integration is gone; only the link to it is cut.
+            var row = await db.Releases.SingleAsync(cancellationToken);
+            Assert.Equal(release.Id, row.Id);
+            Assert.Null(row.SourceConnectionId);
+            Assert.Equal("Toloka", row.SourceName);
+            Assert.Equal(ProvenanceSourceKind.ReleaseSearch, row.SourceKind);
+            Assert.Equal(release.Title, row.Title);
         });
     }
 

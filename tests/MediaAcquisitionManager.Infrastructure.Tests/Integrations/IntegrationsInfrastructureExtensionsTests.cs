@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations;
@@ -132,6 +133,47 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Same(Assert.Single(adapters.OfType<JellyfinAdapter>()), registry.Find("jellyfin"));
         Assert.Same(Assert.Single(adapters.OfType<TorznabAdapter>()), registry.Find("torznab"));
         Assert.Same(Assert.Single(adapters.OfType<QBittorrentAdapter>()), registry.Find("qbittorrent"));
+    }
+
+    [Fact]
+    public void The_registry_finds_jellyfin_and_nothing_else_as_a_media_library()
+    {
+        //Arrange
+        using var services = BuildServices();
+        var registry = services.GetRequiredService<IIntegrationAdapterRegistry>();
+
+        //Act
+        var jellyfin = registry.Find<IMediaLibraryProvider>("jellyfin");
+        var torznab = registry.Find<IMediaLibraryProvider>("torznab");
+        var qBittorrent = registry.Find<IMediaLibraryProvider>("qbittorrent");
+
+        //Assert
+        // MAM-8 — the same instance the connection test uses: no second registration to forget.
+        Assert.Same(registry.Find("jellyfin"), jellyfin);
+        Assert.Null(torznab);
+        Assert.Null(qBittorrent);
+    }
+
+    [Fact]
+    public async Task A_library_call_logs_nothing_from_the_http_client()
+    {
+        //Arrange
+        // Every level recorded; the unarmed network answers 503.
+        using var harness = new IntegrationAdapterHarness();
+        var library = harness.Adapter<IMediaLibraryProvider>("jellyfin");
+        var settings = new IntegrationConnectionSettings(null, "http://service.test:8096", null, null, AnyApiKey);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        await library.ListLocationsAsync(settings, cancellationToken);
+        await library.ListItemsAsync(settings, new LibraryPageRequest(0, 50), cancellationToken);
+
+        //Assert
+        Assert.Equal(2, harness.JellyfinHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(AnyApiKey, StringComparison.Ordinal));
     }
 
     private static ServiceProvider BuildServices() =>

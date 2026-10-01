@@ -45,9 +45,11 @@ public interface IIntegrationConnectionService
     Task<IntegrationChangeResult> UpdateAsync(Guid integrationId, UpdateIntegrationRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes the integration with its path and destination mappings. What it reported and the
-    /// download jobs sent to it stay, with its name. An integration of a type this version no longer
-    /// connects to can be removed too.
+    /// Removes the integration with its path and destination mappings and, in the same transaction, the
+    /// library snapshot it imported: the titles, identifiers, versions, files and libraries it reported
+    /// and the works they leave empty (MAM-8). What any other kind of integration reported, the download
+    /// jobs sent to it and its library sync runs stay, with its name. An integration of a type this
+    /// version no longer connects to can be removed too.
     /// </summary>
     Task<IntegrationChangeResult> DeleteAsync(Guid integrationId, Guid actorUserId, CancellationToken cancellationToken = default);
 

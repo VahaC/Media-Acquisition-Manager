@@ -34,12 +34,15 @@
 }
 
 /* New in MAM-7: Users has a search box alone, Integrations adds a filter beside it. The row wraps,
-   so on a phone the filter drops under the search instead of squeezing it. */
+   so on a phone the filter drops under the search instead of squeezing it.
+   MAM-8 — `min-width: 0`: an item of the page's grid is otherwise at least as wide as its widest
+   control, and widens the whole page with it (see the filter below). */
 .settings-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
+  min-width: 0;
 }
 
 .settings-search {
@@ -47,9 +50,15 @@
 }
 
 /* New in MAM-7. `.ui-input` is a full-width text field; a filter select needs only its own width,
-   like the pager's page-size select. */
+   like the pager's page-size select.
+   MAM-8 — but never wider than the row: a select is as wide as its longest option, and the
+   Library's options are library names the owner chose. A long one would push the page past a
+   phone's screen; capped, and free to shrink (`min-width: 0`), the select cuts the name on screen
+   instead, and its open list still shows it whole. */
 .ui-input.settings-filter {
   width: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .settings-muted {

@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/AppLayout'
-import { owner, resetAuthStore, signInAs } from '@/test/auth-session'
+import { member, owner, resetAuthStore, signInAs } from '@/test/auth-session'
 
 function CrashingPage(): never {
   throw new Error('boom')
@@ -16,6 +16,7 @@ function renderAt(path: string) {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<p>Home content</p>} />
+            <Route path="library" element={<p>Library content</p>} />
             <Route path="crash" element={<CrashingPage />} />
           </Route>
         </Routes>
@@ -75,7 +76,37 @@ describe('AppLayout', () => {
       .toBeInTheDocument()
   })
 
-  it('has no user menu before anyone is signed in', () => {
+  it.each([
+    ['the installation owner', owner],
+    ['any other user', member],
+  ])('links to the Library in the header for %s, and opens it from there', async (_, signedIn) => {
+    // Arrange
+    signInAs(signedIn)
+    const user = userEvent.setup()
+    renderAt('/')
+    const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Main' })
+
+    // Act
+    await user.click(within(nav).getByRole('link', { name: 'Library' }))
+
+    // Assert
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Library'])
+    expect(within(nav).getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library')
+    expect(screen.getByText('Library content')).toBeInTheDocument()
+  })
+
+  it('marks the header link of the page on screen', () => {
+    // Arrange
+    signInAs(member)
+
+    // Act
+    renderAt('/library')
+
+    // Assert
+    expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('has no user menu or links before anyone is signed in', () => {
     // Arrange
     const path = '/'
 
@@ -84,6 +115,7 @@ describe('AppLayout', () => {
 
     // Assert
     expect(within(screen.getByRole('banner')).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).queryByRole('navigation')).not.toBeInTheDocument()
     expect(screen.getByText('Home content')).toBeInTheDocument()
   })
 })

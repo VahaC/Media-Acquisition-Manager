@@ -33,4 +33,8 @@ public enum IntegrationCallStatus
 
     /// <summary>Kind contracts only: the service has no such item or job.</summary>
     NotFound = 8,
+
+    /// <summary>It answered the way this type of service does, but in a version this app can't work
+    /// with; the message names the version and the oldest one supported (MAM-8).</summary>
+    UnsupportedVersion = 9,
 }

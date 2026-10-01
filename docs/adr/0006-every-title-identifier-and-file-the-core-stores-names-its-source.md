@@ -91,3 +91,40 @@ until their tickets.
 Provenance says who asserted a fact, not that it is true. A reported path is still never trusted for
 a write (specification §4), and two rows are the same bytes only by `(DeviceId, Inode)` the app read
 itself, never by name, size or title.
+
+## Implementation (added 0.1.0, MAM-8)
+
+**Removing a media library integration purges the snapshot it imported** (Vasyl's decision). In the
+same transaction as the removal and its audit row, `LibrarySnapshotStore.PurgeAsync` deletes the
+titles, identifiers, versions (their files by cascade, whatever source reported them — whether a
+file MAM-9's own inspection records under such a version should outlive it is MAM-9's open point),
+files and libraries that name the integration as their source *and* have the source kind
+`MediaLibrary`, then every work they leave without a title, identifier or version of any source.
+Kept with a null link, the snapshot would
+stay on the Library page for everyone with nothing left to refresh or remove it, and the same
+Jellyfin added again would import every movie a second time beside the stale copy. It is done in
+code, as the Decision said, not by a cascade: the foreign keys still set null, so what any other
+kind of source reported keeps the MAM-7 rule (a release source's releases, a download client's
+jobs, each with the name), and so do the library's sync runs, which are history with the
+integration's name copied. The Integrations page's confirmation says what goes for a media
+library.
+
+`IntegrationsDeleteHttpTests.Delete_keeps_the_facts_it_reported_with_their_source_name`, named in
+the Decision above, is gone. `IntegrationsDeleteHttpTests.Delete_of_a_media_library_purges_its_snapshot_and_keeps_its_sync_runs_with_its_name`
+removes one of two synced Jellyfin libraries and finds the other's rows whole, and
+`IntegrationsDeleteHttpTests.Delete_of_a_release_source_keeps_its_releases_with_the_source_name`
+keeps the MAM-7 rule pinned for the sources that aren't libraries.
+
+**The display rule.** A work's title on the Library page is its first display title in Ukrainian
+alphabetical order, letter case ignored (`LibraryTitleOrder`); its original title is the first
+original one, and its year comes with the chosen title, else with the original. The list is ordered
+by that same title. How titles from several sources sit beside a release stays MAM-12's.
+
+**What a library may store as a file.** A version whose media source isn't one local video file —
+a DVD or Blu-ray folder, a `.strm` link, a remote stream — is stored without a file, since a file
+row is one name of a file, not a folder or an address; a movie stacked from several files gets a
+row per part on its one version. A collection id (`TmdbCollection`) is never read as a work
+identifier. `JellyfinAdapterItemsTests.ListItems_gives_a_media_source_that_is_not_a_local_video_file_a_version_without_a_file`
+and `JellyfinAdapterItemsTests.ListItems_reads_the_imdb_and_tmdb_ids_and_never_a_collection_id`
+pin both. Which items are one work, and how the rows keep their ids across syncs, is
+[ADR 0008](0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md).

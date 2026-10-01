@@ -14,20 +14,29 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class MediaVersionEntity : ProvenancedEntity
 {
+    /// <summary>The longest <see cref="SourceVersionId"/> the column holds; an adapter never cuts an id,
+    /// it takes a longer one for none (MAM-8).</summary>
+    public const int SourceVersionIdMaximumLength = 256;
+
+    /// <summary>The longest <see cref="EditionLabel"/> the column holds; an adapter cuts a longer one
+    /// to it (MAM-8).</summary>
+    public const int EditionLabelMaximumLength = 200;
+
     /// <summary>The work; the version is removed with it.</summary>
     public Guid MediaWorkId { get; set; }
 
     /// <summary>
-    /// The source's id of this version inside its item, when one item groups several versions (a
-    /// library's media-source id); <c>null</c> when the source has no such notion.
+    /// The source's id of this version (a library's media-source id), unique across the source, not
+    /// only inside its item: a library sync keys versions by it whatever item lists them (MAM-8,
+    /// ADR 0008). <c>null</c> when the source has no such notion.
     /// </summary>
-    [MaxLength(256)]
+    [MaxLength(SourceVersionIdMaximumLength)]
     public string? SourceVersionId { get; set; }
 
     /// <summary>
     /// The edition as the source names it ("Special Edition"): a possible distinction between
     /// versions (specification §3.3), never parsed into a verdict.
     /// </summary>
-    [MaxLength(200)]
+    [MaxLength(EditionLabelMaximumLength)]
     public string? EditionLabel { get; set; }
 }

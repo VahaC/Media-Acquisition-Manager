@@ -4,11 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { integrationsApi } from '@/lib/integrations-api'
+import { qk } from '@/lib/queries'
 import type { ConnectionTestResult, CurrentUser, IntegrationList, IntegrationSummary, IntegrationsQuery } from '@/lib/types'
 import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { adapterTypes, homeJellyfin, localQbittorrent, retiredClient, toloka } from '@/test/integrations'
+import { aliens, locations, sourceOf, sourcesOf, worksPage } from '@/test/library'
 
 vi.mock('@/lib/integrations-api')
 
@@ -280,6 +282,58 @@ describe('IntegrationsPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(integrationsApi.remove).not.toHaveBeenCalled()
     expect(screen.getByText('Toloka')).toBeInTheDocument()
+  })
+
+  it('warns before removing a media library that the library it imported goes with it', async () => {
+    // Arrange
+    const { user } = renderPage()
+    await screen.findByText('Home Jellyfin')
+
+    // Act
+    await user.click(within(rowOf('Home Jellyfin')).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    const confirmation = await screen.findByRole('dialog', { name: 'Remove Home Jellyfin?' })
+    expect(confirmation).toHaveTextContent(
+      'The app forgets Home Jellyfin, its stored credentials and its path mappings, and removes the library it imported: its movies, versions and files leave the Library page for everyone. Your files and Jellyfin itself are not touched. This can\'t be undone.')
+    expect(integrationsApi.remove).not.toHaveBeenCalled()
+  })
+
+  it('says nothing about a library when removing an integration of another kind', async () => {
+    // Arrange
+    const { user } = renderPage()
+    await screen.findByText('Local qBittorrent')
+
+    // Act
+    await user.click(within(rowOf('Local qBittorrent')).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    const confirmation = await screen.findByRole('dialog', { name: 'Remove Local qBittorrent?' })
+    expect(confirmation).toHaveTextContent(
+      'The app forgets Local qBittorrent, its stored credentials and its path mappings. Nothing changes in the service itself.')
+    expect(confirmation).not.toHaveTextContent('Library page')
+  })
+
+  it('drops the cached library once an integration is removed, so the Library page loads afresh', async () => {
+    // Arrange — the Library was opened earlier in this visit, and its answers are still cached.
+    vi.mocked(integrationsApi.remove).mockResolvedValue()
+    const { client, user } = renderPage()
+    const worksQuery = { search: undefined, locationId: undefined, identifiers: undefined, page: 1, pageSize: 25 }
+    client.setQueryData(qk.library.works(worksQuery), worksPage(worksQuery, [aliens]))
+    client.setQueryData(qk.library.locations, locations)
+    client.setQueryData(qk.library.sources, sourcesOf(sourceOf({})))
+    const cachedBefore = client.getQueryCache().findAll({ queryKey: qk.library.all }).length
+    await screen.findByText('Home Jellyfin')
+    await user.click(within(rowOf('Home Jellyfin')).getByRole('button', { name: 'Remove' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Remove Home Jellyfin?' })
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    await vi.waitFor(() => expect(client.getQueryCache().findAll({ queryKey: qk.library.all })).toEqual([]))
+    expect(cachedBefore).toBe(3)
+    expect(integrationsApi.remove).toHaveBeenCalledExactlyOnceWith(homeJellyfin.id)
   })
 
   it('steps back a page after removing the only integration of the last page', async () => {

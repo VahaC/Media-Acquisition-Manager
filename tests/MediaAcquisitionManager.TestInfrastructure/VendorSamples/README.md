@@ -68,6 +68,11 @@ The four movies in `movies-page.json`:
   *collection* id as its TMDb id. Whether the server's "group movies into collections" setting or
   the missing user caused it was not checked. `collapseBoxSetItems=false` returns every movie; the
   inventory must always send it.
+- **It is the missing user, not the setting** (Jellyfin's source, read for MAM-8). Asked with an
+  API key, `/Items` runs without a user, and `Folder.CollapseBoxSetItems` reads the server's "group
+  movies into collections" setting only for a user: without one, a query for movies collapses box
+  sets whatever that setting says. So the library sync sends `collapseBoxSetItems=false` with every
+  page, and turning the setting off in Jellyfin would change nothing.
 - **Jellyfin never merged versions here.** None of the 870 movies has more than one media source;
   15 TMDb ids belong to two or more items instead. 222 movies have no TMDb id and 210 no IMDb id.
 - **Jellyfin 12** accepted the API key in `Authorization: MediaBrowser Token="…"`. By its source,

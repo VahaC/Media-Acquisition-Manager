@@ -17,6 +17,8 @@ export type IntegrationCallStatus =
   | 'ServiceError'
   | 'UnexpectedResponse'
   | 'NotFound'
+  // MAM-8 — the service answered, but in a version this app can't read (Jellyfin before 10.9).
+  | 'UnsupportedVersion'
 
 /** What a save or a draft test does with a stored secret. */
 export type SecretUpsertMode = 'Keep' | 'Set' | 'Clear'

@@ -12,6 +12,7 @@ import { queryClient } from '@/lib/query-client'
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
 const IntegrationsPage = lazy(() =>
   import('@/pages/settings/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })))
+const LibraryPage = lazy(() => import('@/pages/LibraryPage').then((m) => ({ default: m.LibraryPage })))
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })))
@@ -32,6 +33,7 @@ export default function App() {
                     visitor without one to /login, and back to the address once signed in. */}
                 <Route element={<ProtectedRoute />}>
                   <Route index element={<HomePage />} />
+                  <Route path="library" element={<LibraryPage />} />
                   <Route path="settings/integrations" element={<IntegrationsPage />} />
                   <Route path="settings/users" element={<UsersPage />} />
                   <Route path="*" element={<NotFoundPage />} />

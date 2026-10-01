@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
+using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Options;
@@ -24,6 +25,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -53,9 +55,11 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// an adapter's answer. Two more stand-ins keep the suite fast and its tests independent without
 /// faking any behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
 /// records what it verifies — see <see cref="PasswordHasher"/>), and a synthetic client address per
-/// request (see <see cref="PinClientAddress"/>). The app's own hosted
+/// request (see <see cref="PinClientAddress"/>). One save interceptor, <see cref="SaveChangesHook"/>,
+/// does nothing until a test arms it to stage a race. The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
-/// instead. Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
+/// instead — the library sync worker and reconciler through their singletons (<see cref="Resolve{T}"/>).
+/// Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
 /// <see cref="PipelineProbeApiFactory"/>).
 /// </para>
 /// </remarks>
@@ -129,6 +133,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>The network behind the qBittorrent adapter's client; 503 until armed. Reset by
     /// <see cref="ResetAsync"/>.</summary>
     public RecordingHttpHandler QBittorrentHttp { get; } = new();
+
+    /// <summary>A save interceptor on every DbContext of the host that runs a test's code before a chosen
+    /// save; does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
+    public SaveChangesHook SaveChangesHook { get; } = new();
 
     /// <summary>
     /// A DI scope for seeders and assertions, created on first use and renewed by
@@ -208,8 +216,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// Puts the factory back to a clean state; every test calls it first. Empties every table of the
     /// EF model in one batched command (a round trip per table adds up across a suite), rewinds the
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
-    /// <see cref="FakeAdapter"/> and the vendor handlers, unpins the client address and renews
-    /// <see cref="Scope"/>.
+    /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>, drains the
+    /// library sync queue (a run id a test queued but never ran would otherwise reach the next test's
+    /// worker), unpins the client address and renews <see cref="Scope"/>.
     /// Model-driven: a new entity needs no line here.
     /// </summary>
     public async Task ResetAsync()
@@ -223,6 +232,12 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         JellyfinHttp.Reset();
         TorznabHttp.Reset();
         QBittorrentHttp.Reset();
+        SaveChangesHook.Reset();
+        var libraryQueue = Services.GetRequiredService<LibrarySyncQueue>();
+        while (libraryQueue.Reader.TryRead(out _))
+        {
+        }
+
         Volatile.Write(ref _pinnedClientAddress, null);
 
         await using var scope = Services.CreateAsyncScope();
@@ -280,6 +295,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<ILoggerProvider>(Logs);
             // Beside the real adapters, not instead of them: the registry takes every one registered.
             services.AddSingleton<IIntegrationAdapter>(FakeAdapter);
+            // The app attaches every save interceptor in the container; unarmed, this one does nothing.
+            services.AddSingleton<ISaveChangesInterceptor>(SaveChangesHook);
             // Registered after the app's own client configuration, so these actions run after its
             // ConfigurePrimaryHttpMessageHandler and win; everything else about each client (timeout,
             // buffer limit, user agent, no logging handlers) stays the app's.

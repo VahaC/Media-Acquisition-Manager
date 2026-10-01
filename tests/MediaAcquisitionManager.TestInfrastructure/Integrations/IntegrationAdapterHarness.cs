@@ -68,10 +68,20 @@ public sealed class IntegrationAdapterHarness : IDisposable
     /// <summary>Every entry logged, at every level, by any category.</summary>
     public RecordingLoggerProvider Logs { get; } = new();
 
+    /// <summary>The registry the app finds adapters through, over exactly the app's registrations — for
+    /// convention tests over every registered type.</summary>
+    public IIntegrationAdapterRegistry Registry => _services.GetRequiredService<IIntegrationAdapterRegistry>();
+
     /// <summary>The registered adapter of <paramref name="typeId"/>, found the way the app finds it.</summary>
     public IIntegrationAdapter Adapter(string typeId) =>
-        _services.GetRequiredService<IIntegrationAdapterRegistry>().Find(typeId)
+        Registry.Find(typeId)
         ?? throw new InvalidOperationException($"No integration adapter is registered as “{typeId}”.");
+
+    /// <summary>The registered adapter of <paramref name="typeId"/> as the kind contract
+    /// <typeparamref name="TContract"/> (MAM-8), found the way the app finds it.</summary>
+    public TContract Adapter<TContract>(string typeId) where TContract : class =>
+        Registry.Find<TContract>(typeId)
+        ?? throw new InvalidOperationException($"No integration adapter registered as “{typeId}” implements {typeof(TContract).Name}.");
 
     public void Dispose() => _services.Dispose();
 

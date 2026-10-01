@@ -52,6 +52,45 @@
   border-radius: var(--radius-sm);
 }
 
+/* MAM-8 — the header links of the shared nav list, beside the name. It wraps inside itself, so a
+   second link later drops under the first rather than pushing the header wider than a phone. */
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.app-nav-link:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.app-nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* NavLink marks the link of the page on screen with aria-current="page"; it reads in the foreground
+   colour on a primary tint, the way a selected entry does elsewhere. */
+.app-nav-link[aria-current='page'] {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+}
+
 /* MAM-4 — the version and the user menu, kept together at the right end of the header. The auto
    margin keeps them right-aligned when a narrow phone wraps them under the name. */
 .app-header-end {

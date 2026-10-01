@@ -4,6 +4,7 @@ import confirm from './confirm.json'
 import errors from './errors.json'
 import home from './home.json'
 import integrations from './integrations.json'
+import library from './library.json'
 import notFound from './notFound.json'
 import users from './users.json'
 
@@ -12,4 +13,4 @@ import users from './users.json'
  * from, and the fallback for a key another language hasn't translated yet. Another language is a
  * sibling folder with the same files and this same object shape.
  */
-export const en = { auth, common, confirm, errors, home, integrations, notFound, users }
+export const en = { auth, common, confirm, errors, home, integrations, library, notFound, users }

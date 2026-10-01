@@ -105,7 +105,14 @@ export function IntegrationsPage() {
   const removeIntegration = async (integration: IntegrationSummary) => {
     const confirmed = await confirm({
       title: t('remove.title', { name: integration.name }),
-      message: t('remove.message', { name: integration.name }),
+      // MAM-8 — removing a media library also purges the library it imported (ADR 0006), which
+      // every user sees on the Library page; the owner is told before, not after.
+      message: integration.kind === 'MediaLibrary'
+        ? t('remove.messageLibrary', {
+          name: integration.name,
+          service: integration.adapterDisplayName ?? integration.adapterType,
+        })
+        : t('remove.message', { name: integration.name }),
       confirmLabel: t('remove.confirm'),
       destructive: true,
     })

@@ -1,16 +1,28 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Abstractions.Media;
+using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
 /// <summary>
-/// Jellyfin behind the core's contracts (Adapter, ADR 0005). MAM-7 builds the registration and the
-/// connection test; MAM-8 adds the media library contract to this class.
+/// Jellyfin behind the core's contracts (Adapter, ADR 0005): the registration and the connection test
+/// (MAM-7), and the media library contract (MAM-8). Read-only: every call is a GET, and the app never
+/// changes anything in Jellyfin.
 /// </summary>
-internal sealed class JellyfinAdapter(IHttpClientFactory httpClients) : HttpIntegrationAdapter(httpClients, HttpClientName)
+/// <remarks>
+/// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer
+/// also carries its streams, people, images and the server's paths, none of which goes further than
+/// this class.
+/// </remarks>
+internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
+    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider
 {
     /// <summary>The stored type id — part of the on-disk contract (ADR 0005).</summary>
     public const string TypeId = "jellyfin";
@@ -18,8 +30,29 @@ internal sealed class JellyfinAdapter(IHttpClientFactory httpClients) : HttpInte
     /// <summary>The named client this adapter's requests go through, so a test can swap its handler.</summary>
     public const string HttpClientName = TypeId;
 
+    /// <summary>
+    /// The most movies one page may ask for. The heaviest sample movie is about 12 KB as Jellyfin sends
+    /// it (VendorSamples, MAM-6), so 200 stay far inside the client's 4 MiB buffer
+    /// (<see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>); a bigger page could
+    /// outgrow it and fail as "far larger than anything Jellyfin sends".
+    /// </summary>
+    public const int MaximumPageSize = 200;
+
     /// <summary>The longest server name or version a sentence repeats.</summary>
     private const int RemoteValueMaximumLength = 100;
+
+    /// <summary>What a title column holds (<see cref="MediaWorkTitleEntity.Text"/>).</summary>
+    private const int TitleMaximumLength = MediaWorkTitleEntity.TextMaximumLength;
+
+    /// <summary>
+    /// Jellyfin's ids are 32 hexadecimal characters. The most is what a version id column holds
+    /// (<see cref="MediaVersionEntity.SourceVersionId"/>), the narrowest column an id read here goes to:
+    /// anything longer is not an id this app can keep.
+    /// </summary>
+    private const int IdMaximumLength = MediaVersionEntity.SourceVersionIdMaximumLength;
+
+    /// <summary>Linux's <c>PATH_MAX</c>, what a file path column holds (<see cref="PhysicalFileEntity.ServicePath"/>).</summary>
+    private const int PathMaximumLength = PhysicalFileEntity.ServicePathMaximumLength;
 
     private const string KeyRefusedError =
         "Jellyfin refused the API key. Create one in Jellyfin under Dashboard → API Keys and enter it here.";
@@ -27,11 +60,31 @@ internal sealed class JellyfinAdapter(IHttpClientFactory httpClients) : HttpInte
     private const string ForbiddenError =
         "Jellyfin accepted the key but won't show it the server's details (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
 
-    private const string NotFoundError =
-        "Jellyfin wasn't found at this address (404 Not Found for /System/Info). If Jellyfin runs under a base path, include it, for example http://192.168.1.10:8096/jellyfin.";
+    private const string LibraryForbiddenError =
+        "Jellyfin accepted the key but won't let it read the library (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
+
+    private const string PartsNotFoundError =
+        "Jellyfin no longer finds the other parts of a movie it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished.";
 
     private const string NotJellyfinError =
         "The service at this address answered, but not the way Jellyfin does. Check the address.";
+
+    private const string MovieWithoutIdError =
+        "The service at this address listed a movie without an id, which Jellyfin never does. Check the address.";
+
+    private const string PartsOfOddIdError =
+        "The service at this address listed a movie in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.";
+
+    /// <summary>
+    /// MAM-8 — the oldest Jellyfin the app reads libraries from: the owner's choice. The adapter was
+    /// sampled live against 12.1.0 only (VendorSamples); 10.9 to 10.11 are accepted from reading
+    /// Jellyfin's source (<c>ItemsController.cs</c> of v10.9.0: a user-less <c>/Items</c> with an API
+    /// key works since 10.9; <c>AuthorizationContext.cs</c>: <c>Authorization: MediaBrowser Token=</c>
+    /// is read by 10.9 and later). Their merged versions come back as separate items that each list
+    /// every source, which <c>LibraryVersionOwnership</c> resolves. An older server is refused with a
+    /// sentence rather than read through answers nobody has seen.
+    /// </summary>
+    private static readonly Version MinimumVersion = new(10, 9);
 
     /// <inheritdoc/>
     public override IntegrationAdapterDescriptor Descriptor { get; } = new(
@@ -43,6 +96,11 @@ internal sealed class JellyfinAdapter(IHttpClientFactory httpClients) : HttpInte
         ApiKey: CredentialRequirement.Required,
         ReportsFilePaths: true);
 
+    /// <inheritdoc/>
+    /// <remarks>Jellyfin can keep several versions of a movie as media sources of one item (its version
+    /// picker), each with its own id.</remarks>
+    public MediaLibraryCapabilities Capabilities { get; } = new(GroupsVersionsUnderOneItem: true);
+
     /// <summary>
     /// <c>GET /System/Info</c> with the key. Not <c>/System/Info/Public</c>: it answers without a key and
     /// so proves nothing about it.
@@ -50,24 +108,177 @@ internal sealed class JellyfinAdapter(IHttpClientFactory httpClients) : HttpInte
     protected override async Task<ConnectionTestResult> TestAsync(
         HttpClient client, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, settings.Resolve("System/Info"));
-        // The Authorization scheme Jellyfin 12 reads by default. X-Emby-Token and api_key= work only
-        // while legacy authorization is switched on, and 12 switches it off (VendorSamples README);
-        // api_key= would also put the key into every URI a proxy logs. The key rules keep the value
-        // free of quotes and backslashes, so it can't break out of the quoted string.
-        request.Headers.TryAddWithoutValidation("Authorization", $"MediaBrowser Token=\"{settings.ApiKey}\"");
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
+        using var request = CreateRequest(settings, "System/Info");
         using var response = await client.SendAsync(request, cancellationToken);
         return response.StatusCode switch
         {
             HttpStatusCode.OK => await ReadSystemInfoAsync(response, CallSecrets(settings, sessionSecrets), cancellationToken),
             HttpStatusCode.Unauthorized => ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, KeyRefusedError),
             HttpStatusCode.Forbidden => ConnectionTestResult.Failed(IntegrationCallStatus.AuthenticationFailed, ForbiddenError),
-            HttpStatusCode.NotFound => ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotFoundError),
+            HttpStatusCode.NotFound => ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotFoundError("/System/Info")),
             _ => DescribeUnexpectedStatus(response, settings, sessionSecrets),
         };
     }
+
+    /// <summary><c>GET /Library/VirtualFolders</c>: every library, its id, its name and its root folders.</summary>
+    public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(
+        IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
+        CallAsync<IReadOnlyList<LibraryLocation>>(
+            settings,
+            async (client, sessionSecrets, token) =>
+            {
+                using var request = CreateRequest(settings, "Library/VirtualFolders");
+                using var response = await client.SendAsync(request, token);
+                if (response.StatusCode != HttpStatusCode.OK)
+                    return DescribeLibraryCallStatus<IReadOnlyList<LibraryLocation>>(response, NotFoundError("/Library/VirtualFolders"), settings, sessionSecrets);
+
+                using var document = await TryReadJsonAsync(response, token);
+                return document is null
+                    ? NotJellyfin<IReadOnlyList<LibraryLocation>>()
+                    : ReadLocations(document.RootElement, CallSecrets(settings, sessionSecrets));
+            },
+            cancellationToken);
+
+    /// <summary>
+    /// <c>GET /Items</c> for one page of every movie, with its paths, media sources, provider ids and
+    /// original title, and <c>GET /Videos/{id}/AdditionalParts</c> for each movie stacked from several
+    /// files.
+    /// </summary>
+    public Task<IntegrationCallResult<LibraryItemPage>> ListItemsAsync(
+        IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        // A caller's mistake, not the service's answer: nothing is sent.
+        ArgumentOutOfRangeException.ThrowIfNegative(page.StartIndex);
+        ArgumentOutOfRangeException.ThrowIfLessThan(page.Limit, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(page.Limit, MaximumPageSize);
+
+        return CallAsync<LibraryItemPage>(
+            settings, (client, sessionSecrets, token) => ReadItemsPageAsync(client, settings, page, sessionSecrets, token), cancellationToken);
+    }
+
+    // ── requests ─────────────────────────────────────────────────────────────
+
+    /// <summary>A GET of <paramref name="relativePath"/> (which may carry a query) with the key and
+    /// JSON asked for.</summary>
+    private static HttpRequestMessage CreateRequest(IntegrationConnectionSettings settings, string relativePath)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, settings.Resolve(relativePath));
+        // The Authorization scheme Jellyfin 12 reads by default. X-Emby-Token and api_key= work only
+        // while legacy authorization is switched on, and 12 switches it off (VendorSamples README);
+        // api_key= would also put the key into every URI a proxy logs. The key rules keep the value
+        // free of quotes and backslashes, so it can't break out of the quoted string.
+        request.Headers.TryAddWithoutValidation("Authorization", $"MediaBrowser Token=\"{settings.ApiKey}\"");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return request;
+    }
+
+    private async Task<IntegrationCallResult<LibraryItemPage>> ReadItemsPageAsync(
+        HttpClient client,
+        IntegrationConnectionSettings settings,
+        LibraryPageRequest page,
+        ICollection<string> sessionSecrets,
+        CancellationToken cancellationToken)
+    {
+        // collapseBoxSetItems=false: asked with an API key there is no user, and Jellyfin then replaces
+        // the movies of a collection with one box-set item each whatever the server's setting — 670
+        // items instead of 870 in the reference library (VendorSamples README). SortName, then
+        // DateCreated: a stable order is what makes overlapping pages mean something, and the two
+        // "Чужі" items share a sort name. No images and no user data: nothing here reads them.
+        var query = string.Create(
+            CultureInfo.InvariantCulture,
+            $"Items?recursive=true&includeItemTypes=Movie&collapseBoxSetItems=false&fields=Path,MediaSources,ProviderIds,OriginalTitle&sortBy=SortName,DateCreated&sortOrder=Ascending&startIndex={page.StartIndex}&limit={page.Limit}&enableImages=false&enableUserData=false&enableTotalRecordCount=true");
+        using var request = CreateRequest(settings, query);
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.OK)
+            return DescribeLibraryCallStatus<LibraryItemPage>(response, NotFoundError("/Items"), settings, sessionSecrets);
+
+        var secrets = CallSecrets(settings, sessionSecrets);
+        var items = new List<LibraryItem>();
+        var stacked = new List<int>();
+        int totalCount;
+        using (var document = await TryReadJsonAsync(response, cancellationToken))
+        {
+            if (document?.RootElement is not { ValueKind: JsonValueKind.Object } root
+                || !TryGetCount(root, "TotalRecordCount", out totalCount)
+                || !root.TryGetProperty("Items", out var itemsElement)
+                || itemsElement.ValueKind != JsonValueKind.Array)
+                return NotJellyfin<LibraryItemPage>();
+
+            foreach (var element in itemsElement.EnumerateArray())
+            {
+                var (item, isStacked, error) = ReadItem(element, secrets);
+                if (error is not null)
+                    return IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.UnexpectedResponse, error);
+                if (isStacked)
+                    stacked.Add(items.Count);
+                items.Add(item!);
+            }
+        }
+
+        foreach (var index in stacked)
+        {
+            var parts = await ReadAdditionalPartsAsync(client, settings, items[index].SourceItemId, sessionSecrets, cancellationToken);
+            if (!parts.IsSuccess)
+                return IntegrationCallResult<LibraryItemPage>.Failed(parts.Status, parts.Error!);
+            items[index] = WithParts(items[index], parts.Value!);
+        }
+
+        return IntegrationCallResult<LibraryItemPage>.Succeeded(new LibraryItemPage(items.AsReadOnly(), totalCount));
+    }
+
+    /// <summary>
+    /// The files after the first of a movie stacked from several (<c>part1</c>, <c>cd2</c>, …): Jellyfin
+    /// lists only the first in the movie's media source, and each further part as an item of its own
+    /// that <c>/Items</c> doesn't return.
+    /// </summary>
+    private async Task<IntegrationCallResult<IReadOnlyList<LibraryFile>>> ReadAdditionalPartsAsync(
+        HttpClient client, IntegrationConnectionSettings settings, string itemId, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
+    {
+        // MAM-8 — the id goes into the path, and escaping leaves "." and ".." as they are, which the URI
+        // then resolves: a server listing a movie with the id ".." would have the keyed GET sent to
+        // {base}/AdditionalParts instead. Jellyfin's item ids are Guids, so only one that parses as a
+        // Guid is sent, in Jellyfin's own 32-hex-digit form; any other fails the page.
+        if (!Guid.TryParse(itemId, out var id))
+            return IntegrationCallResult<IReadOnlyList<LibraryFile>>.Failed(IntegrationCallStatus.UnexpectedResponse, PartsOfOddIdError);
+
+        using var request = CreateRequest(settings, string.Create(CultureInfo.InvariantCulture, $"Videos/{id:N}/AdditionalParts"));
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.OK)
+            return DescribeLibraryCallStatus<IReadOnlyList<LibraryFile>>(response, PartsNotFoundError, settings, sessionSecrets);
+
+        using var document = await TryReadJsonAsync(response, cancellationToken);
+        if (document?.RootElement is not { ValueKind: JsonValueKind.Object } root
+            || !root.TryGetProperty("Items", out var partsElement)
+            || partsElement.ValueKind != JsonValueKind.Array)
+            return NotJellyfin<IReadOnlyList<LibraryFile>>();
+
+        var files = new List<LibraryFile>();
+        foreach (var part in partsElement.EnumerateArray())
+        {
+            if (part.ValueKind == JsonValueKind.Object && FilePath(part) is { } path)
+                files.Add(new LibraryFile(path, FirstSourceSize(part)));
+        }
+
+        return IntegrationCallResult<IReadOnlyList<LibraryFile>>.Succeeded(files.AsReadOnly());
+    }
+
+    /// <summary>
+    /// A library call's own statuses: the key refused or not allowed, and a 404, whose sentence depends
+    /// on the call. Anything else is the shared sentence a connection test would get.
+    /// </summary>
+    private IntegrationCallResult<T> DescribeLibraryCallStatus<T>(
+        HttpResponseMessage response, string notFoundError, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets)
+        where T : class =>
+        response.StatusCode switch
+        {
+            HttpStatusCode.Unauthorized => IntegrationCallResult<T>.Failed(IntegrationCallStatus.AuthenticationFailed, KeyRefusedError),
+            HttpStatusCode.Forbidden => IntegrationCallResult<T>.Failed(IntegrationCallStatus.AuthenticationFailed, LibraryForbiddenError),
+            HttpStatusCode.NotFound => IntegrationCallResult<T>.Failed(IntegrationCallStatus.UnexpectedResponse, notFoundError),
+            _ => DescribeUnexpectedStatus<T>(response, settings, sessionSecrets),
+        };
+
+    // ── the connection test's answer ─────────────────────────────────────────
 
     /// <summary>
     /// Reads three named properties and nothing else (an allowlist): the body also carries the
@@ -77,53 +288,334 @@ internal sealed class JellyfinAdapter(IHttpClientFactory httpClients) : HttpInte
     private static async Task<ConnectionTestResult> ReadSystemInfoAsync(
         HttpResponseMessage response, string?[] secrets, CancellationToken cancellationToken)
     {
-        JsonDocument document;
-        try
-        {
-            await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
-            document = await JsonDocument.ParseAsync(body, cancellationToken: cancellationToken);
-        }
-        catch (JsonException)
-        {
+        using var document = await TryReadJsonAsync(response, cancellationToken);
+        if (document?.RootElement is not { ValueKind: JsonValueKind.Object } root)
             return NotJellyfin();
-        }
 
-        using (document)
+        // Checked before the version: another product that answers /System/Info (Emby does) is worth
+        // naming, whatever else its answer lacks.
+        if (root.TryGetProperty("ProductName", out var productElement) && productElement.ValueKind != JsonValueKind.Null)
         {
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
+            if (productElement.ValueKind != JsonValueKind.String)
                 return NotJellyfin();
-
-            // Checked before the version: another product that answers /System/Info (Emby does) is
-            // worth naming, whatever else its answer lacks.
-            if (root.TryGetProperty("ProductName", out var productElement) && productElement.ValueKind != JsonValueKind.Null)
-            {
-                if (productElement.ValueKind != JsonValueKind.String)
-                    return NotJellyfin();
-                var product = RemoteText.Clean(productElement.GetString(), RemoteValueMaximumLength, secrets);
-                if (product.Length == 0)
-                    return NotJellyfin();
-                if (!product.StartsWith("Jellyfin", StringComparison.OrdinalIgnoreCase))
-                    return ConnectionTestResult.Failed(
-                        IntegrationCallStatus.UnexpectedResponse, $"The service at this address is {product}, not Jellyfin.");
-            }
-
-            var version = StringProperty(root, "Version", secrets);
-            if (version.Length == 0)
+            var product = RemoteText.Clean(productElement.GetString(), RemoteValueMaximumLength, secrets);
+            if (product.Length == 0)
                 return NotJellyfin();
-
-            var serverName = StringProperty(root, "ServerName", secrets);
-            return ConnectionTestResult.Succeeded(serverName.Length > 0
-                ? $"Connected to Jellyfin {version} ({serverName})."
-                : $"Connected to Jellyfin {version}.");
+            if (!product.StartsWith("Jellyfin", StringComparison.OrdinalIgnoreCase))
+                return ConnectionTestResult.Failed(
+                    IntegrationCallStatus.UnexpectedResponse, $"The service at this address is {product}, not Jellyfin.");
         }
+
+        var version = TextProperty(root, "Version", RemoteValueMaximumLength, secrets);
+        if (version.Length == 0)
+            return NotJellyfin();
+
+        // MAM-8 — the version gate: the sync runs this test first, so an old server is refused before
+        // anything of its library is read.
+        if (DescribeUnsupportedVersion(version) is { } unsupported)
+            return ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported);
+
+        var serverName = TextProperty(root, "ServerName", RemoteValueMaximumLength, secrets);
+        return ConnectionTestResult.Succeeded(serverName.Length > 0
+            ? $"Connected to Jellyfin {version} ({serverName})."
+            : $"Connected to Jellyfin {version}.");
     }
 
-    private static string StringProperty(JsonElement root, string name, string?[] secrets) =>
-        root.TryGetProperty(name, out var element) && element.ValueKind == JsonValueKind.String
-            ? RemoteText.Clean(element.GetString(), RemoteValueMaximumLength, secrets)
+    /// <summary>
+    /// The sentence refusing <paramref name="version"/> (already cleaned), or <c>null</c> when it is
+    /// <see cref="MinimumVersion"/> or later. Only the leading <c>major.minor</c> counts, so
+    /// <c>10.9.11</c> and <c>12.1.0-rc1</c> compare; a version without one can't be compared, and is
+    /// refused rather than guessed at.
+    /// </summary>
+    private static string? DescribeUnsupportedVersion(string version)
+    {
+        var match = VersionPattern().Match(version);
+        if (!match.Success
+            || !int.TryParse(match.Groups[1].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out var major)
+            || !int.TryParse(match.Groups[2].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out var minor))
+            return $"Jellyfin reported the version “{version}”, which the app can't compare with {MinimumVersion}, the oldest version it reads libraries from.";
+
+        return new Version(major, minor) < MinimumVersion
+            ? $"This is Jellyfin {version}; the app reads libraries from Jellyfin {MinimumVersion} or later. Update Jellyfin, then test again."
+            : null;
+    }
+
+    // ── the libraries ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Each library with an id, in Jellyfin's order: its name (the id when it has none) and its root
+    /// folders exactly as Jellyfin sees them — they are compared with file paths, never shown. A second
+    /// library with an id already read is dropped.
+    /// </summary>
+    private static IntegrationCallResult<IReadOnlyList<LibraryLocation>> ReadLocations(JsonElement root, string?[] secrets)
+    {
+        if (root.ValueKind != JsonValueKind.Array)
+            return NotJellyfin<IReadOnlyList<LibraryLocation>>();
+
+        var locations = new List<LibraryLocation>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var folder in root.EnumerateArray())
+        {
+            if (folder.ValueKind != JsonValueKind.Object || IdProperty(folder, "ItemId") is not { } id || !seen.Add(id))
+                continue;
+
+            var name = TextProperty(folder, "Name", LibraryLocationEntity.NameMaximumLength, secrets);
+            List<string> paths = folder.TryGetProperty("Locations", out var pathsElement) && pathsElement.ValueKind == JsonValueKind.Array
+                ?
+                [
+                    .. pathsElement.EnumerateArray()
+                        .Where(path => path.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(path.GetString()))
+                        .Select(path => path.GetString()!),
+                ]
+                : [];
+            locations.Add(new LibraryLocation(id, name.Length > 0 ? name : id, paths.AsReadOnly()));
+        }
+
+        return IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Succeeded(locations.AsReadOnly());
+    }
+
+    // ── the movies ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// One movie of the page, or the sentence that fails the whole page: an item without an id can't be
+    /// told apart from any other, and an item that isn't a movie means the list isn't what was asked
+    /// for — neither is skipped, because a sync that silently lost an item would delete its facts.
+    /// </summary>
+    private static (LibraryItem? Item, bool IsStacked, string? Error) ReadItem(JsonElement element, string?[] secrets)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+            return (null, false, NotJellyfinError);
+        if (IdProperty(element, "Id") is not { } id)
+            return (null, false, MovieWithoutIdError);
+        if (element.TryGetProperty("Type", out var type) && type.ValueKind != JsonValueKind.Null)
+        {
+            if (type.ValueKind != JsonValueKind.String)
+                return (null, false, NotJellyfinError);
+            if (!string.Equals(type.GetString(), "Movie", StringComparison.Ordinal))
+                return (null, false, $"Jellyfin listed an item of type “{RemoteText.Clean(type.GetString(), RemoteValueMaximumLength, secrets)}” when asked for movies only, so the app can't rely on the list. Check the address.");
+        }
+
+        if (element.TryGetProperty("MediaSources", out var sources)
+            && sources.ValueKind is not (JsonValueKind.Array or JsonValueKind.Null))
+            return (null, false, NotJellyfinError);
+
+        var item = new LibraryItem(
+            id,
+            MediaWorkKind.Movie,
+            Titles(element, secrets),
+            Identifiers(element),
+            sources.ValueKind == JsonValueKind.Array ? Versions(sources, secrets) : []);
+        var partCount = element.TryGetProperty("PartCount", out var parts) && parts.ValueKind == JsonValueKind.Number && parts.TryGetInt32(out var count)
+            ? count
+            : 1;
+        // Parts belong to a version; a movie that reports none has nowhere to put them.
+        return (item, partCount > 1 && item.Versions.Count > 0, null);
+    }
+
+    /// <summary>The displayed title and the original one, each only when Jellyfin gives it, with the
+    /// production year when it is a plausible one.</summary>
+    private static List<ReportedTitle> Titles(JsonElement element, string?[] secrets)
+    {
+        int? year = element.TryGetProperty("ProductionYear", out var yearElement)
+            && yearElement.ValueKind == JsonValueKind.Number
+            && yearElement.TryGetInt32(out var value)
+            && value is >= 1 and <= 9999
+                ? value
+                : null;
+
+        var titles = new List<ReportedTitle>();
+        if (TextProperty(element, "Name", TitleMaximumLength, secrets) is { Length: > 0 } name)
+            titles.Add(new ReportedTitle(name, MediaTitleKind.Display, year));
+        if (TextProperty(element, "OriginalTitle", TitleMaximumLength, secrets) is { Length: > 0 } original)
+            titles.Add(new ReportedTitle(original, MediaTitleKind.Original, year));
+        return titles;
+    }
+
+    /// <summary>
+    /// The IMDb and TMDb ids among the provider ids, keys in any letter case, values trimmed, the first
+    /// well-formed value of each scheme. Nothing else: <c>TmdbCollection</c> names a box set, not a work,
+    /// and as a work id it would make every movie of a collection one work (ADR 0006).
+    /// </summary>
+    private static List<MediaIdentifier> Identifiers(JsonElement element)
+    {
+        if (!element.TryGetProperty("ProviderIds", out var providerIds) || providerIds.ValueKind != JsonValueKind.Object)
+            return [];
+
+        string? imdb = null;
+        string? tmdb = null;
+        foreach (var property in providerIds.EnumerateObject())
+        {
+            if (property.Value.ValueKind != JsonValueKind.String)
+                continue;
+            var value = property.Value.GetString()!.Trim();
+            if (imdb is null && string.Equals(property.Name, "Imdb", StringComparison.OrdinalIgnoreCase) && ImdbPattern().IsMatch(value))
+                imdb = value;
+            else if (tmdb is null && string.Equals(property.Name, "Tmdb", StringComparison.OrdinalIgnoreCase) && TmdbPattern().IsMatch(value))
+                tmdb = value;
+        }
+
+        var identifiers = new List<MediaIdentifier>();
+        if (imdb is not null)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Imdb, imdb));
+        if (tmdb is not null)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tmdb, tmdb));
+        return identifiers;
+    }
+
+    /// <summary>
+    /// One version per media source, the first of any two with one id. The source's name labels it only
+    /// when the movie has two or more: then it is what Jellyfin's version picker shows; alone it is just
+    /// the file name.
+    /// </summary>
+    private static List<LibraryVersion> Versions(JsonElement sources, string?[] secrets)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var kept = new List<(string? Id, JsonElement Source)>();
+        foreach (var source in sources.EnumerateArray())
+        {
+            if (source.ValueKind != JsonValueKind.Object)
+                continue;
+            var sourceId = IdProperty(source, "Id");
+            if (sourceId is null || seen.Add(sourceId))
+                kept.Add((sourceId, source));
+        }
+
+        var labelled = kept.Count >= 2;
+        return
+        [
+            .. kept.Select(entry => new LibraryVersion(
+                entry.Id,
+                labelled && TextProperty(entry.Source, "Name", MediaVersionEntity.EditionLabelMaximumLength, secrets) is { Length: > 0 } label ? label : null,
+                FileOf(entry.Source) is { } file ? [file] : [])),
+        ];
+    }
+
+    /// <summary>
+    /// The one file of a media source when it is a local video file: not streamed over another protocol
+    /// or from a remote address, not a DVD or Blu-ray folder, and not a <c>.strm</c> pointer (10.9
+    /// reports one as remote, 12.1 as the .strm file itself). A row is one name of a file (ADR 0006),
+    /// so anything else gives its version no file rather than a folder or a link.
+    /// </summary>
+    private static LibraryFile? FileOf(JsonElement source)
+    {
+        if (source.TryGetProperty("Protocol", out var protocol)
+            && protocol.ValueKind != JsonValueKind.Null
+            && !(protocol.ValueKind == JsonValueKind.String && string.Equals(protocol.GetString(), "File", StringComparison.Ordinal)))
+            return null;
+        if (source.TryGetProperty("IsRemote", out var isRemote) && isRemote.ValueKind == JsonValueKind.True)
+            return null;
+        if (source.TryGetProperty("VideoType", out var videoType)
+            && videoType.ValueKind != JsonValueKind.Null
+            && !(videoType.ValueKind == JsonValueKind.String && videoType.GetString() is "VideoFile" or "Iso"))
+            return null;
+
+        return FilePath(source) is { } path ? new LibraryFile(path, Size(source)) : null;
+    }
+
+    /// <summary>
+    /// The <c>Path</c> exactly as Jellyfin sent it — never cleaned or trimmed, because it names the file
+    /// — when it is one: not blank, not longer than a path column holds, without control characters,
+    /// and not a <c>.strm</c>.
+    /// </summary>
+    private static string? FilePath(JsonElement element)
+    {
+        if (!element.TryGetProperty("Path", out var pathElement) || pathElement.ValueKind != JsonValueKind.String)
+            return null;
+        var path = pathElement.GetString()!;
+        return string.IsNullOrWhiteSpace(path)
+            || path.Length > PathMaximumLength
+            || path.Any(char.IsControl)
+            || path.EndsWith(".strm", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : path;
+    }
+
+    /// <summary>The <c>Size</c> in bytes when it is a whole number of zero or more; otherwise unknown.</summary>
+    private static long? Size(JsonElement element) =>
+        element.TryGetProperty("Size", out var size) && size.ValueKind == JsonValueKind.Number && size.TryGetInt64(out var bytes) && bytes >= 0
+            ? bytes
+            : null;
+
+    /// <summary>A part's size, which Jellyfin gives on its first media source.</summary>
+    private static long? FirstSourceSize(JsonElement part) =>
+        part.TryGetProperty("MediaSources", out var sources) && sources.ValueKind == JsonValueKind.Array
+            && sources.EnumerateArray().FirstOrDefault() is { ValueKind: JsonValueKind.Object } first
+            ? Size(first)
+            : null;
+
+    /// <summary>
+    /// <paramref name="item"/> with <paramref name="parts"/> after the files of its own media source (the
+    /// one whose id is the item's), or of its first when none is; a path it already has is not added
+    /// twice.
+    /// </summary>
+    private static LibraryItem WithParts(LibraryItem item, IReadOnlyList<LibraryFile> parts)
+    {
+        var versions = item.Versions.ToList();
+        var index = versions.FindIndex(version => string.Equals(version.SourceVersionId, item.SourceItemId, StringComparison.Ordinal));
+        if (index < 0)
+            index = 0;
+
+        var files = versions[index].Files.ToList();
+        foreach (var part in parts)
+        {
+            if (!files.Any(file => string.Equals(file.ServicePath, part.ServicePath, StringComparison.Ordinal)))
+                files.Add(part);
+        }
+
+        versions[index] = versions[index] with { Files = files.AsReadOnly() };
+        return item with { Versions = versions.AsReadOnly() };
+    }
+
+    // ── reading helpers ──────────────────────────────────────────────────────
+
+    /// <summary>A string property as an id: verbatim, and only when it is not blank, not longer than
+    /// <see cref="IdMaximumLength"/> and free of control characters.</summary>
+    private static string? IdProperty(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var idElement) || idElement.ValueKind != JsonValueKind.String)
+            return null;
+        var id = idElement.GetString()!;
+        return string.IsNullOrWhiteSpace(id) || id.Length > IdMaximumLength || id.Any(char.IsControl) ? null : id;
+    }
+
+    /// <summary>A string property as text for a person, cleaned and cut (<see cref="RemoteText.Clean"/>);
+    /// empty when it is absent or not a string.</summary>
+    private static string TextProperty(JsonElement element, string name, int maximumLength, string?[] secrets) =>
+        element.TryGetProperty(name, out var textElement) && textElement.ValueKind == JsonValueKind.String
+            ? RemoteText.Clean(textElement.GetString(), maximumLength, secrets)
             : "";
+
+    private static bool TryGetCount(JsonElement element, string name, out int count)
+    {
+        count = 0;
+        return element.TryGetProperty(name, out var countElement)
+            && countElement.ValueKind == JsonValueKind.Number
+            && countElement.TryGetInt32(out count)
+            && count >= 0;
+    }
+
+    /// <summary>Where Jellyfin wasn't found, and what to do about a base path.</summary>
+    private static string NotFoundError(string path) =>
+        $"Jellyfin wasn't found at this address (404 Not Found for {path}). If Jellyfin runs under a base path, include it, for example http://192.168.1.10:8096/jellyfin.";
 
     private static ConnectionTestResult NotJellyfin() =>
         ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotJellyfinError);
+
+    private static IntegrationCallResult<T> NotJellyfin<T>() where T : class =>
+        IntegrationCallResult<T>.Failed(IntegrationCallStatus.UnexpectedResponse, NotJellyfinError);
+
+    /// <summary>
+    /// A version's leading <c>major.minor</c>, ASCII digits only (<c>\d</c> would take any script's).
+    /// </summary>
+    [GeneratedRegex(@"^([0-9]+)\.([0-9]+)")]
+    private static partial Regex VersionPattern();
+
+    /// <summary>An IMDb title id: <c>tt</c> and at least five digits, at most what an identifier column
+    /// holds (64). <c>\z</c> rather than <c>$</c>, which would also accept a trailing line break.</summary>
+    [GeneratedRegex(@"^tt[0-9]{5,62}\z", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ImdbPattern();
+
+    /// <summary>A TMDb movie id: digits only, 1 to 12 of them.</summary>
+    [GeneratedRegex(@"^[0-9]{1,12}\z")]
+    private static partial Regex TmdbPattern();
 }

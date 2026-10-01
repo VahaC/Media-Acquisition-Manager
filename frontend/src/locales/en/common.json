@@ -5,6 +5,12 @@
   "loading": "Loading…",
   "close": "Close",
   "cancel": "Cancel",
+  "nav": {
+    "label": "Main",
+    "library": "Library",
+    "integrations": "Integrations",
+    "users": "Users"
+  },
   "pager": {
     "label": "Pages",
     "status": "Page {{page}} of {{pages}}",

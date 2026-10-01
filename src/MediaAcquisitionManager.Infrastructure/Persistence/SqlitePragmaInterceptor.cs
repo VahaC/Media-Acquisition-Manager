@@ -1,4 +1,6 @@
 using System.Data.Common;
+using MediaAcquisitionManager.Core.Library;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace MediaAcquisitionManager.Infrastructure.Persistence;
@@ -22,6 +24,12 @@ namespace MediaAcquisitionManager.Infrastructure.Persistence;
 /// that, not this pragma, bounds how long a request waits for a stuck lock. Without the second a
 /// delete could orphan rows on a SQLite build that does not enable foreign keys by default.
 /// </para>
+/// <para>
+/// MAM-8 — the <see cref="LibraryTitleOrder.CollationName"/> collation is per connection too: the
+/// Library page orders works by title in SQL, and SQLite's own collations compare code points, which
+/// put І, Є and Ї before А. It is registered with <see cref="LibraryTitleOrder.Comparer"/>, the order
+/// the API picks a work's title by.
+/// </para>
 /// </remarks>
 internal sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
 {
@@ -40,6 +48,7 @@ internal sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
         using var command = connection.CreateCommand();
         command.CommandText = Pragmas;
         command.ExecuteNonQuery();
+        RegisterCollations(connection);
     }
 
     public override async Task ConnectionOpenedAsync(
@@ -48,5 +57,9 @@ internal sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
         await using var command = connection.CreateCommand();
         command.CommandText = Pragmas;
         await command.ExecuteNonQueryAsync(cancellationToken);
+        RegisterCollations(connection);
     }
+
+    private static void RegisterCollations(DbConnection connection) =>
+        ((SqliteConnection)connection).CreateCollation(LibraryTitleOrder.CollationName, LibraryTitleOrder.Comparer.Compare);
 }

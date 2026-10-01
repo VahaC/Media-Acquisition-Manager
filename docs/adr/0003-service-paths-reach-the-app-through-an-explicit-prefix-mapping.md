@@ -118,3 +118,38 @@ the refusal at save. `PathMappingRulesTests.Validate_with_nested_windows_service
 pins the Windows-onto-Linux refusal, and
 `PathMapperTests.Map_with_nested_windows_service_pairs_onto_posix_paths_is_ambiguous_in_another_letter_case`
 the ambiguity it prevents.
+
+## Implementation (added 0.1.0, MAM-8)
+
+**`PathMapper` has its first users, and both read it when asked.** The Library's works list maps
+every file a sync stored through the reporting integration's pairs as they are at that moment
+(`LibraryMapper`): each file comes with its `appPath`, its `pathStatus` and, without an app path,
+the `pathProblem` sentence naming its path. The sources list counts each library's files without
+an app path (`filesWithoutAppPathCount`) the same way, and gives the reason of the first. Both
+reasons go to the installation owner only, as they quote the mappings, which are the owner's
+settings; everyone else gets the status and the count. Nothing of it is stored: the design first
+kept the count on the sync run, where the first edit of the mappings would have made it disagree
+with the list. So adding or fixing Jellyfin's pairs changes the paths
+and the warning at the next read, without a new sync.
+
+**Which Jellyfin library holds a file is decided by service paths alone.** At sync time
+`LibraryLocationMatcher` compares the file's path as Jellyfin reports it with the root folders of
+Jellyfin's libraries, folder by folder; one covering library is the file's, while none or two
+(nested roots) leave it without one, never a guess. Jellyfin's server-wide path substitution
+rewrites the paths of media sources but not the libraries' roots, so such files have no library:
+they are still listed, and only the library filter leaves them out.
+
+Mounting media where Jellyfin sees it still holds, and makes every library path the identity on
+the reference installation. Where the app mounts it elsewhere, the owner adds pairs to the Jellyfin
+integration, and the Library page flags every file they don't cover. Automatic replacement, which
+needs an app path, is still Phase C's; MAM-11 is the mapper's next user.
+
+`LibraryWorksDetailsHttpTests.Works_maps_each_file_through_its_integrations_path_mappings` and
+`LibraryWorksDetailsHttpTests.Works_maps_paths_through_the_mappings_as_they_are_now` pin the read
+time mapping,
+`LibrarySourcesHttpTests.Sources_counts_files_without_an_app_path_with_the_mappings_as_they_are_now`
+and
+`LibrarySourcesHttpTests.Sources_counts_the_files_the_current_path_mappings_give_no_path_and_says_why_to_the_owner_only`
+the count and who reads its reason, and
+`LibraryLocationMatcherTests.Find_of_a_file_under_the_roots_of_two_libraries_is_null` the refusal
+to guess a library.

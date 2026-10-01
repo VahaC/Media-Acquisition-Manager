@@ -1,0 +1,271 @@
+/* MAM-8 — the Library page: what the shared sheets (settings-list.css for the page frame and states,
+   ui-primitives.css for cards and badges) don't have — the source rows of the sync panel, the work
+   cards' header, versions and files, and a warning tone for badges and lines. Imported by each
+   component that uses it. Tokens only, so dark mode needs nothing of its own. */
+
+/* ── the sources panel ── */
+
+/* The panel's content: a failed-refresh banner above the rows, spaced like the page's own. */
+.library-sources {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* A line between two sources, none above the first: the card's own border frames the list. */
+.library-source-list {
+  display: grid;
+}
+
+.library-source-list > .library-source + .library-source {
+  border-top: 1px solid var(--border);
+}
+
+/* The status lines beside Sync now while they fit; the button drops under them on a phone (below). */
+.library-source {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+}
+
+.library-source:first-child {
+  padding-top: 0;
+}
+
+.library-source:last-child {
+  padding-bottom: 0;
+}
+
+.library-source-body {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* The name, its service and its badges on one line that wraps. Not `.settings-name`: settings-list
+   pushes that one to the right on a phone, where it sits in a table cell. */
+.library-source-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.library-source[data-disabled] .settings-name-text {
+  color: var(--muted-foreground);
+}
+
+/* A failure sentence can hold an address without spaces; it breaks anywhere rather than widening
+   the card past the screen. */
+.library-source-status,
+.library-source-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The icon sits on the first line of a sentence that wraps. */
+.library-source-status svg,
+.library-source-warning svg {
+  flex-shrink: 0;
+  margin-top: 0.1875rem;
+}
+
+.library-source-status[data-status='Succeeded'] svg {
+  color: var(--status-up);
+}
+
+.library-source-status[data-status='Failed'] {
+  color: var(--destructive);
+}
+
+/* Only the icon takes the amber: the status ambers reach about 3.3:1 on the light card, short of the
+   4.5:1 WCAG AA wants for text (the HomePage status line has the same rule). */
+.library-source-warning svg {
+  color: var(--status-attention);
+}
+
+.library-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* A link inside a sentence. The reset strips every link's colour and underline, and the button-link
+   variant carries a button's height and padding, which a line of text can't take. */
+.library-link {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.library-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── the works ── */
+
+.library-works {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* A warning badge: the text stays in the foreground colour, the amber goes to the border and the
+   icon, for the same contrast reason as the warning line above. */
+.ui-badge.library-badge-warning {
+  gap: 0.25rem;
+  border-color: color-mix(in oklab, var(--status-attention) 55%, transparent);
+  background: color-mix(in oklab, var(--status-attention) 8%, transparent);
+  color: var(--foreground);
+}
+
+.library-badge-warning svg {
+  flex-shrink: 0;
+  color: var(--status-attention);
+}
+
+/* The title block and the identifier badges side by side on a wide screen; `.ui-card-header` is a
+   column, so two classes win over it whichever sheet loads first. */
+.ui-card-header.library-work-header {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.library-work-heading {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* A title without spaces (a scene name) breaks rather than widening the card. */
+.library-work-title {
+  overflow-wrap: anywhere;
+}
+
+.library-work-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.library-work-ids {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* One block per version, separated by a line like the source rows. */
+.library-versions {
+  display: grid;
+}
+
+.library-version {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.625rem 0;
+}
+
+.library-version:first-child {
+  padding-top: 0;
+}
+
+.library-version:last-child {
+  padding-bottom: 0;
+}
+
+.library-version + .library-version {
+  border-top: 1px solid var(--border);
+}
+
+.library-version-label {
+  font-weight: 600;
+}
+
+.library-file {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* Paths have few spaces and can be longer than a phone is wide: every path line breaks anywhere
+   rather than widening the card past the screen, and keeps its characters exactly as reported. */
+.library-file-name,
+.library-file-folder,
+.library-file-app-path {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.library-file-name {
+  font-weight: 500;
+}
+
+.library-file-folder,
+.library-file-app-path {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.library-file-problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  overflow-wrap: anywhere;
+}
+
+.library-file-problem svg {
+  flex-shrink: 0;
+  margin-top: 0.1875rem;
+  color: var(--status-attention);
+}
+
+.library-file-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 48rem) {
+  /* A source's lines take the full width, and Sync now goes under them. */
+  .library-source {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .library-source-actions {
+    justify-content: flex-start;
+  }
+
+  /* The badges under the title: beside it they would squeeze a long title into a narrow column. */
+  .ui-card-header.library-work-header {
+    flex-direction: column;
+  }
+
+  .library-work-ids {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  /* The icon only on a phone; the button keeps its label in title=, which also names it. */
+  .library-source-actions .label-text {
+    display: none;
+  }
+}

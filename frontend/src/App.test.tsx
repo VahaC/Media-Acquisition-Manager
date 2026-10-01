@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import App from '@/App'
 import { authApi } from '@/lib/auth-api'
 import { healthApi } from '@/lib/health-api'
+import { libraryApi } from '@/lib/library-api'
 import { queryClient } from '@/lib/query-client'
 import { setupApi } from '@/lib/setup-api'
 import { usersApi } from '@/lib/users-api'
@@ -11,6 +12,7 @@ import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 
 vi.mock('@/lib/auth-api')
 vi.mock('@/lib/health-api')
+vi.mock('@/lib/library-api')
 vi.mock('@/lib/setup-api')
 vi.mock('@/lib/users-api')
 
@@ -51,6 +53,22 @@ describe('App', () => {
     expect(screen.getByText(version)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Service status' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Signed in as vasyl' })).toBeInTheDocument()
+  })
+
+  it('opens the Library from the header link', async () => {
+    // Arrange
+    vi.mocked(libraryApi.works).mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 25 })
+    vi.mocked(libraryApi.locations).mockResolvedValue({ items: [] })
+    vi.mocked(libraryApi.sources).mockResolvedValue({ items: [] })
+    const { user } = renderAt('/')
+
+    // Act
+    await user.click(await screen.findByRole('link', { name: 'Library' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/library')
+    expect(libraryApi.works).toHaveBeenCalledOnce()
   })
 
   it('renders the not-found page for an unknown address, inside the shell', async () => {

@@ -229,6 +229,113 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("IntegrationConnections");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibraryLocationEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("LibraryLocations");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibrarySyncRunEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FilesCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FinishedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("IntegrationConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IntegrationName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ItemsRead")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ItemsTotal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByUserName")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("VersionsCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("WorksCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex(new[] { "IntegrationConnectionId", "CreatedUtc" }, "IX_LibrarySyncRuns_IntegrationConnectionId_CreatedUtc");
+
+                    b.HasIndex(new[] { "IntegrationConnectionId" }, "IX_LibrarySyncRuns_OneActiveRunPerIntegration")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('Queued', 'Running')");
+
+                    b.ToTable("LibrarySyncRuns");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaVersionEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -365,6 +472,11 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<Guid>("MediaWorkId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("NormalizedText")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("ObservedUtc")
                         .HasColumnType("TEXT");
 
@@ -446,7 +558,15 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<long?>("Inode")
                         .HasColumnType("INTEGER");
 
+                    b.Property<Guid?>("LibraryLocationId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("MediaVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedServicePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ObservedUtc")
@@ -477,6 +597,8 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LibraryLocationId");
 
                     b.HasIndex("MediaVersionId");
 
@@ -678,6 +800,27 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibraryLocationEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.LibrarySyncRunEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("IntegrationConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaVersionEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.MediaWorkEntity", null)
@@ -731,6 +874,11 @@ namespace MediaAcquisitionManager.Api.Migrations
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.PhysicalFileEntity", b =>
                 {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.LibraryLocationEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LibraryLocationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("MediaAcquisitionManager.Core.Entities.MediaVersionEntity", null)
                         .WithMany()
                         .HasForeignKey("MediaVersionId")

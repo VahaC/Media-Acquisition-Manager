@@ -45,6 +45,7 @@
   "remove": {
     "title": "Remove {{name}}?",
     "message": "The app forgets {{name}}, its stored credentials and its path mappings. Nothing changes in the service itself. This can't be undone.",
+    "messageLibrary": "The app forgets {{name}}, its stored credentials and its path mappings, and removes the library it imported: its movies, versions and files leave the Library page for everyone. Your files and {{service}} itself are not touched. This can't be undone.",
     "confirm": "Remove"
   },
   "dialog": {

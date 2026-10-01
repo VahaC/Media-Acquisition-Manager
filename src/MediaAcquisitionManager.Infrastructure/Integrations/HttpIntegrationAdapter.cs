@@ -1,24 +1,26 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations;
 
 /// <summary>
-/// The shape every HTTP adapter's connection test shares (Template Method, MAM-7): the subclass makes
-/// its calls and reads the answers; this class maps a transport failure to a fixed sentence and is
-/// the one place a test's message is finished.
+/// The shape every HTTP adapter's calls share (Template Method, MAM-7): the subclass makes its calls
+/// and reads the answers; this class maps a transport failure to a fixed sentence and is the one
+/// place a call's message is finished — the connection test's and, since MAM-8, each kind-contract
+/// call's (<see cref="CallAsync{T}"/>).
 /// </summary>
 /// <remarks>
 /// <para>
 /// Finishing a message means masking every secret of the connection, plus any session the adapter
 /// opened on the way, out of it (<see cref="SecretRedaction"/>). Doing that here rather than in each
 /// adapter means a new adapter can't forget it: whatever sentence it builds, remote text included,
-/// passes through <see cref="TestConnectionAsync"/> on its way out. Remote text is masked once more
-/// before it is cut to length (<see cref="RemoteText.Clean"/>), where a key cut in half would no
-/// longer match.
+/// passes through <see cref="TestConnectionAsync"/> or <see cref="CallAsync{T}"/> on its way out.
+/// Remote text is masked once more before it is cut to length (<see cref="RemoteText.Clean"/>), where
+/// a key cut in half would no longer match.
 /// </para>
 /// <para>
 /// An exception's text never becomes a message: <see cref="HttpRequestException"/>'s can name the
@@ -41,32 +43,15 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     /// Runs <see cref="TestAsync"/> on a client of this type, maps what it didn't answer itself, and
     /// masks every secret of the call in the message.
     /// </summary>
-    public async Task<ConnectionTestResult> TestConnectionAsync(
-        IntegrationConnectionSettings settings, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-
-        var client = httpClients.CreateClient(httpClientName);
-        var sessionSecrets = new List<string>();
-        ConnectionTestResult result;
-        try
-        {
-            result = await TestAsync(client, settings, sessionSecrets, cancellationToken);
-        }
-        catch (HttpRequestException exception)
-        {
-            result = DescribeTransportFailure(exception, settings);
-        }
-        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            // HttpClient.Timeout and the handler's ConnectTimeout surface as a cancellation nobody
-            // asked for. The caller's own cancellation (the request went away) is not caught: it is
-            // not "didn't answer in time".
-            result = DescribeTimeout(exception, client, settings);
-        }
-
-        return result with { Message = SecretRedaction.Redact(result.Message, CallSecrets(settings, sessionSecrets))! };
-    }
+    public Task<ConnectionTestResult> TestConnectionAsync(
+        IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
+        RunAsync(
+            settings,
+            (client, sessionSecrets, token) => TestAsync(client, settings, sessionSecrets, token),
+            ConnectionTestResult.Failed,
+            // Success included: its sentence repeats what the service calls itself.
+            (result, secrets) => result with { Message = SecretRedaction.Redact(result.Message, secrets)! },
+            cancellationToken);
 
     /// <summary>
     /// The adapter's own calls. A session value it obtains goes into <paramref name="sessionSecrets"/>
@@ -75,6 +60,26 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     /// </summary>
     protected abstract Task<ConnectionTestResult> TestAsync(
         HttpClient client, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A kind-contract call with the connection test's guarantees (MAM-8): runs <paramref name="call"/>
+    /// on a client of this type, answers a transport failure or a timeout with the sentence a test
+    /// would get, and masks every secret of the call in the error.
+    /// </summary>
+    /// <param name="settings">The connection.</param>
+    /// <param name="call">The adapter's calls and reading: given the client, the session secrets to
+    /// add to, and the caller's token. Transport failures and timeouts may propagate.</param>
+    /// <param name="cancellationToken">The caller's token; its cancellation propagates.</param>
+    protected Task<IntegrationCallResult<T>> CallAsync<T>(
+        IntegrationConnectionSettings settings,
+        Func<HttpClient, ICollection<string>, CancellationToken, Task<IntegrationCallResult<T>>> call,
+        CancellationToken cancellationToken) where T : class =>
+        RunAsync(
+            settings,
+            call,
+            IntegrationCallResult<T>.Failed,
+            (result, secrets) => result.Error is null ? result : result with { Error = SecretRedaction.Redact(result.Error, secrets) },
+            cancellationToken);
 
     /// <summary>
     /// Every secret of the call so far: the connection's, and each session value the adapter has put
@@ -92,24 +97,17 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     protected ConnectionTestResult DescribeUnexpectedStatus(
         HttpResponseMessage response, IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets)
     {
-        var display = Descriptor.DisplayName;
-        var status = (int)response.StatusCode;
-        if (status is >= 300 and < 400)
-        {
-            var sentence = RedirectTarget(response, settings, sessionSecrets) is { Length: > 0 } location
-                ? $"The address answered with a redirect to {location}."
-                : "The address answered with a redirect.";
-            return ConnectionTestResult.Failed(
-                IntegrationCallStatus.UnexpectedResponse,
-                $"{sentence} Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.");
-        }
+        var (status, message) = UnexpectedStatus(response, settings, sessionSecrets);
+        return ConnectionTestResult.Failed(status, message);
+    }
 
-        if (status is >= 500 and < 600)
-            return ConnectionTestResult.Failed(IntegrationCallStatus.ServiceError, $"{display} answered {StatusText(response)}. Its own log says why.");
-
-        return ConnectionTestResult.Failed(
-            IntegrationCallStatus.UnexpectedResponse,
-            $"{display} answered {StatusText(response)}, which it doesn't send for this request. Check the address.");
+    /// <summary><see cref="DescribeUnexpectedStatus"/>'s sentence as a kind-contract call's failure,
+    /// so a test and a call answer one status alike.</summary>
+    protected IntegrationCallResult<T> DescribeUnexpectedStatus<T>(
+        HttpResponseMessage response, IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets) where T : class
+    {
+        var (status, message) = UnexpectedStatus(response, settings, sessionSecrets);
+        return IntegrationCallResult<T>.Failed(status, message);
     }
 
     /// <summary>
@@ -134,26 +132,105 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     protected static async Task<string> ReadTextAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
         Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync(cancellationToken));
 
-    private ConnectionTestResult DescribeTransportFailure(HttpRequestException exception, IntegrationConnectionSettings settings)
+    /// <summary>
+    /// The body as a JSON document, or <c>null</c> when it isn't JSON — an answer the adapter reports as
+    /// not the way its service answers, never an exception. The client has already buffered the body
+    /// within its limit, so this reads memory.
+    /// </summary>
+    protected static async Task<JsonDocument?> TryReadJsonAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
+        try
+        {
+            return await JsonDocument.ParseAsync(body, cancellationToken: cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The one body of both public shapes (the test and a kind call): a client of this type, the
+    /// adapter's calls, a transport failure or timeout turned into a sentence, and the finished result
+    /// masked of every secret of the call.
+    /// </summary>
+    private async Task<TResult> RunAsync<TResult>(
+        IntegrationConnectionSettings settings,
+        Func<HttpClient, ICollection<string>, CancellationToken, Task<TResult>> call,
+        Func<IntegrationCallStatus, string, TResult> failed,
+        Func<TResult, string?[], TResult> redact,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var client = httpClients.CreateClient(httpClientName);
+        var sessionSecrets = new List<string>();
+        TResult result;
+        try
+        {
+            result = await call(client, sessionSecrets, cancellationToken);
+        }
+        catch (HttpRequestException exception)
+        {
+            var (status, message) = DescribeTransportFailure(exception, settings);
+            result = failed(status, message);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            // HttpClient.Timeout and the handler's ConnectTimeout surface as a cancellation nobody
+            // asked for. The caller's own cancellation (the request went away) is not caught: it is
+            // not "didn't answer in time".
+            var (status, message) = DescribeTimeout(exception, client, settings);
+            result = failed(status, message);
+        }
+
+        return redact(result, CallSecrets(settings, sessionSecrets));
+    }
+
+    private (IntegrationCallStatus Status, string Message) UnexpectedStatus(
+        HttpResponseMessage response, IntegrationConnectionSettings settings, IEnumerable<string> sessionSecrets)
+    {
+        var display = Descriptor.DisplayName;
+        var status = (int)response.StatusCode;
+        if (status is >= 300 and < 400)
+        {
+            var sentence = RedirectTarget(response, settings, sessionSecrets) is { Length: > 0 } location
+                ? $"The address answered with a redirect to {location}."
+                : "The address answered with a redirect.";
+            return (
+                IntegrationCallStatus.UnexpectedResponse,
+                $"{sentence} Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.");
+        }
+
+        if (status is >= 500 and < 600)
+            return (IntegrationCallStatus.ServiceError, $"{display} answered {StatusText(response)}. Its own log says why.");
+
+        return (
+            IntegrationCallStatus.UnexpectedResponse,
+            $"{display} answered {StatusText(response)}, which it doesn't send for this request. Check the address.");
+    }
+
+    private (IntegrationCallStatus Status, string Message) DescribeTransportFailure(HttpRequestException exception, IntegrationConnectionSettings settings)
     {
         var display = Descriptor.DisplayName;
         var address = settings.BaseUrl;
         return exception.HttpRequestError switch
         {
-            HttpRequestError.NameResolutionError => ConnectionTestResult.Failed(
+            HttpRequestError.NameResolutionError => (
                 IntegrationCallStatus.Unreachable,
                 $"Couldn't reach {display} at {address}: the host name can't be found."),
-            HttpRequestError.ConnectionError => ConnectionTestResult.Failed(
+            HttpRequestError.ConnectionError => (
                 IntegrationCallStatus.Unreachable,
                 $"Couldn't reach {display} at {address}: nothing accepted the connection. Check the address and port, and that {display} is running."),
-            HttpRequestError.SecureConnectionError => ConnectionTestResult.Failed(
+            HttpRequestError.SecureConnectionError => (
                 IntegrationCallStatus.Unreachable,
                 $"Couldn't reach {display} at {address}: the secure (HTTPS) connection failed, for example because its certificate isn't trusted."),
             // The answer outgrew the client's buffer limit (MaximumResponseBytes).
-            HttpRequestError.ConfigurationLimitExceeded => ConnectionTestResult.Failed(
+            HttpRequestError.ConfigurationLimitExceeded => (
                 IntegrationCallStatus.UnexpectedResponse,
                 $"The answer from {address} is far larger than anything {display} sends. Check the address."),
-            _ => ConnectionTestResult.Failed(
+            _ => (
                 IntegrationCallStatus.Unreachable,
                 $"Couldn't reach {display} at {address}: the connection failed before it answered."),
         };
@@ -161,7 +238,7 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
 
     // "0.##", not the whole seconds: the same "15 seconds" in production, and a test's 100 ms timeout
     // reads as what it is instead of "0 seconds".
-    private ConnectionTestResult DescribeTimeout(
+    private (IntegrationCallStatus Status, string Message) DescribeTimeout(
         OperationCanceledException exception, HttpClient client, IntegrationConnectionSettings settings)
     {
         var display = Descriptor.DisplayName;
@@ -172,14 +249,14 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         // was a timeout of the client's, not a refusal.
         if (exception.InnerException is TimeoutException { InnerException: null })
         {
-            return ConnectionTestResult.Failed(
+            return (
                 IntegrationCallStatus.TimedOut,
                 string.Create(
                     CultureInfo.InvariantCulture,
                     $"{display} at {settings.BaseUrl} didn't accept the connection within {IntegrationsInfrastructureExtensions.ConnectTimeout.TotalSeconds:0.##} seconds. Check the address and port, and that {display} is running."));
         }
 
-        return ConnectionTestResult.Failed(
+        return (
             IntegrationCallStatus.TimedOut,
             string.Create(
                 CultureInfo.InvariantCulture,

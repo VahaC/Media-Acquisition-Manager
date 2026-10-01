@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -32,6 +33,7 @@ public sealed class MediaWorkDataFactory(ApplicationDbContext db, TimeProvider t
         {
             MediaWorkId = workId,
             Text = text,
+            NormalizedText = LibrarySearchText.Normalize(text),
             Kind = kind,
             Year = year,
             SourceKind = ProvenanceSourceKind.MediaLibrary,

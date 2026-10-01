@@ -3,9 +3,11 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { IntegrationDialog } from '@/components/integrations/IntegrationDialog'
 import { integrationsApi } from '@/lib/integrations-api'
+import { qk } from '@/lib/queries'
 import type { IntegrationSummary } from '@/lib/types'
 import { apiError } from '@/test/api-error'
 import { adapterTypes, homeJellyfin, localQbittorrent } from '@/test/integrations'
+import { locations, sourceOf, sourcesOf } from '@/test/library'
 
 vi.mock('@/lib/integrations-api')
 
@@ -20,7 +22,7 @@ function renderDialog(integration?: IntegrationSummary) {
     </QueryClientProvider>,
   )
   const name = integration ? `Edit ${integration.name}` : 'Add integration'
-  return { onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog', { name }) }
+  return { client, onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog', { name }) }
 }
 
 /** Waits until the service types have arrived: until then nothing can be tested or saved. */
@@ -198,6 +200,32 @@ describe('IntegrationDialog', () => {
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
     expect(disabledWhileSaving).toBe(true)
     expect(closedWhileSaving).toBe(0)
+  })
+
+  it.each<[string, IntegrationSummary | undefined, string, (user: User, dialog: HTMLElement) => Promise<void>]>([
+    ['an integration is added', undefined, 'Add integration', async (user, dialog) => {
+      await pickService(user, dialog, 'jellyfin')
+      await user.type(within(dialog).getByLabelText('Name'), 'Office Jellyfin')
+    }],
+    ['an integration is saved', homeJellyfin, 'Save changes', async () => {}],
+  ])('drops the cached library once %s, so the Library page loads afresh', async (_, integration, save, fill) => {
+    // Arrange — the Library was opened earlier in this visit, and its answers are still cached.
+    vi.mocked(integrationsApi.create).mockResolvedValue(homeJellyfin)
+    vi.mocked(integrationsApi.update).mockResolvedValue()
+    const { client, dialog, onClose, user } = renderDialog(integration)
+    client.setQueryData(qk.library.locations, locations)
+    client.setQueryData(qk.library.sources, sourcesOf(sourceOf({})))
+    const cachedBefore = client.getQueryCache().findAll({ queryKey: qk.library.all }).length
+    await whenReady(dialog)
+    await fill(user, dialog)
+
+    // Act
+    await user.click(within(dialog).getByRole('button', { name: save }))
+
+    // Assert
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(cachedBefore).toBe(2)
+    expect(client.getQueryCache().findAll({ queryKey: qk.library.all })).toEqual([])
   })
 
   it('edits without sending a secret left empty', async () => {

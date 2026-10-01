@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { integrationsApi } from '../integrations-api'
 import type { CreateIntegrationRequest, IntegrationsQuery, TestIntegrationRequest, UpdateIntegrationRequest } from '../types'
 import { qk } from './keys'
@@ -39,7 +39,7 @@ export const useCreateIntegration = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: CreateIntegrationRequest) => integrationsApi.create(request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.integrations.lists }),
+    onSuccess: () => afterIntegrationChange(queryClient),
   })
 }
 
@@ -48,7 +48,7 @@ export const useUpdateIntegration = () => {
   return useMutation({
     mutationFn: ({ id, request }: { id: string; request: UpdateIntegrationRequest }) =>
       integrationsApi.update(id, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.integrations.lists }),
+    onSuccess: () => afterIntegrationChange(queryClient),
   })
 }
 
@@ -56,8 +56,20 @@ export const useDeleteIntegration = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => integrationsApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.integrations.lists }),
+    onSuccess: () => afterIntegrationChange(queryClient),
   })
+}
+
+/**
+ * After a saved change to any integration. MAM-8 — the Library is read from the media library
+ * integrations: removing one purges what it imported, and a new one, a new name, the switch or a
+ * path mapping changes the sources and the files' paths. The cached Library is dropped rather than
+ * invalidated, so the next visit starts from Loading… instead of showing a removed library until
+ * its refetch lands.
+ */
+function afterIntegrationChange(queryClient: QueryClient) {
+  queryClient.removeQueries({ queryKey: qk.library.all })
+  return queryClient.invalidateQueries({ queryKey: qk.settings.integrations.lists })
 }
 
 /** A test of a saved integration. It changes nothing, so it invalidates nothing. */

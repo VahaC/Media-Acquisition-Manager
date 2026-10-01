@@ -3,10 +3,11 @@
 # Media Acquisition Manager
 
 **Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built. Today the app is an
-API and a web shell that report their own health, with accounts and integration settings: the
-installation owner created on first run, the users the owner manages, and sign-in; the owner
-connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, and tests each connection.
-Search, downloads and library import are still to come; see [ROADMAP.md](ROADMAP.md).
+API and a web shell that report their own health, with accounts, integration settings and the
+library: the installation owner created on first run, the users the owner manages, and sign-in;
+the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each
+connection, and imports the Jellyfin library, which every signed-in user can browse. Search and
+downloads are still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -54,8 +55,21 @@ application.
   dialog, and a row's **Test** checks a saved one, each answering with a sentence that says what the
   service did. Services that report file paths take path mappings onto the app's own mounts
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
-  Credentials are stored encrypted and never shown again. Nothing uses the integrations yet: library
-  import, search and downloads build on them.
+  Credentials are stored encrypted and never shown again. Jellyfin feeds the library, and a
+  switched-off one can't be synced; search and downloads build on the other two. The Jellyfin
+  connection test refuses a Jellyfin older than 10.9, the oldest the app reads libraries from.
+- **The library.** The Library page (**Library** in the header, for every signed-in user) lists the
+  movies of the owner's Jellyfin libraries as works: items that share an IMDb or TMDb id are one
+  work with several versions, never merged by title and year. Each shows its titles, year and
+  identifiers, a warning for a missing IMDb or TMDb id, and its versions with their files, where
+  Jellyfin sees them and where the app finds them through the path mappings; what Jellyfin didn't
+  report shows as unknown. The server searches by title, original title, IMDb or TMDb id, year or
+  path, filters by Jellyfin library or by missing identifiers, and pages, with titles in Ukrainian
+  alphabetical order. The owner imports a library with **Sync now**: a background sync reads all
+  of it, in Jellyfin 10.9 or later, before it replaces anything, so a failed one changes nothing,
+  and nothing in the library or in Jellyfin is moved, renamed or changed
+  ([ADR 0008](docs/adr/0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)).
+  Removing a Jellyfin integration removes the library it imported from the app, never the files.
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -140,8 +154,9 @@ The core works with media works, versions, physical files, releases, and persist
 title, identifier, version, file and release it stores names the source that reported it
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 Adapter contracts keep it independent of any one media server, indexer, or download client. The
-first three adapters exist and, so far, only test a connection; the core's contracts for libraries,
-release search, download clients, file inventory and metadata live in Core and name no product
+first three adapters exist: Jellyfin's reads the library, and the other two, so far, only test a
+connection. The core's contracts for libraries, release search, download clients, file inventory
+and metadata live in Core and name no product
 ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
 
 | Integration type | First candidate | Planned extension examples |
@@ -196,11 +211,19 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users and Integrations
   endpoints are owner-only for reading as well. Anyone else gets 403
   `{ "error": "Only the installation owner can do this." }`, logged as a warning.
+- **The library is everyone's to read; syncing it is the owner's.** Every signed-in user reads the
+  Library's works, libraries, sources and sync runs, which carry no address or key. Starting a sync
+  is owner-only, as it sends the stored Jellyfin key to the server and replaces what everyone reads.
+  It lives outside `Controllers/Settings`, so it declares the gate itself, and
+  `LibraryWritesAreOwnerOnlyHttpTests` sends every library endpoint that isn't a GET as a non-owner
+  and expects 403. A failed sync's reason can name the service's address, a path problem quotes the
+  owner's path mappings, and who started a sync is the owner's sign-in name, so only the owner gets
+  them; everyone else gets `null`.
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete)
   and every change to an integration (add, edit, remove) write an audit row in the same transaction
   as the change: what happened, when, who did it and to whom or what, with both names copied so the
-  row outlives them. A save that changes nothing and a connection test write none. There is no
-  screen for it yet.
+  row outlives them. A save that changes nothing and a connection test write none, and neither does
+  a library sync, whose run row records who started it. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
   stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
@@ -208,11 +231,12 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   empty on an edit keeps what is stored. A stored secret that can't be read (the key changed, or the
   value was copied) fails only that integration's test, with 409 and a sentence asking to enter it
   again; it is never cleared on its own. A secret a service repeats in its answer is masked before
-  the sentence reaches the page, and none is logged: the integration HTTP clients log no request
-  URLs, because a Torznab key rides in the query. Requests that carry credentials never follow a
-  redirect (the test reports where it pointed, without its query), share no cookies and are never
-  retried. An address can't hold a user name, a password or a query. There is no guard against
-  private addresses: the services live on the owner's network, and only the owner can enter one
+  the sentence reaches the page or a failed sync's stored reason, and none is logged: the
+  integration HTTP clients log no request URLs, because a Torznab key rides in the query. Requests
+  that carry credentials never follow a redirect (the test reports where it pointed, without its
+  query), share no cookies and are never retried. An address can't hold a user name, a password or
+  a query. There is no guard against private addresses: the services live on the owner's network,
+  and only the owner can enter one
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
 - **Behind a reverse proxy.** The app takes the client's address from the connection and ignores
   `X-Forwarded-For`, which any client can write. Behind a reverse proxy that address is the proxy's,
@@ -300,9 +324,11 @@ often sees the same folders under another path (qBittorrent under `/downloads`, 
 them a second time for it: map its paths onto yours under **Integrations** → the client →
 **Path mappings** (`/downloads` → `/media`), as
 [ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)
-explains. The compose file has a commented example. The container's user (uid 10001) needs read
-access: files readable by everyone (the usual 644 and 755) need nothing more; otherwise add the
-group that owns them to the service with `group_add`.
+explains. The compose file has a commented example. If you can't mount them where Jellyfin sees
+them, give the Jellyfin integration path mappings the same way; the Library page shows any file
+they leave without a path in the app. The container's user (uid 10001) needs read access: files
+readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
+them to the service with `group_add`.
 
 ## Local development
 
@@ -404,9 +430,14 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
 | `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. |
 | `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. |
-| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings; download jobs and facts it reported keep its name. 404. |
-| `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
+| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings; a media library's imported library goes with it (its titles, identifiers, versions, files and libraries, and the works left empty), while its sync runs, the download jobs sent to it and what any other kind of integration reported keep its name. 404. |
+| `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
 | `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
+| `GET /api/library/works?search=&locationId=&identifiers=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName }] }] }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb or TMDb id, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an IMDb or a TMDb id. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id or another `identifiers` value. |
+| `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
+| `GET /api/library/sources` | 200 `{ items }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem }`, by name; `pathProblem` and each run's `requestedByUserName` and `error` only for the owner, `null` for everyone else. |
+| `POST /api/library/sources/{integrationId}/syncs` | Owner only. 202 with the queued run and its `Location`; the sync runs in the background. 404 for an unknown integration or one that isn't a media library; 409 when it is switched off, its type can't read a library, or a sync of it is under way; 503 when too many syncs are waiting. |
+| `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -479,9 +510,12 @@ throwaway SQLite database, so they never touch your `Data/` directory. Tests tag
 
 Real, sanitized answers of Jellyfin, qBittorrent, Prowlarr's Torznab feed and ffprobe are kept in
 `tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`, with a README saying where each
-came from and how it was sanitized. The adapters' connection tests run against them: the tests swap
-each integration's HTTP handler for one that answers with a sample, so no test reaches a real
-service. `VendorSamplesTests` fails the build if a sample carries a credential.
+came from and how it was sanitized. The adapters' tests run against them: the connection tests,
+and Jellyfin's library reads with variants made from the real movies (`JellyfinSamples`: merged
+versions, stacked parts, a library of any size for paging). The API tests sync libraries from
+`FakeJellyfinServer`, which answers from the same samples. The tests swap each integration's HTTP
+handler for one that answers with a sample, so no test reaches a real service.
+`VendorSamplesTests` fails the build if a sample carries a credential.
 
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
@@ -505,17 +539,19 @@ Jenkinsfile.publish                            a release, started by hand: tests
 src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
                                                and sessions, user management, integration
-                                               settings, audit trail, health checks, security
-                                               headers, EF Core migrations
+                                               settings, the library and its background sync,
+                                               audit trail, health checks, security headers, EF
+                                               Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
-                                               integrations, adapter contracts, options, rules and
-                                               path mapping; no package references
+                                               integrations, adapter contracts, options, rules,
+                                               path mapping and the library's grouping and title
+                                               order; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab and qBittorrent adapters
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
-                                               seeders, vendor samples
+                                               seeders, vendor samples, a fake Jellyfin
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/

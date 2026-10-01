@@ -1,0 +1,45 @@
+import { api } from './api'
+import type { LibraryLocationList, LibrarySourceList, LibrarySyncRun, LibraryWorkList, LibraryWorksQuery } from './types'
+
+const BASE_URL = '/api/library'
+
+/**
+ * MAM-8 — the imported library. Every signed-in user reads it; only the installation owner starts a
+ * sync, which sends the owner's stored key to the service and replaces the snapshot everyone reads.
+ * A run's `error` can name the service's address, and a path problem names the owner's mappings, so
+ * they — with a run's `requestedByUserName` and every `pathProblem`, a source's or a file's — come
+ * back to the owner only and are null for everyone else.
+ */
+export const libraryApi = {
+  /**
+   * `GET /api/library/works?search=&locationId=&identifiers=&page=&pageSize=`. One page of works,
+   * searched (titles, IMDb and TMDb ids, year, file paths; any letter case), filtered by library and
+   * by missing identifiers, and ordered by title on the server. 400 `{ error }` for a page below 1,
+   * a page size outside 1–100, a location that isn't an id or an identifiers filter other than
+   * `Missing`.
+   */
+  works: async (query: LibraryWorksQuery): Promise<LibraryWorkList> =>
+    (await api.get<LibraryWorkList>(`${BASE_URL}/works`, { params: query })).data,
+
+  /** `GET /api/library/locations`. 200 with the libraries that hold at least one file. */
+  locations: async (): Promise<LibraryLocationList> =>
+    (await api.get<LibraryLocationList>(`${BASE_URL}/locations`)).data,
+
+  /**
+   * `GET /api/library/sources`. 200 with every media library integration, its latest run, its last
+   * successful one and how many of its files the current path mappings give no path in this app.
+   * `signal` cancels the request: React Query's, so a poll it cancels rejects instead of answering.
+   */
+  sources: async (signal?: AbortSignal): Promise<LibrarySourceList> =>
+    (await api.get<LibrarySourceList>(`${BASE_URL}/sources`, { signal })).data,
+
+  /**
+   * `POST /api/library/sources/{integrationId}/syncs`, owner-only. 202 with the queued run; the sync
+   * itself runs in the background, and `sources` shows how it goes. 403 `{ error }` for anyone but
+   * the owner; a bare 404 when the integration is gone or isn't a media library; 409 `{ error }`
+   * when it is switched off, this version can't read its type, or a sync of it is already under
+   * way; 503 `{ error }` when too many syncs are waiting.
+   */
+  startSync: async (integrationId: string): Promise<LibrarySyncRun> =>
+    (await api.post<LibrarySyncRun>(`${BASE_URL}/sources/${integrationId}/syncs`)).data,
+}

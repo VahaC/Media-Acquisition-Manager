@@ -34,6 +34,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<PhysicalFileEntity> PhysicalFiles => Set<PhysicalFileEntity>();
 
+    public DbSet<LibraryLocationEntity> LibraryLocations => Set<LibraryLocationEntity>();
+
+    public DbSet<LibrarySyncRunEntity> LibrarySyncRuns => Set<LibrarySyncRunEntity>();
+
     public DbSet<ReleaseEntity> Releases => Set<ReleaseEntity>();
 
     public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
@@ -176,6 +180,38 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<MediaVersionEntity>().WithMany()
                 .HasForeignKey(x => x.MediaVersionId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // MAM-8 — SetNull: a location that disappears leaves the file known, just without a
+            // library; the next sync decides its location again.
+            e.HasOne<LibraryLocationEntity>().WithMany()
+                .HasForeignKey(x => x.LibraryLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LibraryLocationEntity>(e =>
+        {
+            ConfigureProvenance(e);
+        });
+
+        modelBuilder.Entity<LibrarySyncRunEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            // MAM-8 — one active run per integration. The service answers 409 first; this settles two
+            // starts racing each other, and a finished run never blocks the next one. Partial, so the
+            // history of finished runs can hold any number per integration. Named, like the index
+            // below, because both lead with the same column.
+            e.HasIndex(x => x.IntegrationConnectionId, "IX_LibrarySyncRuns_OneActiveRunPerIntegration")
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Queued', 'Running')");
+            // "The latest run of each integration", which the Library page asks for on every poll.
+            e.HasIndex(x => new { x.IntegrationConnectionId, x.CreatedUtc }, "IX_LibrarySyncRuns_IntegrationConnectionId_CreatedUtc");
+            // SetNull: a run is history and outlives the integration; IntegrationName keeps which one.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.IntegrationConnectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // SetNull: the run outlives the user who started it; RequestedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ReleaseEntity>(e =>
@@ -216,7 +252,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         // it. Leading with SourceConnectionId, so it also serves the foreign key.
         e.HasIndex(x => new { x.SourceConnectionId, x.SourceItemId });
         // MAM-7 — SetNull: a fact outlives the integration that reported it; SourceName keeps who
-        // that was. Whether a removed library's facts are purged is MAM-8's decision, not a cascade.
+        // that was. MAM-8 decided that a removed library's snapshot is purged, in code by the
+        // integration delete (ADR 0006), not by a cascade: every other fact keeps this SetNull.
         e.HasOne<IntegrationConnectionEntity>().WithMany()
             .HasForeignKey(x => x.SourceConnectionId)
             .OnDelete(DeleteBehavior.SetNull);

@@ -1,4 +1,4 @@
-import type { IntegrationsQuery, UsersQuery } from '../types'
+import type { IntegrationsQuery, LibraryWorksQuery, UsersQuery } from '../types'
 
 /**
  * Every query key in the app. Hierarchical arrays that mirror the URL, so a prefix invalidates a
@@ -10,6 +10,16 @@ export const qk = {
   },
   setup: {
     status: ['setup', 'status'] as const,
+  },
+  library: {
+    /** The works, the library filter and the sources: what a change to an integration drops. */
+    all: ['library'] as const,
+    /** Every page and filter of the works: what a finished sync invalidates. */
+    worksAll: ['library', 'works'] as const,
+    /** The whole query object is part of the key, so each page and filter is cached apart. */
+    works: (query: LibraryWorksQuery) => ['library', 'works', query] as const,
+    locations: ['library', 'locations'] as const,
+    sources: ['library', 'sources'] as const,
   },
   settings: {
     users: {

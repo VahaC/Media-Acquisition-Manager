@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Library;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -12,6 +13,11 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class PhysicalFileEntity : ProvenancedEntity
 {
+    /// <summary>Linux's <c>PATH_MAX</c>: the longest <see cref="ServicePath"/> and
+    /// <see cref="NormalizedServicePath"/> hold; an adapter never cuts a path, it takes a longer one for
+    /// none (MAM-8).</summary>
+    public const int ServicePathMaximumLength = 4096;
+
     /// <summary>
     /// The version; forgetting a version forgets the names reported for it — never a file on disk.
     /// </summary>
@@ -25,8 +31,23 @@ public class PhysicalFileEntity : ProvenancedEntity
     /// integration's current mappings when it is needed, so an edited mapping can't leave stale paths
     /// behind — and a mapped path is only where to look, not proof of identity (ADR 0003).
     /// </remarks>
-    [Required, MaxLength(4096)]
+    [Required, MaxLength(ServicePathMaximumLength)]
     public string ServicePath { get; set; } = default!;
+
+    /// <summary>
+    /// <see cref="LibrarySearchText.Normalize"/> of <see cref="ServicePath"/>, so the library search
+    /// finds a folder name in any letter case, Cyrillic included (MAM-8).
+    /// </summary>
+    [Required, MaxLength(ServicePathMaximumLength)]
+    public string NormalizedServicePath { get; set; } = default!;
+
+    /// <summary>
+    /// The library location of the reporting source that holds the file
+    /// (<see cref="LibraryLocationMatcher"/>, MAM-8); <c>null</c> when none or several cover it, or the
+    /// source isn't a library. Decided when the source reports the file; a location that disappears
+    /// leaves the file known, just without a library.
+    /// </summary>
+    public Guid? LibraryLocationId { get; set; }
 
     /// <summary>The size in bytes as reported; <c>null</c> when unknown.</summary>
     public long? SizeBytes { get; set; }

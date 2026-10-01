@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
+using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
@@ -23,6 +24,8 @@ public sealed partial class IntegrationConnectionService(
     ApplicationDbContext db,
     IIntegrationAdapterRegistry adapters,
     IEncryptionService encryption,
+    IIntegrationSettingsFactory settingsFactory,
+    ILibrarySnapshotStore librarySnapshots,
     IAuditTrail auditTrail,
     IIntegrationMapper mapper,
     TimeProvider time,
@@ -101,8 +104,8 @@ public sealed partial class IntegrationConnectionService(
 
     public async Task<IntegrationChangeResult> CreateAsync(CreateIntegrationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        // MAM-7 §E.3 order: type, name, address, user name, secrets, credentials, path mappings, then
-        // whether the name is free — one sentence per answer, the first rule broken.
+        // MAM-7 — checked in this order: type, name, address, user name, secrets, credentials, path
+        // mappings, then whether the name is free — one sentence per answer, the first rule broken.
         var (adapter, adapterError) = FindRequestedAdapter(request.AdapterType);
         if (adapter is null)
             return IntegrationChangeResult.Invalid(adapterError!);
@@ -257,11 +260,20 @@ public sealed partial class IntegrationConnectionService(
             return IntegrationChangeResult.NotFound;
 
         var actor = await ActorAsync(actorUserId, cancellationToken);
+        // MAM-8 — one transaction for the purge and the removal: a library whose snapshot is gone but
+        // whose row stayed (or the other way round) would be a state nobody asked for. Disposed without
+        // a commit, it rolls both back.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // A library's snapshot goes with it (ADR 0006, MAM-8): the titles, identifiers, versions, files
+        // and libraries it reported, and the works left with nothing. Only its own: every other
+        // integration's facts, and anything a non-library source said, stay.
+        await librarySnapshots.PurgeAsync(integration.Id, cancellationToken);
         // The audit row copies the name: it has to say what was removed after the row is gone.
         auditTrail.Record(AuditAction.IntegrationDeleted, actor, AuditTarget.Integration(integration));
         // A tracked delete rather than ExecuteDelete, so it commits in the same save as its audit row.
         // The database does the rest (ADR 0006): the path and destination mappings cascade; the facts
-        // it reported and the download jobs sent to it stay, their link set to null and its name kept.
+        // a non-library source reported, the download jobs sent to it and its library sync runs stay,
+        // their link set to null and its name kept.
         db.IntegrationConnections.Remove(integration);
 
         try
@@ -271,11 +283,12 @@ public sealed partial class IntegrationConnectionService(
         catch (DbUpdateConcurrencyException)
         {
             // Removed by another request since it was read (a double click): gone either way, and that
-            // request recorded it. Nothing of this one was saved.
+            // request recorded it. Nothing of this one was saved; the transaction rolls back unused.
             db.ChangeTracker.Clear();
             return IntegrationChangeResult.NotFound;
         }
 
+        await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("{ActorUserName} removed the integration {IntegrationName}.", actor.UserName, integration.Name);
         return IntegrationChangeResult.Succeeded();
     }
@@ -298,7 +311,7 @@ public sealed partial class IntegrationConnectionService(
             : (null, $"“{Echo(typeId, AdapterTypeEchoLength)}” is not a service this app can connect to.");
     }
 
-    // The rules a save and a draft test share, in the §E.3 order: the address, the user name, each
+    // The rules a save and a draft test share, in CreateAsync's order: the address, the user name, each
     // secret change, then the credentials the changes leave — on the effective state, so a kept secret
     // counts as there when the stored row has one.
     private static string? ValidateConnection(

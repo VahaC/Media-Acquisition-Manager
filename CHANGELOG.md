@@ -240,3 +240,100 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   audit rows `IntegrationCreated`, `IntegrationUpdated` (only when something changed) and
   `IntegrationDeleted` with its name copied; a connection test writes none. The paging rules of the
   Users and Integrations lists are shared (`PagingRules`).
+- **The installation owner imports the Jellyfin library, and a sync replaces that library's
+  snapshot only after reading all of it (MAM-8, ADR 0008).**
+  `POST /api/library/sources/{integrationId}/syncs` answers 202 with the queued run and its
+  `Location` (`/api/library/syncs/{runId}`), and the sync runs in the background (Queue/Worker: a
+  run row, a queue of 64, one worker taking the runs one at a time, and a reconciler that fails every
+  run still queued or running at startup with "The app restarted before this sync finished. Start it
+  again."). The start is owner-only; it lives outside `Controllers/Settings`, so it declares
+  `[RequireInstallationOwner]`, and `LibraryWritesAreOwnerOnlyHttpTests` sends every library
+  endpoint that isn't a GET as a non-owner and expects 403. An unknown integration, or one that isn't
+  a media library, is a bare 404; a switched-off one, a type this version can't read a library from,
+  or a sync already under way is 409 with its sentence — two starts racing queue one run, as a
+  partial unique index (`IX_LibrarySyncRuns_OneActiveRunPerIntegration`) allows one active run per
+  integration — and a full queue is 503, its run kept as failed. A sync tests the connection first
+  (the version gate, see Changed), then reads Jellyfin's libraries (`/Library/VirtualFolders`) and
+  every movie in pages of 50 that overlap by one (`/Items` with `collapseBoxSetItems=false`, and
+  `/Videos/{id}/AdditionalParts` for a movie stacked from several files), with GET requests only. A
+  total that changes between pages, a short page before the end, a boundary movie that moved, or
+  fewer different movies than listed fails the run ("…its library changed while it was being read.
+  Nothing was changed here…"), and a failure of any kind stores nothing. Only then, in one
+  transaction with the run's success and counts, the library's rows are replaced. Its items are
+  grouped into works per library, by IMDb and TMDb id only: items linked by shared ids are one work,
+  and a group with two values of one scheme splits by its maximal identifier sets, never by title
+  and year. A version is its media source, so merged versions that Jellyfin 10.9 to 10.11 list
+  under every item of the group are stored once. Rows are found again by their provenance keys, so
+  a work, a version or a file keeps its id and first-seen time across syncs, and an upgraded file
+  under a new Jellyfin item id keeps its work through its ids; what the library no longer reports is
+  deleted, and so are the works it leaves empty. A sync never puts its facts on a work another
+  source holds. Every end state of a run is a conditional write on a run still under way, never
+  cancelled; a failure's sentence is masked of the key again, cut to 1000 characters, and logged as
+  a Warning with its status only. The adapter reads Jellyfin's answers field by field: the
+  displayed and original title with the year, the IMDb and TMDb ids (never a collection id), each
+  media source as a version with its path exactly as sent and its size, an edition label only when
+  an item has two or more sources, and a file only for a local video file — a DVD or Blu-ray
+  folder, a `.strm` link or a remote source gives a version without one. An item that isn't a movie,
+  or has no id, fails the page instead of being skipped. One migration (`AddLibraryInventory`) adds
+  the `LibraryLocations` and `LibrarySyncRuns` tables, the library of each file and the search
+  columns below.
+- **The Library page lists every movie the media libraries reported, searched, filtered and paged by
+  the server (MAM-8).** **Library** in the header opens it for every signed-in user; the header's
+  links and the user menu's entries now come from one list (`lib/nav-items.ts`).
+  `GET /api/library/works` pages the works (page size 1–100, default 25) by title in Ukrainian
+  alphabetical order, letter case ignored, with Latin titles after the Cyrillic ones: a
+  `LIBRARY_TITLE` collation comparing with the `uk` culture is registered on every SQLite
+  connection, and falls back to the invariant culture where ICU is missing. `search` finds part of
+  a title or an original title in any letter case (upper-cased copies in `NormalizedText` and
+  `NormalizedServicePath`, as SQLite folds only ASCII letters; `%` and `_` are taken literally),
+  part of an IMDb or TMDb id, a year, or part of a file path. `locationId` keeps the works with a
+  file in that Jellyfin library, `identifiers=Missing` those lacking an IMDb or a TMDb id, and a
+  filter that is neither answers 400 with its sentence. Each work has its title, original title and
+  year (`null`, shown as unknown, when the library gave none), its identifiers with their source,
+  the schemes it lacks, and its versions with their files: the path as the service reported it, the
+  path in the app worked out through the integration's current path mappings when the list is
+  read and never stored (`PathMapper`'s first user, ADR 0003), how it mapped and, without an app
+  path, why. `GET /api/library/locations` lists the Jellyfin libraries that hold a file,
+  `GET /api/library/sources` every media library integration with its latest and last successful
+  run and the number of its files the current mappings give no app path, and
+  `GET /api/library/syncs/{runId}` one run (bare 404 when there is none). A run's error can name the
+  service's address, a source's or a file's path problem quotes the owner's path mappings, and who
+  started a run is the owner's sign-in name, so only the owner gets them; everyone else gets `null`,
+  and the page says the owner can see why. The page polls the sources every 2 seconds
+  while a sync is under way and refreshes the works once it succeeds. Each movie is a card with its
+  identifier badges, a warning badge per missing id, and its versions and files; the sync panel
+  shows each library's progress or outcome, the last successful sync after a failure, a warning
+  when files have no app path, and **Sync now**, disabled with its reason for anyone but the owner,
+  for a switched-off integration, for a type that can't be read and while a sync is under way.
+
+### Changed
+
+- **Removing a media library integration removes the library it imported (MAM-8, ADR 0006).**
+  MAM-7 kept everything an integration had reported, with its name. Now
+  `DELETE /api/settings/integrations/{id}` also deletes, in the same transaction as the removal and
+  its audit row, the titles, identifiers, versions, files and libraries the integration reported as
+  a media library, and the works they leave empty. What any other kind of source reported, the
+  download jobs sent to it and the library's sync runs stay, with its name. The Integrations page
+  says so in the confirmation of a media library's removal.
+  `IntegrationsDeleteHttpTests.Delete_keeps_the_facts_it_reported_with_their_source_name` gave way
+  to `Delete_of_a_media_library_purges_its_snapshot_and_keeps_its_sync_runs_with_its_name` and
+  `Delete_of_a_release_source_keeps_its_releases_with_the_source_name`.
+- **The Jellyfin connection test refuses a Jellyfin older than 10.9 (MAM-8, ADR 0005).** It answers
+  the new status `UnsupportedVersion` with "This is Jellyfin 10.8.13; the app reads libraries from
+  Jellyfin 10.9 or later. Update Jellyfin, then test again.", and a version without a leading
+  `major.minor` is refused as one it can't compare; the test still answers 200. A sync runs the same
+  test first, so it never reads from an older server.
+- **The Use this integration switch is read now (MAM-8).** MAM-7 kept it, but nothing read it. A
+  switched-off media library can't be synced (409, and a run queued before the switch fails), while
+  the library it imported last stays listed.
+
+### Notes for upgraders
+
+- **Applying `AddLibraryInventory` logs EF Core warning 20410 once, and it is harmless.** On the
+  first start with this change, on a fresh installation as on an existing one, the log shows
+  `Microsoft.EntityFrameworkCore.Migrations[20410]`: the operation `PRAGMA foreign_keys = 0` of
+  `AddLibraryInventory` cannot be executed in a transaction. Giving each file its library's foreign
+  key makes SQLite rebuild the `PhysicalFiles` table, and EF Core switches foreign keys off for the
+  rebuild outside the migration's transaction, so a process killed at that moment could leave the
+  migration half applied. Nothing can be lost to it: no earlier build writes a row to
+  `PhysicalFiles`, so the table rebuilt is empty everywhere. There is nothing to do.

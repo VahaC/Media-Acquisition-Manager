@@ -186,7 +186,7 @@ public sealed class IntegrationAdapterRegistryTests
             Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
     }
 
-    /// <summary>A type that also serves the library contract, as MAM-8's adapter will.</summary>
+    /// <summary>A type that also serves the library contract, as JellyfinAdapter does since MAM-8.</summary>
     private sealed class LibraryAdapter(IntegrationAdapterDescriptor descriptor) : IIntegrationAdapter, IMediaLibraryProvider
     {
         public IntegrationAdapterDescriptor Descriptor => descriptor;

@@ -231,7 +231,8 @@ public sealed class IntegrationsConnectionTestHttpTests : IClassFixture<MediaAcq
         //Assert
         // A Warning ships off the box: an operator must act on a changed key or an edited database.
         var entry = Assert.Single(_factory.Logs.Entries, entry => entry.Level == LogLevel.Warning);
-        Assert.Equal(typeof(IntegrationConnectionService).FullName, entry.Category);
+        // MAM-8 — logged by the one place a stored secret is opened, for a test and a library sync alike.
+        Assert.Equal(typeof(IntegrationSettingsFactory).FullName, entry.Category);
         Assert.Equal(
             $"The stored API key of integration {integration.Id} could not be decrypted with the configured encryption key.",
             entry.Message);

@@ -91,6 +91,89 @@ public sealed class JellyfinAdapterTests : IDisposable
         Assert.Equal("Connected to Jellyfin 12.1.0.", result.Message);
     }
 
+    [Theory]
+    [InlineData("10.9.0")]
+    [InlineData("10.9")]
+    [InlineData("10.10.7")]
+    [InlineData("11.0.0-rc1")]
+    [InlineData("12.1.0")]
+    public async Task TestConnection_of_jellyfin_10_9_or_later_succeeds(string version)
+    {
+        //Arrange
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Text(
+            $$"""{"Version":"{{version}}","ProductName":"Jellyfin Server","ServerName":"VahaC media"}""", HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Equal($"Connected to Jellyfin {version} (VahaC media).", result.Message);
+    }
+
+    [Theory]
+    [InlineData("10.8.13")]
+    [InlineData("10.8")]
+    [InlineData("10.0.0")]
+    [InlineData("4.8.10.0")]
+    public async Task TestConnection_of_jellyfin_before_10_9_is_an_unsupported_version(string version)
+    {
+        //Arrange
+        // MAM-8 — the owner's minimum: a sync runs this test first, so nothing is read from it.
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Text(
+            $$"""{"Version":"{{version}}","ProductName":"Jellyfin Server","ServerName":"VahaC media"}""", HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
+        Assert.Equal(
+            $"This is Jellyfin {version}; the app reads libraries from Jellyfin 10.9 or later. Update Jellyfin, then test again.",
+            result.Message);
+    }
+
+    [Theory]
+    [InlineData("banana")]
+    [InlineData("10")]
+    [InlineData("v10.9.0")]
+    [InlineData("１０.９.０")]
+    [InlineData("99999999999.1")]
+    public async Task TestConnection_of_a_version_it_can_not_compare_is_an_unsupported_version(string version)
+    {
+        //Arrange
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Text(
+            $$"""{"Version":"{{version}}","ProductName":"Jellyfin Server"}""", HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        // Refused rather than guessed at: nobody has seen what such a server answers.
+        Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
+        Assert.Equal(
+            $"Jellyfin reported the version “{version}”, which the app can't compare with 10.9, the oldest version it reads libraries from.",
+            result.Message);
+    }
+
+    [Theory]
+    [InlineData("10.8.0-" + ApiKey, "This is Jellyfin 10.8.0-***; the app reads libraries from Jellyfin 10.9 or later. Update Jellyfin, then test again.")]
+    [InlineData(ApiKey, "Jellyfin reported the version “***”, which the app can't compare with 10.9, the oldest version it reads libraries from.")]
+    public async Task TestConnection_masks_a_key_the_refused_version_carries(string version, string expectedMessage)
+    {
+        //Arrange
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Text(
+            $$"""{"Version":"{{version}}","ProductName":"Jellyfin Server"}""", HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
+        Assert.Equal(expectedMessage, result.Message);
+        Assert.DoesNotContain(ApiKey, result.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task TestConnection_gets_system_info_with_the_media_browser_token_header()
     {

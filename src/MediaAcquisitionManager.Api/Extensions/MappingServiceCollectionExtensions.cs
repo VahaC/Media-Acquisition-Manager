@@ -9,6 +9,7 @@ public static class MappingServiceCollectionExtensions
     {
         services.AddSingleton<IUserMapper, UserMapper>();
         services.AddSingleton<IIntegrationMapper, IntegrationMapper>();
+        services.AddSingleton<ILibraryMapper, LibraryMapper>();
         return services;
     }
 }

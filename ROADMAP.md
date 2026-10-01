@@ -2,8 +2,8 @@
 
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
 localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
-environment facts) and MAM-7 (the core model and integration settings) are built; no phase has
-shipped yet.
+environment facts), MAM-7 (the core model and integration settings) and MAM-8 (the Jellyfin
+library inventory) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -80,12 +80,24 @@ existing file untouched.
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
   Path mappings are stored per integration and resolved folder by folder, never by a guess
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
-  The adapters only test a connection so far; MAM-8, MAM-10 and MAM-11 add their library, search
-  and download contracts.
-- **MAM-8 Jellyfin inventory:** paginated library listing with IDs and their sources, versions,
-  file paths and state snapshots; items in nested `Collection` folders work without being moved.
-  Movies are listed with collection grouping switched off: with it on, Jellyfin shows a collection
-  in place of its movies (670 items instead of 870 on the reference installation).
+  MAM-7's adapters only tested a connection; MAM-8 added the library contract to Jellyfin's, and
+  MAM-10 and MAM-11 add the search and download contracts.
+- **MAM-8 Jellyfin inventory** (built): the owner syncs a Jellyfin library (10.9 or later) from the
+  Library page in the background (202 + run row + reconciler), reading its libraries and every
+  movie in pages that overlap by one, each asking for collection grouping off
+  (`collapseBoxSetItems=false`: asked with an API key, Jellyfin otherwise shows a collection in
+  place of its movies whatever its own setting, 670 items instead of 870 on the reference
+  installation). The sync replaces that library's snapshot only after reading all of it, so a
+  failure or a library changing mid-read stores nothing; items become works per library by IMDb and
+  TMDb id only, versions keep their media source, and ids stay stable across syncs
+  ([ADR 0008](docs/adr/0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)).
+  Every signed-in user browses the works with their versions, file paths and the paths the app
+  finds them at through the mappings, missing identifiers flagged and unknown values shown as
+  unknown, searched, filtered (by Jellyfin library, by missing identifiers) and paged by the
+  server. Items in nested `Collection` folders are found where they are, without being moved
+  (`LibraryAcceptanceHttpTests` against the samples). Removing a Jellyfin integration removes the
+  library it imported, not the files
+  ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 - **MAM-9 ffprobe inspection** of local files under configured media roots: resolution, codecs,
   audio and subtitle tracks, duration and HDR, shown as unknown when not available.
 - **MAM-10 Torznab search:** one Torznab provider with per-indexer configuration; Toloka tested
@@ -102,8 +114,9 @@ existing file untouched.
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
-  the accounts, sessions, integrations and audit trail too, and `.secrets/`, whose encryption key
-  alone opens the stored credentials); copy it while the app is stopped. A secret set through
+  the accounts, sessions, integrations, audit trail, imported library and its sync runs too, and
+  `.secrets/`, whose encryption key alone opens the stored credentials); copy it while the app is
+  stopped. A lost library snapshot comes back with the next sync. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.
 

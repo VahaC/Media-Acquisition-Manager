@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ChevronDown, CircleUser, LogOut, Plug, Users } from 'lucide-react'
+import { ChevronDown, CircleUser, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { navItemsFor } from '@/lib/nav-items'
 import { useSignOut } from '@/lib/queries'
 import type { CurrentUser } from '@/lib/types'
 import '@/styles/user-menu.css' // .user-menu* — the trigger and the popup's placement under it
@@ -16,7 +17,7 @@ import '@/styles/user-menu.css' // .user-menu* — the trigger and the popup's p
  * anywhere outside and the focus moving out of it close it.
  */
 export function UserMenu({ user }: { user: CurrentUser }) {
-  const { t } = useTranslation('auth')
+  const { t } = useTranslation(['auth', 'common'])
   const signOut = useSignOut()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -79,19 +80,14 @@ export function UserMenu({ user }: { user: CurrentUser }) {
       </Button>
       {open && (
         <div id={popupId} className="ui-menu user-menu-popup">
-          {/* Owner-only: the pages would only answer every other user with a 403. */}
-          {user.isOwner && (
-            <>
-              <Link to="/settings/integrations" className="ui-menu-item" onClick={() => setOpen(false)}>
-                <Plug className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('menu.integrations')}
-              </Link>
-              <Link to="/settings/users" className="ui-menu-item" onClick={() => setOpen(false)}>
-                <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('menu.users')}
-              </Link>
-            </>
-          )}
+          {/* MAM-8 — the menu's entries of the shared nav list; Integrations and Users are
+              owner-only there, since the pages would only answer every other user with a 403. */}
+          {navItemsFor('userMenu', user).map(({ path, labelKey, icon: Icon }) => (
+            <Link key={path} to={path} className="ui-menu-item" onClick={() => setOpen(false)}>
+              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+              {t(labelKey, { ns: 'common' })}
+            </Link>
+          ))}
           <button
             type="button"
             className="ui-menu-item"
