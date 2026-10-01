@@ -82,6 +82,28 @@ public sealed class ReleaseSearchSourcesHttpTests : IClassFixture<MediaAcquisiti
     }
 
     [Fact]
+    public async Task Search_of_a_source_that_refuses_its_key_says_so_with_prowlarrs_real_answer()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("torznab", "Toloka", TolokaAddress, apiKey: ApiKey);
+        await _integrations.Create("torznab", "Other", OtherAddress, apiKey: ApiKey);
+        // Prowlarr's recorded answer to a wrong key, to every request: a bare 401 with no body.
+        _toloka.Intercept = _ => VendorResponses.Recorded(TorznabSamples.WrongKeyResponseFile);
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _owner.AccessToken, new ReleaseSearchRequest("Interstellar"));
+
+        //Assert
+        var sources = (await ReadAsync(response, cancellationToken)).Sources;
+        var toloka = Assert.Single(sources, source => source.Name == "Toloka");
+        Assert.Equal(IntegrationCallStatus.AuthenticationFailed, toloka.Status);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized).", toloka.Error);
+        Assert.Empty(toloka.Releases);
+        Assert.Equal(SampleMovieCount, Assert.Single(sources, source => source.Name == "Other").Releases.Count);
+    }
+
+    [Fact]
     public async Task Search_as_a_member_gets_a_failed_sources_status_without_its_sentence()
     {
         //Arrange

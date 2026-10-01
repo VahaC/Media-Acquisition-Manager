@@ -575,26 +575,18 @@ came from and how it was sanitized. The adapters' tests run against them: the co
 and Jellyfin's library reads with variants made from the real movies (`JellyfinSamples`: merged
 versions, stacked parts, a library of any size for paging). The API tests sync libraries from
 `FakeJellyfinServer`, which answers from the same samples. The tests swap each integration's HTTP
-handler for one that answers with a sample, so no test reaches a real service — but one: see the
-live release search below. `VendorSamplesTests` fails the build if a sample carries a credential.
+handler for one that answers with a sample, so no test reaches a real service.
+`VendorSamplesTests` fails the build if a sample carries a credential.
 
 The release search is tested against the real Toloka answers through Prowlarr: the adapter reads the
-caps and both search samples (`TorznabSamples` moves their download links to the test's own feed),
-and hand-written answers for what they don't show — magnets, other gateways' shapes, credentials in
-every place a feed puts them, every error code and status. The API tests search through
-`FakeTorznabServer`, one or several feeds at once, and `ReleaseSearchSecretsHttpTests` plants the
-gateway's key, its link token, the forum session and tracker passkeys and checks that none reaches
-an answer, the log or a release row.
-
-`TorznabLiveTests` searches a real Torznab feed through the app's own adapter and plan; it is skipped
-unless both variables are set, so only the owner runs it, against the reference installation:
-
-```bash
-LIVE_TORZNAB_URL=http://192.168.1.195:9696/1/api LIVE_TORZNAB_API_KEY=<the Prowlarr API key> dotnet test tests/MediaAcquisitionManager.Infrastructure.Tests -c Release --filter "FullyQualifiedName~TorznabLiveTests"
-```
-
-It prints counts and hosts only, never a link or the key. Add `LIVE_TORZNAB_FETCH=1` to also fetch one
-release's .torrent (or magnet), which Prowlarr counts as a grab.
+caps and both search samples (`TorznabSamples` moves their download links to the test's own feed)
+and Prowlarr's recorded answer to a wrong API key, and hand-written answers for what they don't show
+— magnets, other gateways' shapes, credentials in every place a feed puts them, the other error codes
+and statuses. The API tests search through `FakeTorznabServer`, one or several feeds at once, and
+`ReleaseSearchSecretsHttpTests` plants the gateway's key, its link token, the forum session and
+tracker passkeys and checks that none reaches an answer, the log or a release row. The live search
+against the reference installation is checked through the app itself: the Toloka integration added
+under Integrations, then a search through the API.
 
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable

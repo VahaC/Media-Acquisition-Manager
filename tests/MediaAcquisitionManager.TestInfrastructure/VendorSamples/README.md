@@ -46,6 +46,7 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Torznab/prowlarr-toloka-caps.xml` | `GET /1/api?t=caps` | Toloka's categories and search modes |
 | `Torznab/prowlarr-toloka-search.xml` | `GET /1/api?t=search&q=Interstellar` | 17 releases, not all of them movies |
 | `Torznab/prowlarr-toloka-movie-search.xml` | `GET /1/api?t=movie&q=Interstellar` | The same releases through the movie search, this time with topic links that carry no `sid` |
+| `Torznab/prowlarr-wrong-key-response.txt` | `GET /1/api?t=caps`, `GET /1/api?t=search&q=Interstellar` and `GET /1/download?link=x`, each with a wrong `apikey` (2026-10-01, MAM-10) | The status line and headers of the one answer all three got: a bare 401 with no body. Read by `VendorResponses.Recorded` |
 | `Ffprobe/the-continental-s01e01.json` | `ffprobe -show_format -show_streams -show_chapters` | HEVC Main 10, four audio and four subtitle tracks, eight chapters |
 | `Ffprobe/taken-2008-bdremux.json` | the same | H.264 remux, DTS and AC-3 tracks, text and PGS subtitles, 24 chapters |
 
@@ -90,6 +91,11 @@ The four movies in `movies-page.json`:
   an audio-only release (`3020`) and a phone-sized rip filed under the standard `2000` as well as
   movies (`2000`, `2040`). Each release also has a Toloka category (`100xxx`; the phone rip is in
   `100237`, video for mobile devices), so filtering may need both.
+- **Prowlarr refuses a wrong API key with a bare 401** (MAM-10): `t=caps`, `t=search` and a download
+  link alike, an empty body and no content type — not the `<error code="100">` the Torznab
+  specification describes. The adapter reads both as a refused key. The search asks for the movie
+  categories only (the standard `2000`–`2999`) and keeps a release that lists one of them, so the
+  audio-only one is left out and the phone rip stays: it is filed under `2000`.
 - **ffprobe reports cover art as a video stream** (`mjpeg` with `disposition.attached_pic: 1`),
   after the real video stream; it is not a second video track.
 - **A 10-bit stream need not say whether it is HDR** (MAM-9). The Continental's HEVC Main 10 video

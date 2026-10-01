@@ -151,8 +151,16 @@ writes its releases (ADR 0006).
 host, and every credential-named pair (`passkey=`, `sid=`, …) is masked wherever it is, before the
 description is cleaned and cut to 200 characters. The connection test's sentences change with it.
 
-**The live search.** Pending: the owner runs `TorznabLiveTests` against the reference Prowlarr (see
-README, Tests); its result is recorded here.
+**Prowlarr refuses a wrong key without Torznab's words.** Asked with a wrong API key on 2026-10-01,
+the reference Prowlarr answered `t=caps`, `t=search` and a download link alike with a bare
+`401 Unauthorized`, an empty body and no content type — not the `<error code="100">` the Torznab
+specification describes. The adapter reads both the same way ("The Torznab feed refused the API key
+(401 Unauthorized).") and the recorded answer is a sample
+(`VendorSamples/Torznab/prowlarr-wrong-key-response.txt`); the download errors above (410, 429, 500)
+are written from Prowlarr's source, since triggering them takes the owner's key.
+
+**The live search.** Pending: checked through the app, with the Toloka integration added under
+Integrations and a search through the API; its result is recorded here.
 
 `TorznabAdapterSearchTests.Search_gives_both_samples_the_same_ids_and_page_links_without_the_session`,
 `TorznabAdapterSearchLinksTests.Search_removes_the_session_from_a_page_link_and_an_id` and

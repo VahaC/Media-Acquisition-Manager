@@ -26,6 +26,13 @@ public static class TorznabSamples
     /// <summary><c>GET /1/api?t=movie&amp;q=Interstellar</c>: the same releases, links without <c>sid</c>.</summary>
     public const string MovieSearchFile = "Torznab/prowlarr-toloka-movie-search.xml";
 
+    /// <summary>
+    /// What Prowlarr answered <c>t=caps</c>, <c>t=search</c> and a download link alike when asked with a
+    /// wrong API key (recorded 2026-10-01): a bare 401 with no body, read by
+    /// <c>VendorResponses.Recorded</c>.
+    /// </summary>
+    public const string WrongKeyResponseFile = "Torznab/prowlarr-wrong-key-response.txt";
+
     /// <summary>The releases each search sample lists.</summary>
     public const int ItemCount = 17;
 

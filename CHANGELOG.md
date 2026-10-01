@@ -382,7 +382,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   allow: an IMDb or TMDb id alone where the movie search takes one, then the title and the year, then
   the title alone; Toloka through Prowlarr takes only text, so it is asked "Interstellar 2014", in the
   movie categories, for at most 100 releases. The Torznab adapter speaks plain Torznab, with nothing
-  specific to Prowlarr or Toloka. The live Toloka search is still to be verified (README, Tests).
+  specific to Prowlarr or Toloka; Prowlarr's bare 401 to a wrong key, recorded from the reference
+  installation, reads as a refused key. The live Toloka search is still to be verified.
 - **A release's download link stays on the server, and it holds no copy of the gateway's key (MAM-10,
   ADR 0004, ADR 0007).** Each release a search finds is stored as a new release row, its download
   link sealed to it with the API key replaced by a placeholder that the fetch fills with the

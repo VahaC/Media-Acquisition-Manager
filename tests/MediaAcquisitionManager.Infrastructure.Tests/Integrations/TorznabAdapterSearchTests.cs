@@ -781,6 +781,21 @@ public sealed class TorznabAdapterSearchTests : IDisposable
         Assert.Equal(TorznabSamples.ItemCount - TorznabSamples.NonMovieItemCount, result.Value!.Count);
     }
 
+    [Fact]
+    public async Task Search_of_prowlarrs_recorded_answer_to_a_wrong_key_says_the_key_was_refused()
+    {
+        //Arrange
+        // Prowlarr's real answer to a wrong key: a bare 401, no body, not Torznab's <error code="100">.
+        _harness.TorznabHttp.Handler = (_, _) => VendorResponses.Recorded(TorznabSamples.WrongKeyResponseFile);
+
+        //Act
+        var result = await Search.SearchAsync(Settings, Query(), TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized).", result.Error);
+    }
+
     private static ReleaseSearchQuery Query(
         ReleaseSearchMode mode = ReleaseSearchMode.General,
         string? text = "Interstellar",
