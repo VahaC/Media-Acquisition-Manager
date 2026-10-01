@@ -1,0 +1,24 @@
+<!-- @dsCard group="Components" viewport="700x900" name="Core" subtitle="Buttons, inputs, badges, banners, menu, pager, dialog" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{padding:20px;background:var(--background)}.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.stack{display:grid;gap:14px}.cap{font-size:11px;color:var(--subtle-foreground);width:64px}</style></head><body><div id="root"></div>
+<script type="text/babel">
+const { Button, Input, Field, Select, Badge, Banner, StatusLine, Menu, ListPager, Card, Dialog, AppLogo, ThemeSwitch, ErrorState } = window.MediaAcquisitionManagerDS_29af91;
+function App(){return (<div className="stack">
+<div className="row"><span className="cap">Button</span><Button icon="Plus">Add integration</Button><Button variant="outline">Cancel</Button><Button variant="secondary">Secondary</Button><Button variant="ghost" icon="CircleUser" iconRight="ChevronDown">vasyl</Button><Button variant="link">Open Integrations</Button><Button loading>Searching…</Button></div>
+<div className="row"><span className="cap">Row (sm)</span><Button variant="outline" size="sm" icon="PlugZap">Test</Button><Button variant="outline" size="sm" icon="Pencil">Edit</Button><Button variant="danger" size="sm" icon="Trash2">Remove</Button><Button variant="outline" size="sm" icon="Download" disabled>Download</Button><Button variant="outline" size="icon" icon="RefreshCw" title="Sync now" /></div>
+<div className="row" style={{alignItems:'end'}}><span className="cap">Input</span><Field label="Title" style={{width:200}}><Input placeholder="Interstellar" /></Field><Field label="Year" optional="(optional)" style={{width:110}}><Input placeholder="2014" /></Field><Select options={[{value:'',label:'All libraries'},{value:'a',label:'Фільми'}]} /><Input placeholder="Disabled" disabled style={{width:120}} /></div>
+<div className="row"><span className="cap">Badge</span><Badge variant="outline">IMDb tt0816692</Badge><Badge variant="outline">TMDb 157336</Badge><Badge variant="warning" icon="TriangleAlert">No TMDb id</Badge><Badge variant="secondary" icon="CircleCheck">Matched by IMDb id</Badge><Badge variant="outline">Disabled</Badge><Badge variant="default">Default</Badge></div>
+<div className="stack" style={{gap:6}}><Banner>Refresh failed, showing the last loaded movies.</Banner><Banner tone="ok">Jellyfin: Connected to Jellyfin 10.10.7 as “Home”.</Banner>
+<StatusLine status="ok"><strong>Toloka</strong> · 16 releases</StatusLine><StatusLine status="error"><strong>Jackett</strong> · Couldn't be reached.</StatusLine><StatusLine status="warning">2 files have no path in this app.</StatusLine></div>
+<div className="row" style={{alignItems:'start'}}><span className="cap">Errors</span><Field label="User name" error="A user named vasyl already exists." style={{width:220}}><Input defaultValue="vasyl" /></Field><div style={{flex:1,minWidth:280}}><ErrorState title="Could not load the library." onRetry={()=>{}}>The server could not be reached. Check that it is running, then try again.</ErrorState></div></div>
+<Banner action={<Button variant="outline" size="sm" icon="RotateCw">Retry</Button>}>Refresh failed, showing the last loaded movies.</Banner>
+<div className="row"><span className="cap">Theme</span><ThemeSwitch /><ThemeSwitch showLabels /></div>
+<div className="row" style={{alignItems:'flex-start'}}><span className="cap">Menu</span><Menu items={[{label:'Integrations',icon:'Plug'},{label:'Destinations',icon:'FolderInput'},{label:'Media folders',icon:'FolderOpen'},{label:'Users',icon:'Users'},{label:'Sign out',icon:'LogOut'}]} /><div style={{flex:1}}><ListPager page={5} pages={33} pageSize={25} total={812} /></div></div>
+</div>);}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>

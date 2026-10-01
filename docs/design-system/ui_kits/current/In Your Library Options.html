@@ -1,0 +1,156 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script>window.__MAM_KIT=true</script>
+<script src="../_shared/ds-fallback.js" data-root="../../"></script>
+<script src="../_shared/data.js"></script>
+<title>In your library — варіанти</title>
+<style>a{color:var(--primary)}a:hover{color:var(--primary-hover)}.frame{position:absolute;top:40px;width:900px;background:var(--background);border:1px solid var(--border);border-radius:10px;padding:24px;display:grid;gap:12px}.tag{display:flex;align-items:center;gap:8px;font-size:13px}.tag b{background:var(--foreground);color:var(--background);padding:2px 8px;border-radius:4px;font-family:var(--font-mono);font-size:12px}.tag span{color:var(--muted-foreground)}.why{font-size:12px;color:var(--muted-foreground);text-wrap:pretty;border-top:1px solid var(--border);padding-top:10px}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+const W = () => window.MAM_DATA.works[0];
+const M = () => window.MAM_DATA.search.library[0];
+const H2 = ({ children }) => <h2 style={{ fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.25 }}>{children}</h2>;
+const short = (v) => { const m = v.files[0].media; const w = Number(m.resolution.split('×')[0]); return { res: w >= 3800 ? '2160p' : w >= 1900 ? '1080p' : m.resolution, codec: m.codec.split(' ')[0], range: m.range, audio: m.audio.map((a) => a.split(' · ')[0].slice(0, 3)).join(' · '), subs: m.subs.map((a) => a.split(' · ')[0].slice(0, 3)).join(' · ') }; };
+
+function Head({ w, m, right }) {
+  const { Badge, MatchBadges } = window.MAM_DS;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem 1rem' }}>
+      <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+        <h3 style={{ fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.25 }}>{w.title}</h3>
+        <p style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem 0.75rem', color: 'var(--muted-foreground)' }}><span>Original title: {w.originalTitle}</span><span>{w.year}</span><span>From {w.source}</span></p>
+        <MatchBadges evidence={m.evidence} schemes={m.schemes} matchedTitle={m.matchedTitle} />
+      </div>
+      {right || <ul style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{w.ids.map((x) => <li key={x}><Badge variant="outline">{x}</Badge></li>)}</ul>}
+    </div>
+  );
+}
+
+/* 1a — current */
+function A() {
+  const { WorkCard, MatchBadges } = window.MAM_DS; const m = M();
+  return <section style={{ display: 'grid', gap: '0.75rem' }}><H2>In your library</H2><WorkCard headingLevel={3} work={W()} evidence={<MatchBadges evidence={m.evidence} schemes={m.schemes} matchedTitle={m.matchedTitle} />} /></section>;
+}
+
+/* 1b — one line per version, files and tracks behind a disclosure */
+function B() {
+  const { Icon, ChipRow, Facts } = window.MAM_DS; const w = W();
+  const [open, setOpen] = React.useState(null);
+  return (
+    <section style={{ display: 'grid', gap: '0.75rem' }}><H2>In your library</H2>
+      <article className="ui-card" style={{ padding: '1.25rem 1.5rem', display: 'grid', gap: '0.875rem' }}>
+        <Head w={w} m={M()} />
+        <ul style={{ display: 'grid', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+          {w.versions.map((v, i) => { const s = short(v), f = v.files[0], on = open === i; return (
+            <li key={i} style={{ borderTop: i ? '1px solid var(--border)' : 0 }}>
+              <button type="button" onClick={() => setOpen(on ? null : i)} style={{ width: '100%', display: 'grid', gridTemplateColumns: '16px 6rem minmax(0,1fr) auto', gap: '0.75rem', alignItems: 'center', padding: '0.5rem 0.75rem', cursor: 'pointer', textAlign: 'left', background: on ? 'var(--muted)' : 'transparent' }}>
+                <Icon name={on ? 'ChevronDown' : 'ChevronRight'} size={16} style={{ color: 'var(--muted-foreground)' }} />
+                <strong style={{ fontWeight: 600 }}>{v.label}</strong>
+                <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, fontSize: 12 }}>{[s.res, s.codec, s.range, s.audio].map((x) => <span key={x} className="ui-chip">{x}</span>)}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{f.size}</span>
+              </button>
+              {on ? <div style={{ padding: '0.25rem 0.75rem 0.75rem 2.5rem', display: 'grid', gap: 4, background: 'var(--muted)' }}>
+                <p className="mono" style={{ fontWeight: 500, overflowWrap: 'anywhere' }}>{f.name}</p>
+                <p className="mono" style={{ fontSize: 12, color: 'var(--muted-foreground)', overflowWrap: 'anywhere' }}>{f.folder}</p>
+                <Facts verified items={[f.media.duration, f.media.resolution, f.media.codec, f.media.range, f.media.bitrate]} />
+                <ChipRow label="Audio" chips={f.media.audio} /><ChipRow label="Subtitles" chips={f.media.subs} empty="No subtitles" />
+              </div> : null}
+            </li>); })}
+        </ul>
+      </article>
+    </section>
+  );
+}
+
+/* 1c — versions as columns, facts as rows */
+function C() {
+  const w = W(); const vs = w.versions.map((v) => ({ v, f: v.files[0], m: v.files[0].media }));
+  const rows = [['Resolution', (x) => x.m.resolution], ['Video', (x) => x.m.codec], ['HDR', (x) => x.m.range], ['Bit rate', (x) => x.m.bitrate], ['Duration', (x) => x.m.duration], ['Audio', (x) => x.m.audio.join('\n')], ['Subtitles', (x) => x.m.subs.join('\n') || 'No subtitles'], ['Size', (x) => x.f.size], ['File', (x) => x.f.name]];
+  const cell = { padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)', overflowWrap: 'anywhere', whiteSpace: 'pre-line' };
+  return (
+    <section style={{ display: 'grid', gap: '0.75rem' }}><H2>In your library</H2>
+      <article className="ui-card" style={{ padding: '1.25rem 1.5rem', display: 'grid', gap: '0.875rem' }}>
+        <Head w={w} m={M()} />
+        <div style={{ display: 'grid', gridTemplateColumns: `7rem repeat(${vs.length}, minmax(0,1fr))`, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+          <span style={{ padding: '0.5rem 0.75rem', background: 'var(--muted)' }} />
+          {vs.map((x) => <span key={x.v.label} style={{ padding: '0.5rem 0.75rem', background: 'var(--muted)', fontWeight: 600 }}>{x.v.label}</span>)}
+          {rows.map(([k, fn]) => <React.Fragment key={k}>
+            <span style={{ ...cell, color: 'var(--muted-foreground)' }}>{k}</span>
+            {vs.map((x) => <span key={x.v.label} className={k === 'File' ? 'mono' : undefined} style={{ ...cell, fontSize: k === 'File' ? 12 : undefined }}>{fn(x)}</span>)}
+          </React.Fragment>)}
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Every value was read from the file by ffprobe.</p>
+      </article>
+    </section>
+  );
+}
+
+/* 1d — one-line strip, expands to the full card */
+function D() {
+  const { Icon, Button, WorkCard, MatchBadges } = window.MAM_DS; const w = W(), m = M();
+  const [open, setOpen] = React.useState(false);
+  const best = short(w.versions[0]);
+  return (
+    <section style={{ display: 'grid', gap: '0.5rem' }}>
+      <div className="ui-card" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 1rem', padding: '0.75rem 1rem', borderColor: 'color-mix(in oklab, var(--primary) 35%, var(--border))', background: 'color-mix(in oklab, var(--primary) 5%, var(--card))' }}>
+        <Icon name="LibraryBig" size={18} style={{ color: 'var(--primary)' }} />
+        <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+          <strong style={{ fontWeight: 600 }}>In your library: {w.title} ({w.year})</strong>
+          <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{w.versions.length} versions · best {best.res} {best.codec} {best.range} · Audio {best.audio} · matched by IMDb id</span>
+        </span>
+        <Button variant="outline" size="sm" iconRight={open ? 'ChevronUp' : 'ChevronDown'} onClick={() => setOpen(!open)} style={{ marginLeft: 'auto' }}>{open ? 'Hide copies' : 'Show copies'}</Button>
+      </div>
+      {open ? <WorkCard headingLevel={3} work={w} evidence={<MatchBadges evidence={m.evidence} schemes={m.schemes} matchedTitle={m.matchedTitle} />} /> : null}
+      <p style={{ fontSize: 12, color: 'var(--muted-foreground)', padding: '0.25rem 0' }}>↓ Available releases follow straight after</p>
+    </section>
+  );
+}
+
+/* 1e — a tile per version, side by side; pick one to compare releases against */
+function E() {
+  const { Icon } = window.MAM_DS; const w = W();
+  const [pick, setPick] = React.useState(0);
+  return (
+    <section style={{ display: 'grid', gap: '0.75rem' }}><H2>In your library</H2>
+      <article className="ui-card" style={{ padding: '1.25rem 1.5rem', display: 'grid', gap: '0.875rem' }}>
+        <Head w={w} m={M()} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))', gap: '0.75rem' }}>
+          {w.versions.map((v, i) => { const s = short(v), f = v.files[0], on = pick === i; return (
+            <button key={i} type="button" onClick={() => setPick(i)} style={{ textAlign: 'left', cursor: 'pointer', display: 'grid', gap: 6, padding: '0.75rem', borderRadius: 'var(--radius-lg)', border: '1px solid ' + (on ? 'var(--primary)' : 'var(--border)'), background: on ? 'var(--tint-selected)' : 'var(--card)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><strong style={{ fontWeight: 600, flex: 1 }}>{v.label}</strong>{on ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--primary)' }}><Icon name="CircleCheck" size={12} />Compared</span> : null}</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 600, lineHeight: 1.1 }}>{s.res} <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted-foreground)' }}>{s.codec} · {s.range}</span></span>
+              <span style={{ fontSize: 12 }}>Audio: {s.audio}{s.subs ? ' · Subtitles: ' + s.subs : ''}</span>
+              <span style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{f.size} · {f.media.bitrate} · {f.media.duration}</span>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.folder + '/' + f.name}>{f.name}</span>
+            </button>); })}
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Releases below mark the claims that differ from the version you pick.</p>
+      </article>
+    </section>
+  );
+}
+
+const V = [
+  ['1a', 'Зараз', A, 'Як у застосунку: повна картка з усіма файлами й треками. Довга, тож релізи опиняються далеко внизу.'],
+  ['1b', 'Рядок на версію', B, 'Кожна версія в один рядок: роздільність, кодек, HDR, мови, розмір. Файли й треки розгортаються кліком. Висота менша приблизно втричі.'],
+  ['1c', 'Таблиця версій', C, 'Версії стоять колонками, факти рядками. Найзручніше порівнювати свої копії між собою; кожна нова версія додає колонку.'],
+  ['1d', 'Смуга-підсумок', D, 'Один рядок «у вас уже є» з найкращою копією, повна картка відкривається на вимогу. Релізи одразу під ним.'],
+  ['1e', 'Плитки версій', E, 'Версії плитками поруч, головні факти великим шрифтом. Вибрана плитка задає, з чим порівнюються релізи (як у пропозиції).'],
+];
+function App() {
+  return <>{V.map(([id, name, Comp, why], i) => (
+    <div key={id} id={id} className="frame" style={{ left: 40 + i * 960 }}>
+      <div className="tag"><b>{id}</b><strong>{name}</strong></div>
+      <Comp />
+      <p className="why">{why}</p>
+    </div>))}</>;
+}
+let __started = false;
+function start(){ if (__started) return; __started = true; window.MAM_DS = window['MediaAcquisitionManagerDS_29af91']; ReactDOM.createRoot(document.getElementById('root')).render(<App />); }
+if (window.__dsReady) start(); else window.addEventListener('ds-ready', start);
+</script></body></html>

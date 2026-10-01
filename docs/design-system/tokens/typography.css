@@ -1,0 +1,20 @@
+/* Type — system stacks, no webfonts (frontend/src/index.css). Base body size is 13px. */
+:root{
+--font-sans:ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+--font-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+--default-font-family:var(--font-sans);--default-mono-font-family:var(--font-mono);
+--text-xs:0.75rem;--text-xs--line-height:calc(1 / 0.75);
+--text-sm:0.875rem;--text-sm--line-height:calc(1.25 / 0.875);
+--text-base:13px;
+--text-md:0.9375rem;
+--text-lg:1.125rem;
+--text-2xl:1.5rem;--text-2xl--line-height:calc(2 / 1.5);
+--font-weight-regular:400;--font-weight-medium:500;--font-weight-semibold:600;
+--tracking-tight:-0.011em;--tracking-mono:-0.01em;
+/* semantic */
+--type-page-title:600 var(--text-2xl)/1.25 var(--font-sans);
+--type-card-title:600 var(--text-lg)/1.25 var(--font-sans);
+--type-body:400 var(--text-base)/1.5 var(--font-sans);
+--type-control:500 var(--text-sm)/1 var(--font-sans);
+--type-meta:400 var(--text-xs)/1.333 var(--font-sans);
+}

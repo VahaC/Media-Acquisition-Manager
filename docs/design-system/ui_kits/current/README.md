@@ -1,0 +1,1 @@
+Recreation of the web app as built (frontend/src). Screens: Search (with Details dialog), Library, Integrations (Add dialog, Test banner), Destinations, Home, Sign in (Sign out in the user menu). Click the header nav and the user menu.

@@ -1,0 +1,37 @@
+<!-- @dsCard group="Web app (proposal)" viewport="1440x860" name="Proposed layout" subtitle="Sidebar shell, two-pane Search, table Library — colours unchanged" -->
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script>window.__MAM_KIT=true</script>
+<script src="../_shared/ds-fallback.js" data-root="../../"></script>
+<script src="../_shared/data.js"></script><style>@media (max-width:1180px){.p-split{grid-template-columns:minmax(0,1fr)!important}.p-split>aside{position:static!important}}</style><title>MAM — layout proposal</title></head><body><div id="root"></div>
+<script type="text/babel" src="PShell.jsx"></script>
+<script type="text/babel" src="PSearch.jsx"></script>
+<script type="text/babel" src="PLibrary.jsx"></script>
+<script type="text/babel" src="PSettings.jsx"></script>
+<script type="text/babel" src="../current/SettingsScreens.jsx"></script>
+<script type="text/babel" src="../current/Shell.jsx"></script>
+<script type="text/babel" src="Notes.jsx"></script>
+<script type="text/babel">
+function App() {
+  const [page, setPage] = React.useState(() => localStorage.getItem('mamkit:proposal:page') || 'search');
+  const nav = (p) => { setPage(p); localStorage.setItem('mamkit:proposal:page', p); window.scrollTo(0, 0); };
+  const S = { search: PSearch, library: PLibrary, integrations: PIntegrations, destinations: DestinationsScreen }[page] || PSearch;
+  return (
+    <div style={{ display: 'flex', minHeight: '100dvh' }}>
+      <Sidebar page={page} onNav={nav} />
+      <main style={{ flex: 1, minWidth: 0, padding: '1.25rem 1.75rem 3rem' }}>
+        <div style={{ maxWidth: '80rem', margin: '0 auto' }}><S /></div>
+      </main>
+      <NotesPanel page={page} />
+    </div>
+  );
+}
+let __started = false;
+function start(){ if (__started) return; __started = true; window.MAM_DS = window['MediaAcquisitionManagerDS_29af91']; ReactDOM.createRoot(document.getElementById('root')).render(<App />); }
+if (window.__dsReady) start(); else window.addEventListener('ds-ready', start);
+</script></body></html>

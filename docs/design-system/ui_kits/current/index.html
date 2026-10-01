@@ -1,0 +1,44 @@
+<!-- @dsCard group="Web app (current)" viewport="1280x800" name="Current layout" subtitle="Recreation of the app as built: header nav, one 64rem column" -->
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js" onerror="void 0"></script>
+<script>window.__MAM_KIT=true</script>
+<script src="../_shared/ds-fallback.js" data-root="../../"></script>
+<script src="../_shared/data.js"></script><title>MAM — current layout</title></head><body><div id="root"></div>
+<script type="text/babel" src="Sim.jsx"></script>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="LibraryMatch.jsx"></script>
+<script type="text/babel" src="SearchScreen.jsx"></script>
+<script type="text/babel" src="LibraryScreen.jsx"></script>
+<script type="text/babel" src="SettingsScreens.jsx"></script>
+<script type="text/babel" src="UsersScreen.jsx"></script>
+<script type="text/babel" src="ProfileScreen.jsx"></script>
+<script type="text/babel" src="SignIn.jsx"></script>
+<script type="text/babel">
+function App() {
+  const [page, setPage] = React.useState(() => localStorage.getItem('mamkit:current:page') || 'search');
+  const [signedIn, setSignedIn] = React.useState(true);
+  const [query, setQuery] = React.useState(null);
+  const nav = (p) => { setPage(p); localStorage.setItem('mamkit:current:page', p); window.scrollTo(0, 0); };
+  const screens = { home: HomeScreen, search: SearchScreen, library: LibraryScreen, integrations: IntegrationsScreen, destinations: DestinationsScreen, users: UsersScreen, profile: ProfileScreen };
+  const S = screens[page] || SearchScreen;
+  const sim = useSim();
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <AppHeader page={page} onNav={nav} onSignOut={() => setSignedIn(false)} onQuery={(q) => setQuery(q || null)} />
+      <OfflineStrip />
+      <main style={{ flex: 1, width: '100%', maxWidth: '64rem', margin: '0 auto', padding: '1.5rem' }}>
+        {!signedIn ? <SignInScreen onSignIn={() => setSignedIn(true)} /> : sim.notFound ? <NotFound onHome={() => nav('home')} /> : sim.crash ? <CrashFallback /> : <S query={query} onSignOut={() => setSignedIn(false)} />}
+      </main>
+      <SimPanel />
+    </div>
+  );
+}
+let __started = false;
+function start(){ if (__started) return; __started = true; window.MAM_DS = window['MediaAcquisitionManagerDS_29af91']; ReactDOM.createRoot(document.getElementById('root')).render(<App />); }
+if (window.__dsReady) start(); else window.addEventListener('ds-ready', start);
+</script></body></html>

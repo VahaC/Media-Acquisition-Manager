@@ -1,0 +1,37 @@
+/* Colours — copied verbatim from frontend/src/index.css (:root and .dark). */
+:root{
+--background:#f1f1f1;--surface:#fafafa;--foreground:#0a0a0a;
+--card:#ffffff;--card-foreground:#0a0a0a;--popover:#ffffff;--popover-foreground:#0a0a0a;
+--primary:#4f46e5;--primary-foreground:#ffffff;--primary-hover:#4338ca;
+--secondary:#f5f5f5;--secondary-foreground:#171717;
+--muted:#f5f5f5;--muted-foreground:#525252;--subtle-foreground:#737373;
+--accent:#d3d3d3;--accent-foreground:#0a0a0a;
+--destructive:#b91c1c;--destructive-foreground:#ffffff;
+--border:#e5e5e5;--border-strong:#d4d4d4;--input:#d4d4d4;--ring:#4f46e5;
+--status-up:#16a34a;--status-down:#dc2626;--status-attention:#d97706;--status-unknown:#94a3b8;--status-update-available:#f59e0b;
+--color-red-600:oklch(57.7% .245 27.325);--color-yellow-600:oklch(68.1% .162 75.834);--color-green-600:oklch(62.7% .194 149.214);
+/* semantic aliases */
+--surface-page:var(--background);--surface-card:var(--card);--surface-popover:var(--popover);
+--text-body:var(--foreground);--text-muted:var(--muted-foreground);--text-subtle:var(--subtle-foreground);
+--tint-selected:color-mix(in oklab,var(--primary) 12%,transparent);
+--tint-hover:color-mix(in srgb,var(--foreground) 10%,transparent);
+--tint-warning:color-mix(in oklab,var(--status-attention) 8%,transparent);
+--tint-warning-border:color-mix(in oklab,var(--status-attention) 55%,transparent);
+--tint-danger:color-mix(in oklab,var(--destructive) 8%,transparent);
+--tint-ok:color-mix(in oklab,var(--status-up) 8%,transparent);
+--overlay:rgb(0 0 0 / .5);
+/* error text: --destructive reads 6.5:1 on white but only ~3.2:1 on the dark card, so dark text uses red-400 */
+--text-danger:var(--destructive);
+}
+.dark{
+--background:#0a0a0a;--surface:#050505;--foreground:#f5f5f5;
+--card:#131313;--card-foreground:#f5f5f5;--popover:#1a1a1a;--popover-foreground:#f5f5f5;
+--primary:#6366f1;--primary-foreground:#ffffff;--primary-hover:#818cf8;
+--secondary:#1f1f1f;--secondary-foreground:#e5e5e5;
+--muted:#1a1a1a;--muted-foreground:#a3a3a3;--subtle-foreground:#737373;
+--accent:#1f1f1f;--accent-foreground:#f5f5f5;
+--destructive:#dc2626;--destructive-foreground:#ffffff;
+--border:#262626;--border-strong:#404040;--input:#404040;--ring:#6366f1;
+--status-up:#22c55e;
+--text-danger:#f87171;
+}
