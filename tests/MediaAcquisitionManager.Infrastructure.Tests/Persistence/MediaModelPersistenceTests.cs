@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
+using MediaAcquisitionManager.Core.Search;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
@@ -140,7 +141,7 @@ public sealed class MediaModelPersistenceTests : DatabaseTestBase
         Assert.Equal(["IntegrationConnections"], references);
         // The download link is sealed like a credential for this release (ADR 0004).
         Assert.DoesNotContain("planted-release-key", stored.PayloadLocatorEncrypted, StringComparison.Ordinal);
-        Assert.True(Encryption.TryDecrypt(stored.PayloadLocatorEncrypted, ReleaseDataFactory.PayloadLocatorPurpose(release.Id), out var locator));
+        Assert.True(Encryption.TryDecrypt(stored.PayloadLocatorEncrypted, ReleasePayloadLocatorPurpose.For(release.Id), out var locator));
         Assert.Equal("http://127.0.0.1:9/1/download?apikey=planted-release-key", locator);
     }
 

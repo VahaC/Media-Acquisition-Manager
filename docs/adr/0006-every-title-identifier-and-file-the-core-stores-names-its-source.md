@@ -143,3 +143,33 @@ A reading needs no provenance columns: every one is the app's own, so its table 
 `ProvenanceSourceKind.FileInspection` stays unused until a name that no library reported is stored
 (Phase B's scan). Rows sharing `(DeviceId, Inode)` are now real: both names of a hardlinked file carry
 the identity the app read, and `LinkCount` says how many names the file has.
+
+## Implementation (added 0.1.0, MAM-10)
+
+**A search writes its releases (Vasyl's choice: kept in the database between the search and the
+download).** Every release a search finds becomes a new `Releases` row: source kind `ReleaseSearch`,
+the integration's id and its name as it is when the row is written (read again in the same
+transaction, so a source removed meanwhile writes nothing), the listing's id, and the time it was
+seen as both `CreatedUtc` and `ObservedUtc`. Its download link is sealed to the row (ADR 0004,
+ADR 0007). A new row every search, never an update of an earlier one: a download job points at the
+release it sent, and that evidence must not change when the listing is found again. So a release id
+names one search's snapshot, and the same listing found again is a different id; MAM-13 recognises a
+release it already sent by its source and id (or its info hash), not by the row.
+
+**What the source id may be.** A Torznab guid is stored only when it is the release's own page link,
+without the session (`https://toloka.to/t699400`), or a plain token; anything else — the tracker's
+download link that Prowlarr writes as the guid of an indexer without one, a magnet — is stored as
+`sha256:` and its digest, stable from one search to the next. A listing without a guid takes the page
+link as its id.
+
+**Unused releases go after a day.** Each search removes, in one statement, the releases stored more
+than 24 hours earlier that no download job points at. A release source's rows keep the MAM-7 rule when
+the source is removed: the foreign key sets null, the name stays, and the rows go with the next day's
+removal unless a job holds them.
+
+`ReleaseSearchHttpTests.Search_stores_each_release_with_its_source_and_its_download_link_sealed_without_the_key`,
+`ReleaseSearchHttpTests.Search_again_stores_new_releases_and_keeps_the_earlier_ones` and
+`ReleaseSearchHttpTests.Search_removes_releases_older_than_a_day_that_no_job_sent` pin it, with
+`ReleaseSearchSourcesHttpTests.Search_of_a_source_removed_while_it_was_searched_leaves_it_and_its_releases_out`;
+`IntegrationsDeleteHttpTests.Delete_of_a_release_source_keeps_its_releases_with_the_source_name` stays as
+it was.

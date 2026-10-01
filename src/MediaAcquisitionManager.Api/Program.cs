@@ -61,6 +61,7 @@ public class Program
         builder.Services.AddIntegrationFeatures();
         builder.Services.AddLibraryFeatures();
         builder.Services.AddFileFeatures();
+        builder.Services.AddReleaseSearchFeatures();
         builder.Services.AddMediaAcquisitionManagerHealthChecks();
         // Last: every background service in one place, in the order they start.
         builder.Services.AddMediaAcquisitionManagerHostedServices();

@@ -188,9 +188,127 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
+        // MAM-10 — the echoed address is cut to its scheme, host and port before anything else.
         Assert.Equal(
-            "The Torznab feed refused the API key (error 100: Invalid API key *** for http://prowlarr.test:9696/1/api?t=caps&apikey=***).",
+            "The Torznab feed refused the API key (error 100: Invalid API key *** for http://prowlarr.test:9696).",
             result.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    // The address starts 180 characters in, so the 200-character cap falls inside it as written.
+    [InlineData(180)]
+    public async Task TestConnection_cuts_every_address_the_error_description_quotes_to_its_host(int padding)
+    {
+        //Arrange
+        // MAM-10 — Jackett's error 900 quotes the tracker's URL, passkey and all; the app doesn't hold
+        // the passkey, so masking can't find it (VendorSamples README, "Cut to the host").
+        const string trackerUrl = "https://tracker.test/rss/planted-passkey-0001/x?passkey=planted-passkey-0002&amp;sid=planted-sid-0001";
+        var description = $"{new string('d', padding)} Request to {trackerUrl} failed (magnet:?xt=urn:btih:planted-passkey-0003&amp;tr=x)";
+        _harness.TorznabHttp.Handler = (_, _) => Xml($"""<error code="900" description="{description}" />""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
+        Assert.All(
+            ["planted-passkey-0001", "planted-passkey-0002", "planted-sid-0001", "planted-passkey-0003", "/rss", "passkey="],
+            planted => Assert.DoesNotContain(planted, result.Message, StringComparison.Ordinal));
+        Assert.StartsWith($"The Torznab feed failed (error 900: {new string('d', padding)}", result.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    // A .NET exception prints a URL decoded: the space before "(2014)" ends the address, and the query
+    // reads as words after it.
+    [InlineData("https://tracker.test/download/123/Interstellar (2014) 1080p.torrent?torrent_pass=planted-passkey-0001")]
+    [InlineData("https://tracker.test/download/123/Interstellar(2014).torrent?torrent_pass=planted-passkey-0001")]
+    [InlineData("http://[2001:db8::1]:8080/rss/planted-passkey-0001/x.torrent?passkey=planted-passkey-0002")]
+    [InlineData("magnet:?xt=urn:btih:0123456789abcdef&amp;dn=Interstellar+(2014)&amp;tr=https%3A%2F%2Ftracker.test%2Fannounce%2Fplanted-passkey-0001")]
+    [InlineData("the tracker refused passkey%3Dplanted-passkey-0001 and sid=planted-sid-0001")]
+    [InlineData("Request failed: [GET] at [https://tracker.test/x?passkey=planted-passkey-0001]")]
+    public async Task TestConnection_masks_a_credential_the_error_description_quotes_wherever_its_address_ends(string quoted)
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => Xml($"""<error code="900" description="Exception (tracker): {quoted}" />""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
+        Assert.All(
+            ["planted-passkey-0001", "planted-passkey-0002", "planted-sid-0001", "/rss", "/download"],
+            planted => Assert.DoesNotContain(planted, result.Message, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    // RFC 3986 allows parentheses, brackets and an apostrophe in a password.
+    [InlineData("https://planted-user-0001:pa(ss-planted-0001@tracker.test/x", "https://tracker.test")]
+    [InlineData("https://planted-user-0001:se[cret-planted-0001]@tracker.test/x", "https://tracker.test")]
+    [InlineData("https://planted-user-0001:pa'ss-planted-0001@tracker.test/x", "https://tracker.test")]
+    // An address quoted inside another, percent-encoded.
+    [InlineData("go to url=https%3A%2F%2Ftracker.test%2Fplanted-passkey-0001%2Fx", "go to url=***")]
+    // A magnet whose name holds a space: the trackers after it are masked by name.
+    [InlineData("magnet:?xt=urn:btih:0123456789abcdef&amp;dn=Interstellar (2014)&amp;tr=https%3A%2F%2Ftracker.test%2Fplanted-passkey-0001", "magnet: (2014)&tr=***")]
+    public async Task TestConnection_shows_no_more_of_a_quoted_address_than_its_host(string quoted, string expectedShown)
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => Xml($"""<error code="900" description="{quoted}" />""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal($"The Torznab feed failed (error 900: {expectedShown}).", result.Message);
+        Assert.DoesNotContain("planted-0001", result.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("planted-passkey", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestConnection_keeps_a_bracketed_ipv6_host_of_a_quoted_address()
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) =>
+            Xml("""<error code="900" description="Request to http://[2001:db8::1]:8080/rss/planted-passkey-0001/x failed" />""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal("The Torznab feed failed (error 900: Request to http://[2001:db8::1]:8080 failed).", result.Message);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task TestConnection_reads_a_huge_error_description_in_moments()
+    {
+        //Arrange
+        // MAM-10 — the addresses are cut out of the whole description before it is cut to length, so the
+        // scan must stay linear: two million letters with no address took minutes with a scheme pattern
+        // tried from every letter.
+        _harness.TorznabHttp.Handler = (_, _) => Xml($"""<error code="900" description="{new string('a', 2_000_000)} https://tracker.test/x" />""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
+        Assert.Equal($"The Torznab feed failed (error 900: {new string('a', 199)}…).", result.Message);
+    }
+
+    [Fact]
+    public async Task TestConnection_keeps_the_host_of_a_quoted_address_and_drops_its_user_info()
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => Xml(
+            """<error code="900" description="Could not reach https://user:planted-password-0001@tracker.test:8443/announce?uk=planted-uk-0001 (timeout)" />""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.ServiceError, result.Status);
+        Assert.Equal("The Torznab feed failed (error 900: Could not reach https://tracker.test:8443 (timeout)).", result.Message);
     }
 
     [Theory]

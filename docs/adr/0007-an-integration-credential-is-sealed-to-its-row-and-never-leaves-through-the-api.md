@@ -99,3 +99,36 @@ Testing an edit with a kept secret sends the stored secret to the address typed 
 it is saved: that is what testing an edit means (Vasyl's decision), and only the owner can do it. A
 stolen owner session can therefore aim a test at its own host and collect a key the API never
 returns. Binding the origin into the associated data would close that; it is left out on purpose.
+
+## Implementation (added 0.1.0, MAM-10)
+
+**A release's download link is the one address an indexer supplies, and the app fetches it only
+from the feed's own origin.** Specification §4's warning ("an indexer must not trigger backend
+requests to internal addresses") meets its first case here, not in MAM-13 as the Decision expected:
+`FetchPayloadAsync` requests an http(s) link only when its scheme, ASCII host and port are the feed's
+(an address with user info, or a host without an ASCII form, never is), and sends nothing otherwise.
+No redirect is followed, so the rejected "following redirects to the same host" stays rejected; a
+redirect to a `magnet:` link is the payload itself, not a request, and every other redirect is refused
+with its scheme and host named. The trackers a magnet names (`tr`, `ws`, `xs`, `as`) are fetched by
+the download client, not by the app; whether to check them is MAM-13's question.
+
+**The key stays sealed to its integration.** A release's stored link would otherwise hold a copy of
+the gateway's key, the very key the Decision keeps only sealed to its row and field: the adapter
+stores a placeholder in its place and puts the integration's current key back when it fetches, so a
+release row holds no key, a changed key keeps old releases fetchable, and a removed integration's
+releases can fetch nothing. The rest of the link, Prowlarr's `link=` token included, is sealed to the
+release's own row (`release/{id:N}/payload-locator`), and every part of it is masked in what the feed's
+errors echo.
+
+**Text the feed chooses is cut before it is masked.** A credential the app doesn't hold — a tracker
+passkey in a URL a gateway's error quotes — can't be masked by value: every address in a feed's error
+description is cut to its scheme and host, and every credential-named pair masked, before the text is
+cleaned and cut to length (ADR 0004).
+
+`TorznabAdapterPayloadTests.FetchPayload_refuses_a_link_off_the_feeds_origin_without_sending_anything`,
+`TorznabAdapterPayloadTests.FetchPayload_redirected_within_the_feed_refuses_too`,
+`TorznabAdapterPayloadTests.FetchPayload_redirected_to_a_magnet_hands_the_magnet_over`,
+`TorznabAdapterPayloadTests.FetchPayload_fetches_the_torrent_from_the_feed_with_the_key_put_back` and
+`TorznabAdapterTests.TestConnection_masks_a_credential_the_error_description_quotes_wherever_its_address_ends`
+pin it, and `ReleaseSearchSecretsHttpTests` sweeps the search's answers, the log and the release rows
+for every planted credential.

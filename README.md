@@ -7,8 +7,9 @@ API and a web shell that report their own health, with accounts, integration set
 library: the installation owner created on first run, the users the owner manages, and sign-in;
 the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each
 connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
-file really holds once the app has inspected it inside the media folders the owner allows. Search
-and downloads are still to come; see [ROADMAP.md](ROADMAP.md).
+file really holds once the app has inspected it inside the media folders the owner allows. Release
+sources can be searched through the API; the search page and downloads are still to come; see
+[ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -57,7 +58,8 @@ application.
   service did. Services that report file paths take path mappings onto the app's own mounts
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   Credentials are stored encrypted and never shown again. Jellyfin feeds the library, and a
-  switched-off one can't be synced; search and downloads build on the other two. The Jellyfin
+  switched-off one can't be synced; a Torznab feed is searched for releases, and a switched-off one
+  is left alone; downloads will build on qBittorrent. The Jellyfin
   connection test refuses a Jellyfin older than 10.9, the oldest the app reads libraries from.
 - **The library.** The Library page (**Library** in the header, for every signed-in user) lists the
   movies of the owner's Jellyfin libraries as works: items that share an IMDb or TMDb id are one
@@ -83,6 +85,14 @@ application.
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
   The Library page shows how many files of each source were inspected, couldn't be read or wait,
   and why a file couldn't be read (the reason to the owner only).
+- **Release search, through the API so far.** Every signed-in user can search all enabled release
+  sources at once for a title, with a year and an IMDb or TMDb id where a source can take them
+  (`POST /api/releases/search`; the page that shows it comes with MAM-12). Each source answers for
+  itself, so one that fails says why beside the others' releases. A release comes with its size,
+  seeders, publish date, the page at the source and its categories, and with what its title claims —
+  resolution, medium, codec, dynamic range, audio and subtitle languages — marked as claims. Movies
+  only; Toloka through Prowlarr is searched by title and year. Download links stay on the server
+  ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -167,8 +177,8 @@ The core works with media works, versions, physical files, releases, and persist
 title, identifier, version, file and release it stores names the source that reported it
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 Adapter contracts keep it independent of any one media server, indexer, or download client. The
-first three adapters exist: Jellyfin's reads the library, and the other two, so far, only test a
-connection. The core's contracts for libraries, release search, download clients, file inventory
+first three adapters exist: Jellyfin's reads the library, the Torznab adapter searches releases and
+fetches a release's download, and qBittorrent's, so far, only tests a connection. The core's contracts for libraries, release search, download clients, file inventory
 and metadata live in Core and name no product
 ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
 
@@ -182,7 +192,8 @@ and metadata live in Core and name no product
 Toloka is searched through Prowlarr: it signs in to the tracker with your account, reads its search
 pages, and serves the results as a standard Torznab feed, so the app needs no code specific to
 Toloka. A search through Prowlarr worked against the real installation (MAM-6); Prowlarr's download
-links carry its API key, so the app will fetch them itself and never show them
+links carry its API key, so the app fetches them itself, from the feed's own address only, and never
+shows them
 ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
 A direct Toloka adapter is an option if the gateway proves unsuitable.
 
@@ -232,6 +243,14 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   and expects 403. A failed sync's reason can name the service's address, a path problem quotes the
   owner's path mappings, and who started a sync is the owner's sign-in name, so only the owner gets
   them; everyone else gets `null`.
+- **Release search is everyone's; why a source failed is the owner's.** Every signed-in user may
+  search (owner's choice), which sends the stored Torznab key to the owner's gateway and, through it,
+  searches the tracker with the owner's account. A source's failure can name its address, so only the
+  owner reads the sentence; everyone gets its status. A release reaches the browser without its
+  download link: the link is sealed to the release's row, without the gateway's key, which the fetch
+  puts back. Page links lose the forum session (`sid`), and a link or id that could carry a credential
+  isn't shown or stored as it is
+  ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
 - **The app reads files only inside the allowed roots.** It opens a library file only when the
   path, and every link on the way to it, lies inside a folder the owner allowed on the **Media
   folders** page (owner-only, reading included); none is allowed by default, and the whole file
@@ -262,7 +281,11 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   that carry credentials never follow a redirect (the test reports where it pointed, without its
   query), share no cookies and are never retried. An address can't hold a user name, a password or
   a query. There is no guard against private addresses: the services live on the owner's network,
-  and only the owner can enter one
+  and only the owner can enter one. The one address a service supplies, a release's download link, is
+  fetched only from the Torznab feed's own scheme, host and port, and only once: a redirect to a
+  magnet is the release, any other redirect is refused. A feed's error text has every address cut to
+  its host and every `passkey=`-like value masked before it is shown, since it can quote a tracker's
+  URL with a passkey the app doesn't hold
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
 - **Behind a reverse proxy.** The app takes the client's address from the connection and ignores
   `X-Forwarded-For`, which any client can write. Behind a reverse proxy that address is the proxy's,
@@ -475,6 +498,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/library/inspections` | Owner only. 202 with the queued file inspection and its `Location`, or with the one already waiting, which the request joins; the inspection runs in the background. 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then inspect again." }`; 503 when too many inspections are waiting. |
 | `GET /api/library/inspections/{runId}` | 200 `{ id, trigger, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesTotal, filesChecked, filesProbed, error }`, `trigger` being `Requested`, `LibrarySynced` or `AppStarted`; `requestedByUserName` and `error` only for the owner. 404. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
+| `POST /api/releases/search` with `{ text, year, imdbId, tmdbId }` | Every signed-in user. Searches every enabled release source at once and stores each release found. 200 `{ sources }` whatever the sources answered, by name, each `{ integrationId, name, status, notSearchedReason, error, releases }`: `status` is the call's outcome (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, …) or `null` when the app didn't ask the source, `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) says why, `error` the sentence for the owner only; each release `{ id, title, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, categories: [{ id, name }], payloadKind, claimed: { resolution, medium, videoCodec, dynamicRanges, audioLanguages, subtitleLanguages } }` in the source's order, at most 100 per source, `payloadKind` `Magnet` or `null`, the release's download link never included. 400 with the broken rule's sentence: no title, one longer than 200 characters, a year that isn't one, an id that isn't an IMDb (`tt0816692`) or a TMDb (`157336`) id; every field is a string. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -551,8 +575,26 @@ came from and how it was sanitized. The adapters' tests run against them: the co
 and Jellyfin's library reads with variants made from the real movies (`JellyfinSamples`: merged
 versions, stacked parts, a library of any size for paging). The API tests sync libraries from
 `FakeJellyfinServer`, which answers from the same samples. The tests swap each integration's HTTP
-handler for one that answers with a sample, so no test reaches a real service.
-`VendorSamplesTests` fails the build if a sample carries a credential.
+handler for one that answers with a sample, so no test reaches a real service — but one: see the
+live release search below. `VendorSamplesTests` fails the build if a sample carries a credential.
+
+The release search is tested against the real Toloka answers through Prowlarr: the adapter reads the
+caps and both search samples (`TorznabSamples` moves their download links to the test's own feed),
+and hand-written answers for what they don't show — magnets, other gateways' shapes, credentials in
+every place a feed puts them, every error code and status. The API tests search through
+`FakeTorznabServer`, one or several feeds at once, and `ReleaseSearchSecretsHttpTests` plants the
+gateway's key, its link token, the forum session and tracker passkeys and checks that none reaches
+an answer, the log or a release row.
+
+`TorznabLiveTests` searches a real Torznab feed through the app's own adapter and plan; it is skipped
+unless both variables are set, so only the owner runs it, against the reference installation:
+
+```bash
+LIVE_TORZNAB_URL=http://192.168.1.195:9696/1/api LIVE_TORZNAB_API_KEY=<the Prowlarr API key> dotnet test tests/MediaAcquisitionManager.Infrastructure.Tests -c Release --filter "FullyQualifiedName~TorznabLiveTests"
+```
+
+It prints counts and hosts only, never a link or the key. Add `LIVE_TORZNAB_FETCH=1` to also fetch one
+release's .torrent (or magnet), which Prowlarr counts as a grab.
 
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable
@@ -586,13 +628,15 @@ src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
                                                and sessions, user management, integration
                                                settings, the library and its background sync,
-                                               the media folders and the file inspection, audit
+                                               the media folders and the file inspection, the
+                                               release search, audit
                                                trail, health checks, security headers, EF Core
                                                migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
-                                               path mapping, the allowed roots' rules and the
-                                               library's grouping and title order; no package
+                                               path mapping, the allowed roots' rules, the
+                                               library's grouping and title order, and the release
+                                               search's planning and title claims; no package
                                                references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
@@ -601,7 +645,7 @@ src/
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
-                                               file inventory
+                                               Torznab feed, a fake file inventory
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/

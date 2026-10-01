@@ -105,3 +105,63 @@ as said above.
 `TorznabAdapterTests.TestConnection_masks_an_api_key_the_error_description_echoes` and
 `IntegrationsInfrastructureExtensionsTests.Every_integration_client_has_no_logging_or_retry_handler`
 assert it.
+
+## Implementation (added 0.1.0, MAM-10)
+
+**The search asks what the feed can do, every time.** Each search reads the feed's `t=caps` first
+(answered from the gateway's memory) and the core plans from it (`ReleaseSearchPlanning`): an IMDb or
+TMDb id alone where the movie search takes one, then the title with the year, then the title alone,
+each tier only when the one before found nothing. Toloka's movie search takes only `q`, so it is asked
+`t=movie&q=Interstellar 2014` and, if that finds nothing, `q=Interstellar`; an id never reaches it.
+Matching the releases found to a library work by its identifiers, which the Decision above puts "on
+the app's own side", belongs with the search page that sets them side by side (MAM-12); MAM-10 reads
+no identifier out of a listing.
+
+**Movies only, by category.** The search sends the caps' movie categories (Torznab's 2000–2999: 2000,
+2020, 2040, 2070 for Toloka) as `cat=`, and keeps a release only when one of the categories it lists is
+one of those, or in the thousand of a parent asked for, whether or not the gateway honoured `cat`: the
+audio-only Interstellar (3020) is left out of the sample's 17. A feed asked for at most 100 releases
+(`limit=`, or its own maximum when smaller), since each is a stored row.
+
+**The session is removed from every link, and a link that could carry a credential is not kept.** A
+topic link loses every `sid` pair, in any letter case, after `&` or `;`, percent-encoded or in the
+fragment, so the `t=search` and `t=movie` samples give the same id and page link for each of the 17
+releases (`https://toloka.to/t699400`). The page link comes from `<comments>` only and is refused when
+it names a credential, looks like a download (`.torrent`, a `download`, `dl` or `rss` segment), or
+points at the gateway itself, whose address members must not see. The id is the guid when that is the
+page link, and otherwise a SHA-256 digest of it: Prowlarr writes the tracker's own download link,
+passkey in the path, as the guid of an indexer that gives none.
+
+**Download links stay on the server, and without the key.** The search stores each release with its
+link sealed to the release's row (ADR 0007) and the API key replaced by a placeholder, which the fetch
+replaces with the integration's current key; the browser gets the release's id. The fetch is
+`FetchPayloadAsync`, built here and called by MAM-13: a magnet is handed over as it is; an http(s) link
+is fetched only from the feed's own origin (scheme, ASCII host, port) and only once — a `magnet:`
+redirect is the payload, every other redirect is refused, naming its scheme and host only. A feed that
+lists its links at another origin (a reverse proxy, a base-URL override) fails its search with a
+sentence naming that origin, rather than listing releases that could never be fetched. Prowlarr's
+download errors (410 for a release or an indexer it no longer serves, 429, 500) are read from their
+`<error>` body; Jackett's bare 404 says the release may be gone or the feed failed to fetch it. The
+Decision's "MAM-13 fetches the .torrent or magnet" holds: MAM-13 asks for it; the rule of where it may
+come from is here. The MAM-7 section's "nothing writes a release yet" no longer holds: every search
+writes its releases (ADR 0006).
+
+**A feed's error text is cut before it is shown.** Jackett's error 900 and Prowlarr's download error
+500 quote the tracker's URL, passkey and all; every address in a description is cut to its scheme and
+host, and every credential-named pair (`passkey=`, `sid=`, …) is masked wherever it is, before the
+description is cleaned and cut to 200 characters. The connection test's sentences change with it.
+
+**The live search.** Pending: the owner runs `TorznabLiveTests` against the reference Prowlarr (see
+README, Tests); its result is recorded here.
+
+`TorznabAdapterSearchTests.Search_gives_both_samples_the_same_ids_and_page_links_without_the_session`,
+`TorznabAdapterSearchLinksTests.Search_removes_the_session_from_a_page_link_and_an_id` and
+`TorznabAdapterSearchLinksTests.Search_of_a_guid_that_is_the_trackers_download_link_stores_a_digest_and_no_page`
+pin the links; `TorznabAdapterSearchTests.Search_of_the_sample_in_the_movie_categories_leaves_the_audio_release_out`
+the categories; `ReleaseSearchPlanningTests.For_toloka_searches_its_movie_search_by_title_and_year_in_the_text_then_by_title`
+and `ReleaseSearchHttpTests.Search_sends_the_title_and_year_to_the_movie_search_in_the_movie_categories`
+the plan; `TorznabAdapterPayloadTests.FetchPayload_refuses_a_link_off_the_feeds_origin_without_sending_anything`,
+`TorznabAdapterPayloadTests.FetchPayload_redirected_to_the_tracker_refuses_and_names_only_its_host` and
+`TorznabAdapterPayloadTests.FetchPayload_maps_each_error_the_feed_answers_a_download_with` the fetch;
+and `ReleaseSearchSecretsHttpTests.Search_answers_no_planted_credential_or_ciphertext_to_the_owner_or_a_member`
+that none of it reaches the browser.

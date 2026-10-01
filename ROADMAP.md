@@ -3,8 +3,8 @@
 **Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
 localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
 environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
-library inventory) and MAM-9 (the ffprobe inspection of the library's files) are built; no phase has
-shipped yet.
+library inventory), MAM-9 (the ffprobe inspection of the library's files) and MAM-10 (the Torznab
+release search) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -81,8 +81,8 @@ existing file untouched.
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
   Path mappings are stored per integration and resolved folder by folder, never by a guess
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
-  MAM-7's adapters only tested a connection; MAM-8 added the library contract to Jellyfin's, and
-  MAM-10 and MAM-11 add the search and download contracts.
+  MAM-7's adapters only tested a connection; MAM-8 added the library contract to Jellyfin's, MAM-10
+  the search contract to Torznab's, and MAM-11 adds the download contract.
 - **MAM-8 Jellyfin inventory** (built): the owner syncs a Jellyfin library (10.9 or later) from the
   Library page in the background (202 + run row + reconciler), reading its libraries and every
   movie in pages that overlap by one, each asking for collection grouping off
@@ -113,9 +113,21 @@ existing file untouched.
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
   The Library page shows the facts under each file and each source's inspected, unreadable and
   waiting files. Track titles are not shown (owner's choice).
-- **MAM-10 Torznab search:** one Torznab provider with per-indexer configuration; Toloka tested
-  through Prowlarr with a real query. The provider speaks plain Torznab, so it has no code specific
-  to Prowlarr or Toloka.
+- **MAM-10 Torznab search** (built): every signed-in user searches all enabled release sources at
+  once through the API (`POST /api/releases/search`; the page is MAM-12's), and each source answers
+  with its own status, its sentence for the owner, and its releases — size, seeders and peers, date,
+  the page at the source, categories, and the quality and languages the title claims, marked as
+  claims. One Torznab adapter, one integration per indexer feed, speaking plain Torznab with nothing
+  specific to Prowlarr or Toloka; it reads each feed's capabilities and searches by IMDb or TMDb id
+  where the feed takes one, then by title and year, then by title, in the movie categories. Each
+  release found is stored (owner's choice), its download link sealed to it without the gateway's
+  key, and removed a day later unless a download job uses it; the server fetches the payload itself,
+  from the feed's own address only and following no redirect but to a magnet, and no key, link token,
+  forum session or tracker passkey reaches the browser, the log or a stored column
+  (`ReleaseSearchSecretsHttpTests`;
+  [ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md),
+  [ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
+  The live Toloka search is to be run by the owner (`TorznabLiveTests`).
 - **MAM-11 qBittorrent and destinations:** category listing (its connection test came with
   MAM-7), magnet and `.torrent` submission, job and file monitoring, and logical destinations
   (`Movies`, `Movies 4K`) mapped to existing categories without an overriding save path.
@@ -130,7 +142,8 @@ existing file untouched.
   the accounts, sessions, integrations, audit trail, imported library and its sync runs too, and
   `.secrets/`, whose encryption key alone opens the stored credentials); copy it while the app is
   stopped. A lost library snapshot comes back with the next sync, and the files' inspection with
-  the next inspection; the media folders the owner allowed are in `mam.db` too. A secret set through
+  the next inspection; the media folders the owner allowed are in `mam.db` too. The releases a
+  search found are kept there for a day, and those a download job sent for as long as the job. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.
 

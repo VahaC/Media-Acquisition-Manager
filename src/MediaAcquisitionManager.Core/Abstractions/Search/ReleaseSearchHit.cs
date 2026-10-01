@@ -6,10 +6,19 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// One release a source lists. A hit has no file list and no work: one release may hold many of
 /// both.
 /// </summary>
-/// <param name="SourceItemId">The source's own id of the listing, with any session removed.</param>
+/// <remarks>
+/// MAM-10 — every field but <see cref="Locator"/> is safe to store in clear and to show: the adapter
+/// removes any session from a link, refuses a link that carries a credential, and replaces an id that
+/// does with a digest of it. The record's generated <c>ToString</c> prints them, and the locator
+/// masked.
+/// </remarks>
+/// <param name="SourceItemId">The source's own id of the listing, with any session removed, or a digest of
+/// it when it carries a credential; <c>null</c> when the listing gives none.</param>
 /// <param name="Title">The title as listed; every quality in it is a claim.</param>
 /// <param name="SizeBytes">The size the listing claims.</param>
 /// <param name="Seeders">The seeders the listing claims.</param>
+/// <param name="Peers">The peers the listing claims: seeders and leechers together, as the source counts
+/// them (MAM-10).</param>
 /// <param name="PublishedUtc">When it was published, in UTC.</param>
 /// <param name="SourcePageUrl">The release's page at the source, with any session removed.</param>
 /// <param name="CategoryIds">The source's categories it is listed in.</param>
@@ -17,10 +26,11 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// <param name="InfoHash">The info hash when the source states it.</param>
 /// <param name="Locator">Where the server fetches the payload from; never sent to the browser.</param>
 public sealed record ReleaseSearchHit(
-    string SourceItemId,
+    string? SourceItemId,
     string Title,
     long? SizeBytes,
     int? Seeders,
+    int? Peers,
     DateTime? PublishedUtc,
     string? SourcePageUrl,
     IReadOnlyList<string> CategoryIds,

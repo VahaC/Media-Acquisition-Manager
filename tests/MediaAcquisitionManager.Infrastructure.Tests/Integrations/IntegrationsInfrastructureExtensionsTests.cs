@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations;
@@ -152,6 +153,51 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Same(registry.Find("jellyfin"), jellyfin);
         Assert.Null(torznab);
         Assert.Null(qBittorrent);
+    }
+
+    [Fact]
+    public void The_registry_finds_torznab_and_nothing_else_as_a_release_search_source()
+    {
+        //Arrange
+        using var services = BuildServices();
+        var registry = services.GetRequiredService<IIntegrationAdapterRegistry>();
+
+        //Act
+        var torznab = registry.Find<IReleaseSearchProvider>("torznab");
+        var jellyfin = registry.Find<IReleaseSearchProvider>("jellyfin");
+        var qBittorrent = registry.Find<IReleaseSearchProvider>("qbittorrent");
+
+        //Assert
+        // MAM-10 — the same instance the connection test uses: no second registration to forget.
+        Assert.Same(registry.Find("torznab"), torznab);
+        Assert.Null(jellyfin);
+        Assert.Null(qBittorrent);
+    }
+
+    [Fact]
+    public async Task A_release_search_and_a_payload_fetch_log_nothing_from_the_http_client()
+    {
+        //Arrange
+        // Every level recorded; the feed answers, so each call reads what it got back.
+        using var harness = new IntegrationAdapterHarness();
+        var settings = new IntegrationConnectionSettings(null, "http://service.test:9696/1/api", null, null, AnyApiKey);
+        new FakeTorznabServer(settings.BaseUrl, AnyApiKey).Arm(harness.TorznabHttp);
+        var search = harness.Adapter<IReleaseSearchProvider>("torznab");
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var capabilities = await search.GetCapabilitiesAsync(settings, cancellationToken);
+        var hits = await search.SearchAsync(settings, new ReleaseSearchQuery(ReleaseSearchMode.General, "Interstellar", null, [], [], 100), cancellationToken);
+        var payload = await search.FetchPayloadAsync(settings, hits.Value![0].Locator, cancellationToken);
+
+        //Assert
+        Assert.True(capabilities.IsSuccess);
+        Assert.True(payload.IsSuccess);
+        Assert.Equal(3, harness.TorznabHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(AnyApiKey, StringComparison.Ordinal));
     }
 
     [Fact]

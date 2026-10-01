@@ -61,6 +61,7 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("AllowedRootsController.Update", actions);
         Assert.Contains("FileInspectionController.Start", actions);
         Assert.Contains("FileInspectionController.GetRun", actions);
+        Assert.Contains("ReleaseSearchController.Search", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

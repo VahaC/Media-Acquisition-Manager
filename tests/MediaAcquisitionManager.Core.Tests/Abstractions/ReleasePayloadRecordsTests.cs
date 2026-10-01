@@ -45,7 +45,7 @@ public sealed class ReleasePayloadRecordsTests
     {
         //Arrange
         var hit = new ReleaseSearchHit(
-            "https://tracker.test/t1", "Interstellar (2014)", 1, 2, null, null, [], ReleasePayloadKind.TorrentFile, null,
+            "https://tracker.test/t1", "Interstellar (2014)", 1, 2, 3, null, null, [], ReleasePayloadKind.TorrentFile, null,
             new ReleasePayloadLocator($"http://127.0.0.1:9/1/download?apikey={ApiKey}"));
 
         //Act

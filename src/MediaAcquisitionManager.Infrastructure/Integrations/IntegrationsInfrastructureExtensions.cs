@@ -23,7 +23,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// file is never buffered into memory. MAM-8 — it also holds a page of a library sync with room to
     /// spare: the heaviest sample movie, streams included, is about 12 KB as Jellyfin sends it, so a
     /// page of 50 is well under 1 MB (and <c>JellyfinAdapter.MaximumPageSize</c>'s 200 under 3 MB).
-    /// MAM-10 revisits it for its own calls.
+    /// MAM-10 — a release search asks for at most 100 releases (<c>ReleaseSearchPlanning.MaximumResults</c>),
+    /// about 150 KB of RSS (the sample's 17 are 25 KB), and the .torrent of a movie, which the payload
+    /// fetch buffers whole, is well under 1 MiB: 4 MiB holds either with room to spare.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 
@@ -31,8 +33,10 @@ internal static class IntegrationsInfrastructureExtensions
     /// MAM-7 — a connection test is answered from the service's memory on a LAN in milliseconds; 15 s
     /// covers a NAS waking its disks or a service still starting, without leaving the owner staring at
     /// "Testing…". MAM-8 — the timeout is per request, and a library sync sends one request per page of
-    /// 50 movies, so it bounds reading one page, never the whole library. MAM-10 and MAM-11 re-justify
-    /// it for their own calls (a Toloka search through Prowlarr took 2.7 s, ADR 0004).
+    /// 50 movies, so it bounds reading one page, never the whole library. MAM-10 — a Toloka search
+    /// through Prowlarr took 2.7 s (ADR 0004) and a feed answers its caps from memory, so 15 s leaves a
+    /// slow tracker five times that; a payload fetch, where the gateway fetches the .torrent from the
+    /// tracker, is one request of the same kind. MAM-11 re-justifies it for its own calls.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
@@ -70,7 +74,9 @@ internal static class IntegrationsInfrastructureExtensions
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 // Every request here carries a credential; a redirect would carry it wherever the
-                // Location points. A 3xx is reported to the owner instead (ADR 0007).
+                // Location points. A 3xx is reported to the owner instead (ADR 0007). MAM-10 — the
+                // payload fetch reads a 3xx too but follows none: a magnet: Location is the payload,
+                // anything else is refused.
                 AllowAutoRedirect = false,
                 // The factory pools handlers across connections: a cookie container would share one
                 // qBittorrent's session with every other. The adapter sends the one cookie it means to.

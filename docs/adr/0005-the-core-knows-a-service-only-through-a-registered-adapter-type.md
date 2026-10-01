@@ -147,3 +147,35 @@ the core speaks of a media inspector and of `DynamicRange`, and `CoreIsVendorNeu
 refuses `ffprobe`, `ffmpeg` and `mediainfo` in a name in Core, so it stays that way. The API tests replace `IFileInventory` with `FakeFileInventory`, the way they replace the
 vendors' networks; the local implementation is tested against real folders and a stub ffprobe in
 Infrastructure.Tests.
+
+## Implementation (added 0.1.0, MAM-10)
+
+**Torznab serves its kind.** `TorznabAdapter` implements `IReleaseSearchProvider` — capabilities,
+search and the payload fetch — so `Find<IReleaseSearchProvider>("torznab")` returns it while `jellyfin`
+and `qbittorrent` still return nothing, and the convention test covers release search too.
+
+**The core decides the query; the adapter translates it.** The search contract's Phase A members
+changed as the Consequences above allowed. `ReleaseSearchQuery` now carries its mode (the source's
+movie search or its general search, `ReleaseSearchMode`), its limit and only what the source takes:
+`ReleaseSearchPlanning`, in Core, chooses it from `ReleaseSearchCapabilities`, which gained whether the
+source has a text search, whether its movie search takes text, and its result limit. A category says
+whether it holds movies, since only the adapter knows its protocol's numbering. A hit gained its peers,
+and its id may be missing. Which id or year a source can take is then one tested rule, not something
+each adapter decides its own way.
+
+**A search answers 200 whatever its sources said.** As a connection test does, but per source: each
+enabled release source answers with its status and, for the owner, its sentence, beside its releases,
+and a failing one never hides the others (`POST /api/releases/search`); 400 is only for a search the
+app doesn't take. What a connection test or a sync answers with 409 — a stored key that can't be read,
+a type this build no longer registers — and a source that offers no search the app can use become that
+source's `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) with a `null`
+status: the app didn't ask it. The sources are asked at once, and an exception an adapter should never
+have thrown costs its source the results (`UnexpectedResponse`), not the whole search.
+
+`AdapterKindContractTests.Every_release_search_adapter_implements_the_release_search_contract` and
+`IntegrationsInfrastructureExtensionsTests.The_registry_finds_torznab_and_nothing_else_as_a_release_search_source`
+pin the kind, `ReleaseSearchPlanningTests` the planning, and
+`ReleaseSearchSourcesHttpTests.Search_with_one_failing_source_is_200_with_the_other_sources_releases`,
+`ReleaseSearchSourcesHttpTests.Search_of_a_source_whose_key_can_not_be_read_says_so_without_asking_it`
+and `ReleaseSearchSourcesHttpTests.Search_of_a_source_whose_answer_the_app_can_not_read_keeps_the_others`
+the answer per source.

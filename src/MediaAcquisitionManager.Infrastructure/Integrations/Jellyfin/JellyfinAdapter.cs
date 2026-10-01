@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Media;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
@@ -448,9 +449,9 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             if (property.Value.ValueKind != JsonValueKind.String)
                 continue;
             var value = property.Value.GetString()!.Trim();
-            if (imdb is null && string.Equals(property.Name, "Imdb", StringComparison.OrdinalIgnoreCase) && ImdbPattern().IsMatch(value))
+            if (imdb is null && string.Equals(property.Name, "Imdb", StringComparison.OrdinalIgnoreCase) && MediaIdentifierRules.IsImdbId(value))
                 imdb = value;
-            else if (tmdb is null && string.Equals(property.Name, "Tmdb", StringComparison.OrdinalIgnoreCase) && TmdbPattern().IsMatch(value))
+            else if (tmdb is null && string.Equals(property.Name, "Tmdb", StringComparison.OrdinalIgnoreCase) && MediaIdentifierRules.IsTmdbId(value))
                 tmdb = value;
         }
 
@@ -609,13 +610,4 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// </summary>
     [GeneratedRegex(@"^([0-9]+)\.([0-9]+)")]
     private static partial Regex VersionPattern();
-
-    /// <summary>An IMDb title id: <c>tt</c> and at least five digits, at most what an identifier column
-    /// holds (64). <c>\z</c> rather than <c>$</c>, which would also accept a trailing line break.</summary>
-    [GeneratedRegex(@"^tt[0-9]{5,62}\z", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex ImdbPattern();
-
-    /// <summary>A TMDb movie id: digits only, 1 to 12 of them.</summary>
-    [GeneratedRegex(@"^[0-9]{1,12}\z")]
-    private static partial Regex TmdbPattern();
 }

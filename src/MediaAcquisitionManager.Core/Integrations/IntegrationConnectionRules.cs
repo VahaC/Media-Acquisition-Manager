@@ -11,7 +11,8 @@ namespace MediaAcquisitionManager.Core.Integrations;
 /// No private-address (SSRF) guard on the address: these services live on the owner's LAN by design
 /// (192.168.1.195 in the reference installation), only the installation owner can enter one, and
 /// requests to it follow no redirects. Specification §4's SSRF concern is about addresses an indexer
-/// supplies, which MAM-13 guards (ADR 0007).
+/// supplies: MAM-10's payload fetch only ever requests the feed's own origin and follows no redirect,
+/// so an indexer's address is never requested (ADR 0007).
 /// </para>
 /// <para>
 /// <c>{Display}</c> in a sentence is the adapter type's display name, a product name the owner knows.

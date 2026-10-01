@@ -367,6 +367,37 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   sources panel shows that line with **Inspect files**, disabled with its reason for anyone but the
   owner, with no folder allowed and while a run waits — on its own or behind the running one, which
   the line then says (`hasQueuedRun`) — and polls while a run is under way.
+- **Every signed-in user searches the release sources, and each source answers for itself (MAM-10,
+  ADR 0004, ADR 0005).** `POST /api/releases/search` with `{ text, year, imdbId, tmdbId }` asks every
+  enabled release source at once and answers 200 `{ sources }`: each source with its `status`, the
+  sentence of a failure (`error`, for the owner only, as it can name the service's address), and the
+  releases it listed, in its own order — title, size, seeders and peers, publish date, the page at the
+  source, its categories with their names, whether it is a magnet, and the quality and languages the
+  title claims (resolution, medium, video codec, dynamic ranges, audio and subtitle languages), marked
+  as claims and unknown where the title says nothing. A failing source never hides the others, and a
+  source the app can't ask says why (`notSearchedReason`: a stored key it can't read, a type this build
+  can't search through, a feed with no search it can use). 400 with its sentence for a missing or
+  overlong title, a year that isn't one, or an id that isn't an IMDb or a TMDb id. A switched-off
+  source is left alone. Every source's capabilities are read first, and the search goes the way they
+  allow: an IMDb or TMDb id alone where the movie search takes one, then the title and the year, then
+  the title alone; Toloka through Prowlarr takes only text, so it is asked "Interstellar 2014", in the
+  movie categories, for at most 100 releases. The Torznab adapter speaks plain Torznab, with nothing
+  specific to Prowlarr or Toloka. The live Toloka search is still to be verified (README, Tests).
+- **A release's download link stays on the server, and it holds no copy of the gateway's key (MAM-10,
+  ADR 0004, ADR 0007).** Each release a search finds is stored as a new release row, its download
+  link sealed to it with the API key replaced by a placeholder that the fetch fills with the
+  integration's current key; the browser gets the release's id. Releases stored more than a day ago
+  that no download job points at are removed by the next search (ADR 0006). The page link loses the
+  owner's forum session (`sid`, in any form), and one that could carry a credential, looks like a
+  download or points at the gateway itself is not kept; a listing's id is kept only when it is that
+  page link, and is otherwise a SHA-256 digest of it, since Prowlarr writes the tracker's own download
+  link, passkey and all, as the id of an indexer that gives none. The payload fetch the download step
+  will use (MAM-13) is built: a magnet as it is, a link only from the feed's own origin and only once
+  — a redirect to a magnet is the payload, any other redirect is refused — and a feed whose links
+  point at another origin fails its search with a sentence naming it.
+  `ReleaseSearchSecretsHttpTests` plants the key, the gateway's link token, the session and tracker
+  passkeys wherever a feed puts them and finds none in the answers to the owner or a member, in the
+  log or in the release rows outside the sealed link.
 
 ### Changed
 
@@ -397,6 +428,20 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   MAM-7's contract described a file inside "the configured roots"; now the caller passes the roots
   it read from the owner's setting, and `InspectMediaAsync` reads the streams. `FileInventoryStatus`
   gained `MediaUnreadable`, `InspectorUnavailable` and `ChangedWhileReading`.
+- **A Torznab feed's error text is cut before the app shows it (MAM-10, ADR 0004).** Every address in
+  a feed's `<error description>` is cut to its scheme and host, and every credential-named pair
+  (`passkey=`, `sid=`, …) is masked, before the text is cleaned and cut to 200 characters: Jackett's
+  error 900 and Prowlarr's download error 500 quote the tracker's URL, passkey and all. A connection
+  test's sentence that quoted the request (`…/1/api?t=caps&apikey=***`) now names the host only. The
+  XML a feed answers is refused when it nests deeper than 32 levels, before it is read.
+- **The IMDb and TMDb id rules are shared (MAM-10).** The Jellyfin adapter and the release search
+  check ids with one rule (`MediaIdentifierRules`), so a search is never refused an id a library
+  holds.
+- **The release search contract is decided by the core (MAM-10, ADR 0005).** `ReleaseSearchQuery`
+  carries its mode, its limit and only what the source takes, chosen by `ReleaseSearchPlanning` from
+  the capabilities, which now say whether the source searches by text, whether its movie search takes
+  text, its result limit and which categories hold movies; a hit carries its peers, and its id may be
+  missing.
 
 ### Notes for upgraders
 

@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Search;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
@@ -8,13 +9,6 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 /// <inheritdoc cref="IReleaseDataFactory"/>
 public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionService encryption, TimeProvider time) : IReleaseDataFactory
 {
-    /// <summary>
-    /// The associated data a release's payload locator is sealed with, as <see cref="ReleaseEntity"/>
-    /// documents it. Spelled out here because nothing in the app writes releases before MAM-13, which
-    /// brings its own helper for it.
-    /// </summary>
-    public static string PayloadLocatorPurpose(Guid releaseId) => $"release/{releaseId:N}/payload-locator";
-
     public async Task<ReleaseEntity> Create(
         Guid? sourceConnectionId,
         string sourceName = "Torznab",
@@ -31,7 +25,7 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
             CreatedUtc = now,
             ObservedUtc = now,
         };
-        release.PayloadLocatorEncrypted = encryption.Encrypt(locator, PayloadLocatorPurpose(release.Id));
+        release.PayloadLocatorEncrypted = encryption.Encrypt(locator, ReleasePayloadLocatorPurpose.For(release.Id));
 
         db.Releases.Add(release);
         await db.SaveChangesAsync();
