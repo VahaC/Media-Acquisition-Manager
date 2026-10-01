@@ -37,6 +37,14 @@
   line-height: 1.25;
 }
 
+/* MAM-12 — a line of "In your library" that quotes the title searched for (`.settings-muted` gives
+   its colour): a pasted scene name has no spaces, so it breaks anywhere rather than widening the
+   page past a phone's screen. */
+.search-library-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* One line per source, each a `.library-source-status` or `.library-source-warning` line. */
 .search-sources {
   display: grid;

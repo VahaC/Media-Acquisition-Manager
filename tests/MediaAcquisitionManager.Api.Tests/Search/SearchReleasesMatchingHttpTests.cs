@@ -17,7 +17,9 @@ namespace MediaAcquisitionManager.Api.Tests.Search;
 // ADR 0004's question for MAM-12). Every work a release matches is listed, strongest first; an id the
 // listing gives that a work contradicts is flagged. A title without a year claims no title at all — it
 // can't be told from its quality tail — so such a release matches only by an id. A release is matched
-// against the search's works only, never the whole library, and against the library as it is now.
+// against the search's works only, never the whole library, and against the library as it is now. MAM-12 —
+// the works the search lists by their words are among them, each matched on the release's own evidence;
+// a release is never matched to a work by words (ADR 0012).
 public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/searches";
@@ -54,7 +56,8 @@ public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisi
     /// <summary>
     /// A release title and the works it matches, strongest first, each as "work evidence conflicts":
     /// A is "Інтерстеллар" (2014, originally "Interstellar", IMDb tt0816692, TMDb 157336), B "Interstellar"
-    /// (1999, no ids).
+    /// (1999, no ids), W "Interstellar Wars" (2014, IMDb tt5083736, TMDb 374205), which the search lists by
+    /// its words only.
     /// </summary>
     public static TheoryData<string, string[]> Matches => new()
     {
@@ -76,8 +79,9 @@ public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisi
         { ByImdbNumber, ["A Identifier", "B TitleOnly"] },
         // One id agrees, the other doesn't: the id matches, and the disagreement is flagged.
         { WithAConflictingTmdbId, ["A Identifier Tmdb", "B TitleOnly"] },
-        // A film the library holds but the search didn't find: not offered.
-        { OfAnotherFilm, [] },
+        // MAM-12 — a film the search lists by its words only: matched by the title and year the release
+        // claims, never by the search's words.
+        { OfAnotherFilm, ["W TitleAndYear"] },
     };
 
     public async ValueTask InitializeAsync()
@@ -133,8 +137,8 @@ public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisi
         var releases = await ReleasesAsync(search, cancellationToken);
 
         //Assert
-        // The search found A and B, and not "Interstellar Wars".
-        Assert.Equal([MatchEvidence.TitleAndYear, MatchEvidence.TitleOnly], search.Library.Select(match => match.Evidence));
+        // The search matched A and B, and listed "Interstellar Wars" by its words, as no match (MAM-12).
+        Assert.Equal(["A TitleAndYear", "B TitleOnly", "W Words"], search.Library.Select(match => $"{works[match.Work.Id]} {match.Evidence}"));
         var release = Assert.Single(releases, release => release.Title == title);
         Assert.Equal(
             expected,
@@ -204,8 +208,9 @@ public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisi
         // The page finds the card a release matches among the search's own.
         var libraryIds = search.Library.Select(match => match.Work.Id).ToHashSet();
         Assert.All(releases.SelectMany(release => release.LibraryMatches), match => Assert.Contains(match.WorkId, libraryIds));
+        // In the order the search lists them; "Interstellar Wars", listed by its words, is not this one's.
         Assert.Equal(
-            search.Library.Select(match => match.Work.Id),
+            search.Library.Where(match => match.Evidence != MatchEvidence.Words).Select(match => match.Work.Id),
             Assert.Single(releases, release => release.Title == ByTitleAndYear).LibraryMatches.Select(match => match.WorkId));
     }
 
@@ -305,11 +310,7 @@ public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisi
         await new LibrarySnapshotSeeder(_factory.Scope).Sync(_livingRoomIntegration, _owner.User);
         _toloka.SearchXml = TorznabSamples.Feed(Item(sceneName, "o1"));
         var search = await CreateSearchAsync("Oceans Eleven", "2001", cancellationToken);
-        var oceans = Guid.Empty;
-        await _factory.WithDbAsync(async db => oceans = await db.MediaVersions
-            .Where(version => version.SourceItemId == oceansItemId)
-            .Select(version => version.MediaWorkId)
-            .SingleAsync(cancellationToken));
+        var oceans = await WorkOfAsync(oceansItemId, cancellationToken);
 
         //Act
         var releases = await ReleasesAsync(search, cancellationToken);
@@ -322,7 +323,115 @@ public sealed class SearchReleasesMatchingHttpTests : IClassFixture<MediaAcquisi
         Assert.Equal([(oceans, MatchEvidence.TitleAndYear)], release.LibraryMatches.Select(match => (match.WorkId, match.Evidence)));
     }
 
+    [Fact]
+    public async Task Releases_match_a_work_the_search_lists_by_its_words_on_their_own_evidence()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string ramboIIIItemId = "5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f";
+        const string ramboIVItemId = "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d";
+        const string ramboIIIRelease = "Rambo III (1988) BDRip 1080p";
+        const string ramboRelease = "Rambo (2008) BDRip 720p";
+        // MAM-12 — only "Рембо IV" is titled "Rambo"; "Рембо III" holds the word, so a search for "Rambo"
+        // lists it by its words, as no match.
+        _livingRoom.Movies.Add(JellyfinSamples.MovieWith(
+            ramboIIIItemId, "Рембо III", "Rambo III", 1988, "/media/movies/Rambo. Collection/[03] Rambo III (1988) BDRip 1080p.mkv"));
+        _livingRoom.Movies.Add(JellyfinSamples.MovieWith(
+            ramboIVItemId, "Рембо IV", "Rambo", 2008, "/media/movies/Rambo. Collection/[04] Rambo (2008) BDRip 1080p.mkv"));
+        await new LibrarySnapshotSeeder(_factory.Scope).Sync(_livingRoomIntegration, _owner.User);
+        _toloka.SearchXml = TorznabSamples.Feed(Item(ramboIIIRelease, "r3"), Item(ramboRelease, "r4"));
+        var search = await CreateSearchAsync("Rambo", null, cancellationToken);
+        var ramboIII = await WorkOfAsync(ramboIIIItemId, cancellationToken);
+        var ramboIV = await WorkOfAsync(ramboIVItemId, cancellationToken);
+
+        //Act
+        var releases = await ReleasesAsync(search, cancellationToken);
+
+        //Assert
+        Assert.Equal([(ramboIV, MatchEvidence.TitleOnly), (ramboIII, MatchEvidence.Words)], search.Library.Select(match => (match.Work.Id, match.Evidence)));
+        // "In your library: Рембо III (1988), matched by title and year": the release's own title and year.
+        Assert.Equal(
+            [(ramboIII, MatchEvidence.TitleAndYear)],
+            Assert.Single(releases, release => release.Title == ramboIIIRelease).LibraryMatches.Select(match => (match.WorkId, match.Evidence)));
+        // "Rambo III" holds the word "Rambo" too, but is not the film "Rambo (2008)" claims.
+        Assert.Equal(
+            [(ramboIV, MatchEvidence.TitleAndYear)],
+            Assert.Single(releases, release => release.Title == ramboRelease).LibraryMatches.Select(match => (match.WorkId, match.Evidence)));
+    }
+
+    [Fact]
+    public async Task Releases_match_a_work_whose_title_a_square_bracketed_tag_follows()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string ramboIVItemId = "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d";
+        const string lastBloodItemId = "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e";
+        const string lastBloodRelease = "Rambo: Last Blood [Extended Cut] (2019) BDRip-AVC";
+        const string ramboRelease = "V / Rambo [Theatrical Cut] (2008) BDRip-AVC 2xUkr/Eng";
+        // MAM-12 review, Vasyl's decision 4 — what Toloka listed for "rambo": an edition tag stands between
+        // the title and its year, and is no part of the title.
+        _livingRoom.Movies.Add(JellyfinSamples.MovieWith(
+            ramboIVItemId, "Рембо IV", "Rambo", 2008, "/media/movies/Rambo. Collection/[04] Rambo (2008) BDRip 1080p.mkv"));
+        _livingRoom.Movies.Add(JellyfinSamples.MovieWith(
+            lastBloodItemId, "Рембо: Остання кров", "Rambo: Last Blood", 2019, "/media/movies/Rambo. Collection/[05] Rambo. Last Blood (2019) BDRip 1080p.mkv"));
+        await new LibrarySnapshotSeeder(_factory.Scope).Sync(_livingRoomIntegration, _owner.User);
+        _toloka.SearchXml = TorznabSamples.Feed(Item(lastBloodRelease, "r5"), Item(ramboRelease, "r4"));
+        var search = await CreateSearchAsync("Rambo", null, cancellationToken);
+        var ramboIV = await WorkOfAsync(ramboIVItemId, cancellationToken);
+        var lastBlood = await WorkOfAsync(lastBloodItemId, cancellationToken);
+
+        //Act
+        var releases = await ReleasesAsync(search, cancellationToken);
+
+        //Assert
+        Assert.Equal([(ramboIV, MatchEvidence.TitleOnly), (lastBlood, MatchEvidence.Words)], search.Library.Select(match => (match.Work.Id, match.Evidence)));
+        var lastBloodListed = Assert.Single(releases, release => release.Title == lastBloodRelease);
+        Assert.Equal(["Rambo: Last Blood"], lastBloodListed.ClaimedWork.Titles);
+        Assert.Equal(2019, lastBloodListed.ClaimedWork.Year);
+        Assert.Equal([(lastBlood, MatchEvidence.TitleAndYear)], lastBloodListed.LibraryMatches.Select(match => (match.WorkId, match.Evidence)));
+        var ramboListed = Assert.Single(releases, release => release.Title == ramboRelease);
+        Assert.Equal(["V", "Rambo"], ramboListed.ClaimedWork.Titles);
+        Assert.Equal(2008, ramboListed.ClaimedWork.Year);
+        Assert.Equal([(ramboIV, MatchEvidence.TitleAndYear)], ramboListed.LibraryMatches.Select(match => (match.WorkId, match.Evidence)));
+    }
+
+    [Fact]
+    public async Task Releases_are_never_matched_to_a_work_by_words()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-12 — the search lists "Interstellar Wars" by its words, and its title holds every word of
+        // what most releases claim, "Interstellar".
+        var search = await CreateSearchAsync("Interstellar", null, cancellationToken);
+        var works = await WorkNamesAsync(cancellationToken);
+
+        //Act
+        var releases = await ReleasesAsync(search, cancellationToken);
+
+        //Assert
+        Assert.Equal(["A TitleOnly", "B TitleOnly", "W Words"], search.Library.Select(match => $"{works[match.Work.Id]} {match.Evidence}"));
+        // No release says Words; W is matched only by the one release that claims its very title.
+        Assert.DoesNotContain(releases.SelectMany(release => release.LibraryMatches), match => match.Evidence == MatchEvidence.Words);
+        Assert.Equal(
+            [OfAnotherFilm],
+            releases.Where(release => release.LibraryMatches.Any(match => works[match.WorkId] == "W")).Select(release => release.Title));
+        Assert.Equal(
+            ["A TitleAndYear", "B TitleOnly"],
+            Assert.Single(releases, release => release.Title == ByTitleAndYear).LibraryMatches.Select(match => $"{works[match.WorkId]} {match.Evidence}"));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>The work the library item <paramref name="itemId"/> is a version of.</summary>
+    private async Task<Guid> WorkOfAsync(string itemId, CancellationToken cancellationToken)
+    {
+        var workId = Guid.Empty;
+        await _factory.WithDbAsync(async db => workId = await db.MediaVersions
+            .Where(version => version.SourceItemId == itemId)
+            .Select(version => version.MediaWorkId)
+            .SingleAsync(cancellationToken));
+        return workId;
+    }
 
     /// <summary>One release Toloka lists, its page under <paramref name="topic"/>, with
     /// <paramref name="extra"/>'s attrs (its ids).</summary>

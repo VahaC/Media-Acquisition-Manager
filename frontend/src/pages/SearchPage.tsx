@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { isAxiosError } from 'axios'
 import { CircleAlert, CircleCheck, Loader2, Search as SearchIcon, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { LibraryWorkCard } from '@/components/library/LibraryWorkCard'
 import { MatchBadges } from '@/components/search/MatchBadges'
 import { ReleaseDetailsDialog } from '@/components/search/ReleaseDetailsDialog'
@@ -14,14 +14,14 @@ import { Input } from '@/components/ui/input'
 import { formatNumber } from '@/lib/format'
 import { useCreateSearch, useSearch, useSearchReleases } from '@/lib/queries'
 import { bytesFromGibibytes } from '@/lib/size-input'
-import type { SearchRelease, SearchReleasesQuery, SearchResponse, SearchSource } from '@/lib/types'
+import type { LibraryMatch, SearchRelease, SearchReleasesQuery, SearchResponse, SearchSource } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the header, toolbar, banners and empty states of this page
 import '@/styles/auth.css' // .auth-field — the label over each field of the form, as the dialogs lay them out
-import '@/styles/library.css' // .library-works, .library-source-status/-warning — the cards' column and the source lines
-import '@/styles/search.css' // .search-* — the form, the sections and the release list
+import '@/styles/library.css' // .library-works, .library-source-*, .library-link — the cards' column, the source lines, the Library link
+import '@/styles/search.css' // .search-* — the form, the sections, the library's notes and the release list
 
 /** Per device: a phone and a desktop want different page lengths. */
 const PAGE_SIZE_STORAGE_KEY = 'mam:search:pageSize'
@@ -57,9 +57,10 @@ const SEARCH_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 /**
  * MAM-12 — the Search page: a title (and, to narrow it, a year, an IMDb or a TMDb id) looked for in
  * the library and in every enabled release source at once. "In your library" shows each matching
- * copy with the facts the app verified and why it matched; "Available releases" lists every release
- * the sources found — even for a movie already in the library — with what each title claims, and a
- * line per source, so a source that failed says so while the others' releases still show.
+ * copy with the facts the app verified and why it matched, then the copies that only hold every word
+ * of the title, said to be no match; "Available releases" lists every release the sources found —
+ * even for a movie already in the library — with what each title claims, and a line per source, so a
+ * source that failed says so while the others' releases still show.
  *
  * The server stores the search and its releases for a day. The page keeps only its id, in the
  * address (`?id=`), so F5 and Back bring the same search back, and every filter, sort and page reads
@@ -239,39 +240,73 @@ function SearchResults({ search }: { search: SearchResponse }) {
 
 /**
  * Every library work the search matched, strongest first, as the Library page's cards with why each
- * matched. All of them, unpaged: one title matches a handful of copies, and the server lists them
+ * matched. Every match, unpaged: one title matches a handful of copies, and the server lists them
  * all (it picks none).
+ *
+ * MAM-12 — then, under a line of their own that says they are no match, the works that matched in
+ * no other way but hold every word of the title, whole, in one of their titles or file paths
+ * ("rambo" lists "Rambo III", and "First Blood" by its folder; ADR 0012) — a release still matches
+ * them only on its own evidence. A common word could list hundreds, so the server lists at most 20
+ * and counts the rest; the line under them takes the person to the Library page searched for the
+ * same text.
  */
 function LibrarySection({ search }: { search: SearchResponse }) {
   const { t } = useTranslation('search')
   const titleId = useId()
+  const wordsId = useId()
+  const matches = search.library.filter((match) => match.evidence !== 'Words')
+  const byWords = search.library.filter((match) => match.evidence === 'Words')
+  const unlisted = search.libraryUnlistedCount
 
   return (
     <section className="search-section" aria-labelledby={titleId}>
       <h2 id={titleId} className="search-section-title">{t('library.title')}</h2>
-      {search.library.length === 0 ? (
+      {matches.length === 0 ? (
         <p className="settings-muted">{t('library.empty')}</p>
       ) : (
         <ul className="library-works">
-          {search.library.map((match) => (
-            <li key={match.work.id}>
-              <LibraryWorkCard
-                work={match.work}
-                headingLevel={3}
-                evidence={(
-                  <MatchBadges
-                    evidence={match.evidence}
-                    conflictingSchemes={match.conflictingSchemes}
-                    matchedIdentifiers={match.matchedIdentifiers}
-                    matchedTitle={match.matchedTitle}
-                  />
-                )}
-              />
-            </li>
-          ))}
+          {matches.map((match) => <LibraryMatchItem key={match.work.id} match={match} searchText={search.text} />)}
         </ul>
       )}
+      {byWords.length > 0 && (
+        <>
+          <p id={wordsId} className="settings-muted search-library-note">{t('library.wordsLead', { text: search.text })}</p>
+          <ul className="library-works" aria-labelledby={wordsId}>
+            {byWords.map((match) => <LibraryMatchItem key={match.work.id} match={match} searchText={search.text} />)}
+          </ul>
+        </>
+      )}
+      {unlisted > 0 && (
+        <p className="settings-muted search-library-note">
+          {t('library.unlisted', { count: unlisted, value: formatNumber(unlisted) })}{' '}
+          {/* URLSearchParams encodes the text, so a `&` or a `#` in a title stays part of it. */}
+          <Link to={`/library?${new URLSearchParams({ search: search.text })}`} className="library-link">
+            {t('library.unlistedLink', { text: search.text })}
+          </Link>
+        </p>
+      )}
     </section>
+  )
+}
+
+/** One work of "In your library": the Library page's card, with why it is listed under its title. */
+function LibraryMatchItem({ match, searchText }: { match: LibraryMatch; searchText: string }) {
+  return (
+    <li>
+      <LibraryWorkCard
+        work={match.work}
+        headingLevel={3}
+        evidence={(
+          <MatchBadges
+            evidence={match.evidence}
+            conflictingSchemes={match.conflictingSchemes}
+            matchedIdentifiers={match.matchedIdentifiers}
+            matchedTitle={match.matchedTitle}
+            searchText={searchText}
+          />
+        )}
+      />
+    </li>
   )
 }
 

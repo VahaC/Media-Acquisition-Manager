@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Services.Search;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
@@ -27,9 +28,12 @@ namespace MediaAcquisitionManager.Api.Tests.Search;
 // displayed title with the year, then the title alone as a candidate to check. Every match is listed,
 // strongest first; nothing is merged or picked, and an id that disagrees — with the search, or between
 // two sources — is shown as a conflict. Titles compare in any letter case and punctuation, with or
-// without their apostrophes, never by likeness or by a year ± 1. Each card is the Library page's own,
-// versions and verified facts included, and what only the owner may read stays the owner's on every read.
-// No release source is set up here: the library side answers whatever the sources do.
+// without their apostrophes, never by likeness or by a year ± 1. Below the matches, a work none of that
+// finds but whose one title or one file path holds every word of the title, each a whole word, is listed
+// as only that — never a match — up to a limit, with how many more there are (MAM-12, ADR 0012). Each
+// card is the Library page's own, versions and verified facts included, and what only the owner may read
+// stays the owner's on every read. No release source is set up here: the library side answers whatever
+// the sources do.
 public sealed class SearchesLibraryMatchingHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/searches";
@@ -46,6 +50,12 @@ public sealed class SearchesLibraryMatchingHttpTests : IClassFixture<MediaAcquis
 
     private const string AliensSpecialEditionPath =
         "/media/movies/Alien. Collection/[02.2] Aliens (1986) [Special Edition] BDRip 1080p H.265 [2xUKR_ENG] [Hurtom, UTOPIA].mkv";
+
+    private const string FirstBloodItemId = "6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a";
+    private const string FirstBloodPartIIItemId = "6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b";
+    private const string RamboIIIItemId = "6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c";
+    private const string RamboIVItemId = "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d";
+    private const string LastBloodItemId = "6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e6e";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -260,12 +270,14 @@ public sealed class SearchesLibraryMatchingHttpTests : IClassFixture<MediaAcquis
     }
 
     [Theory]
-    [InlineData("Spider-Man", "2021")]
-    [InlineData("Spider-Man: No Way Home 2", "2021")]
-    [InlineData("Interstellar 2", "2014")]
-    [InlineData("Inter stellar", "2014")]
-    [InlineData("Interstelar", "2014")]
-    public async Task Create_matches_no_work_whose_title_only_looks_like_the_one_asked_for(string text, string year)
+    [InlineData("Spider-Man", "2021", new[] { "Spider-Man: No Way Home" })]
+    // No work holding the other words holds "2" — only the "Чужі" Special Edition's path does, in "[02.2]"; "2021" is another word.
+    [InlineData("Spider-Man: No Way Home 2", "2021", new string[0])]
+    [InlineData("Interstellar 2", "2014", new string[0])]
+    // Whole words only: "Inter" and "stellar" are parts of one.
+    [InlineData("Inter stellar", "2014", new string[0])]
+    [InlineData("Interstelar", "2014", new string[0])]
+    public async Task Create_matches_no_work_whose_title_only_looks_like_the_one_asked_for(string text, string year, string[] listedByWords)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -275,8 +287,10 @@ public sealed class SearchesLibraryMatchingHttpTests : IClassFixture<MediaAcquis
         var library = await LibraryOfAsync(new SearchRequest(text, year), cancellationToken);
 
         //Assert
-        // No likeness between titles: a weaker look-alike is not a match.
-        Assert.Empty(library);
+        // No likeness between titles: a weaker look-alike is never a match. MAM-12 — one whose title holds
+        // every word asked for is listed below the matches, as only that.
+        Assert.All(library, match => Assert.Equal(MatchEvidence.Words, match.Evidence));
+        Assert.Equal(listedByWords, library.Select(match => match.Work.Title!));
     }
 
     [Fact]
@@ -291,7 +305,127 @@ public sealed class SearchesLibraryMatchingHttpTests : IClassFixture<MediaAcquis
 
         //Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Empty((await ReadAsync(response, cancellationToken)).Library);
+        var body = await ReadAsync(response, cancellationToken);
+        // MAM-12 — nor any work by its words: a key with no word seeks none.
+        Assert.Empty(body.Library);
+        Assert.Equal(0, body.LibraryUnlistedCount);
+    }
+
+    [Fact]
+    public async Task Create_lists_the_works_holding_every_word_of_the_title_after_the_matches()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-12 — the five films of the "Rambo. Collection" folder, as Hurtom names them. Only "Рембо IV"
+        // is titled "Rambo"; "First Blood" holds the word in its file's path alone.
+        _livingRoom.Movies.Add(RamboMovie(FirstBloodItemId, "Рембо. Перша кров", "First Blood", 1982, "[01] Rambo. First Blood (1982) [GER Transfer]"));
+        _livingRoom.Movies.Add(RamboMovie(
+            FirstBloodPartIIItemId, "Рембо. Перша кров. Частина друга", "Rambo: First Blood Part II", 1985, "[02] Rambo. First Blood Part II (1985)"));
+        _livingRoom.Movies.Add(RamboMovie(RamboIIIItemId, "Рембо III", "Rambo III", 1988, "[03] Rambo III (1988)"));
+        _livingRoom.Movies.Add(RamboMovie(RamboIVItemId, "Рембо IV", "Rambo", 2008, "[04] Rambo (2008)"));
+        _livingRoom.Movies.Add(RamboMovie(LastBloodItemId, "Рембо 5: Остання кров", "Rambo: Last Blood", 2019, "[05] Rambo. Last Blood (2019)"));
+        await SyncLivingRoomAsync();
+        var firstBlood = await WorkOfAsync(FirstBloodItemId, cancellationToken);
+        var firstBloodPartII = await WorkOfAsync(FirstBloodPartIIItemId, cancellationToken);
+        var ramboIII = await WorkOfAsync(RamboIIIItemId, cancellationToken);
+        var ramboIV = await WorkOfAsync(RamboIVItemId, cancellationToken);
+        var lastBlood = await WorkOfAsync(LastBloodItemId, cancellationToken);
+
+        //Act
+        var search = await CreateAsync(new SearchRequest("rambo"), cancellationToken);
+
+        //Assert
+        // The one match first; then, in the Library page's order of the titles the cards show, every work
+        // whose title or path holds the word — the five the Library page's search finds.
+        Assert.Equal(
+            [
+                (ramboIV, MatchEvidence.TitleOnly, (string?)"Rambo"),
+                (lastBlood, MatchEvidence.Words, "Rambo: Last Blood"),
+                (ramboIII, MatchEvidence.Words, "Rambo III"),
+                (firstBlood, MatchEvidence.Words, null),
+                (firstBloodPartII, MatchEvidence.Words, "Rambo: First Blood Part II"),
+            ],
+            search.Library.Select(match => (match.Work.Id, match.Evidence, match.MatchedTitle?.Text)));
+        Assert.All(search.Library, match => Assert.Empty(match.MatchedIdentifiers));
+        Assert.Equal(new LibraryTitleDto("Rambo III", MediaTitleKind.Original, 1988, "Living room"), search.Library[2].MatchedTitle);
+        Assert.Equal(0, search.LibraryUnlistedCount);
+    }
+
+    [Fact]
+    public async Task Create_lists_a_work_whose_file_path_alone_holds_the_words_without_a_matched_title()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await SyncLivingRoomAsync();
+        var aliens = await WorkOfAsync(JellyfinSamples.AliensTheatricalId, cancellationToken);
+
+        //Act
+        // MAM-12 — "Alien" is no word of "Чужі" or "Aliens", but the folder "Alien. Collection" holds it;
+        // the year asked for is not a word, and doesn't filter the works listed by their words.
+        var response = await _factory.PostHttpRequest(BaseUrl, _member.AccessToken, new SearchRequest("Alien", "1979"));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        var match = Assert.Single(JsonSerializer.Deserialize<SearchResponse>(text, MediaAcquisitionManagerApiFactory.JsonOptions)!.Library);
+        Assert.Equal((aliens, MatchEvidence.Words), (match.Work.Id, match.Evidence));
+        Assert.Null(match.MatchedTitle);
+        Assert.Empty(match.MatchedIdentifiers);
+        Assert.Empty(match.ConflictingSchemes);
+        // The card is the whole work: both cuts, with their paths.
+        Assert.Equal(
+            [AliensTheatricalPath, AliensSpecialEditionPath],
+            match.Work.Versions.SelectMany(version => version.Files).Select(file => file.ServicePath).Order(StringComparer.Ordinal));
+        // What the page reads: the evidence by its name, the title written out as null, and the count.
+        var listed = JsonNode.Parse(text)!.AsObject();
+        var card = listed["library"]![0]!.AsObject();
+        Assert.Equal("Words", (string)card["evidence"]!);
+        Assert.True(card.ContainsKey("matchedTitle"));
+        Assert.Null(card["matchedTitle"]);
+        Assert.Equal(0, (int)listed["libraryUnlistedCount"]!);
+    }
+
+    [Fact]
+    public async Task Create_and_get_list_at_most_the_limit_of_works_by_words_and_count_the_rest()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-12 — one film titled "Rambo", and two more works holding the word than the search lists,
+        // written last to first so their order can only come from their titles.
+        var rambo = await _works.Create();
+        await _works.AddTitle(rambo.Id, "Rambo", MediaTitleKind.Original, 2008, null, "Living room", "r0");
+        var byTitle = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        for (var number = LibraryMatcher.MaximumWorksByWords + 2; number >= 1; number--)
+        {
+            var work = await _works.Create();
+            var title = string.Create(CultureInfo.InvariantCulture, $"Rambo Tribute {number:D2}");
+            await _works.AddTitle(work.Id, title, MediaTitleKind.Display, 2020, null, "Living room", $"r{number}");
+            byTitle[title] = work.Id;
+        }
+
+        var created = await CreateAsync(new SearchRequest("Rambo"), cancellationToken);
+
+        //Act
+        // The page's F5: listed and counted again, the same way.
+        var response = await _factory.GetHttpRequest($"{BaseUrl}/{created.Id}", _member.AccessToken);
+
+        //Assert
+        // Every match, then the first twenty works by their words in title order; the other two counted.
+        List<(Guid, MatchEvidence)> expected =
+        [
+            (rambo.Id, MatchEvidence.TitleOnly),
+            .. byTitle
+                .OrderBy(work => work.Key, StringComparer.Ordinal)
+                .Take(LibraryMatcher.MaximumWorksByWords)
+                .Select(work => (work.Value, MatchEvidence.Words)),
+        ];
+        Assert.Equal(20, LibraryMatcher.MaximumWorksByWords);
+        Assert.Equal(expected, created.Library.Select(match => (match.Work.Id, match.Evidence)));
+        Assert.Equal(2, created.LibraryUnlistedCount);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var read = await ReadAsync(response, cancellationToken);
+        Assert.Equal(expected, read.Library.Select(match => (match.Work.Id, match.Evidence)));
+        Assert.Equal(2, read.LibraryUnlistedCount);
     }
 
     [Fact]
@@ -652,6 +786,16 @@ public sealed class SearchesLibraryMatchingHttpTests : IClassFixture<MediaAcquis
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>A film of the "Rambo. Collection" folder, its file named <paramref name="fileName"/> with
+    /// Hurtom's tail; no ids, so each is a work of its own.</summary>
+    private static JsonObject RamboMovie(string itemId, string title, string originalTitle, int year, string fileName) =>
+        JellyfinSamples.MovieWith(
+            itemId,
+            title,
+            originalTitle,
+            year,
+            $"/media/movies/Rambo. Collection/{fileName} BDRip 1080p H.265 [3xUKR_ENG] [Hurtom].mkv");
 
     /// <summary>"Інтерстеллар" (2014), originally "Interstellar", IMDb tt0816692 and TMDb 157336.</summary>
     private static JsonObject InterstellarMovie(string itemId, string path) =>

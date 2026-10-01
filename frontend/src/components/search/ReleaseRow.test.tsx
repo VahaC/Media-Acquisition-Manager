@@ -3,7 +3,17 @@ import userEvent from '@testing-library/user-event'
 import { ReleaseRow } from '@/components/search/ReleaseRow'
 import type { LibraryMatch, SearchRelease } from '@/lib/types'
 import { aliens, unknownWork } from '@/test/library'
-import { aliensMatch, otherUhd, releaseOf, tolokaRemux, untitledRip } from '@/test/search'
+import {
+  aliensMatch,
+  firstBloodByWords,
+  otherUhd,
+  ramboIIIByWords,
+  ramboIIIRip,
+  ramboIVMatch,
+  releaseOf,
+  tolokaRemux,
+  untitledRip,
+} from '@/test/search'
 
 function renderRow(release: SearchRelease, library: LibraryMatch[] = [aliensMatch]) {
   const onDetails = vi.fn()
@@ -121,6 +131,18 @@ describe('ReleaseRow', () => {
 
     // Assert
     expect(badgeTexts()).toEqual(['In your library: Дюна (2021) — matched by title and year'])
+  })
+
+  it('names a work the search lists by words, on the release\'s own evidence', () => {
+    // Arrange
+    const library = [ramboIVMatch, ramboIIIByWords, firstBloodByWords]
+
+    // Act
+    renderRow(ramboIIIRip, library)
+
+    // Assert
+    expect(badgeTexts()).toEqual(['In your library: Рембо III (1988) — matched by title and year'])
+    expect(screen.getByText('In your library: Рембо III (1988) — matched by title and year')).toHaveClass('ui-badge-secondary')
   })
 
   it('words a title and a year the library did not report as unknown', () => {

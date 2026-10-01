@@ -4,8 +4,16 @@ import type { DynamicRange, LibraryIdentifier, LibraryWork, MediaIdentifierSchem
 // MAM-12 — the stored search of `/api/searches`: the library and every enabled release source asked
 // at once, the releases kept so filters, sort and paging read them again without asking the sources.
 
-/** Why a work matched what was sought, strongest first: a registry id, the title and year, the title alone. */
-export type MatchEvidence = 'Identifier' | 'TitleAndYear' | 'TitleOnly'
+/**
+ * Why a work matched what was sought, strongest first: a registry id, the title and year, the title
+ * alone. MAM-12 — `Words`, the weakest, is no match: every word of the title sought is in one title
+ * or one file path of a work that matched in no other way, listed on the search's library side for
+ * the person to look at (ADR 0012).
+ */
+export type MatchEvidence = 'Identifier' | 'TitleAndYear' | 'TitleOnly' | 'Words'
+
+/** Why a release matched a library work: never by words (ADR 0012), so never `Words`. */
+export type ReleaseMatchEvidence = Exclude<MatchEvidence, 'Words'>
 
 /** Which of a work's titles a source gave: the one it shows, or the original-language one. */
 export type MediaTitleKind = 'Display' | 'Original'
@@ -52,15 +60,19 @@ export interface LibraryTitle {
 }
 
 /**
- * One library work the search matched, with why: the ids it matched by (each with the integration
+ * One library work the search lists, with why: the ids it matched by (each with the integration
  * that reported it), the title it matched by, and every scheme whose ids disagree — shown, never
- * merged.
+ * merged. MAM-12 — a `Words` one is no match, only a work holding every word of the title.
  */
 export interface LibraryMatch {
   /** The Library page's work: its versions, files and what the app read from them. */
   work: LibraryWork
   evidence: MatchEvidence
   matchedIdentifiers: LibraryIdentifier[]
+  /**
+   * The work's title that matched, with its source; for `Words`, the title holding the words, null
+   * when only a file path holds them.
+   */
   matchedTitle: LibraryTitle | null
   conflictingSchemes: MediaIdentifierScheme[]
 }
@@ -102,8 +114,13 @@ export interface SearchResponse {
   tmdbId: string | null
   /** UTC with a trailing `Z`. */
   createdUtc: string
-  /** Strongest first; read again from the library on every GET. */
+  /**
+   * Strongest first; read again from the library on every GET. Every match, then (MAM-12) at most
+   * 20 works holding every word of the title (`Words`), which are no match.
+   */
   library: LibraryMatch[]
+  /** How many more works hold every word of the title than `library` lists at its end; 0 when none were left out. */
+  libraryUnlistedCount: number
   /** By name, as they were at search time. */
   sources: SearchSource[]
   facets: SearchFacets
@@ -134,10 +151,13 @@ export interface ReleaseIdentifier {
   value: string
 }
 
-/** One library work of the search a release matched, with why, and the schemes whose ids disagree. */
+/**
+ * One library work of the search a release matched, with why, and the schemes whose ids disagree.
+ * MAM-12 — the work may be one the search lists by words; the release matched it on its own evidence.
+ */
 export interface ReleaseLibraryMatch {
   workId: string
-  evidence: MatchEvidence
+  evidence: ReleaseMatchEvidence
   conflictingSchemes: MediaIdentifierScheme[]
 }
 

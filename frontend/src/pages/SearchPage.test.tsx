@@ -12,8 +12,12 @@ import {
   aliensMatch,
   aliensSearch,
   continentalMatch,
+  firstBloodByWords,
   other,
   otherUhd,
+  ramboIIIByWords,
+  ramboIIIRip,
+  ramboSearch,
   releasesPage,
   searchId,
   searchOf,
@@ -71,6 +75,18 @@ const openStored = (signedIn: CurrentUser = owner) => renderPage({ signedIn, pat
 const releaseTitles = () =>
   within(screen.getByRole('region', { name: 'Available releases' })).queryAllByRole('article')
     .map((row) => within(row).getByRole('heading', { level: 3 }).textContent)
+
+/** The titles of the work cards in `container`, in order. */
+const cardTitles = (container: HTMLElement) =>
+  within(container).getAllByRole('article').map((card) => within(card).getByRole('heading', { level: 3 }).textContent)
+
+/** The badges of why a card is listed, as their text. */
+const why = (card: HTMLElement, name = 'Why it matched') =>
+  within(within(card).getByRole('list', { name })).getAllByRole('listitem').map((item) => item.textContent)
+
+/** The list of the works holding every word of `text`, named by the line over it. */
+const wordsList = (text: string) =>
+  screen.getByRole('list', { name: `Not matched, but a title or a file path holds every word of “${text}”:` })
 
 /** The source lines, as their text. */
 const sourceLines = () =>
@@ -226,9 +242,7 @@ describe('SearchPage', () => {
     // Assert
     const section = await screen.findByRole('region', { name: 'In your library' })
     const cards = within(section).getAllByRole('article')
-    expect(cards.map((card) => within(card).getByRole('heading', { level: 3 }).textContent)).toEqual(['Чужі', 'The Continental'])
-    const why = (card: HTMLElement) =>
-      within(within(card).getByRole('list', { name: 'Why it matched' })).getAllByRole('listitem').map((item) => item.textContent)
+    expect(cardTitles(section)).toEqual(['Чужі', 'The Continental'])
     expect(why(cards[0])).toEqual(['Matched by IMDb id', '“Aliens”, 1986', 'Conflicting TMDb ids'])
     expect(within(cards[0]).getByText('Matched by IMDb id')).toHaveAttribute('title', 'IMDb tt0090605, reported by Home Jellyfin')
     expect(why(cards[1])).toEqual(['Possible match — check it', '“The Continental”, 2023'])
@@ -247,6 +261,83 @@ describe('SearchPage', () => {
     // Assert
     expect(await screen.findByText('Nothing in your library matches this search.')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'In your library' })).queryByRole('article')).not.toBeInTheDocument()
+  })
+
+  it('lists the works holding every word of the title after the matches, under a line saying they are no match', async () => {
+    // Arrange
+    vi.mocked(searchApi.get).mockResolvedValue(ramboSearch)
+
+    // Act
+    openStored()
+
+    // Assert
+    const section = await screen.findByRole('region', { name: 'In your library' })
+    expect(cardTitles(section)).toEqual(['Рембо IV', 'Рембо III', 'Рембо. Перша кров'])
+    const byWords = wordsList('rambo')
+    expect(cardTitles(byWords)).toEqual(['Рембо III', 'Рембо. Перша кров'])
+    const [ramboIII, firstBlood] = within(byWords).getAllByRole('article')
+    expect(why(ramboIII, 'Why it is listed')).toEqual(['Title contains “rambo” — not a match', '“Rambo III”, 1988'])
+    expect(why(firstBlood, 'Why it is listed')).toEqual(['A file path contains “rambo” — not a match'])
+    expect(why(within(section).getAllByRole('article')[0])).toEqual(['Possible match — check it', '“Rambo”, 2008'])
+    // The line comes between the match and the works it introduces.
+    const lead = screen.getByText('Not matched, but a title or a file path holds every word of “rambo”:')
+    expect(lead).toHaveClass('settings-muted')
+    expect(screen.getByRole('heading', { level: 3, name: 'Рембо IV' }).compareDocumentPosition(lead))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    // Every work holding the words is listed: nothing more to count, nowhere else to look.
+    expect(screen.queryByText('Nothing in your library matches this search.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/more movies? in your library holds? these words/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /on the Library page$/ })).not.toBeInTheDocument()
+  })
+
+  it('says nothing in the library matches, then lists the works holding every word of the title', async () => {
+    // Arrange
+    vi.mocked(searchApi.get).mockResolvedValue(searchOf({ ...ramboSearch, library: [ramboIIIByWords, firstBloodByWords] }))
+
+    // Act
+    openStored()
+
+    // Assert
+    expect(await screen.findByText('Nothing in your library matches this search.')).toBeInTheDocument()
+    expect(cardTitles(wordsList('rambo'))).toEqual(['Рембо III', 'Рембо. Перша кров'])
+    expect(cardTitles(screen.getByRole('region', { name: 'In your library' }))).toEqual(['Рембо III', 'Рембо. Перша кров'])
+  })
+
+  it.each([
+    [1, '1 more movie in your library holds these words.'],
+    [35, '35 more movies in your library hold these words.'],
+  ])('counts the %s works holding the words past the ones listed, and links to the Library page searched for the title', async (count, line) => {
+    // Arrange
+    vi.mocked(searchApi.get).mockResolvedValue(searchOf({ ...ramboSearch, text: 'Rambo: First Blood', libraryUnlistedCount: count }))
+
+    // Act
+    openStored()
+
+    // Assert
+    const link = await screen.findByRole('link', { name: 'Search “Rambo: First Blood” on the Library page' })
+    expect(link).toHaveAttribute('href', '/library?search=Rambo%3A+First+Blood')
+    expect(link).toHaveClass('library-link')
+    expect(link.closest('p')).toHaveTextContent(`${line} Search “Rambo: First Blood” on the Library page`)
+    expect(cardTitles(wordsList('Rambo: First Blood'))).toEqual(['Рембо III', 'Рембо. Перша кров'])
+  })
+
+  it('names a work listed by words on a release that matches it on its own evidence, and in its Details', async () => {
+    // Arrange
+    vi.mocked(searchApi.get).mockResolvedValue(ramboSearch)
+    vi.mocked(searchApi.releases).mockImplementation(async (_, query) => releasesPage(query, [ramboIIIRip]))
+    const { user } = openStored()
+    const row = await screen.findByRole('article', { name: ramboIIIRip.title })
+
+    // Act
+    await user.click(within(row).getByRole('button', { name: 'Details' }))
+
+    // Assert
+    // The dialog hides the page from the accessibility tree, so the row's badge is found by its text.
+    expect(within(row).getByText('In your library: Рембо III (1988) — matched by title and year')).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: ramboIIIRip.title })
+    const work = within(dialog).getByRole('region', { name: 'Рембо III' })
+    expect(within(work).getByText('Matched by title and year')).toBeInTheDocument()
+    expect(within(work).queryByText(/not a match/)).not.toBeInTheDocument()
   })
 
   it('counts the releases of each source that answered', async () => {

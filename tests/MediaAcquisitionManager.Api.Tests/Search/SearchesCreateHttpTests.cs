@@ -285,8 +285,10 @@ public sealed class SearchesCreateHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))!.AsObject();
         Assert.Equal(
-            ["id", "text", "year", "imdbId", "tmdbId", "createdUtc", "library", "sources", "facets"],
+            ["id", "text", "year", "imdbId", "tmdbId", "createdUtc", "library", "libraryUnlistedCount", "sources", "facets"],
             body.Select(property => property.Key));
+        // MAM-12 — how many more works hold every word of the title than the list shows: none here.
+        Assert.Equal(0, (int)body["libraryUnlistedCount"]!);
         // Present as null, not left away.
         Assert.True(body.ContainsKey("imdbId"));
         Assert.Null(body["imdbId"]);

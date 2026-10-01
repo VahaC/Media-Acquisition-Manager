@@ -14,7 +14,7 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
 {
     public SearchResponse ToResponse(
         SearchEntity search,
-        IReadOnlyList<LibraryWorkMatch> library,
+        LibrarySearchResult library,
         IReadOnlyList<SearchSourceEntity> sources,
         IReadOnlyDictionary<Guid, int> releaseCounts,
         IReadOnlyList<string> releaseTitles,
@@ -29,7 +29,8 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
             search.ImdbId,
             search.TmdbId,
             search.CreatedUtc,
-            [.. library.Select(ToDto)],
+            [.. library.Works.Select(ToDto)],
+            library.UnlistedCount,
             [.. sources.Select(source => new SearchSourceDto(
                 source.Id,
                 source.IntegrationConnectionId,

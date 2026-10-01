@@ -1,4 +1,4 @@
-import { CircleCheck, CircleHelp, TriangleAlert } from 'lucide-react'
+import { CircleCheck, CircleHelp, TextSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { LibraryIdentifier, LibraryTitle, MatchEvidence, MediaIdentifierScheme } from '@/lib/types'
 import '@/styles/library.css' // .library-badge-warning — the amber of a possible match and of a conflict
@@ -13,11 +13,17 @@ interface MatchBadgesProps {
    * release's match, whose ids aren't listed) an id match is named without its scheme.
    */
   matchedIdentifiers?: LibraryIdentifier[]
-  /** The work's title that matched, with its source; none when only an id matched. */
+  /**
+   * The work's title that matched, with its source; none when only an id matched. For `Words`, the
+   * title holding the words, none when only a file path holds them.
+   */
   matchedTitle?: LibraryTitle | null
+  /** MAM-12 — the title searched for, as the search keeps it: what a `Words` badge quotes. */
+  searchText?: string
   /**
    * The matched work's name and year, on a release row: the badge then says the release is in the
-   * library and which copy it is ("In your library: Чужі (1986) — matched by id").
+   * library and which copy it is ("In your library: Чужі (1986) — matched by id"). A release's
+   * evidence, so never `Words`.
    */
   inLibraryOf?: string
 }
@@ -27,13 +33,20 @@ interface MatchBadgesProps {
  * year, or the title alone — a possible match to check), the matched title with the integration that
  * reported it on hover (as the card's identifier badges do), and a warning per scheme whose ids
  * disagree. A conflict is shown, never resolved: the page picks and merges nothing.
+ *
+ * A work listed by words (ADR 0012) is no match, and its badge says so in its text — a phone shows
+ * no tooltip — in the outline tone of a plain fact rather than the tick of a match or the amber of
+ * one to check: the title searched for is in one of its titles, or in a file path only. Its list is
+ * named "Why it is listed", so a screen reader doesn't call a work that isn't a match a match.
  */
-export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers = [], matchedTitle = null, inLibraryOf }: MatchBadgesProps) {
+export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers = [], matchedTitle = null, searchText = '', inLibraryOf }: MatchBadgesProps) {
   const { t } = useTranslation(['search', 'library'])
   const scheme = (value: MediaIdentifierScheme) => t(`library:schemes.${value}`)
 
   const evidenceBadges = (() => {
-    if (inLibraryOf !== undefined) {
+    // A release is never matched by words (ADR 0012), so `match.inLibrary` has no `Words` sentence;
+    // the second check only tells the typed key so.
+    if (inLibraryOf !== undefined && evidence !== 'Words') {
       // The copy is named in the text, as a phone shows no tooltip. No hover either: a release's match
       // carries no matched title whose source it could add, and repeating the text adds nothing.
       return [{ key: evidence, text: t(`match.inLibrary.${evidence}`, { work: inLibraryOf }), title: undefined }]
@@ -47,6 +60,12 @@ export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers =
           : t('match.identifierValue', { scheme: scheme(identifier.scheme), value: identifier.value }),
       }))
     }
+    if (evidence === 'Words') {
+      const text = matchedTitle
+        ? t('match.words', { text: searchText })
+        : t('match.wordsInPath', { text: searchText })
+      return [{ key: evidence, text, title: t('match.wordsHint') }]
+    }
     const text = evidence === 'Identifier'
       ? t('match.identifierAny')
       : evidence === 'TitleAndYear' ? t('match.titleAndYear') : t('match.titleOnly')
@@ -56,17 +75,22 @@ export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers =
   const titleKind = matchedTitle ? t(`match.titleKind.${matchedTitle.kind}`) : undefined
 
   return (
-    <ul className="search-badges" aria-label={t('match.label')}>
+    <ul className="search-badges" aria-label={evidence === 'Words' ? t('match.wordsLabel') : t('match.label')}>
       {evidenceBadges.map((badge) => (
         <li key={badge.key}>
-          {/* A title-only match is a candidate to check, so it takes the warning tone. */}
+          {/* A title-only match is a candidate to check, so it takes the warning tone; a work listed
+              by words is no match at all, so it takes neither a match's tone nor its tick. */}
           <span
-            className={evidence === 'TitleOnly' ? 'ui-badge library-badge-warning' : 'ui-badge ui-badge-secondary'}
+            className={evidence === 'TitleOnly'
+              ? 'ui-badge library-badge-warning'
+              : evidence === 'Words' ? 'ui-badge ui-badge-outline' : 'ui-badge ui-badge-secondary'}
             title={badge.title}
           >
             {evidence === 'TitleOnly'
               ? <CircleHelp className="h-3 w-3" aria-hidden="true" />
-              : <CircleCheck className="h-3 w-3" aria-hidden="true" />}
+              : evidence === 'Words'
+                ? <TextSearch className="h-3 w-3" aria-hidden="true" />
+                : <CircleCheck className="h-3 w-3" aria-hidden="true" />}
             {badge.text}
           </span>
         </li>

@@ -16,7 +16,10 @@ import '@/styles/search.css' // .search-details-* — the two columns, the facts
 
 interface ReleaseDetailsDialogProps {
   release: SearchRelease
-  /** The search's library matches: the works the release's own matches point at. */
+  /**
+   * Every work the search lists, the ones listed by words too (MAM-12): the works the release's own
+   * matches point at.
+   */
   library: LibraryMatch[]
   onClose: () => void
 }

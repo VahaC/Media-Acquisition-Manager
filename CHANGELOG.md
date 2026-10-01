@@ -527,13 +527,13 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   required, with MAM-10's rules and sentences — asks the library and every enabled release source at
   the same time, the library through a database context of its own, and answers 201 with its
   `Location` (`/api/searches/{id}`) whatever the sources answered: the search as asked, trimmed; the
-  works of the library that match it (see below); each source in name order with its `status`, its
-  `notSearchedReason`, the sentence of a failure (`error`, for the owner only) and how many releases
-  it listed; and the audio languages and resolutions those releases claim, for the filters. A broken
-  rule answers 400 with its sentence, stores nothing and asks no source. The search is a `Searches`
-  row of the caller's, with a `SearchSources` row per source — its name copied, its sentence masked
-  and cut to 1000 characters — and every release a new MAM-10 row linked to its source, with its
-  place in the source's answer, its seeders and peers and the ids its listing gives.
+  works of the library that match it or hold its words (see below); each source in name order with
+  its `status`, its `notSearchedReason`, the sentence of a failure (`error`, for the owner only) and
+  how many releases it listed; and the audio languages and resolutions those releases claim, for the
+  filters. A broken rule answers 400 with its sentence, stores nothing and asks no source. The search
+  is a `Searches` row of the caller's, with a `SearchSources` row per source — its name copied, its
+  sentence masked and cut to 1000 characters — and every release a new MAM-10 row linked to its
+  source, with its place in the source's answer, its seeders and peers and the ids its listing gives.
   `GET /api/searches/{id}` reads it again: the sources as stored, never asked again, and the library
   matched again as it is now, so a sync since shows. `GET /api/searches/{id}/releases` filters the
   stored releases by source (`source`, a search source's id), audio language (`language`, a
@@ -574,12 +574,45 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   none of, or one the work itself holds two values of — flagged, never resolved, and no bar to a
   title match. The works come by evidence, then by title in Ukrainian alphabetical order, each as the
   Library page's card, versions, files and verified facts included, with the owner-only fields kept
-  the owner's. A release is matched to the works its search found by the ids its listing gives and by
-  the titles and year read from its title (owner's choice): the first bracketed year with a title
-  before it ("Interstellar (2014) BDRemux 1080p" is "Interstellar" of 2014), else the scene's bare
-  year ("Interstellar.2014.1080p.BluRay"), the part before it split at " / " into alternatives
-  ("Інтерстеллар / Interstellar"), and no title at all without a year, since nothing then says where
-  the title ends; it lists every work it matches, strongest first. Nothing is stored about a match.
+  the owner's. A release is matched to every work its search lists — the works by words (see the
+  next entry) included — by the ids its listing gives and by the titles and year read from its title
+  (owner's choice): the first bracketed year with a title before it ("Interstellar (2014) BDRemux
+  1080p" is "Interstellar" of 2014), else the scene's bare year ("Interstellar.2014.1080p.BluRay"),
+  the part before it split at " / " into alternatives ("Інтерстеллар / Interstellar"), and no title
+  at all without a year, since nothing then says where the title ends; it lists every work it
+  matches, strongest first. Nothing is stored about a match.
+- **After the matches, the search's library side also lists the works one of whose titles or file
+  paths holds every word of the title searched for — at most 20, marked `Words`, never a match — and
+  a release is matched to every work the search lists, never by words (MAM-12 review, ADR 0012).**
+  Searched for "rambo", the Library page found five films and the search page one: only "Rambo"
+  (2008) has the key asked for, "Rambo III" and the others hold the word in a longer title, and
+  "First Blood" (1982) only in its file's path (`/media/movies/Rambo. Collection/…`). The three
+  tiers stay as they were. A work none of them matches is listed with the evidence `Words` when one
+  of its titles, from any source, displayed or original, or one of its files' service paths holds
+  every word of the title's key, each whole, in any order: "rambo" finds "Rambo III" and the folder
+  `Rambo. Collection`, and "alien" doesn't find the title "Aliens". The year doesn't narrow it, ids
+  aren't searched for words, and a title with no letter or digit lists nothing. `matchedTitle` is the
+  title holding the words, `null` when only a path does, and conflicting ids are flagged as for a match.
+  These works come after every match, at most `LibraryMatcher.MaximumWorksByWords` (20), in the same
+  order, and the answer's new `libraryUnlistedCount` says how many more hold the words; the cap is
+  applied before any card is read, and the database narrows the candidates by file path as it does
+  by title. A release is still matched by identifier, title and year or title alone, never by words,
+  but against every work the search lists, so "Rambo III (1988) BDRip" says "In your library: Рембо
+  III (1988) — matched by title and year"; a release's `evidence` is never `Words`. Look-alikes the
+  matching refuses, "Interstellar Wars" for "Interstellar", show there too, labelled as no match.
+  Nothing about them is stored.
+- **A release's title is read without the square-bracketed tags that end it, so an edition of a film
+  you own matches it by title and year (MAM-12 review, ADR 0012).** Searched for "rambo", Toloka's
+  "Rambo: Last Blood [Extended Cut] (2019) BDRip-AVC" and "V / Rambo [Theatrical Cut] (2008)" matched
+  nothing: the tag between the title and the year was read as part of the title, `RAMBO LAST BLOOD
+  EXTENDED CUT`, which no work holds. Each title alternative, once trimmed, now loses every
+  square-bracketed group that ends it, so they read as "Rambo: Last Blood" of 2019 and "V" and "Rambo"
+  of 2008 and match those films by title and year; scene names the same. Only at the end (owner's
+  choice): a title that opens with or holds square brackets keeps them ("[REC] 2"), a group that is
+  all that is left stays ("[REC]"), and round brackets are never dropped, as they hold titles
+  ("Birdman or (The Unexpected Virtue of Ignorance)"). A tag that opens a title, "[HDRip] Rambo
+  (2008)", still stays in it. `claimedWork.titles` shows the titles without the tag; the release's
+  `title` is unchanged.
 - **The Torznab adapter reads the IMDb and TMDb ids a listing gives (MAM-12, ADR 0004).** The
   attributes `imdbid` (`tt0816692` or its digits), `imdb` (the digits, which Jackett writes without
   their leading zeros: `816692`) and `tmdbid` give a release at most one id per scheme, IMDb first,
@@ -596,11 +629,15 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   says "This search is no longer available. Search again." **In your library** shows each matching
   work as the Library page's card with a badge for how it matched — "Matched by IMDb id", "Matched by
   title and year", "Possible match — check it" — the matched title or id with its source on hover,
-  and a warning badge per conflicting scheme. **Available releases** shows a line per source — how
-  many releases it listed, its failure's status with the owner's sentence, or why it wasn't searched
-  — then the filters (source, audio language, quality, size in GiB from and to, sort), each change
-  going back to page 1, and each release with its listed facts, its claimed quality under a visible
-  **Claimed** label, a badge for its strongest library match, and **Details** (a dialog with the
+  and a warning badge per conflicting scheme. Below the matches, under a line of their own, come the
+  works that hold every word searched for, each badged "Title contains “rambo” — not a match" or "A
+  file path contains “rambo” — not a match"; when more than 20 do, a line says how many more, with a
+  link to the Library page searched for the same text, which the Library page now reads from its
+  address (`/library?search=…`). **Available releases** shows a line per source — how many releases
+  it listed, its failure's status with the owner's sentence, or why it wasn't searched — then the
+  filters (source, audio language, quality, size in GiB from and to, sort), each change going back
+  to page 1, and each release with its listed facts, its claimed quality under a visible **Claimed**
+  label, a badge for its strongest library match, and **Details** (a dialog with the
   listing, what its title was read as and its ids, beside every matching work's versions and
   verified facts), **Open source** (the source's page in a new tab, greyed out with the reason when
   there is none) and **Download**, greyed out with "Sending a release to a download client comes in a

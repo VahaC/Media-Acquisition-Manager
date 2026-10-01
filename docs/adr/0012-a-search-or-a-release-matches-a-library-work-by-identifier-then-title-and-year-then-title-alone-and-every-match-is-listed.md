@@ -151,3 +151,149 @@ stored, and nothing is done because of it. A title and year match, let alone a t
 authorises a replacement (specification §3.1), and an identifier match doesn't either while its
 scheme is flagged as conflicting; MAM-13 sends what the person picked, and Phase C's replacement
 checks the file itself.
+
+## Works holding the search's words (added 0.1.0, MAM-12 review)
+
+**What the strict rule missed.** Searched for "rambo" with no year, the Library page found five
+works and the search page one. The Library page finds the text anywhere in a title, an id or a file
+path; the rule above lists a work only when one of its titles' keys *is* the search's key. Of the
+reference library's five Rambo films only "Рембо IV", originally "Rambo" (2008), was listed, by its
+title alone. "Rambo III" (1988), "Rambo: First Blood Part II" (1985) and "Rambo: Last Blood" (2019)
+hold the word in a longer title, and "Рембо. Перша кров", originally "First Blood" (1982), holds it
+only in its file's path, `/media/movies/Rambo. Collection/[01] Rambo. First Blood (1982) … .mkv`.
+And as a release was matched only to the works its search found, a release "Rambo III (1988) BDRip"
+listed beside them never said "In your library", though its title and year are exactly a work's.
+
+**A work the rule doesn't match, but one of whose titles or file paths holds every word of the title
+searched for, each whole, is listed after the matches with the evidence `Words` — never a match, at
+most 20 of them, with how many more there are — and each release is matched by the unchanged rule
+against every work the search lists, these included, and never by words** (Vasyl's decision 3).
+
+**The three tiers stay as they are.** `WorkMatching.Match` is unchanged, and so is everything above
+about `Identifier`, `TitleAndYear` and `TitleOnly`. `WorkMatching.MatchByWords` is asked only of a
+work `Match` doesn't match (`Match(…) ?? MatchByWords(…)`), and `Words` comes after `TitleOnly`.
+
+**The words.** Those of the search title's key (`TitleMatchKey.For`), split at its spaces, each
+once. A text holds them when the words of its own key include every one: whole words, in any order,
+all in one text — a title of any source, displayed or original, or one file's service path, never
+gathered from two of them. "Rambo" finds "Rambo III" and the folder `Rambo. Collection`, "blood
+first" finds "First Blood", and "Alien" doesn't find the title "Aliens" (though the folder
+`Alien. Collection` holds it, so a search for "Alien" lists Aliens by its path). The year is not a
+word and doesn't narrow the listing; ids aren't searched for words, as an id asked for already
+matches by `Identifier`; a key with no word ("!!!") lists nothing. The work carries the title that
+holds the words, a displayed one before an original as for a match, or none when only a path holds
+them, and its conflicting schemes are flagged exactly as a match's are.
+
+**Listed for a person to look at, and said to be no match.** The page shows these works below the
+matches, under a line of their own, each with "Title contains “rambo” — not a match" or "A file path
+contains “rambo” — not a match". So the look-alikes the Context refuses as matches — "Interstellar
+Wars" for "Interstellar", "Spider-Man: No Way Home" for "Spider-Man" — are listed now, only here:
+`SearchesLibraryMatchingHttpTests.Create_matches_no_work_whose_title_only_looks_like_the_one_asked_for`
+keeps its name and now asserts that no work it lists has a match's evidence, rather than that it
+lists none. Nothing about these works is stored, as for a match.
+
+**At most 20, and the rest counted.** A word as common as "the", or "movies", which every path under
+`/media/movies` holds, lists much of the library. The library side answers every match, unpaged as
+above, then at most `LibraryMatcher.MaximumWorksByWords` (20) works by words in the same order — the
+title the card shows in Ukrainian alphabetical order, then id — and `libraryUnlistedCount`, how many
+more hold the words. The cap comes before any card is read: each candidate's card title is worked
+out from its title rows the way `LibraryMapper` picks it, so a common word never reads hundreds of
+cards. The page then says how many more movies hold the words and links to the Library page
+searched for the same text (`/library?search=…`). The Decision's "never paged: the works one title
+finds are a handful" still holds for the matches; the words listing is the capped part.
+
+**Releases: the exact rule, against every work listed.** A release is matched by `Match` alone
+against every work the search lists, the works by words included, so "Rambo III (1988) BDRip" says
+"In your library: Рембо III (1988) — matched by title and year" on its own evidence. Its `evidence`
+is never `Words`: a release whose title merely holds a work's words is never said to be it. The
+Decision's "A release is matched against the works the search found" now reads "against the works
+the search lists". The Consequences' "a release the search turned up for one film is never said to
+be another film you own" now reads: never a film the search doesn't list, and never by anything
+weaker than the rule. A search for "Interstellar" lists "Interstellar Wars" (2014) by words, and a
+release "Interstellar Wars (2014) 1080p" it turned up is said to be that film, by title and year.
+
+**The database still narrows, now by file paths too.** A work is also a candidate when one of its
+files' `NormalizedServicePath` — `LibrarySearchText.Normalize` of the service path, the same
+per-character `ToUpperInvariant` — holds the longest word of a claimed title's key once the same
+apostrophes are taken out of it inside the query (nested `replace()`). The argument above holds for
+a path as for a title: a path's key differs from that copy only between words and at apostrophes,
+so a path holding every word holds the longest verbatim. A title holding every word holds it too, so
+the titles' narrowing already keeps every work a title lists. The candidates' titles, ids and paths
+are each read in one query, and only `Match` and `MatchByWords` decide.
+
+| Rejected option | Why not |
+| --- | --- |
+| Find the text anywhere, as the Library page's search does | "it" finds "wITh", and a short word lists the whole library |
+| Keep the rule strict and only link to the Library page | A release of Rambo III still never says you own it |
+| Match a release by words too | "Rambo (2008)" would be said to be Rambo III |
+| No cap on the works by words | A common word lists the library, and reads every card of it |
+| Call a work by words `TitleOnly` | A look-alike becomes a possible match, "Interstellar Wars" for "Interstellar" |
+
+`WorkMatchingTests.MatchByWords_lists_a_work_whose_title_holds_every_word_sought_as_words_evidence`,
+`WorkMatchingTests.MatchByWords_lists_a_work_whose_file_path_alone_holds_every_word_without_a_matched_title`,
+`WorkMatchingTests.MatchByWords_needs_every_word_whole_not_part_of_a_longer_one` and
+`WorkMatchingTests.MatchByWords_flags_conflicting_ids_as_a_match_does` pin the rule. Over HTTP,
+`SearchesLibraryMatchingHttpTests.Create_lists_the_works_holding_every_word_of_the_title_after_the_matches`
+(the five Rambo films, one through its path),
+`SearchesLibraryMatchingHttpTests.Create_lists_a_work_whose_file_path_alone_holds_the_words_without_a_matched_title`,
+`SearchesLibraryMatchingHttpTests.Create_and_get_list_at_most_the_limit_of_works_by_words_and_count_the_rest`
+and `SearchesLibraryMatchingHttpTests.Create_matches_no_work_whose_title_only_looks_like_the_one_asked_for`
+pin the library side, and
+`SearchReleasesMatchingHttpTests.Releases_match_a_work_the_search_lists_by_its_words_on_their_own_evidence`
+and `SearchReleasesMatchingHttpTests.Releases_are_never_matched_to_a_work_by_words` the releases.
+
+Known limits, left on purpose: the Library page still searches the text as typed, in one piece, so
+the link can find other works than the count says — "spider man" finds no "Spider-Man" there, though
+its words list it here. A word every path holds, such as the library's own folder names, lists 20
+works by path and counts the rest. Words are compared as the key compares letters, so "Leon" still
+doesn't find "Léon". A work by words authorises nothing, not even a check the way a `TitleOnly`
+match asks for one: it is listed for a person to look at, and the Anti-consequence holds for it as
+for every match.
+
+## Square-bracketed tags that end a release's title (added 0.1.0, MAM-12 review)
+
+**What the reading missed.** Searched for "rambo" on the reference installation (2026-10-02), Toloka
+listed "Rambo: Last Blood [Extended Cut] (2019) BDRip-AVC" and "V / Rambo [Theatrical Cut] (2008)
+BDRip-AVC 2xUkr/Eng", and neither said "In your library", though the library holds "Rambo: Last
+Blood" (2019) and "Rambo" (2008). The year ends the title, so the edition tag written between them
+became part of it: "Rambo: Last Blood [Extended Cut]" has the key `RAMBO LAST BLOOD EXTENDED CUT`
+and "Rambo [Theatrical Cut]" `RAMBO THEATRICAL CUT`, which no work holds. "Rambo III (1988) BDRemux"
+and "First Blood (1982)", with no tag, matched by title and year.
+
+**Each title a release's title is read as, once trimmed, loses the square-bracketed group that ends
+it, again while one does, trimmed after each — unless the group is all that is left; a round-bracketed
+group is never dropped** (Vasyl's decision 4).
+
+**At the end only, where an edition is written.** "Rambo: Last Blood [Extended Cut]" is "Rambo: Last
+Blood", and "Rambo: Last Blood [Extended Cut] - [Remastered]" too. Each alternative ends where the
+slash splits it, so "V / Rambo [Theatrical Cut]" is "V" and "Rambo", and "Rambo [Theatrical Cut] /
+Рембо IV" is "Rambo" and "Рембо IV". A group is a `[`, text without a bracket, and a `]`; a nested
+or unclosed one stays. Both readings drop it: the scene way joins the words with spaces, so
+"Rambo.Last.Blood.[Extended.Cut].2019" is "Rambo Last Blood". The year is read as before — "[2014]"
+ending a title is its year — and a tag after it, "[IMAX Edition]", was never part of the title.
+
+**Kept where it may be the title.** A title that opens with or holds square brackets keeps them:
+"[REC] 2 (2009)" is "[REC] 2", and "[2014] Interstellar (2014)" is still "[2014] Interstellar". A
+group that is all that is left stays: "[REC] (2007)" is "[REC]", and "[REC] [Extended Cut] (2007)"
+is "[REC]". Round brackets hold titles, "Birdman or (The Unexpected Virtue of Ignorance)", and are
+never dropped. The Decision's "each trimmed of `-–—:|,.`" now reads "each trimmed of `-–—:|,.` and of
+the square-bracketed tags that end it". Matching is unchanged: only the titles it is given are.
+
+| Rejected option | Why not |
+| --- | --- |
+| Drop every square-bracketed group before the year | "[REC] 2 (2009)" reads as "2", and misses the film it is |
+| Drop round-bracketed groups too | They hold titles: "Birdman or (The Unexpected Virtue of Ignorance)" |
+| Leave the tag in the title, as a known limit | An edition of a film you own never says "In your library" |
+| Drop a list of known edition words ("Extended Cut", "Theatrical Cut") | The list never ends, and uploaders write them in Ukrainian too |
+| Match a release by words when its key misses | The Words section refuses it: "Rambo (2008)" would be Rambo III |
+
+`ReleaseWorkClaimsTests.Read_drops_only_the_square_bracketed_tags_that_end_a_title` pins the
+reading, both releases above and the titles that keep their brackets, and over HTTP
+`SearchReleasesMatchingHttpTests.Releases_match_a_work_whose_title_a_square_bracketed_tag_follows`
+matches the two releases to "Rambo: Last Blood" (2019) and "Rambo" (2008) by title and year.
+
+Known limits, left on purpose: a tag that opens a title, "[HDRip] Rambo (2008)", or stands inside it
+stays, and such a release still matches nothing by title; a tag holding " / " is split before it is
+looked at, so "Rambo [Theatrical / Extended]" stays two broken alternatives; and a title that itself
+ends in square brackets is read without them, so it misses a library title that keeps them. The
+release's row still shows its whole title; only what it is read as drops the tag.

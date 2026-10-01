@@ -1,5 +1,6 @@
 import type {
   LibraryMatch,
+  LibraryWork,
   SearchRelease,
   SearchReleaseList,
   SearchReleasesQuery,
@@ -56,6 +57,7 @@ export function searchOf(changes: Partial<SearchResponse>): SearchResponse {
     tmdbId: null,
     createdUtc: '2026-10-01T09:00:00Z',
     library: [aliensMatch],
+    libraryUnlistedCount: 0,
     sources: [other, toloka],
     facets: { audioLanguages: ['eng', 'ukr'], hasUnknownAudioLanguage: true, resolutions: [2160, 1080], hasUnknownResolution: true },
     ...changes,
@@ -134,3 +136,73 @@ export const continentalMatch: LibraryMatch = {
 export function releasesPage(query: SearchReleasesQuery, items: SearchRelease[], total = items.length): SearchReleaseList {
   return { items, totalCount: total, page: query.page, pageSize: query.pageSize }
 }
+
+// MAM-12 — a search for "rambo" (no year, no id), as a library of the Rambo films answers it: Рембо
+// IV, whose original title is the word itself, matches by title alone; Рембо III holds the word in
+// its original title, and Перша кров only in its folder, so the two are listed by words — no match.
+
+/** A Rambo film of the library with one file in the collection's folder; `changes` sets what tells it apart. */
+function ramboOf(id: number, fileName: string, changes: Partial<LibraryWork>): LibraryWork {
+  const [version] = continental.versions
+  const servicePath = `/media/movies/Rambo. Collection/${fileName}`
+  return {
+    ...continental,
+    id: `7a1e0000-0000-4000-8000-0000000002${id}0`,
+    identifiers: [],
+    missingIdentifiers: ['Imdb', 'Tmdb'],
+    versions: [{
+      ...version,
+      id: `7a1e0000-0000-4000-8000-0000000002${id}1`,
+      files: [{ ...version.files[0], id: `7a1e0000-0000-4000-8000-0000000002${id}2`, servicePath, appPath: servicePath }],
+    }],
+    ...changes,
+  }
+}
+
+/** Рембо IV (2008): its original title is the title asked for, so it matches by title alone. */
+export const ramboIVMatch: LibraryMatch = {
+  work: ramboOf(4, '[04] Rambo (2008) BDRip 1080p [Hurtom].mkv', { title: 'Рембо IV', originalTitle: 'Rambo', year: 2008 }),
+  evidence: 'TitleOnly',
+  matchedIdentifiers: [],
+  matchedTitle: { text: 'Rambo', kind: 'Original', year: 2008, sourceName: 'Home Jellyfin' },
+  conflictingSchemes: [],
+}
+
+/** Рембо III (1988): its original title holds the word, so it is listed by words with that title. */
+export const ramboIIIByWords: LibraryMatch = {
+  work: ramboOf(3, '[03] Rambo III (1988) BDRip 1080p [Hurtom].mkv', { title: 'Рембо III', originalTitle: 'Rambo III', year: 1988 }),
+  evidence: 'Words',
+  matchedIdentifiers: [],
+  matchedTitle: { text: 'Rambo III', kind: 'Original', year: 1988, sourceName: 'Home Jellyfin' },
+  conflictingSchemes: [],
+}
+
+/** Рембо. Перша кров (1982): only its file's folder holds the word, so no title is named. */
+export const firstBloodByWords: LibraryMatch = {
+  work: ramboOf(1, '[01] Rambo. First Blood (1982) [GER Transfer] BDRip 1080p H.265 [3xUKR_ENG] [Hurtom].mkv', {
+    title: 'Рембо. Перша кров',
+    originalTitle: 'First Blood',
+    year: 1982,
+  }),
+  evidence: 'Words',
+  matchedIdentifiers: [],
+  matchedTitle: null,
+  conflictingSchemes: [],
+}
+
+/** The search for "rambo": the match first, then the two works listed by words. */
+export const ramboSearch = searchOf({
+  text: 'rambo',
+  year: null,
+  imdbId: null,
+  library: [ramboIVMatch, ramboIIIByWords, firstBloodByWords],
+})
+
+/** A release of Rambo III, matched to the work the search lists by words on its own title and year. */
+export const ramboIIIRip = releaseOf({
+  id: '5e1e0000-0000-4000-8000-000000000004',
+  title: 'Rambo III (1988) BDRip 1080p',
+  claimed: { resolution: 1080, medium: 'BluRayRip', videoCodec: null, dynamicRanges: [], audioLanguages: [], subtitleLanguages: [] },
+  claimedWork: { titles: ['Rambo III'], year: 1988 },
+  libraryMatches: [{ workId: ramboIIIByWords.work.id, evidence: 'TitleAndYear', conflictingSchemes: [] }],
+})

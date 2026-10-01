@@ -67,6 +67,41 @@ public sealed class ReleaseWorkClaimsTests
         Assert.Equal(expectedYear, claim.Year);
     }
 
+    /// <summary>MAM-12 review, Vasyl's decision 4 — the "rambo" releases Toloka listed, and the shapes
+    /// around them.</summary>
+    public static TheoryData<string, string[], int?> TitlesWithSquareBrackets() => new()
+    {
+        // An edition tag between the title and its year is not part of the title.
+        { "Rambo: Last Blood [Extended Cut] (2019) BDRip-AVC", ["Rambo: Last Blood"], 2019 },
+        // It ends an alternative as it ends the title.
+        { "V / Rambo [Theatrical Cut] (2008) BDRip-AVC 2xUkr/Eng", ["V", "Rambo"], 2008 },
+        { "Rambo [Theatrical Cut] / Рембо IV (2008)", ["Rambo", "Рембо IV"], 2008 },
+        // Every tag that ends it, with what stands between them.
+        { "Rambo: Last Blood [Extended Cut] - [Remastered] (2019)", ["Rambo: Last Blood"], 2019 },
+        // A scene name's title the same.
+        { "Rambo.Last.Blood.[Extended.Cut].2019.1080p", ["Rambo Last Blood"], 2019 },
+        // A title that opens with or holds square brackets keeps them, and so does one that is nothing else.
+        { "[REC] 2 (2009) BDRip", ["[REC] 2"], 2009 },
+        { "[REC] (2007) BDRip", ["[REC]"], 2007 },
+        { "[REC] [Extended Cut] (2007)", ["[REC]"], 2007 },
+        // Round brackets are never a tag: they hold titles.
+        { "Birdman or (The Unexpected Virtue of Ignorance) (2014)", ["Birdman or (The Unexpected Virtue of Ignorance)"], 2014 },
+    };
+
+    [Theory]
+    [MemberData(nameof(TitlesWithSquareBrackets))]
+    public void Read_drops_only_the_square_bracketed_tags_that_end_a_title(string title, string[] expectedTitles, int? expectedYear)
+    {
+        //Arrange
+
+        //Act
+        var claim = ReleaseWorkClaims.Read(title);
+
+        //Assert
+        Assert.Equal(expectedTitles, claim.Titles);
+        Assert.Equal(expectedYear, claim.Year);
+    }
+
     [Fact]
     public void Read_takes_the_first_bracketed_year_with_a_title_before_it()
     {

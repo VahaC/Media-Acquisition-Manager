@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CircleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { LibraryWorkCard } from '@/components/library/LibraryWorkCard'
 import { ListPager } from '@/components/shared/ListPager'
@@ -28,7 +29,11 @@ const SEARCH_DEBOUNCE_MS = 300
 export function LibraryPage() {
   const { t } = useTranslation(['library', 'common'])
   const locations = useLibraryLocations()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  // MAM-12 — the Search page links here with its title in `?search=` when more movies hold its
+  // words than it lists, so the page opens already searched for it. Read once, as the box's first
+  // value: what the person types after that is theirs.
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const [locationId, setLocationId] = useState('')
   const [identifiers, setIdentifiers] = useState<LibraryIdentifierFilter | ''>('')
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)

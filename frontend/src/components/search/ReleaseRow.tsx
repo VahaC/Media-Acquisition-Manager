@@ -13,7 +13,10 @@ import '@/styles/search.css' // .search-release* — the row, its title and its 
 
 interface ReleaseRowProps {
   release: SearchRelease
-  /** The search's library matches, which name the work a release matches. */
+  /**
+   * Every work the search lists, the ones listed by words too (MAM-12), which name the work a release
+   * matches — on the release's own evidence, never by words.
+   */
   library: LibraryMatch[]
   onDetails: () => void
 }

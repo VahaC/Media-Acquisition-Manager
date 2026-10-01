@@ -21,7 +21,11 @@
   "refreshFailed": "Refresh failed, showing the search as it was last loaded.",
   "library": {
     "title": "In your library",
-    "empty": "Nothing in your library matches this search."
+    "empty": "Nothing in your library matches this search.",
+    "wordsLead": "Not matched, but a title or a file path holds every word of “{{text}}”:",
+    "unlisted_one": "{{value}} more movie in your library holds these words.",
+    "unlisted_other": "{{value}} more movies in your library hold these words.",
+    "unlistedLink": "Search “{{text}}” on the Library page"
   },
   "match": {
     "label": "Why it matched",
@@ -29,6 +33,10 @@
     "identifierAny": "Matched by id",
     "titleAndYear": "Matched by title and year",
     "titleOnly": "Possible match — check it",
+    "words": "Title contains “{{text}}” — not a match",
+    "wordsInPath": "A file path contains “{{text}}” — not a match",
+    "wordsHint": "Every word searched for is in one of this movie's titles or file paths, but the movie matched in no other way. It is shown for you to look at, not as a possible match.",
+    "wordsLabel": "Why it is listed",
     "inLibrary": {
       "Identifier": "In your library: {{work}} — matched by id",
       "TitleAndYear": "In your library: {{work}} — matched by title and year",

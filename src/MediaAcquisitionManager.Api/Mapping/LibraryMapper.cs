@@ -178,7 +178,15 @@ public sealed class LibraryMapper : ILibraryMapper
         return new LibraryFileInspectionDto(status, forOwner ? file.InspectionError : null, inspectedUtc, media);
     }
 
-    private static MediaWorkTitleEntity? FirstInTitleOrder(IReadOnlyList<MediaWorkTitleEntity> titles, MediaTitleKind kind) =>
+    /// <summary>
+    /// The title of <paramref name="kind"/> a card shows: the first in title order
+    /// (<see cref="LibraryTitleOrder"/>, then ordinal, then id); <c>null</c> when the work has none.
+    /// </summary>
+    /// <remarks>
+    /// MAM-12 — also the search page's: it orders and cuts its list by the title a card will show before
+    /// reading any card (<c>LibraryMatcher</c>).
+    /// </remarks>
+    internal static MediaWorkTitleEntity? FirstInTitleOrder(IReadOnlyList<MediaWorkTitleEntity> titles, MediaTitleKind kind) =>
         titles
             .Where(title => title.Kind == kind)
             .OrderBy(title => title.Text, LibraryTitleOrder.Comparer)

@@ -35,10 +35,10 @@ public static class TitleMatchKey
     /// grave and acute accents typed in their place (U+0060, U+00B4), and the full-width one (U+FF07).
     /// </summary>
     /// <remarks>
-    /// The library match's SQL pre-filter removes the same characters from the stored copy of a title
-    /// (<c>LibraryMatcher</c>), one <c>replace()</c> each: a character added here and not there would let
-    /// the pre-filter leave out a title that matches. <c>SearchesLibraryMatchingHttpTests</c> stores a
-    /// title with each of these and finds it.
+    /// The library match's SQL pre-filter removes the same characters from the stored copy of a title —
+    /// MAM-12, and of a file path, in the same one call (<c>LibraryMatcher</c>) — one <c>replace()</c>
+    /// each: a character added here and not there would let the pre-filter leave out a title that matches.
+    /// <c>SearchesLibraryMatchingHttpTests</c> stores a title with each of these and finds it.
     /// </remarks>
     public const string Apostrophes = "\u0027\u2018\u2019\u02BC\u02BB\u0060\u00B4\uFF07";
 
@@ -90,7 +90,9 @@ public static class TitleMatchKey
     /// <see cref="string.ToUpperInvariant"/> (<c>LibrarySearchText</c>) and a key, its apostrophes
     /// dropped, only replaces the characters between words. So asking whether <c>NormalizedText</c>, its
     /// apostrophes removed, contains the word never leaves out a title that matches, and the longest word
-    /// leaves out the most that don't.
+    /// leaves out the most that don't. MAM-12 — the same holds for any text whose key has the word, so a
+    /// file path's <c>NormalizedServicePath</c> is asked the same for the works listed by their words
+    /// (<see cref="WorkMatching.MatchByWords"/>).
     /// </remarks>
     public static string? LongestWord(string key)
     {
@@ -104,6 +106,22 @@ public static class TitleMatchKey
         }
 
         return longest;
+    }
+
+    /// <summary>
+    /// The words of <paramref name="key"/>, each once, in the order they first appear: <c>["RAMBO",
+    /// "FIRST", "BLOOD"]</c> for <c>"RAMBO FIRST BLOOD RAMBO"</c>; none for an empty key.
+    /// </summary>
+    /// <remarks>
+    /// MAM-12 — what the search page's weakest listing looks for (<see cref="WorkMatching.MatchByWords"/>):
+    /// a text holds a title sought when the words of its own key include every one of these, each a whole
+    /// word.
+    /// </remarks>
+    public static IReadOnlyList<string> Words(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        return [.. key.Split(' ', StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.Ordinal)];
     }
 
     private static bool IsApostrophe(Rune rune) =>

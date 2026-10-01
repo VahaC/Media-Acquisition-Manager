@@ -21,12 +21,12 @@ const cardTitles = () =>
 
 const firstQuery = { search: undefined, locationId: undefined, identifiers: undefined, page: 1, pageSize: 25 }
 
-function renderPage(signedIn: CurrentUser = owner) {
+function renderPage(signedIn: CurrentUser = owner, path = '/library') {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>
         <LibraryPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -93,6 +93,21 @@ describe('LibraryPage', () => {
     ])
     expect(await screen.findByRole('heading', { level: 2, name: 'Чужі' })).toBeInTheDocument()
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument()
+  })
+
+  it('opens searched for the text in the address, as the Search page links to it, and asks the server for that alone', async () => {
+    // Arrange
+    vi.mocked(libraryApi.works).mockImplementation(async (query) => worksPage(query, query.search ? [aliens] : [aliens, continental]))
+    const path = '/library?search=Rambo%3A+First+Blood'
+
+    // Act
+    renderPage(owner, path)
+
+    // Assert
+    expect(screen.getByRole('searchbox', { name: 'Search the library' })).toHaveValue('Rambo: First Blood')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Чужі' })).toBeInTheDocument()
+    expect(cardTitles()).toEqual(['Чужі'])
+    expect(vi.mocked(libraryApi.works).mock.calls.map(([query]) => query)).toEqual([{ ...firstQuery, search: 'Rambo: First Blood' }])
   })
 
   it('filters by library on the server and starts again at page 1', async () => {

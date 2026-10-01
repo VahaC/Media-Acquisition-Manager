@@ -21,6 +21,10 @@ namespace MediaAcquisitionManager.Core.Matching;
 /// Titles compare by <see cref="TitleMatchKey"/> and years exactly. Nothing else is looked at — no
 /// distance between titles, no year ± 1: a weaker look-alike is not a match.
 /// </para>
+/// <para>
+/// MAM-12 — <see cref="MatchByWords"/> lists, below the matches, a work holding every word of a title
+/// sought; never a match, and never used for a release (ADR 0012).
+/// </para>
 /// </remarks>
 public static class WorkMatching
 {
@@ -52,6 +56,57 @@ public static class WorkMatching
         if (matchedTitles.Count > 0)
             return new WorkMatch(MatchEvidence.TitleOnly, [], Preferred(matchedTitles), conflicts);
         return null;
+    }
+
+    /// <summary>
+    /// MAM-12 — <see cref="MatchEvidence.Words"/> for the work with <paramref name="titles"/>,
+    /// <paramref name="filePaths"/> (its files' paths as the services report them) and
+    /// <paramref name="identifiers"/> when one of its titles, of any source and either kind, or one of its
+    /// paths holds every word of a title of <paramref name="claim"/> (<see cref="TitleMatchKey.Words"/>),
+    /// each as a whole word and in any order; <c>null</c> otherwise. No matched ids; as the matched title,
+    /// the one holding the words — a displayed one before an original one, then in the work's order — or
+    /// <c>null</c> when only a path holds them. For a work <see cref="Match"/> doesn't match: the caller
+    /// asks <c>Match(…) ?? MatchByWords(…)</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Never a match (ADR 0012): the search page's weakest listing, so a person who searched "Rambo" sees
+    /// "Rambo III" and the "First Blood" in the "Rambo. Collection" folder, and a look-alike ("Interstellar
+    /// Wars" for "Interstellar") is shown for what it is. A release is never matched this way — its
+    /// claim is read from a name that may carry any word at all.
+    /// </para>
+    /// <para>
+    /// Whole words, so "Alien" is not in "Aliens"; and in one title or one path, so a displayed title and an
+    /// original one holding half the words each don't list the work. The year and the ids play no part in it — the ids sought are
+    /// <see cref="MatchEvidence.Identifier"/>'s — but a conflict is flagged as <see cref="Match"/> flags
+    /// it. A title whose key is empty seeks nothing.
+    /// </para>
+    /// </remarks>
+    public static WorkMatch? MatchByWords(
+        WorkClaim claim, IReadOnlyList<ReportedTitle> titles, IReadOnlyList<string> filePaths, IReadOnlyList<MediaIdentifier> identifiers)
+    {
+        ArgumentNullException.ThrowIfNull(claim);
+        ArgumentNullException.ThrowIfNull(titles);
+        ArgumentNullException.ThrowIfNull(filePaths);
+        ArgumentNullException.ThrowIfNull(identifiers);
+
+        var sought = claim.Titles
+            .Select(title => TitleMatchKey.Words(TitleMatchKey.For(title)))
+            .Where(words => words.Count > 0)
+            .ToList();
+        if (sought.Count == 0)
+            return null;
+
+        var holdingTitles = titles.Where(title => Holds(title.Text)).ToList();
+        if (holdingTitles.Count == 0 && !filePaths.Any(Holds))
+            return null;
+        return new WorkMatch(MatchEvidence.Words, [], Preferred(holdingTitles), ConflictingSchemes(claim.Identifiers, identifiers));
+
+        bool Holds(string text)
+        {
+            var words = TitleMatchKey.Words(TitleMatchKey.For(text)).ToHashSet(StringComparer.Ordinal);
+            return sought.Any(title => title.All(words.Contains));
+        }
     }
 
     /// <summary>

@@ -204,6 +204,21 @@ public sealed class TitleMatchKeyTests
         Assert.Equal(expected, word);
     }
 
+    [Theory]
+    [InlineData("RAMBO FIRST BLOOD RAMBO", new[] { "RAMBO", "FIRST", "BLOOD" })]
+    [InlineData("13 Й РАЙОН", new[] { "13", "Й", "РАЙОН" })]
+    [InlineData("", new string[0])]
+    public void Words_are_the_words_of_a_key_each_once_in_their_order(string key, string[] expected)
+    {
+        //Arrange
+
+        //Act
+        var words = TitleMatchKey.Words(key);
+
+        //Assert
+        Assert.Equal(expected, words);
+    }
+
     [Fact]
     public void LongestWord_of_an_empty_key_is_null()
     {

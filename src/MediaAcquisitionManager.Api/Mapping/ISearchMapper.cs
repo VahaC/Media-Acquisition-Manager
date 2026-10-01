@@ -9,15 +9,16 @@ namespace MediaAcquisitionManager.Api.Mapping;
 public interface ISearchMapper
 {
     /// <summary>
-    /// A stored search: what was asked; the library works that match, as <paramref name="library"/> orders
-    /// them, each with the ids and the title that matched and who claimed them; the sources in the order
+    /// A stored search: what was asked; the library works that match, then — MAM-12 — those holding every
+    /// word of its title and how many more do, as <paramref name="library"/> lists them, each with the ids
+    /// and the title that matched (or holds the words) and who claimed them; the sources in the order
     /// given, each with how many releases it listed (<paramref name="releaseCounts"/>, by source row id) and
     /// its sentence only when <paramref name="forOwner"/> — it can name the service's address; and what the
     /// titles of all its releases (<paramref name="releaseTitles"/>) claim, for the list's filters.
     /// </summary>
     SearchResponse ToResponse(
         SearchEntity search,
-        IReadOnlyList<LibraryWorkMatch> library,
+        LibrarySearchResult library,
         IReadOnlyList<SearchSourceEntity> sources,
         IReadOnlyDictionary<Guid, int> releaseCounts,
         IReadOnlyList<string> releaseTitles,

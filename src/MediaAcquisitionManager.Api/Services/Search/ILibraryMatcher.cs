@@ -10,10 +10,13 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 public interface ILibraryMatcher
 {
     /// <summary>
-    /// Every work that matches <paramref name="query"/> (<see cref="WorkMatching"/>: an id, then a title
-    /// and the year, then a title alone), strongest evidence first, then by the title the Library page
-    /// shows in its order, then by id. A file's path problem and why it couldn't be inspected only
-    /// <paramref name="forOwner"/>, as on the Library page.
+    /// Every work that matches <paramref name="query"/> (<see cref="WorkMatching.Match"/>: an id, then a
+    /// title and the year, then a title alone); then, MAM-12 — the works that don't but whose one title or
+    /// one file path holds every word of its title (<see cref="WorkMatching.MatchByWords"/>, ADR 0012), at
+    /// most <see cref="LibraryMatcher.MaximumWorksByWords"/> of them, with how many more there are. All in
+    /// one order: strongest evidence first, then by the title the Library page shows in its order, then by
+    /// id. A file's path problem and why it couldn't be inspected only <paramref name="forOwner"/>, as on
+    /// the Library page.
     /// </summary>
-    Task<IReadOnlyList<LibraryWorkMatch>> MatchAsync(WorkClaim query, bool forOwner, CancellationToken cancellationToken = default);
+    Task<LibrarySearchResult> MatchAsync(WorkClaim query, bool forOwner, CancellationToken cancellationToken = default);
 }

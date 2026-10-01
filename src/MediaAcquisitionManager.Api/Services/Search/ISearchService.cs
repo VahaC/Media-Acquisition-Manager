@@ -10,7 +10,8 @@ public interface ISearchService
 {
     /// <summary>
     /// Validates the search by <c>ReleaseSearchRules</c> (MAM-10's sentences); then reads the library's
-    /// matching works and asks every enabled release source, the two at once; stores the search, how each
+    /// works (<see cref="ILibraryMatcher"/>: those that match, then those holding every word of the title)
+    /// and asks every enabled release source, the two at once; stores the search, how each
     /// source answered and every release found, linked to its source; and removes what is more than a day
     /// old on the way. <see cref="SearchCreateStatus.Invalid"/>, with nothing stored and no source asked,
     /// for a missing or too long title, a year that isn't one, or an id that isn't an IMDb or a TMDb id.

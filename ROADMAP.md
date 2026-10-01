@@ -163,15 +163,19 @@ existing file untouched.
   **In your library** lists every work of the snapshot MAM-8 imported that matches, strongest first:
   by identifier, then by original or localised title with its year, then by title alone as a
   candidate to check, each with its versions and the facts MAM-9 verified, the id or title that
-  matched with the source that reported it, and a conflict of ids flagged, never merged
+  matched with the source that reported it, and a conflict of ids flagged, never merged; then,
+  marked as no match, at most 20 works one of whose titles or file paths holds every word of the
+  title searched for, with how many more there are and a link to the Library page searched for the
+  same text
   ([ADR 0012](docs/adr/0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)).
   **Available releases** lists every release found, even for a movie already owned, its claimed
-  quality marked as claimed, with every library work it matches, by the title and year read from its
-  title and by the IMDb or TMDb id its listing gives (owner's choice; Toloka gives none), and each
-  source's own status, a failed one never hiding the others. The search is stored with how each
-  source answered and every release, so the server's filters (source, audio language, quality,
-  size), sorts and pages read what it stored and a reload asks no source again; a search is its
-  creator's and lives a day, as long as its releases
+  quality marked as claimed, with every work of **In your library** it matches — the works listed
+  by words too, though never by words — by the title and year read from its title and by the IMDb or
+  TMDb id its listing gives (owner's choice; Toloka gives none), and each source's own status, a
+  failed one never hiding the others. The search is stored with how each source answered and every
+  release, so the server's filters (source, audio language, quality, size), sorts and pages read
+  what it stored and a reload asks no source again; a search is its creator's and lives a day, as
+  long as its releases
   ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
   Each release has Details (its listing and claims beside the matching copies' verified facts), Open
   source and Download, shown disabled with its reason until MAM-13. MAM-10's
@@ -183,8 +187,11 @@ existing file untouched.
   the filters and sorts (`SearchReleasesListHttpTests.Releases_filters_and_orders_the_searchs_releases_on_the_server`),
   matching by id against title and year
   (`SearchReleasesMatchingHttpTests.Releases_lists_every_work_of_the_search_a_release_matches_strongest_first`,
-  `SearchesLibraryMatchingHttpTests`), and a movie in a `Collection` folder found where it is
-  (`SearchesLibraryMatchingHttpTests.Create_finds_a_movie_inside_a_collection_folder_with_each_version_where_it_is`).
+  `SearchesLibraryMatchingHttpTests`), a movie in a `Collection` folder found where it is
+  (`SearchesLibraryMatchingHttpTests.Create_finds_a_movie_inside_a_collection_folder_with_each_version_where_it_is`),
+  and the works holding the words of the title, one only through its file's path
+  (`SearchesLibraryMatchingHttpTests.Create_lists_the_works_holding_every_word_of_the_title_after_the_matches`,
+  `SearchReleasesMatchingHttpTests.Releases_are_never_matched_to_a_work_by_words`).
   The page was checked in a browser at desktop and phone width against fake services, not yet
   against the reference installation.
 - **MAM-13 Send to client:** magnet and `.torrent` submission to qBittorrent, in the destination's

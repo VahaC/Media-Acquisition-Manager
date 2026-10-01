@@ -7,13 +7,24 @@ namespace MediaAcquisitionManager.Core.Tests.Matching;
 
 // MAM-12 — whether a library work is the one a search or a release claims, and on what evidence
 // (specification §3.1's priorities): an identifier, then the title with the year, then the title alone.
-// Every conflict is flagged and none resolved, and nothing weaker than an exact key or year matches.
+// Every conflict is flagged and none resolved, and nothing weaker than an exact key or year matches. Below
+// the matches, a work one of whose titles or file paths holds every word of a title sought is listed by
+// its words — whole words, in one text — never as a match (ADR 0012).
 public sealed class WorkMatchingTests
 {
     private static readonly ReportedTitle InterstellarDisplay = new("Інтерстеллар", MediaTitleKind.Display, 2014);
     private static readonly ReportedTitle InterstellarOriginal = new("Interstellar", MediaTitleKind.Original, 2014);
     private static readonly ReportedTitle[] Interstellar = [InterstellarDisplay, InterstellarOriginal];
     private static readonly MediaIdentifier[] InterstellarIds = [Imdb("tt0816692"), Tmdb("157336")];
+
+    /// <summary>"Рембо. Перша кров. Частина друга" (1985), originally "Rambo: First Blood Part II", which
+    /// another source displays as "Rambo II".</summary>
+    private static readonly ReportedTitle[] RamboFirstBloodPartII =
+    [
+        new("Rambo: First Blood Part II", MediaTitleKind.Original, 1985),
+        new("Rambo II", MediaTitleKind.Display, 1985),
+        new("Рембо. Перша кров. Частина друга", MediaTitleKind.Display, 1985),
+    ];
 
     private static readonly MediaIdentifierScheme[] NoConflict = [];
     private static readonly MediaIdentifierScheme[] ImdbConflict = [MediaIdentifierScheme.Imdb];
@@ -384,6 +395,122 @@ public sealed class WorkMatchingTests
         Assert.NotNull(match);
         Assert.Equal(MatchEvidence.TitleAndYear, match.Evidence);
         Assert.Equal(NoConflict, match.ConflictingSchemes);
+    }
+
+    [Theory]
+    // One word, in whichever title holds it: a displayed one before the original one when both do.
+    [InlineData("Rambo", "Rambo II")]
+    [InlineData("рембо", "Рембо. Перша кров. Частина друга")]
+    // Every word, in any order, letter case and punctuation.
+    [InlineData("blood, RAMBO", "Rambo: First Blood Part II")]
+    [InlineData("Перша кров", "Рембо. Перша кров. Частина друга")]
+    public void MatchByWords_lists_a_work_whose_title_holds_every_word_sought_as_words_evidence(string sought, string expectedTitle)
+    {
+        //Arrange
+        // MAM-12 — the year sought is another film's: the words don't look at it.
+        var claim = new WorkClaim([sought], 2008, []);
+
+        //Act
+        var match = WorkMatching.MatchByWords(claim, RamboFirstBloodPartII, [], []);
+
+        //Assert
+        Assert.NotNull(match);
+        Assert.Equal(MatchEvidence.Words, match.Evidence);
+        Assert.Empty(match.MatchedIdentifiers);
+        Assert.Equal(expectedTitle, match.MatchedTitle?.Text);
+        Assert.Equal(NoConflict, match.ConflictingSchemes);
+    }
+
+    [Fact]
+    public void MatchByWords_lists_a_work_whose_file_path_alone_holds_every_word_without_a_matched_title()
+    {
+        //Arrange
+        // MAM-12 — no title of "First Blood" holds "Rambo"; the collection folder its file is in does.
+        ReportedTitle[] titles = [new("Рембо. Перша кров", MediaTitleKind.Display, 1982), new("First Blood", MediaTitleKind.Original, 1982)];
+        string[] paths =
+        [
+            "/media/movies/Rambo. Collection/[01] Rambo. First Blood (1982) [GER Transfer] BDRip 1080p H.265 [3xUKR_ENG] [Hurtom].mkv",
+        ];
+        var claim = new WorkClaim(["Rambo"], null, []);
+
+        //Act
+        var match = WorkMatching.MatchByWords(claim, titles, paths, []);
+
+        //Assert
+        Assert.NotNull(match);
+        Assert.Equal(MatchEvidence.Words, match.Evidence);
+        Assert.Empty(match.MatchedIdentifiers);
+        Assert.Null(match.MatchedTitle);
+    }
+
+    [Theory]
+    // MAM-12 — a whole word, never a part of a longer one: "Alien" is not in "Aliens".
+    [InlineData("Alien")]
+    [InlineData("Чуж")]
+    // Every word: "2" is in neither title nor the path.
+    [InlineData("Aliens 2")]
+    // A title of nothing but punctuation seeks nothing.
+    [InlineData("!!!")]
+    public void MatchByWords_needs_every_word_whole_not_part_of_a_longer_one(string sought)
+    {
+        //Arrange
+        ReportedTitle[] titles = [new("Чужі", MediaTitleKind.Display, 1986), new("Aliens", MediaTitleKind.Original, 1986)];
+        string[] paths = ["/media/movies/Aliens (1986)/Aliens.1986.BDRip.mkv"];
+        var claim = new WorkClaim([sought], null, []);
+
+        //Act
+        var match = WorkMatching.MatchByWords(claim, titles, paths, []);
+
+        //Assert
+        Assert.Null(match);
+    }
+
+    [Fact]
+    public void MatchByWords_needs_every_word_in_one_title_or_one_path()
+    {
+        //Arrange
+        // MAM-12 — "Чужі" holds one word and "Aliens" the other: no one text holds them both.
+        ReportedTitle[] titles = [new("Чужі", MediaTitleKind.Display, 1986), new("Aliens", MediaTitleKind.Original, 1986)];
+        string[] paths = ["/media/movies/Aliens (1986).mkv", "/media/movies/Чужі (1986).mkv"];
+        var claim = new WorkClaim(["Чужі Aliens"], null, []);
+
+        //Act
+        var match = WorkMatching.MatchByWords(claim, titles, paths, []);
+
+        //Assert
+        Assert.Null(match);
+    }
+
+    [Fact]
+    public void MatchByWords_flags_conflicting_ids_as_a_match_does()
+    {
+        //Arrange
+        // MAM-12 — the search asked for an IMDb id the work doesn't hold, and two sources gave it two TMDb
+        // ids: listed by its words all the same, with both disagreements, and no id matched.
+        var claim = new WorkClaim(["Rambo"], null, [Imdb("tt0095956")]);
+        ReportedTitle[] titles = [new("Rambo III", MediaTitleKind.Original, 1988)];
+
+        //Act
+        var match = WorkMatching.MatchByWords(claim, titles, [], [Imdb("tt9999999"), Tmdb("1370"), Tmdb("1371")]);
+
+        //Assert
+        Assert.NotNull(match);
+        Assert.Equal(MatchEvidence.Words, match.Evidence);
+        Assert.Empty(match.MatchedIdentifiers);
+        Assert.Equal([MediaIdentifierScheme.Imdb, MediaIdentifierScheme.Tmdb], match.ConflictingSchemes);
+    }
+
+    [Fact]
+    public void MatchByWords_of_a_work_holding_none_of_the_words_is_null()
+    {
+        //Arrange
+        var claim = new WorkClaim(["Rambo"], null, []);
+
+        //Act
+        var match = WorkMatching.MatchByWords(claim, Interstellar, ["/media/movies/Interstellar (2014).mkv"], InterstellarIds);
+
+        //Assert
+        Assert.Null(match);
     }
 
     private static MediaIdentifier Imdb(string value) => new(MediaIdentifierScheme.Imdb, value);

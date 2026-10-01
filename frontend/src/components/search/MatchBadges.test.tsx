@@ -3,8 +3,8 @@ import { MatchBadges } from '@/components/search/MatchBadges'
 import { aliens } from '@/test/library'
 
 /** The badges, in order, as their text. */
-const badgeTexts = () =>
-  within(screen.getByRole('list', { name: 'Why it matched' })).getAllByRole('listitem').map((item) => item.textContent)
+const badgeTexts = (name = 'Why it matched') =>
+  within(screen.getByRole('list', { name })).getAllByRole('listitem').map((item) => item.textContent)
 
 describe('MatchBadges', () => {
   it('names each id the work matched by, with its value and source on hover', () => {
@@ -55,6 +55,35 @@ describe('MatchBadges', () => {
     expect(badgeTexts()).toEqual(['Possible match — check it', '“Чужі”'])
     expect(screen.getByText('Possible match — check it')).toHaveClass('ui-badge', 'library-badge-warning')
     expect(screen.getByText('“Чужі”')).toHaveAttribute('title', 'The title the library shows')
+  })
+
+  it('says a work whose title holds every word sought is no match, quoting the search, with that title beside it', () => {
+    // Arrange
+    const matchedTitle = { text: 'Rambo III', kind: 'Original' as const, year: 1988, sourceName: 'Home Jellyfin' }
+
+    // Act
+    render(<MatchBadges evidence="Words" conflictingSchemes={[]} matchedTitle={matchedTitle} searchText="rambo" />)
+
+    // Assert
+    expect(badgeTexts('Why it is listed')).toEqual(['Title contains “rambo” — not a match', '“Rambo III”, 1988'])
+    expect(screen.queryByRole('list', { name: 'Why it matched' })).not.toBeInTheDocument()
+    const badge = screen.getByText('Title contains “rambo” — not a match')
+    expect(badge).toHaveClass('ui-badge', 'ui-badge-outline')
+    expect(badge).not.toHaveClass('ui-badge-secondary')
+    expect(badge.getAttribute('title')).toMatch(/matched in no other way/)
+    expect(screen.getByText('“Rambo III”, 1988')).toHaveAttribute('title', 'The original title, reported by Home Jellyfin')
+  })
+
+  it('says a work whose file path alone holds every word sought is no match, naming no title', () => {
+    // Arrange
+    const searchText = 'rambo'
+
+    // Act
+    render(<MatchBadges evidence="Words" conflictingSchemes={['Imdb']} matchedTitle={null} searchText={searchText} />)
+
+    // Assert
+    expect(badgeTexts('Why it is listed')).toEqual(['A file path contains “rambo” — not a match', 'Conflicting IMDb ids'])
+    expect(screen.getByText('A file path contains “rambo” — not a match')).toHaveClass('ui-badge', 'ui-badge-outline')
   })
 
   it('flags every scheme whose ids conflict, saying nothing was merged', () => {

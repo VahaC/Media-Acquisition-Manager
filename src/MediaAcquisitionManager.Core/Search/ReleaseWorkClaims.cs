@@ -68,9 +68,26 @@ public static partial class ReleaseWorkClaims
     /// </summary>
     private static List<string> Alternatives(string titlePart) =>
         AlternativeSeparatorPattern().Split(titlePart)
-            .Select(TrimEdges)
+            .Select(WithoutTrailingTags)
             .Where(alternative => alternative.Length > 0)
             .ToList();
+
+    /// <summary>
+    /// <paramref name="alternative"/> trimmed, without the square-bracketed tags that end it:
+    /// "Rambo: Last Blood [Extended Cut]" is "Rambo: Last Blood" (ADR 0012, Vasyl's decision 4). Only at
+    /// the end, where an edition is written: a title opening with or holding square brackets keeps them,
+    /// "[REC] 2", and so does one that is nothing else, "[REC]". Round brackets are never a tag: they hold
+    /// titles, "Birdman or (The Unexpected Virtue of Ignorance)".
+    /// </summary>
+    private static string WithoutTrailingTags(string alternative)
+    {
+        var title = TrimEdges(alternative);
+        Match tag;
+        // A tag at index 0 is all that is left: kept, as the title is the tag.
+        while ((tag = TrailingTagPattern().Match(title)).Success && tag.Index > 0)
+            title = TrimEdges(title[..tag.Index]);
+        return title;
+    }
 
     private static string TrimEdges(string text)
     {
@@ -105,4 +122,8 @@ public static partial class ReleaseWorkClaims
 
     [GeneratedRegex(@"\s+/\s+", RegexOptions.CultureInvariant)]
     private static partial Regex AlternativeSeparatorPattern();
+
+    /// <summary>A square-bracketed group with no bracket inside, ending the text.</summary>
+    [GeneratedRegex(@"\[[^\[\]]*\]\z", RegexOptions.CultureInvariant)]
+    private static partial Regex TrailingTagPattern();
 }

@@ -46,9 +46,9 @@ public sealed class SearchService(
         // the slower of the two, not their sum. The library is read through a context of its own — a
         // context is not safe to share between concurrent calls, and the sources read theirs through this
         // one while the library is being read.
-        var libraryMatches = MatchInOwnScopeAsync(QueryOf(terms!), forOwner, cancellationToken);
+        var inLibrary = MatchInOwnScopeAsync(QueryOf(terms!), forOwner, cancellationToken);
         var outcomes = sources.SearchAsync(terms!.Text, terms.Year, terms.Identifiers, cancellationToken);
-        await Task.WhenAll(libraryMatches, outcomes);
+        await Task.WhenAll(inLibrary, outcomes);
 
         var search = new SearchEntity
         {
@@ -61,7 +61,7 @@ public sealed class SearchService(
         await store.StoreAsync(await outcomes, search, cancellationToken);
         await store.PruneAsync(cancellationToken);
 
-        return SearchCreateResult.Created(await ToResponseAsync(search, await libraryMatches, forOwner, cancellationToken));
+        return SearchCreateResult.Created(await ToResponseAsync(search, await inLibrary, forOwner, cancellationToken));
     }
 
     public async Task<SearchReadResult> GetAsync(Guid id, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -72,8 +72,8 @@ public sealed class SearchService(
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         // Matched again on every read, not stored: a sync since the search shows (and a work removed since
         // is no longer offered).
-        var libraryMatches = await library.MatchAsync(QueryOf(search), forOwner, cancellationToken);
-        return SearchReadResult.Found(await ToResponseAsync(search, libraryMatches, forOwner, cancellationToken));
+        var inLibrary = await library.MatchAsync(QueryOf(search), forOwner, cancellationToken);
+        return SearchReadResult.Found(await ToResponseAsync(search, inLibrary, forOwner, cancellationToken));
     }
 
     public async Task<SearchReleaseListResult> ListReleasesAsync(
@@ -103,15 +103,16 @@ public sealed class SearchService(
                 where searchSource.SearchId == search.Id
                 select new { Release = release, SourcePosition = searchSource.Position, SourceName = searchSource.Name })
             .ToListAsync(cancellationToken);
-        // What the releases are matched against: the works the search itself finds. Only their titles and
-        // ids are read here, so nothing of the owner's is at stake.
-        var libraryMatches = await library.MatchAsync(QueryOf(search), forOwner: false, cancellationToken);
+        // What the releases are matched against: the works the search itself lists — MAM-12, those it lists
+        // by their words included, each matched on the release's own evidence. Only their titles and ids are
+        // read here, so nothing of the owner's is at stake.
+        var libraryWorks = (await library.MatchAsync(QueryOf(search), forOwner: false, cancellationToken)).Works;
 
         // In memory, on the server: what a release claims is read from its title on every read (MAM-10,
         // specification §3.1), so it can't be filtered or sorted in SQL; and a search holds at most 100
         // releases per source (ReleaseSearchPlanning.MaximumResults). The browser still gets one page.
         var listed = Ordered(
-                rows.Select(row => Read(row.Release, row.SourcePosition, row.SourceName, libraryMatches)).Where(release => Keeps(filter!, release)),
+                rows.Select(row => Read(row.Release, row.SourcePosition, row.SourceName, libraryWorks)).Where(release => Keeps(filter!, release)),
                 filter!.Sort)
             .ToList();
 
@@ -143,7 +144,7 @@ public sealed class SearchService(
     /// The library's side on a scope, and so a DbContext, of its own — the one way to read the library
     /// while the sources' read goes through the request's context.
     /// </summary>
-    private async Task<IReadOnlyList<LibraryWorkMatch>> MatchInOwnScopeAsync(WorkClaim query, bool forOwner, CancellationToken cancellationToken)
+    private async Task<LibrarySearchResult> MatchInOwnScopeAsync(WorkClaim query, bool forOwner, CancellationToken cancellationToken)
     {
         // Started on its own, as each source is (ReleaseSources): SQLite's reads complete synchronously, so
         // without this the whole library read would run before the sources were even started.
@@ -162,7 +163,7 @@ public sealed class SearchService(
     /// <summary>What the search page shows of a stored search: its sources as stored, with how many
     /// releases each listed, and what those releases claim, for the filters.</summary>
     private async Task<SearchResponse> ToResponseAsync(
-        SearchEntity search, IReadOnlyList<LibraryWorkMatch> libraryMatches, bool forOwner, CancellationToken cancellationToken)
+        SearchEntity search, LibrarySearchResult inLibrary, bool forOwner, CancellationToken cancellationToken)
     {
         var searchSources = await db.SearchSources
             .AsNoTracking()
@@ -178,12 +179,17 @@ public sealed class SearchService(
         var releaseCounts = releases
             .GroupBy(release => release.SearchSourceId!.Value)
             .ToDictionary(source => source.Key, source => source.Count());
-        return mapper.ToResponse(search, libraryMatches, searchSources, releaseCounts, [.. releases.Select(release => release.Title)], forOwner);
+        return mapper.ToResponse(search, inLibrary, searchSources, releaseCounts, [.. releases.Select(release => release.Title)], forOwner);
     }
 
     /// <summary>A release with what its title and listing claim, and the search's works it matches.</summary>
+    /// <remarks>
+    /// MAM-12 — by <see cref="WorkMatching.Match"/> alone, against every work the search lists: a work the
+    /// search lists by its words is matched on the release's own evidence ("Rambo III (1988)" is that
+    /// work's title and year), and never by words — a release's name may hold any word at all (ADR 0012).
+    /// </remarks>
     private static SearchRelease Read(
-        ReleaseEntity release, int sourcePosition, string sourceName, IReadOnlyList<LibraryWorkMatch> libraryMatches)
+        ReleaseEntity release, int sourcePosition, string sourceName, IReadOnlyList<LibraryWorkMatch> libraryWorks)
     {
         var claimedWork = ReleaseWorkClaims.Read(release.Title);
         var identifiers = ReleaseSearchTerms.IdentifiersOf(release.ImdbId, release.TmdbId);
@@ -192,7 +198,7 @@ public sealed class SearchService(
         // order the search lists the works — OrderBy is stable.
         List<ReleaseLibraryMatch> matches =
         [
-            .. libraryMatches
+            .. libraryWorks
                 .Select(work => WorkMatching.Match(claim, work.Titles, work.Identifiers) is { } match
                     ? new ReleaseLibraryMatch(work.Work.Id, match)
                     : null)
