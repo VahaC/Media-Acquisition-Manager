@@ -155,3 +155,36 @@ hand, or saved before the category changed, can be elsewhere. Phase C still chec
 by its identity (specification §3.4, ADR 0003). A kept session licenses sending a read again once,
 never a write. And a remembered refusal never stands in the way of the connection test, which is how
 the owner tries the credentials again.
+
+## Implementation (added 0.1.0, MAM-13)
+
+**A submission sends the category and `autoTMM=true`, never a folder (MAM-13's decision 2).** The
+Decision's "a submission will send the category alone" became the category and automatic torrent
+management: under manual management, qBittorrent's default for a new torrent, a category alone
+decides no folder, and the torrent would land in the default save path. So `torrents/add` carries
+the release, `category` — the destination's key exactly as stored, never trimmed — and
+`autoTMM=true`, and never `savepath`, `downloadPath`, `useDownloadPath`, `rename`, `tags`, `paused`
+or `stopped`: the category's folder is where the torrent lands whatever qBittorrent's default, and
+the folder the destination's check shows is where it goes. The reference installation already runs
+automatic management (VendorSamples' `QBittorrent/preferences.json`), so nothing changes there. Before anything is sent, the category is
+confirmed live through the destinations' own listing, since qBittorrent creates a category it lacks
+in its default folder: one that is gone fails the job and sends nothing ("“qBittorrent” has no
+category “Movies” any more, so nothing was sent: it would have created one in its default folder.
+Create the category again in “qBittorrent”, or the owner edits the destination."). The default
+destination is what the Download dialog picks first, as the Consequences expected
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+
+**One write per submission, never sent again.** "Only reads are sent again; MAM-11 sends nothing
+else" now reads: the one write is a submission's `torrents/add`, sent once. The Anti-consequence's
+"A kept session licenses sending a read again once, never a write" holds: a submission reads
+`app/version` first, through the same renewal, so a kept session qBittorrent has forgotten is renewed
+by that read and the write goes out on a session qBittorrent has just accepted. A 403 to the write is
+its answer and is never resent — without a session, the sign-in qBittorrent asks for; with one, the
+session is dropped and the next call signs in. The version gate refuses a qBittorrent older than
+4.4.1 before anything is posted. The destinations still send only the sign-in and GETs, and so does
+the job lookup (`torrents/info?hashes=…`).
+
+`DownloadsSendHttpTests.Create_sends_the_torrent_once_into_the_category_with_automatic_management_and_no_save_path`
+pins the one add, its fields and no save path in any request,
+`DownloadsSendFailuresHttpTests.Create_whose_category_is_gone_fails_and_sends_nothing` the live
+check, and `QBittorrentAdapterSubmitTests` the renewal at the version read and the 403 never resent.

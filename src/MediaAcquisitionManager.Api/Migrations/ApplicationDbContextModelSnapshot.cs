@@ -158,7 +158,29 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ErrorOrigin")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InfoHashV1")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InfoHashV2")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("ReleaseId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByUserName")
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
@@ -176,6 +198,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasIndex("DownloadClientConnectionId");
 
                     b.HasIndex("ReleaseId");
+
+                    b.HasIndex("RequestedByUserId", "RequestId")
+                        .IsUnique();
 
                     b.ToTable("DownloadJobs");
                 });
@@ -1119,6 +1144,11 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasForeignKey("ReleaseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileInspectionRunEntity", b =>

@@ -4,8 +4,9 @@
 localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
 environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
 library inventory), MAM-9 (the ffprobe inspection of the library's files), MAM-10 (the Torznab
-release search), MAM-11 (qBittorrent's categories and the download destinations) and MAM-12 (the
-search page of library copies and releases) are built; no phase has shipped yet.
+release search), MAM-11 (qBittorrent's categories and the download destinations), MAM-12 (the
+search page of library copies and releases) and MAM-13 (sending a release to qBittorrent) are built;
+no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -83,8 +84,9 @@ existing file untouched.
   Path mappings are stored per integration and resolved folder by folder, never by a guess
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   MAM-7's adapters only tested a connection; MAM-8 added the library contract to Jellyfin's, MAM-10
-  the search contract to Torznab's, and MAM-11 the destinations of the download contract to
-  qBittorrent's (submission and job reading come with MAM-13 and MAM-14).
+  the search contract to Torznab's, MAM-11 the destinations of the download contract to
+  qBittorrent's, and MAM-13 the submission and the lookup of jobs by info hash (following jobs and
+  their files comes with MAM-14).
 - **MAM-8 Jellyfin inventory** (built): the owner syncs a Jellyfin library (10.9 or later) from the
   Library page in the background (202 + run row + reconciler), reading its libraries and every
   movie in pages that overlap by one, each asking for collection grouping off
@@ -148,7 +150,7 @@ existing file untouched.
   qBittorrent refused, or after it banned the app's address, until the address or credentials change
   or a connection test with them works
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md));
-  it sends only the sign-in and GETs
+  for the destinations it sends only the sign-in and GETs
   (`DestinationsClientDestinationsHttpTests.Every_call_the_destinations_make_to_a_client_is_the_sign_in_or_a_get_and_none_names_a_save_path`).
   Submission and job monitoring, once listed here, moved to MAM-13 and MAM-14 with their members of
   the download client contract, which MAM-11 left out rather than stub
@@ -178,7 +180,7 @@ existing file untouched.
   long as its releases
   ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
   Each release has Details (its listing and claims beside the matching copies' verified facts), Open
-  source and Download, shown disabled with its reason until MAM-13. MAM-10's
+  source and Download, which MAM-13 made send the release. MAM-10's
   `POST /api/releases/search` stays as it was (owner's choice), and both searches ask and store
   through one implementation; `IMetadataResolver` stays unimplemented, as the snapshot needs no call
   to Jellyfin. The HTTP tests cover the concurrent asking
@@ -194,12 +196,64 @@ existing file untouched.
   `SearchReleasesMatchingHttpTests.Releases_are_never_matched_to_a_work_by_words`).
   The page was checked in a browser at desktop and phone width against fake services, not yet
   against the reference installation.
-- **MAM-13 Send to client:** magnet and `.torrent` submission to qBittorrent, in the destination's
-  category and without a save path (the contract's submission member comes back with it); pick a
-  release, client and destination; one click creates one job, and repeated clicks or retries never
-  create a second download.
-- **MAM-14 Job tracking:** the client's jobs and their files read back (the contract's job members
-  come back with it); persisted jobs that follow the client's status and survive a restart.
+- **MAM-13 Send to client** (built): every signed-in user sends a release of their own search to a
+  download client from the Search page's **Download** dialog (MAM-13's decision 1) — a client that
+  can take it, one of its destinations with the default picked first, and a summary that says the
+  existing copies are kept. The server fetches the release itself and hands qBittorrent (4.4.1 or
+  later) the `.torrent` or the magnet in one `torrents/add` with the destination's category exactly
+  as stored and automatic torrent management, never a save path (decision 2), after confirming the
+  category live and that qBittorrent doesn't already have the torrent, which fails the job rather
+  than adopt a download the app didn't add (decision 4)
+  ([ADR 0010](docs/adr/0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)).
+  One click creates one job: the job is written with the request id the dialog made and an audit row
+  before anything is fetched or sent, the same id answers that job and sends nothing, two copies
+  racing make one job, and a submission is never sent again — an answer that leaves open whether
+  qBittorrent took it is followed by reading its list. The job is confirmed by qBittorrent's own id
+  (5.2) or by the info hashes worked out from the payload (4.4.1 to 5.1, or 5.2 naming no single
+  id); several candidates, or no hash, are `NeedsLinking`, never a guess. A release a job that didn't
+  fail already sent to that client — recognised by its source's id for it or its info hash, as every
+  search keeps its own copy of a listing — is refused (decision 3)
+  ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md),
+  [ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
+  The contract's `SubmitAsync` came back, and `FindJobsAsync` took the place of `ListJobsAsync`
+  ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md));
+  the release's download link and a magnet's trackers stay on the server
+  ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md),
+  [ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
+  The HTTP tests cover the job, its row and its audit row
+  (`DownloadsSendHttpTests.Create_is_201_with_the_job_the_client_took_its_row_and_its_audit_row`),
+  the one add into the category with automatic management and no save path
+  (`DownloadsSendHttpTests.Create_sends_the_torrent_once_into_the_category_with_automatic_management_and_no_save_path`),
+  a qBittorrent before 5.2
+  (`DownloadsSendHttpTests.Create_against_qbittorrent_before_5_2_finds_the_job_by_its_info_hash`),
+  one request id sent twice and twice at once
+  (`DownloadsIdempotencyHttpTests.Create_twice_with_one_request_id_answers_the_same_job_and_sends_once`,
+  `DownloadsIdempotencyHttpTests.Create_twice_at_once_with_one_request_id_makes_one_job_and_sends_once`),
+  the id used for another download
+  (`DownloadsIdempotencyHttpTests.Create_with_a_request_id_used_for_another_download_is_409_and_writes_nothing`),
+  a release already sent
+  (`DownloadsIdempotencyHttpTests.Create_of_a_release_already_sent_to_the_client_is_409_and_sends_nothing`),
+  the refusals that ask no service
+  (`DownloadsValidationHttpTests.Create_to_a_client_that_can_not_take_the_release_is_400_and_asks_nothing`,
+  `DownloadsValidationHttpTests.Create_to_an_unknown_destination_is_404_and_asks_nothing`), the
+  failures and their confirmation
+  (`DownloadsSendFailuresHttpTests.Create_whose_category_is_gone_fails_and_sends_nothing`,
+  `DownloadsSendFailuresHttpTests.Create_for_a_torrent_qbittorrent_already_has_fails_and_sends_nothing`,
+  `DownloadsSendFailuresHttpTests.Create_whose_add_answered_500_but_listed_the_torrent_records_it_submitted`,
+  `DownloadsSendFailuresHttpTests.Create_with_two_jobs_listed_for_the_hash_needs_linking`), the
+  dialog's choices
+  (`DownloadOptionsHttpTests.Options_lists_the_switched_on_clients_that_take_the_release_with_their_destinations`)
+  and the secrets
+  (`DownloadsSecretsHttpTests.No_answer_log_job_or_audit_row_of_a_download_carries_a_planted_secret`).
+  Verified live on 2026-10-02: a release found on the Search page went through Prowlarr to the
+  reference installation's qBittorrent v5.2.4, which listed it under the info hash the app worked out,
+  in the Movies category's folder under automatic torrent management and with no save path sent; a
+  first try that Prowlarr failed to fetch from Toloka ended `Failed` with the feed's sentence and sent
+  nothing. The page was checked in a browser at desktop and phone width against local fakes.
+  qBittorrent's answers to `torrents/add` before 5.2 are written from its source.
+- **MAM-14 Job tracking:** the client's jobs followed by the id or the info hashes MAM-13 stores on
+  each, and their files read back (the contract's files member comes back with it); persisted jobs
+  that follow the client's status and survive a restart.
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
@@ -208,9 +262,11 @@ existing file untouched.
   stopped. A lost library snapshot comes back with the next sync, and the files' inspection with
   the next inspection; the media folders the owner allowed are in `mam.db` too, and so are the
   download destinations and the library folders the last sync stored (those come back with the next
-  sync); qBittorrent's session, and a sign-in it refused, are held in memory only. The releases a
-  search found are kept there for a day, and those a download job sent for as long as the job; the
-  Search page's searches, with how each source answered, for a day too. A secret set through
+  sync); qBittorrent's session, and a sign-in it refused, are held in memory only. The download jobs
+  live in `mam.db` too, each with the request id it was sent under and the info hashes (v1 and v2) of what it sent;
+  the torrents themselves are qBittorrent's to back up. The releases a search found
+  are kept there for a day, and those a download job sent for as long as the job; the Search page's
+  searches, with how each source answered, for a day too. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.
 

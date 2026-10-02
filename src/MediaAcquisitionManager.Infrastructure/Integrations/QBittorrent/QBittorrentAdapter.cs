@@ -13,11 +13,15 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 /// (<see cref="IDownloadClient"/>): the categories and the folders they save to in
 /// <c>QBittorrentAdapter.Destinations.cs</c> and <see cref="QBittorrentCategoryPaths"/>, and the session
 /// the calls share in <c>QBittorrentAdapter.Sessions.cs</c> and <see cref="QBittorrentSessions"/>. MAM-13
-/// and MAM-14 add submission and job reading.
+/// adds the submission of a release in <c>QBittorrentAdapter.Submissions.cs</c>, and the lookup of the
+/// torrents that hold its info hashes in <c>QBittorrentAdapter.Jobs.cs</c>; MAM-14 adds following a job and
+/// its files.
 /// </summary>
 /// <remarks>
-/// Read-only so far: the sign-in and GETs, never a request that changes anything in qBittorrent. Every
-/// answer is read as an allowlist, property by property by name (house rule 8).
+/// The sign-in and GETs, plus — MAM-13 — one write: <c>torrents/add</c>, sent once on a session a read has
+/// just confirmed and never sent again (house rule 8: a write sent twice may act twice). Nothing else that
+/// changes anything in qBittorrent. Every answer is read as an allowlist, property by property by name
+/// (house rule 8).
 /// </remarks>
 internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IDownloadClient
@@ -81,10 +85,11 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     /// <inheritdoc/>
     /// <remarks>
     /// MAM-11 — <c>torrents/add</c> takes a .torrent file and a magnet link alike, and a category saves to a
-    /// folder qBittorrent says (<see cref="QBittorrentCategoryPaths"/>). No job id from a submission:
-    /// <c>torrents/add</c> answers only <c>Ok.</c> before 5.2, and 5.2's JSON lists ids only for magnet
-    /// links and uploaded files, so with 4.4.1 the oldest version taken the type can't promise one; the
-    /// info hash correlates instead (MAM-13).
+    /// folder qBittorrent says (<see cref="QBittorrentCategoryPaths"/>). No job id promised from a
+    /// submission: 4.4.1 to 5.1 answer <c>torrents/add</c> with <c>Ok.</c> only, so with 4.4.1 the oldest
+    /// version taken the type can't promise one, and the info hash correlates instead. MAM-13 — 5.2 lists
+    /// the ids it added (<c>added_torrent_ids</c>), and the adapter passes one on when it gets exactly one;
+    /// any other answer leaves the receipt without an id.
     /// </remarks>
     public DownloadClientCapabilities Capabilities { get; } = new(
         PayloadKinds: [ReleasePayloadKind.TorrentFile, ReleasePayloadKind.Magnet],

@@ -2,12 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { downloadsApi } from '@/lib/downloads-api'
 import { qk } from '@/lib/queries'
 import { searchApi } from '@/lib/search-api'
 import type { CurrentUser, SearchResponse, SearchReleasesQuery } from '@/lib/types'
 import { SearchPage } from '@/pages/SearchPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
+import { localClient, optionsOf } from '@/test/downloads'
 import {
   aliensMatch,
   aliensSearch,
@@ -26,6 +28,7 @@ import {
 } from '@/test/search'
 
 vi.mock('@/lib/search-api')
+vi.mock('@/lib/downloads-api')
 
 /** The query of the last request for releases. */
 const lastQuery = () => vi.mocked(searchApi.releases).mock.lastCall?.[1]
@@ -643,6 +646,23 @@ describe('SearchPage', () => {
     const dialog = await screen.findByRole('dialog', { name: tolokaRemux.title })
     expect(within(dialog).getByRole('region', { name: 'Чужі' })).toBeInTheDocument()
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('opens the Download dialog for the release whose Download was clicked, and closes it again', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient))
+    const { user } = openStored()
+    const row = await screen.findByRole('article', { name: otherUhd.title })
+
+    // Act
+    await user.click(within(row).getByRole('button', { name: 'Download' }))
+
+    // Assert
+    const dialog = await screen.findByRole('dialog', { name: `Download ${otherUhd.title}` })
+    expect(await within(dialog).findByRole('combobox', { name: 'Download client' })).toHaveValue(localClient.id)
+    expect(downloadsApi.options).toHaveBeenCalledExactlyOnceWith(otherUhd.id)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

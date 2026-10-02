@@ -40,7 +40,10 @@ internal static class IntegrationsInfrastructureExtensions
     /// three reads (the version, the categories, the default save path), each answered from qBittorrent's
     /// memory on a LAN like a connection test, plus a sign-in when no session is kept, or a sign-in and one
     /// read sent again when qBittorrent has forgotten the kept one: at most five requests of a few
-    /// milliseconds, each bounded on its own.
+    /// milliseconds, each bounded on its own. MAM-13 — a submission is the same sign-in and version read
+    /// and then one <c>torrents/add</c>, and a job lookup the version read and one <c>torrents/info</c>; a
+    /// submission whose answer doesn't come in time is reported as timed out and never sent again, because
+    /// qBittorrent may have added the release all the same — the caller looks for its info hash instead.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
@@ -67,8 +70,9 @@ internal static class IntegrationsInfrastructureExtensions
         return services;
     }
 
-    // No retry or resilience handler (house rule 8): a test is one attempt, and a failed qBittorrent
-    // sign-in repeated counts towards its ban.
+    // No retry or resilience handler (house rule 8): a test is one attempt, a failed qBittorrent sign-in
+    // repeated counts towards its ban, and — MAM-13 — a torrents/add whose answer was lost may have added the
+    // release already.
     private static void AddIntegrationClient(IServiceCollection services, string name) =>
         services.AddHttpClient(name, client =>
             {

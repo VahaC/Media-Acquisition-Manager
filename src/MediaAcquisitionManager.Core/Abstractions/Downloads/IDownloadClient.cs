@@ -16,9 +16,15 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 /// <para>
 /// MAM-11 — only what MAM-11 implements: the capabilities and the destinations. Submitting a release
 /// (MAM-13) and reading the client's jobs and their files (MAM-14) join with the tickets that implement
-/// them, rather than as members every client would have to stub until then; the records they take and
-/// give (<see cref="DownloadSubmission"/>, <see cref="SubmissionReceipt"/>, <see cref="ClientJob"/>,
-/// <see cref="ClientJobFile"/>, <see cref="ClientJobState"/>) already wait here for them.
+/// them, rather than as members every client would have to stub until then.
+/// </para>
+/// <para>
+/// MAM-13 — <see cref="SubmitAsync"/> comes back, and with it <see cref="FindJobsAsync"/>: the job list
+/// read by the info hashes the app worked out from the payload, which is how a submission is confirmed
+/// when the client gave no id (specification §3.2, step 6). It stands in for MAM-7's <c>ListJobsAsync</c>,
+/// whose "every job" form would read a whole client to find one torrent; following a job by the id
+/// stored on it (MAM-14) asks the same question. The files of a job (<see cref="ClientJobFile"/>) are
+/// still MAM-14's.
 /// </para>
 /// </remarks>
 public interface IDownloadClient
@@ -28,4 +34,19 @@ public interface IDownloadClient
 
     /// <summary>The client's own destinations (its categories).</summary>
     Task<IntegrationCallResult<IReadOnlyList<ClientDestination>>> ListDestinationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hands the client a release for one of its destinations, exactly once: a submission is never sent
+    /// again, by this call or a retry of it, because a write sent twice may act twice (house rule 8). A
+    /// failure may still have reached the client — an answer that never came — so the caller confirms by
+    /// <see cref="FindJobsAsync"/> rather than by sending again.
+    /// </summary>
+    Task<IntegrationCallResult<SubmissionReceipt>> SubmitAsync(IntegrationConnectionSettings settings, DownloadSubmission submission, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The client's jobs that hold any of <paramref name="infoHashes"/> — BitTorrent's names for a torrent,
+    /// 40 hexadecimal characters for v1 and 64 for v2 — each with every info hash the client lists for it,
+    /// for the caller to match (<c>ClientJobCorrelation</c>). Empty when the client has none of them.
+    /// </summary>
+    Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> FindJobsAsync(IntegrationConnectionSettings settings, IReadOnlyCollection<string> infoHashes, CancellationToken cancellationToken = default);
 }

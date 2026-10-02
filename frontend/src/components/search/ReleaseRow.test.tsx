@@ -17,8 +17,9 @@ import {
 
 function renderRow(release: SearchRelease, library: LibraryMatch[] = [aliensMatch]) {
   const onDetails = vi.fn()
-  render(<ReleaseRow release={release} library={library} onDetails={onDetails} />)
-  return { onDetails, user: userEvent.setup(), row: screen.getByRole('article') }
+  const onDownload = vi.fn()
+  render(<ReleaseRow release={release} library={library} onDetails={onDetails} onDownload={onDownload} />)
+  return { onDetails, onDownload, user: userEvent.setup(), row: screen.getByRole('article') }
 }
 
 /** The texts of the row's library badges, in order. */
@@ -220,17 +221,16 @@ describe('ReleaseRow', () => {
     expect(button.parentElement).toHaveAttribute('title', 'The source gave no page for this release.')
   })
 
-  it('shows Download disabled with the reason until a release can be sent to a download client', () => {
+  it('asks the parent to download the release from Download', async () => {
     // Arrange
-    const release = tolokaRemux
+    const { onDetails, onDownload, user } = renderRow(tolokaRemux)
 
     // Act
-    renderRow(release)
+    await user.click(screen.getByRole('button', { name: 'Download' }))
 
     // Assert
-    const button = screen.getByRole('button', { name: 'Download' })
-    expect(button).toBeDisabled()
-    expect(button.parentElement).toHaveAttribute('title', 'Sending a release to a download client comes in a later update.')
+    expect(onDownload).toHaveBeenCalledOnce()
+    expect(onDetails).not.toHaveBeenCalled()
   })
 
   it('asks the parent for the details from Details', async () => {

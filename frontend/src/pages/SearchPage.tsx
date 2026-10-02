@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, Loader2, Search as SearchIcon, TriangleAlert 
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LibraryWorkCard } from '@/components/library/LibraryWorkCard'
+import { DownloadDialog } from '@/components/search/DownloadDialog'
 import { MatchBadges } from '@/components/search/MatchBadges'
 import { ReleaseDetailsDialog } from '@/components/search/ReleaseDetailsDialog'
 import { ReleaseFilters, type ReleaseFilterValues } from '@/components/search/ReleaseFilters'
@@ -321,6 +322,8 @@ function ReleasesSection({ search }: { search: SearchResponse }) {
   const [filters, setFilters] = useState(NO_FILTERS)
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)
   const [details, setDetails] = useState<SearchRelease | null>(null)
+  // MAM-13 — the release being sent to a download client; its dialog is mounted only while it is set.
+  const [downloading, setDownloading] = useState<SearchRelease | null>(null)
 
   // Typing a bound waits for a pause; emptying the box applies at once. A bound that isn't a size
   // is left out (ReleaseFilters says so under the row).
@@ -401,7 +404,12 @@ function ReleasesSection({ search }: { search: SearchResponse }) {
           <ul className="search-releases">
             {data.items.map((release) => (
               <li key={release.id}>
-                <ReleaseRow release={release} library={search.library} onDetails={() => setDetails(release)} />
+                <ReleaseRow
+                  release={release}
+                  library={search.library}
+                  onDetails={() => setDetails(release)}
+                  onDownload={() => setDownloading(release)}
+                />
               </li>
             ))}
           </ul>
@@ -420,6 +428,7 @@ function ReleasesSection({ search }: { search: SearchResponse }) {
       {details && (
         <ReleaseDetailsDialog release={details} library={search.library} onClose={() => setDetails(null)} />
       )}
+      {downloading && <DownloadDialog release={downloading} onClose={() => setDownloading(null)} />}
     </section>
   )
 }

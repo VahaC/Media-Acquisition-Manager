@@ -159,6 +159,14 @@
   cursor: not-allowed;
 }
 
+/* MAM-13 — a dialog's buttons stack at full width on a phone. The wrapper stretches with them, but
+   the button inside kept its own width (the Download dialog's Send, the Details dialog's Open
+   source); it fills the wrapper, so it is as wide as the button under it. A row from 640px, where
+   the wrapper is as wide as its button, so nothing changes there. */
+.ui-dialog-footer > .settings-action-reason > .ui-button {
+  flex: 1;
+}
+
 @media (max-width: 48rem) {
   /* One card per row: the header row goes, and every cell becomes a line named by its data-label. */
   .settings-table-wrap {

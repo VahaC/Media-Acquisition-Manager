@@ -644,6 +644,182 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   later update." The list is paged with a page size remembered per device; the dialog has two
   columns on a wide screen and one on a phone. The Library page's version, file and track lines are
   components of their own now, shared with the dialog.
+- **Every signed-in user sends a release one of their searches found to a download client, and one
+  request sends it at most once: the job is written, with the request's id and an audit row, before
+  anything is fetched or sent (MAM-13, ADR 0013).** Every signed-in user may send, as everyone may
+  search (MAM-13's decision 1), so the endpoints live in `Controllers/Downloads`, outside the
+  namespaces whose writes are owner-only. `GET /api/downloads/options?releaseId=…` answers the
+  Download dialog's choices from the database alone, asking no client: every switched-on download
+  client of a type this build can send to that can take the release's payload — one whose kind the
+  listing didn't state, a gateway's link, needs a client that takes a .torrent file or a magnet
+  link — and has a destination, by name, each `{ id, name, typeName, destinations }` with its
+  destinations by name (`{ id, name, clientDestinationKey, isDefault }`): names only, no address,
+  folder or path mapping. It answers 400 "Pick the release to send." without a well-formed
+  `releaseId`, and 404 "This release isn't available any more: a search keeps what it found for a
+  day. Search again." when the release isn't one of the caller's own searches' from the last day —
+  another user's, an older search's, or one MAM-10's plain search found. `POST /api/downloads` with
+  `{ requestId, releaseId, downloadClientId, destinationId }` looks the request id up first, before
+  anything else is read: the caller's same id asking for the same release, client and destination
+  answers 200 with the job it made, even after the release, the client or the destination went, and
+  fetches, sends and audits nothing; asking for anything else, it is 409 "This request id was
+  already used to send a different download. Reload the page and try again." A new request is then
+  checked in this order, each refusal writing and sending nothing: 400 for a missing id ("The
+  download has no request id, which keeps a retry from sending it twice. Reload the page and try
+  again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the
+  destination to send it to."); 404 for the release as above, for a client that isn't there or
+  isn't a download client ("The download client you picked no longer exists. Reload the page and
+  pick one again.") and for a destination that isn't there ("The destination you picked no longer
+  exists. Reload the page and pick one again."); 400 for a destination of another client ("“Movies”
+  is a destination of another download client. Pick one of “qBittorrent”’s."); 409 for a
+  switched-off client ("“qBittorrent” is switched off. The owner can switch it on under
+  Integrations.") or one of a type this build can't send to ("This version of the app can't send
+  downloads to “…”."); 400 for a client that can't take the payload ("“qBittorrent” can't take NZB
+  files, which this release is."); 409 for a source that was removed ("The source that listed this
+  release has been removed, so the release can't be fetched. Search again."), is switched off
+  ("“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under
+  Integrations.") or is of a type this build can't fetch from ("This version of the app can't fetch
+  releases from “…”."); and 409 "This release was already sent to “qBittorrent”, so it isn't sent
+  twice." when a job that didn't fail — anyone's, as the client is the household's — already sent
+  it to that client, recognised by its source and the source's id for it, or by the info hash its
+  listing states, since every search stores its own copy of a listing (MAM-13's decision 3,
+  ADR 0006). Then the job is written `Created` — the request id, who sent it with their name copied,
+  the release, and the client and the destination with their names and the category copied — with
+  an audit row `DownloadRequested` (target kind `DownloadJob`, named by the release's title cut to
+  200 characters with "…"), in one save, and sent (next entry); the answer is 201 with the job and
+  its `Location` (`/api/downloads/{id}`) whatever came of it, a client that couldn't be reached
+  included. `GET /api/downloads/{id}` reads the caller's own job; another user's answers a bare 404,
+  like a missing one. A job is `{ id, releaseId, releaseTitle, sourceName, downloadClientName,
+  destinationName, clientDestinationKey, status, clientJobId, error, createdUtc, statusChangedUtc }`,
+  `status` being `Created` (being sent, or how that went isn't known), `Submitted` (the client took
+  it; `clientJobId` is `null` while the client hasn't listed it), `NeedsLinking`, or `Failed` with
+  `error` (`Downloading` and `Downloaded` are MAM-14's). Two copies of one request racing make one
+  job: a unique index lets one commit, and the other answers its job. One migration
+  (`AddDownloadJobRequests`) adds `RequestId`, `RequestedByUserId` (a foreign key to `Users` that
+  sets null when the user is deleted, so their jobs stay with `RequestedByUserName`),
+  `RequestedByUserName`, `InfoHashV1`, `InfoHashV2` and `ErrorOrigin` to `DownloadJobs`, and the unique
+  index `IX_DownloadJobs_RequestedByUserId_RequestId`; a deleted user's request ids no longer collide, as
+  SQLite never counts two nulls the same. It rebuilds `DownloadJobs` on upgrade, a table no build
+  before MAM-13 wrote to (see Notes for upgraders).
+  `DownloadsIdempotencyHttpTests.Create_twice_with_one_request_id_answers_the_same_job_and_sends_once`,
+  `DownloadsIdempotencyHttpTests.Create_twice_at_once_with_one_request_id_makes_one_job_and_sends_once`,
+  `DownloadsIdempotencyHttpTests.Create_with_a_request_id_used_for_another_download_is_409_and_writes_nothing`
+  and `DownloadsIdempotencyHttpTests.Create_of_a_release_already_sent_to_the_client_is_409_and_sends_nothing`
+  pin the request id and decision 3,
+  `DownloadsValidationHttpTests.Create_to_a_client_that_can_not_take_the_release_is_400_and_asks_nothing`
+  and `DownloadsValidationHttpTests.Create_to_an_unknown_destination_is_404_and_asks_nothing` the
+  refusals, and
+  `DownloadOptionsHttpTests.Options_lists_the_switched_on_clients_that_take_the_release_with_their_destinations`
+  the dialog's choices.
+- **A job's sending fetches the release, checks the category and the client's own list, and sends it
+  once; the client's id or the torrent's info hash confirms it, never a name (MAM-13, ADR 0013).**
+  Once the job is written, its sending runs to its end whether or not the browser is still there,
+  and each step that fails ends the job `Failed` with its own sentence: the payload fetched from the
+  source (MAM-10's fetch, the integration's current key put back) — the source's sentence when it
+  fails, and "The release's download link can't be read with this installation's encryption key, so
+  nothing was sent. Search again." for a link the installation's key can't open, logged as a warning
+  naming the release's id only; its kind checked against the client ("“qBittorrent” can't take a
+  magnet link, which this release turned out to be, so nothing was sent."); its info hashes worked
+  out by Core's `TorrentInfoHashReader` — the SHA-1 (v1) and SHA-256 (v2, BEP 52) of a .torrent's
+  info dictionary exactly as written, read defensively, or a magnet's `xt` topics (`urn:btih:` in
+  hex or base32, `urn:btmh:1220…`) — and both stored on the job (`InfoHashV1`, `InfoHashV2`), as a
+  client names a hybrid torrent by either; the destination's category confirmed live, since
+  qBittorrent creates a category it lacks in its default folder ("“qBittorrent” has no category
+  “Movies” any more, so nothing was sent: it would have created one in its default folder. Create
+  the category again in “qBittorrent”, or the owner edits the destination."); the client asked
+  whether it already has the torrent, which fails the job rather than adopting a download the app
+  didn't add ("“qBittorrent” already has this torrent, so nothing was sent.", MAM-13's decision 4);
+  and only then one submission. A receipt with the client's id makes the job `Submitted` with it.
+  Without one, the client's list is read for the hashes, and once more after half a second when the
+  torrent isn't listed yet: one job holding them makes it `Submitted` with that job's id, none
+  `Submitted` without an id and with its hashes kept for MAM-14, and several, or a payload with no
+  hash at all, `NeedsLinking` — the specification's linking by hand, which the app never guesses at
+  (`ClientJobCorrelation`). A submission whose answer leaves open whether the client took it — no
+  answer in time, the connection lost, a server error, an answer the app can't read — is never sent
+  again: the list is read instead, once more after half a second when the torrent isn't listed yet,
+  and the torrent listed there was taken (listed under several jobs, it needs linking); not listed,
+  the job fails with the client's sentence. A refusal, refused credentials and a version too old
+  fail it at once. Each outcome is a conditional write on a job still `Created`, never cancelled; an
+  error is masked of the call's secrets once more and cut to 1000 characters with "…", and the log
+  says the status only. A service's sentence — the source's or the client's, which can name its
+  address — goes to the owner only, MAM-10's rule: anyone else who sent the release reads
+  "“qBittorrent” couldn't take the release, so nothing was sent. Ask the owner to check
+  “qBittorrent” under Integrations." (or "“Toloka” couldn't hand over the release, …" for the
+  source) (or "“Toloka” couldn't hand over the release, …" for the source), in the send's answer and
+  every read of the job, and reads the app's own sentences as they are (`ErrorOrigin` says whose a
+  job's error is; `DownloadsErrorVisibilityHttpTests`). A copy of a request racing the first, which
+  finds the first's job only when it asks whether the release was already sent, is answered with
+  that job, never refused as already sent. A send waits for the fetch and up to five calls to
+  qBittorrent, each of their requests bounded at 15 seconds.
+  `DownloadsSendHttpTests.Create_is_201_with_the_job_the_client_took_its_row_and_its_audit_row`,
+  `DownloadsSendFailuresHttpTests.Create_whose_category_is_gone_fails_and_sends_nothing`,
+  `DownloadsSendFailuresHttpTests.Create_for_a_torrent_qbittorrent_already_has_fails_and_sends_nothing`,
+  `DownloadsSendFailuresHttpTests.Create_whose_add_answered_500_but_listed_the_torrent_records_it_submitted`
+  and `DownloadsSendFailuresHttpTests.Create_with_two_jobs_listed_for_the_hash_needs_linking` pin
+  it, `TorrentInfoHashReaderTests` and `ClientJobCorrelationTests` the hashes and the matching, and
+  `DownloadsSecretsHttpTests.No_answer_log_job_or_audit_row_of_a_download_carries_a_planted_secret`
+  that no API key, link token, password, session or tracker passkey reaches an answer, the log, a
+  job's error or an audit row.
+- **qBittorrent takes a release into the destination's category with automatic torrent management,
+  and finds its torrents by info hash (MAM-13, ADR 0005, ADR 0010).** A submission signs in, or uses
+  the kept session, and reads `app/version` first: the read renews a session qBittorrent has
+  forgotten, so the write goes out on a session it has just accepted, and the version gate refuses a
+  qBittorrent older than 4.4.1 before anything is posted. Then one `POST api/v2/torrents/add`, as
+  `multipart/form-data` the way qBittorrent's Web UI sends it: the .torrent as a `torrents` file part
+  (`release.torrent`, `application/x-bittorrent`) or the magnet as `urls`, `category` — the
+  destination's key exactly as stored, never trimmed — and `autoTMM=true` (MAM-13's decision 2:
+  under manual management, qBittorrent's default for a new torrent, a category alone decides no
+  folder), and never `savepath`, `downloadPath`, `useDownloadPath`, `rename`, `tags`, `paused` or
+  `stopped`. It is never sent again, a 403 included: without a session that is the sign-in
+  qBittorrent asks for, and with one the session is dropped, the call fails and the next call signs
+  in. The answer is read by its status and body shape, which covers 4.4.1 to 5.1 and 5.2 alike:
+  `Ok.` (4.4.1 to 5.1) is taken without an id; `Fails.` is refused ("qBittorrent didn't add the
+  release: it already has this torrent, or it couldn't use what it was sent."); a JSON object (5.2)
+  is taken, its `added_torrent_ids` naming the job only when it lists exactly one id of 40
+  hexadecimal characters; 202 (5.2) is taken and still pending; 409 (5.2) is "qBittorrent added
+  nothing: it already has this torrent, or it couldn't use what it was sent."; 415 is "qBittorrent
+  couldn't read the .torrent file it was sent (415 Unsupported Media Type)."; and any other 200 is
+  "The service at this address answered, but not the way qBittorrent answers a new torrent." A
+  magnet's text, and every tracker and source address in it as an echo would spell it, are masked
+  like a session in whatever the call says, since a tracker's address can carry a passkey. The job
+  lookup reads `app/version` the same way, then sends the hashes as qBittorrent names a torrent — the
+  v1 hash, or the v2 one cut to 40 characters — lower-case, each once, joined by `|`, as
+  `GET api/v2/torrents/info?hashes=…`, never the whole list; no hash asks nothing. It reads the
+  answer as an allowlist: each torrent's hash, `infohash_v1` and `infohash_v2`, its name cleaned and
+  cut to 1000 characters, its state mapped onto the contract's (`Queued`, `Downloading`, `Paused`,
+  `Seeding`, `Completed` for `pausedUP` and `stoppedUP`, `Errored` for `error` and `missingFiles`,
+  and `Unknown` for `moving` or a state it doesn't know), its progress from 0 to 1, its category and
+  its content path; a torrent without a usable hash is skipped, and an answer that isn't an array of
+  objects fails ("The service at this address answered, but not with qBittorrent's torrents.").
+  `QBittorrentAdapterSubmitTests` pins the submission against every answer. Verified live on
+  2026-10-02 against the reference installation (qBittorrent v5.2.4, Toloka through Prowlarr): a
+  release sent from the Search page was fetched through Prowlarr, taken by `torrents/add` with the id
+  qBittorrent listed, matching the v1 info hash the app worked out itself, and saved in the Movies
+  category's folder (`/downloads/movies`) under automatic torrent management, with no save path sent.
+  A first try of the same release failed in Prowlarr (its "Download failed" for Toloka's answer); the
+  job recorded the feed's sentence, nothing reached qBittorrent, and the next Send went through. The
+  answers of 4.4.1 to 5.1 to `torrents/add` are written from qBittorrent's source, and none was
+  recorded.
+- **The Download dialog on the Search page (MAM-13).** A release's **Download** opens it for every
+  signed-in user. **Download client** lists only the clients the server offers for that release, and
+  **Destination** the picked client's destinations; it opens on the default destination and the
+  client that holds it, otherwise on the only client and its only destination, otherwise on the
+  placeholders, with **Send** disabled and "Pick a download client and a destination first." A
+  summary lists the source, the release, the client, the destination with its category, and
+  "Existing copies — Kept: this version of the app never replaces or removes a file." **Send** comes
+  first, **Cancel** last. The dialog makes the request id when it opens, from
+  `crypto.getRandomValues` (a LAN address over plain HTTP is no secure context, so
+  `crypto.randomUUID()` isn't there), sends the same id again after the server couldn't be reached
+  or refused — a Send while the browser says it is offline is tried at once and fails into that
+  sentence, never held back to go out on its own once the browser is online (`networkMode:
+  'always'`) — and makes a new one only after a `Failed` job, whose sentence shows in the form with
+  the pickers kept; a second click before **Sending…** shows sends nothing. Any other outcome
+  replaces the form with a line — "qBittorrent took the release and lists it among its downloads.",
+  "qBittorrent took the release, but hasn't listed it among its downloads yet.", "qBittorrent took
+  the release, but the app can't tell which of its downloads it is, so it has to be linked by
+  hand.", or "This release is already being sent to qBittorrent. Its outcome isn't known yet." — the
+  summary and **Close**. With no client to offer, it says "No download client can take this release
+  yet. The owner sets them up under Integrations and Destinations." The dialog is mounted only while
+  it is open, so every opening is a new request.
 
 ### Changed
 
@@ -722,6 +898,30 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   implement it from the media server's data. MAM-12 matches a search and its releases against the
   library snapshot MAM-8 imported instead, which needs no call to the media server, so the contract's
   summary says so and its members are as they were.
+- **`IDownloadClient` gets its submission back, and finds the client's jobs by info hash instead of
+  listing them (MAM-13, ADR 0005).** MAM-11 left `SubmitAsync`, `ListJobsAsync` and
+  `ListJobFilesAsync` out for MAM-13 and MAM-14. `SubmitAsync` is back, sent exactly once and never
+  again by the call or a retry of it. `FindJobsAsync(settings, infoHashes)` takes the place of MAM-7's
+  `ListJobsAsync`: the client's jobs that hold any of the hashes, each with every hash the client
+  lists for it (`ClientJob.InfoHashes`, new). A submission is confirmed by the torrents that hold its
+  hashes, an "every job" listing would read a whole client to find one torrent, and following a job
+  by the id stored on it (MAM-14) asks the same question. `DownloadSubmission.ExpectedInfoHash` is now
+  the hash the app worked out from the payload, never the listing's claim. `ListJobFilesAsync` stays
+  MAM-14's.
+- **The Search page's Download sends now (MAM-13).** MAM-12 greyed it out with "Sending a release to
+  a download client comes in a later update."; it opens the Download dialog (see Added), and that
+  sentence is gone.
+- **The qBittorrent adapter sends one write (MAM-13, ADR 0010).** MAM-11's adapter sent nothing but
+  the sign-in and GETs; a submission adds the one `torrents/add`, never sent again. MAM-11's renewal
+  of a kept session qBittorrent forgot — sign in once more and send "that one read again, once" —
+  still covers reads only: a submission reads `app/version` first, which renews such a session, so
+  the write goes out on a session qBittorrent has just accepted, and a 403 to it is its answer. The
+  destinations still send only the sign-in and GETs, and so does the job lookup.
+- **The payload fetch is called (MAM-13, ADR 0004).** MAM-7 sealed a release's download link "ready
+  for the server-side fetch of MAM-13", and MAM-10 built the fetch "the download step will use".
+  Sending a release now calls it, once per job, after the job is written and before the client is
+  asked anything, with the integration's current key put back; what it fetched goes to the download
+  client and nowhere else.
 
 ### Notes for upgraders
 
@@ -762,3 +962,16 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   seeders, place or ids and belong to no search; the next search a day later removes them, as no
   download job uses one yet. Searching needs no setting: the Search page works once a release source
   is switched on under Integrations, and its library side once the library is synced.
+- **Applying `AddDownloadJobRequests` rebuilds the `DownloadJobs` table, and logs EF Core warning
+  20410 once; it is harmless (MAM-13).** Giving each job a foreign key to the user who sent it makes
+  SQLite rebuild `DownloadJobs`, which EF Core does with foreign keys off outside the migration's
+  transaction, so the log shows `Microsoft.EntityFrameworkCore.Migrations[20410]` for
+  `PRAGMA foreign_keys = 0`, as for `AddLibraryInventory` and `AddStoredSearches`. Nothing can be
+  lost to it: no earlier build writes a download job, so the table rebuilt is empty everywhere.
+  There is nothing to do.
+- **Sending needs a download client and a destination, and nothing else to turn on (MAM-13).** Once
+  the owner has a switched-on qBittorrent (4.4.1 or later) under Integrations and at least one of its
+  destinations under Destinations — the steps of MAM-11 above — every signed-in user's **Download**
+  on the Search page sends to it, offering the default destination first. Each torrent is added with
+  automatic torrent management, so it saves in its category's folder even when qBittorrent's default
+  for new torrents is manual; the destinations' check already shows where each category saves.

@@ -297,3 +297,14 @@ stays, and such a release still matches nothing by title; a tag holding " / " is
 looked at, so "Rambo [Theatrical / Extended]" stays two broken alternatives; and a title that itself
 ends in square brackets is read without them, so it misses a library title that keeps them. The
 release's row still shows its whole title; only what it is read as drops the tag.
+
+## Implementation (added 0.1.0, MAM-13)
+
+**MAM-13 sends what the person picked, and a match decides nothing.** The Anti-consequence's
+"MAM-13 sends what the person picked" holds as built. The Download dialog opens from the row of the
+release the person chose and sends it to the client and destination they pick; neither the dialog's
+choices nor the send read the release's matches, so no match — not even one by identifier — offers,
+blocks or picks a release, a client or a destination. The dialog's summary says the existing copies
+are kept, as Phase A replaces nothing. Whether a release was already sent compares it with earlier
+download jobs, never with the library
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).

@@ -126,8 +126,7 @@
     "details": "Details",
     "openSource": "Open source",
     "noSourcePage": "The source gave no page for this release.",
-    "download": "Download",
-    "downloadLater": "Sending a release to a download client comes in a later update."
+    "download": "Download"
   },
   "claimed": {
     "label": "Claimed",

@@ -208,3 +208,35 @@ pin what sits beside a work; `SearchReleasesMatchingHttpTests.Releases_lists_the
 the release's own claims; and `SearchPersistenceTests.A_release_a_download_job_keeps_outlives_its_search`
 and `SearchPersistenceTests.Deleting_an_integration_keeps_the_searches_sources_with_their_names` the
 rows.
+
+## Implementation (added 0.1.0, MAM-13)
+
+**The idempotency key, in its own migration.** As the Consequences planned, `AddDownloadJobRequests`
+gives `DownloadJobs` its MAM-13 columns: `RequestId`, the id the browser made for the request, unique
+per user (`IX_DownloadJobs_RequestedByUserId_RequestId`); `RequestedByUserId`, a foreign key to
+`Users` that sets null when the user is deleted, with `RequestedByUserName` copied beside it — the
+pattern the job already follows for its client and destination; `ErrorOrigin`, whose sentence a
+failed job's error is, which decides who may read it; and `InfoHashV1` and `InfoHashV2`,
+the hashes worked out from the payload that was sent — both, as a client names a hybrid torrent by
+either
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+The key to `Users` rebuilds the table on upgrade, the concern ADR 0009 weighed against a key on
+`PhysicalFiles`; it is accepted here because no build before MAM-13 wrote a job, so the copy is
+empty. A deleted user's jobs stay with their name, and their request ids no longer collide with
+anyone's, as SQLite counts no two nulls the same.
+
+**A release already sent is recognised by its source's id or its info hash, not by the row
+(MAM-13's decision 3).** The MAM-10 section's rule, applied: since every search writes its own copy
+of a listing, a send is refused with 409 ("This release was already sent to “qBittorrent”, so it
+isn't sent twice.") when a job that didn't fail — anyone's — already sent the same client a release
+with the same source and the source's id for it, or with the info hash this listing states, on that
+release or worked out from what that job sent. Each side counts only when the listing has it: two
+listings without an id are not one release by that. A failed job sent nothing new and doesn't count.
+The release a job sent still can't be removed while the job exists, so it outlives the day's prune
+and its search, as the MAM-12 section says.
+
+`DownloadJobPersistenceTests.A_second_job_for_one_users_request_id_is_refused` and
+`DownloadJobPersistenceTests.Deleting_a_user_keeps_their_jobs_with_their_name_and_frees_their_request_ids`
+pin the columns, and
+`DownloadsIdempotencyHttpTests.Create_of_a_release_already_sent_to_the_client_is_409_and_sends_nothing`
+the rule.

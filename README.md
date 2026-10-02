@@ -9,8 +9,8 @@ the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, 
 connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
 file really holds once the app has inspected it inside the media folders the owner allows; the owner
 also maps download destinations to qBittorrent's categories. Every signed-in user searches the
-library and the release sources together on the Search page; sending downloads is still to come; see
-[ROADMAP.md](ROADMAP.md).
+library and the release sources together on the Search page and sends a release found there to
+qBittorrent; following a download's progress is still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -61,8 +61,9 @@ application.
   Credentials are stored encrypted and never shown again. Jellyfin feeds the library, and a
   switched-off one can't be synced; a Torznab feed is searched for releases, and a switched-off one
   is left alone; qBittorrent's categories are what download destinations name, and a switched-off
-  one isn't asked for them. The Jellyfin connection test refuses a Jellyfin older than 10.9, the
-  oldest the app reads libraries from, and the qBittorrent one a qBittorrent older than 4.4.1.
+  one isn't asked for them or sent a release. The Jellyfin connection test refuses a Jellyfin older
+  than 10.9, the oldest the app reads libraries from, and the qBittorrent one a qBittorrent older
+  than 4.4.1.
 - **The library.** The Library page (**Library** in the header, for every signed-in user) lists the
   movies of the owner's Jellyfin libraries as works: items that share an IMDb or TMDb id are one
   work with several versions, never merged by title and year. Each shows its titles, year and
@@ -108,7 +109,7 @@ application.
   day, so a filter, a page or a reload never asks the sources again
   ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md)).
   Each release has **Details**, its listing beside the matching copies' verified facts, **Open
-  source** and **Download**, greyed out until sending downloads arrives (MAM-13). The API also keeps
+  source** and **Download**, which sends it to a download client (below). The API also keeps
   MAM-10's single-answer search (`POST /api/releases/search`). Movies only; Toloka through Prowlarr
   is searched by title and year and lists no ids, so its releases match by title and year. Download
   links stay on the server
@@ -124,7 +125,19 @@ application.
   4.4.1 or later
   ([ADR 0010](docs/adr/0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)).
   Removing a qBittorrent under Integrations removes its destinations too, and its confirmation says
-  so. Sending a release to a destination comes with MAM-13.
+  so; the downloads sent to them keep their names. The Download dialog offers the default first.
+- **Send downloads to the right destination.** **Download** on a release opens a dialog for every
+  signed-in user (MAM-13's decision 1): a download client that can take the release, one of its
+  destinations with the default picked first, and a summary of what goes where, existing copies
+  kept. The server fetches the release itself and hands qBittorrent the destination's category with
+  automatic torrent management — never a folder of the app's, so the category's folder is where it
+  lands — once it has confirmed that qBittorrent still has the category and doesn't have the torrent
+  already. One click sends at most one download: the job is written with the request id the browser
+  made before anything is sent, a retry or a second click answers that job, a submission is never
+  sent twice, and qBittorrent's id or the torrent's info hash confirms it, with several candidates
+  left for linking by hand rather than guessed. A release already sent to that client is refused.
+  Following the download's progress comes with MAM-14
+  ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -137,9 +150,8 @@ application.
 
 ### What it will do
 
-- **Send downloads to the right destination.** Select a release, a compatible client and one of the
-  logical destinations above, such as `Movies` or `Movies 4K`; the client gets the destination's
-  category, a qBittorrent category or another client's equivalent, and never a folder of the app's.
+- **Follow each download.** See a sent release's progress in the client until it is downloaded, and
+  link by hand a download the app couldn't tell apart.
 - **Detect duplicates without conflating different editions.** Distinguish hardlinks,
   byte-identical files, different versions of the same title, and uncertain matches.
 - **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
@@ -205,9 +217,10 @@ title, identifier, version, file and release it stores names the source that rep
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 Adapter contracts keep it independent of any one media server, indexer, or download client. The
 first three adapters exist: Jellyfin's reads the library, the Torznab adapter searches releases and
-fetches a release's download, and qBittorrent's lists its categories with the folders they save to;
-submitting a download and reading its progress come next. The core's contracts for libraries,
-release search, download clients, file inventory and metadata live in Core and name no product
+fetches a release's download, and qBittorrent's lists its categories with the folders they save to,
+adds a release and finds its torrents by info hash; reading a download's progress comes with MAM-14.
+The core's contracts for libraries, release search, download clients, file inventory and metadata
+live in Core and name no product
 ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
 
 | Integration type | First candidate | Planned extension examples |
@@ -287,6 +300,19 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   lose the forum session (`sid`), and a link or id that could carry a credential isn't shown or
   stored as it is
   ([ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
+- **Sending a release is everyone's, and each download job its sender's.** Every signed-in user may
+  send a release of their own searches to a download client (MAM-13's decision 1), which makes the
+  server fetch it from the owner's gateway and add it to the owner's qBittorrent. So the endpoints
+  live in `Controllers/Downloads`, outside `Controllers/Settings` and `Controllers/Library`, whose
+  writes are owner-only by convention. The Download dialog's choices carry names only — no address,
+  folder or path mapping — and a release of anyone else's search, or of one more than a day old,
+  answers as unavailable. A job is its sender's: another user's answers the same bare 404 as one
+  that doesn't exist. Why a send failed, in the source's or the client's own words, is the owner's —
+  those words can name the service's address — so anyone else reads the app's sentence naming the
+  service, as on the Search page; the app's own sentences, such as a torrent the client already has,
+  are everyone's. A release already sent to a client is refused whoever sent it, as the client is
+  the household's, and a torrent the client already has is never taken over
+  ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
 - **The app reads files only inside the allowed roots.** It opens a library file only when the
   path, and every link on the way to it, lies inside a folder the owner allowed on the **Media
   folders** page (owner-only, reading included); none is allowed by default, and the whole file
@@ -300,12 +326,13 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   goes to the owner only
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
-  every change to an integration (add, edit, remove), every save of the media folders and every
-  change to a destination (add, edit, remove) write an audit row in the same transaction as the
-  change: what happened, when, who did it and to whom or what, with both names copied so the row
-  outlives them. A save that changes nothing and a connection test write none, and neither does a
-  library sync or a file inspection, whose run rows record who started them. There is no screen for
-  it yet.
+  every change to an integration (add, edit, remove), every save of the media folders, every change
+  to a destination (add, edit, remove) and every download sent (`DownloadRequested`, written with its
+  job before anything is fetched or sent) write an audit row in the same transaction as the change:
+  what happened, when, who did it and to whom or what, with both names copied so the row outlives
+  them. A save that changes nothing and a connection test write none, and neither does a retry of a
+  download already sent, a library sync or a file inspection, whose run rows record who started
+  them. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
   stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
@@ -319,18 +346,23 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   query), share no cookies and are never retried. The qBittorrent adapter keeps the session it signed
   in for in memory, one per integration and only while its address and credentials stay the same,
   masked like the password and never logged; when qBittorrent has forgotten it, the adapter signs in
-  once more and sends that one read again, and never a write. No call repeats a failed sign-in, and
-  a sign-in qBittorrent refused — the credentials, or the app's address banned — is remembered in
-  memory the same way, so no later call sends it while the address and credentials stay the same,
-  since each refused one counts towards qBittorrent's ban of the address: the page says so until the
-  owner corrects them or a connection test with them works. It never reads qBittorrent's preferences,
-  which carry the Web UI's API key and the proxy and mail passwords. An address can't hold a user
-  name, a password or a query. There is no guard against private addresses: the services live on the
-  owner's network, and only the owner can enter one. The one address a service supplies, a release's
-  download link, is fetched only from the Torznab feed's own scheme, host and port, and only once: a
-  redirect to a magnet is the release, any other redirect is refused. A feed's error text has every
-  address cut to its host and every `passkey=`-like value masked before it is shown, since it can
-  quote a tracker's URL with a passkey the app doesn't hold
+  once more and sends that one read again, and never a write. The one write, a submission's
+  `torrents/add`, follows a read that renews such a session and is never sent again, a 403 to it
+  included. No call repeats a failed sign-in, and a sign-in qBittorrent refused — the credentials,
+  or the app's address banned — is remembered in memory the same way, so no later call sends it while
+  the address and credentials stay the same, since each refused one counts towards qBittorrent's ban
+  of the address: the page says so until the owner corrects them or a connection test with them
+  works. It never reads qBittorrent's preferences, which carry the Web UI's API key and the proxy and
+  mail passwords. An address can't hold a user name, a password or a query. There is no guard against
+  private addresses: the services live on the owner's network, and only the owner can enter one. The
+  one address a service supplies, a release's download link, is fetched when the release is sent,
+  only from the Torznab feed's own scheme, host and port, and only once: a redirect to a magnet is
+  the release, any other redirect is refused. The fetched link and a magnet's trackers stay on the
+  server: the app neither fetches nor checks the trackers — qBittorrent does — and the magnet and
+  every address in it are masked in whatever qBittorrent answers, so nothing of them reaches the
+  browser or a job's error. A feed's error text has every address cut to its host and every
+  `passkey=`-like value masked before it is shown, since it can quote a tracker's URL with a passkey
+  the app doesn't hold
   ([ADR 0007](docs/adr/0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
 - **Behind a reverse proxy.** The app takes the client's address from the connection and ignores
   `X-Forwarded-For`, which any client can write. Behind a reverse proxy that address is the proxy's,
@@ -412,8 +444,9 @@ with `/data` (the database files inside are otherwise readable by every user on 
 sudo install -d -o 10001 -g 10001 -m 700 <directory>
 ```
 
-**Media folders.** Mount them read-only (`:ro`) — nothing in Phase A writes to the library — at the
-path Jellyfin sees them at, so a library path means the same file to the app. A download client
+**Media folders.** Mount them read-only (`:ro`) — the app writes nothing to the library; a release
+you send is written by qBittorrent, through its own mount, into its category's folder — at the path
+Jellyfin sees them at, so a library path means the same file to the app. A download client
 often sees the same folders under another path (qBittorrent under `/downloads`, say); don't mount
 them a second time for it: map its paths onto yours under **Integrations** → the client →
 **Path mappings** (`/downloads` → `/media`), as
@@ -555,6 +588,9 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/searches` with `{ text, year, imdbId, tmdbId }` | Every signed-in user. Asks the library — the snapshot the last sync imported — and every enabled release source at once, the sources the way `POST /api/releases/search` does, and stores the search, how each source answered and every release found, for a day. 201 with the search and its `Location` whatever the sources answered: `{ id, text, year, imdbId, tmdbId, createdUtc, library, libraryUnlistedCount, sources, facets }`, the search as asked and trimmed. `library` is every matching work, strongest first, then at most 20 works that match in no way but one of whose titles or file paths holds every word of the title, each whole (ADR 0012), each `{ work, evidence, matchedIdentifiers: [{ scheme, value, sourceName }], matchedTitle: { text, kind, year, sourceName }, conflictingSchemes }`: `work` exactly as `GET /api/library/works` gives it, its owner-only fields `null` for everyone else; `evidence` `Identifier`, `TitleAndYear`, `TitleOnly` or `Words`, which is no match; `matchedIdentifiers` every source's row of a matched id; `matchedTitle` the title that matched, or for `Words` the title holding the words, `null` when none did or only a file path holds them; `conflictingSchemes` (`Imdb`, `Tmdb`) the schemes the search and the work, or the work's own sources, disagree on. `libraryUnlistedCount` is how many more works hold every word of the title than `library` lists, `0` when none were left out. `sources` by name, each `{ id, integrationId, name, status, notSearchedReason, error, releaseCount }` as for the release search, `id` being what the releases' `source` filter takes and `integrationId` `null` once the integration is removed. `facets` `{ audioLanguages, hasUnknownAudioLanguage, resolutions, hasUnknownResolution }`: what the search's releases claim, for the filters. 400 with the broken rule's sentence, nothing stored and no source asked: "Enter the title to search for.", "The search text can be at most 200 characters long.", "The search text can't contain line breaks or other control characters.", "“twenty” is not a year.", "“816692” is not an IMDb id, which looks like tt0816692.", "“tt157336” is not a TMDb id, which is a number such as 157336." (a value is repeated trimmed, cut at 32 characters with "…"). |
 | `GET /api/searches/{id}` | Every signed-in user, for their own searches. 200 as for `POST`: the sources as stored, never asked again, and the library matched again as it is now. A bare 404 for a search that doesn't exist, is someone else's (asked for by the owner too) or is more than a day old, whether or not it has been removed yet. |
 | `GET /api/searches/{id}/releases?source=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes }] }`: `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (none of either when it names no year), `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words`; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
+| `GET /api/downloads/options?releaseId=` | Every signed-in user, for a release of their own searches. The Download dialog's choices, read from the database without asking any client: 200 `{ clients }`, by name, each `{ id, name, typeName, destinations: [{ id, name, clientDestinationKey, isDefault }] }` with its destinations by name — every switched-on download client of a type this version can send to that can take the release's payload (one whose kind the listing didn't state needs a client that takes a .torrent file or a magnet link) and has a destination; `typeName` is what it is ("qBittorrent"). No address, folder or path mapping. 400 `{ "error": "Pick the release to send." }` without a well-formed `releaseId`; 404 `{ "error": "This release isn't available any more: a search keeps what it found for a day. Search again." }` for a release that isn't one of the caller's searches' from the last day. |
+| `POST /api/downloads` with `{ requestId, releaseId, downloadClientId, destinationId }` | Every signed-in user, for a release of their own searches. Sends it at most once per request id (ADR 0013): the request id is looked up first, and the caller's same id for the same release, client and destination answers 200 with the job it made, nothing fetched, sent or audited again; otherwise the job is written with an audit row before anything is fetched or sent, and the answer is 201 with the job and its `Location` whatever came of the sending — `Submitted`, `NeedsLinking`, or `Failed` with its sentence. 400 with the broken rule's sentence: "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the destination to send it to.", "“Movies” is a destination of another download client. Pick one of “qBittorrent”’s.", "“qBittorrent” can't take NZB files, which this release is."; 404 with "This release isn't available any more: a search keeps what it found for a day. Search again.", "The download client you picked no longer exists. Reload the page and pick one again." (also for an integration that isn't a download client) or "The destination you picked no longer exists. Reload the page and pick one again."; 409 with "This request id was already used to send a different download. Reload the page and try again.", "“qBittorrent” is switched off. The owner can switch it on under Integrations.", "This version of the app can't send downloads to “…”.", "The source that listed this release has been removed, so the release can't be fetched. Search again.", "“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.", "This version of the app can't fetch releases from “…”." or, when a job that didn't fail already sent the release to that client, "This release was already sent to “qBittorrent”, so it isn't sent twice.". A refused request writes and sends nothing. |
+| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, clientJobId, error, createdUtc, statusChangedUtc }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `NeedsLinking` or `Failed` (`Downloading` and `Downloaded` come with MAM-14); `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; the client's and the destination's names and the category as they were when it was sent. A bare 404 for another user's job or one that doesn't exist. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -682,6 +718,29 @@ request the destinations send is the sign-in or a GET and none names a save path
 and the category listing were also checked live through the app on 2026-10-01, against the
 reference installation's qBittorrent v5.2.4.
 
+Sending a release is tested over HTTP against `FakeTorznabServer`'s download links and
+`FakeQBittorrentServer`, which also answers `torrents/add` — `Ok.` before 5.2 and its JSON from 5.2,
+by the `Version` it plays — and `torrents/info` by hash, records every add with its multipart
+fields, holds torrents added beforehand (a torrent qBittorrent already has) and can leave an added
+torrent unlisted for a number of lookups. One class per area in
+`tests/MediaAcquisitionManager.Api.Tests/Downloads/`: `DownloadsSendHttpTests` (the job, its row and
+its audit row, and the wire: the feed's download fetched once, then exactly one add with the
+release, the category byte for byte and `autoTMM=true`, and no save path in any request),
+`DownloadsIdempotencyHttpTests` (one request id sent twice, or twice at once, makes one job, one
+audit row and one add; the id used for another download; a release already sent),
+`DownloadsValidationHttpTests` (every refusal with its sentence, with nothing written, fetched or
+sent), `DownloadOptionsHttpTests`, `DownloadsGetHttpTests`, `DownloadsSendFailuresHttpTests` (each
+way a send fails, with exactly what reached qBittorrent: an add answered 500 but listed afterwards
+was taken, two jobs listed for one hash need linking) and `DownloadsSecretsHttpTests` (no planted
+key, link token, password, session or tracker passkey in any answer, log line, job error or audit
+row) and `DownloadsErrorVisibilityHttpTests` (a member reads the app's sentence naming the source or
+the client, the owner the service's own words, and everyone the app's own sentences). The adapter's submission is tested on its own against every answer
+(`QBittorrentAdapterSubmitTests`), the core's hashes, matching and rules in
+`TorrentInfoHashReaderTests`, `ClientJobCorrelationTests` and `DownloadRulesTests`, the unique
+request id per user in `DownloadJobPersistenceTests`, and the Download dialog — a double click sends
+once, a retry keeps its request id, a failed job's next try gets a new one — in
+`DownloadDialog.test.tsx`.
+
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable
 files — and a stub `ffprobe` script; its parser reads the two real ffprobe samples and variants made
@@ -716,18 +775,20 @@ src/
                                                settings, the library and its background sync,
                                                the media folders and the file inspection, the
                                                release search, the stored searches and their
-                                               library matches, the download destinations, audit
-                                               trail, health checks, security headers, EF Core
-                                               migrations
+                                               library matches, the download destinations, the
+                                               downloads sent to a client, audit trail, health
+                                               checks, security headers, EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
                                                path mapping, the allowed roots' rules, the
                                                library's grouping and title order, the release
                                                search's planning and title claims, the matching
                                                of a search and its releases to the library's
-                                               works, the release list's filters and sorts, and
-                                               the destinations' rules and path check; no
-                                               package references
+                                               works, the release list's filters and sorts, the
+                                               destinations' rules and path check, and the
+                                               downloads' rules, a torrent's info hashes and the
+                                               matching of a client's jobs; no package
+                                               references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab and qBittorrent adapters, the

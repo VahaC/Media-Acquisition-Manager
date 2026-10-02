@@ -228,6 +228,36 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     }
 
     [Fact]
+    public async Task A_submission_and_a_job_lookup_log_nothing_from_the_http_client()
+    {
+        //Arrange
+        // Every level recorded; qBittorrent adds the magnet and lists it, so each call sends everything it sends.
+        using var harness = new IntegrationAdapterHarness();
+        var qBittorrent = new FakeQBittorrentServer("http://service.test:8080");
+        qBittorrent.Arm(harness.QBittorrentHttp);
+        var settings = new IntegrationConnectionSettings(
+            Guid.NewGuid(), qBittorrent.BaseUrl, FakeQBittorrentServer.DefaultUserName, FakeQBittorrentServer.DefaultPassword, null);
+        const string magnet = "magnet:?xt=urn:btih:4a3c1931c85c9c568c39a8eb947ed382824b1cdd&tr=http%3A%2F%2Fbt.toloka.test%2Fa1b2c3d4e5f6a7b8%2Fannounce";
+        var client = harness.Adapter<IDownloadClient>("qbittorrent");
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var submission = await client.SubmitAsync(
+            settings, new DownloadSubmission(new ReleasePayload(ReleasePayloadKind.Magnet, null, magnet), "Movies", null), cancellationToken);
+        var jobs = await client.FindJobsAsync(settings, ["4a3c1931c85c9c568c39a8eb947ed382824b1cdd"], cancellationToken);
+
+        //Assert
+        Assert.True(submission.IsSuccess);
+        Assert.Single(jobs.Value!);
+        Assert.Equal(5, harness.QBittorrentHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(FakeQBittorrentServer.DefaultPassword, StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains("a1b2c3d4e5f6a7b8", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_release_search_and_a_payload_fetch_log_nothing_from_the_http_client()
     {
         //Arrange

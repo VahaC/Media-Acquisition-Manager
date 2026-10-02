@@ -43,6 +43,41 @@ internal sealed partial class QBittorrentAdapter
     }
 
     /// <summary>
+    /// MAM-13 — how a submission and a job lookup start: the call's session (<see cref="OpenSessionAsync"/>),
+    /// then <c>GET /api/v2/app/version</c> through <see cref="GetAsync"/> and the version gate, as the
+    /// destinations read it. A version the app doesn't work with is refused before anything else is sent.
+    /// </summary>
+    /// <remarks>
+    /// The read is what a submission stands on: it renews a kept session qBittorrent has forgotten, so the
+    /// write after it goes out on a session qBittorrent has just accepted — and since the write is never sent
+    /// again (<see cref="SendPostAsync"/>), a session left to expire would otherwise lose the submission to a
+    /// 403 nobody may answer by sending it twice.
+    /// </remarks>
+    private async Task<(CallSession? Session, ConnectionTestResult? Failure)> OpenCheckedSessionAsync(
+        HttpClient client, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
+    {
+        var (call, signInFailure) = await OpenSessionAsync(client, settings, sessionSecrets, cancellationToken);
+        if (signInFailure is not null)
+            return (null, signInFailure);
+
+        var (answer, failure) = await GetAsync(client, settings, call!, "api/v2/app/version", sessionSecrets, cancellationToken);
+        if (failure is not null)
+            return (null, failure);
+
+        string body;
+        using (answer)
+        {
+            body = await ReadTextAsync(answer!, cancellationToken);
+        }
+
+        if (ReportedVersion(body) is not { } reported)
+            return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotAVersionError));
+        if (UnsupportedVersionError(reported) is { } unsupported)
+            return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported));
+        return (call, null);
+    }
+
+    /// <summary>
     /// One sign-in (<see cref="SignInAsync"/>, never repeated after a failure): its session is masked in
     /// this call's messages and kept for the next call — unless the settings are an unsaved draft, which
     /// keeps nothing. None at all when qBittorrent refused these very address and credentials last time.
@@ -88,8 +123,10 @@ internal sealed partial class QBittorrentAdapter
     /// one GET again, once.
     /// </para>
     /// <para>
-    /// Only reads are sent again (house rule 8: a write sent twice may act twice), and MAM-11 sends nothing
-    /// else. A 403 to a session this call signed in for is not: qBittorrent refused what it had just
+    /// Only reads are sent again (house rule 8: a write sent twice may act twice). MAM-13's submission, the
+    /// one write, never comes through here: it is sent once, through <see cref="SendPostAsync"/>, on a
+    /// session a read has just confirmed (<see cref="OpenCheckedSessionAsync"/>), and a 403 to it is its
+    /// answer. A 403 to a session this call signed in for is not: qBittorrent refused what it had just
     /// handed out, and asking again would only repeat it. A failed sign-in is never repeated either, since
     /// each one counts towards qBittorrent's ban of the address — and a refused one not even by a later
     /// call, while the address and credentials stay the same (<see cref="SignInForCallAsync"/>).
@@ -141,6 +178,32 @@ internal sealed partial class QBittorrentAdapter
         HttpClient client, IntegrationConnectionSettings settings, QBittorrentSession? session, string relativePath, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, settings.Resolve(relativePath));
+        // The one cookie this call means to send; the client keeps no cookie container.
+        if (session is not null)
+            request.Headers.TryAddWithoutValidation("Cookie", session.Cookie);
+
+        return await client.SendAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// MAM-13 — <c>POST</c> of <paramref name="content"/> to <paramref name="relativePath"/> with the call's
+    /// session, exactly once: whatever comes back, a 403 included, is for the caller to answer, never a
+    /// reason to send it again (house rule 8). The request takes <paramref name="content"/> over and
+    /// disposes it.
+    /// </summary>
+    /// <remarks>
+    /// No <c>Referer</c> or <c>Origin</c>, as at the sign-in: by its source, qBittorrent compares them with
+    /// <c>Host</c> only when present, and a proxy that rewrites <c>Host</c> would make them fail the request.
+    /// </remarks>
+    private static async Task<HttpResponseMessage> SendPostAsync(
+        HttpClient client,
+        IntegrationConnectionSettings settings,
+        QBittorrentSession? session,
+        string relativePath,
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, settings.Resolve(relativePath)) { Content = content };
         // The one cookie this call means to send; the client keeps no cookie container.
         if (session is not null)
             request.Headers.TryAddWithoutValidation("Cookie", session.Cookie);

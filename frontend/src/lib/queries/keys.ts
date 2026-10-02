@@ -21,6 +21,10 @@ export const qk = {
     locations: ['library', 'locations'] as const,
     sources: ['library', 'sources'] as const,
   },
+  downloads: {
+    /** MAM-13 — the download clients and destinations one release can be sent to. */
+    options: (releaseId: string) => ['downloads', 'options', releaseId] as const,
+  },
   search: {
     /** MAM-12 — every stored search and its releases: the prefix of the keys below. */
     all: ['searches'] as const,

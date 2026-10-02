@@ -13,7 +13,11 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
         Guid? downloadClientConnectionId,
         string downloadClientName,
         Guid? destinationMappingId = null,
-        DownloadJobStatus status = DownloadJobStatus.Submitted)
+        DownloadJobStatus status = DownloadJobStatus.Submitted,
+        Guid? requestedByUserId = null,
+        string? infoHashV1 = null,
+        Guid? requestId = null,
+        string? infoHashV2 = null)
     {
         // Read from the mapping itself, so the copied values are the ones a test can later see
         // outliving it.
@@ -22,8 +26,18 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
             : null;
 
         var now = time.GetUtcNow().UtcDateTime;
+        var requestedBy = requestedByUserId is { } userId
+            ? await db.Users.AsNoTracking().SingleAsync(x => x.Id == userId)
+            : null;
+
         var job = new DownloadJobEntity
         {
+            // A request of its own unless the test names one: one user's request ids are unique (MAM-13).
+            RequestId = requestId ?? Guid.NewGuid(),
+            RequestedByUserId = requestedBy?.Id,
+            RequestedByUserName = requestedBy?.UserName,
+            InfoHashV1 = infoHashV1,
+            InfoHashV2 = infoHashV2,
             ReleaseId = releaseId,
             DownloadClientConnectionId = downloadClientConnectionId,
             DownloadClientName = downloadClientName,

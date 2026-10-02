@@ -323,6 +323,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<DownloadJobEntity>(e =>
         {
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.ErrorOrigin).HasConversion<string>().HasMaxLength(32);
             // Restrict: the release snapshot is the job's evidence of what was sent; it can't go
             // while a job points at it.
             e.HasOne<ReleaseEntity>().WithMany()
@@ -339,6 +340,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<DestinationMappingEntity>().WithMany()
                 .HasForeignKey(x => x.DestinationMappingId)
                 .OnDelete(DeleteBehavior.SetNull);
+            // MAM-13 — SetNull: the job outlives the user who sent it; RequestedByUserName keeps who.
+            // Adding the key rebuilds this table on upgrade (the ADR 0009 concern): accepted, as nothing
+            // wrote a job before MAM-13, so the rebuild copies an empty table.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // MAM-13 — one job per request a user sent (ADR 0013): the service answers a repeated request
+            // with the job it already made, and this settles two copies of one request racing each other.
+            // Led by the user, so it also serves the foreign key; a user's id gone null leaves their jobs'
+            // request ids free of each other, as SQLite never counts two nulls the same.
+            e.HasIndex(x => new { x.RequestedByUserId, x.RequestId }).IsUnique();
         });
 
         modelBuilder.Entity<SearchEntity>(e =>

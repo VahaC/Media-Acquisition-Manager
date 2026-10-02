@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { ClaimedQuality } from '@/components/search/ClaimedQuality'
 import { MatchBadges } from '@/components/search/MatchBadges'
 import { ReleaseSourceLink } from '@/components/search/ReleaseSourceLink'
-import { DisabledReason } from '@/components/shared/DisabledReason'
 import { Button } from '@/components/ui/button'
 import { formatDate, formatFileSize, formatNumber } from '@/lib/format'
 import type { LibraryMatch, SearchRelease } from '@/lib/types'
@@ -19,6 +18,8 @@ interface ReleaseRowProps {
    */
   library: LibraryMatch[]
   onDetails: () => void
+  /** MAM-13 — the parent opens the dialog that sends the release to a download client. */
+  onDownload: () => void
 }
 
 /**
@@ -27,11 +28,11 @@ interface ReleaseRowProps {
  * when it matches a copy in the library — a badge for the strongest match, naming that copy, with
  * any conflict.
  *
- * Its actions: Details (the parent opens the dialog), Open source, and Download, which shows
- * disabled with the reason until sending a release to a download client arrives (MAM-13). On a
- * phone the actions collapse to their icons and keep their names in `title`.
+ * Its actions: Details (the parent opens the dialog), Open source, and Download (MAM-13: the parent
+ * opens the dialog that sends the release to a download client). On a phone the actions collapse to
+ * their icons and keep their names in `title`.
  */
-export function ReleaseRow({ release, library, onDetails }: ReleaseRowProps) {
+export function ReleaseRow({ release, library, onDetails, onDownload }: ReleaseRowProps) {
   const { t } = useTranslation(['search', 'library'])
   const titleId = useId()
   const strongest = release.libraryMatches.at(0)
@@ -84,12 +85,10 @@ export function ReleaseRow({ release, library, onDetails }: ReleaseRowProps) {
           <span className="label-text">{t('release.details')}</span>
         </Button>
         <ReleaseSourceLink url={release.sourcePageUrl} />
-        <DisabledReason reason={t('release.downloadLater')}>
-          <Button type="button" variant="outline" size="sm" title={t('release.download')} disabled>
-            <Download className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="label-text">{t('release.download')}</span>
-          </Button>
-        </DisabledReason>
+        <Button type="button" variant="outline" size="sm" title={t('release.download')} onClick={onDownload}>
+          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="label-text">{t('release.download')}</span>
+        </Button>
       </div>
     </article>
   )

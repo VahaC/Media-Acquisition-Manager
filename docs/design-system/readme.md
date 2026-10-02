@@ -14,7 +14,7 @@ One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react
 - Plain, literal, complete sentences that say what happened: "Synced 1 Oct 2026, 09:12: read 870 movies into 812 works…", "Refresh failed, showing the last loaded movies."
 - Second person for the user's things ("your library", "In your library"); the app calls itself "this app" / "the app". No "we", no "I".
 - Never guesses: missing values are named — "Year unknown", "HDR unknown", "Not inspected yet". Claims are marked as claims ("Claimed"), verified facts aren't.
-- Disabled controls explain why ("Sending a release to a download client comes in a later update.", "Only the owner can sync the library.").
+- Disabled controls explain why ("Pick a download client and a destination first.", "Only the owner can sync the library.").
 - Errors are the server's own sentence; owner-only detail is hidden from others ("The owner can see why.").
 - Ellipsis for progress: "Searching…", "Syncing… 312 of 870 movies". Separator " · ". No emoji, no exclamation marks.
 - Placeholders are real examples: "Interstellar", "tt0816692", "157336". Ukrainian titles appear as data (Фільми, Інтерстеллар) and sort in Ukrainian order.

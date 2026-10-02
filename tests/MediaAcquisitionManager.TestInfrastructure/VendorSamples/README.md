@@ -99,6 +99,18 @@ The four movies in `movies-page.json`:
   `app/preferences`, which also carries the Web UI's API key (5.2) and the proxy and mail passwords.
 - **qBittorrent 4.4.0 lists a category's folder as `save_path`** rather than `savePath` (qBittorrent
   issue #15969, fixed in 4.4.1), so the app works with 4.4.1 and later.
+- **`torrents/add` answers differently by version** (MAM-13). This was read from qBittorrent's source
+  (`torrentscontroller.cpp`), not recorded live yet, because a recording means adding a torrent to the
+  reference installation. 4.4.1 to 5.1 answer `200` with the text `Ok.` when anything was added and
+  `Fails.` when nothing was, and `415` when a .torrent doesn't load. 5.2 answers `200` with a JSON object
+  (`success_count`, `failure_count`, `pending_count` and `added_torrent_ids`, whose ids are TorrentIDs
+  like `torrents/info`'s `hash`), `202` while something is still pending, `409 Conflict` when nothing
+  was added, and `415` for a bad .torrent. A torrent qBittorrent already has is never added again. A
+  category it doesn't have is created silently, with no folder of its own, and a category decides the
+  folder only under automatic torrent management, so the app sends `autoTMM=true` with it.
+  `torrents/info` reads `hashes` as TorrentIDs joined by `|`. A TorrentID is the v1 info hash, or the
+  v2 hash cut to 40 characters; a hybrid torrent gets the v2 one on libtorrent 2
+  (`info_hash_t::get_best`).
 - **Prowlarr's download link carries its API key** (`/1/download?apikey=…&link=…`), and a Toloka
   topic link can carry the owner's forum session (`?sid=…`): every one in the `t=search` answer did,
   none in the `t=movie` answer taken seconds later. Toloka's movie search takes only `q`, so it

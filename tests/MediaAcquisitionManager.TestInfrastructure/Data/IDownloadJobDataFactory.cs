@@ -9,12 +9,17 @@ public interface IDownloadJobDataFactory
     /// <summary>
     /// A saved job that sent the release <paramref name="releaseId"/> to a client, with the client's
     /// name — and, given a destination, its name and client key — copied onto the row the way job
-    /// history keeps them.
+    /// history keeps them. MAM-13 — given a user, sent by them, under the request id given or one of its
+    /// own, with the info hashes worked out from what it sent.
     /// </summary>
     Task<DownloadJobEntity> Create(
         Guid releaseId,
         Guid? downloadClientConnectionId,
         string downloadClientName,
         Guid? destinationMappingId = null,
-        DownloadJobStatus status = DownloadJobStatus.Submitted);
+        DownloadJobStatus status = DownloadJobStatus.Submitted,
+        Guid? requestedByUserId = null,
+        string? infoHashV1 = null,
+        Guid? requestId = null,
+        string? infoHashV2 = null);
 }

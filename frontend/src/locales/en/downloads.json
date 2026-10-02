@@ -1,0 +1,38 @@
+{
+  "dialog": {
+    "title": "Download {{title}}",
+    "description": "Send this release to a download client. The destination is a category of the client, and the category decides the folder."
+  },
+  "client": "Download client",
+  "clientPlaceholder": "Choose a download client",
+  "destination": "Destination",
+  "destinationPlaceholder": "Choose a destination",
+  "destinationNeedsClient": "Choose a download client first.",
+  "optionsFailed": "Could not load the download clients.",
+  "optionsRefreshFailed": "Could not load the download clients again, showing the last loaded ones.",
+  "noClients": "No download client can take this release yet. The owner sets them up under Integrations and Destinations.",
+  "summary": {
+    "title": "Summary",
+    "source": "Source",
+    "release": "Release",
+    "client": "Download client",
+    "destination": "Destination",
+    "destinationValue": "{{name}} — category “{{category}}”",
+    "notPicked": "Not picked yet",
+    "existingCopies": "Existing copies",
+    "kept": "Kept: this version of the app never replaces or removes a file."
+  },
+  "send": "Send",
+  "sending": "Sending…",
+  "pickFirst": "Pick a download client and a destination first.",
+  "failed": "Could not send the release.",
+  "failedNoReason": "The release wasn't sent.",
+  "outcome": {
+    "Created": "This release is already being sent to {{client}}. Its outcome isn't known yet.",
+    "Submitted": "{{client}} took the release and lists it among its downloads.",
+    "SubmittedUnlisted": "{{client}} took the release, but hasn't listed it among its downloads yet.",
+    "Downloading": "{{client}} is downloading the release.",
+    "Downloaded": "{{client}} has downloaded the release.",
+    "NeedsLinking": "{{client}} took the release, but the app can't tell which of its downloads it is, so it has to be linked by hand."
+  }
+}

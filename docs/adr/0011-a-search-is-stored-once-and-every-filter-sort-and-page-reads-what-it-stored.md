@@ -138,3 +138,23 @@ Stored is not shared or kept: a search is no history, no watch list and no cache
 and two people searching for the same film ask the sources twice. Keeping a release for its search
 still says nothing about downloading it; what a download sends, and how it recognises a release it
 already sent, is MAM-13's (ADR 0006, MAM-10 section).
+
+## Implementation (added 0.1.0, MAM-13)
+
+**A release is sent only from its creator's search, within the search's day.** The Anti-consequence
+left what a download sends to MAM-13. The send looks the release up as this record's reads do: one
+of the caller's own searches' from the last day, through its search source. Another user's release,
+an older search's, or one MAM-10's plain search found (it belongs to no search) answers 404 "This
+release isn't available any more: a search keeps what it found for a day. Search again." on the
+Download dialog's choices and on the send alike, so nothing confirms that it exists. A job is its
+sender's in the same way: another user's answers a bare 404.
+
+**The job keeps the release past the prune.** A job points at the release it sent, which the day's
+prune then leaves (MAM-10's "that no download job points at"), and the search's removal sets the
+release's link to it null: the release outlives its search as the job's evidence of what was sent,
+as the Decision planned. Whether a release was already sent is decided across searches, by its
+source's id for it or its info hash, never by the row (ADR 0006, MAM-13 section)
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+
+`DownloadsValidationHttpTests` sends another user's release, one of a search more than a day old and
+one the plain search found, and gets the 404 with nothing written, fetched or sent.

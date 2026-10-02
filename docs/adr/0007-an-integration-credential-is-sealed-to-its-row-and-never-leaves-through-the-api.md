@@ -181,3 +181,26 @@ what is never repeated, `IntegrationsInfrastructureExtensionsTests.A_destination
 and `DestinationsListHttpTests.List_and_get_log_neither_the_address_the_password_the_session_nor_a_sentence`
 the log, and `QBittorrentAdapterDestinationsTests.ListDestinations_sends_nothing_but_the_sign_in_and_gets_and_never_a_save_path_or_the_preferences`
 the reads.
+
+## Implementation (added 0.1.0, MAM-13)
+
+**The MAM-10 section's open question — whether to check a magnet's trackers — is answered: the app
+doesn't.** The trackers (`tr`) and sources (`ws`, `xs`, `as`) a magnet names are neither fetched nor
+checked by the app: it hands the link to the download client, which fetches them as it would a
+magnet the owner pasted, and the app's own requests stay those of the Decision and the MAM-10 fetch.
+Checking them would mean the app requesting addresses an indexer supplies, the very forgery the
+fetch's guard refuses. What a magnet names is treated as a secret instead: the link, and each of
+those addresses percent-decoded as an echo would spell it, join the call's secrets in the
+qBittorrent adapter, so whatever qBittorrent answers is masked of them like a session — a tracker's
+passkey rides in its address — and the job's error is then masked once more of the integration's
+own credentials. The info hashes the app reads out of a magnet are its `xt` topics only.
+
+**The fetch's guard holds at its first caller.** `FetchPayloadAsync`, whose origin rule the MAM-10
+section put where the Decision expected "MAM-13's fetch of release links", is called by the send
+unchanged; sending adds no request of its own to an address a service supplied
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+
+`DownloadsSecretsHttpTests.No_answer_log_job_or_audit_row_of_a_download_carries_a_planted_secret`
+plants a magnet's tracker passkey beside the feed's key, Prowlarr's link token and qBittorrent's
+password and session, and finds none in an answer, the log, a job's error or an audit row;
+`QBittorrentAdapterSubmitTests` pins the masking in the adapter.

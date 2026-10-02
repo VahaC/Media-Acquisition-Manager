@@ -212,3 +212,31 @@ and `SearchesSecretsHttpTests.Searches_answer_no_planted_credential_or_ciphertex
 `SearchesSecretsHttpTests.Search_stores_no_planted_credential_outside_the_sealed_download_link` and
 `SearchesSecretsHttpTests.Nothing_logged_while_searching_and_reading_a_search_carries_a_planted_credential`
 that the links still stay on the server.
+
+## Implementation (added 0.1.0, MAM-13)
+
+**The fetch is called when a release is sent.** The Decision's "fetched by the server when the
+release is sent to the client" and the MAM-10 section's "built here and called by MAM-13" now hold
+in full: `POST /api/downloads` writes the job first, then unseals the release's link with its own
+purpose and calls `FetchPayloadAsync` once, with the integration's current key put back and the
+MAM-10 rules of where the link may lead unchanged, before the download client is asked anything
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+A failed fetch fails the job with the feed's sentence, and a link the installation's key can't open
+with "The release's download link can't be read with this installation's encryption key, so nothing
+was sent. Search again.", logged with the release's id only. The Decision's "The adapter's own tests
+(MAM-10, MAM-13) will pin … the server-side fetch" is settled that way: MAM-10's adapter tests pin
+the fetch, and MAM-13's HTTP tests its one call per job.
+
+**The link still never leaves the server.** What was fetched — the .torrent's bytes or the magnet —
+goes to the download client and nowhere else. The Download dialog's choices and the job carry no
+link; a job's error is the feed's or the client's sentence, masked of the call's secrets again; and
+a magnet, with every tracker address in it, is masked like a session in whatever qBittorrent answers
+([ADR 0007](0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
+Toloka's listings state no info hash, so the hash a job is confirmed by is worked out from the
+fetched payload itself.
+
+`DownloadsSendHttpTests` follows the fetch on the wire (the feed's download asked once, the key put
+back, before qBittorrent is asked), and
+`DownloadsSecretsHttpTests.No_answer_log_job_or_audit_row_of_a_download_carries_a_planted_secret`
+plants the key, Prowlarr's link token and a magnet's tracker passkey and finds none in an answer, the
+log, a job or an audit row.

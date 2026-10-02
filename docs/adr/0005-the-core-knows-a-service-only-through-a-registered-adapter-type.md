@@ -227,3 +227,28 @@ the capabilities, and `DestinationsListHttpTests.List_of_a_client_that_could_not
 `DestinationsListHttpTests.List_of_a_client_whose_answer_the_app_can_not_read_keeps_the_others_and_logs_no_message`
 and `DestinationsCreateHttpTests.Create_when_the_client_could_not_answer_is_502_with_its_sentence_and_writes_nothing`
 the answer per client.
+
+## Implementation (added 0.1.0, MAM-13)
+
+**The submission is back, and the client's jobs are looked up by info hash.** `IDownloadClient`
+gains `SubmitAsync`, sent exactly once — never again by the call or a retry of it, since a write sent
+twice may act twice — and `FindJobsAsync(settings, infoHashes)`: the client's jobs that hold any of
+the hashes (40 hexadecimal characters for v1, 64 for v2), each with every hash the client lists for
+it (`ClientJob.InfoHashes`, new), for the core to match (`ClientJobCorrelation`), never by name. It
+takes the place of MAM-7's `ListJobsAsync`, which the MAM-11 section said MAM-13 and MAM-14 would
+add back: a submission is confirmed by the torrents that hold its hashes, an "every job" listing
+would read a whole client to find one torrent, and following a job by the id stored on it (MAM-14)
+asks the same question. `ListJobFilesAsync` stays MAM-14's, with `ClientJobFile`.
+`DownloadSubmission.ExpectedInfoHash` is now the hash the app worked out from the payload, never the
+listing's claim
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+
+**"No job id promised" holds, and the info hash correlates as the MAM-11 section said.** 4.4.1 to
+5.1 answer `torrents/add` with `Ok.` only; 5.2 answers a JSON object whose `added_torrent_ids` the
+adapter passes on only when it lists exactly one. Any other answer leaves the receipt without an id,
+and the job is found by its hashes. A download client of a type this build can't send to is refused
+by type ("This version of the app can't send downloads to “…”."), as the destinations refuse it.
+
+`DownloadsSendHttpTests.Create_against_qbittorrent_before_5_2_finds_the_job_by_its_info_hash` pins
+the correlation over HTTP, `ClientJobCorrelationTests` the matching, and
+`QBittorrentAdapterSubmitTests` the answers of each version.

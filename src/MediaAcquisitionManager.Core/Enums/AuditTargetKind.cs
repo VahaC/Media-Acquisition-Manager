@@ -11,4 +11,7 @@ public enum AuditTargetKind
 
     /// <summary>A destination of a download client (MAM-11).</summary>
     Destination = 3,
+
+    /// <summary>A download job: a release sent to a download client (MAM-13).</summary>
+    DownloadJob = 4,
 }

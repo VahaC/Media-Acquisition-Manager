@@ -46,4 +46,11 @@ public enum AuditAction
 
     /// <summary>The owner removed a destination.</summary>
     DestinationDeleted = 13,
+
+    /// <summary>
+    /// A user asked for a release to be sent to a download client (MAM-13). Written with the download job,
+    /// before anything is fetched or sent, and never again for a retry of the same request; the job names
+    /// the release, the client and the destination, and says how the sending went.
+    /// </summary>
+    DownloadRequested = 14,
 }
