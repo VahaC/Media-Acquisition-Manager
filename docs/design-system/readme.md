@@ -6,15 +6,26 @@ Self-hosted web app for people who pick media releases by hand: it searches the 
 - GitHub: https://github.com/VahaC/Media-Acquisition-Manager — explore it for exact component source before designing new screens.
 - Local mount `Media-Acquisition-Manager/`: `frontend/src/index.css` (tokens), `frontend/src/styles/*.css`, `frontend/src/components/**`, `frontend/src/locales/en/*.json` (all copy), `docs/Media_Acquisition_Manager_Spec.md` §5 (UI), `ROADMAP.md`, `docs/adr/*`.
 
+## Approved design — 2 Oct 2026
+The owner approved `ui_kits/current` as the target design. The app code is unchanged so far. `design_handoff_approved_layout/README.md` is the implementation brief for Claude Code.
+- **Header** (variant 2d): brand and version on the left; search field, Library and Jobs in the centre; account menu on the right (Profile, owner settings, theme, sign out). Sticky.
+- **Search**: the title is typed only in the header (press `/` anywhere). The page keeps Year, IMDb id and TMDb id to narrow the results.
+- **Versions in a library card**: rows by default (1b), with a Rows/Table toggle (1c) when a work has 2+ versions. One choice per browser (`mam:versionsView`) for Search and Library. A single version is shown open.
+- **Pager**: range on the left, numbered pages in the centre, Per page on the right. Two rows under 640px of its own width.
+- **Users** page aligned to the design; **Profile** page (new).
+- **Own password**: every user changes their own password on Profile, with the current password. This needs a new API endpoint (`POST /api/auth/password`, planned).
+- **Errors**: the patterns below, including the new server-unreachable strip.
+- `ui_kits/proposal` (sidebar shell) was not adopted. It is kept for reference only.
+
 ## Products / surfaces
-One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react). Pages: Setup, Sign in, Home (service status), **Search** (primary), **Library**, and owner-only settings: Integrations, Destinations, Media folders, Users. Planned: Jobs, Duplicates.
+One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react). Pages: Setup, Sign in, Home (service status), **Search** (primary), **Library**, **Jobs**, **Profile** (new, approved), and owner-only settings: Integrations, Destinations, Media folders, Users. Planned: Duplicates. Jobs, Job details and the Download dialog exist in the app but are not covered by this design system yet.
 
 ## Content fundamentals
 - English only, every string from a locale file (ADR 0001). Sentence case everywhere: "Sync now", "Add integration", "Media folders".
 - Plain, literal, complete sentences that say what happened: "Synced 1 Oct 2026, 09:12: read 870 movies into 812 works…", "Refresh failed, showing the last loaded movies."
 - Second person for the user's things ("your library", "In your library"); the app calls itself "this app" / "the app". No "we", no "I".
 - Never guesses: missing values are named — "Year unknown", "HDR unknown", "Not inspected yet". Claims are marked as claims ("Claimed"), verified facts aren't.
-- Disabled controls explain why ("Pick a download client and a destination first.", "Only the owner can sync the library.").
+- Disabled controls explain why ("Sending a release to a download client comes in a later update.", "Only the owner can sync the library.").
 - Errors are the server's own sentence; owner-only detail is hidden from others ("The owner can see why.").
 - Ellipsis for progress: "Searching…", "Syncing… 312 of 870 movies". Separator " · ". No emoji, no exclamation marks.
 - Placeholders are real examples: "Interstellar", "tt0816692", "157336". Ukrainian titles appear as data (Фільми, Інтерстеллар) and sort in Ukrainian order.
@@ -28,7 +39,7 @@ One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react
 - **Backgrounds**: flat colour only — no imagery, gradients, textures or illustration.
 - **Motion**: 160ms ease colour/background transitions; dialog 200ms opacity/transform; spinning LoaderCircle for work in progress. No bounces.
 - **States**: hover = `--accent` grey fill (outline/ghost) or primary at 90%; selected nav = 12% primary tint + foreground text; focus = 2px `--ring` box-shadow; disabled = 50% opacity with a reason tooltip on a wrapper.
-- **Layout**: header bar + one centred column; lists page with numbered pages (‹ 1 … 4 5 6 … 33 ›, range "26–50 of 812"); lists are tables that become one card per row under 48rem; labels hide on row buttons under 560px (icon + title remain). Long paths break anywhere, never widen the page.
+- **Layout**: sticky header (brand + version left · search field, Library, Jobs centred · account menu right) + one centred 64rem column; lists page with numbered pages (‹ 1 … 4 5 6 … 33 ›, range "26–50 of 812"); lists are tables that become one card per row under 48rem; labels hide on row buttons under 560px (icon + title remain). Long paths break anywhere, never widen the page.
 - **Transparency/blur**: only the 50% black dialog overlay. No blur.
 
 ## Errors — when a request fails
@@ -40,7 +51,7 @@ Pick the pattern by what is still on screen (all copy from `locales/en/*.json`; 
 - **First load failed, nothing to show** — `ErrorState` in place of the list/panel: what failed, the server's sentence, **Try again**. Never an empty list.
 - **One source of many** — its own line in the sources list; the others' results still show.
 - **Owner-only detail** — members read "… The owner can see why."
-- **Server unreachable** — warning strip under the header, retries itself, "Retry now". Data stays, actions report the same sentence. *(Proposed — the app shows this only while restoring a session.)*
+- **Server unreachable** — warning strip under the header, retries itself, "Retry now". Data stays, actions report the same sentence. *(Approved, new — today the app shows this only while restoring a session.)*
 - **Page crash / chunk failure** — `AppErrorFallback` card: "Something went wrong" + Try again, or "Could not load this page" + Reload. **404** — "Page not found" + Go to the home page.
 - Error text uses `--text-danger` (= `--destructive` in light, red-400 `#f87171` in dark for 4.5:1 on the dark card).
 - In `ui_kits/current` the **Simulate failures** pill (bottom-left) switches each case on.
@@ -53,10 +64,11 @@ lucide-react (stroke 2, round caps, currentColor) at 12px (badges), 14px (sm but
 - `styles.css` → `tokens/colors.css`, `typography.css`, `spacing.css`, `base.css`, `primitives.css` (the app's `.ui-*` classes)
 - `guidelines/` — foundation specimen cards (Colors, Type, Spacing, Brand)
 - `assets/logo.svg`
-- `components/core/` — Button, Input (+Field), Select, Badge, Card, Dialog, Menu, Banner (+StatusLine), ListPager, AppLogo, Icon, ThemeSwitch
+- `components/core/` — Button, Input (+Field), Select, Badge, Card, Dialog, Menu, Banner (+StatusLine), ErrorState, ListPager, AppLogo, Icon, ThemeSwitch
 - `components/media/` — ChipRow (+Facts), MatchBadges, ReleaseRow, WorkCard
-- `ui_kits/current/` — recreation of the app as built (Search, Library, Integrations, Destinations, Sign in, Home)
-- `ui_kits/proposal/` — **layout proposal** (sidebar shell, two-pane Search with claimed-vs-verified comparison, table Library, grouped Integrations, theme switch). Not yet approved; no app code changed.
+- `ui_kits/current/` — **the approved design**: Search, Library, Users, Profile, Integrations, Destinations, Sign in, Home, plus error states (Simulate failures pill). Jobs is a placeholder.
+- `ui_kits/proposal/` — earlier layout proposal (sidebar shell, two-pane Search, table Library). **Not adopted**; reference only.
+- `design_handoff_approved_layout/README.md` — implementation brief for Claude Code (order of work, exact values, copy, API changes).
 - `SKILL.md`
 
 ## Components

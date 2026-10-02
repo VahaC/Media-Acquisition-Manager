@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"MediaAcquisitionManagerDS_29af91","components":[{"name":"AppLogo","sourcePath":"components/core/AppLogo.jsx"},{"name":"Badge","sourcePath":"components/core/Badge.jsx"},{"name":"Banner","sourcePath":"components/core/Banner.jsx"},{"name":"StatusLine","sourcePath":"components/core/Banner.jsx"},{"name":"Button","sourcePath":"components/core/Button.jsx"},{"name":"Card","sourcePath":"components/core/Card.jsx"},{"name":"Dialog","sourcePath":"components/core/Dialog.jsx"},{"name":"ErrorState","sourcePath":"components/core/ErrorState.jsx"},{"name":"Icon","sourcePath":"components/core/Icon.jsx"},{"name":"Input","sourcePath":"components/core/Input.jsx"},{"name":"Field","sourcePath":"components/core/Input.jsx"},{"name":"ListPager","sourcePath":"components/core/ListPager.jsx"},{"name":"Menu","sourcePath":"components/core/Menu.jsx"},{"name":"Select","sourcePath":"components/core/Select.jsx"},{"name":"ThemeSwitch","sourcePath":"components/core/ThemeSwitch.jsx"},{"name":"ChipRow","sourcePath":"components/media/ChipRow.jsx"},{"name":"Facts","sourcePath":"components/media/ChipRow.jsx"},{"name":"MatchBadges","sourcePath":"components/media/MatchBadges.jsx"},{"name":"ReleaseRow","sourcePath":"components/media/ReleaseRow.jsx"},{"name":"WorkCard","sourcePath":"components/media/WorkCard.jsx"}],"sourceHashes":{"components/core/AppLogo.jsx":"349271c2647d","components/core/Badge.jsx":"e113ae8aa103","components/core/Banner.jsx":"c219666c2c7c","components/core/Button.jsx":"ff2185f8aa19","components/core/Card.jsx":"2bdf1b6efafd","components/core/Dialog.jsx":"2e8d5e60f91b","components/core/ErrorState.jsx":"a8720dcf3630","components/core/Icon.jsx":"03b67ff0fd20","components/core/Input.jsx":"5b5452a62d10","components/core/ListPager.jsx":"e17f5f400dec","components/core/Menu.jsx":"d67fe8692f2e","components/core/Select.jsx":"0de1af206394","components/core/ThemeSwitch.jsx":"6008218dce59","components/media/ChipRow.jsx":"7b74fc93f385","components/media/MatchBadges.jsx":"f7fdba85cb60","components/media/ReleaseRow.jsx":"9be90a5b72de","components/media/WorkCard.jsx":"2b8c2b4e3a45","ui_kits/_shared/data.js":"cbff5490e85d","ui_kits/_shared/ds-fallback.js":"7985ebd8ff1a","ui_kits/current/LibraryMatch.jsx":"f775df32274d","ui_kits/current/LibraryScreen.jsx":"25d7d57a18f1","ui_kits/current/ProfileScreen.jsx":"2b72033ed317","ui_kits/current/SearchScreen.jsx":"5e631fbbc2a1","ui_kits/current/SettingsScreens.jsx":"8043e479e9b3","ui_kits/current/Shell.jsx":"77c2d91ed736","ui_kits/current/SignIn.jsx":"30203de92854","ui_kits/current/Sim.jsx":"eec00315893d","ui_kits/current/UsersScreen.jsx":"6db7475b74fa","ui_kits/proposal/Notes.jsx":"6a487c586583","ui_kits/proposal/PLibrary.jsx":"a3d6e3cd1405","ui_kits/proposal/PSearch.jsx":"3d532a4e3e4c","ui_kits/proposal/PSettings.jsx":"229842979347","ui_kits/proposal/PShell.jsx":"9a7f0814aec2"},"inlinedExternals":[],"unexposedExports":[]} */
+/* @ds-bundle: {"format":4,"namespace":"MediaAcquisitionManagerDS_29af91","components":[{"name":"AppLogo","sourcePath":"components/core/AppLogo.jsx"},{"name":"Badge","sourcePath":"components/core/Badge.jsx"},{"name":"Banner","sourcePath":"components/core/Banner.jsx"},{"name":"StatusLine","sourcePath":"components/core/Banner.jsx"},{"name":"Button","sourcePath":"components/core/Button.jsx"},{"name":"Card","sourcePath":"components/core/Card.jsx"},{"name":"Dialog","sourcePath":"components/core/Dialog.jsx"},{"name":"ErrorState","sourcePath":"components/core/ErrorState.jsx"},{"name":"Icon","sourcePath":"components/core/Icon.jsx"},{"name":"Input","sourcePath":"components/core/Input.jsx"},{"name":"Field","sourcePath":"components/core/Input.jsx"},{"name":"ListPager","sourcePath":"components/core/ListPager.jsx"},{"name":"Menu","sourcePath":"components/core/Menu.jsx"},{"name":"Select","sourcePath":"components/core/Select.jsx"},{"name":"ThemeSwitch","sourcePath":"components/core/ThemeSwitch.jsx"},{"name":"ChipRow","sourcePath":"components/media/ChipRow.jsx"},{"name":"Facts","sourcePath":"components/media/ChipRow.jsx"},{"name":"MatchBadges","sourcePath":"components/media/MatchBadges.jsx"},{"name":"ReleaseRow","sourcePath":"components/media/ReleaseRow.jsx"},{"name":"WorkCard","sourcePath":"components/media/WorkCard.jsx"}],"sourceHashes":{"components/core/AppLogo.jsx":"349271c2647d","components/core/Badge.jsx":"e113ae8aa103","components/core/Banner.jsx":"c219666c2c7c","components/core/Button.jsx":"ff2185f8aa19","components/core/Card.jsx":"2bdf1b6efafd","components/core/Dialog.jsx":"2e8d5e60f91b","components/core/ErrorState.jsx":"a8720dcf3630","components/core/Icon.jsx":"03b67ff0fd20","components/core/Input.jsx":"5b5452a62d10","components/core/ListPager.jsx":"e17f5f400dec","components/core/Menu.jsx":"d67fe8692f2e","components/core/Select.jsx":"0de1af206394","components/core/ThemeSwitch.jsx":"6008218dce59","components/media/ChipRow.jsx":"7b74fc93f385","components/media/MatchBadges.jsx":"f7fdba85cb60","components/media/ReleaseRow.jsx":"9be90a5b72de","components/media/WorkCard.jsx":"2b8c2b4e3a45","ui_kits/_shared/data.js":"cbff5490e85d","ui_kits/_shared/ds-fallback.js":"7985ebd8ff1a","ui_kits/current/LibraryMatch.jsx":"f775df32274d","ui_kits/current/LibraryScreen.jsx":"25d7d57a18f1","ui_kits/current/ProfileScreen.jsx":"cb735fceaeeb","ui_kits/current/SearchScreen.jsx":"d9195bc63c50","ui_kits/current/SettingsScreens.jsx":"8043e479e9b3","ui_kits/current/Shell.jsx":"ae64cccf0c87","ui_kits/current/SignIn.jsx":"30203de92854","ui_kits/current/Sim.jsx":"eec00315893d","ui_kits/current/UsersScreen.jsx":"6db7475b74fa","ui_kits/proposal/Notes.jsx":"6a487c586583","ui_kits/proposal/PLibrary.jsx":"a3d6e3cd1405","ui_kits/proposal/PSearch.jsx":"3d532a4e3e4c","ui_kits/proposal/PSettings.jsx":"229842979347","ui_kits/proposal/PShell.jsx":"9a7f0814aec2"},"inlinedExternals":[],"unexposedExports":[]} */
 
 (() => {
 
@@ -1945,9 +1945,8 @@ if (window.__MAM_KIT) Object.assign(window, {
 
 // ui_kits/current/ProfileScreen.jsx
 try { (() => {
-/* Profile — NEW page (no counterpart in the app yet). Uses only what the API already knows about the
-   signed-in user: name, role, created, last sign-in; the password reset the owner can do on themself;
-   the theme stored in mam:theme; sign-out. */
+/* Profile — NEW page, approved 2 Oct 2026. Name, role, created, last sign-in; change your own password
+   (every user — needs a new API endpoint, see design_handoff_approved_layout); theme (mam:theme); sign-out. */
 function ProfileRow({
   label,
   children,
@@ -1989,20 +1988,59 @@ function ProfileScreen({
     p = d.profile;
   const [pwOpen, setPwOpen] = React.useState(false);
   const [pw, setPw] = React.useState({
+    c: '',
     a: '',
     b: ''
   });
+  const [pwErr, setPwErr] = React.useState({});
+  const [busy, setBusy] = React.useState(false);
   const [news, setNews] = React.useState(null);
-  const differs = pw.b !== '' && pw.a !== pw.b;
-  const short = pw.a !== '' && pw.a.length < 8;
-  const save = () => {
-    if (!pw.a || differs || short) return;
+  const sim = useSim();
+  const set = k => e => {
+    setPw({
+      ...pw,
+      [k]: e.target.value
+    });
+    if (pwErr[k] || pwErr.form) setPwErr({
+      ...pwErr,
+      [k]: undefined,
+      form: undefined
+    });
+  };
+  const reset = () => {
     setPwOpen(false);
     setPw({
+      c: '',
       a: '',
       b: ''
     });
-    setNews('Password changed. Your other devices are signed out; this one stays signed in.');
+    setPwErr({});
+  };
+  const save = () => {
+    const e = {};
+    if (!pw.c) e.c = 'Enter your current password.';
+    if (pw.a.length < 8) e.a = 'A password is at least 8 characters.';else if (pw.a.length > 128) e.a = 'A password is at most 128 characters.';
+    if (pw.b !== pw.a) e.b = 'The two passwords are different. Type the same password in both fields.';
+    setPwErr(e);
+    if (Object.keys(e).length) return;
+    setBusy(true);
+    setTimeout(() => {
+      setBusy(false);
+      if (sim.offline || sim.action) {
+        setPwErr({
+          form: 'Could not change the password. ' + SERVER_DOWN
+        });
+        return;
+      }
+      if (pw.c !== 'password123') {
+        setPwErr({
+          c: 'The current password is incorrect.'
+        });
+        return;
+      }
+      reset();
+      setNews('Password changed. Your other devices are signed out; this one stays signed in.');
+    }, 600);
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2050,8 +2088,9 @@ function ProfileScreen({
       fontSize: '0.875rem',
       color: 'var(--muted-foreground)'
     }
-  }, u.isOwner ? 'The installation owner: manages users, integrations and settings.' : 'Can search and browse the library.'))), news ? /*#__PURE__*/React.createElement(Banner, {
-    tone: "ok"
+  }, u.isOwner ? 'The installation owner: manages users, integrations and settings.' : 'Can search, browse the library and send downloads.'))), news ? /*#__PURE__*/React.createElement(Banner, {
+    tone: "ok",
+    onDismiss: () => setNews(null)
   }, news) : null, /*#__PURE__*/React.createElement(Card, {
     title: "Account"
   }, /*#__PURE__*/React.createElement(ProfileRow, {
@@ -2068,7 +2107,8 @@ function ProfileScreen({
   }, p.lastSignIn)), /*#__PURE__*/React.createElement(Card, {
     title: "Password",
     description: "There is no email reset, so keep it somewhere safe."
-  }, u.isOwner ? pwOpen ? /*#__PURE__*/React.createElement("form", {
+  }, pwOpen ? /*#__PURE__*/React.createElement("form", {
+    noValidate: true,
     onSubmit: e => {
       e.preventDefault();
       save();
@@ -2079,39 +2119,31 @@ function ProfileScreen({
       maxWidth: '22rem'
     }
   }, /*#__PURE__*/React.createElement(Field, {
+    label: "Current password",
+    error: pwErr.c
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "password",
+    value: pw.c,
+    onChange: set('c'),
+    autoComplete: "current-password"
+  })), /*#__PURE__*/React.createElement(Field, {
     label: "New password",
-    hint: short ? undefined : '8–128 characters.'
+    hint: "8\u2013128 characters.",
+    error: pwErr.a
   }, /*#__PURE__*/React.createElement(Input, {
     type: "password",
     value: pw.a,
-    onChange: e => setPw({
-      ...pw,
-      a: e.target.value
-    }),
+    onChange: set('a'),
     autoComplete: "new-password"
-  })), short ? /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: 'var(--destructive)',
-      fontSize: 12,
-      marginTop: '-0.625rem'
-    }
-  }, "At least 8 characters.") : null, /*#__PURE__*/React.createElement(Field, {
-    label: "Confirm password"
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Confirm password",
+    error: pwErr.b
   }, /*#__PURE__*/React.createElement(Input, {
     type: "password",
     value: pw.b,
-    onChange: e => setPw({
-      ...pw,
-      b: e.target.value
-    }),
+    onChange: set('b'),
     autoComplete: "new-password"
-  })), differs ? /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: 'var(--destructive)',
-      fontSize: 12,
-      marginTop: '-0.625rem'
-    }
-  }, "The two passwords are different. Type the same password in both fields.") : null, /*#__PURE__*/React.createElement("p", {
+  })), pwErr.form ? /*#__PURE__*/React.createElement(Banner, null, pwErr.form) : null, /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: 12,
       color: 'var(--muted-foreground)'
@@ -2119,21 +2151,22 @@ function ProfileScreen({
   }, "Your other devices are signed out. This one stays signed in."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
       gap: 8
     }
   }, /*#__PURE__*/React.createElement(Button, {
     type: "submit",
-    disabled: !pw.a || differs || short
-  }, "Change password"), /*#__PURE__*/React.createElement(Button, {
+    loading: busy
+  }, busy ? 'Changing…' : 'Change password'), /*#__PURE__*/React.createElement(Button, {
     variant: "outline",
-    onClick: () => {
-      setPwOpen(false);
-      setPw({
-        a: '',
-        b: ''
-      });
+    onClick: reset
+  }, "Cancel"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'var(--subtle-foreground)'
     }
-  }, "Cancel"))) : /*#__PURE__*/React.createElement("div", {
+  }, "Demo: the current password is password123."))) : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -2152,11 +2185,7 @@ function ProfileScreen({
     size: "sm",
     icon: "KeyRound",
     onClick: () => setPwOpen(true)
-  }, "Change password")) : /*#__PURE__*/React.createElement("p", {
-    style: {
-      color: 'var(--muted-foreground)'
-    }
-  }, "The owner resets your password under Users.")), /*#__PURE__*/React.createElement(Card, {
+  }, "Change password"))), /*#__PURE__*/React.createElement(Card, {
     title: "Appearance",
     description: "Saved in this browser."
   }, /*#__PURE__*/React.createElement("div", {
@@ -2186,7 +2215,8 @@ if (window.__MAM_KIT) Object.assign(window, {
 
 // ui_kits/current/SearchScreen.jsx
 try { (() => {
-/* SearchPage (MAM-12) — current layout: form, "In your library" cards, then "Available releases" */
+/* SearchPage (MAM-12) — approved: the title comes from the header field; the page shows what was searched,
+   Year / IMDb id / TMDb id to narrow it, "In your library" cards, then "Available releases" */
 function SearchScreen({
   query
 }) {
@@ -2213,22 +2243,42 @@ function SearchScreen({
   const [retrying, retry] = useRetry('load');
   const [refreshing, refresh] = useRetry('refresh');
   const [formError, setFormError] = React.useState(null);
-  const [titleError, setTitleError] = React.useState(null);
   const [searching, setSearching] = React.useState(false);
-  const submit = e => {
-    e.preventDefault();
+  // The header field takes "Interstellar" or "Interstellar 2014" — the server needs a title even with an id
+  // (ReleaseSearchRules); the page form narrows it by year and ids.
+  const p = React.useMemo(() => {
+    const q = (query || '').trim();
+    const y = q.match(/^(.*\S)\s+\(?((?:19|20)\d{2})\)?$/);
+    if (y) return {
+      title: y[1],
+      year: y[2],
+      imdb: ''
+    };
+    return {
+      title: q,
+      year: q === s0.text ? s0.year : '',
+      imdb: ''
+    };
+  }, [query]);
+  const run = () => {
     setFormError(null);
-    setTitleError(null);
-    const title = e.currentTarget.querySelector('input').value.trim();
-    if (!title) {
-      setTitleError('Enter a title to search for.');
-      return;
-    }
     setSearching(true);
     setTimeout(() => {
       setSearching(false);
       if (sim.action || sim.offline) setFormError(sim.offline ? SERVER_DOWN : 'Could not search. The search is already running; wait for it to finish.');
     }, 600);
+  };
+  const first = React.useRef(true);
+  React.useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (query) run();
+  }, [query]);
+  const submit = e => {
+    e.preventDefault();
+    run();
   };
   const [details, setDetails] = React.useState(null);
   const lbl = {
@@ -2244,29 +2294,71 @@ function SearchScreen({
   }, /*#__PURE__*/React.createElement(PageHeader, {
     title: "Search",
     lead: "Look for a movie in your library and in every release source at once. What the sources list is kept for a day, so filtering and sorting never ask them again."
-  }), /*#__PURE__*/React.createElement("form", {
-    noValidate: true,
-    onSubmit: submit,
+  }), !query ? /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'minmax(0,2fr) minmax(0,6rem) minmax(0,1fr) minmax(0,1fr) auto',
-      alignItems: 'start',
+      gap: '0.375rem',
+      padding: '1.25rem 1.5rem',
+      border: '1px dashed var(--border-strong)',
+      borderRadius: 'var(--radius-lg)',
+      background: 'var(--card)'
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontWeight: 600
+    }
+  }, "Type a movie title in the search field at the top, then press Enter."), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: 'var(--muted-foreground)'
+    }
+  }, "Add the year after the title to narrow it: \u201CInterstellar 2014\u201D. Press / on any page to jump to the field.")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: '0.75rem'
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: '0.25rem 0.5rem'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Results for ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      overflowWrap: 'anywhere'
+    }
+  }, "\u201C", p.title, "\u201D"), "."), searching ? /*#__PURE__*/React.createElement("span", {
+    className: "ui-status-line",
+    "data-status": "running",
+    style: {
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(window.MAM_DS.Icon, {
+    name: "LoaderCircle",
+    size: 14,
+    className: "spin"
+  }), /*#__PURE__*/React.createElement("span", null, "Searching\u2026")) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: 'var(--muted-foreground)'
+    }
+  }, "Add a year or an id to narrow them.")), /*#__PURE__*/React.createElement("form", {
+    noValidate: true,
+    onSubmit: submit,
+    key: query,
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0,6rem) minmax(0,11rem) minmax(0,11rem) auto',
+      justifyContent: 'start',
+      alignItems: 'end',
       gap: '0.75rem'
     }
   }, /*#__PURE__*/React.createElement(Field, {
-    label: "Title",
-    error: titleError
-  }, /*#__PURE__*/React.createElement(Input, {
-    key: query ?? s.text,
-    defaultValue: query || s.text,
-    placeholder: "Interstellar"
-  })), /*#__PURE__*/React.createElement(Field, {
     label: "Year",
     optional: "(optional)"
   }, /*#__PURE__*/React.createElement(Input, {
-    key: 'y' + (query ?? ''),
-    defaultValue: query ? '' : s.year,
-    placeholder: "2014"
+    defaultValue: p.year,
+    placeholder: "2014",
+    inputMode: "numeric"
   })), /*#__PURE__*/React.createElement(Field, {
     label: "IMDb id",
     optional: "(optional)"
@@ -2279,12 +2371,9 @@ function SearchScreen({
     placeholder: "157336"
   })), /*#__PURE__*/React.createElement(Button, {
     type: "submit",
-    icon: "Search",
-    loading: searching,
-    style: {
-      marginTop: 22
-    }
-  }, searching ? 'Searching…' : 'Search')), formError ? /*#__PURE__*/React.createElement(Banner, {
+    variant: "outline",
+    loading: searching
+  }, "Apply"))), formError ? /*#__PURE__*/React.createElement(Banner, {
     onDismiss: () => setFormError(null)
   }, formError) : null, sim.load ? /*#__PURE__*/React.createElement(ErrorState, {
     title: "Could not load this search.",
@@ -2372,7 +2461,7 @@ function SearchScreen({
     pages: 2,
     pageSize: 10,
     total: 16
-  }))), details ? /*#__PURE__*/React.createElement(ReleaseDetails, {
+  })))), details ? /*#__PURE__*/React.createElement(ReleaseDetails, {
     release: details,
     onClose: () => setDetails(null)
   }) : null);
@@ -2702,6 +2791,7 @@ function AppHeader({
   page,
   onNav,
   onSignOut,
+  query,
   onQuery
 }) {
   const {
@@ -2711,7 +2801,11 @@ function AppHeader({
   } = window.MAM_DS;
   const d = window.MAM_DATA;
   const [open, setOpen] = React.useState(false);
-  const [q, setQ] = React.useState('');
+  const [q, setQ] = React.useState(page === 'search' ? query || '' : '');
+  // On Search the field shows what is being searched; elsewhere it starts empty.
+  React.useEffect(() => {
+    setQ(page === 'search' ? query || '' : '');
+  }, [query, page]);
   const rootRef = React.useRef(null);
   const inputRef = React.useRef(null);
   React.useEffect(() => {
@@ -2746,6 +2840,7 @@ function AppHeader({
   };
   const settings = [['integrations', 'Integrations', 'Plug'], ['destinations', 'Destinations', 'FolderInput'], ['integrations', 'Media folders', 'FolderOpen'], ['users', 'Users', 'Users']];
   const libOn = page === 'library';
+  const jobsOn = page === 'jobs';
   return /*#__PURE__*/React.createElement("header", {
     style: {
       position: 'sticky',
@@ -2826,7 +2921,7 @@ function AppHeader({
     value: q,
     onChange: e => setQ(e.target.value),
     "aria-label": "Search for a movie",
-    placeholder: "Search a movie \u2014 title, year or IMDb id",
+    placeholder: "Search a movie by title, e.g. Interstellar 2014",
     style: {
       paddingLeft: 36,
       paddingRight: q === '' ? 40 : 12,
@@ -2875,7 +2970,30 @@ function AppHeader({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "LibraryBig",
     size: 16
-  }), "Library")), /*#__PURE__*/React.createElement("div", {
+  }), "Library"), /*#__PURE__*/React.createElement("a", {
+    href: "#",
+    onClick: e => {
+      e.preventDefault();
+      go('jobs');
+    },
+    "aria-current": jobsOn ? 'page' : undefined,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '0.375rem 0.625rem',
+      borderRadius: 'var(--radius-md)',
+      fontSize: '0.875rem',
+      fontWeight: 500,
+      textDecoration: 'none',
+      flexShrink: 0,
+      color: jobsOn ? 'var(--foreground)' : 'var(--muted-foreground)',
+      background: jobsOn ? 'var(--tint-selected)' : 'transparent'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "HardDriveDownload",
+    size: 16
+  }), "Jobs")), /*#__PURE__*/React.createElement("div", {
     ref: rootRef,
     style: {
       position: 'relative',
@@ -3062,10 +3180,34 @@ function HomeScreen() {
     status: "ok"
   }, "Ready")));
 }
+/* Jobs (MAM-14) exists in the app but is not part of this design pass. */
+function JobsStub() {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: '1rem'
+    }
+  }, /*#__PURE__*/React.createElement("h1", {
+    style: {
+      fontSize: 'var(--text-2xl)',
+      fontWeight: 600,
+      lineHeight: 1.25
+    }
+  }, "Jobs"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      padding: '1.25rem 1.5rem',
+      border: '1px dashed var(--border-strong)',
+      borderRadius: 'var(--radius-lg)',
+      background: 'var(--card)',
+      color: 'var(--muted-foreground)'
+    }
+  }, "Not part of this design pass. In the app this page keeps its current layout inside the new header."));
+}
 if (window.__MAM_KIT) Object.assign(window, {
   AppHeader,
   PageHeader,
-  HomeScreen
+  HomeScreen,
+  JobsStub
 });
 })(); } catch (e) { __ds_ns.__errors.push({ path: "ui_kits/current/Shell.jsx", error: String((e && e.message) || e) }); }
 

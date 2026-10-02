@@ -1,9 +1,11 @@
 /* AppLayout + UserMenu — header variant 2d: search field in the header, everything else in the account menu */
-function AppHeader({ page, onNav, onSignOut, onQuery }) {
+function AppHeader({ page, onNav, onSignOut, query, onQuery }) {
   const { AppLogo, Icon, ThemeSwitch } = window.MAM_DS;
   const d = window.MAM_DATA;
   const [open, setOpen] = React.useState(false);
-  const [q, setQ] = React.useState('');
+  const [q, setQ] = React.useState(page === 'search' ? (query || '') : '');
+  // On Search the field shows what is being searched; elsewhere it starts empty.
+  React.useEffect(() => { setQ(page === 'search' ? (query || '') : ''); }, [query, page]);
   const rootRef = React.useRef(null);
   const inputRef = React.useRef(null);
   React.useEffect(() => {
@@ -25,6 +27,7 @@ function AppHeader({ page, onNav, onSignOut, onQuery }) {
   const submit = (e) => { e.preventDefault(); if (onQuery) onQuery(q.trim()); go('search'); inputRef.current && inputRef.current.blur(); };
   const settings = [['integrations', 'Integrations', 'Plug'], ['destinations', 'Destinations', 'FolderInput'], ['integrations', 'Media folders', 'FolderOpen'], ['users', 'Users', 'Users']];
   const libOn = page === 'library';
+  const jobsOn = page === 'jobs';
   return (
     <header style={{ position: 'sticky', top: 0, zIndex: 30, display: 'grid', gridTemplateColumns: 'minmax(max-content,1fr) minmax(0,42rem) minmax(max-content,1fr)', alignItems: 'center', gap: '1.25rem', padding: '0.625rem 1.5rem', background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
       <a href="#" onClick={(e) => { e.preventDefault(); go('home'); }} title="The version you are running" style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', gap: '0.625rem', color: 'inherit', textDecoration: 'none', whiteSpace: 'nowrap' }}>
@@ -38,13 +41,18 @@ function AppHeader({ page, onNav, onSignOut, onQuery }) {
       <form role="search" onSubmit={submit} style={{ flex: '1 1 auto', minWidth: 0, position: 'relative' }}>
         <Icon name="Search" size={16} style={{ position: 'absolute', left: 11, top: 10, color: page === 'search' ? 'var(--primary)' : 'var(--muted-foreground)' }} />
         <input ref={inputRef} className="ui-input" type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search for a movie"
-          placeholder="Search a movie — title, year or IMDb id" style={{ paddingLeft: 36, paddingRight: q === '' ? 40 : 12, background: 'var(--muted)', borderColor: 'transparent' }} />
+          placeholder="Search a movie by title, e.g. Interstellar 2014" style={{ paddingLeft: 36, paddingRight: q === '' ? 40 : 12, background: 'var(--muted)', borderColor: 'transparent' }} />
         {q === '' ? <kbd className="mono" title="Press / to search" onMouseDown={(e) => { e.preventDefault(); inputRef.current && inputRef.current.focus(); }} style={{ position: 'absolute', right: 8, top: 8, fontSize: 11, padding: '1px 6px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', color: 'var(--muted-foreground)', background: 'var(--card)', cursor: 'text' }}>/</kbd> : null}
       </form>
       <a href="#" onClick={(e) => { e.preventDefault(); go('library'); }} aria-current={libOn ? 'page' : undefined}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.375rem 0.625rem', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', flexShrink: 0,
           color: libOn ? 'var(--foreground)' : 'var(--muted-foreground)', background: libOn ? 'var(--tint-selected)' : 'transparent' }}>
         <Icon name="LibraryBig" size={16} />Library
+      </a>
+      <a href="#" onClick={(e) => { e.preventDefault(); go('jobs'); }} aria-current={jobsOn ? 'page' : undefined}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.375rem 0.625rem', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', fontWeight: 500, textDecoration: 'none', flexShrink: 0,
+          color: jobsOn ? 'var(--foreground)' : 'var(--muted-foreground)', background: jobsOn ? 'var(--tint-selected)' : 'transparent' }}>
+        <Icon name="HardDriveDownload" size={16} />Jobs
       </a>
       </div>
       <div ref={rootRef} style={{ position: 'relative', justifySelf: 'end' }}>
@@ -101,4 +109,13 @@ function HomeScreen() {
     </div>
   );
 }
-if (window.__MAM_KIT) Object.assign(window, { AppHeader, PageHeader, HomeScreen });
+/* Jobs (MAM-14) exists in the app but is not part of this design pass. */
+function JobsStub() {
+  return (
+    <div style={{ display: 'grid', gap: '1rem' }}>
+      <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 600, lineHeight: 1.25 }}>Jobs</h1>
+      <p style={{ padding: '1.25rem 1.5rem', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)', background: 'var(--card)', color: 'var(--muted-foreground)' }}>Not part of this design pass. In the app this page keeps its current layout inside the new header.</p>
+    </div>
+  );
+}
+if (window.__MAM_KIT) Object.assign(window, { AppHeader, PageHeader, HomeScreen, JobsStub });

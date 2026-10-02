@@ -1,4 +1,4 @@
-<!-- @dsCard group="Web app (current)" viewport="1280x800" name="Current layout" subtitle="Recreation of the app as built: header nav, one 64rem column" -->
+<!-- @dsCard group="Web app (current)" viewport="1280x800" name="Approved layout" subtitle="Approved 2 Oct 2026: search in the header, one 64rem column" -->
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="../../styles.css">
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
@@ -22,14 +22,14 @@
 function App() {
   const [page, setPage] = React.useState(() => localStorage.getItem('mamkit:current:page') || 'search');
   const [signedIn, setSignedIn] = React.useState(true);
-  const [query, setQuery] = React.useState(null);
+  const [query, setQuery] = React.useState(() => window.MAM_DATA.search.text);
   const nav = (p) => { setPage(p); localStorage.setItem('mamkit:current:page', p); window.scrollTo(0, 0); };
-  const screens = { home: HomeScreen, search: SearchScreen, library: LibraryScreen, integrations: IntegrationsScreen, destinations: DestinationsScreen, users: UsersScreen, profile: ProfileScreen };
+  const screens = { home: HomeScreen, search: SearchScreen, library: LibraryScreen, integrations: IntegrationsScreen, destinations: DestinationsScreen, users: UsersScreen, profile: ProfileScreen, jobs: JobsStub };
   const S = screens[page] || SearchScreen;
   const sim = useSim();
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      <AppHeader page={page} onNav={nav} onSignOut={() => setSignedIn(false)} onQuery={(q) => setQuery(q || null)} />
+      <AppHeader page={page} onNav={nav} onSignOut={() => setSignedIn(false)} query={query} onQuery={setQuery} />
       <OfflineStrip />
       <main style={{ flex: 1, width: '100%', maxWidth: '64rem', margin: '0 auto', padding: '1.5rem' }}>
         {!signedIn ? <SignInScreen onSignIn={() => setSignedIn(true)} /> : sim.notFound ? <NotFound onHome={() => nav('home')} /> : sim.crash ? <CrashFallback /> : <S query={query} onSignOut={() => setSignedIn(false)} />}
