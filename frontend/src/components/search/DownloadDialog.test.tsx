@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DownloadDialog } from '@/components/search/DownloadDialog'
 import { downloadsApi } from '@/lib/downloads-api'
+import { qk } from '@/lib/queries'
 import type { DownloadClientOption, DownloadJob, DownloadOptions } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
 import {
@@ -437,6 +438,44 @@ describe('DownloadDialog', () => {
     expect(status).toHaveTextContent('This release is already being sent to Local qBittorrent. Its outcome isn\'t known yet.')
     expect(status).toHaveClass('library-source-warning')
     expect(footerButtons(dialog)).toEqual(['Close'])
+  })
+
+  it.each<[DownloadJob['status'], string]>([
+    ['Paused', 'Local qBittorrent took the release, but its download is paused there.'],
+    ['Cancelled', 'Local qBittorrent took the release, but its job has been cancelled since, so the app doesn\'t follow it.'],
+  ])('warns when the same request is answered with a job that is %s by now', async (status, sentence) => {
+    // Arrange
+    vi.mocked(downloadsApi.send).mockResolvedValue(jobOf({ status }))
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+
+    // Act
+    await user.click(sendButton(dialog))
+
+    // Assert
+    const line = await within(dialog).findByRole('status')
+    expect(line).toHaveTextContent(sentence)
+    expect(line).toHaveClass('library-source-warning')
+  })
+
+  it('has every list of jobs asked for again once a send answers, and nothing else', async () => {
+    // Arrange
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    render(
+      <QueryClientProvider client={client}>
+        <DownloadDialog release={tolokaRemux} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    )
+    const dialog = screen.getByRole('dialog', { name: `Download ${tolokaRemux.title}` })
+    await optionsLoaded(dialog)
+
+    // Act
+    await userEvent.setup().click(sendButton(dialog))
+
+    // Assert
+    await within(dialog).findByRole('status')
+    expect(invalidate.mock.calls).toEqual([[{ queryKey: qk.downloads.jobs.lists }]])
   })
 
   it('puts Send first and Cancel last', async () => {

@@ -2,7 +2,7 @@ import { NAV_ITEMS, navItemsFor } from '@/lib/nav-items'
 import { member, owner } from '@/test/auth-session'
 
 describe('navItemsFor', () => {
-  it('offers Search, then the Library, in the header to every signed-in user', () => {
+  it('offers Search, the Library, then Jobs in the header to every signed-in user', () => {
     // Arrange
     const users = [owner, member]
 
@@ -10,7 +10,7 @@ describe('navItemsFor', () => {
     const header = users.map((user) => navItemsFor('header', user).map((item) => item.path))
 
     // Assert
-    expect(header).toEqual([['/search', '/library'], ['/search', '/library']])
+    expect(header).toEqual([['/search', '/library', '/jobs'], ['/search', '/library', '/jobs']])
   })
 
   it('offers Integrations, Destinations, Media folders and Users in the user menu to the installation owner only', () => {

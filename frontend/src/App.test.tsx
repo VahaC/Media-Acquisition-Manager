@@ -4,6 +4,7 @@ import App from '@/App'
 import { allowedRootsApi } from '@/lib/allowed-roots-api'
 import { authApi } from '@/lib/auth-api'
 import { destinationsApi } from '@/lib/destinations-api'
+import { downloadsApi } from '@/lib/downloads-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
 import { queryClient } from '@/lib/query-client'
@@ -13,12 +14,14 @@ import { usersApi } from '@/lib/users-api'
 import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
+import { downloadingJob, filesPage, jobsPage } from '@/test/downloads'
 import { sourcesOf } from '@/test/library'
 import { aliensSearch, releasesPage, searchId, tolokaRemux } from '@/test/search'
 
 vi.mock('@/lib/allowed-roots-api')
 vi.mock('@/lib/auth-api')
 vi.mock('@/lib/destinations-api')
+vi.mock('@/lib/downloads-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
 vi.mock('@/lib/search-api')
@@ -78,6 +81,24 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/library')
     expect(libraryApi.works).toHaveBeenCalledOnce()
+  })
+
+  it('opens Jobs from the header link, and a job\'s details from its title', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.list).mockImplementation(async (query) => jobsPage(query, [downloadingJob]))
+    vi.mocked(downloadsApi.get).mockResolvedValue(downloadingJob)
+    vi.mocked(downloadsApi.files).mockImplementation(async (_, query) => filesPage(query, []))
+    const { user } = renderAt('/')
+
+    // Act
+    await user.click(await screen.findByRole('link', { name: 'Jobs' }))
+    await user.click(await screen.findByRole('link', { name: downloadingJob.releaseTitle }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
+    expect(window.location.pathname).toBe(`/jobs/${downloadingJob.id}`)
+    expect(downloadsApi.list).toHaveBeenCalledExactlyOnceWith({ status: undefined, page: 1, pageSize: 25 })
+    expect(downloadsApi.get).toHaveBeenCalledExactlyOnceWith(downloadingJob.id)
   })
 
   it('opens Search from the header link, asking nothing until a search is made', async () => {

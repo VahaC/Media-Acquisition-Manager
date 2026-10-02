@@ -14,14 +14,16 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 /// <c>QBittorrentAdapter.Destinations.cs</c> and <see cref="QBittorrentCategoryPaths"/>, and the session
 /// the calls share in <c>QBittorrentAdapter.Sessions.cs</c> and <see cref="QBittorrentSessions"/>. MAM-13
 /// adds the submission of a release in <c>QBittorrentAdapter.Submissions.cs</c>, and the lookup of the
-/// torrents that hold its info hashes in <c>QBittorrentAdapter.Jobs.cs</c>; MAM-14 adds following a job and
-/// its files.
+/// torrents that hold its info hashes in <c>QBittorrentAdapter.Jobs.cs</c>. MAM-14 adds what following a job
+/// reads: the torrents of a category, next to the lookup, and a torrent's files in
+/// <c>QBittorrentAdapter.Files.cs</c>.
 /// </summary>
 /// <remarks>
 /// The sign-in and GETs, plus — MAM-13 — one write: <c>torrents/add</c>, sent once on a session a read has
 /// just confirmed and never sent again (house rule 8: a write sent twice may act twice). Nothing else that
-/// changes anything in qBittorrent. Every answer is read as an allowlist, property by property by name
-/// (house rule 8).
+/// changes anything in qBittorrent — MAM-14 included: following a job only reads, and cancelling one sends
+/// nothing, so nothing here stops, pauses or deletes a torrent or its files (ADR 0014). Every answer is read
+/// as an allowlist, property by property by name (house rule 8).
 /// </remarks>
 internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IDownloadClient

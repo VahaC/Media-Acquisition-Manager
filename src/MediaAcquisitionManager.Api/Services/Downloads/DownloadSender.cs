@@ -42,7 +42,7 @@ public sealed class DownloadSender(
     /// How long to wait before looking a second time for a torrent the client took but didn't list. A
     /// qBittorrent before 5.2 answers <c>Ok.</c> without an id and adds the torrent a moment later, once
     /// libtorrent has loaded it; half a second covers that on a LAN, and a torrent still not listed after it
-    /// is recorded as taken, with its info hash for MAM-14 to find it by.
+    /// is recorded as taken, with its info hash, which the poller finds it by (MAM-14).
     /// </summary>
     private static readonly TimeSpan ConfirmationRetryDelay = TimeSpan.FromMilliseconds(500);
 

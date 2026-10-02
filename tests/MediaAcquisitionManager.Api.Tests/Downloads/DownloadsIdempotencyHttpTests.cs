@@ -24,7 +24,8 @@ namespace MediaAcquisitionManager.Api.Tests.Downloads;
 // between the checks and the save is that row's 404, not a 500. Another user's same id is their own
 // request. Decision 3: a release already sent to the client by a job that didn't fail — recognised by its
 // source's id for it or by its info hash, whoever sent it — is 409 with nothing written or sent; a failed
-// job, another client, or another source's listing with the same id doesn't count.
+// job, another client, or another source's listing with the same id doesn't count. MAM-14 — nor does a cancelled
+// job; a paused one does.
 public sealed class DownloadsIdempotencyHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/downloads";
@@ -528,6 +529,7 @@ public sealed class DownloadsIdempotencyHttpTests : IClassFixture<MediaAcquisiti
     [InlineData(DownloadJobStatus.Created)]
     [InlineData(DownloadJobStatus.Submitted)]
     [InlineData(DownloadJobStatus.Downloading)]
+    [InlineData(DownloadJobStatus.Paused)]
     [InlineData(DownloadJobStatus.Downloaded)]
     [InlineData(DownloadJobStatus.NeedsLinking)]
     public async Task Create_of_a_release_whose_earlier_job_did_not_fail_is_409_whatever_its_status(DownloadJobStatus status)
@@ -542,7 +544,8 @@ public sealed class DownloadsIdempotencyHttpTests : IClassFixture<MediaAcquisiti
         var response = await SendAsync(release);
 
         //Assert
-        // Still being sent, or with an outcome nobody knows yet, it may be in the client: sent once is enough.
+        // Still being sent, or with an outcome nobody knows yet, it may be in the client: sent once is enough. So
+        // is a paused one (MAM-14), still in the client and still followed.
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(AlreadySentError, await response.ReadErrorAsync(cancellationToken));
         await AssertOnlyTheEarlierJobAsync(earlier.Id, cancellationToken);
@@ -563,6 +566,29 @@ public sealed class DownloadsIdempotencyHttpTests : IClassFixture<MediaAcquisiti
 
         //Assert
         // A failed job sent nothing new to the client, so it is no reason not to send the release now.
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var job = await ReadJobAsync(response, cancellationToken);
+        Assert.Equal(DownloadJobStatus.Submitted, job.Status);
+        Assert.Equal(SampleInfoHash, job.ClientJobId);
+        Assert.Single(_qbittorrent.AddRequests);
+        await _factory.WithDbAsync(async db => Assert.Equal(2, await db.DownloadJobs.CountAsync(cancellationToken)));
+    }
+
+    [Fact]
+    public async Task Create_of_a_release_whose_earlier_job_was_cancelled_is_201_and_sends_it()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var sent = await _releases.CreateFound(_owner.User, _toloka, sourceItemId: TolokaItemId, infoHash: SampleInfoHash);
+        await SentAsync(sent, _owner.User, status: DownloadJobStatus.Cancelled, infoHashV1: SampleInfoHash);
+        var release = await _releases.CreateFound(_owner.User, _toloka, sourceItemId: TolokaItemId, infoHash: SampleInfoHash);
+
+        //Act
+        var response = await SendAsync(release);
+
+        //Assert
+        // MAM-14 — cancelling is how a person sends a release again (MAM-14's decision 3); the client no longer
+        // has the torrent here, so it takes it.
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var job = await ReadJobAsync(response, cancellationToken);
         Assert.Equal(DownloadJobStatus.Submitted, job.Status);

@@ -1,4 +1,14 @@
-import type { DownloadClientOption, DownloadDestinationOption, DownloadJob, DownloadOptions } from '@/lib/types'
+import type {
+  DownloadClientOption,
+  DownloadDestinationOption,
+  DownloadJob,
+  DownloadJobFile,
+  DownloadJobFileList,
+  DownloadJobFilesQuery,
+  DownloadJobList,
+  DownloadJobsQuery,
+  DownloadOptions,
+} from '@/lib/types'
 import { cartoons, movies } from '@/test/destinations'
 import { localQbittorrent } from '@/test/integrations'
 import { tolokaRemux } from '@/test/search'
@@ -61,10 +71,65 @@ export function jobOf(changes: Partial<DownloadJob>): DownloadJob {
     destinationName: moviesOption.name,
     clientDestinationKey: moviesOption.clientDestinationKey,
     status: 'Submitted',
+    progress: null,
     clientJobId: '8a2f1c0e9b7d6a5f4e3d2c1b0a9f8e7d6c5b4a39',
     error: null,
+    blockReason: null,
     createdUtc: '2026-10-02T09:00:00Z',
     statusChangedUtc: '2026-10-02T09:00:01Z',
     ...changes,
   }
+}
+
+// MAM-14 — the Jobs page: the caller's own jobs as GET /api/downloads lists them, and a job's files
+// as GET /api/downloads/{id}/files does: paths under the torrent's root folder, as qBittorrent names
+// them.
+
+/**
+ * When a job sent `minutes` ago was made, by the clock the test runs on (a faked one included): a
+ * `Created` job is offered Cancel only once it is 5 minutes old, judged against the time the page's
+ * answer came back, so its age can't be pinned to a fixed date.
+ */
+export function sentMinutesAgo(minutes: number): string {
+  return new Date(Date.now() - minutes * 60_000).toISOString()
+}
+
+/** The Toloka release downloading in Local qBittorrent, 45.67% through. */
+export const downloadingJob = jobOf({ status: 'Downloading', progress: 0.4567 })
+
+/** A second job, downloaded: its client, destination and title differ from the first. */
+export const downloadedJob = jobOf({
+  id: 'd0b10000-0000-4000-8000-000000000002',
+  releaseTitle: 'Alien (1979) Director\'s Cut 1080p BDRip',
+  sourceName: 'Toloka',
+  downloadClientName: 'Seedbox qBittorrent',
+  destinationName: 'Films',
+  clientDestinationKey: 'films',
+  status: 'Downloaded',
+  progress: 1,
+  clientJobId: '1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e',
+  createdUtc: '2026-10-01T18:30:00Z',
+  statusChangedUtc: '2026-10-01T19:42:00Z',
+})
+
+/** The page the server answers `query` with, out of `total` jobs. */
+export function jobsPage(query: DownloadJobsQuery, items: DownloadJob[], total = items.length): DownloadJobList {
+  return { items, totalCount: total, page: query.page, pageSize: query.pageSize }
+}
+
+/** One file of a job, wanted and part-way through; `changes` sets what a test is about. */
+export function fileOf(changes: Partial<DownloadJobFile>): DownloadJobFile {
+  return {
+    position: 0,
+    path: 'Interstellar.2014.2160p.UHD.BluRay.Remux/Interstellar.2014.2160p.UHD.BluRay.Remux.mkv',
+    sizeBytes: 85_899_345_920,
+    progress: 0.4567,
+    isWanted: true,
+    ...changes,
+  }
+}
+
+/** The page of files the server answers `query` with, out of `total` files. */
+export function filesPage(query: DownloadJobFilesQuery, items: DownloadJobFile[], total = items.length): DownloadJobFileList {
+  return { items, totalCount: total, page: query.page, pageSize: query.pageSize }
 }

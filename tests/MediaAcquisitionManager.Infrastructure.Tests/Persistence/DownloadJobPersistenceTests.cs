@@ -15,6 +15,9 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 // MAM-13 — the download job's promises, pinned on the migrated schema: one job per request a user sent,
 // whatever two copies of that request do at once (ADR 0013); request ids that are another user's own, and
 // one user's many requests, side by side; and a job that outlives the user who sent it, still naming them.
+// MAM-14 — what following it keeps: its progress and why it isn't moving on, with whose sentence that is by
+// name; the poller's index over the followed jobs only and the Jobs page's per user; and its files, one per place
+// in the client's list, kept exactly and removed with the job.
 public sealed class DownloadJobPersistenceTests : DatabaseTestBase
 {
     private static readonly IEncryptionService Encryption = new AesGcmEncryptionService(
@@ -125,15 +128,166 @@ public sealed class DownloadJobPersistenceTests : DatabaseTestBase
             .ToListAsync(cancellationToken);
 
         //Assert
-        // A user's request (unique, the idempotency key's), and each foreign key's own.
+        // A user's request (unique, the idempotency key's), each foreign key's own, and MAM-14's: the poller's
+        // followed jobs, and a user's jobs newest first for the Jobs page.
         Assert.Equal(
             [
                 "IX_DownloadJobs_DestinationMappingId",
                 "IX_DownloadJobs_DownloadClientConnectionId",
+                "IX_DownloadJobs_Followed",
                 "IX_DownloadJobs_ReleaseId",
+                "IX_DownloadJobs_RequestedByUserId_CreatedUtc",
                 "IX_DownloadJobs_RequestedByUserId_RequestId",
             ],
             indexes.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task The_followed_index_holds_only_the_jobs_still_followed()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+
+        //Act
+        var definition = await db.Database
+            .SqlQueryRaw<string>("SELECT \"sql\" AS \"Value\" FROM \"sqlite_master\" WHERE \"name\" = 'IX_DownloadJobs_Followed'")
+            .SingleAsync(cancellationToken);
+
+        //Assert
+        // Partial: the poller's few followed jobs, never the history, which only grows. The statuses by name, as
+        // the column stores them — exactly DownloadJobFollowing.FollowedStatuses.
+        Assert.Equal(
+            "CREATE INDEX \"IX_DownloadJobs_Followed\" ON \"DownloadJobs\" (\"Status\") WHERE \"Status\" IN ('Created', 'Submitted', 'Downloading', 'Paused')",
+            definition);
+    }
+
+    [Fact]
+    public async Task A_job_keeps_its_progress_and_its_block_reason_with_whose_sentence_it_is_by_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var release = await Releases(db).Create(sourceConnectionId: null);
+        var reason = new string('r', DownloadJobEntity.ErrorMaximumLength);
+
+        //Act
+        var job = await Jobs(db).Create(
+            release.Id,
+            null,
+            "qBittorrent",
+            status: DownloadJobStatus.Paused,
+            progress: 0.4375,
+            blockReason: reason,
+            blockReasonOrigin: DownloadJobErrorOrigin.DownloadClient);
+
+        //Assert
+        // The reason at its column's full length, and its origin by name: a value added later needs no migration.
+        await using var check = CreateContext();
+        var stored = await check.DownloadJobs.AsNoTracking().SingleAsync(x => x.Id == job.Id, cancellationToken);
+        Assert.Equal(
+            (DownloadJobStatus.Paused, (double?)0.4375, reason, (DownloadJobErrorOrigin?)DownloadJobErrorOrigin.DownloadClient),
+            (stored.Status, stored.Progress, stored.BlockReason, stored.BlockReasonOrigin));
+        var raw = await check.Database
+            .SqlQuery<string>($"SELECT \"BlockReasonOrigin\" AS \"Value\" FROM \"DownloadJobs\"")
+            .SingleAsync(cancellationToken);
+        Assert.Equal("DownloadClient", raw);
+    }
+
+    [Fact]
+    public async Task A_jobs_files_keep_their_paths_exactly_and_sizes_past_four_gigabytes()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var release = await Releases(db).Create(sourceConnectionId: null);
+        var job = await Jobs(db).Create(release.Id, null, "qBittorrent");
+        // As qBittorrent names them: the root folder first, double spaces kept; and the longest a path column holds.
+        const string pack = "Taken. Trilogy  (2008-2014) BDRip 1080p/Taken (2008) BDRip 1080p.mkv";
+        var longest = new string('p', PhysicalFileEntity.ServicePathMaximumLength);
+
+        //Act
+        await Jobs(db).AddFiles(
+            job.Id,
+            [
+                new DownloadJobFileEntity { RelativePath = pack, SizeBytes = 5_368_709_120, Progress = 0.5, IsWanted = true },
+                new DownloadJobFileEntity { RelativePath = longest, IsWanted = false },
+                new DownloadJobFileEntity { RelativePath = "extras.nfo" },
+            ]);
+
+        //Assert
+        await using var check = CreateContext();
+        var files = await check.DownloadJobFiles.AsNoTracking().OrderBy(x => x.Position).ToListAsync(cancellationToken);
+        Assert.Equal(
+            [
+                (job.Id, 0, pack, (long?)5_368_709_120, (double?)0.5, (bool?)true),
+                (job.Id, 1, longest, null, null, false),
+                (job.Id, 2, "extras.nfo", null, null, null),
+            ],
+            files.Select(x => (x.DownloadJobId, x.Position, x.RelativePath, x.SizeBytes, x.Progress, x.IsWanted)));
+    }
+
+    [Fact]
+    public async Task A_second_file_in_one_place_of_a_job_is_refused_and_another_job_may_use_it()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var release = await Releases(db).Create(sourceConnectionId: null);
+        var job = await Jobs(db).Create(release.Id, null, "qBittorrent");
+        var other = await Jobs(db).Create(release.Id, null, "qBittorrent");
+        await Jobs(db).AddFiles(job.Id, [new DownloadJobFileEntity { RelativePath = "a.mkv" }]);
+        await Jobs(db).AddFiles(other.Id, [new DownloadJobFileEntity { RelativePath = "a.mkv" }]);
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => Jobs(db).AddFiles(job.Id, [new DownloadJobFileEntity { RelativePath = "b.mkv" }]));
+
+        //Assert
+        // The poller replaces a job's files by position: two rows in one place would be one file listed twice.
+        var sqlite = Assert.IsType<SqliteException>(Assert.IsType<DbUpdateException>(exception).InnerException);
+        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Contains("UNIQUE constraint failed: DownloadJobFiles.DownloadJobId, DownloadJobFiles.Position", sqlite.Message, StringComparison.Ordinal);
+        await using var check = CreateContext();
+        Assert.Equal(2, await check.DownloadJobFiles.CountAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task Deleting_a_job_deletes_its_files_and_no_other_jobs()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var release = await Releases(db).Create(sourceConnectionId: null);
+        var job = await Jobs(db).Create(release.Id, null, "qBittorrent");
+        var kept = await Jobs(db).Create(release.Id, null, "qBittorrent");
+        await Jobs(db).AddFiles(job.Id, [new DownloadJobFileEntity { RelativePath = "a.mkv" }, new DownloadJobFileEntity { RelativePath = "b.mkv" }]);
+        await Jobs(db).AddFiles(kept.Id, [new DownloadJobFileEntity { RelativePath = "c.mkv" }]);
+
+        //Act
+        await db.DownloadJobs.Where(x => x.Id == job.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // Cascade: a file row is part of its job, and says nothing once the job is gone.
+        await using var check = CreateContext();
+        var files = await check.DownloadJobFiles.AsNoTracking().ToListAsync(cancellationToken);
+        Assert.Equal((kept.Id, "c.mkv"), Assert.Single(files.Select(x => (x.DownloadJobId, x.RelativePath))));
+    }
+
+    [Fact]
+    public async Task A_jobs_files_have_their_index()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+
+        //Act
+        var indexes = await db.Database
+            .SqlQuery<string>($"SELECT \"name\" AS \"Value\" FROM pragma_index_list('DownloadJobFiles') WHERE \"origin\" = 'c'")
+            .ToListAsync(cancellationToken);
+
+        //Assert
+        // One: unique per place, and led by the job, so it serves the foreign key and "this job's files in order".
+        Assert.Equal(["IX_DownloadJobFiles_DownloadJobId_Position"], indexes);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────────

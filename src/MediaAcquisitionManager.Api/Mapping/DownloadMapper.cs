@@ -17,10 +17,15 @@ public sealed class DownloadMapper : IDownloadMapper
             job.DestinationName,
             job.ClientDestinationKey,
             job.Status,
+            job.Progress,
             job.ClientJobId,
             ErrorFor(job, sourceName, forOwner),
+            BlockReasonFor(job, forOwner),
             job.CreatedUtc,
             job.StatusChangedUtc);
+
+    public DownloadJobFileDto ToDto(DownloadJobFileEntity file) =>
+        new(file.Position, file.RelativePath, file.SizeBytes, file.Progress, file.IsWanted);
 
     public DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations) =>
         new(
@@ -47,4 +52,16 @@ public sealed class DownloadMapper : IDownloadMapper
                     $"“{job.DownloadClientName}” couldn't take the release, so nothing was sent. Ask the owner to check “{job.DownloadClientName}” under Integrations.",
                 _ => job.Error,
             };
+
+    /// <summary>
+    /// MAM-14 — <see cref="ErrorFor"/>'s rule for why a followed job isn't moving on: a client's own sentence
+    /// (it couldn't be asked: unreachable, refused, an answer the app couldn't read) can name its address, so
+    /// anyone but the owner reads one naming the client without what it said. Every job is its sender's
+    /// (MAM-14's decision 1), so this is a member reading their own job. The app's reasons — the client
+    /// removed, switched off, reporting an error, no longer listing the download — are everyone's.
+    /// </summary>
+    private static string? BlockReasonFor(DownloadJobEntity job, bool forOwner) =>
+        job.BlockReason is null || forOwner || job.BlockReasonOrigin != DownloadJobErrorOrigin.DownloadClient
+            ? job.BlockReason
+            : $"“{job.DownloadClientName}” couldn't be asked about this download. Ask the owner to check “{job.DownloadClientName}” under Integrations.";
 }

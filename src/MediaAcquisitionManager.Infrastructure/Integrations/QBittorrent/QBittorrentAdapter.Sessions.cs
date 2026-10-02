@@ -131,6 +131,12 @@ internal sealed partial class QBittorrentAdapter
     /// each one counts towards qBittorrent's ban of the address — and a refused one not even by a later
     /// call, while the address and credentials stay the same (<see cref="SignInForCallAsync"/>).
     /// </para>
+    /// <para>
+    /// A 404 is qBittorrent's Web API missing at this address (<see cref="NotFoundError"/>) — unless the
+    /// caller passes <paramref name="notFound"/>: MAM-14 — a read of one torrent, sent after
+    /// <c>app/version</c> has just answered at the same address, gets 404 when qBittorrent no longer has that
+    /// torrent, and says so.
+    /// </para>
     /// </remarks>
     private async Task<(HttpResponseMessage? Answer, ConnectionTestResult? Failure)> GetAsync(
         HttpClient client,
@@ -138,7 +144,8 @@ internal sealed partial class QBittorrentAdapter
         CallSession call,
         string relativePath,
         ICollection<string> sessionSecrets,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ConnectionTestResult? notFound = null)
     {
         var response = await SendGetAsync(client, settings, call.Session, relativePath, cancellationToken);
         if (response.StatusCode == HttpStatusCode.Forbidden && call.Session is { } forgotten && !call.SignedIn)
@@ -161,7 +168,7 @@ internal sealed partial class QBittorrentAdapter
             if (response.StatusCode != HttpStatusCode.Forbidden)
             {
                 return (null, response.StatusCode == HttpStatusCode.NotFound
-                    ? ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotFoundError)
+                    ? notFound ?? ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotFoundError)
                     : DescribeUnexpectedStatus(response, settings, sessionSecrets));
             }
 

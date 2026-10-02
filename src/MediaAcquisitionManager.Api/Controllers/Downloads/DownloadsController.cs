@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace MediaAcquisitionManager.Api.Controllers.Downloads;
 
-/// <summary>Sending a release to a download client, behind the search page's Download dialog (MAM-13).</summary>
+/// <summary>Sending a release to a download client, behind the search page's Download dialog (MAM-13); the
+/// jobs it made, their files, and cancelling one, behind the Jobs page (MAM-14).</summary>
 /// <remarks>
 /// <para>
 /// For every signed-in user (MAM-13's decision 1), as the search the release comes from is. Outside
@@ -72,4 +73,50 @@ public class DownloadsController(IDownloadService downloads) : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DownloadJobDto>> Get(Guid id, CancellationToken cancellationToken) =>
         await downloads.GetAsync(id, UserId, cancellationToken) is { } job ? Ok(job) : NotFound();
+
+    /// <summary>MAM-14 — one page of the caller's jobs, newest first, filtered by status by the server: the
+    /// Jobs page. No client is asked.</summary>
+    [HttpGet]
+    public async Task<ActionResult<DownloadJobListResponse>> List([FromQuery] DownloadJobListRequest request, CancellationToken cancellationToken)
+    {
+        var result = await downloads.ListAsync(request.Status, request.Page, request.PageSize, UserId, cancellationToken);
+        return result.Status switch
+        {
+            DownloadJobListStatus.Listed => Ok(result.List),
+            _ => this.BadRequestError(result.Error),
+        };
+    }
+
+    /// <summary>MAM-14 — one page of the files of the caller's job, as its client last listed them; a bare 404
+    /// for another user's job, like a missing one.</summary>
+    [HttpGet("{id:guid}/files")]
+    public async Task<ActionResult<DownloadJobFileListResponse>> Files(
+        Guid id, [FromQuery] DownloadJobFileListRequest request, CancellationToken cancellationToken)
+    {
+        var result = await downloads.ListFilesAsync(id, request.Page, request.PageSize, UserId, cancellationToken);
+        return result.Status switch
+        {
+            DownloadJobFileListStatus.Listed => Ok(result.List),
+            DownloadJobFileListStatus.Invalid => this.BadRequestError(result.Error),
+            _ => NotFound(),
+        };
+    }
+
+    /// <summary>
+    /// MAM-14 — stops following the caller's job: 200 with the job, now <c>Cancelled</c>; 409 when it already
+    /// ended, or is still being sent; a bare 404 for another user's, like a missing one. Nothing is sent to the
+    /// client, which keeps the torrent and its files (ADR 0014). A POST, not a DELETE: the job stays, as
+    /// history.
+    /// </summary>
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<DownloadJobDto>> Cancel(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await downloads.CancelAsync(id, UserId, cancellationToken);
+        return result.Status switch
+        {
+            DownloadCancelStatus.Cancelled => Ok(result.Job),
+            DownloadCancelStatus.NothingToStop or DownloadCancelStatus.StillBeingSent => this.ConflictError(result.Error),
+            _ => NotFound(),
+        };
+    }
 }

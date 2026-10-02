@@ -1,0 +1,127 @@
+/* MAM-14 — the Jobs page and a job's details page: what the shared sheets (settings-list.css for the
+   pages and their tables, library.css for the status lines, search.css for the facts list) don't
+   have — the progress bar, the status block of a row, a release title and a file path that break
+   anywhere, and the files section's heading. Tokens only, so dark mode needs nothing of its own.
+   Imported by each component that uses it. */
+
+/* ── progress ── */
+
+/* The bar and its percentage side by side, at a width that fits a table cell and a phone card's
+   value side alike. No ProgressBar existed before this ticket; a native <progress> carries the
+   value and its accessible name, so only its look is set here. */
+.jobs-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 10rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* The track is a nested fill, so --muted, never --surface (black in dark mode). Each engine draws
+   <progress> with its own pseudo-elements: WebKit/Blink the bar and the value, Gecko the value
+   only (the element itself is its track). */
+.jobs-progress-bar {
+  flex: 1;
+  min-width: 0;
+  height: 0.375rem;
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--muted);
+  color: var(--primary);
+}
+
+.jobs-progress-bar::-webkit-progress-bar {
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+}
+
+.jobs-progress-bar::-webkit-progress-value {
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+}
+
+.jobs-progress-bar::-moz-progress-bar {
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+}
+
+/* Digits of one width, so the bar beside them doesn't twitch as a polled percentage changes. */
+.jobs-progress-value {
+  flex-shrink: 0;
+  min-width: 3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── status ── */
+
+/* The status line with the block reason and the error under it, as one block: a phone card lays a
+   cell's children out in a row, which would put the sentences side by side (the reason of
+   .destinations-check). */
+.jobs-status {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* In a table row the block stops at a readable width and its sentences wrap there, so a long
+   reason doesn't squeeze the other columns (the reason of .destinations-saves-to's cap). */
+.settings-table td.jobs-stacked-cell > .jobs-status {
+  max-width: 24rem;
+}
+
+/* ── the details page ── */
+
+/* A release title is often a scene name without spaces; it breaks rather than widening the page
+   past a phone's screen. */
+.settings-title.jobs-title {
+  overflow-wrap: anywhere;
+}
+
+.jobs-section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* Smaller than the page title, the size of a card title. */
+.jobs-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* A file's path inside the job's folder, exactly as the client names it (double spaces included):
+   monospace, like every path in the app, and broken anywhere, as a path has no spaces to break at.
+   `pre-wrap` keeps the client's spaces as they are instead of folding them into one. */
+.jobs-file-path {
+  min-width: 0;
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The client's own id for the job: a 40- or 64-character hash. */
+.jobs-client-id {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  /* Sentences and paths need the card's whole width: the cell's caption goes above them instead of
+     beside them, and the lines start at the left like any text. */
+  .settings-table td.jobs-stacked-cell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.375rem;
+    text-align: left;
+  }
+
+  .settings-table td.jobs-stacked-cell > .jobs-status {
+    max-width: none;
+  }
+}

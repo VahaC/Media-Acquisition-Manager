@@ -17,7 +17,11 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
         Guid? requestedByUserId = null,
         string? infoHashV1 = null,
         Guid? requestId = null,
-        string? infoHashV2 = null)
+        string? infoHashV2 = null,
+        string? clientJobId = null,
+        double? progress = null,
+        string? blockReason = null,
+        DownloadJobErrorOrigin? blockReasonOrigin = null)
     {
         // Read from the mapping itself, so the copied values are the ones a test can later see
         // outliving it.
@@ -38,6 +42,10 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
             RequestedByUserName = requestedBy?.UserName,
             InfoHashV1 = infoHashV1,
             InfoHashV2 = infoHashV2,
+            ClientJobId = clientJobId,
+            Progress = progress,
+            BlockReason = blockReason,
+            BlockReasonOrigin = blockReasonOrigin,
             ReleaseId = releaseId,
             DownloadClientConnectionId = downloadClientConnectionId,
             DownloadClientName = downloadClientName,
@@ -53,5 +61,19 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return job;
+    }
+
+    public async Task<IReadOnlyList<DownloadJobFileEntity>> AddFiles(Guid downloadJobId, IReadOnlyList<DownloadJobFileEntity> files)
+    {
+        for (var position = 0; position < files.Count; position++)
+        {
+            files[position].DownloadJobId = downloadJobId;
+            files[position].Position = position;
+        }
+
+        db.DownloadJobFiles.AddRange(files);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        return files;
     }
 }

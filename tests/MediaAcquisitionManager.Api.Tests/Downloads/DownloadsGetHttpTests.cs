@@ -102,8 +102,10 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
                 "Movies",
                 "Movies",
                 DownloadJobStatus.Submitted,
+                Progress: null,
                 SampleTorrentHash,
                 Error: null,
+                BlockReason: null,
                 now,
                 now),
             body,
@@ -143,11 +145,14 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
         Assert.Equal(
             [
                 "id", "releaseId", "releaseTitle", "sourceName", "downloadClientName", "destinationName", "clientDestinationKey", "status",
-                "clientJobId", "error", "createdUtc", "statusChangedUtc",
+                "progress", "clientJobId", "error", "blockReason", "createdUtc", "statusChangedUtc",
             ],
             root.EnumerateObject().Select(property => property.Name));
         Assert.Equal("Submitted", root.GetProperty("status").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("error").ValueKind);
+        // MAM-14 — not read from the client yet, and nothing blocks it.
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("progress").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("blockReason").ValueKind);
         Assert.EndsWith("Z", root.GetProperty("createdUtc").GetString(), StringComparison.Ordinal);
         Assert.EndsWith("Z", root.GetProperty("statusChangedUtc").GetString(), StringComparison.Ordinal);
         Assert.DoesNotContain(ReleaseSeeder.PlantedLinkToken, text, StringComparison.Ordinal);

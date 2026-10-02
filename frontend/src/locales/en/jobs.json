@@ -1,0 +1,75 @@
+{
+  "title": "Jobs",
+  "lead": "The releases you sent to a download client, followed there until they finish. Only your own jobs are listed.",
+  "statusFilter": {
+    "label": "Status",
+    "all": "All statuses"
+  },
+  "status": {
+    "Created": "Sending",
+    "Submitted": "Submitted",
+    "Downloading": "Downloading",
+    "Paused": "Paused",
+    "Downloaded": "Downloaded",
+    "Failed": "Failed",
+    "NeedsLinking": "Needs linking",
+    "Cancelled": "Cancelled"
+  },
+  "columns": {
+    "release": "Release",
+    "status": "Status",
+    "progress": "Progress",
+    "sentTo": "Sent to",
+    "sent": "Sent",
+    "actions": "Actions"
+  },
+  "noDestination": "No destination",
+  "progress": {
+    "label": "Download progress",
+    "unknown": "Not known yet"
+  },
+  "cancel": {
+    "action": "Cancel job",
+    "title": "Cancel the job for {{title}}?",
+    "message": "The app stops following this download and never asks {{client}} about it again. The torrent and its files stay in {{client}}: nothing is paused, stopped or removed there. This can't be undone; to follow the release again, send it again from Search.",
+    "confirm": "Cancel job",
+    "keep": "Keep following"
+  },
+  "actionFailed": "Could not cancel this job. Reload the page and try again.",
+  "loadFailed": "Could not load your download jobs.",
+  "refreshFailed": "Refresh failed, showing the last loaded jobs.",
+  "empty": "No download jobs yet. Send a release from <search>Search</search>, and it is followed here until it finishes.",
+  "noMatch": "None of your download jobs has this status.",
+  "clearFilters": "Clear filters",
+  "details": {
+    "back": "Jobs",
+    "notFound": "There is no download job of yours at this address. It may belong to someone else, or the link is wrong.",
+    "loadFailed": "Could not load this download job.",
+    "refreshFailed": "Refresh failed, showing what was last loaded.",
+    "factsTitle": "Details",
+    "source": "Source",
+    "client": "Download client",
+    "destination": "Destination",
+    "destinationValue": "{{name}} — category “{{category}}”",
+    "status": "Status",
+    "progress": "Progress",
+    "sent": "Sent",
+    "statusChanged": "Status changed",
+    "clientJobId": "Client's id",
+    "clientJobIdUnknown": "Not listed by the client yet"
+  },
+  "files": {
+    "title": "Files",
+    "columns": {
+      "path": "File",
+      "size": "Size",
+      "progress": "Progress"
+    },
+    "sizeUnknown": "Size unknown",
+    "skipped": "Skipped",
+    "skippedTitle": "Skipped in the download client: it isn't downloaded.",
+    "loadFailed": "Could not load this job's files.",
+    "refreshFailed": "Refresh failed, showing the last loaded files.",
+    "empty": "The download client hasn't listed this download's files yet. A magnet link lists them once its metadata has arrived."
+  }
+}

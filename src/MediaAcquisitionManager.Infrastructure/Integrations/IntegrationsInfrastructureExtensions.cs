@@ -25,7 +25,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// page of 50 is well under 1 MB (and <c>JellyfinAdapter.MaximumPageSize</c>'s 200 under 3 MB).
     /// MAM-10 — a release search asks for at most 100 releases (<c>ReleaseSearchPlanning.MaximumResults</c>),
     /// about 150 KB of RSS (the sample's 17 are 25 KB), and the .torrent of a movie, which the payload
-    /// fetch buffers whole, is well under 1 MiB: 4 MiB holds either with room to spare.
+    /// fetch buffers whole, is well under 1 MiB: 4 MiB holds either with room to spare. MAM-14 — a torrent's
+    /// files take about 300 bytes each as qBittorrent lists them (the sample pack's three are under 1 KB), so a
+    /// season pack of hundreds is a few dozen KB, and only a torrent of over 12,000 files would not fit.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 
@@ -44,6 +46,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// and then one <c>torrents/add</c>, and a job lookup the version read and one <c>torrents/info</c>; a
     /// submission whose answer doesn't come in time is reported as timed out and never sent again, because
     /// qBittorrent may have added the release all the same — the caller looks for its info hash instead.
+    /// MAM-14 — following a job is the same version read and one <c>torrents/info</c> (by hashes, or by
+    /// category for a job they no longer find), plus one <c>torrents/files</c> of a torrent, each answered
+    /// from qBittorrent's memory.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 

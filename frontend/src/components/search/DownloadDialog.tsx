@@ -22,8 +22,11 @@ type Outcome = Exclude<DownloadJobStatus, 'Failed'> | 'SubmittedUnlisted'
 /**
  * The outcomes the person should look at again: the release is on its way or reached the client, but
  * not yet as a download the app can follow.
+ *
+ * MAM-14 — also a paused or cancelled job: a repeated Send under the same request id answers the job
+ * it already made, which the app may have seen paused in the client, or the person cancelled, since.
  */
-const WARNING_OUTCOMES: ReadonlySet<Outcome> = new Set<Outcome>(['Created', 'NeedsLinking'])
+const WARNING_OUTCOMES: ReadonlySet<Outcome> = new Set<Outcome>(['Created', 'NeedsLinking', 'Paused', 'Cancelled'])
 
 interface DownloadDialogProps {
   release: SearchRelease

@@ -117,3 +117,37 @@ still one download.
 The request id makes a retry safe; it is not a lock on the release. A deliberate new attempt after a
 failure is a new request and may send. And confirming by reading licenses reading again, never sending
 again.
+
+## Implementation (added 0.1.0, MAM-14)
+
+**The gaps left to MAM-14 are closed by the following of jobs**
+([ADR 0014](0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
+A `Created` job is taken for an interrupted send once it is 5 minutes old, far longer than any send,
+so the following never races a sending still under way; the sending's own writes are conditional on
+`Created` too, so whichever writes first wins. With no hash stored it fails with "The app stopped
+while sending this download, before it could tell whether “qBittorrent” took it, so it isn't
+followed. Check “qBittorrent” before sending the release again."; found once in the client it is
+followed from then on; found twice it needs linking; not found it fails with "The app stopped while
+sending this download, and “qBittorrent” doesn't list it, so it isn't followed. Send the release
+again if you still want it."; and while the client can't be asked it stays `Created` with the reason.
+A `Submitted` job without the client's id gets it once the client lists the torrent, and a reason
+after a minute unlisted. The hybrid torrent renamed after its magnet is looked for among its
+destination's jobs (`torrents/info?category=`) by the v1 hash qBittorrent lists for it as
+`infohash_v1`, and the job then keeps qBittorrent's current id and the v2 hash. A job that already
+ended `Failed` though qBittorrent had it stays so: an ended job is never read again.
+
+**A cancelled job no longer counts as sent (MAM-13's decision 3).** Cancelling is how a person sends a
+release again whose job is stuck or dismissed; while the torrent is still in the client, the check of
+decision 4 still refuses a second copy. A paused job counts as sent.
+
+**Still open:** a send interrupted between recording its hashes and asking the client whether it
+already has the torrent is adopted when the client has it (ADR 0014's gap); `NeedsLinking` still has
+no screen, and Cancel is the only way to dismiss one.
+
+`DownloadJobRecoveryHttpTests.Poll_of_an_interrupted_send_qBittorrent_took_follows_it_from_then_on`,
+`DownloadJobRecoveryHttpTests.Poll_of_an_interrupted_send_qBittorrent_does_not_list_fails_with_why`,
+`DownloadJobRecoveryHttpTests.Poll_leaves_a_created_job_younger_than_five_minutes_to_its_send`,
+`DownloadJobRecoveryHttpTests.Poll_finds_and_keeps_the_id_of_a_job_qBittorrent_took_without_one`,
+`DownloadJobRecoveryHttpTests.Poll_finds_a_hybrid_torrent_qBittorrent_renamed_after_its_magnet_through_its_destination`
+and `DownloadsCancelHttpTests.Cancel_lets_the_release_be_sent_again_once_qBittorrent_no_longer_has_it`
+pin it.

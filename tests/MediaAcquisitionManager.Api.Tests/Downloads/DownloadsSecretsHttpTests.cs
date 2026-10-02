@@ -23,8 +23,11 @@ namespace MediaAcquisitionManager.Api.Tests.Downloads;
 // sends that succeed and the failures that echo them (a feed error quoting the link, a qBittorrent answer
 // quoting its session and password, a redirect to the tracker's address, a 500 whose body repeats them)
 // are driven by the owner and a member; and none of them, nor a stored ciphertext, comes back in an answer,
-// reaches the log, or is stored on a job or an audit row (ADR 0004, ADR 0007). The discovery guard keeps
-// the sweep whole: a download endpoint added later shows up there and needs a sweep of its own.
+// reaches the log, or is stored on a job or an audit row (ADR 0004, ADR 0007). MAM-14 — nor once the jobs are
+// followed: a pass of the poller as qBittorrent answers, and one whose lookup is answered with a redirect quoting
+// the session and the password, leave no secret in a job's reason, in the Jobs page's list or a job's files, in a
+// cancel's answer or in the log. The discovery guard keeps the sweep whole: a download endpoint added later shows
+// up there and needs a sweep of its own.
 public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/downloads";
@@ -96,7 +99,16 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
         //Assert
         // Guards the sweep: these are the endpoints read below. One added later shows up here and needs
         // reading there too.
-        Assert.Equal(["GET api/downloads/options", "GET api/downloads/{id:guid}", "POST api/downloads"], endpoints);
+        Assert.Equal(
+            [
+                "GET api/downloads",
+                "GET api/downloads/options",
+                "GET api/downloads/{id:guid}",
+                "GET api/downloads/{id:guid}/files",
+                "POST api/downloads",
+                "POST api/downloads/{id:guid}/cancel",
+            ],
+            endpoints);
     }
 
     [Fact]
@@ -152,13 +164,33 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
         sent.Add((_owner, echoedMagnet, await SendAsync(_owner, echoedMagnet)));
         _qbittorrent.Intercept = null;
 
-        // Every read of a download: the dialog's choices for each release, and each job, by whoever sent it.
+        // MAM-14 — the jobs followed: a pass as qBittorrent answers, then one whose lookup is answered with a
+        // redirect quoting the session it was sent with and the password, which every followed job shows as why it
+        // isn't moving on.
+        await _factory.PollDownloadJobsAsync(cancellationToken);
+        _qbittorrent.Intercept = request => request.RequestUri!.AbsolutePath == "/api/v2/torrents/info"
+            ? VendorResponses.Redirect($"{_qbittorrent.BaseUrl}/{SessionOf(request)}/{QBittorrentPassword}/login")
+            : null;
+        await _factory.PollDownloadJobsAsync(cancellationToken);
+        _qbittorrent.Intercept = null;
+
+        // Every read of a download: the dialog's choices for each release, and each job and its files, by whoever
+        // sent it; the Jobs page's list of each; and a cancel's answer.
         var reads = new List<HttpResponseMessage>();
         foreach (var (user, release, response) in sent)
         {
             reads.Add(await _factory.GetHttpRequest($"{BaseUrl}/options?releaseId={release.Id}", user.AccessToken));
             reads.Add(await _factory.GetHttpRequest(response.Headers.Location!.AbsolutePath, user.AccessToken));
+            reads.Add(await _factory.GetHttpRequest($"{response.Headers.Location!.AbsolutePath}/files", user.AccessToken));
         }
+
+        var ownerList = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+        var memberList = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+        reads.Add(ownerList);
+        reads.Add(memberList);
+        var ownerJobs = (await ownerList.Content.ReadFromJsonAsync<DownloadJobListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        var memberJobs = (await memberList.Content.ReadFromJsonAsync<DownloadJobListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        reads.Add(await _factory.PostHttpRequest($"{sent[1].Response.Headers.Location!.AbsolutePath}/cancel", _member.AccessToken));
 
         //Assert
         // The sweep reads what it planted: each path ran as meant, with the planted values on the wire.
@@ -190,6 +222,15 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
             ],
             memberRowErrors);
         Assert.All(reads, read => Assert.Equal(HttpStatusCode.OK, read.StatusCode));
+        // The redirect reached the followed jobs, the two taken: the owner reads qBittorrent's sentence, masked;
+        // the member the app's, naming the client without what it said.
+        Assert.Equal(
+            "The address answered with a redirect to http://qbittorrent.test:8080/***/***/login. Enter the address the service is really at: the app doesn't follow redirects, so your credentials never go anywhere else.",
+            ownerJobs.Items.Single(job => job.Id == jobs[0].Id).BlockReason);
+        Assert.Equal(
+            "“qBittorrent” couldn't be asked about this download. Ask the owner to check “qBittorrent” under Integrations.",
+            memberJobs.Items.Single(job => job.Id == jobs[1].Id).BlockReason);
+        Assert.Contains(_factory.QBittorrentHttp.Requests, request => request.Uri.AbsolutePath == "/api/v2/torrents/info" && request.Uri.Query.StartsWith("?hashes=", StringComparison.Ordinal));
         Assert.Contains(_factory.TorznabHttp.Requests, request => request.Uri.Query == $"?apikey={ApiKey}&link={LinkToken}");
         Assert.Contains(_factory.QBittorrentHttp.Requests, request => request.Body?.Contains($"password={QBittorrentPassword}", StringComparison.Ordinal) == true);
         Assert.Contains(_qbittorrent.AddRequests, add => add.Urls?.Contains(MagnetPasskey, StringComparison.Ordinal) == true);
@@ -237,11 +278,13 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
                     row.ClientDestinationKey,
                     row.RequestedByUserName,
                     row.InfoHashV1,
-                    row.InfoHashV2);
+                    row.InfoHashV2,
+                    row.BlockReason);
                 Assert.All(planted, secret => Assert.DoesNotContain(secret, clear, StringComparison.Ordinal));
             });
             var audits = await db.AuditEvents.AsNoTracking().ToListAsync(cancellationToken);
             Assert.Equal(sent.Count, audits.Count(audit => audit.Action == AuditAction.DownloadRequested));
+            Assert.Single(audits, audit => audit.Action == AuditAction.DownloadCancelled);
             Assert.All(audits, audit =>
             {
                 var clear = string.Join('\n', audit.ActorUserName, audit.TargetName);

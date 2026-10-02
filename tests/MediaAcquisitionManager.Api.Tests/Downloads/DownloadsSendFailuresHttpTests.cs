@@ -515,7 +515,7 @@ public sealed class DownloadsSendFailuresHttpTests : IClassFixture<MediaAcquisit
         var response = await SendAsync(release);
 
         //Assert
-        // Taken without an id, with its info hash for MAM-14 to find it by.
+        // Taken without an id, with its info hash for the poller to find it by (MAM-14).
         await AssertJobAsync(response, DownloadJobStatus.Submitted, null, null, SampleHashes(), cancellationToken);
         Assert.Single(_qbittorrent.AddRequests);
         Assert.Equal(SampleInfoHash, Assert.Single(_qbittorrent.Torrents).Hash);

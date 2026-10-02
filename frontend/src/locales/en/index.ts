@@ -6,6 +6,7 @@ import downloads from './downloads.json'
 import errors from './errors.json'
 import home from './home.json'
 import integrations from './integrations.json'
+import jobs from './jobs.json'
 import library from './library.json'
 import mediaFolders from './mediaFolders.json'
 import notFound from './notFound.json'
@@ -17,4 +18,4 @@ import users from './users.json'
  * from, and the fallback for a key another language hasn't translated yet. Another language is a
  * sibling folder with the same files and this same object shape.
  */
-export const en = { auth, common, confirm, destinations, downloads, errors, home, integrations, library, mediaFolders, notFound, search, users }
+export const en = { auth, common, confirm, destinations, downloads, errors, home, integrations, jobs, library, mediaFolders, notFound, search, users }

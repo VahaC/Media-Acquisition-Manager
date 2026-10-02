@@ -4,7 +4,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 
 /// <summary>
 /// One torrent a <see cref="FakeQBittorrentServer"/> has (MAM-13): what <c>torrents/info</c> lists for it, in
-/// qBittorrent's own terms.
+/// qBittorrent's own terms — and, MAM-14, what <c>torrents/files</c> lists (<see cref="Files"/>).
 /// </summary>
 /// <param name="Hash">Its TorrentID, lower-case (<see cref="IdOf"/>).</param>
 /// <param name="InfoHashV1">The v1 info hash; <c>""</c> when it has none, as qBittorrent lists it.</param>
@@ -28,6 +28,12 @@ public sealed record FakeQBittorrentTorrent(
     string ContentPath,
     bool AutoTmm)
 {
+    /// <summary>
+    /// MAM-14 — its files, in qBittorrent's order; none unless a test gives some (<c>with { Files = … }</c>),
+    /// as for a magnet still fetching its metadata.
+    /// </summary>
+    public IReadOnlyList<FakeQBittorrentFile> Files { get; init; } = [];
+
     /// <summary>
     /// A torrent named by <paramref name="hashes"/>, which must name at least one, and saved to
     /// <paramref name="savePath"/> — finished and seeding unless a test says otherwise.

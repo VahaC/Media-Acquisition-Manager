@@ -17,7 +17,10 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// reads the adapter makes — <c>auth/login</c>, <c>app/version</c>, <c>torrents/categories</c> and
 /// <c>app/defaultSavePath</c> — as qBittorrent 5.2.3 does in <c>VendorSamples/QBittorrent</c>, unless a test
 /// changes them. MAM-13 adds the submission and the job lookup: <c>POST torrents/add</c> and
-/// <c>GET torrents/info</c>, over the torrents the server has (<see cref="Torrents"/>).
+/// <c>GET torrents/info</c>, over the torrents the server has (<see cref="Torrents"/>). MAM-14 adds what
+/// following a job reads — <c>GET torrents/files</c> and <c>torrents/info?category=</c> — and the ways a
+/// torrent changes in qBittorrent while it is followed: <see cref="UpdateTorrent"/>,
+/// <see cref="RemoveTorrent"/> and <see cref="RenameAsHybrid"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -31,6 +34,18 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// exactly as qBittorrent does it: silently. <c>torrents/info</c> lists the torrents, filtered by
 /// <c>hashes</c> (TorrentIDs joined by <c>|</c>) when given; <see cref="AddedTorrentsUnlistedForLookups"/>
 /// leaves a just-added torrent out of the first lookups, as qBittorrent's asynchronous add does.
+/// </para>
+/// <para>
+/// MAM-14 — <c>torrents/info</c> also takes <c>category</c>, compared exactly (<c>""</c> lists the torrents
+/// without one), together with <c>hashes</c> when both are given. A query value is decoded as qBittorrent's
+/// <c>RequestParser::parseRequestLine</c> decodes it — percent-decoded first, and only then <c>+</c> read as a
+/// space — so <c>%2B</c> arrives as a space too, and no query carries a <c>+</c>; a form body is decoded the
+/// usual way round, as qBittorrent decodes one. <c>torrents/files</c> answers as
+/// qBittorrent's <c>filesAction</c> does: <c>400</c> without <c>hash</c>, <c>404 Not Found</c> for a torrent
+/// it doesn't have (or hasn't listed yet), <c>[]</c> for one without files, and otherwise each file of
+/// <see cref="FakeQBittorrentTorrent.Files"/>. Nothing here removes, stops or pauses a torrent over HTTP: a
+/// request for any of those answers 405 like every other method or path qBittorrent wouldn't take, and is
+/// recorded, so a test sees it was sent.
 /// </para>
 /// <para>
 /// Sessions as qBittorrent keeps them: a good sign-in answers 204 with a new <c>QBT_SID_8080</c> cookie, and
@@ -49,7 +64,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// Thread safe: a destination list asks every client on the page at once, and two submissions of one
 /// release may race (MAM-13: only one of them is added). Each answer is built fresh from the properties,
 /// which a test sets before the calls; an <see cref="Intercept"/> it sets must be safe to call concurrently
-/// itself.
+/// itself. MAM-14 — the torrents change under one lock whoever changes them, a test or a request, so a
+/// test may change one while the poller reads.
 /// </para>
 /// </remarks>
 public sealed class FakeQBittorrentServer
@@ -193,6 +209,68 @@ public sealed class FakeQBittorrentServer
         return torrent;
     }
 
+    /// <summary>
+    /// MAM-14 — replaces the torrent qBittorrent calls <paramref name="id"/> (any letter case) with what
+    /// <paramref name="update"/> makes of it, as a download moving on in qBittorrent does — its state, its
+    /// progress, its files — and returns it. Throws when the server has no such torrent.
+    /// </summary>
+    /// <remarks>A new <see cref="FakeQBittorrentTorrent.Hash"/> renames it: lookups find it by that id from
+    /// then on.</remarks>
+    public FakeQBittorrentTorrent UpdateTorrent(string id, Func<FakeQBittorrentTorrent, FakeQBittorrentTorrent> update)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        ArgumentNullException.ThrowIfNull(update);
+        lock (_torrentsLock)
+        {
+            var index = _torrents.FindIndex(torrent => string.Equals(torrent.Hash, id, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+                throw new InvalidOperationException($"The server has no torrent {id}.");
+
+            var current = _torrents[index];
+            var updated = update(current) ?? throw new InvalidOperationException("An update must give the torrent back.");
+            _torrents[index] = updated;
+            if (!string.Equals(current.Hash, updated.Hash, StringComparison.Ordinal) && _unlistedLookups.Remove(current.Hash, out var unlisted))
+                _unlistedLookups[updated.Hash] = unlisted;
+            return updated;
+        }
+    }
+
+    /// <summary>
+    /// MAM-14 — takes away the torrent qBittorrent calls <paramref name="id"/> (any letter case), as someone
+    /// removing it in qBittorrent itself does: lookups no longer list it, and its files answer 404. Whether
+    /// the server had it.
+    /// </summary>
+    public bool RemoveTorrent(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        lock (_torrentsLock)
+        {
+            var index = _torrents.FindIndex(torrent => string.Equals(torrent.Hash, id, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+                return false;
+
+            _unlistedLookups.Remove(_torrents[index].Hash);
+            _torrents.RemoveAt(index);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// MAM-14 — what qBittorrent built on libtorrent 2 does to a hybrid torrent added by a magnet naming only
+    /// its v1 hash, once the metadata arrives (ADR 0013): it learns the v2 hash <paramref name="infoHashV2"/>,
+    /// lists it as <c>infohash_v2</c>, and renames the torrent to it cut to 40 characters, so a lookup by the v1
+    /// hash alone no longer finds it. Returns the renamed torrent.
+    /// </summary>
+    public FakeQBittorrentTorrent RenameAsHybrid(string id, string infoHashV2)
+    {
+        ArgumentNullException.ThrowIfNull(infoHashV2);
+        if (infoHashV2.Length != 64 || !infoHashV2.All(char.IsAsciiHexDigit))
+            throw new ArgumentException("A v2 info hash is 64 hexadecimal characters.", nameof(infoHashV2));
+
+        var v2 = infoHashV2.ToLowerInvariant();
+        return UpdateTorrent(id, torrent => torrent with { Hash = v2[..40], InfoHashV2 = v2 });
+    }
+
     /// <summary>Forgets every session handed out so far, as qBittorrent does when they expire or it
     /// restarts: the next request with one of them answers the recorded 403.</summary>
     public void ExpireSessions() => _sessions.Clear();
@@ -238,6 +316,7 @@ public sealed class FakeQBittorrentServer
             "api/v2/app/defaultSavePath" => Text(DefaultSavePath, "text/plain"),
             "api/v2/torrents/categories" => Text(CategoriesJson(), "application/json"),
             "api/v2/torrents/info" => TorrentsInfo(request.RequestUri!),
+            "api/v2/torrents/files" => TorrentFiles(request.RequestUri!),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
     }
@@ -388,11 +467,13 @@ public sealed class FakeQBittorrentServer
     /// <summary>
     /// MAM-13 — <c>torrents/info</c>: every torrent, or those whose id is one of <c>hashes</c> (TorrentIDs
     /// joined by <c>|</c>, any letter case — a 64-character v2 hash names none), leaving out the ones still
-    /// unlisted after their add (<see cref="AddedTorrentsUnlistedForLookups"/>).
+    /// unlisted after their add (<see cref="AddedTorrentsUnlistedForLookups"/>). MAM-14 — and only those in
+    /// <c>category</c> when it is given, compared exactly.
     /// </summary>
     private HttpResponseMessage TorrentsInfo(Uri uri)
     {
         var ids = QueryValue(uri, "hashes")?.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        var category = QueryValue(uri, "category");
         var listed = new JsonArray();
         lock (_torrentsLock)
         {
@@ -404,12 +485,40 @@ public sealed class FakeQBittorrentServer
                     continue;
                 }
 
-                if (ids is null || ids.Contains(torrent.Hash, StringComparer.OrdinalIgnoreCase))
+                if ((ids is null || ids.Contains(torrent.Hash, StringComparer.OrdinalIgnoreCase))
+                    && (category is null || string.Equals(torrent.Category, category, StringComparison.Ordinal)))
                     listed.Add(Describe(torrent));
             }
         }
 
         return Text(listed.ToJsonString(Json), "application/json");
+    }
+
+    /// <summary>
+    /// MAM-14 — <c>torrents/files</c>: the files of the torrent whose id is <c>hash</c> (any letter case), as
+    /// qBittorrent's <c>filesAction</c> answers — 400 without <c>hash</c>, 404 for a torrent it doesn't have or
+    /// hasn't listed yet after its add, <c>[]</c> for one without files.
+    /// </summary>
+    private HttpResponseMessage TorrentFiles(Uri uri)
+    {
+        if (QueryValue(uri, "hash") is not { } id)
+            return Text("Bad Request", "text/plain", HttpStatusCode.BadRequest);
+
+        FakeQBittorrentTorrent? torrent;
+        lock (_torrentsLock)
+        {
+            torrent = _torrents.Find(candidate => string.Equals(candidate.Hash, id, StringComparison.OrdinalIgnoreCase));
+            if (torrent is not null && _unlistedLookups.TryGetValue(torrent.Hash, out var unlisted) && unlisted > 0)
+                torrent = null;
+        }
+
+        if (torrent is null)
+            return Text("Not Found", "text/plain", HttpStatusCode.NotFound);
+
+        var files = new JsonArray();
+        for (var index = 0; index < torrent.Files.Count; index++)
+            files.Add(Describe(torrent, index));
+        return Text(files.ToJsonString(Json), "application/json");
     }
 
     /// <summary>A category as 5.2 lists it: its name, the save path as stored, and the defaults of everything
@@ -439,6 +548,27 @@ public sealed class FakeQBittorrentServer
         ["save_path"] = torrent.SavePath,
         ["state"] = torrent.State,
     };
+
+    /// <summary>
+    /// MAM-14 — a torrent's file as 5.2's <c>torrents/files</c> lists it, these properties only: <c>is_seed</c>
+    /// on the first file alone (the sample's shape), whether the torrent has finished.
+    /// </summary>
+    private static JsonObject Describe(FakeQBittorrentTorrent torrent, int index)
+    {
+        var file = torrent.Files[index];
+        var described = new JsonObject
+        {
+            ["availability"] = -1,
+            ["index"] = index,
+            ["name"] = file.Name,
+            ["priority"] = file.Priority,
+            ["progress"] = file.Progress,
+            ["size"] = file.Size,
+        };
+        if (index == 0)
+            described["is_seed"] = torrent.Progress >= 1;
+        return described;
+    }
 
     /// <summary>Whether <see cref="Version"/> answers <c>torrents/add</c> the way 5.2 does.</summary>
     private bool AnswersAsOf52()
@@ -492,12 +622,14 @@ public sealed class FakeQBittorrentServer
 
     private static string? Unquote(string? value) => value is null ? null : value.Trim('"');
 
-    /// <summary>A magnet link's <c>dn</c>, the name it gives the torrent, or <c>null</c>.</summary>
-    private static string? MagnetName(string magnet) => QueryValue(magnet, "dn");
+    /// <summary>A magnet link's <c>dn</c>, the name it gives the torrent, or <c>null</c>: libtorrent reads a
+    /// magnet, decoding it the usual way round.</summary>
+    private static string? MagnetName(string magnet) => QueryValue(magnet, "dn", Decode);
 
-    private static string? QueryValue(Uri uri, string name) => QueryValue(uri.Query, name);
+    /// <summary>MAM-14 — the request's query value <paramref name="name"/> as qBittorrent reads it.</summary>
+    private static string? QueryValue(Uri uri, string name) => QueryValue(uri.Query, name, DecodeAsQBittorrentQuery);
 
-    private static string? QueryValue(string text, string name)
+    private static string? QueryValue(string text, string name, Func<string, string> decode)
     {
         var query = text.IndexOf('?', StringComparison.Ordinal);
         if (query < 0)
@@ -507,7 +639,7 @@ public sealed class FakeQBittorrentServer
             .Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Select(pair => pair.Split('=', 2))
             .Where(pair => string.Equals(pair[0], name, StringComparison.Ordinal))
-            .Select(pair => pair.Length > 1 ? Decode(pair[1]) : "")
+            .Select(pair => pair.Length > 1 ? decode(pair[1]) : "")
             .FirstOrDefault();
     }
 
@@ -522,6 +654,10 @@ public sealed class FakeQBittorrentServer
                 StringComparer.Ordinal);
 
     private static string Decode(string value) => Uri.UnescapeDataString(value.Replace('+', ' '));
+
+    // MAM-14 — qBittorrent's RequestParser::parseRequestLine, 4.4.1 to today:
+    // QByteArray::fromPercentEncoding(value).replace('+', ' ') — the wrong way round for a '+' sent as %2B.
+    private static string DecodeAsQBittorrentQuery(string value) => Uri.UnescapeDataString(value).Replace('+', ' ');
 
     private static HttpResponseMessage Text(string body, string mediaType, HttpStatusCode status = HttpStatusCode.OK) =>
         new(status) { Content = new StringContent(body, Encoding.UTF8, mediaType) };

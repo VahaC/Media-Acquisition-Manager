@@ -2,7 +2,8 @@ using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Contracts;
 
-/// <summary>A release sent to a download client, and how it went (MAM-13).</summary>
+/// <summary>A release sent to a download client, and how it went (MAM-13) — as its client reports it while
+/// it is followed (MAM-14).</summary>
 /// <remarks>
 /// MAM-13 — the client's and the destination's names as they were when the job was made, so a job reads
 /// the same after either is removed. Nothing that locates the payload: the release's download link stays
@@ -18,10 +19,16 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="ClientDestinationKey">The category that was sent.</param>
 /// <param name="Status">Where the job stands: <c>Created</c> while it is being sent (or when how that went
 /// isn't known), <c>Submitted</c> once the client took it, <c>NeedsLinking</c> when the client took it but
-/// which of its downloads it became has to be picked by hand, <c>Failed</c> with <paramref name="Error"/>.</param>
+/// which of its downloads it became has to be picked by hand, <c>Failed</c> with <paramref name="Error"/>.
+/// MAM-14 — <c>Downloading</c>, <c>Paused</c> and <c>Downloaded</c> as the client reports it, and
+/// <c>Cancelled</c> once its sender stopped following it.</param>
+/// <param name="Progress">MAM-14 — how far the client has downloaded it, from 0 to 1; <c>null</c> until the
+/// client has said.</param>
 /// <param name="ClientJobId">The client's id of the download (an info hash for qBittorrent); <c>null</c>
 /// while the client hasn't listed it.</param>
 /// <param name="Error">Why it failed, every secret masked; <c>null</c> unless it failed.</param>
+/// <param name="BlockReason">MAM-14 — why a followed job isn't moving on, every secret masked, with
+/// <paramref name="Error"/>'s rule for a client's own sentence; <c>null</c> when nothing blocks it.</param>
 /// <param name="CreatedUtc">When it was sent.</param>
 /// <param name="StatusChangedUtc">When <paramref name="Status"/> last changed.</param>
 public sealed record DownloadJobDto(
@@ -33,7 +40,9 @@ public sealed record DownloadJobDto(
     string? DestinationName,
     string? ClientDestinationKey,
     DownloadJobStatus Status,
+    double? Progress,
     string? ClientJobId,
     string? Error,
+    string? BlockReason,
     DateTime CreatedUtc,
     DateTime StatusChangedUtc);

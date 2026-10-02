@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Services.Downloads;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
 
@@ -30,6 +31,12 @@ public static class HostedServiceCollectionExtensions
         services.AddHostedService(provider => provider.GetRequiredService<FileInspectionReconciler>());
         services.AddSingleton<FileInspectionWorker>();
         services.AddHostedService(provider => provider.GetRequiredService<FileInspectionWorker>());
+        // MAM-14 — the download jobs' tracker, last: it needs nothing settled before it, as every pass reads the
+        // followed jobs from the rows (a restart resumes where they are), and a start that only enters its loop
+        // holds up nothing after it. No reconciler: a send a stop interrupted is the tracker's own to settle,
+        // once it is old enough (DownloadJobPoller.InterruptedSendAge).
+        services.AddSingleton<DownloadJobTracker>();
+        services.AddHostedService(provider => provider.GetRequiredService<DownloadJobTracker>());
         return services;
     }
 }

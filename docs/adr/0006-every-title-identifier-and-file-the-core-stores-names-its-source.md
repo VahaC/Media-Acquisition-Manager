@@ -240,3 +240,25 @@ and its search, as the MAM-12 section says.
 pin the columns, and
 `DownloadsIdempotencyHttpTests.Create_of_a_release_already_sent_to_the_client_is_409_and_sends_nothing`
 the rule.
+
+## Implementation (added 0.1.0, MAM-14)
+
+**A job's files, in their own migration, named by their job.** As the Consequences planned,
+`AddDownloadJobTracking` adds `DownloadJobFiles`: one row per file of a job as its client last listed
+it — its place in the client's list (`Position`, unique per job), its path, its size, its progress
+and whether the client downloads it — deleted with its job. The Decision said a release's files are
+known only from the client after submission; they are stored against the job, never the release,
+since another client, or the same one later, may list the same release differently. A row names its
+source through its job, which keeps the client's name: the path is the client's own, relative to the
+job's folder and exactly as the client spells it, and is neither a service path nor an app path, so no
+path mapping applies to it and it never becomes a `PhysicalFiles` row. The job itself gains `Progress`
+and `BlockReason` with `BlockReasonOrigin`, whose sentence the reason is — the client's or the app's —
+which decides who may read it, as `ErrorOrigin` does
+([ADR 0014](0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
+The migration adds columns, a table and indexes and rebuilds no table.
+
+`DownloadJobPersistenceTests.A_jobs_files_keep_their_paths_exactly_and_sizes_past_four_gigabytes`,
+`DownloadJobPersistenceTests.A_second_file_in_one_place_of_a_job_is_refused_and_another_job_may_use_it`,
+`DownloadJobPersistenceTests.Deleting_a_job_deletes_its_files_and_no_other_jobs` and
+`DownloadJobPersistenceTests.A_job_keeps_its_progress_and_its_block_reason_with_whose_sentence_it_is_by_name`
+pin the rows.

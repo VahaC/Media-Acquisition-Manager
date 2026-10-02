@@ -53,4 +53,10 @@ public enum AuditAction
     /// the release, the client and the destination, and says how the sending went.
     /// </summary>
     DownloadRequested = 14,
+
+    /// <summary>
+    /// MAM-14 — a user stopped following a download job they sent. The row records the app's side only:
+    /// nothing was sent to the download client, whose torrent and files stay as they were.
+    /// </summary>
+    DownloadCancelled = 15,
 }

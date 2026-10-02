@@ -1,4 +1,12 @@
-import type { DestinationsQuery, IntegrationsQuery, LibraryWorksQuery, SearchReleasesQuery, UsersQuery } from '../types'
+import type {
+  DestinationsQuery,
+  DownloadJobFilesQuery,
+  DownloadJobsQuery,
+  IntegrationsQuery,
+  LibraryWorksQuery,
+  SearchReleasesQuery,
+  UsersQuery,
+} from '../types'
 
 /**
  * Every query key in the app. Hierarchical arrays that mirror the URL, so a prefix invalidates a
@@ -24,6 +32,24 @@ export const qk = {
   downloads: {
     /** MAM-13 — the download clients and destinations one release can be sent to. */
     options: (releaseId: string) => ['downloads', 'options', releaseId] as const,
+    /**
+     * MAM-14 — the caller's own jobs, under `jobs` rather than beside `options`: a job's id would
+     * otherwise sit where `options` does, and invalidating jobs would reach the options too.
+     */
+    jobs: {
+      /** Every list, job and job's files: what a cancel invalidates, whatever it answered. */
+      all: ['downloads', 'jobs'] as const,
+      /** Every page and filter of the list: what a send invalidates. */
+      lists: ['downloads', 'jobs', 'list'] as const,
+      /** The whole query object is part of the key, so each page and filter is cached apart. */
+      list: (query: DownloadJobsQuery) => ['downloads', 'jobs', 'list', query] as const,
+      /** One job; its files sit under it. */
+      detail: (id: string) => ['downloads', 'jobs', id] as const,
+      /** Every page of one job's files: what a move of the job invalidates. */
+      allFiles: (id: string) => ['downloads', 'jobs', id, 'files'] as const,
+      /** One page of one job's files. */
+      files: (id: string, query: DownloadJobFilesQuery) => ['downloads', 'jobs', id, 'files', query] as const,
+    },
   },
   search: {
     /** MAM-12 — every stored search and its releases: the prefix of the keys below. */

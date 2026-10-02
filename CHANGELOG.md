@@ -744,12 +744,11 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   address — goes to the owner only, MAM-10's rule: anyone else who sent the release reads
   "“qBittorrent” couldn't take the release, so nothing was sent. Ask the owner to check
   “qBittorrent” under Integrations." (or "“Toloka” couldn't hand over the release, …" for the
-  source) (or "“Toloka” couldn't hand over the release, …" for the source), in the send's answer and
-  every read of the job, and reads the app's own sentences as they are (`ErrorOrigin` says whose a
-  job's error is; `DownloadsErrorVisibilityHttpTests`). A copy of a request racing the first, which
-  finds the first's job only when it asks whether the release was already sent, is answered with
-  that job, never refused as already sent. A send waits for the fetch and up to five calls to
-  qBittorrent, each of their requests bounded at 15 seconds.
+  source), in the send's answer and every read of the job, and reads the app's own sentences as they
+  are (`ErrorOrigin` says whose a job's error is; `DownloadsErrorVisibilityHttpTests`). A copy of a
+  request racing the first, which finds the first's job only when it asks whether the release was
+  already sent, is answered with that job, never refused as already sent. A send waits for the fetch
+  and up to five calls to qBittorrent, each of their requests bounded at 15 seconds.
   `DownloadsSendHttpTests.Create_is_201_with_the_job_the_client_took_its_row_and_its_audit_row`,
   `DownloadsSendFailuresHttpTests.Create_whose_category_is_gone_fails_and_sends_nothing`,
   `DownloadsSendFailuresHttpTests.Create_for_a_torrent_qbittorrent_already_has_fails_and_sends_nothing`,
@@ -820,6 +819,164 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   summary and **Close**. With no client to offer, it says "No download client can take this release
   yet. The owner sets them up under Integrations and Destinations." The dialog is mounted only while
   it is open, so every opening is a new request.
+- **The app follows every download it sent by reading its client every 10 seconds, until the
+  download finishes, and a restart goes on where the rows are (MAM-14, ADR 0014).** A background
+  service (`DownloadJobTracker`) runs a pass right after the app starts, then 10 seconds after each
+  pass ends, so two never overlap; each pass reads the followed jobs from the database and keeps
+  nothing in memory. Followed are `Submitted`, `Downloading`, the new `Paused`, and a `Created` job at
+  least 5 minutes old — a send a stop interrupted, as no send takes that long, so a send still under
+  way is never raced; `Downloaded`, `Failed`, `NeedsLinking` and the new `Cancelled` are never read
+  again. Per client, one lookup of every job by its stored id and info hashes (each valid 40- or
+  64-character hexadecimal value, lower-case, once, at most 50 to a request) through `FindJobsAsync`.
+  A job found takes the client's word through the core's `DownloadJobFollowing`: downloading is
+  `Downloading`, queued `Submitted` until the job has started and `Downloading` after, paused
+  `Paused`, and a finished state is `Downloaded` — which ends the following — only with a progress of
+  1, never either alone, as a re-check reports its own progress under a finished state; a finished
+  state short of 1, `moving` and a state this build doesn't know move nothing but a `Created` job to
+  `Submitted`, and a progress the client doesn't give keeps the stored one. The job keeps the client's
+  current id, as qBittorrent renames a hybrid torrent once a magnet's metadata arrives, and the v2 hash
+  the client lists when it had none; a job found twice is `NeedsLinking`. A job its ids don't find,
+  sent with a v1 hash only, is looked for among its destination's jobs, once per destination and pass:
+  ADR 0013's hybrid that qBittorrent built on libtorrent 2 renames to its v2 hash. An interrupted send
+  with no hash stored fails without asking the client ("The app stopped while sending this download,
+  before it could tell whether “qBittorrent” took it, so it isn't followed. Check “qBittorrent” before
+  sending the release again."); found, it is followed from then on; found twice, it needs linking; not
+  listed, it fails ("The app stopped while sending this download, and “qBittorrent” doesn't list it,
+  so it isn't followed. Send the release again if you still want it."). A job's files are read when it
+  has none stored or its status or progress changed, so a finished, idle or paused job isn't read
+  every pass. They are read from the client before anything is written, then replaced by position in
+  the same transaction as the job's own write, when anything differs, so a job never reads as
+  `Downloaded` with the files of the pass before; a failed read keeps them as they are, and the job is
+  written all the same. Once a files read or a destination listing times out, can't reach the client or
+  throws, the pass asks that client nothing more: its other jobs' files stay as stored and a job that
+  needs a listing shows that call's sentence. Every write a pass makes to a job — its row and its files
+  together — is conditional on the status the pass read, so a cancel racing a pass wins and leaves both
+  as they were; `StatusChangedUtc` changes only with the status, and a job nothing happened to is not
+  written. Each status change logs the job's id with both statuses, never a title, a path, an address
+  or a sentence; one client's bug costs that client the pass, and a pass that throws is logged and
+  the next one runs as usual. One migration (`AddDownloadJobTracking`) adds `Progress`, `BlockReason`
+  and `BlockReasonOrigin` to `DownloadJobs`, the table `DownloadJobFiles` (the job, the file's place in
+  the client's list — unique per job — its path exactly as the client names it, relative to the job's
+  folder, its size, its progress and whether it is wanted, deleted with its job), a partial index of
+  the followed jobs (`IX_DownloadJobs_Followed`, its filter the core's list of followed statuses) and
+  `IX_DownloadJobs_RequestedByUserId_CreatedUtc` for the Jobs list; it rebuilds no table (see Notes for
+  upgraders). `DownloadJobTrackingHttpTests.Poll_maps_what_qBittorrent_reports_onto_the_job`,
+  `DownloadJobTrackingHttpTests.Poll_of_a_finished_download_ends_its_following_and_never_asks_about_it_again`,
+  `DownloadJobTrackingHttpTests.Poll_stores_a_jobs_files_and_reads_them_again_only_when_the_job_moved`,
+  `DownloadJobTrackingHttpTests.Poll_reads_the_files_before_the_job_turns_downloaded_and_writes_them_with_it`,
+  `DownloadJobTrackingHttpTests.Poll_of_a_client_that_stops_answering_after_the_lookup_asks_it_nothing_more_that_pass`,
+  `DownloadsCancelHttpTests.Poll_racing_a_cancel_while_it_reads_the_files_writes_neither_the_job_nor_its_files`
+  and `DownloadJobTrackingHttpTests.Poll_writes_nothing_for_a_job_nothing_happened_to` pin the
+  following,
+  `DownloadJobRecoveryHttpTests.Poll_after_a_restart_follows_the_jobs_a_previous_run_left_and_asks_about_no_ended_one`,
+  `DownloadJobRecoveryHttpTests.Poll_of_an_interrupted_send_qBittorrent_took_follows_it_from_then_on`
+  and `DownloadJobRecoveryHttpTests.Poll_finds_a_hybrid_torrent_qBittorrent_renamed_after_its_magnet_through_its_destination`
+  the restart and ADR 0013's gaps, `DownloadJobFollowingTests` and `ClientJobCorrelationTests` the
+  mapping and the matching, and `DownloadJobPersistenceTests` the new rows and indexes.
+- **A followed job that isn't moving on keeps its status and says why, and stays followed (MAM-14's
+  decisions 2 and 3, ADR 0014).** A torrent qBittorrent reports an error for (`error`,
+  `missingFiles`) shows "“qBittorrent” reports an error for this download, so it isn't moving on.
+  Check it in “qBittorrent”: the job goes on by itself once the error clears."; one qBittorrent no
+  longer lists, "“qBittorrent” doesn't list this download any more. It is still followed in case it
+  comes back; to send the release again, cancel this job first.", gone once the torrent comes back
+  with the same hash; and one taken without an id and still unlisted a minute later — a qBittorrent
+  before 5.2 lists a torrent a moment after it took it — "“qBittorrent” took this download but hasn't
+  listed it since. It is still followed; to send the release again, cancel this job first." A client
+  that can't be asked never makes a job missing: every followed job of it shows why and keeps its
+  status — "The download client “qBittorrent” was removed, so this download can't be followed. Cancel
+  the job to stop tracking it.", "“qBittorrent” is switched off, so this download isn't followed for
+  now. The owner can switch it on under Integrations.", "This version of the app can't follow
+  downloads in “…”.", the sentence for a stored secret the app can't read, qBittorrent's own sentence
+  for a call that failed, masked of the call's secrets once more, or "The app couldn't read what
+  “qBittorrent” answered." for an adapter that throws, logged with its type and stack but never its
+  message. A reason is written only when it differs from the stored one, and cut to 1000 characters
+  with "…". As for a failed job's error (MAM-13), qBittorrent's own sentence is the owner's: anyone
+  else reads "“qBittorrent” couldn't be asked about this download. Ask the owner to check
+  “qBittorrent” under Integrations." (`BlockReasonOrigin`). After qBittorrent refused the
+  credentials, the passes never sign in again until the owner changes them or a connection test with
+  them works, so they never add to its ban.
+  `DownloadJobTrackingHttpTests.Poll_of_a_torrent_qBittorrent_reports_an_error_for_keeps_its_status_with_why_until_the_error_clears`,
+  `DownloadJobMissingHttpTests.Poll_of_a_torrent_removed_from_qBittorrent_keeps_the_job_with_why_and_follows_it_until_it_comes_back`,
+  `DownloadJobMissingHttpTests.Poll_of_a_client_that_can_not_be_asked_never_makes_a_job_missing`,
+  `DownloadJobMissingHttpTests.Poll_after_qBittorrent_refused_the_credentials_never_signs_in_again_until_the_owner_tests_them`,
+  `DownloadJobMissingHttpTests.Poll_of_a_removed_torrent_whose_destination_listing_fails_shows_the_clients_sentence_never_missing`,
+  `DownloadJobRecoveryHttpTests.Poll_of_an_interrupted_send_whose_destination_listing_fails_stays_created_with_why_until_it_answers`
+  and `DownloadJobMissingHttpTests.Get_and_list_show_a_clients_own_sentence_to_the_owner_and_the_apps_to_a_member`
+  pin it: a failed destination listing, like a failed lookup, decides no job.
+- **Every signed-in user lists their own download jobs and a job's files, and cancels a job, which
+  only stops following it: nothing is sent to the client (MAM-14, ADR 0014).** A job stays its
+  sender's (MAM-14's decision 1): the list, the files and Cancel answer the caller's own jobs, the
+  installation owner's included, and another user's job is the same bare 404 as one that doesn't
+  exist. `GET /api/downloads?status=&page=1&pageSize=25` answers
+  `{ items, totalCount, page, pageSize }`, newest first (by when it was sent, then by id), each item a
+  job as `GET /api/downloads/{id}` answers it; `status` is a status by name in any letter case, a
+  blank one lists every status, and anything else is 400 "“x” is not a download status. Use Created,
+  Submitted, Downloading, Paused, Downloaded, Failed, NeedsLinking or Cancelled."; a page below 1 or a
+  page size outside 1–100 is 400. `GET /api/downloads/{id}/files?page=1&pageSize=25` answers the job's
+  files as its client last listed them, in the client's order, each
+  `{ position, path, sizeBytes, progress, isWanted }`, and an empty page while the client hasn't
+  listed any; the job is checked before the paging. `POST /api/downloads/{id}/cancel` makes a job
+  still followed, or one that needs linking, `Cancelled`, clearing its reason, with an audit row
+  `DownloadCancelled` (target kind `DownloadJob`, named by the release's title), in one transaction,
+  and answers 200 with the job; a job that already ended is 409 "This download is already finished,
+  so there's nothing to stop following.", "This download has already failed, so there's nothing to
+  stop following." or "This download is already cancelled, so there's nothing to stop following.",
+  and changes nothing. A `Created` job counts as followed only once it is 5 minutes old, as for the
+  poller: younger, its send may still be under way, and it is 409 "This download is still being sent,
+  so it can't be cancelled yet. Try again in a few minutes.", changing nothing — the age is checked in
+  the same conditional update, so a cancel never throws away the outcome of a send still working. It is a conditional update: a pass that moved the job on since it was read
+  doesn't stop it, and no later pass undoes it. qBittorrent is never asked: `IDownloadClient` has no
+  member that removes, deletes, stops or pauses anything, and `DownloadClientNeverRemovesTests` keeps
+  it so. `DownloadsListHttpTests.List_answers_the_callers_jobs_newest_first_with_every_field`,
+  `DownloadsListHttpTests.List_of_the_installation_owner_holds_only_their_own_jobs`,
+  `DownloadJobFilesHttpTests.Files_of_the_callers_job_are_200_in_qBittorrents_order_as_the_poller_read_them`,
+  `DownloadsCancelHttpTests.Cancel_is_200_with_the_job_cancelled_its_row_and_its_audit_row`,
+  `DownloadsCancelHttpTests.Cancel_sends_nothing_to_qBittorrent_and_no_later_pass_asks_about_the_job`,
+  `DownloadsCancelHttpTests.Poll_racing_a_cancel_never_undoes_it`,
+  `DownloadsCancelHttpTests.Cancel_of_a_created_job_still_being_sent_is_409_with_why_and_changes_nothing`
+  and `DownloadsCancelHttpTests.Cancel_of_another_users_job_is_a_bare_404_even_for_the_installation_owner`
+  pin them, and `DownloadsSecretsHttpTests.No_answer_log_job_or_audit_row_of_a_download_carries_a_planted_secret`
+  now also runs two passes, the second against a redirect that echoes the session and the password,
+  and reads the list, the files and a cancel.
+- **qBittorrent reads a torrent's files and a category's torrents (MAM-14, ADR 0005).** Both sign in,
+  or use the kept session, and read `app/version` with its gate first, as every read does. A torrent's
+  files are `GET api/v2/torrents/files?hash=…` with the torrent's id, lower-case and cut to 40
+  characters, read as an allowlist in qBittorrent's order: the `name` kept exactly — never trimmed or
+  cleaned, as qBittorrent's own names carry double spaces — and up to 4096 characters, a file without a
+  usable one failing the whole answer; the `size` as a whole number of bytes, beyond 32 bits too; the
+  `progress` from 0 to 1; and `priority` 0, qBittorrent's "do not download", as not wanted. A 404 there
+  means the torrent is gone ("qBittorrent doesn't have this torrent any more."), a torrent still
+  fetching its metadata lists `[]`, and an answer that isn't an array of objects fails ("The service at
+  this address answered, but not with qBittorrent's files."). A category's torrents are
+  `GET api/v2/torrents/info?category=…`, the key sent exactly as stored, read as the lookup by hash
+  reads them; a blank key is refused before anything is sent, as qBittorrent would read it as "no
+  category". A key holding a `+` is never sent: qBittorrent's request parser percent-decodes a query
+  value and only then reads `+` as a space, so `%2B` arrives as a space too and would ask for another
+  category; such a key asks for every torrent and keeps those of exactly that category. The test
+  qBittorrent decodes a query the same way. The adapter still sends one write, `torrents/add`.
+  `QBittorrentAdapterFilesTests.ListJobFiles_reads_the_three_files_of_the_sample_exactly` reads the
+  recorded pack whole, and `QBittorrentAdapterFilesTests` and `QBittorrentAdapterDestinationJobsTests`
+  pin every answer.
+- **The Jobs page and a job's details (MAM-14).** **Jobs** in the header, last, for every signed-in
+  user, lists their own jobs, newest first: the release, which opens the job; its status, with why a
+  followed job isn't moving on as a warning line and why it failed as an error line; its progress as a
+  bar and a percentage that never rounds up to 100 before the download is complete, or "Not known yet";
+  where it went (the client and the destination); and when it was sent. It filters by status on the
+  server, starting again at page 1, pages with a page size remembered per device, turns into cards on
+  a phone, and asks again every 10 seconds while it shows a job the app still follows. With no job
+  yet it says "No download jobs yet. Send a release from Search, and it is followed here until it
+  finishes.", linking to Search. A job's page shows its source, client, destination with its category,
+  status, progress, when it was sent and its status last changed, and the client's id, then its files
+  — the path, the size, the progress, and **Skipped** for one the client doesn't download — paged,
+  asked for again when the job moves or while a followed job lists none yet. **Cancel job** is on both
+  pages for a job still followed or one that needs linking; a `Created` one gets it only once it is 5
+  minutes old, judged at the time of the page's last answer, since the server refuses a younger one
+  with its sentence. It asks first — "The torrent and its files
+  stay in qBittorrent: nothing is paused, stopped or removed there." — with **Cancel job** and **Keep
+  following**. A job that isn't the caller's, or an address that isn't a job's, reads "There is no
+  download job of yours at this address. It may belong to someone else, or the link is wrong."
+  `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and
+  `JobProgress.test.tsx` pin it.
 
 ### Changed
 
@@ -922,6 +1079,36 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   Sending a release now calls it, once per job, after the job is written and before the client is
   asked anything, with the integration's current key put back; what it fetched goes to the download
   client and nowhere else.
+- **`IDownloadClient` gets its files member back and lists a destination's jobs, and has no member
+  that removes (MAM-14, ADR 0005, ADR 0014).** `ListJobFilesAsync(settings, clientJobId)`, which
+  MAM-11 left out and MAM-13 left to MAM-14, is back: the job's files in the client's order, `[]`
+  while the client doesn't know them, and `NotFound` for a job the client no longer has.
+  `ListDestinationJobsAsync(settings, destinationKey)` is new: every job of one destination, each with
+  every hash the client lists for it, for a job a client renamed past what its stored hashes find.
+  `ClientJobFile.ServicePath` is now `RelativePath`, the path relative to the job's folder exactly as
+  the client names it — not a service path, which nothing had read yet. No member removes, deletes,
+  stops or pauses a job or its files; the one write is still `SubmitAsync`.
+- **A download job has two more statuses, its progress and why it isn't moving on (MAM-14).**
+  MAM-13 left `Downloading` and `Downloaded` to MAM-14; the following writes them now, and
+  `DownloadJobStatus` gains `Paused` (7) and `Cancelled` (8), stored by name like the others. A job's
+  JSON, in every answer that carries one, gains `progress` (0 to 1 as the client last reported it,
+  `null` until it has) right after `status`, and `blockReason` (why a followed job isn't moving on,
+  `null` when nothing blocks it) right after `error`:
+  `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName,
+  clientDestinationKey, status, progress, clientJobId, error, blockReason, createdUtc,
+  statusChangedUtc }`.
+- **A cancelled job no longer counts as already sent (MAM-14, ADR 0013).** MAM-13's decision 3
+  refuses a release a job that didn't fail already sent to the client; a `Cancelled` job no longer
+  counts, like a `Failed` one, as cancelling is how a person sends a release again — and while the
+  torrent is still in qBittorrent, decision 4 still refuses a second copy. A `Paused` job counts.
+  `DownloadsIdempotencyHttpTests.Create_of_a_release_whose_earlier_job_was_cancelled_is_201_and_sends_it`
+  and `DownloadsCancelHttpTests.Cancel_lets_the_release_be_sent_again_once_qBittorrent_no_longer_has_it`
+  pin it.
+- **The Download dialog knows a paused and a cancelled job, and a send refreshes the Jobs page
+  (MAM-14).** Sending again under the same request id answers the job already made, which may be
+  paused in qBittorrent or cancelled by then: the dialog says "qBittorrent took the release, but its
+  download is paused there." or "qBittorrent took the release, but its job has been cancelled since,
+  so the app doesn't follow it." as a warning. Every send that answers makes the Jobs list ask again.
 
 ### Notes for upgraders
 
@@ -975,3 +1162,14 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   on the Search page sends to it, offering the default destination first. Each torrent is added with
   automatic torrent management, so it saves in its category's folder even when qBittorrent's default
   for new torrents is manual; the destinations' check already shows where each category saves.
+- **Applying `AddDownloadJobTracking` rebuilds no table, so it logs no warning 20410 (MAM-14).** It
+  adds three nullable columns to `DownloadJobs`, the `DownloadJobFiles` table and three indexes; the
+  jobs already there keep everything they had, with no progress or reason until the first pass.
+- **Following needs nothing turned on, and picks up the jobs MAM-13 left (MAM-14).** The passes start
+  with the app. The first ones follow every job already `Submitted`, find the id of one qBittorrent
+  took without listing it, and settle a job left `Created` by a stop in the middle of its sending:
+  followed if qBittorrent has it once, `NeedsLinking` if twice, and `Failed` with the reason if it
+  doesn't or the app never learnt what it sent. A job `Failed` or `NeedsLinking` stays so. A
+  qBittorrent that has refused the app's credentials is not signed in to again by the passes:
+  correct them under Integrations, or test the connection there once qBittorrent accepts them, and
+  its jobs move on with the next pass.

@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -51,6 +52,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ReleaseEntity> Releases => Set<ReleaseEntity>();
 
     public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
+
+    public DbSet<DownloadJobFileEntity> DownloadJobFiles => Set<DownloadJobFileEntity>();
 
     public DbSet<SearchEntity> Searches => Set<SearchEntity>();
 
@@ -351,6 +354,31 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Led by the user, so it also serves the foreign key; a user's id gone null leaves their jobs'
             // request ids free of each other, as SQLite never counts two nulls the same.
             e.HasIndex(x => new { x.RequestedByUserId, x.RequestId }).IsUnique();
+            e.Property(x => x.BlockReasonOrigin).HasConversion<string>().HasMaxLength(32);
+            // MAM-14 — "every followed job", which the poller reads every 10 s (DownloadJobTracker). Partial,
+            // so it holds the few jobs still followed and never the history, which only grows. Its filter is
+            // the core's list (DownloadJobFollowing.FollowedStatuses) rather than a copy of it: a status added
+            // to the list changes the model, and the app refuses to start on a model its migrations don't
+            // match, so the filter can't drift from the rule unnoticed. Named, as the other partial indexes
+            // are.
+            e.HasIndex(x => x.Status, "IX_DownloadJobs_Followed")
+                .HasFilter($"\"Status\" IN ({string.Join(", ", DownloadJobFollowing.FollowedStatuses.Select(status => $"'{status}'"))})");
+            // MAM-14 — "this user's jobs, newest first", the Jobs page's list (a job is its sender's, MAM-14's
+            // decision 1); its status filter narrows the same range.
+            e.HasIndex(x => new { x.RequestedByUserId, x.CreatedUtc });
+        });
+
+        modelBuilder.Entity<DownloadJobFileEntity>(e =>
+        {
+            // MAM-14 — one file per place in the client's list of a job's files: the poller replaces a job's
+            // rows by position, in one save. Leading with the job, so it also serves the foreign key and the
+            // files page's "this job's files in order".
+            e.HasIndex(x => new { x.DownloadJobId, x.Position }).IsUnique();
+            // Cascade: a file row is part of its job, as the client last listed it, and says nothing once the
+            // job is gone.
+            e.HasOne<DownloadJobEntity>().WithMany()
+                .HasForeignKey(x => x.DownloadJobId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SearchEntity>(e =>

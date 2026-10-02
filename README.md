@@ -9,8 +9,9 @@ the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, 
 connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
 file really holds once the app has inspected it inside the media folders the owner allows; the owner
 also maps download destinations to qBittorrent's categories. Every signed-in user searches the
-library and the release sources together on the Search page and sends a release found there to
-qBittorrent; following a download's progress is still to come; see [ROADMAP.md](ROADMAP.md).
+library and the release sources together on the Search page, sends a release found there to
+qBittorrent, and sees its download on the Jobs page until it finishes; see
+[ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -135,9 +136,23 @@ application.
   already. One click sends at most one download: the job is written with the request id the browser
   made before anything is sent, a retry or a second click answers that job, a submission is never
   sent twice, and qBittorrent's id or the torrent's info hash confirms it, with several candidates
-  left for linking by hand rather than guessed. A release already sent to that client is refused.
-  Following the download's progress comes with MAM-14
+  left for linking by hand rather than guessed. A release already sent to that client is refused,
+  unless its job failed or was cancelled. Its download is then followed on the Jobs page (below)
   ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+- **Follow each download until it finishes.** The Jobs page (**Jobs** in the header, last, for every
+  signed-in user) lists the caller's own jobs — the owner's too: a job stays its sender's — newest
+  first, filtered by status and paged on the server: each with its status, a bar of its progress,
+  where it went and when, and, when it isn't moving on, why. A job's page adds its facts and its
+  files, each with its size and progress, and which ones qBittorrent skips. The app reads qBittorrent
+  every 10 seconds in the background, whether or not anyone has the page open, and keeps nothing in
+  memory, so a restart goes on where it stopped: `Submitted`, `Downloading`, `Paused`, and
+  `Downloaded` once qBittorrent has finished it with a progress of 1, which ends the following. A
+  client error, a torrent qBittorrent no longer lists and a client that can't be asked keep the job's
+  status with the reason and keep it followed, so it goes on once the cause clears; a send a stop
+  interrupted is settled once it is 5 minutes old, and can't be cancelled before then, while it may
+  still be being sent. **Cancel job** stops the following and nothing more: nothing is sent to
+  qBittorrent, so the torrent and its files stay as they are, and the release may be sent again. The pages refresh every 10 seconds while they show a followed job
+  ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
@@ -150,8 +165,8 @@ application.
 
 ### What it will do
 
-- **Follow each download.** See a sent release's progress in the client until it is downloaded, and
-  link by hand a download the app couldn't tell apart.
+- **Link a download by hand.** Tie a job the app couldn't tell apart from the client's other
+  downloads (**Needs linking**) to the right one, so it is followed like any other.
 - **Detect duplicates without conflating different editions.** Distinguish hardlinks,
   byte-identical files, different versions of the same title, and uncertain matches.
 - **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
@@ -218,7 +233,8 @@ title, identifier, version, file and release it stores names the source that rep
 Adapter contracts keep it independent of any one media server, indexer, or download client. The
 first three adapters exist: Jellyfin's reads the library, the Torznab adapter searches releases and
 fetches a release's download, and qBittorrent's lists its categories with the folders they save to,
-adds a release and finds its torrents by info hash; reading a download's progress comes with MAM-14.
+adds a release, finds its torrents by info hash or by category, and reads their state and their
+files.
 The core's contracts for libraries, release search, download clients, file inventory and metadata
 live in Core and name no product
 ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
@@ -313,6 +329,21 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   are everyone's. A release already sent to a client is refused whoever sent it, as the client is
   the household's, and a torrent the client already has is never taken over
   ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+  The jobs list, a job's files and Cancel keep the rule (MAM-14's decision 1): each answers the
+  caller's own jobs, the installation owner's included, and another user's job is the same bare 404.
+  Why a followed job isn't moving on follows the error's rule: qBittorrent's own sentence, which can
+  name its address, is the owner's, and anyone else reads the app's sentence naming the client.
+- **Following a download reads qBittorrent and never writes to it.** Every 10 seconds the app signs
+  in, or uses the session it keeps, and sends qBittorrent GETs only — its version, the followed
+  torrents by hash, a destination's torrents by category (every torrent, kept to the category in the
+  app, for a category whose name holds a `+`, which qBittorrent can't read in a query), a torrent's
+  files. Cancelling a job writes
+  the app's own row and audit row and sends qBittorrent nothing: the download client contract has no
+  member that removes, deletes, stops or pauses anything, and a convention test keeps it so. After
+  qBittorrent refused the credentials the passes don't sign in again until the owner changes them or
+  a connection test with them works, so they never add to qBittorrent's ban of the app's address. The
+  log names a job by its id and its statuses only, never a title, a path, an address or a sentence
+  ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
 - **The app reads files only inside the allowed roots.** It opens a library file only when the
   path, and every link on the way to it, lies inside a folder the owner allowed on the **Media
   folders** page (owner-only, reading included); none is allowed by default, and the whole file
@@ -327,12 +358,14 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
   every change to an integration (add, edit, remove), every save of the media folders, every change
-  to a destination (add, edit, remove) and every download sent (`DownloadRequested`, written with its
-  job before anything is fetched or sent) write an audit row in the same transaction as the change:
+  to a destination (add, edit, remove), every download sent (`DownloadRequested`, written with its
+  job before anything is fetched or sent) and every job cancelled (`DownloadCancelled`) write an
+  audit row in the same transaction as the change:
   what happened, when, who did it and to whom or what, with both names copied so the row outlives
   them. A save that changes nothing and a connection test write none, and neither does a retry of a
-  download already sent, a library sync or a file inspection, whose run rows record who started
-  them. There is no screen for it yet.
+  download already sent, a cancel of a job that already ended, a library sync or a file inspection,
+  whose run rows record who started them; nor does a pass that follows the downloads, which no one
+  started. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
   stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
@@ -590,7 +623,10 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/searches/{id}/releases?source=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes }] }`: `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (none of either when it names no year), `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words`; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
 | `GET /api/downloads/options?releaseId=` | Every signed-in user, for a release of their own searches. The Download dialog's choices, read from the database without asking any client: 200 `{ clients }`, by name, each `{ id, name, typeName, destinations: [{ id, name, clientDestinationKey, isDefault }] }` with its destinations by name — every switched-on download client of a type this version can send to that can take the release's payload (one whose kind the listing didn't state needs a client that takes a .torrent file or a magnet link) and has a destination; `typeName` is what it is ("qBittorrent"). No address, folder or path mapping. 400 `{ "error": "Pick the release to send." }` without a well-formed `releaseId`; 404 `{ "error": "This release isn't available any more: a search keeps what it found for a day. Search again." }` for a release that isn't one of the caller's searches' from the last day. |
 | `POST /api/downloads` with `{ requestId, releaseId, downloadClientId, destinationId }` | Every signed-in user, for a release of their own searches. Sends it at most once per request id (ADR 0013): the request id is looked up first, and the caller's same id for the same release, client and destination answers 200 with the job it made, nothing fetched, sent or audited again; otherwise the job is written with an audit row before anything is fetched or sent, and the answer is 201 with the job and its `Location` whatever came of the sending — `Submitted`, `NeedsLinking`, or `Failed` with its sentence. 400 with the broken rule's sentence: "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the destination to send it to.", "“Movies” is a destination of another download client. Pick one of “qBittorrent”’s.", "“qBittorrent” can't take NZB files, which this release is."; 404 with "This release isn't available any more: a search keeps what it found for a day. Search again.", "The download client you picked no longer exists. Reload the page and pick one again." (also for an integration that isn't a download client) or "The destination you picked no longer exists. Reload the page and pick one again."; 409 with "This request id was already used to send a different download. Reload the page and try again.", "“qBittorrent” is switched off. The owner can switch it on under Integrations.", "This version of the app can't send downloads to “…”.", "The source that listed this release has been removed, so the release can't be fetched. Search again.", "“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.", "This version of the app can't fetch releases from “…”." or, when a job that didn't fail already sent the release to that client, "This release was already sent to “qBittorrent”, so it isn't sent twice.". A refused request writes and sends nothing. |
-| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, clientJobId, error, createdUtc, statusChangedUtc }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `NeedsLinking` or `Failed` (`Downloading` and `Downloaded` come with MAM-14); `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; the client's and the destination's names and the category as they were when it was sent. A bare 404 for another user's job or one that doesn't exist. |
+| `GET /api/downloads?status=&page=1&pageSize=25` | Every signed-in user, for their own jobs, the installation owner's included. 200 `{ items, totalCount, page, pageSize }`, each item a job as `GET /api/downloads/{id}` answers it, newest first (by when it was sent, then by id); no client is asked. `status` is a job status by name in any letter case; blank lists every status. 400 for a page below 1, a page size outside 1–100, or "“x” is not a download status. Use Created, Submitted, Downloading, Paused, Downloaded, Failed, NeedsLinking or Cancelled." |
+| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, progress, clientJobId, error, blockReason, createdUtc, statusChangedUtc }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Failed`, `NeedsLinking` or `Cancelled`; `progress` from 0 to 1 as the client last reported it, `null` until it has; `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; `blockReason` why a followed job isn't moving on (the client reports an error, no longer lists it, or can't be asked), `null` when nothing blocks it, a client's own sentence for the owner only; the client's and the destination's names and the category as they were when it was sent. A bare 404 for another user's job or one that doesn't exist. |
+| `GET /api/downloads/{id}/files?page=1&pageSize=25` | Every signed-in user, for their own jobs. 200 `{ items, totalCount, page, pageSize }`: the job's files as its client last listed them, in the client's order, each `{ position, path, sizeBytes, progress, isWanted }` — `path` relative to the job's folder exactly as the client names it, `isWanted` `false` for a file the client skips — and no items until the client has listed them. A bare 404 for another user's job or one that doesn't exist, checked before the paging; 400 for a page below 1 or a page size outside 1–100. |
+| `POST /api/downloads/{id}/cancel` | Every signed-in user, for their own jobs. Stops following the job and sends the client nothing, so the torrent and its files stay there (ADR 0014): 200 with the job, now `Cancelled` with no `blockReason`, and an audit row. Only a job still followed or one that needs linking: 409 "This download is already finished, so there's nothing to stop following.", "This download has already failed, so there's nothing to stop following." or "This download is already cancelled, so there's nothing to stop following.", changing nothing; a `Created` job younger than 5 minutes, whose send may still be under way, is 409 "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.", changing nothing. A bare 404 for another user's job or one that doesn't exist. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -741,6 +777,33 @@ request id per user in `DownloadJobPersistenceTests`, and the Download dialog �
 once, a retry keeps its request id, a failed job's next try gets a new one — in
 `DownloadDialog.test.tsx`.
 
+Following the downloads is tested over HTTP by driving the background passes one at a time
+(`PollDownloadJobsAsync`) against `FakeQBittorrentServer`, which now also answers
+`torrents/files?hash=` and `torrents/info?category=`, gives its torrents files, and can change a
+torrent's state and progress, remove it, or rename it as qBittorrent renames a hybrid after its
+magnet; any request but the sign-in, the add and a GET is still refused and recorded. Jobs a
+"previous run" left are planted directly, and the clock is moved for the 5 minutes of an
+interrupted send and the minute of the listing's grace. `DownloadJobTrackingHttpTests` (each of
+qBittorrent's states mapped, the status time changed only with the status, the end of the following
+at `Downloaded`, the files read only when the job moved, a client error and its recovery, nothing
+written for a job nothing happened to, lookups of 50 ids, the log, a pass that throws or is stopped),
+`DownloadJobRecoveryHttpTests` (the jobs a restart finds, a job's id found later, every outcome of an
+interrupted send, the renamed hybrid found through its destination), `DownloadJobMissingHttpTests`
+(a torrent removed and back, the listing's grace, every way a client can't be asked, which never
+makes a job missing, refused credentials never sent again, and who reads whose sentence),
+`DownloadsListHttpTests`, `DownloadJobFilesHttpTests` and `DownloadsCancelHttpTests` (the audit row,
+no request at all to qBittorrent and no later lookup, every ended status's 409, another user's job a
+bare 404 for the owner too, a pass racing a cancel, and the release sent again). The core's rules
+are tested on their own in `DownloadJobFollowingTests`, `ClientJobCorrelationTests` and
+`DownloadJobListRulesTests`; `DownloadClientNeverRemovesTests` fails the build if the download client
+contract gains a member named for removing, deleting, stopping or pausing, and checks that it
+scanned every member. The adapter's reads are tested against the recorded files of a three-movie
+pack and the recorded torrent list, and hand-written answers for the rest
+(`QBittorrentAdapterFilesTests`, `QBittorrentAdapterDestinationJobsTests`), the new rows and indexes
+in `DownloadJobPersistenceTests`, and the Jobs pages — rows, filter, pager, cancel, every empty and
+failed state, and polling only while a followed job is shown — in `JobsPage.test.tsx`,
+`JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and `JobProgress.test.tsx`.
+
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable
 files — and a stub `ffprobe` script; its parser reads the two real ffprobe samples and variants made
@@ -776,8 +839,9 @@ src/
                                                the media folders and the file inspection, the
                                                release search, the stored searches and their
                                                library matches, the download destinations, the
-                                               downloads sent to a client, audit trail, health
-                                               checks, security headers, EF Core migrations
+                                               downloads sent to a client and their following,
+                                               audit trail, health checks, security headers,
+                                               EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
                                                path mapping, the allowed roots' rules, the
@@ -786,8 +850,9 @@ src/
                                                of a search and its releases to the library's
                                                works, the release list's filters and sorts, the
                                                destinations' rules and path check, and the
-                                               downloads' rules, a torrent's info hashes and the
-                                               matching of a client's jobs; no package
+                                               downloads' rules, a torrent's info hashes, the
+                                               matching of a client's jobs and what their
+                                               states mean for a followed download; no package
                                                references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the

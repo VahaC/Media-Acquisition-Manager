@@ -42,7 +42,7 @@ the same way, or `VendorSamplesTests` fails the build:
 | `QBittorrent/categories.json` | `GET /api/v2/torrents/categories` | Four categories, each saving to the folder of one Jellyfin library, under qBittorrent's `/downloads` |
 | `QBittorrent/preferences.json` | `GET /api/v2/app/preferences` (allowlisted) | Automatic torrent management on, no separate folder for incomplete downloads, content layout `Original` |
 | `QBittorrent/torrents-info.json` | `GET /api/v2/torrents/info` (four picked) | A three-movie pack, and a single-file torrent for each category that has torrents (the documentary one has none) |
-| `QBittorrent/torrent-files-multi.json` | `GET /api/v2/torrents/files?hash=…` | The pack's files: one torrent, three movies |
+| `QBittorrent/torrent-files-multi.json` | `GET /api/v2/torrents/files?hash=…` | The pack's files: one torrent, three movies, each named with the torrent's root folder and a double space the app keeps, and sized beyond 32 bits. Read whole by `QBittorrentAdapterFilesTests` (MAM-14) |
 | `QBittorrent/expired-session-response.txt` | `GET /api/v2/torrents/categories` and `GET /api/v2/app/version`, each with a session cookie qBittorrent doesn't know (2026-10-01, MAM-11) | The status line, headers and body of the one answer both got: `403 Forbidden` with the text `Forbidden`. Read by `VendorResponses.Recorded` |
 | `Torznab/prowlarr-toloka-caps.xml` | `GET /1/api?t=caps` | Toloka's categories and search modes |
 | `Torznab/prowlarr-toloka-search.xml` | `GET /1/api?t=search&q=Interstellar` | 17 releases, not all of them movies |

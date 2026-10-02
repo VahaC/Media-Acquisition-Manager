@@ -70,6 +70,9 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("DownloadsController.Options", actions);
         Assert.Contains("DownloadsController.Create", actions);
         Assert.Contains("DownloadsController.Get", actions);
+        Assert.Contains("DownloadsController.List", actions);
+        Assert.Contains("DownloadsController.Files", actions);
+        Assert.Contains("DownloadsController.Cancel", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

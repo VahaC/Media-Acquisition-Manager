@@ -18,6 +18,7 @@ function renderAt(path: string) {
             <Route index element={<p>Home content</p>} />
             <Route path="search" element={<p>Search content</p>} />
             <Route path="library" element={<p>Library content</p>} />
+            <Route path="jobs" element={<p>Jobs content</p>} />
             <Route path="crash" element={<CrashingPage />} />
           </Route>
         </Routes>
@@ -80,7 +81,7 @@ describe('AppLayout', () => {
   it.each([
     ['the installation owner', owner],
     ['any other user', member],
-  ])('links to Search, then the Library, in the header for %s, and opens the Library from there', async (_, signedIn) => {
+  ])('links to Search, the Library, then Jobs in the header for %s, and opens the Library from there', async (_, signedIn) => {
     // Arrange
     signInAs(signedIn)
     const user = userEvent.setup()
@@ -91,7 +92,7 @@ describe('AppLayout', () => {
     await user.click(within(nav).getByRole('link', { name: 'Library' }))
 
     // Assert
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Search', 'Library'])
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Search', 'Library', 'Jobs'])
     expect(within(nav).getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library')
     expect(screen.getByText('Library content')).toBeInTheDocument()
   })
@@ -113,6 +114,25 @@ describe('AppLayout', () => {
     expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/search')
     expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByText('Search content')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['the installation owner', owner],
+    ['any other user', member],
+  ])('opens Jobs from its header link for %s', async (_, signedIn) => {
+    // Arrange
+    signInAs(signedIn)
+    const user = userEvent.setup()
+    renderAt('/')
+    const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Main' })
+
+    // Act
+    await user.click(within(nav).getByRole('link', { name: 'Jobs' }))
+
+    // Assert
+    expect(within(nav).getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs')
+    expect(within(nav).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByText('Jobs content')).toBeInTheDocument()
   })
 
   it('marks the header link of the page on screen', () => {

@@ -1,5 +1,13 @@
 import { api } from './api'
-import type { DownloadJob, DownloadOptions, SendDownloadRequest } from './types'
+import type {
+  DownloadJob,
+  DownloadJobFileList,
+  DownloadJobFilesQuery,
+  DownloadJobList,
+  DownloadJobsQuery,
+  DownloadOptions,
+  SendDownloadRequest,
+} from './types'
 
 const BASE_URL = '/api/downloads'
 
@@ -41,4 +49,30 @@ export const downloadsApi = {
    */
   get: async (id: string): Promise<DownloadJob> =>
     (await api.get<DownloadJob>(`${BASE_URL}/${encodeURIComponent(id)}`)).data,
+
+  /**
+   * MAM-14 — `GET /api/downloads?status=&page=&pageSize=`. 200 with one page of the caller's own
+   * jobs, newest first — the installation owner's too (MAM-14's decision 1). 400 `{ error }` for a
+   * page or page size out of range, or a status that isn't one.
+   */
+  list: async (query: DownloadJobsQuery): Promise<DownloadJobList> =>
+    (await api.get<DownloadJobList>(BASE_URL, { params: query })).data,
+
+  /**
+   * MAM-14 — `GET /api/downloads/{id}/files?page=&pageSize=`. 200 with one page of the job's files as
+   * the client last listed them, by position (none until the client knows them: a magnet still
+   * fetching its metadata). A bare 404 for another user's job or none; 400 `{ error }` for a page or
+   * page size out of range.
+   */
+  files: async (id: string, query: DownloadJobFilesQuery): Promise<DownloadJobFileList> =>
+    (await api.get<DownloadJobFileList>(`${BASE_URL}/${encodeURIComponent(id)}/files`, { params: query })).data,
+
+  /**
+   * MAM-14 — `POST /api/downloads/{id}/cancel`. 200 with the job, now `Cancelled`: the app stops
+   * following it and sends nothing to the client, so the torrent and its files stay there. A bare 404
+   * for another user's job or none; 409 `{ error }` when the job has already ended (downloaded,
+   * failed or cancelled), so there is nothing to stop following.
+   */
+  cancel: async (id: string): Promise<DownloadJob> =>
+    (await api.post<DownloadJob>(`${BASE_URL}/${encodeURIComponent(id)}/cancel`)).data,
 }

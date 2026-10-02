@@ -5,8 +5,9 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 
 // MAM-13 — the download client contract's job lookup: the torrents qBittorrent lists under the info hashes
-// the app worked out from a payload, read from GET api/v2/torrents/info?hashes=… as an allowlist. Every
-// request is the sign-in or a GET.
+// the app worked out from a payload, read from GET api/v2/torrents/info?hashes=… as an allowlist. MAM-14 adds
+// the torrents of one category, GET api/v2/torrents/info?category=… — or every torrent, kept to the category
+// here, for a category whose name holds a '+' — read the same way. Every request is the sign-in or a GET.
 internal sealed partial class QBittorrentAdapter
 {
     private const string NotTorrentsError = "The service at this address answered, but not with qBittorrent's torrents.";
@@ -49,11 +50,62 @@ internal sealed partial class QBittorrentAdapter
         // Escaped whole, | included: a hash is hexadecimal, so nothing else in it needs escaping.
         var path = "api/v2/torrents/info?hashes=" + Uri.EscapeDataString(string.Join('|', torrentIds));
         return CallAsync<IReadOnlyList<ClientJob>>(
-            settings, (client, sessionSecrets, token) => ReadJobsAsync(client, settings, path, sessionSecrets, token), cancellationToken);
+            settings, (client, sessionSecrets, token) => ReadJobsAsync(client, settings, path, sessionSecrets, category: null, token), cancellationToken);
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// <para>
+    /// The session and <c>GET /api/v2/app/version</c> first, then <c>GET /api/v2/torrents/info?category=…</c>,
+    /// read as <see cref="FindJobsAsync"/> reads its answer. MAM-14 — this is how a job sent as a magnet naming
+    /// only its v1 hash is found again once qBittorrent built on libtorrent 2 has renamed it to its v2 hash cut
+    /// to 40 characters, which no stored hash names (ADR 0013): its category still lists it, with the v1 hash
+    /// among its hashes.
+    /// </para>
+    /// <para>
+    /// The key is sent exactly as given, never trimmed: qBittorrent compares a category by its whole name. A
+    /// blank one is the caller's bug, thrown as <see cref="ArgumentException"/> before anything is sent —
+    /// qBittorrent reads <c>category=</c> as "no category" and would list every torrent without one.
+    /// </para>
+    /// <para>
+    /// A key holding a <c>+</c> can't be sent at all: qBittorrent's request parser
+    /// (<c>RequestParser::parseRequestLine</c>, 4.4.1 to today) percent-decodes a query value and only then
+    /// turns <c>+</c> into a space, so <c>%2B</c> arrives as a space too and <c>category=Movies%2BTV</c> asks
+    /// for "Movies TV" — another category, or none, which would read as the job gone. Such a key asks
+    /// <c>GET /api/v2/torrents/info</c> for every torrent instead and keeps those whose category is exactly
+    /// the key, by ordinal comparison, read through the same allowlist — a bigger answer, about 2 KB a torrent,
+    /// so a client past a couple of thousand outgrows
+    /// <see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>: a failed call, which decides
+    /// no job (ADR 0014). A category may hold a <c>+</c>
+    /// (qBittorrent forbids only <c>\</c> and <c>//</c>), and a send reaches it, as <c>torrents/add</c>'s
+    /// form body is decoded the right way round.
+    /// </para>
+    /// </remarks>
+    public Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> ListDestinationJobsAsync(
+        IntegrationConnectionSettings settings, string destinationKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (string.IsNullOrWhiteSpace(destinationKey))
+            throw new ArgumentException("A destination key must not be blank.", nameof(destinationKey));
+
+        // No GET query carries a '+' to qBittorrent (see the remarks): such a key is kept to here instead.
+        var keptHere = destinationKey.Contains('+', StringComparison.Ordinal);
+        var path = keptHere ? "api/v2/torrents/info" : "api/v2/torrents/info?category=" + Uri.EscapeDataString(destinationKey);
+        return CallAsync<IReadOnlyList<ClientJob>>(
+            settings,
+            (client, sessionSecrets, token) => ReadJobsAsync(client, settings, path, sessionSecrets, keptHere ? destinationKey : null, token),
+            cancellationToken);
+    }
+
+    /// <summary>The torrents <paramref name="path"/> lists, as jobs — only those whose category is exactly
+    /// <paramref name="category"/> when it is given.</summary>
     private async Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> ReadJobsAsync(
-        HttpClient client, IntegrationConnectionSettings settings, string path, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
+        HttpClient client,
+        IntegrationConnectionSettings settings,
+        string path,
+        ICollection<string> sessionSecrets,
+        string? category,
+        CancellationToken cancellationToken)
     {
         var (call, failure) = await OpenCheckedSessionAsync(client, settings, sessionSecrets, cancellationToken);
         if (failure is not null)
@@ -70,9 +122,11 @@ internal sealed partial class QBittorrentAdapter
             jobs = document is null ? null : ReadJobs(document.RootElement, CallSecrets(settings, sessionSecrets));
         }
 
-        return jobs is null
-            ? IntegrationCallResult<IReadOnlyList<ClientJob>>.Failed(IntegrationCallStatus.UnexpectedResponse, NotTorrentsError)
-            : IntegrationCallResult<IReadOnlyList<ClientJob>>.Succeeded(jobs);
+        if (jobs is null)
+            return IntegrationCallResult<IReadOnlyList<ClientJob>>.Failed(IntegrationCallStatus.UnexpectedResponse, NotTorrentsError);
+
+        return IntegrationCallResult<IReadOnlyList<ClientJob>>.Succeeded(
+            category is null ? jobs : [.. jobs.Where(job => string.Equals(job.DestinationKey, category, StringComparison.Ordinal))]);
     }
 
     /// <summary>

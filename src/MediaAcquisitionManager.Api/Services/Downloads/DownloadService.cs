@@ -10,6 +10,7 @@ using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Paging;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +19,8 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// <inheritdoc cref="IDownloadService"/>
 /// <remarks>
 /// This service decides what may be sent and writes the job; <see cref="IDownloadSender"/> talks to the
-/// source and the client.
+/// source and the client. MAM-14 — it reads and cancels jobs without talking to anyone: what the client says
+/// about a job is <see cref="IDownloadJobPoller"/>'s to read.
 /// </remarks>
 public sealed class DownloadService(
     ApplicationDbContext db,
@@ -43,6 +45,17 @@ public sealed class DownloadService(
 
     private const string SourceRemovedError =
         "The source that listed this release has been removed, so the release can't be fetched. Search again.";
+
+    // MAM-14 — a cancel of a job that already ended, one sentence per way it ends.
+    private const string AlreadyDownloadedError = "This download is already finished, so there's nothing to stop following.";
+
+    private const string AlreadyFailedError = "This download has already failed, so there's nothing to stop following.";
+
+    private const string AlreadyCancelledError = "This download is already cancelled, so there's nothing to stop following.";
+
+    // MAM-14 — a cancel of a Created job younger than DownloadJobPoller.InterruptedSendAge: its send may still be
+    // under way, and only an interrupted one can be cancelled.
+    private const string StillBeingSentError = "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.";
 
     public async Task<DownloadOptionsResult> GetOptionsAsync(string? releaseId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
@@ -159,6 +172,108 @@ public sealed class DownloadService(
             ? ToDto(row, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken))
             : null;
 
+    public async Task<DownloadJobListResult> ListAsync(
+        string? status, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
+    {
+        if (PagingRules.Validate(page, pageSize) is { } pagingError)
+            return DownloadJobListResult.Invalid(pagingError);
+        if (DownloadJobListRules.Validate(status, out var filter) is { } statusError)
+            return DownloadJobListResult.Invalid(statusError);
+
+        // MAM-14's decision 1: the caller's own jobs — the owner's too, as GetAsync answers. A job nobody is
+        // recorded as sending (its sender's account removed) is nobody's to list.
+        var jobs = db.DownloadJobs.AsNoTracking().Where(job => job.RequestedByUserId == callerUserId);
+        if (filter is { } only)
+            jobs = jobs.Where(job => job.Status == only);
+
+        var totalCount = await jobs.CountAsync(cancellationToken);
+        // Past the last page there is nothing to read; and a page far enough out would overflow the offset,
+        // which EF Core takes as an int (the UserAccountService guard).
+        var offset = (long)(page - 1) * pageSize;
+        if (offset >= totalCount)
+            return DownloadJobListResult.Listed(new DownloadJobListResponse([], totalCount, page, pageSize));
+
+        // The page's ids first — newest first, the id making the order total — then those jobs with their
+        // releases through JobRows, put back in the page's order: EF Core can't order by the JobRow it projects
+        // into, as it can't filter by it.
+        var ids = await jobs
+            .OrderByDescending(job => job.CreatedUtc)
+            .ThenByDescending(job => job.Id)
+            .Skip((int)offset)
+            .Take(pageSize)
+            .Select(job => job.Id)
+            .ToListAsync(cancellationToken);
+        var rows = (await JobRows(job => ids.Contains(job.Id)).ToListAsync(cancellationToken)).ToDictionary(row => row.Job.Id);
+        var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
+        return DownloadJobListResult.Listed(
+            new DownloadJobListResponse([.. ids.Select(id => ToDto(rows[id], forOwner))], totalCount, page, pageSize));
+    }
+
+    public async Task<DownloadJobFileListResult> ListFilesAsync(
+        Guid jobId, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
+    {
+        // The job first, as SearchService checks the search first: another user's answers as none, whatever the
+        // page asked for.
+        if (!await db.DownloadJobs.AnyAsync(job => job.Id == jobId && job.RequestedByUserId == callerUserId, cancellationToken))
+            return DownloadJobFileListResult.NotFound;
+        if (PagingRules.Validate(page, pageSize) is { } pagingError)
+            return DownloadJobFileListResult.Invalid(pagingError);
+
+        var files = db.DownloadJobFiles.AsNoTracking().Where(file => file.DownloadJobId == jobId);
+        var totalCount = await files.CountAsync(cancellationToken);
+        var offset = (long)(page - 1) * pageSize;
+        if (offset >= totalCount)
+            return DownloadJobFileListResult.Listed(new DownloadJobFileListResponse([], totalCount, page, pageSize));
+
+        // A position is unique per job, so the order is total.
+        var items = await files
+            .OrderBy(file => file.Position)
+            .Skip((int)offset)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        return DownloadJobFileListResult.Listed(
+            new DownloadJobFileListResponse([.. items.Select(mapper.ToDto)], totalCount, page, pageSize));
+    }
+
+    public async Task<DownloadCancelResult> CancelAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default)
+    {
+        if (await JobRows(job => job.Id == jobId && job.RequestedByUserId == callerUserId).SingleOrDefaultAsync(cancellationToken) is not { } row)
+            return DownloadCancelResult.NotFound;
+
+        // MAM-14 — the job and its audit row in one transaction (the UserAccountService.DisableAsync shape), and
+        // nothing sent to the client: IDownloadClient has no member that could remove, stop or pause anything
+        // (ADR 0014, DownloadClientNeverRemovesTests).
+        var cancelled = false;
+        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            // Conditional, in one statement: a job that ended since it was read — finished, or cancelled by a
+            // click racing this one — is left as it is, and nothing is recorded; so is a Created job whose send
+            // may still be under way. A pass of the poller that moved it on meanwhile doesn't stop it: it is as
+            // cancellable as before.
+            if (await db.DownloadJobs.Where(job => job.RequestedByUserId == callerUserId).CancelAsync(jobId, time.GetUtcNow().UtcDateTime) == 1)
+            {
+                var actor = await ActorAsync(callerUserId, cancellationToken);
+                auditTrail.Record(AuditAction.DownloadCancelled, actor, AuditTarget.DownloadJob(row.Job, row.ReleaseTitle));
+                await db.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("{ActorUserName} stopped following download job {JobId}.", actor.UserName, jobId);
+                cancelled = true;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        db.ChangeTracker.Clear();
+        var job = (await FindJobAsync(jobId, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken))!;
+        if (cancelled)
+            return DownloadCancelResult.Cancelled(job);
+
+        // Still Created after a write that didn't take it: younger than an interrupted send, so its send is still
+        // the sender's — a cancel later, or the sender's own outcome, settles it.
+        return job.Status == DownloadJobStatus.Created
+            ? DownloadCancelResult.StillBeingSent(StillBeingSentError)
+            : DownloadCancelResult.NothingToStop(NothingToStopError(job.Status));
+    }
+
     // ── checks ──────────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -226,7 +341,10 @@ public sealed class DownloadService(
     /// Decision 3 — whether a job that didn't fail already sent this release to the client: one whose
     /// release has the same source and the source's id for it, or the info hash this listing states (on
     /// the listing, or worked out from the payload that job sent). Any user's job: the client is the
-    /// household's. A failed job sent nothing new, so it doesn't count.
+    /// household's. A failed job sent nothing new, so it doesn't count. MAM-14 — nor does a cancelled one:
+    /// cancelling is how a person sends a release again (MAM-14's decision 3), and while the torrent is still in
+    /// the client, the client's own "already has this torrent" check (decision 4) stops a second copy. A paused
+    /// one counts: it is still there and still followed.
     /// </summary>
     private Task<bool> WasSentAsync(ReleaseEntity release, Guid clientId, CancellationToken cancellationToken)
     {
@@ -235,7 +353,9 @@ public sealed class DownloadService(
         var infoHash = release.InfoHash;
         return db.DownloadJobs
             .AsNoTracking()
-            .Where(job => job.DownloadClientConnectionId == clientId && job.Status != DownloadJobStatus.Failed)
+            .Where(job => job.DownloadClientConnectionId == clientId
+                && job.Status != DownloadJobStatus.Failed
+                && job.Status != DownloadJobStatus.Cancelled)
             .Join(db.Releases, job => job.ReleaseId, sent => sent.Id, (job, sent) => new { Job = job, Sent = sent })
             // Each side only when the listing has it: two listings without an id, or without a hash,
             // are not the same release for that.
@@ -312,6 +432,14 @@ public sealed class DownloadService(
     }
 
     private DownloadJobDto ToDto(JobRow row, bool forOwner) => mapper.ToDto(row.Job, row.ReleaseTitle, row.SourceName ?? "", forOwner);
+
+    /// <summary>MAM-14 — why a job of <paramref name="status"/>, which ended, can't be cancelled.</summary>
+    private static string NothingToStopError(DownloadJobStatus status) => status switch
+    {
+        DownloadJobStatus.Downloaded => AlreadyDownloadedError,
+        DownloadJobStatus.Failed => AlreadyFailedError,
+        _ => AlreadyCancelledError,
+    };
 
     // ── writes ──────────────────────────────────────────────────────────────────────────────────────
 

@@ -32,7 +32,9 @@
     "Submitted": "{{client}} took the release and lists it among its downloads.",
     "SubmittedUnlisted": "{{client}} took the release, but hasn't listed it among its downloads yet.",
     "Downloading": "{{client}} is downloading the release.",
+    "Paused": "{{client}} took the release, but its download is paused there.",
     "Downloaded": "{{client}} has downloaded the release.",
-    "NeedsLinking": "{{client}} took the release, but the app can't tell which of its downloads it is, so it has to be linked by hand."
+    "NeedsLinking": "{{client}} took the release, but the app can't tell which of its downloads it is, so it has to be linked by hand.",
+    "Cancelled": "{{client}} took the release, but its job has been cancelled since, so the app doesn't follow it."
   }
 }

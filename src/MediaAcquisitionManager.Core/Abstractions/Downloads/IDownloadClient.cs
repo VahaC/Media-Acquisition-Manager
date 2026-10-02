@@ -26,6 +26,14 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 /// stored on it (MAM-14) asks the same question. The files of a job (<see cref="ClientJobFile"/>) are
 /// still MAM-14's.
 /// </para>
+/// <para>
+/// MAM-14 — following a job adds two reads: <see cref="ListJobFilesAsync"/>, MAM-7's member back with its
+/// own signature (ADR 0005), and <see cref="ListDestinationJobsAsync"/>, the jobs of one destination, for the
+/// job a client renamed after it was sent and that its stored hashes no longer find (ADR 0013's gap). Nothing
+/// more: no member removes, deletes, stops or pauses a job or its files, so cancelling a job in the app only
+/// stops following it and can't reach the client (ADR 0014; <c>DownloadClientNeverRemovesTests</c> keeps it
+/// so). The one write is still <see cref="SubmitAsync"/>.
+/// </para>
 /// </remarks>
 public interface IDownloadClient
 {
@@ -49,4 +57,20 @@ public interface IDownloadClient
     /// for the caller to match (<c>ClientJobCorrelation</c>). Empty when the client has none of them.
     /// </summary>
     Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> FindJobsAsync(IntegrationConnectionSettings settings, IReadOnlyCollection<string> infoHashes, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-14 — the files of the job the client calls <paramref name="clientJobId"/>, in the client's order.
+    /// Empty for a job whose files the client doesn't know yet (a magnet still fetching its metadata), and
+    /// <see cref="IntegrationCallStatus.NotFound"/> when the client has no such job — gone since it was last
+    /// listed, say.
+    /// </summary>
+    Task<IntegrationCallResult<IReadOnlyList<ClientJobFile>>> ListJobFilesAsync(IntegrationConnectionSettings settings, string clientJobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-14 — every job the client has in the destination <paramref name="destinationKey"/> (a
+    /// <see cref="ClientDestination.Key"/>), each with every info hash the client lists for it, as
+    /// <see cref="FindJobsAsync"/> gives them. For a job its stored hashes no longer find, never to read a
+    /// whole client.
+    /// </summary>
+    Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> ListDestinationJobsAsync(IntegrationConnectionSettings settings, string destinationKey, CancellationToken cancellationToken = default);
 }

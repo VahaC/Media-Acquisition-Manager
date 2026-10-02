@@ -98,6 +98,29 @@ public class DownloadJobEntity : AuditableEntity
 
     /// <summary>The torrent's v2 info hash, the same way (MAM-13); <c>null</c> for a torrent without v2
     /// metadata.</summary>
+    /// <remarks>MAM-14 — or as the client lists it, for a job sent without one (a magnet naming only its v1
+    /// hash) once the client knows it: what finds the job again after the client renames it to it.</remarks>
     [MaxLength(64)]
     public string? InfoHashV2 { get; set; }
+
+    /// <summary>
+    /// MAM-14 — how far the client has downloaded it, from 0 to 1, as the client last reported it; <c>null</c>
+    /// until the client has. A report that says nothing about the download (none at all, a re-check's) keeps
+    /// the one stored.
+    /// </summary>
+    public double? Progress { get; set; }
+
+    /// <summary>
+    /// MAM-14 — why a followed job isn't moving on, every secret masked: the client reports an error for it,
+    /// no longer lists it, or can't be asked (ADR 0014). <c>null</c> when nothing blocks it. Not an end: the job
+    /// keeps its status and is still followed, and the reason goes once what caused it does (MAM-14's
+    /// decisions 2 and 3).
+    /// </summary>
+    [MaxLength(ErrorMaximumLength)]
+    public string? BlockReason { get; set; }
+
+    /// <summary>MAM-14 — whose sentence <see cref="BlockReason"/> is, with <see cref="ErrorOrigin"/>'s rule: a
+    /// client's own goes to the owner only, as it can name the client's address; <c>null</c> without a
+    /// reason.</summary>
+    public DownloadJobErrorOrigin? BlockReasonOrigin { get; set; }
 }

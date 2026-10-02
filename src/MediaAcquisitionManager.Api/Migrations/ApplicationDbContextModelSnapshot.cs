@@ -128,6 +128,14 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("BlockReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BlockReasonOrigin")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ClientDestinationKey")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -170,6 +178,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<double?>("Progress")
+                        .HasColumnType("REAL");
+
                     b.Property<Guid>("ReleaseId")
                         .HasColumnType("TEXT");
 
@@ -199,10 +210,49 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.HasIndex("ReleaseId");
 
+                    b.HasIndex("RequestedByUserId", "CreatedUtc");
+
                     b.HasIndex("RequestedByUserId", "RequestId")
                         .IsUnique();
 
+                    b.HasIndex(new[] { "Status" }, "IX_DownloadJobs_Followed")
+                        .HasFilter("\"Status\" IN ('Created', 'Submitted', 'Downloading', 'Paused')");
+
                     b.ToTable("DownloadJobs");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DownloadJobFileEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DownloadJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("IsWanted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("Progress")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DownloadJobId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("DownloadJobFiles");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileInspectionRunEntity", b =>
@@ -1149,6 +1199,15 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .WithMany()
                         .HasForeignKey("RequestedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DownloadJobFileEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.DownloadJobEntity", null)
+                        .WithMany()
+                        .HasForeignKey("DownloadJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileInspectionRunEntity", b =>

@@ -252,3 +252,31 @@ by type ("This version of the app can't send downloads to “…”."), as the d
 `DownloadsSendHttpTests.Create_against_qbittorrent_before_5_2_finds_the_job_by_its_info_hash` pins
 the correlation over HTTP, `ClientJobCorrelationTests` the matching, and
 `QBittorrentAdapterSubmitTests` the answers of each version.
+
+## Implementation (added 0.1.0, MAM-14)
+
+**The files come back, and the client's jobs are read by destination too.** `IDownloadClient` gains
+`ListJobFilesAsync(settings, clientJobId)`, MAM-7's member with its signature, which the MAM-11
+section said MAM-14 would add back: the job's files in the client's order, each a `ClientJobFile`
+whose path is now `RelativePath` — relative to the job's folder in the client, exactly as the client
+names it — rather than MAM-7's `ServicePath`, which nothing used; an empty list for a job whose files
+the client doesn't know yet (a magnet's metadata), and `NotFound` for a job the client no longer has.
+And `ListDestinationJobsAsync(settings, destinationKey)`: every job of one destination, read as
+`FindJobsAsync` reads them, for the job a client renamed after it was sent, which its stored hashes no
+longer find ([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)'s
+gap) — never to read a whole client. qBittorrent serves them with `GET api/v2/torrents/files?hash=`
+and `GET api/v2/torrents/info?category=`, after the same session and version gate as every read.
+
+**Following a job is a read, and the contract has no member that removes.** No member removes,
+deletes, stops or pauses a job or its files, so cancelling a job in the app can't reach the client
+([ADR 0014](0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
+The one write is still `SubmitAsync`. `DownloadClientNeverRemovesTests` keeps it so, by the verbs in
+the members' names, and checks that it scanned every member of the contract. The core decides what a
+client's job means for the app's (`DownloadJobFollowing`), so a second download client maps its states
+onto `ClientJobState` and nothing more.
+
+`QBittorrentAdapterFilesTests.ListJobFiles_reads_the_three_files_of_the_sample_exactly`,
+`QBittorrentAdapterFilesTests.ListJobFiles_of_a_torrent_removed_in_qbittorrent_is_not_found`,
+`QBittorrentAdapterDestinationJobsTests.ListDestinationJobs_finds_a_hybrid_qbittorrent_renamed_with_the_v1_hash_among_its_hashes`
+and `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
+pin it.

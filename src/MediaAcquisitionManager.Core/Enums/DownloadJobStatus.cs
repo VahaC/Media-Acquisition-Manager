@@ -18,7 +18,10 @@ public enum DownloadJobStatus
     /// <summary>The client is downloading it.</summary>
     Downloading = 3,
 
-    /// <summary>The client reports the download complete.</summary>
+    /// <summary>
+    /// The client reports the download complete. MAM-14 — following ends here: the client's finished state
+    /// and a progress of 1 together, never either alone, and the job isn't read from the client again.
+    /// </summary>
     Downloaded = 4,
 
     /// <summary>The job failed; its error says why.</summary>
@@ -29,4 +32,16 @@ public enum DownloadJobStatus
     /// the owner has to link it (specification §3.2, step 6).
     /// </summary>
     NeedsLinking = 6,
+
+    /// <summary>
+    /// MAM-14 — the client holds the download stopped before it completed. Still followed: it goes on as
+    /// soon as someone starts it in the client again.
+    /// </summary>
+    Paused = 7,
+
+    /// <summary>
+    /// MAM-14 — the person who sent it stopped following it. Nothing was sent to the client: the torrent
+    /// and its files stay there as they were (ADR 0014), and the release may be sent again.
+    /// </summary>
+    Cancelled = 8,
 }

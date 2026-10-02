@@ -5,8 +5,8 @@ localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MA
 environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
 library inventory), MAM-9 (the ffprobe inspection of the library's files), MAM-10 (the Torznab
 release search), MAM-11 (qBittorrent's categories and the download destinations), MAM-12 (the
-search page of library copies and releases) and MAM-13 (sending a release to qBittorrent) are built;
-no phase has shipped yet.
+search page of library copies and releases), MAM-13 (sending a release to qBittorrent) and MAM-14
+(following each download in qBittorrent until it finishes) are built; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -85,8 +85,8 @@ existing file untouched.
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   MAM-7's adapters only tested a connection; MAM-8 added the library contract to Jellyfin's, MAM-10
   the search contract to Torznab's, MAM-11 the destinations of the download contract to
-  qBittorrent's, and MAM-13 the submission and the lookup of jobs by info hash (following jobs and
-  their files comes with MAM-14).
+  qBittorrent's, MAM-13 the submission and the lookup of jobs by info hash, and MAM-14 the files
+  of a job and the jobs of a destination.
 - **MAM-8 Jellyfin inventory** (built): the owner syncs a Jellyfin library (10.9 or later) from the
   Library page in the background (202 + run row + reconciler), reading its libraries and every
   movie in pages that overlap by one, each asking for collection grouping off
@@ -251,9 +251,50 @@ existing file untouched.
   first try that Prowlarr failed to fetch from Toloka ended `Failed` with the feed's sentence and sent
   nothing. The page was checked in a browser at desktop and phone width against local fakes.
   qBittorrent's answers to `torrents/add` before 5.2 are written from its source.
-- **MAM-14 Job tracking:** the client's jobs followed by the id or the info hashes MAM-13 stores on
-  each, and their files read back (the contract's files member comes back with it); persisted jobs
-  that follow the client's status and survive a restart.
+- **MAM-14 Job tracking** (built): a background pass reads every followed job from qBittorrent every
+  10 seconds, after the previous pass ends, and writes what changed to the job's row, so nothing is
+  kept in memory and a restart goes on where the rows are. A job is found by the id or the info hashes
+  MAM-13 stores on it, one lookup per client and pass, 50 ids to a request; one its ids no longer find,
+  sent as a magnet naming its v1 hash only, among its destination's torrents
+  (`torrents/info?category=`), closing ADR 0013's gap of the hybrid qBittorrent renames. Its status
+  follows qBittorrent's — `Submitted`, `Downloading`, the new `Paused`, and `Downloaded`, which ends the
+  following, only for a finished state with a progress of 1 — with its progress and, for a job whose
+  status or progress moved, its files (the contract's `ListJobFilesAsync` came back, and
+  `ListDestinationJobsAsync` is new,
+  [ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
+  A send a stop interrupted, left `Created`, is looked for once it is 5 minutes old: followed when
+  qBittorrent has it, `NeedsLinking` when it lists it twice, `Failed` with why otherwise. A client
+  error (MAM-14's decision 2), a torrent qBittorrent no longer lists (decision 3) and a client that
+  can't be asked keep the job's status with a block reason and keep it followed; the reason goes by
+  itself once its cause does, and a client's own sentence is the owner's to read. Cancel only stops
+  following: a conditional update to the new `Cancelled` with an audit row, nothing sent to
+  qBittorrent, as the contract has no member that removes, stops or pauses, and a cancelled job's
+  release may be sent again
+  ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md),
+  [ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+  The **Jobs** page (in the header, for every signed-in user) lists the caller's own jobs, the owner's
+  too (decision 1), newest first, filtered by status and paged on the server, with the status, the
+  reason or the error, the progress and **Cancel job**, and refreshes every 10 s while it shows a
+  followed job; a job's page adds its facts and its files. The HTTP tests cover each of qBittorrent's
+  states (`DownloadJobTrackingHttpTests.Poll_maps_what_qBittorrent_reports_onto_the_job`), the end of
+  the following
+  (`DownloadJobTrackingHttpTests.Poll_of_a_finished_download_ends_its_following_and_never_asks_about_it_again`),
+  the files
+  (`DownloadJobTrackingHttpTests.Poll_stores_a_jobs_files_and_reads_them_again_only_when_the_job_moved`),
+  the restart and the interrupted sends
+  (`DownloadJobRecoveryHttpTests.Poll_after_a_restart_follows_the_jobs_a_previous_run_left_and_asks_about_no_ended_one`,
+  `DownloadJobRecoveryHttpTests.Poll_of_an_interrupted_send_qBittorrent_took_follows_it_from_then_on`,
+  `DownloadJobRecoveryHttpTests.Poll_finds_a_hybrid_torrent_qBittorrent_renamed_after_its_magnet_through_its_destination`),
+  a torrent missing from qBittorrent and a client that can't be asked
+  (`DownloadJobMissingHttpTests.Poll_of_a_torrent_removed_from_qBittorrent_keeps_the_job_with_why_and_follows_it_until_it_comes_back`,
+  `DownloadJobMissingHttpTests.Poll_of_a_client_that_can_not_be_asked_never_makes_a_job_missing`),
+  cancel never reaching qBittorrent
+  (`DownloadsCancelHttpTests.Cancel_sends_nothing_to_qBittorrent_and_no_later_pass_asks_about_the_job`,
+  `DownloadsCancelHttpTests.Poll_racing_a_cancel_never_undoes_it`,
+  `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`),
+  and the list and the files of one's own jobs only
+  (`DownloadsListHttpTests.List_of_the_installation_owner_holds_only_their_own_jobs`,
+  `DownloadJobFilesHttpTests.Files_of_another_users_job_are_a_bare_404_even_for_the_installation_owner`).
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
@@ -263,8 +304,10 @@ existing file untouched.
   the next inspection; the media folders the owner allowed are in `mam.db` too, and so are the
   download destinations and the library folders the last sync stored (those come back with the next
   sync); qBittorrent's session, and a sign-in it refused, are held in memory only. The download jobs
-  live in `mam.db` too, each with the request id it was sent under and the info hashes (v1 and v2) of what it sent;
-  the torrents themselves are qBittorrent's to back up. The releases a search found
+  live in `mam.db` too, each with the request id it was sent under, the info hashes (v1 and v2) of
+  what it sent, its status, progress and block reason as the last pass read them, and its files as
+  qBittorrent last listed them; the jobs still followed catch up with the next pass after a
+  restore, and the torrents themselves are qBittorrent's to back up. The releases a search found
   are kept there for a day, and those a download job sent for as long as the job; the Search page's
   searches, with how each source answered, for a day too. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
@@ -277,7 +320,8 @@ existing file untouched.
 **Tests:** every endpoint over real HTTP, with vendor APIs faked at the network seam; a failing
 source returns its own error while the other sources still answer; submitting the same release
 twice creates one job; a destination maps to its category and never sends a conflicting save
-path; no Phase A code path writes to a media root.
+path; a job follows the client's snapshots, survives a restart and a torrent missing from the
+client, and its cancel never reaches the client; no Phase A code path writes to a media root.
 
 **Acceptance bar:** a movie in a `Collection` folder can be found without moving it; Toloka (or
 another indexer) appears in search when its integration actually works, and a Toloka failure shows

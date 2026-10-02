@@ -4,12 +4,25 @@
 
 /**
  * Where a download job stands. `Created`: being sent, or the outcome is unknown. `Submitted`: the
- * client took it (`clientJobId` is null while the client hasn't listed it yet). `Downloading` and
- * `Downloaded` come with MAM-14. `Failed`: `error` says why, and nothing new reached the client.
+ * client took it (`clientJobId` is null while the client hasn't listed it yet). `Downloading`: the
+ * client is downloading it. `Paused`: paused in the client. `Downloaded`: the client has all of it,
+ * and the app stops following it. `Failed`: `error` says why, and nothing new reached the client.
  * `NeedsLinking`: the client took it, but lists more than one job it could be, or gave no id and the
- * release no info hash, so it has to be linked by hand.
+ * release no info hash, so it has to be linked by hand. `Cancelled`: the person stopped following it;
+ * the torrent and its files stay in the client.
+ *
+ * MAM-14 — the app follows `Created` (a send interrupted by a restart), `Submitted`, `Downloading`
+ * and `Paused` by reading the client; the others have ended.
  */
-export type DownloadJobStatus = 'Created' | 'Submitted' | 'Downloading' | 'Downloaded' | 'Failed' | 'NeedsLinking'
+export type DownloadJobStatus =
+  | 'Created'
+  | 'Submitted'
+  | 'Downloading'
+  | 'Paused'
+  | 'Downloaded'
+  | 'Failed'
+  | 'NeedsLinking'
+  | 'Cancelled'
 
 /** One destination of a download client: a category of the client, never a folder. */
 export interface DownloadDestinationOption {
@@ -64,12 +77,62 @@ export interface DownloadJob {
   /** The category actually sent. */
   clientDestinationKey: string | null
   status: DownloadJobStatus
+  /** MAM-14 — 0 to 1, as the client last reported it; null until it has. */
+  progress: number | null
   /** The client's own id for the job once it lists it; null until then. */
   clientJobId: string | null
   /** Why the job failed, every secret masked; null unless it did. */
   error: string | null
+  /**
+   * MAM-14 — why a followed job isn't moving on (the client can't be asked, reports an error, or no
+   * longer lists the torrent); null when nothing blocks it. The job keeps its status meanwhile. A
+   * client's own sentence reaches the installation owner only; anyone else reads the app's.
+   */
+  blockReason: string | null
   /** UTC with a trailing `Z`. */
   createdUtc: string
   /** UTC with a trailing `Z`. */
   statusChangedUtc: string
+}
+
+/** MAM-14 — `GET /api/downloads`: one page of the caller's own jobs, newest first. */
+export interface DownloadJobList {
+  items: DownloadJob[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+/** The query of `GET /api/downloads`; a missing status lists every job. */
+export interface DownloadJobsQuery {
+  status?: DownloadJobStatus
+  page: number
+  pageSize: number
+}
+
+/** MAM-14 — one file of a job, as the client last listed it. */
+export interface DownloadJobFile {
+  /** From 0, in the client's order. */
+  position: number
+  /** Relative to the job's folder in the client, `/`-separated, exactly as the client names it. */
+  path: string
+  sizeBytes: number | null
+  /** 0 to 1; null when the client didn't say. */
+  progress: number | null
+  /** False when the file is skipped in the client; null when the client didn't say. */
+  isWanted: boolean | null
+}
+
+/** `GET /api/downloads/{id}/files`: one page of a job's files, by position. */
+export interface DownloadJobFileList {
+  items: DownloadJobFile[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
+/** The query of `GET /api/downloads/{id}/files`. */
+export interface DownloadJobFilesQuery {
+  page: number
+  pageSize: number
 }

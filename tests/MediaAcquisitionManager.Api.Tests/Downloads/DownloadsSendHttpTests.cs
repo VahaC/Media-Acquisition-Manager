@@ -115,7 +115,7 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         // qBittorrent 5.2 names the torrent it added: its v1 info hash.
         Assert.Equivalent(
             new DownloadJobDto(
-                job.Id, release.Id, SampleTitle, "Toloka", "qBittorrent", "Movies", "Movies", DownloadJobStatus.Submitted, SampleInfoHash, null, now, now),
+                job.Id, release.Id, SampleTitle, "Toloka", "qBittorrent", "Movies", "Movies", DownloadJobStatus.Submitted, null, SampleInfoHash, null, null, now, now),
             job,
             strict: true);
         Assert.Equal($"/api/downloads/{job.Id}", response.Headers.Location?.AbsolutePath);
@@ -309,8 +309,8 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         var response = await SendAsync(_owner, release);
 
         //Assert
-        // qBittorrent said it took it: taken, with its info hash kept for MAM-14 to find it by. Looked for
-        // twice after the add, never more, and never sent again.
+        // qBittorrent said it took it: taken, with its info hash kept for the poller to find it by (MAM-14).
+        // Looked for twice after the add, never more, and never sent again.
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var job = await ReadJobAsync(response, cancellationToken);
         Assert.Equal(DownloadJobStatus.Submitted, job.Status);
@@ -429,7 +429,7 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
 
         //Assert
         // qBittorrent on libtorrent 2 names a hybrid by its v2 hash cut to 40 characters; the lookup asks for
-        // the torrent both ways, and the job keeps both hashes for MAM-14.
+        // the torrent both ways, and the job keeps both hashes, which the poller follows it by (MAM-14).
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var job = await ReadJobAsync(response, cancellationToken);
         Assert.Equal(DownloadJobStatus.Submitted, job.Status);
