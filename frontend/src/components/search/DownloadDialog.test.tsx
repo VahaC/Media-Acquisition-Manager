@@ -29,7 +29,7 @@ function renderDialog() {
       <DownloadDialog release={tolokaRemux} onClose={onClose} />
     </QueryClientProvider>,
   )
-  return { onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog', { name: `Download ${tolokaRemux.title}` }) }
+  return { client, onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog', { name: `Download ${tolokaRemux.title}` }) }
 }
 
 const clientSelect = (dialog: HTMLElement) => within(dialog).getByRole('combobox', { name: 'Download client' })
@@ -106,21 +106,63 @@ describe('DownloadDialog', () => {
     const { dialog } = renderDialog()
 
     // Assert
-    expect(await within(dialog).findByRole('alert'))
-      .toHaveTextContent('This release isn\'t available any more: a search keeps what it found for a day. Search again.')
+    const state = await within(dialog).findByRole('alert')
+    expect(state).toHaveTextContent('Could not load the download clients.')
+    expect(state).toHaveTextContent('This release isn\'t available any more: a search keeps what it found for a day. Search again.')
+    // A release that expired stays expired: no Try again.
+    expect(within(dialog).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
     expect(sendButton(dialog)).toBeDisabled()
   })
 
-  it('shows its own sentence when the download clients can\'t be loaded and the API gives none', async () => {
+  it('says the download clients could not be loaded in place of the pickers, and Try again loads them', async () => {
     // Arrange
-    vi.mocked(downloadsApi.options).mockRejectedValue(apiError(500))
+    vi.mocked(downloadsApi.options).mockRejectedValueOnce(apiError(500))
+    const { dialog, user } = renderDialog()
+    const state = await within(dialog).findByRole('alert')
 
     // Act
-    const { dialog } = renderDialog()
+    await user.click(within(dialog).getByRole('button', { name: 'Try again' }))
 
     // Assert
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not load the download clients.')
+    expect(state).toHaveTextContent('Could not load the download clients.')
+    expect(await optionsLoaded(dialog)).toHaveValue(localClient.id)
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps the pickers under a banner when the download clients fail to load again, and Retry asks again', async () => {
+    // Arrange
+    const { client, dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+    vi.mocked(downloadsApi.options).mockRejectedValueOnce(networkError())
+    await act(() => client.refetchQueries({ queryKey: qk.downloads.options(tolokaRemux.id) }))
+    const banner = await within(dialog).findByRole('alert')
+
+    // Act
+    await user.click(within(dialog).getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    expect(banner).toHaveTextContent(
+      'Could not load the download clients again, showing the last loaded ones. The server could not be reached.')
+    await vi.waitFor(() => expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument())
+    expect(clientSelect(dialog)).toHaveValue(localClient.id)
+    expect(downloadsApi.options).toHaveBeenCalledTimes(3)
+  })
+
+  it('offers no Retry on the banner when the release expired since the pickers loaded', async () => {
+    // Arrange
+    const { client, dialog } = renderDialog()
+    await optionsLoaded(dialog)
+    vi.mocked(downloadsApi.options).mockRejectedValueOnce(
+      apiError(404, 'This release isn\'t available any more: a search keeps what it found for a day. Search again.'))
+
+    // Act
+    await act(() => client.refetchQueries({ queryKey: qk.downloads.options(tolokaRemux.id) }))
+
+    // Assert
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('This release isn\'t available any more')
+    expect(within(dialog).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+    expect(clientSelect(dialog)).toHaveValue(localClient.id)
   })
 
   it('says no download client can take the release yet, and where the owner sets them up, when none is listed', async () => {
@@ -367,6 +409,10 @@ describe('DownloadDialog', () => {
     // Assert
     await vi.waitFor(() => expect(downloadsApi.send).toHaveBeenCalledTimes(2))
     expect(said).toBe('This release was already sent to “Local qBittorrent”, so it isn\'t sent twice.')
+    // MAM-16 — a banner above the buttons, outside the scrolling fields.
+    const banner = await within(dialog).findByRole('alert')
+    expect(banner).toHaveClass('ui-banner')
+    expect(banner.nextElementSibling).toContainElement(sendButton(dialog))
     expect(onClose).not.toHaveBeenCalled()
     expect(clientSelect(dialog)).toHaveValue(localClient.id)
     const [first, second] = sentRequestIds()

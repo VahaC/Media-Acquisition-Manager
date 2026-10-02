@@ -5,21 +5,24 @@ localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MA
 environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
 library inventory), MAM-9 (the ffprobe inspection of the library's files), MAM-10 (the Torznab
 release search), MAM-11 (qBittorrent's categories and the download destinations), MAM-12 (the
-search page of library copies and releases), MAM-13 (sending a release to qBittorrent) and MAM-14
-(following each download in qBittorrent until it finishes) are built; no phase has shipped yet.
+search page of library copies and releases), MAM-13 (sending a release to qBittorrent), MAM-14
+(following each download in qBittorrent until it finishes) and MAM-16 (the approved layout: the
+search field in the header, numbered pages, versions as rows or a table, one error state per kind of
+failure, and a Profile page where every user changes their own password) are built; no phase has
+shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-15 in the Kaneo project `MAM`. Releases for phases B–D are not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`. Releases for phases B–D are not decided yet.
 
 ## Phases
 
 ### Phase A — Vertical slice without deletion
 
-**Release:** 0.1.0. **Tickets:** MAM-1 to MAM-15.
+**Release:** 0.1.0. **Tickets:** MAM-1 to MAM-16.
 
 **Complexity:** High
 **Value:** search once and see the copies you already own beside the releases you could download,
@@ -49,8 +52,11 @@ existing file untouched.
   ([ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)), one identical 401
   for every failed sign-in, 10 sign-in attempts a minute per client address, an owner-only Users
   page (server-side search and paging; add, disable and enable, reset password, delete with a
-  confirmation), owner-only settings writes by namespace convention, and an audit trail. Two-factor
-  sign-in and password reset by email are out of scope.
+  confirmation), owner-only settings writes by namespace convention, and an audit trail. MAM-16
+  added a Profile page where every user changes their own password with the current one, which ends
+  their other sessions and keeps the one it was made from
+  ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
+  Two-factor sign-in and password reset by email are out of scope.
 - **MAM-5 Personal access tokens** for scripts and other tools.
 - **MAM-6 Live environment facts** (built): the specification's open questions (§7) answered
   against the real installation. One folder on one ext4 filesystem holds every media library and
@@ -162,6 +168,10 @@ existing file untouched.
 - **MAM-12 Unified search page** (built): every signed-in user searches by title — required, with a
   year, an IMDb id and a TMDb id in fields of their own (owner's choice) — and the library and every
   enabled release source are asked at once, the library through a database context of its own.
+  MAM-16 moved the title to a search field in the header: Enter opens `/search?q=…`, which makes the
+  search once and becomes `?id=` (ADR 0011), a year in brackets ending the line becomes the year
+  ([ADR 0015](docs/adr/0015-only-a-bracketed-trailing-year-in-the-header-search-becomes-the-year.md)),
+  and the page keeps the year and the ids to narrow the search on screen.
   **In your library** lists every work of the snapshot MAM-8 imported that matches, strongest first:
   by identifier, then by original or localised title with its year, then by title alone as a
   candidate to check, each with its versions and the facts MAM-9 verified, the id or title that
@@ -297,6 +307,66 @@ existing file untouched.
   `DownloadJobFilesHttpTests.Files_of_another_users_job_are_a_bare_404_even_for_the_installation_owner`).
 - **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
   record which integrations were tested live and which remain unverified.
+- **MAM-16 Approved layout** (built): the web app takes the layout the owner approved on
+  2026-10-02 (`docs/design-system/design_handoff_approved_layout/README.md`), with the ticket's plan
+  deciding where the brief is wrong about the code. The header stays at the top of the window and
+  holds a search field in place of the Search link: `/` jumps to it, and Enter opens
+  `/search?q=…`, which makes the search once and becomes `?id=`
+  ([ADR 0011](docs/adr/0011-a-search-is-stored-once-and-every-filter-sort-and-page-reads-what-it-stored.md));
+  only a year from 1900 to 2099 in brackets ending the line becomes the year, so "Blade Runner 2049"
+  stays a title (owner's choice,
+  [ADR 0015](docs/adr/0015-only-a-bracketed-trailing-year-in-the-header-search-becomes-the-year.md),
+  with a section added to
+  [ADR 0012](docs/adr/0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)),
+  and the page keeps the year and the ids to narrow the search with **Apply**. Every paged list shows
+  the range on screen ("26–50 of 812", from its `totalCount`) and numbered pages. A library card
+  shows its versions as rows, or from two versions side by side in a table, one choice per browser
+  for Library and Search and always rows below 48rem (owner's choice). The user menu says who is
+  signed in, with their role, the version and the server's readiness, and holds **Profile**, the
+  owner's settings, a Light, Dark or System theme kept in the browser, and **Sign out**. Every failed
+  request shows one of a few error states: a box with the server's sentence and **Try again** where
+  a first load failed, a banner with **Retry** over the data kept on screen, a banner that
+  **Dismiss** clears for a refused action, a banner above a form's buttons, a sentence under the
+  field it is about, and a strip under the header while the server can't be reached, which asks
+  `GET /api/health` every 5 seconds until it answers; red text takes a `--text-danger` token that
+  reaches the 4.5:1 text needs in the dark theme too. On the Users page the Add user and Reset
+  password dialogs place each refusal (two passwords that differ under Confirm password, a taken
+  name under User name, every other server sentence in a banner above the buttons, with no client
+  copy of the server's rules), and a reset that goes through says so in a dismissible ok banner
+  above the list (`CreateUserDialog.test.tsx`, `ResetPasswordDialog.test.tsx`,
+  `UsersPage.test.tsx`). The **Profile** page shows the account, when it was created and last
+  signed in and when this session ends — the new `createdUtc`, `lastSignInUtc` and
+  `sessionExpiresUtc` of `GET /api/auth/me` — and lets every user change their own password with
+  the current one through `POST /api/auth/password`: the user's other sessions end at once and this
+  one stays, a wrong current password is a 400, never a 401, a `UserPasswordChanged` audit row is
+  written, and 10 attempts a minute are allowed per user, counted apart from sign-in
+  ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md),
+  with a section added to
+  [ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)); the web app
+  refreshes an expired access token for these two calls as for any other. The HTTP tests cover the
+  sessions a change ends and keeps
+  (`AuthPasswordHttpTests.ChangePassword_keeps_the_calling_session_and_ends_the_users_other_sessions_at_once`),
+  a wrong current password
+  (`AuthPasswordHttpTests.ChangePassword_with_a_wrong_current_password_is_400_with_the_sentence_and_changes_nothing`),
+  an owner's reset landing during the check
+  (`AuthPasswordHttpTests.ChangePassword_overtaken_by_a_change_to_the_user_during_the_password_check_is_400_and_the_owners_change_stands`),
+  the limit per user
+  (`AuthPasswordHttpTests.ChangePassword_is_rate_limited_per_user_whatever_the_client_address`) and
+  the end of the calling session
+  (`AuthMeHttpTests.Me_says_when_the_calling_session_ends_not_another_session_of_the_user`). The web
+  app's tests cover the header search and its year (`HeaderSearch.test.tsx`,
+  `search-query.test.ts`, and `SearchPage.test.tsx`'s "makes the search in ?q= once, though
+  StrictMode runs the page's effects twice" and "goes Back from a search made from ?q= to the page
+  before it, never to the ?q= that would ask again"), the pager (`ListPager.test.tsx`,
+  `page-numbers.test.ts`), the versions (`LibraryWorkCard.versions.test.tsx`), the theme
+  (`theme-store.test.ts`), the error states and the strip (`ErrorState.test.tsx`,
+  `use-load-retry.test.tsx`, `OfflineStrip.test.tsx`, `connection-store.test.ts`) and the Profile
+  page (`ProfilePage.test.tsx`, `ChangePasswordCard.test.tsx`, and `api.test.ts`'s "refreshes once
+  and retries once after a 401 from GET /api/auth/me" and "… POST /api/auth/password"). The pages
+  were checked in a browser at 1280, 375 and 320px, light and dark: a fresh database for the setup,
+  Users dialogs, Profile password change and the strip (with the API stopped), and the live library
+  and Toloka search for the versions view and the Search page. System following the operating system
+  without a reload was not seen, because the hidden browser pane sends no change events.
 - **Backup/restore:** nothing to add. The whole state is the data directory (`mam.db`, which holds
   the accounts, sessions, integrations, audit trail, imported library and its sync runs too, and
   `.secrets/`, whose encryption key alone opens the stored credentials); copy it while the app is
@@ -309,7 +379,9 @@ existing file untouched.
   qBittorrent last listed them; the jobs still followed catch up with the next pass after a
   restore, and the torrents themselves are qBittorrent's to back up. The releases a search found
   are kept there for a day, and those a download job sent for as long as the job; the Search page's
-  searches, with how each source answered, for a day too. A secret set through
+  searches, with how each source answered, for a day too. MAM-16 adds nothing to back up: the
+  theme and the way versions show are kept in each browser (`mam:theme`, `mam:versionsView`), not
+  in the data directory. A secret set through
   `MAM_Encryption__Key` or `MAM_Jwt__Secret` lives in your environment instead of `.secrets/`, so
   back it up there.
 
@@ -321,7 +393,9 @@ existing file untouched.
 source returns its own error while the other sources still answer; submitting the same release
 twice creates one job; a destination maps to its category and never sends a conflicting save
 path; a job follows the client's snapshots, survives a restart and a torrent missing from the
-client, and its cancel never reaches the client; no Phase A code path writes to a media root.
+client, and its cancel never reaches the client; a user's own password change ends their other
+sessions at once, keeps the one it was made from, loses to an owner's reset that lands during it
+and is limited per user (`AuthPasswordHttpTests`); no Phase A code path writes to a media root.
 
 **Acceptance bar:** a movie in a `Collection` folder can be found without moving it; Toloka (or
 another indexer) appears in search when its integration actually works, and a Toloka failure shows

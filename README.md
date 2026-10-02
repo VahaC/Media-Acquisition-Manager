@@ -4,14 +4,14 @@
 
 **Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built. Today the app is an
 API and a web shell that report their own health, with accounts, integration settings and the
-library: the installation owner created on first run, the users the owner manages, and sign-in;
-the owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each
-connection, and imports the Jellyfin library, which every signed-in user can browse, with what each
-file really holds once the app has inspected it inside the media folders the owner allows; the owner
-also maps download destinations to qBittorrent's categories. Every signed-in user searches the
-library and the release sources together on the Search page, sends a release found there to
-qBittorrent, and sees its download on the Jobs page until it finishes; see
-[ROADMAP.md](ROADMAP.md).
+library: the installation owner created on first run, the users the owner manages, sign-in, and a
+Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
+source such as Prowlarr and qBittorrent, tests each connection, and imports the Jellyfin library,
+which every signed-in user can browse, with what each file really holds once the app has inspected
+it inside the media folders the owner allows; the owner also maps download destinations to
+qBittorrent's categories. Every signed-in user searches the library and the release sources together
+on the Search page, sends a release found there to qBittorrent, and sees its download on the Jobs
+page until it finishes; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -46,12 +46,21 @@ application.
 
 - **Accounts and sign-in.** The first visit creates the installation owner; everyone else signs in
   with the user name and password the owner gave them. A session lasts 30 days from its last use,
-  and signing out, disabling a user or resetting a password takes effect at once. See
+  and signing out, disabling a user, or resetting or changing a password takes effect at once. See
   [Security](#security).
 - **User management for the owner.** The Users page (**Users** in the owner's user menu) searches
   and pages through the users on the server, adds a user, disables or enables one, resets a
   password, and deletes one after a confirmation. The owner's own account can't be disabled or
   deleted.
+- **Your profile.** Every signed-in user opens the Profile page from their user menu (**Profile**,
+  or their name at the top of the menu): their user name, role, when the account was created and
+  last signed in, and when this session ends unless it is used again. **Change password** asks for
+  the current password and the new one twice, ends the user's other sessions and keeps this one
+  ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
+  The theme can be picked there too, and **Sign out** is at the bottom.
+- **Light, Dark or System.** The **Theme** row of the user menu, and Profile, switch the web app to
+  a light or a dark theme, or follow the operating system's setting as it changes. The choice is
+  kept in each browser and applied before the first paint, and every open tab of the app takes it.
 - **Integration settings for the owner.** The Integrations page (**Integrations** in the owner's
   user menu) searches by name, filters by kind (media library, release source, download client)
   and pages on the server; adds Jellyfin, a Torznab feed or qBittorrent, edits one, switches it off
@@ -68,13 +77,14 @@ application.
 - **The library.** The Library page (**Library** in the header, for every signed-in user) lists the
   movies of the owner's Jellyfin libraries as works: items that share an IMDb or TMDb id are one
   work with several versions, never merged by title and year. Each shows its titles, year and
-  identifiers, a warning for a missing IMDb or TMDb id, and its versions with their files, where
-  Jellyfin sees them and where the app finds them through the path mappings; what Jellyfin didn't
-  report shows as unknown. The server searches by title, original title, IMDb or TMDb id, year or
-  path, filters by Jellyfin library or by missing identifiers, and pages, with titles in Ukrainian
-  alphabetical order. The owner imports a library with **Sync now**: a background sync reads all
-  of it, in Jellyfin 10.9 or later, before it replaces anything, so a failed one changes nothing,
-  and nothing in the library or in Jellyfin is moved, renamed or changed
+  identifiers, a warning for a missing IMDb or TMDb id, and its versions — as rows that sum up each
+  file and open to it, or side by side in a table, one choice per browser and rows on a phone — with
+  their files, where Jellyfin sees them and where the app finds them through the path mappings; what
+  Jellyfin didn't report shows as unknown. The server searches by title, original title, IMDb or
+  TMDb id, year or path, filters by Jellyfin library or by missing identifiers, and pages, with
+  titles in Ukrainian alphabetical order. The owner imports a library with **Sync now**: a
+  background sync reads all of it, in Jellyfin 10.9 or later, before it replaces anything, so a
+  failed one changes nothing, and nothing in the library or in Jellyfin is moved, renamed or changed
   ([ADR 0008](docs/adr/0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)).
   Removing a Jellyfin integration removes the library it imported from the app, never the files.
 - **Verified file facts.** Each file shows what it really holds, read by `ffprobe` from the file
@@ -89,16 +99,19 @@ application.
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
   The Library page shows how many files of each source were inspected, couldn't be read or wait,
   and why a file couldn't be read (the reason to the owner only).
-- **Search: your library and the release sources side by side.** The Search page (**Search** in the
-  header, first, for every signed-in user) looks for a movie by its title, with a year, an IMDb id
-  and a TMDb id in fields of their own when you have them (owner's choice), in the library and in
-  every enabled release source at once. **In your library** shows each matching movie as the
-  Library page does, versions and verified file facts included, with how it matched — by IMDb or
-  TMDb id, by title and year, or by title alone as a possible match to check — and a warning when
-  ids conflict; every match is listed, strongest first, and nothing is picked or merged. Below the
-  matches come up to 20 movies that don't match but one of whose titles or file paths holds every
-  word searched for, each whole, marked as no match, with how many more there are and a link to the
-  Library page searched for the same text
+- **Search: your library and the release sources side by side.** Every signed-in user types a title
+  in the search field at the top of every page (`/` jumps to it) and presses Enter; the Search page
+  looks for it in the library and in every enabled release source at once. A year in brackets at
+  the end of the line is the year, "Interstellar (2014)", while a bare number stays in the title
+  ([ADR 0015](docs/adr/0015-only-a-bracketed-trailing-year-in-the-header-search-becomes-the-year.md)),
+  and the page narrows the search by a year, an IMDb id and a TMDb id in fields of their own
+  (owner's choice). **In your library** shows each matching movie as the Library page does, versions
+  and verified file facts included, with how it matched — by IMDb or TMDb id, by title and year, or
+  by title alone as a possible match to check — and a warning when ids conflict; every match is
+  listed, strongest first, and nothing is picked or merged. Below the matches come up to 20 movies
+  that don't match but one of whose titles or file paths holds every word searched for, each whole,
+  marked as no match, with how many more there are and a link to the Library page searched for the
+  same text
   ([ADR 0012](docs/adr/0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)).
   **Available releases** lists every release found, even for a movie already in the library, with
   its source, size, seeders and peers, publish date and what its title claims — resolution, medium,
@@ -154,7 +167,10 @@ application.
   qBittorrent, so the torrent and its files stay as they are, and the release may be sent again. The pages refresh every 10 seconds while they show a followed job
   ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
 - **Service status.** The web app shows its version and whether the service is ready; when it is
-  not, it names the check that failed.
+  not, it names the check that failed. While the server can't be reached, a strip under the header
+  says so and asks `GET /api/health` every 5 seconds until it answers; every failed load says what
+  failed and why, with **Try again** when asking again can help, and the data already on screen
+  stays.
 - **Health endpoints** for uptime monitors: liveness and readiness. See
   [Health endpoints](#health-endpoints).
 - **Zero-config start.** On first run the API creates its SQLite database, applies the migrations
@@ -276,17 +292,22 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   only its SHA-256 hash; a replaced cookie presented again more than 30 seconds later revokes the
   session, since that is what a copied cookie looks like.
 - **Every request checks its session.** A valid token is not enough: its session must still be live
-  and its user enabled, so signing out, disabling or deleting a user and resetting a password take
-  effect on the next request, not when the token expires. Disable and delete end every session of
-  the user; a reset ends all but the one it was made from. Rotating `Jwt:Secret` signs nobody out —
-  to lock someone out, disable them or reset their password
+  and its user enabled, so signing out, disabling or deleting a user and resetting or changing a
+  password take effect on the next request, not when the token expires. Disable and delete end every
+  session of the user; a reset, and a user's change of their own password, end all but the one it
+  was made from
+  ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
+  Rotating `Jwt:Secret` signs nobody out — to lock someone out, disable them or reset their password
   ([ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)).
 - **One answer to every failed sign-in.** An unknown user, a wrong password, a disabled account and
   a blank field all get the same 401 `{ "error": "The user name or password is incorrect." }` after
   the same single password hash, so neither the answer nor its timing tells which user names exist.
 - **Rate limit.** Sign-in and setup allow 10 attempts a minute per client address; more get 429
-  `{ "error": "Too many attempts. Wait a minute and try again." }` with `Retry-After: 60`. Refresh
-  isn't limited: its cookie holds 256 random bits.
+  `{ "error": "Too many attempts. Wait a minute and try again." }` with `Retry-After: 60`. A user
+  changing their own password gets 10 attempts a minute per user, from whatever address and counted
+  apart from sign-in, then the same 429: a stolen access token can't spread its guesses for the
+  current password over many addresses, and a mistyped one doesn't use up the sign-ins of everyone
+  behind the same router. Refresh isn't limited: its cookie holds 256 random bits.
 - **Owner-only settings.** Every action of a controller under `Controllers/Settings` that changes
   something is owner-only because of where the controller lives, not because someone remembered an
   attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users, Integrations and
@@ -357,7 +378,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   goes to the owner only
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
-  every change to an integration (add, edit, remove), every save of the media folders, every change
+  every user's change of their own password (`UserPasswordChanged`), every change to an integration
+  (add, edit, remove), every save of the media folders, every change
   to a destination (add, edit, remove), every download sent (`DownloadRequested`, written with its
   job before anything is fetched or sent) and every job cancelled (`DownloadCancelled`) write an
   audit row in the same transaction as the change:
@@ -579,14 +601,15 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 
 | Request | Answer |
 | --- | --- |
-| `GET /api/health` | Liveness: 200 while the process is up. Runs no checks. |
+| `GET /api/health` | Liveness: 200 while the process is up. Runs no checks. The web app asks it every 5 seconds while it can't reach the server. |
 | `GET /api/health/ready` | Readiness: 200 when the service is ready, 503 when a check fails. |
 | `GET /api/setup` | 200 `{ "isRequired": true }` until the owner exists, `false` after. Anonymous. |
 | `POST /api/setup` with `{ userName, password }` | Creates the owner and signs them in: 200 as for sign-in. 400 with the broken rule's sentence; 409 once an owner exists; 429 over the rate limit. Anonymous. |
 | `POST /api/auth/sign-in` with `{ userName, password }` | 200 `{ accessToken, accessTokenExpiresUtc, user: { id, userName, isOwner } }` and the `mam_refresh` cookie. Any failure: 401 `{ "error": "The user name or password is incorrect." }`; 429 over the rate limit. Anonymous. |
 | `POST /api/auth/refresh` with the cookie | 200 as for sign-in, with the cookie rotated. 401 `{ "error": "Your session has ended. Sign in again." }` and the cookie deleted; 409 when a refresh with the same cookie won a moment ago (retry). Anonymous. |
 | `POST /api/auth/sign-out` with the cookie | 204; ends the cookie's session and deletes the cookie. Needs no access token. |
-| `GET /api/auth/me` | 200 `{ id, userName, isOwner }` |
+| `GET /api/auth/me` | 200 `{ id, userName, isOwner, createdUtc, lastSignInUtc, sessionExpiresUtc }`: `lastSignInUtc` is the user's latest sign-in on any device, `null` before the first, and `sessionExpiresUtc` the end of the session the access token belongs to, which each refresh moves to 30 days later. |
+| `POST /api/auth/password` with `{ currentPassword, newPassword }` | Every signed-in user, for their own account. 204; every other session of the user ends at once and the caller's stays ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)), with an audit row. 400 `{ error }`, changing nothing: "Enter your current password." for a blank one, the broken rule's sentence for the new one, "The current password is incorrect." for a wrong one (never 401, and also when an owner's reset, disable or delete lands while it is being checked). 429 over the rate limit, counted per user. |
 | `GET /api/settings/users?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, userName, isOwner, isDisabled, createdUtc, lastSignInUtc }`, ordered by user name; `search` matches part of the name in any letter case. 400 for a page below 1 or a page size outside 1–100. |
 | `GET /api/settings/users/{id}` | Owner only. 200 with the user; 404. |
 | `POST /api/settings/users` with `{ userName, password }` | Owner only. 201 with the user and its `Location`; 400 with the broken rule's sentence; 409 when the name exists in any letter case. |
@@ -892,7 +915,7 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-15).
+of each, and the tickets of Phase A (MAM-1 to MAM-16).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent

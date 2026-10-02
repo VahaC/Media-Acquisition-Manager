@@ -59,4 +59,11 @@ public enum AuditAction
     /// nothing was sent to the download client, whose torrent and files stay as they were.
     /// </summary>
     DownloadCancelled = 15,
+
+    /// <summary>
+    /// MAM-16 — a user changed their own password, giving the current one; the actor and the target
+    /// are that user. The owner setting someone's password, their own included, is
+    /// <see cref="UserPasswordReset"/>.
+    /// </summary>
+    UserPasswordChanged = 16,
 }

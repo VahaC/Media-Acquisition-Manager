@@ -9,9 +9,9 @@ import '@/styles/settings-list.css' // .settings-actions .label-text — the lab
 
 interface CancelJobButtonProps {
   job: DownloadJob
-  /** The cancel was confirmed and is about to be sent: the page clears its last error line. */
+  /** The cancel was confirmed and is about to be sent: the page clears its last refusal. */
   onStart: () => void
-  /** The cancel failed: the page shows `message` in its error line. */
+  /** The cancel failed: the page shows `message` in a banner above the job. */
   onError: (message: string) => void
 }
 

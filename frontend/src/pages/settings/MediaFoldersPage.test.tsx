@@ -167,7 +167,7 @@ describe('MediaFoldersPage', () => {
     // Assert
     const error = await screen.findByRole('alert')
     expect(error).toHaveTextContent(sentence)
-    expect(error).toHaveClass('settings-error')
+    expect(error).toHaveClass('ui-banner')
     expect(error.nextElementSibling).toContainElement(screen.getByRole('button', { name: 'Save' }))
     expect(folderValues()).toEqual(['/media', '/data/films', 'data/series'])
     expect(screen.queryByText('Saved.')).not.toBeInTheDocument()
@@ -227,18 +227,23 @@ describe('MediaFoldersPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Only the installation owner can do this.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 
-  it('names the failure when the folders fail to load without a sentence', async () => {
+  it('names the failure when the folders fail to load without a sentence, and Try again shows the form', async () => {
     // Arrange
-    vi.mocked(allowedRootsApi.get).mockRejectedValue(apiError(500))
+    vi.mocked(allowedRootsApi.get).mockRejectedValueOnce(apiError(500))
+    const { user } = renderPage()
+    const state = await screen.findByRole('alert')
 
     // Act
-    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the media folders.')
+    expect(state).toHaveTextContent('Could not load the media folders.')
+    expect(await screen.findByRole('textbox', { name: 'Folder 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps what was typed when the folders are read again unchanged', async () => {
@@ -286,6 +291,23 @@ describe('MediaFoldersPage', () => {
     const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent('Refresh failed, showing the last loaded folders.')
     expect(banner).toHaveTextContent('The server could not be reached.')
+    expect(folderValues()).toEqual(['/media', '/data/films/x'])
+  })
+
+  it('asks again from Retry on the refresh banner, keeping what was typed', async () => {
+    // Arrange
+    const { client, user } = renderPage()
+    await screen.findByRole('textbox', { name: 'Folder 1' })
+    await user.type(screen.getByRole('textbox', { name: 'Folder 2' }), '/x')
+    vi.mocked(allowedRootsApi.get).mockRejectedValueOnce(networkError())
+    await client.refetchQueries()
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
     expect(folderValues()).toEqual(['/media', '/data/films/x'])
   })
 })

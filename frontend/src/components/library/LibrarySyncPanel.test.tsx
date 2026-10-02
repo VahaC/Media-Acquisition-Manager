@@ -209,8 +209,11 @@ describe('LibrarySyncPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Sync now' }))
 
     // Assert
-    expect(await within(rowOf('Home Jellyfin')).findByRole('alert'))
-      .toHaveTextContent('“Home Jellyfin” is already being synced.')
+    const refusal = await within(rowOf('Home Jellyfin')).findByRole('alert')
+    expect(refusal).toHaveTextContent('“Home Jellyfin” is already being synced.')
+    // A red status line like a failed run's, not a banner above the list.
+    expect(refusal).toHaveClass('library-source-status')
+    expect(refusal).toHaveAttribute('data-status', 'Failed')
     expect(screen.getByRole('button', { name: 'Sync now' })).toBeEnabled()
   })
 
@@ -307,16 +310,22 @@ describe('LibrarySyncPanel', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('shows why the sources could not be loaded in place of the list', async () => {
+  it('shows why the sources could not be loaded in place of the list, and Try again loads them', async () => {
     // Arrange
-    vi.mocked(libraryApi.sources).mockRejectedValue(apiError(500))
+    vi.mocked(libraryApi.sources).mockRejectedValueOnce(apiError(500, 'Database is locked.'))
+    const { user } = renderPanel()
+    const state = await screen.findByRole('alert')
 
     // Act
-    renderPanel()
+    const syncNowBeforeRetry = screen.queryByRole('button', { name: 'Sync now' })
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the media libraries.')
-    expect(screen.queryByRole('button', { name: 'Sync now' })).not.toBeInTheDocument()
+    expect(state).toHaveTextContent('Could not load the media libraries.')
+    expect(state).toHaveTextContent('Database is locked.')
+    expect(syncNowBeforeRetry).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Sync now' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps the sources on screen under a banner when a refresh fails', async () => {
@@ -332,6 +341,22 @@ describe('LibrarySyncPanel', () => {
     const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent('Refresh failed, showing the last known sync status.')
     expect(banner).toHaveTextContent('The server could not be reached.')
+    expect(statusOf('Home Jellyfin')).toHaveTextContent(/^Synced /)
+  })
+
+  it('asks again from Retry on the refresh banner, and drops the banner once the sources are back', async () => {
+    // Arrange
+    const { client, user } = renderPanel()
+    await screen.findByText('Home Jellyfin')
+    vi.mocked(libraryApi.sources).mockRejectedValueOnce(networkError())
+    await client.refetchQueries()
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
     expect(statusOf('Home Jellyfin')).toHaveTextContent(/^Synced /)
   })
 })

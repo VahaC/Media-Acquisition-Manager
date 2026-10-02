@@ -1,5 +1,15 @@
+import { trackOf } from '@/test/library'
 import { i18n } from './i18n'
-import { channelLayoutName, codecName, languageName } from './media-labels'
+import {
+  audioTrackLabel,
+  channelLayoutName,
+  codecName,
+  languageCode,
+  languageName,
+  resolutionClass,
+  subtitleTrackLabel,
+  videoCodecLabel,
+} from './media-labels'
 
 describe('media labels', () => {
   afterEach(async () => {
@@ -133,5 +143,92 @@ describe('media labels', () => {
     // Assert
     expect(english).toBe('Ukrainian')
     expect(german).toBe('Ukrainisch')
+  })
+
+  it.each([
+    [3840, 2160, 2160],
+    [3840, 1600, 2160],
+    [2560, 1440, 1440],
+    [1920, 1080, 1080],
+    [1920, 800, 1080],
+    [1916, 796, 1080],
+    [1440, 1080, 1080],
+    [1280, 720, 720],
+    [1280, 536, 720],
+    [1024, 576, 576],
+    [720, 576, 576],
+    [720, 480, 480],
+    [640, 480, 480],
+    [640, 360, null],
+  ])('classes a %s×%s picture as %sp, by its width as much as its height', (width, height, expected) => {
+    // Arrange
+    const picture = { width, height }
+
+    // Act
+    const resolution = resolutionClass(picture.width, picture.height)
+
+    // Assert
+    expect(resolution).toBe(expected)
+  })
+
+  it.each([
+    ['ukr', 'UKR'],
+    ['eng', 'ENG'],
+    ['en', 'EN'],
+    ['en-us', 'EN'],
+    ['pt-BR', 'PT'],
+  ])('shortens the language tag %s to %s', (tag, expected) => {
+    // Arrange
+    const tagged = tag
+
+    // Act
+    const code = languageCode(tagged)
+
+    // Assert
+    expect(code).toBe(expected)
+  })
+
+  it.each([
+    [trackOf('Video', { codec: 'hevc', profile: 'Main 10' }), 'HEVC Main 10'],
+    [trackOf('Video', { codec: 'h264' }), 'H.264'],
+    [trackOf('Video'), 'Codec unknown'],
+  ])('names a video codec with its profile: %#', (track, expected) => {
+    // Arrange
+    const video = track
+
+    // Act
+    const label = videoCodecLabel(video)
+
+    // Assert
+    expect(label).toBe(expected)
+  })
+
+  it.each([
+    [trackOf('Audio', { codec: 'ac3', channels: 6, channelLayout: '5.1(side)', language: 'ukr', isDefault: true }), 'Ukrainian · AC-3 · 5.1 · default'],
+    [trackOf('Audio', { codec: 'dts', profile: 'DTS-HD MA', channels: 6, language: 'eng', isForced: true }), 'English · DTS-HD MA · 6 ch · forced'],
+    [trackOf('Audio'), 'Unknown language · Codec unknown'],
+  ])('describes an audio track by language, codec, channels and flags: %#', (track, expected) => {
+    // Arrange
+    const audio = track
+
+    // Act
+    const label = audioTrackLabel(audio)
+
+    // Assert
+    expect(label).toBe(expected)
+  })
+
+  it.each([
+    [trackOf('Subtitle', { codec: 'subrip', profile: 'ignored', language: 'eng', isHearingImpaired: true }), 'English · SRT · SDH'],
+    [trackOf('Subtitle', { codec: 'hdmv_pgs_subtitle', language: 'ukr', isDefault: true, isForced: true }), 'Ukrainian · PGS · default · forced'],
+  ])('describes a subtitle track by language, format and flags: %#', (track, expected) => {
+    // Arrange
+    const subtitle = track
+
+    // Act
+    const label = subtitleTrackLabel(subtitle)
+
+    // Assert
+    expect(label).toBe(expected)
   })
 })

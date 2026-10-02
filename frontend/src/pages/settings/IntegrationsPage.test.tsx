@@ -70,7 +70,7 @@ describe('IntegrationsPage', () => {
     expect(within(rowOf('Toloka')).getByText('http://127.0.0.1:9/1/api')).toBeInTheDocument()
     expect(within(rowOf('Toloka')).getByText('Disabled')).toBeInTheDocument()
     expect(rowOf('Toloka')).toHaveAttribute('data-disabled')
-    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
   })
 
   it('asks the server for the search once typing pauses and starts again at page 1', async () => {
@@ -78,9 +78,9 @@ describe('IntegrationsPage', () => {
     vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
       pageOf(query, query.search ? [localQbittorrent] : query.page === 1 ? [homeJellyfin, toloka] : [localQbittorrent], 30))
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
 
     // Act
     await user.type(screen.getByRole('searchbox', { name: 'Search integrations' }), ' qbit ')
@@ -92,7 +92,7 @@ describe('IntegrationsPage', () => {
       { search: undefined, kind: undefined, page: 2, pageSize: 25 },
       { search: 'qbit', kind: undefined, page: 1, pageSize: 25 },
     ])
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 30')).toBeInTheDocument()
   })
 
   it('filters by kind on the server and starts again at page 1', async () => {
@@ -102,15 +102,15 @@ describe('IntegrationsPage', () => {
         ? pageOf(query, [localQbittorrent])
         : pageOf(query, query.page === 1 ? [homeJellyfin, toloka] : [localQbittorrent], 30))
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
 
     // Act
     await user.selectOptions(screen.getByRole('combobox', { name: 'Kind' }), 'Download clients')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 1')).toBeInTheDocument()
+    expect(await screen.findByText('1–1 of 1')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ search: undefined, kind: 'DownloadClient', page: 1, pageSize: 25 })
     expect(screen.getByText('Local qBittorrent')).toBeInTheDocument()
     expect(screen.queryByText('Home Jellyfin')).not.toBeInTheDocument()
@@ -122,15 +122,15 @@ describe('IntegrationsPage', () => {
     // Arrange
     vi.mocked(integrationsApi.list).mockImplementation(async (query) => pageOf(query, [homeJellyfin, toloka], 120))
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 5')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 5')
+    await screen.findByText('1–25 of 120')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–50 of 120')
 
     // Act
     await user.selectOptions(screen.getByRole('combobox', { name: 'Per page' }), '50')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument()
+    expect(await screen.findByText('1–50 of 120')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ search: undefined, kind: undefined, page: 1, pageSize: 50 })
     expect(localStorage.getItem('mam:integrations:pageSize')).toBe('50')
     // Its own key: the Users page keeps its size.
@@ -210,7 +210,7 @@ describe('IntegrationsPage', () => {
     expect(integrationsApi.list).toHaveBeenCalledOnce()
   })
 
-  it('shows a failed test as the service\'s sentence', async () => {
+  it('shows a failed test as the service\'s sentence in an error banner', async () => {
     // Arrange
     vi.mocked(integrationsApi.test).mockResolvedValue({
       status: 'AuthenticationFailed',
@@ -223,10 +223,45 @@ describe('IntegrationsPage', () => {
     await user.click(within(rowOf('Local qBittorrent')).getByRole('button', { name: 'Test' }))
 
     // Assert
-    const banner = await screen.findByRole('status')
+    const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent('Local qBittorrent: qBittorrent refused the user name or password.')
     expect(banner).not.toHaveAttribute('data-tone')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['a test that connected', 'Succeeded', 'status'],
+    ['a test that did not', 'Refused', 'alert'],
+  ] as const)('takes the answer of %s away on Dismiss', async (_, status, role) => {
+    // Arrange
+    vi.mocked(integrationsApi.test).mockResolvedValue({ status, message: 'The service answered.' })
+    const { user } = renderPage()
+    await screen.findByText('Home Jellyfin')
+    await user.click(within(rowOf('Home Jellyfin')).getByRole('button', { name: 'Test' }))
+    await screen.findByRole(role)
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    // Assert
+    expect(screen.queryByRole(role)).not.toBeInTheDocument()
+    expect(screen.queryByText('Home Jellyfin: The service answered.')).not.toBeInTheDocument()
+  })
+
+  it('takes a refused action\'s banner away on Dismiss', async () => {
+    // Arrange
+    vi.mocked(integrationsApi.test).mockRejectedValue(apiError(404))
+    const { user } = renderPage()
+    await screen.findByText('Home Jellyfin')
+    await user.click(within(rowOf('Home Jellyfin')).getByRole('button', { name: 'Test' }))
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    // Assert
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Home Jellyfin')).toBeInTheDocument()
   })
 
   it('shows the API sentence above the list when a test is refused, and the last action wins', async () => {
@@ -386,8 +421,8 @@ describe('IntegrationsPage', () => {
       lastPage = []
     })
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('1–25 of 26')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('Toloka')
     await user.click(within(rowOf('Toloka')).getByRole('button', { name: 'Remove' }))
     const confirmation = await screen.findByRole('dialog', { name: 'Remove Toloka?' })
@@ -396,7 +431,7 @@ describe('IntegrationsPage', () => {
     await user.click(within(confirmation).getByRole('button', { name: 'Remove' }))
 
     // Assert
-    expect(await screen.findByText('Page 1 of 1')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 25')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ search: undefined, kind: undefined, page: 1, pageSize: 25 })
     expect(screen.getByText('Library 0')).toBeInTheDocument()
   })
@@ -467,6 +502,38 @@ describe('IntegrationsPage', () => {
     expect(screen.getByText('Toloka')).toBeInTheDocument()
   })
 
+  it('asks again from Retry on the refresh banner, and drops the banner once the list is back', async () => {
+    // Arrange
+    const { client, user } = renderPage()
+    await screen.findByText('Toloka')
+    vi.mocked(integrationsApi.list).mockRejectedValueOnce(networkError())
+    await client.refetchQueries({ queryKey: qk.settings.integrations.lists })
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByText('Toloka')).toBeInTheDocument()
+  })
+
+  it('says the integrations could not be loaded, with Try again, and loads them from there', async () => {
+    // Arrange
+    vi.mocked(integrationsApi.list).mockRejectedValueOnce(apiError(500, 'Database is locked.'))
+    const { user } = renderPage()
+    const state = await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(state).toHaveTextContent('Could not load the integrations.')
+    expect(state).toHaveTextContent('Database is locked.')
+    expect(await screen.findByText('Toloka')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('shows the API sentence in place of the list for a non-owner', async () => {
     // Arrange
     vi.mocked(integrationsApi.list).mockRejectedValue(apiError(403, 'Only the installation owner can do this.'))
@@ -476,6 +543,7 @@ describe('IntegrationsPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Only the installation owner can do this.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(integrationsApi.list).toHaveBeenCalledOnce()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add integration' })).not.toBeInTheDocument()

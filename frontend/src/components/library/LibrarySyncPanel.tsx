@@ -3,7 +3,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, Loader2, RefreshCw, ScanSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
+import { ErrorState } from '@/components/shared/ErrorState'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
 import { formatDateTime, formatNumber } from '@/lib/format'
@@ -17,8 +20,9 @@ import type {
   LibrarySyncRun,
   LibrarySyncStatus,
 } from '@/lib/types'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-banner, -empty, -muted, -error, -name-text — the states every list page shares
+import '@/styles/settings-list.css' // .settings-empty, -muted, -name-text — the states every list page shares
 import '@/styles/library.css' // .library-source*, .library-inspection, .library-link — the rows, their status lines and actions
 
 /** Date and time without the seconds, which only add noise to when a sync ran. */
@@ -52,7 +56,9 @@ export function LibrarySyncPanel() {
   const isOwner = useAuthStore((state) => state.user?.isOwner === true)
   const titleId = useId()
   const queryClient = useQueryClient()
-  const { data, error, isLoading } = useLibrarySources()
+  const sources = useLibrarySources()
+  const { data, error, isLoading } = sources
+  const load = useLoadRetry(sources)
   const start = useStartLibrarySync()
   const inspect = useStartFileInspection()
   const [startError, setStartError] = useState<StartError | null>(null)
@@ -106,16 +112,17 @@ export function LibrarySyncPanel() {
         {/* Outside the ternary below, so a failed poll adds a line above the last known status
             instead of replacing it. */}
         {error && data && (
-          <p className="settings-banner" role="alert">
-            <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+          <Banner action={<RetryButton onRetry={() => sources.refetch()} />}>
             {t('sources.refreshFailed')}{' '}
             {getApiErrorMessage(error)}
-          </p>
+          </Banner>
         )}
-        {isLoading ? (
+        {load.error ? (
+          <ErrorState title={t('sources.loadFailed')} onRetry={load.retry} retrying={load.retrying}>
+            {getApiErrorMessage(load.error)}
+          </ErrorState>
+        ) : isLoading ? (
           <p className="settings-muted">{t('common:loading')}</p>
-        ) : error && !data ? (
-          <p className="settings-error" role="alert">{getApiErrorMessage(error, t('sources.loadFailed'))}</p>
         ) : data && data.items.length === 0 ? (
           <div className="settings-empty">
             <p>{isOwner ? t('sources.emptyOwner') : t('sources.emptyMember')}</p>
@@ -226,7 +233,7 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
             <span>{source.inspection.problem}</span>
           </p>
         )}
-        {startError && <p className="settings-error" role="alert">{startError}</p>}
+        {startError && <StartErrorLine message={startError} />}
       </div>
       <div className="library-source-actions">
         <DisabledReason reason={reason}>
@@ -246,6 +253,20 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
         </DisabledReason>
       </div>
     </li>
+  )
+}
+
+/**
+ * MAM-16 — a refused Sync now or Inspect files, on the row it was for, as a red status line like a
+ * failed run's. `role="alert"`, not the run line's `status`: the refusal answers the click, and is
+ * read out at once.
+ */
+function StartErrorLine({ message }: { message: string }) {
+  return (
+    <p role="alert" className="library-source-status" data-status="Failed">
+      <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+      <span>{message}</span>
+    </p>
   )
 }
 
@@ -371,7 +392,7 @@ function InspectionRow({ overview, isOwner, starting, startError, onInspect }: I
     <div className="library-source library-inspection">
       <div className="library-source-body">
         <InspectionLine overview={overview} isOwner={isOwner} />
-        {startError && <p className="settings-error" role="alert">{startError}</p>}
+        {startError && <StartErrorLine message={startError} />}
       </div>
       <div className="library-source-actions">
         <DisabledReason reason={reason}>

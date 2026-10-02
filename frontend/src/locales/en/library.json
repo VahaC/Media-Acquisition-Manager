@@ -115,6 +115,30 @@
   "version": {
     "noFile": "No file reported for this version."
   },
+  "versions": {
+    "view": {
+      "label": "Show versions as",
+      "rows": "Rows",
+      "rowsTitle": "Versions as rows",
+      "table": "Table",
+      "tableTitle": "Versions as table"
+    },
+    "unlabelled": "Version {{number}}",
+    "resolutionClass": "{{value}}p",
+    "noAppPath": "No path in this app",
+    "unreadable": "Couldn't be read",
+    "unknown": "Unknown",
+    "table": {
+      "resolution": "Resolution",
+      "video": "Video",
+      "hdr": "HDR",
+      "bitRate": "Bit rate",
+      "duration": "Duration",
+      "size": "Size",
+      "file": "File",
+      "caption": "Size and file come from Jellyfin; every other value was read from the file by ffprobe."
+    }
+  },
   "file": {
     "appPath": "In this app: {{path}}",
     "noAppPath": "This file has no path in this app.",

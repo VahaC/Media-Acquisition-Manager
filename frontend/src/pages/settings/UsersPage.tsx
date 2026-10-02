@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { CircleAlert, KeyRound, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
+import { KeyRound, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Banner } from '@/components/shared/Banner'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { DisabledReason } from '@/components/shared/DisabledReason'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CreateUserDialog } from '@/components/users/CreateUserDialog'
@@ -13,9 +16,10 @@ import { formatDateTime } from '@/lib/format'
 import { useDeleteUser, useDisableUser, useEnableUser, useUsers } from '@/lib/queries'
 import type { UserSummary } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, banners, table and row actions of this page
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header, search, table and row actions of this page
 
 /** Per device: a phone and a desktop want different page lengths. */
 const PAGE_SIZE_STORAGE_KEY = 'mam:users:pageSize'
@@ -45,6 +49,8 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false)
   const [resetting, setResetting] = useState<UserSummary | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  // MAM-16 — whose password was just reset: the dialog has closed, so the page says it went through.
+  const [resetDone, setResetDone] = useState<string | null>(null)
 
   // Typing waits for a pause; emptying the box shows every user at once.
   const debouncedSearch = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS)
@@ -54,7 +60,9 @@ export function UsersPage() {
   // past the last page. The derivation below keeps this discarded render off the stale page.
   if (paging.search !== appliedSearch) setPaging({ search: appliedSearch, page: 1 })
   const page = paging.search === appliedSearch ? paging.page : 1
-  const { data, error, isLoading } = useUsers({ search: appliedSearch || undefined, page, pageSize })
+  const users = useUsers({ search: appliedSearch || undefined, page, pageSize })
+  const { data, error, isLoading, isPlaceholderData } = users
+  const load = useLoadRetry(users)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
 
   const goToPage = (next: number) => setPaging({ search: appliedSearch, page: next })
@@ -64,9 +72,13 @@ export function UsersPage() {
     goToPage(1)
   }
 
-  /** Runs one row action; a refusal shows as the API's sentence above the list. */
+  /**
+   * Runs one row action; a refusal shows as the API's sentence above the list. Each action reports
+   * only its own outcome, so the line of the one before goes.
+   */
   const changeUser = async (action: () => Promise<unknown>) => {
     setActionError(null)
+    setResetDone(null)
     try {
       await action()
     } catch (e: unknown) {
@@ -90,6 +102,12 @@ export function UsersPage() {
       // The last row of a later page is gone: show the page before it rather than an empty one.
       if (data?.items.length === 1 && page > 1) goToPage(page - 1)
     })
+  }
+
+  /** A reset refused stays in its dialog; one that went through is the only news above the list. */
+  const passwordReset = (user: UserSummary) => {
+    setActionError(null)
+    setResetDone(user.userName)
   }
 
   const busyWith = (user: UserSummary) =>
@@ -121,21 +139,32 @@ export function UsersPage() {
         />
       )}
 
-      {/* Outside the ternary below, so a failed refresh or a refused action adds a line above the
-          rows instead of replacing them. */}
-      {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+      {/* Outside the ternary below, so a failed refresh, a refused action or a reset password adds a
+          line above the rows instead of replacing them. */}
+      {error && data && !isPlaceholderData && (
+        <Banner action={<RetryButton onRetry={() => users.refetch()} />}>
           {t('refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
-      {actionError && <p className="settings-banner" role="alert">{actionError}</p>}
+      {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
+      {resetDone && (
+        <Banner tone="ok" onDismiss={() => setResetDone(null)}>
+          {t('reset.done', { name: resetDone })}
+        </Banner>
+      )}
 
-      {isLoading ? (
+      {/* A member's 403 is the server's lasting answer: no Try again for it (retryCanHelp). */}
+      {load.error ? (
+        <ErrorState
+          title={t('loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('loadFailed'))}</p>
       ) : data && data.items.length === 0 && appliedSearch !== '' ? (
         <div className="settings-empty">
           <p>{t('noMatch', { search: appliedSearch })}</p>
@@ -175,6 +204,7 @@ export function UsersPage() {
             pages={pages}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            totalCount={data.totalCount}
             onPage={goToPage}
             onPageSize={changePageSize}
           />
@@ -182,7 +212,13 @@ export function UsersPage() {
       ) : null}
 
       {creating && <CreateUserDialog onClose={() => setCreating(false)} />}
-      {resetting && <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />}
+      {resetting && (
+        <ResetPasswordDialog
+          user={resetting}
+          onSaved={() => passwordReset(resetting)}
+          onClose={() => setResetting(null)}
+        />
+      )}
     </div>
   )
 }

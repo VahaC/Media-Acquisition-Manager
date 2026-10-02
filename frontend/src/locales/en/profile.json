@@ -1,0 +1,40 @@
+{
+  "lead": {
+    "owner": "The installation owner: manages users, integrations and settings.",
+    "member": "Can search, browse the library and send downloads."
+  },
+  "loadFailed": "Could not load your profile.",
+  "refreshFailed": "Refresh failed, showing your profile as last loaded.",
+  "account": {
+    "title": "Account",
+    "userName": "User name",
+    "role": "Role",
+    "created": "Created",
+    "lastSignIn": "Last sign-in",
+    "never": "Never"
+  },
+  "password": {
+    "title": "Password",
+    "description": "There is no email reset, so keep it somewhere safe.",
+    "masked": "••••••••••",
+    "change": "Change password",
+    "changing": "Changing…",
+    "current": "Current password",
+    "new": "New password",
+    "newHint": "8–128 characters.",
+    "note": "Your other devices are signed out. This one stays signed in.",
+    "currentRequired": "Enter your current password.",
+    "tooShort": "A password is at least 8 characters.",
+    "tooLong": "A password is at most 128 characters.",
+    "failed": "Could not change the password.",
+    "changed": "Password changed. Your other devices are signed out; this one stays signed in."
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Saved in this browser."
+  },
+  "session": {
+    "title": "Session",
+    "description": "A session lasts 30 days from its last use. This one ends {{date}} unless you use the app again."
+  }
+}

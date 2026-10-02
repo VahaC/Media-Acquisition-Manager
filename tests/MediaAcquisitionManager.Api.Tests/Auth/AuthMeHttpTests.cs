@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
@@ -15,7 +16,12 @@ namespace MediaAcquisitionManager.Api.Tests.Auth;
 public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/auth/me";
+    private const string SignInUrl = "/api/auth/sign-in";
+    private const string RefreshUrl = "/api/auth/refresh";
     private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
+
+    // The design's number, spelled out: a session ends 30 days after it was last used.
+    private static readonly TimeSpan IdleLifetime = TimeSpan.FromDays(30);
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
@@ -51,6 +57,8 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        // A session started without a password sign-in, so the user has none on record.
         var signedIn = await _users.CreateAuthorized("alice");
 
         //Act
@@ -58,8 +66,10 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<CurrentUserResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equal(new CurrentUserResponse(signedIn.User.Id, "alice", IsOwner: false), body);
+        var body = await response.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equal(
+            new CurrentUserProfileResponse(signedIn.User.Id, "alice", IsOwner: false, CreatedUtc: now, LastSignInUtc: null, SessionExpiresUtc: now + IdleLifetime),
+            body);
     }
 
     [Fact]
@@ -67,6 +77,7 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
         var owner = await _users.CreateAuthorizedOwner("owner");
 
         //Act
@@ -74,8 +85,88 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<CurrentUserResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equal(new CurrentUserResponse(owner.User.Id, "owner", IsOwner: true), body);
+        var body = await response.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equal(
+            new CurrentUserProfileResponse(owner.User.Id, "owner", IsOwner: true, CreatedUtc: now, LastSignInUtc: null, SessionExpiresUtc: now + IdleLifetime),
+            body);
+    }
+
+    // MAM-16 — the Profile page's Created and Last sign-in rows.
+    [Fact]
+    public async Task Me_after_a_sign_in_says_when_the_user_was_created_and_last_signed_in()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var createdUtc = _factory.Time.GetUtcNow().UtcDateTime;
+        await _users.Create("alice");
+        _factory.Time.Advance(TimeSpan.FromDays(2));
+        var signedInUtc = _factory.Time.GetUtcNow().UtcDateTime;
+        var signIn = await _factory.PostHttpRequest(SignInUrl, body: new SignInRequest("alice", UserSeeder.DefaultPassword));
+        var signedIn = await signIn.Content.ReadFromJsonAsync<SignInResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, signedIn!.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        var body = JsonSerializer.Deserialize<CurrentUserProfileResponse>(text, MediaAcquisitionManagerApiFactory.JsonOptions);
+        Assert.Equal(createdUtc, body!.CreatedUtc);
+        Assert.Equal(signedInUtc, body.LastSignInUtc);
+        Assert.Equal(signedInUtc + IdleLifetime, body.SessionExpiresUtc);
+        // Each with the trailing Z: DateTime equality above ignores the Kind, and a value sent without
+        // it would show on the Profile page shifted by the browser's offset.
+        using var document = JsonDocument.Parse(text);
+        Assert.EndsWith("Z", document.RootElement.GetProperty("createdUtc").GetString(), StringComparison.Ordinal);
+        Assert.EndsWith("Z", document.RootElement.GetProperty("lastSignInUtc").GetString(), StringComparison.Ordinal);
+        Assert.EndsWith("Z", document.RootElement.GetProperty("sessionExpiresUtc").GetString(), StringComparison.Ordinal);
+    }
+
+    // MAM-16 — the Profile page's session end is the end of the session it asks from, read by the
+    // token's sid; a user signed in on two devices has two different ends.
+    [Fact]
+    public async Task Me_says_when_the_calling_session_ends_not_another_session_of_the_user()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var laptopStartedUtc = _factory.Time.GetUtcNow().UtcDateTime;
+        var laptop = await _users.CreateAuthorized("alice");
+        // Less than the access token's 15 minutes, so the laptop's token still works.
+        _factory.Time.Advance(TimeSpan.FromMinutes(10));
+        var phoneStartedUtc = _factory.Time.GetUtcNow().UtcDateTime;
+        var phone = await _users.CreateSession(laptop.User);
+
+        //Act
+        var fromTheLaptop = await _factory.GetHttpRequest(BaseUrl, laptop.AccessToken);
+        var fromThePhone = await _factory.GetHttpRequest(BaseUrl, phone.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, fromTheLaptop.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, fromThePhone.StatusCode);
+        var laptopBody = await fromTheLaptop.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        var phoneBody = await fromThePhone.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equal(laptopStartedUtc + IdleLifetime, laptopBody!.SessionExpiresUtc);
+        Assert.Equal(phoneStartedUtc + IdleLifetime, phoneBody!.SessionExpiresUtc);
+    }
+
+    [Fact]
+    public async Task Me_after_a_refresh_says_the_session_ends_30_days_from_the_refresh()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var signedIn = await _users.CreateAuthorized("alice");
+        _factory.Time.Advance(TimeSpan.FromDays(1));
+        var refreshedUtc = _factory.Time.GetUtcNow().UtcDateTime;
+        var refresh = await _factory.PostHttpRequest(RefreshUrl, cookie: signedIn.RefreshCookie);
+        var refreshed = await refresh.Content.ReadFromJsonAsync<SignInResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, refreshed!.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equal(refreshedUtc + IdleLifetime, body!.SessionExpiresUtc);
     }
 
     [Fact]

@@ -93,7 +93,7 @@ describe('JobsPage', () => {
     expect(downloaded.getByText('Downloaded').closest('p')).toHaveAttribute('data-status', 'Succeeded')
     expect(downloaded.getByText('100%')).toBeInTheDocument()
     expect(downloaded.getByText('Seedbox qBittorrent · Films')).toBeInTheDocument()
-    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('1–2 of 2')).toBeInTheDocument()
   })
 
   it('links each release title to its job\'s details', async () => {
@@ -203,15 +203,15 @@ describe('JobsPage', () => {
     // Arrange
     listing([downloadingJob, downloadedJob], 30)
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
 
     // Act
     await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'Downloading')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 30')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ status: 'Downloading', page: 1, pageSize: 25 })
   })
 
@@ -219,13 +219,13 @@ describe('JobsPage', () => {
     // Arrange
     listing([downloadingJob], 60)
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 3')
+    await screen.findByText('1–25 of 60')
 
     // Act
     await user.selectOptions(screen.getByRole('combobox', { name: 'Per page' }), '50')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–50 of 60')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ status: undefined, page: 1, pageSize: 50 })
     expect(localStorage.getItem('mam:jobs:pageSize')).toBe('50')
   })
@@ -234,16 +234,16 @@ describe('JobsPage', () => {
     // Arrange
     listing([downloadingJob], 30)
     const { user, client } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
     listing([downloadingJob], 20)
 
     // Act
     await client.refetchQueries()
 
     // Assert
-    expect(await screen.findByText('Page 1 of 1')).toBeInTheDocument()
+    expect(await screen.findByText('1–20 of 20')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ status: undefined, page: 1, pageSize: 25 })
   })
 
@@ -280,7 +280,7 @@ describe('JobsPage', () => {
     expect(lastQuery()).toEqual({ status: undefined, page: 1, pageSize: 25 })
   })
 
-  it('shows the server sentence in place of the list when the first load fails', async () => {
+  it('shows the server sentence in place of the list when the first load is refused, with no Try again', async () => {
     // Arrange
     vi.mocked(downloadsApi.list).mockRejectedValue(apiError(400, 'The page size must be between 1 and 100.'))
 
@@ -288,19 +288,26 @@ describe('JobsPage', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('The page size must be between 1 and 100.')
+    const state = await screen.findByRole('alert')
+    expect(state).toHaveTextContent('Could not load your download jobs.')
+    expect(state).toHaveTextContent('The page size must be between 1 and 100.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
-  it('shows its own sentence when the first load fails and the API gives none', async () => {
+  it('says what failed when the first load fails and the API gives no sentence, and Try again loads the list', async () => {
     // Arrange
-    vi.mocked(downloadsApi.list).mockRejectedValue(apiError(500))
+    vi.mocked(downloadsApi.list).mockRejectedValueOnce(apiError(500))
+    const { user } = renderPage()
+    const state = await screen.findByRole('alert')
 
     // Act
-    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your download jobs.')
+    expect(state).toHaveTextContent('Could not load your download jobs.')
+    expect(await screen.findByText(downloadingJob.releaseTitle, asTitle)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps the same rows on screen under a banner when a refresh fails', async () => {
@@ -314,6 +321,22 @@ describe('JobsPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Refresh failed, showing the last loaded jobs.')
+    expect(screen.getByText(downloadingJob.releaseTitle, asTitle)).toBeInTheDocument()
+  })
+
+  it('asks again from Retry on the refresh banner, and drops the banner once the list is back', async () => {
+    // Arrange
+    const { client, user } = renderPage()
+    await screen.findByText(downloadingJob.releaseTitle, asTitle)
+    vi.mocked(downloadsApi.list).mockRejectedValueOnce(networkError())
+    await client.refetchQueries()
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
     expect(screen.getByText(downloadingJob.releaseTitle, asTitle)).toBeInTheDocument()
   })
 
@@ -376,6 +399,24 @@ describe('JobsPage', () => {
       .toHaveTextContent('This download is already downloaded, so there\'s nothing to stop following.')
     expect(await within(rowOf(downloadingJob.releaseTitle)).findByText('Downloaded')).toBeInTheDocument()
     expect(screen.getByText(downloadedJob.releaseTitle, asTitle)).toBeInTheDocument()
+  })
+
+  it('takes a refused cancel\'s banner away on Dismiss', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.cancel).mockRejectedValue(apiError(500))
+    const { user } = renderPage()
+    await screen.findByText(downloadingJob.releaseTitle, asTitle)
+    await user.click(within(rowOf(downloadingJob.releaseTitle)).getByRole('button', { name: 'Cancel job' }))
+    const confirmation = await screen.findByRole('dialog', { name: `Cancel the job for ${downloadingJob.releaseTitle}?` })
+    await user.click(within(confirmation).getByRole('button', { name: 'Cancel job' }))
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    // Assert
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText(downloadingJob.releaseTitle, asTitle)).toBeInTheDocument()
   })
 
   it('shows its own sentence when a cancel fails and the API gives none', async () => {

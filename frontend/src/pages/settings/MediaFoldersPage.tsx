@@ -1,11 +1,15 @@
 import { useId, useState, type FormEvent } from 'react'
-import { CircleAlert, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAllowedRoots, useUpdateAllowedRoots } from '@/lib/queries'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, banner, muted and error lines every settings page shares
+import { useLoadRetry } from '@/lib/use-load-retry'
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header and the muted line every settings page shares
 import '@/styles/media-folders.css' // .media-folders-* — the folder rows and the Save row
 
 /** One folder row of the form, with a key no other row of this page load has. */
@@ -35,7 +39,9 @@ function folderDraft(path: string): FolderDraft {
  */
 export function MediaFoldersPage() {
   const { t } = useTranslation(['mediaFolders', 'common'])
-  const { data, error, isLoading } = useAllowedRoots()
+  const roots = useAllowedRoots()
+  const { data, error, isLoading } = roots
+  const load = useLoadRetry(roots)
   const update = useUpdateAllowedRoots()
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -65,17 +71,23 @@ export function MediaFoldersPage() {
       {/* Outside the ternary below, so a failed refresh adds a line above the form instead of
           replacing it. */}
       {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+        <Banner action={<RetryButton onRetry={() => roots.refetch()} />}>
           {t('refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
 
-      {isLoading ? (
+      {/* A member's 403 is the server's lasting answer: no Try again for it (retryCanHelp). */}
+      {load.error ? (
+        <ErrorState
+          title={t('loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('loadFailed'))}</p>
       ) : data ? (
         // Mounted afresh after each save, so the rows show the folders as stored (in canonical form)
         // rather than as typed, and when the stored folders change elsewhere. Not for every answer of
@@ -167,7 +179,8 @@ function FoldersForm({ paths, saving, saved, error, onEdit, onSave }: FoldersFor
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           {t('add')}
         </Button>
-        {error && <p className="settings-error" role="alert">{error}</p>}
+        {/* MAM-16 — above Save, inside the form; the rows keep what was typed to correct. */}
+        {error && <Banner>{error}</Banner>}
         <div className="media-folders-save">
           <Button type="submit" disabled={saving}>{saving ? t('saving') : t('save')}</Button>
           {saved && <span className="media-folders-saved" role="status">{t('saved')}</span>}

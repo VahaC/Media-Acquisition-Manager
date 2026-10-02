@@ -158,3 +158,37 @@ source's id for it or its info hash, never by the row (ADR 0006, MAM-13 section)
 
 `DownloadsValidationHttpTests` sends another user's release, one of a search more than a day old and
 one the plain search found, and gets the 404 with nothing written, fetched or sent.
+
+## A search made from its address (added 0.1.0, MAM-16)
+
+The Consequences above say the page keeps the search's id in its address. MAM-16's search field in
+the header adds a second address: Enter there opens `/search?q=<the line>`, and the page makes that
+search as it opens, then puts the search's id in place of the line, replacing the history entry
+(`setSearchParams({ id }, { replace: true })`). Back from the search therefore goes to the page
+before it, and F5 reads the stored search; neither asks a source again. A `?q=` beside an id is
+ignored: the id names the search.
+
+**Once per history entry.** The page makes a `?q=` search in an effect that runs once per history
+entry (the location's key). React's StrictMode runs effects twice in development, and a second run
+would be another search of every source — for Toloka, more searches with the owner's forum account
+(Context, first point). An answer moves the page only while it is still on the entry the search was
+made from: when the person searched again or went Back before it answered, the newest line wins,
+and the search they left goes into the cache unshown. While the page stays open it remembers, per
+`?q=` entry, the search made from it and how that ended, so Forward to the entry again waits for a
+search still being made, or moves to the answer that came meanwhile (`replace` again, from the
+cache), instead of asking a second time.
+
+**What still asks.** An address with `?q=` and no id is a request to search. Opening it — a link, a
+bookmark, F5 on a `?q=` whose search the server refused, Back or Forward to one the server refused,
+or to one left for another page (the Search page opens afresh and knows of no search) — asks every
+source, as any new search does. ProtectedRoute keeps the address through sign-in, so a `?q=` link
+opened while signed out searches once the person has signed in. It searches for whoever opens it,
+as every search is its creator's.
+
+`SearchPage.test.tsx` pins it: "makes the search in ?q= once, though StrictMode runs the page's
+effects twice", "goes Back from a search made from ?q= to the page before it, never to the ?q= that
+would ask again", "moves to the answer of the newest ?q= only, when the person searched again
+before the first answered", "moves to the answer that came while the person was Back when they go
+Forward to its ?q=, without asking again" and "asks again for a ?q= the server refused when the
+person goes Back and then Forward to it"; `App.test.tsx` "searches from the header field: …" does
+it through the browser's history.

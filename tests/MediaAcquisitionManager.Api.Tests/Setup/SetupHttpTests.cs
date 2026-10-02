@@ -102,8 +102,9 @@ public sealed class SetupHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
         Assert.Equal(OwnerName, body.User.UserName);
         Assert.True(body.User.IsOwner);
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
-        var current = await me.Content.ReadFromJsonAsync<CurrentUserResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equal(new CurrentUserResponse(body.User.Id, OwnerName, IsOwner: true), current);
+        var current = await me.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        // The setup is the owner's first sign-in, and its session is the one /me asks from.
+        Assert.Equal(new CurrentUserProfileResponse(body.User.Id, OwnerName, IsOwner: true, now, now, now.AddDays(30)), current);
     }
 
     [Fact]

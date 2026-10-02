@@ -2,12 +2,19 @@
    mappings of the integration dialog (integrations.css), which pair two paths in a row instead of one.
    Tokens only, so dark mode needs nothing of its own. Imported by the page. */
 
-/* Add folder, the error line and the Save row keep their own width under the rows. */
+/* Add folder and the Save row keep their own width under the rows. */
 .media-folders-form {
   display: grid;
   justify-items: start;
   gap: 0.75rem;
   min-width: 0;
+}
+
+/* MAM-16 — a refused save spans the rows above it, as a form's banner spans the form elsewhere,
+   rather than shrinking to its sentence. */
+.media-folders-form > .ui-banner {
+  justify-self: stretch;
+  max-width: 36rem;
 }
 
 /* The rows take the card's width up to what a path needs; a phone gets all of it. */

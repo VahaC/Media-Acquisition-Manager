@@ -6,7 +6,7 @@ import { destinationsApi } from '@/lib/destinations-api'
 import { integrationsApi } from '@/lib/integrations-api'
 import { qk } from '@/lib/queries'
 import type { ClientDestinationList, Destination } from '@/lib/types'
-import { apiError } from '@/test/api-error'
+import { apiError, networkError } from '@/test/api-error'
 import { cartoons, checkOf, destinationsPage, movies, sampleCategories, spareQbittorrent } from '@/test/destinations'
 import { localQbittorrent } from '@/test/integrations'
 
@@ -157,8 +157,13 @@ describe('DestinationDialog', () => {
     await pickClient(user, dialog, spareQbittorrent.id)
 
     // Assert
-    expect(await within(dialog).findByRole('alert'))
-      .toHaveTextContent('“Spare qBittorrent” is switched off. Switch it on under Integrations to use its categories.')
+    const line = await within(dialog).findByRole('alert')
+    expect(line).toHaveTextContent('“Spare qBittorrent” is switched off. Switch it on under Integrations to use its categories.')
+    // The red line under the select, which itself isn't marked invalid: nothing picked in it is wrong.
+    expect(line).toHaveClass('ui-field-error')
+    expect(categorySelect(dialog)).toHaveAccessibleDescription(
+      '“Spare qBittorrent” is switched off. Switch it on under Integrations to use its categories.')
+    expect(categorySelect(dialog)).not.toHaveAttribute('aria-invalid')
     expect(optionTexts(categorySelect(dialog))).toEqual(['Choose a category'])
   })
 
@@ -186,6 +191,21 @@ describe('DestinationDialog', () => {
     // Assert
     expect(await within(dialog).findByText('Local qBittorrent has no categories. Create one in the client, then open this dialog again.'))
       .toBeInTheDocument()
+  })
+
+  it('says under the client field when the download clients could not be loaded', async () => {
+    // Arrange
+    vi.mocked(integrationsApi.list).mockRejectedValue(networkError())
+
+    // Act
+    const { dialog } = renderDialog()
+
+    // Assert
+    const line = await within(dialog).findByRole('alert')
+    expect(line).toHaveTextContent('The server could not be reached.')
+    expect(line).toHaveClass('ui-field-error')
+    expect(clientSelect(dialog)).toBeDisabled()
+    expect(clientSelect(dialog)).not.toHaveAttribute('aria-invalid')
   })
 
   it('says to add a download client first when there is none', async () => {
@@ -311,8 +331,11 @@ describe('DestinationDialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Add destination' }))
 
     // Assert
-    expect(await within(dialog).findByRole('alert'))
-      .toHaveTextContent('qBittorrent didn\'t answer at http://127.0.0.1:9/qbt. Check the address and that qBittorrent is running.')
+    const banner = await within(dialog).findByRole('alert')
+    expect(banner).toHaveTextContent('qBittorrent didn\'t answer at http://127.0.0.1:9/qbt. Check the address and that qBittorrent is running.')
+    // Above the buttons, outside the scrolling fields.
+    expect(banner).toHaveClass('ui-banner')
+    expect(banner.nextElementSibling).toContainElement(within(dialog).getByRole('button', { name: 'Add destination' }))
     expect(onClose).not.toHaveBeenCalled()
     expect(within(dialog).getByRole('button', { name: 'Add destination' })).toBeEnabled()
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Movies')

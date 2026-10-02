@@ -90,7 +90,7 @@ describe('LoginPage', () => {
   it.each([
     [401, 'The user name or password is incorrect.'],
     [429, 'Too many attempts. Wait a minute and try again.'],
-  ])('shows the API sentence of a %i under the form and stays signed out', async (status, sentence) => {
+  ])('shows the API sentence of a %i in a banner above Sign in, keeps what was typed and stays signed out', async (status, sentence) => {
     // Arrange
     vi.mocked(authApi.signIn).mockRejectedValue(apiError(status, sentence))
     const { user } = renderPage()
@@ -99,8 +99,13 @@ describe('LoginPage', () => {
     await signIn(user, 'vasyl', 'wrong password')
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent(sentence)
+    expect(banner).toHaveClass('ui-banner')
+    expect(banner.nextElementSibling).toBe(screen.getByRole('button', { name: 'Sign in' }))
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+    expect(screen.getByLabelText('User name')).toHaveValue('vasyl')
+    expect(screen.getByLabelText('Password')).toHaveValue('wrong password')
     expect(useAuthStore.getState().status).toBe('anonymous')
   })
 
@@ -164,7 +169,7 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('User name')).toBeInTheDocument()
   })
 
-  it('also restores the session on Retry when the server could not be reached', async () => {
+  it('also restores the session on Try again when the server could not be reached', async () => {
     // Arrange
     useAuthStore.setState({ status: 'unavailable' })
     vi.mocked(authApi.refresh).mockResolvedValue(sessionFor(owner))
@@ -175,14 +180,14 @@ describe('LoginPage', () => {
     await screen.findByRole('alert')
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     // Assert
     expect(await screen.findByText('Home page')).toBeInTheDocument()
     expect(authApi.refresh).toHaveBeenCalledOnce()
   })
 
-  it('says so when it cannot check whether setup is needed, and checks again on Retry', async () => {
+  it('says so when it cannot check whether setup is needed, and checks again on Try again', async () => {
     // Arrange
     vi.mocked(setupApi.status)
       .mockRejectedValueOnce(apiError(500, 'The server hit an unexpected error.'))
@@ -191,10 +196,28 @@ describe('LoginPage', () => {
     const alert = await screen.findByRole('alert')
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     // Assert
+    expect(alert).toHaveTextContent('Could not check whether this installation is set up.')
     expect(alert).toHaveTextContent('The server hit an unexpected error.')
     expect(await screen.findByLabelText('User name')).toBeInTheDocument()
+  })
+
+  it('keeps the failed setup check on screen, reading Retrying…, while it is asked again', async () => {
+    // Arrange
+    vi.mocked(setupApi.status)
+      .mockRejectedValueOnce(networkError())
+      .mockReturnValueOnce(new Promise(() => {}))
+    const { user } = renderPage()
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(await screen.findByRole('button', { name: 'Retrying…' })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('The server could not be reached.')
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
   })
 })

@@ -2,6 +2,7 @@ import { TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { MediaLines } from '@/components/library/MediaLines'
 import { formatFileSize } from '@/lib/format'
+import { splitPath } from '@/lib/library-versions'
 import type { LibraryFile, LibraryFileInspection } from '@/lib/types'
 import '@/styles/library.css' // .library-file* — the name, folder, app path, problem and facts lines
 
@@ -60,15 +61,4 @@ function InspectionLines({ inspection }: { inspection: LibraryFileInspection | n
       <span>{inspection.problem ?? t(`media.status.${inspection.status}`)}</span>
     </p>
   )
-}
-
-/**
- * A path's last segment and the folder holding it, split at the last `/` or `\` (a Windows path).
- * A path without a folder part is all name.
- */
-function splitPath(path: string): { name: string; folder: string | null } {
-  const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
-  if (cut < 0 || cut === path.length - 1) return { name: path, folder: null }
-  // A file right under the root keeps the root as its folder rather than an empty line.
-  return { name: path.slice(cut + 1), folder: cut === 0 ? path.slice(0, 1) : path.slice(0, cut) }
 }

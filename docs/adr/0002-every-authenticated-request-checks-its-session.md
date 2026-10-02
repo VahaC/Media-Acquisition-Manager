@@ -75,3 +75,14 @@ revokes the session). A request already running when its session ends is allowed
 This does not license caching the check per process or per token, which would reopen the window it
 closes, nor skipping it for read-only endpoints: a disabled user must not read either. It decides
 nothing about the personal access tokens of MAM-5, which are a different credential.
+
+## A user's own password change (added 0.1.0, MAM-16)
+
+MAM-16 adds a fifth way a session ends. Every signed-in user can change their own password on the
+Profile page (`POST /api/auth/password`), giving the current one. The change revokes every other
+session of that user at once and keeps the one it was made from, named by the access token's `sid`,
+the same as an owner's reset of their own password; ADR 0016 records why it keeps that session. The
+mechanism above is unchanged: every device and browser holding one of the other sessions is refused
+with its next request, and so is its refresh.
+`AuthPasswordHttpTests.ChangePassword_keeps_the_calling_session_and_ends_the_users_other_sessions_at_once`
+asserts it with a token issued a moment before and valid in itself.

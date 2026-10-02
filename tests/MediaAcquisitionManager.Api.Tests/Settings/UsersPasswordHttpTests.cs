@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Settings;
 
-// The owner setting a new password for a user — their own included, which is the only way the
-// owner can change theirs. Every session opened with the old password must end, except the one the
-// owner is resetting from.
+// The owner setting a new password for a user — their own included, without giving the current one
+// (changing it on Profile asks for it: AuthPasswordHttpTests). Every session opened with the old
+// password must end, except the one the owner is resetting from.
 public sealed class UsersPasswordHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/users";

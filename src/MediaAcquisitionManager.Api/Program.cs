@@ -77,8 +77,10 @@ public class Program
         app.UseStaticFiles();
         app.UseAuthentication();
         app.UseAuthorization();
-        // After authentication and routing, so an endpoint's [EnableRateLimiting] is known; the
-        // sign-in policy partitions by address, not by user, so it needs nothing from authentication.
+        // After authentication and routing, so an endpoint's [EnableRateLimiting] is known and the
+        // password-change policy can count by the signed-in user (MAM-16); after authorization, so an
+        // anonymous request is challenged before it counts against anyone. The sign-in policy
+        // partitions by address and needs nothing from authentication.
         app.UseRateLimiter();
         // Includes UnknownApiController: an /api URL nothing else claims answers 404 { error }
         // instead of falling through to the SPA shell below.

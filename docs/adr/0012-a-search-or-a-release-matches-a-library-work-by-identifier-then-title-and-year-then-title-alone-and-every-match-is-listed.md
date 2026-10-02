@@ -308,3 +308,16 @@ blocks or picks a release, a client or a destination. The dialog's summary says 
 are kept, as Phase A replaces nothing. Whether a release was already sent compares it with earlier
 download jobs, never with the library
 ([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+
+## The title typed in the header (added 0.1.0, MAM-16)
+
+The Decision's "each asked in a field of its own with the title required (Vasyl's decision 1: no
+line parsed into parts)" and the rejected option "Read one search line into title, year and id"
+held until MAM-16 moved the title to one search field in the header, on every page. The title now
+comes from a line, and one part of that line can be the year: a year from 1900 to 2099 in round
+brackets that end it, "Interstellar (2014)"
+([ADR 0015](0015-only-a-bracketed-trailing-year-in-the-header-search-becomes-the-year.md)). A bare
+number stays in the title ("Blade Runner 2049"), and no id is read from the line. The Search page
+keeps the Year, IMDb id and TMDb id fields, to narrow the search on screen as a new search with the
+same title, so the claim matched here is still a title, a year and ids. Matching is unchanged.
+`search-query.test.ts` pins the reading of the line.

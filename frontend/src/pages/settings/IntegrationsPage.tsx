@@ -1,19 +1,23 @@
 import { useState } from 'react'
-import { CircleAlert, Loader2, Pencil, Plus, PlugZap, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Plus, PlugZap, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { IntegrationDialog } from '@/components/integrations/IntegrationDialog'
+import { Banner } from '@/components/shared/Banner'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { DisabledReason } from '@/components/shared/DisabledReason'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDeleteIntegration, useIntegrations, useTestIntegration } from '@/lib/queries'
 import type { IntegrationKind, IntegrationSummary } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, toolbar, banners, table and row actions of this page
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header, toolbar, table and row actions of this page
 import '@/styles/integrations.css' // .integrations-service*, .integrations-address — the cells only this page has
 
 /** Per device: a phone and a desktop want different page lengths. */
@@ -64,12 +68,14 @@ export function IntegrationsPage() {
   if (!onFilters) setPaging({ search: appliedSearch, kind, page: 1 })
   const page = onFilters ? paging.page : 1
   const filtered = appliedSearch !== '' || kind !== ''
-  const { data, error, isLoading } = useIntegrations({
+  const integrations = useIntegrations({
     search: appliedSearch || undefined,
     kind: kind || undefined,
     page,
     pageSize,
   })
+  const { data, error, isLoading, isPlaceholderData } = integrations
+  const load = useLoadRetry(integrations)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
 
   const goToPage = (next: number) => setPaging({ search: appliedSearch, kind, page: next })
@@ -168,24 +174,32 @@ export function IntegrationsPage() {
 
       {/* Outside the ternary below, so a failed refresh, a refused action or a test's answer adds a
           line above the rows instead of replacing them. */}
-      {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+      {error && data && !isPlaceholderData && (
+        <Banner action={<RetryButton onRetry={() => integrations.refetch()} />}>
           {t('refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
-      {actionError && <p className="settings-banner" role="alert">{actionError}</p>}
+      {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
+      {/* MAM-16 — a test that didn't connect reads as an error (an alert), one that did as an ok
+          status; both stay until dismissed or the next action. */}
       {testResult && (
-        <p className="settings-banner" data-tone={testResult.ok ? 'ok' : undefined} role="status">
+        <Banner tone={testResult.ok ? 'ok' : 'error'} onDismiss={() => setTestResult(null)}>
           {t('testResult', { name: testResult.name, message: testResult.message })}
-        </p>
+        </Banner>
       )}
 
-      {isLoading ? (
+      {/* A member's 403 is the server's lasting answer: no Try again for it (retryCanHelp). */}
+      {load.error ? (
+        <ErrorState
+          title={t('loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('loadFailed'))}</p>
       ) : data && data.items.length === 0 && filtered ? (
         <div className="settings-empty">
           <p>{t('noMatch')}</p>
@@ -230,6 +244,7 @@ export function IntegrationsPage() {
             pages={pages}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            totalCount={data.totalCount}
             onPage={goToPage}
             onPageSize={changePageSize}
           />

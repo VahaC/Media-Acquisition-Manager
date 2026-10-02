@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { AxiosError, AxiosHeaders } from 'axios'
 import { MemoryRouter } from 'react-router-dom'
 import { healthApi } from '@/lib/health-api'
@@ -134,7 +135,7 @@ describe('HomePage', () => {
     expect(healthApi.ready).toHaveBeenCalledTimes(2)
   })
 
-  it('shows the error from the API when the first load fails', async () => {
+  it('says what failed and the API sentence, with Try again, when the first load fails', async () => {
     // Arrange
     vi.mocked(healthApi.ready).mockRejectedValue(
       apiError(500, 'The server hit an unexpected error. Quote trace id abc-123 when reporting it.'),
@@ -144,10 +145,46 @@ describe('HomePage', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The server hit an unexpected error. Quote trace id abc-123 when reporting it.',
-    )
+    const state = await screen.findByRole('alert')
+    expect(state).toHaveTextContent('Could not check the service status.')
+    expect(state).toHaveTextContent('The server hit an unexpected error. Quote trace id abc-123 when reporting it.')
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
     expect(screen.queryByText('Ready')).not.toBeInTheDocument()
+  })
+
+  it('checks again on Try again and shows the status', async () => {
+    // Arrange
+    vi.mocked(healthApi.ready).mockRejectedValueOnce(new AxiosError('Network Error', 'ERR_NETWORK'))
+    vi.mocked(healthApi.ready).mockResolvedValueOnce(healthy)
+    renderPage()
+    const user = userEvent.setup()
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(await screen.findByText('Ready')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('keeps the failed first load on screen through the minute\'s check, without reading Retrying…', async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.mocked(healthApi.ready)
+      .mockRejectedValueOnce(new AxiosError('Network Error', 'ERR_NETWORK'))
+      .mockReturnValueOnce(new Promise<HealthReport>(() => {}))
+    renderPage()
+    await screen.findByRole('alert')
+
+    // Act
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    // Assert
+    expect(healthApi.ready).toHaveBeenCalledTimes(2)
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not check the service status.')
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
   })
 
   it('keeps the last known status on screen under a banner when a refresh fails', async () => {
@@ -165,5 +202,25 @@ describe('HomePage', () => {
     expect(banner).toHaveTextContent('Refresh failed, showing the last known status.')
     expect(banner).toHaveTextContent('The server could not be reached.')
     expect(screen.getByText('Ready')).toBeInTheDocument()
+  })
+
+  it('asks again from Retry on the banner, and drops the banner once the status is back', async () => {
+    // Arrange
+    vi.mocked(healthApi.ready).mockResolvedValueOnce(healthy)
+    const { client } = renderPage()
+    const user = userEvent.setup()
+    await screen.findByText('Ready')
+    vi.mocked(healthApi.ready).mockRejectedValueOnce(new AxiosError('Network Error', 'ERR_NETWORK'))
+    await client.refetchQueries()
+    await screen.findByRole('alert')
+    vi.mocked(healthApi.ready).mockResolvedValueOnce(unhealthy)
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    expect(await screen.findByText('Not ready')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(healthApi.ready).toHaveBeenCalledTimes(3)
   })
 })

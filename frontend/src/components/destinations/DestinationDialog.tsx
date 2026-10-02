@@ -1,6 +1,8 @@
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DestinationSavesTo } from '@/components/destinations/DestinationSavesTo'
+import { Banner } from '@/components/shared/Banner'
+import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -8,7 +10,7 @@ import { useClientDestinations, useCreateDestination, useIntegrations, useUpdate
 import type { Destination, DestinationCheck, IntegrationsQuery } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every settings dialog lays them out
-import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body, the error line, the checkbox
+import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body and the buttons under it, the checkbox
 
 /**
  * The download clients to pick from: the server filters them by kind and orders them by name. The
@@ -81,15 +83,13 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
   const categoryInfo = (() => {
     if (clientId === '') return <p className="auth-hint">{t('dialog.categoryNeedsClient')}</p>
     if (categories.isLoading) return <p className="auth-muted">{t('dialog.categoriesLoading')}</p>
+    // MAM-16 — why the select has nothing to offer, in the red line a field's error takes; the select
+    // itself is not marked invalid, as nothing picked in it is wrong. The same for the clients below.
     if (categories.error && !categories.data) {
-      return (
-        <p className="settings-dialog-error" role="alert">
-          {getApiErrorMessage(categories.error, t('dialog.categoriesFailed'))}
-        </p>
-      )
+      return <FieldErrorLine>{getApiErrorMessage(categories.error, t('dialog.categoriesFailed'))}</FieldErrorLine>
     }
     // 200 with the client's own sentence: it couldn't be asked (switched off, unreachable, …).
-    if (categories.data?.error) return <p className="settings-dialog-error" role="alert">{categories.data.error}</p>
+    if (categories.data?.error) return <FieldErrorLine>{categories.data.error}</FieldErrorLine>
     if (chosen) return <DestinationSavesTo check={chosen.check} />
     if (key !== '' && key === savedKey && savedKeyMissing) {
       const missing: DestinationCheck = {
@@ -176,9 +176,7 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
               </select>
               {clients.isLoading && <p className="auth-muted">{t('common:loading')}</p>}
               {clients.error && !clients.data && (
-                <p className="settings-dialog-error" role="alert">
-                  {getApiErrorMessage(clients.error, t('dialog.clientsFailed'))}
-                </p>
+                <FieldErrorLine>{getApiErrorMessage(clients.error, t('dialog.clientsFailed'))}</FieldErrorLine>
               )}
               {clients.data && listedClients.length === 0 && !keepsSavedClient && (
                 <p className="auth-hint">{t('dialog.noClients')}</p>
@@ -221,7 +219,8 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
               <p id={defaultHintId} className="auth-hint">{t('dialog.defaultHint')}</p>
             </div>
           </div>
-          {error && <p className="settings-dialog-error" role="alert">{error}</p>}
+          {/* MAM-16 — outside the scrolling body, above the buttons; the fields keep what was picked. */}
+          {error && <Banner>{error}</Banner>}
           {/* Primary first, Cancel last — the order every dialog in the app uses. */}
           <DialogFooter>
             <Button type="submit" disabled={saving}>

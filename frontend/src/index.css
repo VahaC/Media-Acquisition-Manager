@@ -70,6 +70,17 @@
   /* "Update available" — amber on the lighter side so it stands out from the
      Down red without being mistaken for the NeedsAttention orange. */
   --status-update-available: #f59e0b;
+
+  /* MAM-16 — the selected and warning tints as tokens, so the active nav link, a current page and a
+     warning badge or banner mix the same shade instead of each sheet writing its own. */
+  --tint-selected: color-mix(in oklab, var(--primary) 12%, transparent);
+  --tint-warning: color-mix(in oklab, var(--status-attention) 8%, transparent);
+  --tint-warning-border: color-mix(in oklab, var(--status-attention) 55%, transparent);
+  /* The colour of a red sentence (a banner, a field error, a status line). --destructive reads
+     6.47:1 on the white card, but the dark one (#dc2626) reaches only 3.85:1 on the dark card
+     (#131313), short of the 4.5:1 WCAG AA wants for text, so .dark sets a lighter red. Fills and
+     borders keep --destructive. */
+  --text-danger: var(--destructive);
 }
 
 .dark {
@@ -106,6 +117,14 @@
      other status colours (down / attention / update-available) read fine
      against the dark surface as-is, so we only override the up tone. */
   --status-up: #22c55e;
+
+  /* The same formulas as :root. A custom property resolves its var() on the element that declares
+     it, so without them a .dark set below <html> would inherit the light primary's tint. */
+  --tint-selected: color-mix(in oklab, var(--primary) 12%, transparent);
+  --tint-warning: color-mix(in oklab, var(--status-attention) 8%, transparent);
+  --tint-warning-border: color-mix(in oklab, var(--status-attention) 55%, transparent);
+  /* red-400: 6.72:1 on the dark card, where --destructive reaches 3.85:1. */
+  --text-danger: #f87171;
 }
 
 html {

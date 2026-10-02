@@ -2,6 +2,7 @@ import { AxiosError, type AxiosAdapter, type AxiosResponse } from 'axios'
 import { api } from '@/lib/api'
 import { healthApi } from '@/lib/health-api'
 import type { HealthReport } from '@/lib/types'
+import { resetConnectionStore } from '@/test/connection'
 
 const healthy: HealthReport = {
   status: 'Healthy',
@@ -35,6 +36,8 @@ describe('healthApi.ready', () => {
 
   afterEach(() => {
     api.defaults.adapter = originalAdapter
+    // The real client notes an unreachable server for the offline strip; the next test starts fresh.
+    resetConnectionStore()
   })
 
   it('resolves with the report when every check passes (200)', async () => {
@@ -99,5 +102,41 @@ describe('healthApi.ready', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 503 } })
+  })
+})
+
+describe('healthApi.live', () => {
+  const originalAdapter = api.defaults.adapter
+
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter
+    resetConnectionStore()
+  })
+
+  it('asks the liveness endpoint and resolves with its report', async () => {
+    // Arrange
+    const live: HealthReport = { status: 'Healthy', checks: [] }
+    const adapter = respondWith(200, live)
+    api.defaults.adapter = adapter
+
+    // Act
+    const report = await healthApi.live()
+
+    // Assert
+    expect(report).toEqual(live)
+    expect(adapter).toHaveBeenCalledWith(expect.objectContaining({ method: 'get', url: '/api/health' }))
+  })
+
+  it('rejects when the server cannot be reached', async () => {
+    // Arrange
+    api.defaults.adapter = vi.fn<AxiosAdapter>(async (config) => {
+      throw new AxiosError('Network Error', AxiosError.ERR_NETWORK, config)
+    })
+
+    // Act
+    const result = healthApi.live()
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, code: AxiosError.ERR_NETWORK })
   })
 })

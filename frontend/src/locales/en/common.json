@@ -5,8 +5,13 @@
   "loading": "Loading…",
   "close": "Close",
   "cancel": "Cancel",
+  "retry": "Retry",
+  "retrying": "Retrying…",
+  "tryAgain": "Try again",
+  "dismiss": "Dismiss",
   "nav": {
     "label": "Main",
+    "profile": "Profile",
     "search": "Search",
     "library": "Library",
     "jobs": "Jobs",
@@ -15,12 +20,26 @@
     "mediaFolders": "Media folders",
     "users": "Users"
   },
+  "headerSearch": {
+    "placeholder": "Search a movie by title, e.g. Interstellar (2014)",
+    "hint": "Press / to search",
+    "key": "/"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
   "pager": {
     "label": "Pages",
     "status": "Page {{page}} of {{pages}}",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "page": "Page {{page}}",
+    "gap": "…",
     "pageSize": "Per page",
-    "previous": "Previous",
-    "next": "Next"
+    "previous": "Previous page",
+    "next": "Next page"
   },
   "fileSize": {
     "B": "{{value}} B",

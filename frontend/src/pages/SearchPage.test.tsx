@@ -1,7 +1,8 @@
+import { StrictMode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { downloadsApi } from '@/lib/downloads-api'
 import { qk } from '@/lib/queries'
 import { searchApi } from '@/lib/search-api'
@@ -57,6 +58,57 @@ function AddressProbe() {
   return <output data-testid="address">{pathname + search}</output>
 }
 
+/** The browser's Back button. */
+function BackButton() {
+  const navigate = useNavigate()
+  return <button type="button" onClick={() => navigate(-1)}>Back</button>
+}
+
+/** The browser's Forward button. */
+function ForwardButton() {
+  const navigate = useNavigate()
+  return <button type="button" onClick={() => navigate(1)}>Forward</button>
+}
+
+/**
+ * The page with the history `entries`, the last one open, beside the Library page, Back and Forward
+ * buttons and a link to each of `links` named by its address — the way the header's field moves the
+ * page.
+ */
+function renderInHistory(entries: string[], { links = [], strict = false }: { links?: string[]; strict?: boolean } = {}) {
+  signInAs(owner)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const app = (
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+        <BackButton />
+        <ForwardButton />
+        <Link to="/library">Library</Link>
+        {links.map((to) => <Link key={to} to={to}>{to}</Link>)}
+        <Routes>
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/library" element={<p>The Library page</p>} />
+        </Routes>
+        <AddressProbe />
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+  render(strict ? <StrictMode>{app}</StrictMode> : app)
+  return { client, user: userEvent.setup() }
+}
+
+const address = () => screen.getByTestId('address').textContent
+
+/** The "Results for" line, found by its whole text. */
+const resultsFor = (text: string) =>
+  screen.getByText((_, element) => element?.textContent === `Results for “${text}”.`)
+
+/** The line beside "Results for “`text`”.": how to narrow the results, or that a search is being made. */
+const noteBeside = (text: string) => within(resultsFor(text).parentElement as HTMLElement).getByRole('status')
+
+/** `/search?q=` with `line` encoded, as the header's field opens it. */
+const searchFor = (line: string) => `/search?${new URLSearchParams({ q: line })}`
+
 function renderPage({ signedIn = owner, path = '/search' }: { signedIn?: CurrentUser; path?: string } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -104,90 +156,319 @@ describe('SearchPage', () => {
     vi.mocked(searchApi.releases).mockImplementation(async (_, query) => releasesPage(query, [tolokaRemux, otherUhd]))
   })
 
-  it('sends the trimmed search, keeps its id in the address and shows what came back', async () => {
+  it('shows how to start a search at a bare /search, and asks nothing', async () => {
     // Arrange
-    const { user } = renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Title' }), '  Aliens  ')
-    await user.type(screen.getByRole('textbox', { name: 'Year (optional)' }), ' 1986 ')
-    await user.type(screen.getByRole('textbox', { name: 'IMDb id (optional)' }), ' tt0090605')
+    const path = '/search'
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Search' }))
+    renderPage({ path })
 
     // Assert
-    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens', year: '1986', imdbId: 'tt0090605', tmdbId: undefined })
+    expect(screen.getByText('Type a movie title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(screen.getByText('Add the year in brackets after the title to narrow it: “Interstellar (2014)”. Press / on any page to jump to the field.'))
+      .toBeInTheDocument()
+    // Nothing to narrow yet.
+    expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Results for/)).not.toBeInTheDocument()
+    expect(searchApi.create).not.toHaveBeenCalled()
+    expect(searchApi.get).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['blank', '%20%20'],
+    ['empty', ''],
+  ])('treats a %s ?q= as no search, and shows how to start one', (_, line) => {
+    // Arrange
+    const path = `/search?q=${line}`
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    expect(screen.getByText('Type a movie title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(searchApi.create).not.toHaveBeenCalled()
+  })
+
+  it('makes the search in ?q= at once, a bracketed year ending it as the year, and puts its id in the address in its place', async () => {
+    // Arrange
+    const path = searchFor('  Aliens (1986)  ')
+
+    // Act
+    renderPage({ path })
+
+    // Assert
     expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens', year: '1986' })
     expect(addressSearch()).toBe(`?id=${searchId}`)
     expect(screen.getByRole('heading', { level: 2, name: 'In your library' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Available releases' })).toBeInTheDocument()
     expect(vi.mocked(searchApi.releases).mock.calls).toEqual([[searchId, firstQuery]])
     // The answer went into the cache: the search isn't asked for again.
     expect(searchApi.get).not.toHaveBeenCalled()
   })
 
-  it('shows the server\'s sentence under the form when it refuses the search, and stays where it was', async () => {
+  it('makes the search in ?q= once, though StrictMode runs the page\'s effects twice', async () => {
     // Arrange
-    vi.mocked(searchApi.create).mockRejectedValue(apiError(400, 'Enter a title to search for.'))
-    const { user } = renderPage()
+    const entries = [searchFor('Aliens')]
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Search' }))
+    renderInHistory(entries, { strict: true })
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('Enter a title to search for.')
-    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: '', year: undefined, imdbId: undefined, tmdbId: undefined })
-    expect(addressSearch()).toBe('')
-    expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled()
+    expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(address()).toBe(`/search?id=${searchId}`)
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens' })
+  })
+
+  it('sends a bare id typed in the header as the title, as the header has no field for ids', async () => {
+    // Arrange
+    const path = searchFor('tt0816692')
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    await vi.waitFor(() => expect(addressSearch()).toBe(`?id=${searchId}`))
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'tt0816692' })
+  })
+
+  it('ignores ?q= in an address that names a search, and shows that search', async () => {
+    // Arrange
+    const path = `/search?id=${searchId}&q=Interstellar`
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(resultsFor('Aliens')).toBeInTheDocument()
+    expect(searchApi.create).not.toHaveBeenCalled()
+    expect(searchApi.get).toHaveBeenCalledExactlyOnceWith(searchId)
+  })
+
+  it('goes Back from a search made from ?q= to the page before it, never to the ?q= that would ask again', async () => {
+    // Arrange
+    const { user } = renderInHistory(['/library', searchFor('Aliens')])
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${searchId}`))
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+
+    // Assert
+    expect(await screen.findByText('The Library page')).toBeInTheDocument()
+    expect(address()).toBe('/library')
+    expect(searchApi.create).toHaveBeenCalledOnce()
+  })
+
+  it('moves to the answer of the newest ?q= only, when the person searched again before the first answered', async () => {
+    // Arrange
+    const firstId = '5ea4c000-0000-4000-8000-000000000002'
+    let answerFirst: (search: SearchResponse) => void = () => {}
+    let answerSecond: (search: SearchResponse) => void = () => {}
+    vi.mocked(searchApi.create)
+      .mockReturnValueOnce(new Promise((resolve) => { answerFirst = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { answerSecond = resolve }))
+    const { client, user } = renderInHistory([searchFor('Alien')], { links: [searchFor('Aliens')] })
+    await user.click(screen.getByRole('link', { name: searchFor('Aliens') }))
+    await vi.waitFor(() => expect(searchApi.create).toHaveBeenCalledTimes(2))
+
+    // Act
+    answerFirst(searchOf({ id: firstId, text: 'Alien', year: null, imdbId: null }))
+
+    // Assert
+    // The first answer still lands in the cache, but the page stays on the newer line.
+    await vi.waitFor(() => expect(client.getQueryData(qk.search.detail(firstId))).toBeDefined())
+    expect(address()).toBe(searchFor('Aliens'))
+    expect(resultsFor('Aliens')).toBeInTheDocument()
+    answerSecond(aliensSearch)
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${searchId}`))
+    expect(vi.mocked(searchApi.create).mock.calls).toEqual([[{ text: 'Alien' }], [{ text: 'Aliens' }]])
+  })
+
+  it('keeps the search Back returned to on screen, not searching, when the ?q= search left behind answers late', async () => {
+    // Arrange
+    const lateId = '5ea4c000-0000-4000-8000-000000000002'
+    let answer: (search: SearchResponse) => void = () => {}
+    vi.mocked(searchApi.create).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    const { client, user } = renderInHistory([`/search?id=${searchId}`], { links: [searchFor('Alien')] })
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    await user.click(screen.getByRole('link', { name: searchFor('Alien') }))
+    await vi.waitFor(() => expect(searchApi.create).toHaveBeenCalledOnce())
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    expect(noteBeside('Aliens')).toHaveTextContent('Add a year or an id to narrow them.')
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
+
+    // Act
+    answer(searchOf({ id: lateId, text: 'Alien', year: null, imdbId: null }))
+
+    // Assert
+    await vi.waitFor(() => expect(client.getQueryData(qk.search.detail(lateId))).toBeDefined())
+    expect(address()).toBe(`/search?id=${searchId}`)
+    expect(resultsFor('Aliens')).toBeInTheDocument()
+  })
+
+  it('moves to the answer that came while the person was Back when they go Forward to its ?q=, without asking again', async () => {
+    // Arrange
+    const lateId = '5ea4c000-0000-4000-8000-000000000002'
+    let answer: (search: SearchResponse) => void = () => {}
+    vi.mocked(searchApi.create).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    const { client, user } = renderInHistory([`/search?id=${searchId}`], { links: [searchFor('Alien')] })
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    await user.click(screen.getByRole('link', { name: searchFor('Alien') }))
+    await vi.waitFor(() => expect(searchApi.create).toHaveBeenCalledOnce())
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${searchId}`))
+    answer(searchOf({ id: lateId, text: 'Alien', year: null, imdbId: null }))
+    await vi.waitFor(() => expect(client.getQueryData(qk.search.detail(lateId))).toBeDefined())
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Forward' }))
+
+    // Assert
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${lateId}`))
+    expect(resultsFor('Alien')).toBeInTheDocument()
+    expect(searchApi.create).toHaveBeenCalledOnce()
+    // The answer is in the cache.
+    expect(searchApi.get).not.toHaveBeenCalledWith(lateId)
+    // It replaced the ?q= entry, as an answer on screen does.
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(address()).toBe(`/search?id=${searchId}`)
+  })
+
+  it('waits for the search of a ?q= the person went Back from and Forward to again before it answered', async () => {
+    // Arrange
+    const lateId = '5ea4c000-0000-4000-8000-000000000002'
+    let answer: (search: SearchResponse) => void = () => {}
+    vi.mocked(searchApi.create).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    const { user } = renderInHistory([`/search?id=${searchId}`], { links: [searchFor('Alien')] })
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    await user.click(screen.getByRole('link', { name: searchFor('Alien') }))
+    await vi.waitFor(() => expect(searchApi.create).toHaveBeenCalledOnce())
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${searchId}`))
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Forward' }))
+
+    // Assert
+    expect(noteBeside('Alien')).toHaveTextContent(/^Searching…$/)
+    expect(searchApi.create).toHaveBeenCalledOnce()
+    answer(searchOf({ id: lateId, text: 'Alien', year: null, imdbId: null }))
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${lateId}`))
+  })
+
+  it('asks again for a ?q= the server refused when the person goes Back and then Forward to it', async () => {
+    // Arrange
+    const nextId = '5ea4c000-0000-4000-8000-000000000002'
+    vi.mocked(searchApi.create)
+      .mockRejectedValueOnce(apiError(500, 'Database is locked.'))
+      .mockResolvedValueOnce(searchOf({ id: nextId, text: 'Alien', year: null, imdbId: null }))
+    const { user } = renderInHistory([`/search?id=${searchId}`], { links: [searchFor('Alien')] })
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    await user.click(screen.getByRole('link', { name: searchFor('Alien') }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Database is locked.')
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Forward' }))
+
+    // Assert
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${nextId}`))
+    expect(vi.mocked(searchApi.create).mock.calls).toEqual([[{ text: 'Alien' }], [{ text: 'Alien' }]])
+    expect(resultsFor('Alien')).toBeInTheDocument()
+  })
+
+  it('says what is being searched for, Searching… in place of how to narrow it, and disables Apply while the search is made', async () => {
+    // Arrange
+    vi.mocked(searchApi.create).mockReturnValue(new Promise(() => {}))
+
+    // Act
+    renderPage({ path: searchFor('Interstellar (2014)') })
+
+    // Assert
+    expect(await screen.findByText('Searching…')).toBeInTheDocument()
+    expect(noteBeside('Interstellar')).toHaveTextContent(/^Searching…$/)
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled()
+    // The year the line ended with fills the field it went to.
+    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('2014')
+    expect(screen.getByRole('textbox', { name: 'IMDb id (optional)' })).toHaveValue('')
+  })
+
+  it('names the search on screen in bold and says how to narrow it', async () => {
+    // Arrange
+    const path = `/search?id=${searchId}`
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    const line = await screen.findByText((_, element) => element?.textContent === 'Results for “Aliens”.')
+    expect(within(line).getByText('Aliens').closest('strong')).toHaveTextContent('“Aliens”')
+    expect(noteBeside('Aliens')).toHaveTextContent(/^Add a year or an id to narrow them\.$/)
+  })
+
+  it('shows a title that looks like markup or a placeholder exactly as it was typed', async () => {
+    // Arrange
+    const typed = '<strong>Alien</strong> {{text}} <0>Aliens</0>'
+    vi.mocked(searchApi.create).mockReturnValue(new Promise(() => {}))
+
+    // Act
+    renderPage({ path: searchFor(typed) })
+
+    // Assert
+    const line = await screen.findByText((_, element) => element?.textContent === `Results for “${typed}”.`)
+    expect(line.querySelectorAll('strong')).toHaveLength(1)
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: typed })
+  })
+
+  it('shows the server\'s sentence in a banner under the form when it refuses the search, and stays where it was', async () => {
+    // Arrange
+    vi.mocked(searchApi.create).mockRejectedValue(apiError(400, 'The title is at most 200 characters.'))
+
+    // Act
+    renderPage({ path: searchFor('Aliens') })
+
+    // Assert
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('The title is at most 200 characters.')
+    expect(screen.getByRole('button', { name: 'Apply' }).compareDocumentPosition(banner)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens' })
+    expect(addressSearch()).toBe('?q=Aliens')
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
+  })
+
+  it('clears the refusal\'s banner on Dismiss', async () => {
+    // Arrange
+    vi.mocked(searchApi.create).mockRejectedValue(apiError(400, 'The title is at most 200 characters.'))
+    const { user } = renderPage({ path: searchFor('Aliens') })
+    const banner = await screen.findByRole('alert')
+
+    // Act
+    await user.click(within(banner).getByRole('button', { name: 'Dismiss' }))
+
+    // Assert
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(resultsFor('Aliens')).toBeInTheDocument()
   })
 
   it('falls back to its own sentence when the refusal has none', async () => {
     // Arrange
-    vi.mocked(searchApi.create).mockRejectedValue(apiError(502))
-    const { user } = renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Aliens')
+    vi.mocked(searchApi.create).mockRejectedValue(apiError(500))
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Search' }))
+    renderPage({ path: searchFor('Aliens') })
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not search.')
-  })
-
-  it('disables Search and says Searching… while the sources are asked', async () => {
-    // Arrange
-    vi.mocked(searchApi.create).mockReturnValue(new Promise(() => {}))
-    const { user } = renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Aliens')
-
-    // Act
-    await user.click(screen.getByRole('button', { name: 'Search' }))
-
-    // Assert
-    expect(await screen.findByRole('button', { name: 'Searching…' })).toBeDisabled()
   })
 
   it('stays on the page the person went to when the search they left finishes', async () => {
     // Arrange
     let answer: (search: SearchResponse) => void = () => {}
     vi.mocked(searchApi.create).mockReturnValue(new Promise((resolve) => { answer = resolve }))
-    signInAs(owner)
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={['/search']}>
-          <Link to="/library">Library</Link>
-          <Routes>
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/library" element={<p>The Library page</p>} />
-          </Routes>
-          <AddressProbe />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    )
-    const user = userEvent.setup()
-    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Aliens')
-    await user.click(screen.getByRole('button', { name: 'Search' }))
-    await screen.findByRole('button', { name: 'Searching…' })
+    const { client, user } = renderInHistory([searchFor('Aliens')])
+    await screen.findByText('Searching…')
     await user.click(screen.getByRole('link', { name: 'Library' }))
     await screen.findByText('The Library page')
 
@@ -195,9 +476,9 @@ describe('SearchPage', () => {
     answer(aliensSearch)
 
     // Assert
-    // The answer still lands in the cache, so the search shows at once if the person goes back to it.
+    // The answer still lands in the cache; only the move to it is skipped.
     await vi.waitFor(() => expect(client.getQueryData(qk.search.detail(searchId))).toEqual(aliensSearch))
-    expect(screen.getByTestId('address')).toHaveTextContent(/^\/library$/)
+    expect(address()).toBe('/library')
     expect(screen.getByText('The Library page')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 1, name: 'Search' })).not.toBeInTheDocument()
   })
@@ -210,27 +491,106 @@ describe('SearchPage', () => {
     renderPage({ path })
 
     // Assert
-    expect(await screen.findByDisplayValue('Aliens')).toBe(screen.getByRole('textbox', { name: 'Title' }))
-    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('1986')
+    expect(await screen.findByDisplayValue('1986')).toBe(screen.getByRole('textbox', { name: 'Year (optional)' }))
     expect(screen.getByRole('textbox', { name: 'IMDb id (optional)' })).toHaveValue('tt0090605')
     expect(screen.getByRole('textbox', { name: 'TMDb id (optional)' })).toHaveValue('')
     expect(searchApi.get).toHaveBeenCalledExactlyOnceWith(searchId)
   })
 
-  it('keeps what the person typed when the search in the address arrives after it', async () => {
+  it('keeps what the person typed when the search on screen is read again', async () => {
     // Arrange
-    let answer: (search: SearchResponse) => void = () => {}
-    vi.mocked(searchApi.get).mockReturnValue(new Promise((resolve) => { answer = resolve }))
-    const { user } = openStored()
-    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Interstellar')
+    const { client, user } = openStored()
+    const year = await screen.findByRole('textbox', { name: 'Year (optional)' })
+    await user.clear(year)
+    await user.type(year, '1979')
+    vi.mocked(searchApi.get).mockResolvedValue(searchOf({ year: 1990 }))
 
     // Act
-    answer(aliensSearch)
+    await client.refetchQueries({ queryKey: qk.search.detail(searchId) })
 
     // Assert
-    expect(await screen.findByRole('heading', { level: 2, name: 'In your library' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Interstellar')
-    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('')
+    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('1979')
+    expect(screen.getByRole('textbox', { name: 'IMDb id (optional)' })).toHaveValue('tt0090605')
+  })
+
+  it('keeps what the person typed while the ?q= search was made, once the page moves to it', async () => {
+    // Arrange
+    let answer: (search: SearchResponse) => void = () => {}
+    vi.mocked(searchApi.create).mockReturnValue(new Promise((resolve) => { answer = resolve }))
+    const { user } = renderPage({ path: searchFor('Aliens') })
+    await screen.findByText('Searching…')
+    await user.type(screen.getByRole('textbox', { name: 'Year (optional)' }), '1979')
+
+    // Act
+    answer(searchOf({ year: null, imdbId: null }))
+
+    // Assert
+    await vi.waitFor(() => expect(addressSearch()).toBe(`?id=${searchId}`))
+    expect(resultsFor('Aliens')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('1979')
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
+  })
+
+  it('fills the form from the next search after the person changed it and searched again from the header', async () => {
+    // Arrange
+    const nextId = '5ea4c000-0000-4000-8000-000000000002'
+    vi.mocked(searchApi.create).mockResolvedValue(searchOf({ id: nextId, text: 'Alien', year: 1979, imdbId: null }))
+    const { user } = renderInHistory([`/search?id=${searchId}`], { links: [searchFor('Alien')] })
+    const year = await screen.findByRole('textbox', { name: 'Year (optional)' })
+    await user.clear(year)
+    await user.type(year, '2000')
+
+    // Act
+    await user.click(screen.getByRole('link', { name: searchFor('Alien') }))
+
+    // Assert
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${nextId}`))
+    expect(resultsFor('Alien')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('1979')
+    expect(screen.getByRole('textbox', { name: 'IMDb id (optional)' })).toHaveValue('')
+  })
+
+  it('narrows the search on screen with its own title and the fields, as a new history entry', async () => {
+    // Arrange
+    const nextId = '5ea4c000-0000-4000-8000-000000000002'
+    vi.mocked(searchApi.create).mockResolvedValue(searchOf({ id: nextId, year: 1987 }))
+    const { user } = renderInHistory([`/search?id=${searchId}`])
+    const year = await screen.findByRole('textbox', { name: 'Year (optional)' })
+    await user.clear(year)
+    await user.type(year, ' 1987 ')
+    await user.type(screen.getByRole('textbox', { name: 'TMDb id (optional)' }), '679')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+
+    // Assert
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${nextId}`))
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens', year: '1987', imdbId: 'tt0090605', tmdbId: '679' })
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(address()).toBe(`/search?id=${searchId}`)
+  })
+
+  it('narrows a ?q= search the server refused in place of its entry, so Back skips it', async () => {
+    // Arrange
+    vi.mocked(searchApi.create)
+      .mockRejectedValueOnce(apiError(500, 'Database is locked.'))
+      .mockResolvedValueOnce(aliensSearch)
+    const { user } = renderInHistory(['/library', searchFor('Aliens (19x6)')])
+    await screen.findByRole('alert')
+    const year = screen.getByRole('textbox', { name: 'Year (optional)' })
+    await user.type(year, '1986')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
+
+    // Assert
+    await vi.waitFor(() => expect(address()).toBe(`/search?id=${searchId}`))
+    expect(vi.mocked(searchApi.create).mock.calls).toEqual([
+      [{ text: 'Aliens (19x6)' }],
+      [{ text: 'Aliens (19x6)', year: '1986', imdbId: undefined, tmdbId: undefined }],
+    ])
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(address()).toBe('/library')
   })
 
   it('lists the library matches as cards, strongest first, with why each matched and every conflict', async () => {
@@ -249,9 +609,9 @@ describe('SearchPage', () => {
     expect(why(cards[0])).toEqual(['Matched by IMDb id', '“Aliens”, 1986', 'Conflicting TMDb ids'])
     expect(within(cards[0]).getByText('Matched by IMDb id')).toHaveAttribute('title', 'IMDb tt0090605, reported by Home Jellyfin')
     expect(why(cards[1])).toEqual(['Possible match — check it', '“The Continental”, 2023'])
-    // The Library page's card as it is: its identifiers and its versions with their facts.
+    // The Library page's card as it is: its identifiers and its versions, each summed up in its row.
     expect(within(cards[0]).getByRole('list', { name: 'Identifiers' })).toBeInTheDocument()
-    expect(within(cards[0]).getByText('2:17:17')).toBeInTheDocument()
+    expect(within(cards[0]).getByRole('button', { name: /^Theatrical Cut/ })).toHaveTextContent('1080p')
   })
 
   it('says when nothing in the library matches the search', async () => {
@@ -438,15 +798,15 @@ describe('SearchPage', () => {
     vi.mocked(searchApi.releases).mockImplementation(async (_, query) =>
       releasesPage(query, query.page === 1 ? [tolokaRemux] : [otherUhd], 30))
     const { user } = openStored()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
 
     // Act
     await user.selectOptions(screen.getByRole('combobox', { name }), option)
 
     // Assert
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 30')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ ...firstQuery, ...changes })
     expect(vi.mocked(searchApi.releases).mock.calls.map(([id]) => id)).toEqual([searchId, searchId, searchId])
   })
@@ -456,9 +816,9 @@ describe('SearchPage', () => {
     vi.mocked(searchApi.releases).mockImplementation(async (_, query) =>
       releasesPage(query, query.page === 1 ? [tolokaRemux] : [otherUhd], 30))
     const { user } = openStored()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
 
     // Act
     await user.type(screen.getByRole('textbox', { name: 'Smallest size in GiB' }), '4.5')
@@ -466,7 +826,7 @@ describe('SearchPage', () => {
 
     // Assert
     await vi.waitFor(() => expect(lastQuery()).toEqual({ ...firstQuery, minSizeBytes: '4831838208', maxSizeBytes: '32212254720' }))
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 30')).toBeInTheDocument()
   })
 
   it('leaves a bound that is not a size out of the request, and says so', async () => {
@@ -497,7 +857,11 @@ describe('SearchPage', () => {
     await user.type(screen.getByRole('textbox', { name: 'Largest size in GiB' }), '4')
 
     // Assert
-    expect(await screen.findByText('The smallest size can\'t be larger than the largest.')).toHaveAttribute('role', 'alert')
+    const state = await screen.findByRole('alert')
+    expect(state).toHaveTextContent('Could not load the releases.')
+    expect(state).toHaveTextContent('The smallest size can\'t be larger than the largest.')
+    // The same bounds would be refused again: the filters above are the way on, not Try again.
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(releaseTitles()).toEqual([])
     expect(screen.getByRole('textbox', { name: 'Largest size in GiB' })).toHaveValue('4')
   })
@@ -528,15 +892,15 @@ describe('SearchPage', () => {
     vi.mocked(searchApi.releases).mockImplementation(async (_, query) =>
       releasesPage(query, query.page === 1 ? [tolokaRemux] : [otherUhd], 60))
     const { user } = openStored()
-    await screen.findByText('Page 1 of 3')
+    await screen.findByText('1–25 of 60')
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByRole('heading', { level: 3, name: otherUhd.title })
     await user.selectOptions(screen.getByRole('combobox', { name: 'Per page' }), '50')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–50 of 60')).toBeInTheDocument()
     expect(vi.mocked(searchApi.releases).mock.calls.map(([, query]) => query)).toEqual([
       firstQuery,
       { ...firstQuery, page: 2 },
@@ -554,8 +918,10 @@ describe('SearchPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('This search is no longer available. Search again.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(searchApi.releases).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled()
+    // No title to narrow: searching again starts in the header.
+    expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -573,7 +939,7 @@ describe('SearchPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This search is no longer available. Search again.')
     expect(searchApi.get).not.toHaveBeenCalled()
     expect(searchApi.releases).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Search' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
   })
 
   it.each([
@@ -603,9 +969,40 @@ describe('SearchPage', () => {
     // Assert
     const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent('Refresh failed, showing the search as it was last loaded. Database is locked.')
-    expect(banner).toHaveClass('settings-banner')
+    expect(banner).toHaveClass('ui-banner')
     expect(screen.getByRole('heading', { level: 3, name: 'Чужі' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+  })
+
+  it('asks for the search again from Retry on its refresh banner, and drops the banner once it is back', async () => {
+    // Arrange
+    const { client, user } = openStored()
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    vi.mocked(searchApi.get).mockRejectedValueOnce(apiError(500, 'Database is locked.'))
+    await client.refetchQueries({ queryKey: qk.search.detail(searchId) })
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { level: 3, name: 'Чужі' })).toBeInTheDocument()
+  })
+
+  it('says the search could not be loaded, and Try again loads it', async () => {
+    // Arrange
+    vi.mocked(searchApi.get).mockRejectedValueOnce(networkError())
+    const { user } = openStored()
+    const state = await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(state).toHaveTextContent('Could not load this search.')
+    expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps the releases on screen under a banner when a refresh of them fails', async () => {
@@ -622,6 +1019,39 @@ describe('SearchPage', () => {
     expect(releaseTitles()).toEqual([tolokaRemux.title, otherUhd.title])
   })
 
+  it('asks for the releases again from Retry on their refresh banner', async () => {
+    // Arrange
+    const { client, user } = openStored()
+    await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
+    vi.mocked(searchApi.releases).mockRejectedValueOnce(apiError(500, 'Database is locked.'))
+    await client.refetchQueries({ queryKey: qk.search.releases(searchId, firstQuery) })
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(releaseTitles()).toEqual([tolokaRemux.title, otherUhd.title])
+  })
+
+  it('says the releases could not be loaded under the source lines, and Try again loads them', async () => {
+    // Arrange
+    vi.mocked(searchApi.releases).mockRejectedValueOnce(networkError())
+    const { user } = openStored()
+    const releases = within(await screen.findByRole('region', { name: 'Available releases' }))
+    const state = await releases.findByRole('alert')
+
+    // Act
+    await user.click(releases.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(state).toHaveTextContent('Could not load the releases.')
+    expect(state).toHaveTextContent('The server could not be reached.')
+    expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('says the search is no longer available when its releases answer 404', async () => {
     // Arrange
     vi.mocked(searchApi.releases).mockRejectedValue(apiError(404))
@@ -631,6 +1061,7 @@ describe('SearchPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('This search is no longer available. Search again.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Чужі' })).toBeInTheDocument()
   })
 
@@ -678,7 +1109,7 @@ describe('SearchPage', () => {
     await user.clear(screen.getByRole('textbox', { name: 'IMDb id (optional)' }))
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Search' }))
+    await user.click(screen.getByRole('button', { name: 'Apply' }))
 
     // Assert
     await vi.waitFor(() => expect(addressSearch()).toBe(`?id=${nextId}`))

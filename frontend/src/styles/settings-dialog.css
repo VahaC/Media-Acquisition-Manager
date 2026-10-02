@@ -28,10 +28,6 @@
   overflow-y: auto;
 }
 
-.settings-dialog-error {
-  color: var(--destructive);
-}
-
 /* New in MAM-7: the Users dialogs had no checkbox; an integration's switch and "remove the stored
    secret" do. The box sits before its label, tinted like the rest of the app's controls. */
 .settings-check {

@@ -10,6 +10,9 @@ import '@/styles/library.css' // .library-version* — the block of one version 
  *
  * MAM-12 — moved out of LibraryWorkCard, so the search page's Details dialog lists a library copy's
  * versions exactly as the Library page does.
+ *
+ * MAM-16 — the cards show versions as rows or a table now (VersionRows, VersionTable); this list
+ * stays the Details dialog's, which puts every copy's files beside the release at once.
  */
 export function VersionItem({ version }: { version: LibraryVersion }) {
   const { t } = useTranslation('library')

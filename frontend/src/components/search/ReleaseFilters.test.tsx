@@ -130,6 +130,8 @@ describe('ReleaseFilters', () => {
 
     // Assert
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a size in GiB, such as 4.5.')
+    // MAM-16 — the error line a form's field shows, under the row.
+    expect(screen.getByRole('alert')).toHaveClass('ui-field-error')
     expect(screen.getByRole('textbox', { name: 'Largest size in GiB' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: 'Largest size in GiB' })).toHaveAccessibleDescription('Enter a size in GiB, such as 4.5.')
     expect(screen.getByRole('textbox', { name: 'Smallest size in GiB' })).not.toHaveAttribute('aria-invalid')

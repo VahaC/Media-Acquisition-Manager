@@ -15,9 +15,15 @@ import type {
 export const qk = {
   health: {
     ready: ['health', 'ready'] as const,
+    /** MAM-16 — the offline strip's probe. */
+    live: ['health', 'live'] as const,
   },
   setup: {
     status: ['setup', 'status'] as const,
+  },
+  auth: {
+    /** MAM-16 — the signed-in user's profile and this session's end, for the Profile page. */
+    me: ['auth', 'me'] as const,
   },
   library: {
     /** The works, the library filter and the sources: what a change to an integration drops. */

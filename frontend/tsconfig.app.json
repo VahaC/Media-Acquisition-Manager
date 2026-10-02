@@ -25,5 +25,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Reads the stylesheets from disk with node:fs, so it needs Node's types; tsconfig.node.json
+     checks it, which keeps those types out of the browser code. */
+  "exclude": ["src/styles/design-tokens.test.ts"]
 }

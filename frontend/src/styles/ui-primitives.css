@@ -430,3 +430,177 @@
    area instead of appearing beside it. `.is-left` is kept as a marker for the
    side it opened on. */
 .ui-menu-flyout { margin: 0; }
+
+/* ── Banners ──────────────────────────────────────────────────────────────
+   MAM-16 — news about the last request, above content that stays on screen: a failed refresh, a
+   refused action, a test result, a form's refused submit. Copied from the approved design
+   (docs/design-system/tokens/primitives.css); it took over from the .settings-banner and
+   .home-banner lines. Red by default, as the error tone carries no data-tone. */
+.ui-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--text-danger);
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+
+/* Only the icon takes the green: the status green reaches 3.3:1 on the light card, short of the
+   4.5:1 WCAG AA wants for text (the warning tone below and the HomePage status line do the same). */
+.ui-banner[data-tone='ok'] {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--status-up) 8%, transparent);
+}
+
+.ui-banner[data-tone='warning'] {
+  color: var(--foreground);
+  background: var(--tint-warning);
+  box-shadow: inset 0 0 0 1px var(--tint-warning-border);
+}
+
+/* The leading icon only, sitting on the first line of a sentence that wraps. A child combinator,
+   not the design's descendant one: the Retry and dismiss icons inside .ui-banner-actions would
+   otherwise drop 3px inside their buttons and turn green or amber with the tone. */
+.ui-banner > svg {
+  flex-shrink: 0;
+  margin-top: 0.1875rem;
+}
+
+.ui-banner[data-tone='ok'] > svg {
+  color: var(--status-up);
+}
+
+.ui-banner[data-tone='warning'] > svg {
+  color: var(--status-attention);
+}
+
+/* A sentence can hold an address without spaces; it breaks anywhere rather than widening the
+   banner past the screen. */
+.ui-banner-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A Retry button and the dismiss button at the end of the line. The negative margin lets the
+   buttons reach into the banner's padding, so an sm button grows the line by a few pixels rather
+   than by its full height. */
+.ui-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -0.25rem -0.25rem -0.25rem 0;
+  flex-shrink: 0;
+}
+
+/* The dismiss X, a ghost icon button shrunk to 24px. It keeps the banner's colour on hover, where
+   the ghost variant would turn it to the accent foreground. Two classes outrank
+   .ui-button-size-icon; .ui-button-ghost:hover weighs the same (a class and a pseudo-class), so
+   this rule wins only by coming after it — keep it below the button rules in this sheet. */
+.ui-banner-actions .ui-banner-dismiss {
+  width: 24px;
+  height: 24px;
+  color: inherit;
+}
+
+/* ── Fields ───────────────────────────────────────────────────────────────
+   MAM-16 — a label, its input and a hint or an error line. Copied from the approved design;
+   .ui-field and .ui-hint are rule-for-rule copies of .auth-field and .auth-hint (auth.css), which
+   stay for the pages that use them today. */
+.ui-field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.ui-hint {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* A field whose value broke a rule: a red border, and a red focus ring so focusing the field to fix
+   it doesn't hide which one it was. The ring's 55% is the approved brief's value, and a known
+   exception to the 3:1 a focus ring needs: it reads 2.82:1 on the light card and 1.89:1 on the dark
+   one (the full-strength --ring above reads 6.29:1 and 4.16:1). Full-strength --destructive would
+   read 6.47:1 and 3.85:1; that change is the owner's to make. */
+.ui-field[data-invalid] .ui-input {
+  border-color: var(--destructive);
+}
+
+.ui-field[data-invalid] .ui-input:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--destructive) 55%, transparent);
+}
+
+/* The error line takes the hint's place under the input. */
+.ui-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--text-danger);
+  overflow-wrap: anywhere;
+}
+
+.ui-field-error svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+/* ── Error state ──────────────────────────────────────────────────────────
+   MAM-16 — in place of a list or panel whose first load failed, where there is no data to keep on
+   screen: what failed, the server's sentence and Try again. Copied from the approved design, plus
+   the text column and the actions row its ErrorState writes inline. */
+.ui-error-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px dashed color-mix(in oklab, var(--destructive) 35%, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.ui-error-state-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.ui-error-state-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  color: var(--text-danger);
+  flex-shrink: 0;
+}
+
+/* The title and the sentence beside the icon; the top padding centres a one-line title on the
+   32px disc. */
+.ui-error-state-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.ui-error-state-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.ui-error-state-body {
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+/* Lined up under the title: the 32px icon plus the head's 0.625rem gap. */
+.ui-error-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 42px;
+}

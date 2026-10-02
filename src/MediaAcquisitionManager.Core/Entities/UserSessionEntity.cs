@@ -38,6 +38,7 @@ public class UserSessionEntity : AuditableEntity
     /// <summary>When the session ends unless it is refreshed before.</summary>
     public DateTime ExpiresUtc { get; set; }
 
-    /// <summary>When the session was ended early: sign-out, a replayed token, an owner's action.</summary>
+    /// <summary>When the session was ended early: sign-out, a replayed token, an owner's action, the
+    /// user changing their password on another session.</summary>
     public DateTime? RevokedUtc { get; set; }
 }

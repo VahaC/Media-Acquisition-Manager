@@ -61,7 +61,7 @@ describe('App', () => {
     renderAt('/')
 
     // Assert
-    expect(screen.getByRole('link', { name: 'Media Acquisition Manager' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: `Media Acquisition Manager ${version}` })).toHaveAttribute('href', '/')
     expect(screen.getByText(version)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Service status' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Signed in as vasyl' })).toBeInTheDocument()
@@ -101,17 +101,41 @@ describe('App', () => {
     expect(downloadsApi.get).toHaveBeenCalledExactlyOnceWith(downloadingJob.id)
   })
 
-  it('opens Search from the header link, asking nothing until a search is made', async () => {
+  it('searches from the header field: Enter makes the search, the address takes its id, and Back returns to the page before', async () => {
     // Arrange
+    vi.mocked(searchApi.create).mockResolvedValue(aliensSearch)
+    vi.mocked(searchApi.releases).mockImplementation(async (_, query) => releasesPage(query, [tolokaRemux]))
     const { user } = renderAt('/')
+    await screen.findByRole('heading', { name: 'Service status' })
 
     // Act
-    await user.click(await screen.findByRole('link', { name: 'Search' }))
+    await user.type(screen.getByRole('searchbox', { name: 'Search for a movie' }), 'Aliens (1986){Enter}')
+
+    // Assert
+    // The page's code loads first, on its first visit, while the home page stays on screen.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Search' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
+    expect(window.location.pathname + window.location.search).toBe(`/search?id=${searchId}`)
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens', year: '1986' })
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie' })).toHaveValue('Aliens')
+    expect(searchApi.get).not.toHaveBeenCalled()
+    window.history.back()
+    expect(await screen.findByRole('heading', { name: 'Service status' })).toBeInTheDocument()
+    expect(window.location.pathname + window.location.search).toBe('/')
+  })
+
+  it('says how to search at a bare /search, asking nothing until a search is made', async () => {
+    // Arrange
+    const path = '/search'
+
+    // Act
+    renderAt(path)
 
     // Assert
     expect(await screen.findByRole('heading', { level: 1, name: 'Search' })).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/search')
-    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('')
+    expect(screen.getByText('Type a movie title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie' })).toHaveValue('')
+    expect(searchApi.create).not.toHaveBeenCalled()
     expect(searchApi.get).not.toHaveBeenCalled()
     expect(searchApi.releases).not.toHaveBeenCalled()
   })
@@ -127,7 +151,8 @@ describe('App', () => {
     // Assert
     expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Чужі' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('Aliens')
+    expect(screen.getByText((_, element) => element?.textContent === 'Results for “Aliens”.')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie' })).toHaveValue('Aliens')
     expect(searchApi.get).toHaveBeenCalledExactlyOnceWith(searchId)
     expect(searchApi.create).not.toHaveBeenCalled()
   })
@@ -161,6 +186,28 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/settings/destinations')
     expect(await screen.findByText('In the media library Фільми')).toBeInTheDocument()
     expect(destinationsApi.list).toHaveBeenCalledExactlyOnceWith({ search: undefined, page: 1, pageSize: 25 })
+  })
+
+  it('opens Profile from the user menu of a member', async () => {
+    // Arrange
+    vi.mocked(authApi.refresh).mockResolvedValue(sessionFor(member))
+    vi.mocked(authApi.me).mockResolvedValue({
+      ...member,
+      createdUtc: '2026-09-29T07:30:00Z',
+      lastSignInUtc: null,
+      sessionExpiresUtc: '2026-11-01T07:30:00Z',
+    })
+    const { user } = renderAt('/')
+    await user.click(await screen.findByRole('button', { name: 'Signed in as olena' }))
+
+    // Act
+    await user.click(screen.getByRole('link', { name: 'Profile' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'olena' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/profile')
+    expect(await screen.findByText('Never')).toBeInTheDocument()
+    expect(authApi.me).toHaveBeenCalledOnce()
   })
 
   it('renders the not-found page for an unknown address, inside the shell', async () => {

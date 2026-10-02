@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next'
-import { FolderInput, FolderOpen, HardDriveDownload, LibraryBig, Plug, Search, Users, type LucideIcon } from 'lucide-react'
+import { CircleUser, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, Plug, Search, Users, type LucideIcon } from 'lucide-react'
 import type { CurrentUser } from './types'
 
 /** Where an entry is offered: the header bar, or the signed-in user's menu. */
@@ -22,7 +22,10 @@ export interface NavItem {
  * menu's entries come from this one list, so a new page is added here once rather than in each.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
-  // MAM-12 — first: searching the library and the release sources side by side is what the app is for.
+  // MAM-16 — first in the user menu, under who is signed in: every signed-in user's own account.
+  { path: '/profile', labelKey: 'nav.profile', icon: CircleUser, ownerOnly: false, placement: 'userMenu' },
+  // MAM-12 — first in the header: searching the library and the release sources side by side is what the app is for.
+  // MAM-16 — the header shows its search field in this link's place (AppLayout, HeaderSearch).
   { path: '/search', labelKey: 'nav.search', icon: Search, ownerOnly: false, placement: 'header' },
   { path: '/library', labelKey: 'nav.library', icon: LibraryBig, ownerOnly: false, placement: 'header' },
   // MAM-14 — last in the header: the jobs are the releases sent from Search, followed until they

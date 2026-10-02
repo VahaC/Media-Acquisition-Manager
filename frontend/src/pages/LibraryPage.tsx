@@ -1,18 +1,21 @@
 import { useState } from 'react'
-import { CircleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { LibraryWorkCard } from '@/components/library/LibraryWorkCard'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useLibraryLocations, useLibraryWorks } from '@/lib/queries'
 import type { LibraryIdentifierFilter, LibraryLocation } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, toolbar, banners and empty states of this page
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header, toolbar and empty states of this page
 import '@/styles/library.css' // .library-works — the column of work cards
 
 /** Per device: a phone and a desktop want different page lengths. */
@@ -58,13 +61,15 @@ export function LibraryPage() {
   if (!onFilters) setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, page: 1 })
   const page = onFilters ? paging.page : 1
   const filtered = appliedSearch !== '' || appliedLocationId !== '' || identifiers !== ''
-  const { data, error, isLoading, isPlaceholderData } = useLibraryWorks({
+  const works = useLibraryWorks({
     search: appliedSearch || undefined,
     locationId: appliedLocationId || undefined,
     identifiers: identifiers || undefined,
     page,
     pageSize,
   })
+  const { data, error, isLoading, isPlaceholderData } = works
+  const load = useLoadRetry(works)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
   // A sync can leave fewer movies than the page on screen needs: the refetched page is empty, so
   // move to the last one there is. Only on this page's own answer, not the one kept on screen while
@@ -141,28 +146,35 @@ export function LibraryPage() {
       </div>
 
       {/* MAM-8 — without the libraries the filter offers All libraries alone, which looks like there
-          is nothing to choose; this says why instead. A refresh that fails keeps the last list. */}
+          is nothing to choose; this says why instead. A refresh that fails keeps the last list.
+          MAM-16 — a banner, not an error state: the movies below still load without it. */}
       {locations.error && !locations.data && (
-        <p className="settings-error" role="alert">
+        <Banner action={<RetryButton onRetry={() => locations.refetch()} />}>
           {t('locationFilter.loadFailed')}{' '}
           {getApiErrorMessage(locations.error)}
-        </p>
+        </Banner>
       )}
 
       {/* Outside the ternary below, so a failed refresh adds a line above the cards instead of
           replacing them. */}
-      {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+      {error && data && !isPlaceholderData && (
+        <Banner action={<RetryButton onRetry={() => works.refetch()} />}>
           {t('refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
 
-      {isLoading ? (
+      {load.error ? (
+        // A filter the server refuses (400) is its lasting answer: no Try again for it.
+        <ErrorState
+          title={t('loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('loadFailed'))}</p>
       ) : data && data.totalCount === 0 && filtered ? (
         <div className="settings-empty">
           <p>{t('noMatch')}</p>
@@ -191,6 +203,7 @@ export function LibraryPage() {
             pages={pages}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            totalCount={data.totalCount}
             onPage={goToPage}
             onPageSize={changePageSize}
           />

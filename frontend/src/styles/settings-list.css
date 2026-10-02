@@ -1,6 +1,7 @@
 /* MAM-7 — a settings list page (Users, Integrations): its header, the search and filter row, the
-   banners, the table (one card per row on a phone) and the row actions. Moved out of the MAM-4
-   Users page sheet so every settings list looks and behaves the same; each page imports it itself. */
+   table (one card per row on a phone) and the row actions. Moved out of the MAM-4 Users page sheet
+   so every settings list looks and behaves the same; each page imports it itself. MAM-16 — its
+   banners and error states are the shared Banner and ErrorState (ui-primitives.css). */
 
 .settings-page {
   display: grid;
@@ -63,26 +64,6 @@
 
 .settings-muted {
   color: var(--muted-foreground);
-}
-
-.settings-error {
-  color: var(--destructive);
-}
-
-/* A failed refresh or a refused action, above the rows that stay on screen — tinted, so it reads as
-   news about the last request rather than as part of the list. */
-.settings-banner {
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  color: var(--destructive);
-  background: color-mix(in oklab, var(--destructive) 8%, transparent);
-}
-
-/* New in MAM-7: Users only ever reported a failure there; a connection test that succeeded is news
-   of the same kind, told in the success colour. */
-.settings-banner[data-tone='ok'] {
-  color: var(--status-up);
-  background: color-mix(in oklab, var(--status-up) 8%, transparent);
 }
 
 .settings-empty {

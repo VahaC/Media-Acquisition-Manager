@@ -26,18 +26,11 @@
   color: var(--muted-foreground);
 }
 
-.home-error {
-  color: var(--destructive);
-}
-
-/* Sits above the kept status after a failed refresh — tinted, so it reads as news about the
-   refresh rather than as the status itself. */
-.home-banner {
-  margin-bottom: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md);
-  color: var(--destructive);
-  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+/* MAM-16 — the status card's content: a failed refresh's banner sits above the kept status, apart
+   from it. */
+.home-status-body {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .home-status {

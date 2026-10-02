@@ -1,20 +1,24 @@
 import { useId, useState } from 'react'
 import { isAxiosError } from 'axios'
-import { ArrowLeft, CircleAlert } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { CancelJobButton } from '@/components/jobs/CancelJobButton'
 import { JobProgress } from '@/components/jobs/JobProgress'
 import { JobStatus } from '@/components/jobs/JobStatus'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { canCancelJob } from '@/lib/download-jobs'
 import { formatDateTime, formatFileSize } from '@/lib/format'
 import { useDownloadJob, useDownloadJobFiles } from '@/lib/queries'
 import type { DownloadJob, DownloadJobFile } from '@/lib/types'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, banners, files table and its states
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header, files table and its states
 import '@/styles/search.css' // .search-details-facts — the job's facts, a name and its value per line
 import '@/styles/jobs.css' // .jobs-* — the title and paths that break anywhere, the files heading
 
@@ -48,17 +52,22 @@ export function JobDetailsPage() {
   const { t } = useTranslation(['jobs', 'common'])
   const { id: addressId = '' } = useParams()
   const id = JOB_ID_PATTERN.test(addressId) ? addressId : ''
-  const { data: job, dataUpdatedAt, error, isLoading } = useDownloadJob(id)
+  const jobQuery = useDownloadJob(id)
+  const { data: job, dataUpdatedAt, error, isLoading } = jobQuery
+  const load = useLoadRetry(jobQuery)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const body = (() => {
-    if (id === '' || (error && !job && isGone(error))) {
-      return <p className="settings-error" role="alert">{t('details.notFound')}</p>
+    // A bare 404 won't change on a second try: no Try again, and no server sentence to add.
+    if (id === '' || (load.error && isGone(load.error))) return <ErrorState title={t('details.notFound')} />
+    if (load.error) {
+      return (
+        <ErrorState title={t('details.loadFailed')} onRetry={load.retry} retrying={load.retrying}>
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      )
     }
     if (isLoading) return <p className="settings-muted">{t('common:loading')}</p>
-    if (error && !job) {
-      return <p className="settings-error" role="alert">{getApiErrorMessage(error, t('details.loadFailed'))}</p>
-    }
     if (!job) return null
     return (
       <>
@@ -78,13 +87,15 @@ export function JobDetailsPage() {
 
         {/* Outside the facts, so a failed refresh or a refused cancel adds a line above them
             instead of replacing them. A job removed meanwhile is a 404 like any other. */}
-        {error && (
-          <p className="settings-banner" role="alert">
-            <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
-            {isGone(error) ? t('details.notFound') : <>{t('details.refreshFailed')}{' '}{getApiErrorMessage(error)}</>}
-          </p>
-        )}
-        {actionError && <p className="settings-banner" role="alert">{actionError}</p>}
+        {error && (isGone(error) ? (
+          <Banner>{t('details.notFound')}</Banner>
+        ) : (
+          <Banner action={<RetryButton onRetry={() => jobQuery.refetch()} />}>
+            {t('details.refreshFailed')}{' '}
+            {getApiErrorMessage(error)}
+          </Banner>
+        ))}
+        {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
 
         <JobFacts job={job} />
         <JobFiles job={job} />
@@ -174,7 +185,11 @@ function JobFiles({ job }: { job: DownloadJob }) {
   const titleId = useId()
   const [pageSize, setPageSize] = usePageSize(FILES_PAGE_SIZE_STORAGE_KEY)
   const [page, setPage] = useState(1)
-  const { data, error, isLoading, isPlaceholderData } = useDownloadJobFiles(job.id, { page, pageSize })
+  const files = useDownloadJobFiles(job.id, { page, pageSize })
+  const { data, error, isLoading, isPlaceholderData } = files
+  // MAM-16 — files that failed are asked for again every 10 s: the failure stays on screen through
+  // those polls rather than blinking to "Loading…" each time.
+  const load = useLoadRetry(files)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
   // A client that lists fewer files than before (a torrent re-added) leaves the page past the last.
   if (data && !isPlaceholderData && page > pages) setPage(pages)
@@ -188,18 +203,23 @@ function JobFiles({ job }: { job: DownloadJob }) {
     <section className="jobs-section" aria-labelledby={titleId}>
       <h2 id={titleId} className="jobs-section-title">{t('files.title')}</h2>
 
-      {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+      {error && data && !isPlaceholderData && (
+        <Banner action={<RetryButton onRetry={() => files.refetch()} />}>
           {t('files.refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
 
-      {isLoading ? (
+      {load.error ? (
+        <ErrorState
+          title={t('files.loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('files.loadFailed'))}</p>
       ) : data && data.totalCount === 0 ? (
         <div className="settings-empty">
           <p>{t('files.empty')}</p>
@@ -226,6 +246,7 @@ function JobFiles({ job }: { job: DownloadJob }) {
             pages={pages}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            totalCount={data.totalCount}
             onPage={setPage}
             onPageSize={changePageSize}
           />

@@ -6,20 +6,70 @@
 
 /* ── the form ── */
 
+/* MAM-16 — what was searched for, then the form that narrows it. */
+.search-narrow {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* "Results for “…”." and, beside it, how to narrow them or that a search is being made. */
+.search-results-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+}
+
+/* The title searched for can be a pasted scene name with no spaces: it breaks anywhere rather than
+   widening the page past a phone's screen. */
+.search-results-for {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.search-results-note {
+  color: var(--muted-foreground);
+}
+
+/* A search being made reads as a running status, in the text colour beside its spinner. */
+.search-results-note[data-running] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--foreground);
+}
+
 .search-form {
   display: grid;
   gap: 0.5rem;
   min-width: 0;
 }
 
-/* The title wide, the year narrow, the ids between, the button at the end — one row on a wide
-   screen. The fields line up at their inputs (`end`), so a label that wraps never pushes its input
-   below the others. */
+/* The year narrow, the ids beside it, the button at the end — one row on a wide screen, as wide as
+   its fields rather than the page. The fields line up at their inputs (`end`), so a label that wraps
+   never pushes its input below the others. */
 .search-form-fields {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 6rem) minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 6rem) minmax(0, 11rem) minmax(0, 11rem) auto;
+  justify-content: start;
   align-items: end;
   gap: 0.75rem;
+}
+
+/* MAM-16 — the bare page: how to start a search, where the results would be. */
+.search-hint {
+  display: grid;
+  gap: 0.375rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.search-hint-title {
+  font-weight: 600;
 }
 
 /* ── the sections ── */
@@ -92,6 +142,16 @@
 .ui-input.search-size-input {
   width: 5.5rem;
   color: var(--foreground);
+}
+
+/* MAM-16 — a bound that isn't a size, marked as a form's invalid field is (.ui-field[data-invalid]
+   in ui-primitives.css): the pair sits in the toolbar's row, where a .ui-field grid would break it. */
+.ui-input.search-size-input[aria-invalid='true'] {
+  border-color: var(--destructive);
+}
+
+.ui-input.search-size-input[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--destructive) 55%, transparent);
 }
 
 /* ── the releases ── */
@@ -202,13 +262,9 @@
 }
 
 @media (max-width: 48rem) {
-  /* The title takes the whole row; the year and the ids pair up under it, then the button. */
+  /* The year and the ids pair up, then the button. */
   .search-form-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .search-form-title {
-    grid-column: 1 / -1;
   }
 
   .search-form-fields > .ui-button {

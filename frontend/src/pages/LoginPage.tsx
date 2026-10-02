@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation } from 'react-router-dom'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
 import { useSetupStatus, useSignIn } from '@/lib/queries'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-* — the centred card, the form and its fields
 
@@ -24,6 +27,7 @@ export function LoginPage() {
   const status = useAuthStore((state) => state.status)
   const initializeSession = useAuthStore((state) => state.initializeSession)
   const setup = useSetupStatus()
+  const setupLoad = useLoadRetry(setup)
   const signIn = useSignIn()
   const location = useLocation()
   const [userName, setUserName] = useState('')
@@ -48,7 +52,7 @@ export function LoginPage() {
   if (setup.data?.isRequired) return <Navigate to="/setup" replace />
 
   const retry = () => {
-    void setup.refetch()
+    setupLoad.retry()
     // MAM-4 — the session is as unknown as the setup answer then; ask about both.
     if (status === 'unavailable') void initializeSession()
   }
@@ -72,15 +76,14 @@ export function LoginPage() {
           <p className="ui-card-description">{t('login.description')}</p>
         </div>
         <div className="ui-card-content">
-          {status === 'initializing' || setup.isLoading ? (
+          {status === 'initializing' ? (
             <p className="auth-muted">{t('common:loading')}</p>
-          ) : setup.error && !setup.data ? (
-            <div className="auth-status">
-              <p className="auth-error" role="alert">{getApiErrorMessage(setup.error, t('setupCheckFailed'))}</p>
-              <Button type="button" variant="outline" size="sm" onClick={retry}>
-                {t('retry')}
-              </Button>
-            </div>
+          ) : setupLoad.error ? (
+            <ErrorState title={t('setupCheckFailed')} onRetry={retry} retrying={setupLoad.retrying}>
+              {getApiErrorMessage(setupLoad.error)}
+            </ErrorState>
+          ) : setup.isLoading ? (
+            <p className="auth-muted">{t('common:loading')}</p>
           ) : (
             // noValidate: the rules live on the server, and its sentence is the one to show.
             <form className="auth-form" noValidate onSubmit={(event) => void submit(event)}>
@@ -104,7 +107,8 @@ export function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                 />
               </label>
-              {error && <p className="auth-error" role="alert">{error}</p>}
+              {/* MAM-16 — inside the form, above the button; the fields keep what was typed. */}
+              {error && <Banner>{error}</Banner>}
               <Button type="submit" className="w-full" disabled={signIn.isPending}>
                 {signIn.isPending ? t('login.submitting') : t('login.submit')}
               </Button>

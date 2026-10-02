@@ -16,12 +16,14 @@ public static class RateLimitingServiceCollectionExtensions
         services.AddRateLimiter(options =>
         {
             SignInRateLimitPolicy.Add(options);
+            PasswordChangeRateLimitPolicy.Add(options);
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             // The default rejection is an empty 503, which the SPA can only show as "the server is
-            // down". The sentence speaks for the only policy there is (a one-minute window); a policy
-            // with another window will need its own. Retry-After comes from the limiter itself — for
-            // a fixed window, one whole window: never earlier than the next attempt can succeed.
+            // down". The sentence holds for every policy there is, as each counts in a one-minute
+            // window; a policy with another window will need its own. Retry-After comes from the
+            // limiter itself — for a fixed window, one whole window: never earlier than the next
+            // attempt can succeed.
             options.OnRejected = async (context, cancellationToken) =>
             {
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))

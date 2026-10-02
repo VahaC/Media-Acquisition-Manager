@@ -4,12 +4,14 @@ namespace MediaAcquisitionManager.Api.Services.Accounts;
 
 /// <summary>
 /// The installation owner's user management: list and look up users, create them, disable and
-/// enable them, reset their passwords, delete them. Expected failures come back as result statuses,
-/// never as exceptions, and every change records its audit row in the same save as the change.
+/// enable them, reset their passwords, delete them; and every user's change of their own password.
+/// Expected failures come back as result statuses, never as exceptions, and every change records its
+/// audit row in the same save as the change.
 /// </summary>
 /// <remarks>
 /// It checks nothing about who calls: that the caller is the owner is the endpoint's business
-/// (<c>UsersController</c> is owner-only as a whole).
+/// (<c>UsersController</c> is owner-only as a whole). <see cref="ChangeOwnPasswordAsync"/> acts on the
+/// caller's own account only, so any signed-in user may call it.
 /// </remarks>
 public interface IUserAccountService
 {
@@ -48,6 +50,16 @@ public interface IUserAccountService
     /// so an owner resetting their own password stays signed in where they did it.
     /// </summary>
     Task<UserAccountResult> ResetPasswordAsync(Guid userId, string password, AccountCaller caller, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-16 — the caller sets a new password for their own account, proving it is them with
+    /// <paramref name="currentPassword"/>, and every session of theirs ends except the one the call
+    /// came through (ADR 0016). <see cref="UserAccountStatus.Invalid"/>, with nothing written, for a
+    /// blank current password, a new password that breaks a rule, or a current password that is wrong —
+    /// also when the owner reset the password, disabled or deleted the account while it was being
+    /// checked. <see cref="UserAccountStatus.NotFound"/> when the caller's account no longer exists.
+    /// </summary>
+    Task<UserAccountResult> ChangeOwnPasswordAsync(AccountCaller caller, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes the user; their sessions go with them. Their audit rows stay, with their name.

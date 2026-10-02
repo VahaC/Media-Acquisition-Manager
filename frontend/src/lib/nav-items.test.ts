@@ -13,7 +13,7 @@ describe('navItemsFor', () => {
     expect(header).toEqual([['/search', '/library', '/jobs'], ['/search', '/library', '/jobs']])
   })
 
-  it('offers Integrations, Destinations, Media folders and Users in the user menu to the installation owner only', () => {
+  it('offers Profile first in the user menu to every signed-in user, then Integrations, Destinations, Media folders and Users to the installation owner only', () => {
     // Arrange
     const users = [owner, member]
 
@@ -21,7 +21,10 @@ describe('navItemsFor', () => {
     const menu = users.map((user) => navItemsFor('userMenu', user).map((item) => item.path))
 
     // Assert
-    expect(menu).toEqual([['/settings/integrations', '/settings/destinations', '/settings/media-folders', '/settings/users'], []])
+    expect(menu).toEqual([
+      ['/profile', '/settings/integrations', '/settings/destinations', '/settings/media-folders', '/settings/users'],
+      ['/profile'],
+    ])
   })
 
   it('lists every page once', () => {

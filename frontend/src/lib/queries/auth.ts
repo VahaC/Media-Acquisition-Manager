@@ -3,7 +3,7 @@ import { isAxiosError } from 'axios'
 import { authApi } from '../auth-api'
 import { useAuthStore } from '../auth-store'
 import { setupApi } from '../setup-api'
-import type { SetupRequest, SetupStatus, SignInRequest } from '../types'
+import type { ChangePasswordRequest, SetupRequest, SetupStatus, SignInRequest } from '../types'
 import { qk } from './keys'
 
 /** Whether the installation still needs its owner account (first-run setup). */
@@ -40,6 +40,26 @@ export const useSignIn = () =>
   useMutation({
     mutationFn: (request: SignInRequest) => authApi.signIn(request),
     onSuccess: (session) => useAuthStore.getState().setSession(session),
+  })
+
+/**
+ * MAM-16 — the signed-in user's profile: when the account was created and last signed in, and when
+ * this session ends. Asked on every visit to the Profile page, as each refresh moves the session's
+ * end.
+ */
+export const useProfile = () =>
+  useQuery({
+    queryKey: qk.auth.me,
+    queryFn: () => authApi.me(),
+  })
+
+/**
+ * MAM-16 — changes the signed-in user's own password. Invalidates nothing: no field of the profile
+ * changes, and this session, the one kept, ends when it did before.
+ */
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: (request: ChangePasswordRequest) => authApi.changePassword(request),
   })
 
 /**

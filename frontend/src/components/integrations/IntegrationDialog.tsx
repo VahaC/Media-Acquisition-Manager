@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { ConnectionTestResultLine, type ConnectionTestOutcome } from '@/components/integrations/ConnectionTestResultLine'
 import { PathMappingsEditor } from '@/components/integrations/PathMappingsEditor'
 import { SecretField } from '@/components/integrations/SecretField'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -22,9 +24,10 @@ import type {
   PathMappingDraft,
   SecretDraft,
 } from '@/lib/types'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every settings dialog lays them out
-import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body, the error line, the switch
+import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body and the buttons under it, the switch
 import '@/styles/integrations.css' // .integrations-dialog, .integrations-test — the wider dialog, the test row
 
 const NO_SECRET: SecretDraft = { value: '', clear: false }
@@ -49,6 +52,7 @@ interface IntegrationDialogProps {
 export function IntegrationDialog({ integration, onClose }: IntegrationDialogProps) {
   const { t } = useTranslation(['integrations', 'common'])
   const types = useIntegrationAdapterTypes()
+  const typesLoad = useLoadRetry(types)
   const create = useCreateIntegration()
   const update = useUpdateIntegration()
   const testDraft = useTestIntegrationDraft()
@@ -140,12 +144,12 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
         {/* noValidate: the rules live on the server, and its sentence is the one to show. */}
         <form className="settings-dialog-form" noValidate onSubmit={(event) => void save(event)}>
           <div className="settings-dialog-body">
-            {types.isLoading && <p className="auth-muted">{t('common:loading')}</p>}
-            {types.error && !types.data && (
-              <p className="settings-dialog-error" role="alert">
-                {getApiErrorMessage(types.error, t('dialog.typesFailed'))}
-              </p>
-            )}
+            {/* MAM-16 — without the types there is no service to pick, and Save stays disabled. */}
+            {typesLoad.error ? (
+              <ErrorState title={t('dialog.typesFailed')} onRetry={typesLoad.retry} retrying={typesLoad.retrying}>
+                {getApiErrorMessage(typesLoad.error)}
+              </ErrorState>
+            ) : types.isLoading && <p className="auth-muted">{t('common:loading')}</p>}
 
             {integration ? (
               // The type is fixed once saved: another service takes other credentials and paths.
@@ -280,7 +284,8 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
               <PathMappingsEditor serviceName={adapter.displayName} value={mappings} onChange={setMappings} />
             )}
           </div>
-          {error && <p className="settings-dialog-error" role="alert">{error}</p>}
+          {/* MAM-16 — outside the scrolling body, above the buttons; the fields keep what was typed. */}
+          {error && <Banner>{error}</Banner>}
           {/* Primary first, Cancel last — the order every dialog in the app uses. */}
           <DialogFooter>
             <Button type="submit" disabled={!types.data || saving}>

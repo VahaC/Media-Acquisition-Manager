@@ -7,7 +7,7 @@ import { queryClient as appQueryClient } from '@/lib/query-client'
 import { qk } from '@/lib/queries'
 import { setupApi } from '@/lib/setup-api'
 import { SetupPage } from '@/pages/SetupPage'
-import { apiError } from '@/test/api-error'
+import { apiError, networkError } from '@/test/api-error'
 import { owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 
 vi.mock('@/lib/setup-api')
@@ -57,7 +57,20 @@ describe('SetupPage', () => {
     expect(await screen.findByText('Sign-in page')).toBeInTheDocument()
   })
 
-  it('refuses two different passwords without asking the server', async () => {
+  it('describes Password with its hint, which stays out of the field name', async () => {
+    // Act
+    renderPage()
+
+    // Assert
+    const password = await screen.findByLabelText('Password')
+    expect(password).toHaveAccessibleName('Password')
+    expect(password).toHaveAccessibleDescription(
+      'At least 8 characters. There is no email reset, so keep it somewhere safe.',
+    )
+    expect(screen.getByLabelText('User name')).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('refuses two different passwords under Confirm password, without asking the server', async () => {
     // Arrange
     const { user } = renderPage()
 
@@ -65,8 +78,26 @@ describe('SetupPage', () => {
     await fillIn(user, 'correct horse battery', 'correct horse batery')
 
     // Assert
+    const confirm = screen.getByLabelText('Confirm password')
     expect(screen.getByRole('alert')).toHaveTextContent('The two passwords are different.')
+    expect(confirm).toHaveAttribute('aria-invalid', 'true')
+    expect(confirm).toHaveAccessibleDescription('The two passwords are different. Type the same password in both fields.')
+    expect(confirm).toHaveAccessibleName('Confirm password')
+    expect(screen.getByLabelText('Password')).not.toHaveAttribute('aria-invalid')
     expect(setupApi.complete).not.toHaveBeenCalled()
+  })
+
+  it.each(['Password', 'Confirm password'])('lets go of the mismatch once %s is edited', async (label) => {
+    // Arrange
+    const { user } = renderPage()
+    await fillIn(user, 'correct horse battery', 'correct horse batery')
+
+    // Act
+    await user.type(screen.getByLabelText(label), 'y')
+
+    // Assert
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Confirm password')).not.toHaveAttribute('aria-invalid')
   })
 
   it('creates the owner, signs them in and opens the home page', async () => {
@@ -84,7 +115,7 @@ describe('SetupPage', () => {
     expect(client.getQueryData(qk.setup.status)).toEqual({ isRequired: false })
   })
 
-  it('shows the API sentence of a 400 under the form', async () => {
+  it('shows the API sentence of a 400 in a banner above the button, and keeps what was typed', async () => {
     // Arrange
     vi.mocked(setupApi.complete).mockRejectedValue(apiError(400, 'A password must be at least 8 characters long.'))
     const { client, user } = renderPage()
@@ -93,9 +124,31 @@ describe('SetupPage', () => {
     await fillIn(user, 'short', 'short')
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('A password must be at least 8 characters long.')
+    const banner = await screen.findByRole('alert')
+    expect(banner).toHaveTextContent('A password must be at least 8 characters long.')
+    expect(banner).toHaveClass('ui-banner')
+    expect(banner.nextElementSibling).toBe(screen.getByRole('button', { name: 'Create the owner account' }))
+    expect(screen.getByLabelText('Password')).toHaveValue('short')
     expect(useAuthStore.getState().status).toBe('initializing')
     expect(client.getQueryData(qk.setup.status)).toEqual({ isRequired: true })
+  })
+
+  it('says so when it cannot check whether setup is needed, and checks again on Try again', async () => {
+    // Arrange
+    vi.mocked(setupApi.status)
+      .mockRejectedValueOnce(networkError())
+      .mockResolvedValueOnce({ isRequired: true })
+    const { user } = renderPage()
+    const alert = await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(alert).toHaveTextContent('Could not check whether this installation is set up.')
+    expect(alert).toHaveTextContent('The server could not be reached.')
+    expect(await screen.findByLabelText('User name')).toBeInTheDocument()
+    expect(setupApi.status).toHaveBeenCalledTimes(2)
   })
 
   it('moves on to sign-in when another setup has created the owner meanwhile (409)', async () => {

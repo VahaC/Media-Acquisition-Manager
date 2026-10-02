@@ -1,32 +1,135 @@
-/* MAM-4 — the user menu in the AppLayout header: a trigger with the user icon and name, and the
+/* MAM-4 — the user menu in the AppLayout header: a trigger with the user's initial and name, and the
    shared `.ui-menu` popup under it. */
 
 .user-menu {
   position: relative;
 }
 
-/* A long user name is cut with an ellipsis rather than pushing the header wider than a phone. */
+/* MAM-16 — a pill: the initial in a tinted circle, the name, and a chevron. A long user name is cut
+   with an ellipsis rather than pushing the header wider than a phone. */
 .user-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   max-width: 14rem;
+  padding: 2px 6px 2px 2px;
+  border-radius: var(--radius-pill);
+  font-weight: 500;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.user-menu-trigger:hover {
+  background: var(--accent);
+}
+
+.user-menu-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.user-menu-trigger > svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+
+.user-menu-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--tint-selected);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .user-menu-trigger .label-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* `.ui-menu` is `position: fixed` for menus placed at the pointer. This one hangs under its button,
-   so it is positioned against `.user-menu` instead and scrolls away with the header. Two classes, so
-   it wins over `.ui-menu` whichever sheet loads first. */
+   so it is positioned against `.user-menu` instead and stays with the header. Two classes, so it
+   wins over `.ui-menu` whichever sheet loads first. */
 .ui-menu.user-menu-popup {
   position: absolute;
-  top: calc(100% + 0.25rem);
+  top: calc(100% + 0.375rem);
   right: 0;
+  width: 240px;
+}
+
+/* MAM-16 — who is signed in, above the entries: a `.ui-menu-item` link to the Profile page, so it
+   hovers like the entries, laid out in two lines. `.ui-menu` scrolls on both axes, so a 32-character
+   name or "Member · v0.1.0 · Ready, with warnings" wraps rather than adding a sideways scrollbar.
+   Two classes, so it wins over `.ui-menu-item` whichever sheet loads first. */
+.ui-menu-item.user-menu-identity {
+  display: grid;
+  gap: 2px;
+  padding: 6px 12px 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* While the Profile page is open (NavLink's aria-current). Scoped to the popup to outweigh
+   `.ui-menu-item:hover:not(:disabled)`, so the tint stays under the pointer as the pager's current
+   page does. */
+.ui-menu.user-menu-popup .user-menu-identity[aria-current='page'] {
+  background: var(--tint-selected);
+}
+
+.user-menu-facts {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.user-menu-version {
+  font-family: var(--font-mono);
+}
+
+/* The dot and its word wrap together. */
+.user-menu-status {
+  white-space: nowrap;
+}
+
+/* Only the dot takes the status colour, as only the icon does on the home page: the greens and
+   ambers fall short of 4.5:1 as text. */
+.user-menu-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
+  vertical-align: 0.0625rem;
+}
+
+.user-menu-status[data-status='Healthy'] .user-menu-status-dot {
+  background: var(--status-up);
+}
+
+.user-menu-status[data-status='Degraded'] .user-menu-status-dot {
+  background: var(--status-attention);
+}
+
+.user-menu-status[data-status='Unhealthy'] .user-menu-status-dot {
+  background: var(--status-down);
+}
+
+.user-menu-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
 }
 
 @media (max-width: 480px) {
-  /* The icon alone on a phone; the button keeps the name in its aria-label and title. */
+  /* The initial alone on a phone; the button keeps the name in its aria-label and title. */
   .user-menu-trigger .label-text {
     display: none;
   }

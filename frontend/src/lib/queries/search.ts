@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { searchApi } from '../search-api'
 import type { SearchReleasesQuery, SearchRequest } from '../types'
 import { qk } from './keys'
@@ -22,16 +22,26 @@ export const useCreateSearch = () => {
  */
 const SEARCH_STALE_MS = 60_000
 
-/** A stored search by id; nothing is asked while there is no id (`''`). */
-export const useSearch = (id: string) =>
-  useQuery({
+/** The query of a stored search, observed by the Search page and by the header's search field. */
+const searchQuery = (id: string) =>
+  queryOptions({
     queryKey: qk.search.detail(id),
     queryFn: () => searchApi.get(id),
-    enabled: id !== '',
     staleTime: SEARCH_STALE_MS,
     // A 404 — expired, or not this user's — won't change on a second try.
     retry: false,
   })
+
+/** A stored search by id; nothing is asked while there is no id (`''`). */
+export const useSearch = (id: string) => useQuery({ ...searchQuery(id), enabled: id !== '' })
+
+/**
+ * MAM-16 — a stored search as far as the cache holds it, never asked for: the header's search field
+ * shows the text of the search the Search page loaded. Asking here too would ask twice for one
+ * search, and for an expired one again when the page mounts after the header's 404. The options are
+ * the page's, as either observer's may be the query's own when it is refetched.
+ */
+export const useCachedSearch = (id: string) => useQuery({ ...searchQuery(id), enabled: false })
 
 /**
  * One page of a stored search's releases, filtered, sorted and paged by the server. The previous

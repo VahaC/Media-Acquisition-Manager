@@ -1,15 +1,19 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { CircleCheck, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
+import { ErrorState } from '@/components/shared/ErrorState'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useDownloadOptions, useSendDownload } from '@/lib/queries'
 import { newRequestId } from '@/lib/request-id'
 import type { DownloadClientOption, DownloadDestinationOption, DownloadJobStatus, SearchRelease } from '@/lib/types'
-import { getApiErrorMessage } from '@/lib/utils'
+import { useLoadRetry } from '@/lib/use-load-retry'
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every form dialog lays them out
-import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body, the error line above the buttons
+import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body and the buttons under it
 import '@/styles/library.css' // .library-source-status, .library-source-warning — the outcome line and its icon
 import '@/styles/search.css' // .search-details-* — the title that wraps clear of the close button, the summary
 
@@ -48,6 +52,7 @@ interface DownloadDialogProps {
 export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const { t } = useTranslation(['downloads', 'common'])
   const options = useDownloadOptions(release.id)
+  const optionsLoad = useLoadRetry(options)
   const send = useSendDownload()
   const clientFieldId = useId()
   const destinationFieldId = useId()
@@ -111,22 +116,30 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
 
   // The body while the form is up: the options' state, or the two pickers.
   const fields = (() => {
-    if (options.isLoading) return <p className="auth-muted">{t('common:loading')}</p>
-    if (options.error && !options.data) {
+    if (optionsLoad.error) {
+      // A 404 for a release that expired won't change on a second try: no Try again then.
       return (
-        <p className="settings-dialog-error" role="alert">
-          {getApiErrorMessage(options.error, t('optionsFailed'))}
-        </p>
+        <ErrorState
+          title={t('optionsFailed')}
+          onRetry={retryCanHelp(optionsLoad.error) ? optionsLoad.retry : undefined}
+          retrying={optionsLoad.retrying}
+        >
+          {getApiErrorMessage(optionsLoad.error)}
+        </ErrorState>
       )
     }
+    if (options.isLoading) return <p className="auth-muted">{t('common:loading')}</p>
     if (clients.length === 0) return <p className="auth-muted">{t('noClients')}</p>
     return (
       <>
-        {/* A failed refresh keeps the clients last loaded on screen, with a line saying so. */}
+        {/* A failed refresh keeps the clients last loaded on screen, with a banner saying so; Retry
+            only where a second try can help, as on the first load. */}
         {options.error && (
-          <p className="settings-dialog-error" role="alert">
+          <Banner
+            action={retryCanHelp(options.error) ? <RetryButton onRetry={() => options.refetch()} /> : undefined}
+          >
             {t('optionsRefreshFailed')}{' '}{getApiErrorMessage(options.error)}
-          </p>
+          </Banner>
         )}
         {/* MAM-4 — each label sits beside its select, tied by id: a label wrapping a select made the
             browser read the select's own value into its name. */}
@@ -187,7 +200,8 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
               {fields}
               {clients.length > 0 && <SendSummary release={release} client={client} destination={destination} />}
             </div>
-            {error && <p className="settings-dialog-error" role="alert">{error}</p>}
+            {/* MAM-16 — outside the scrolling body, above the buttons; the picks stay to send again. */}
+            {error && <Banner>{error}</Banner>}
             {/* Primary first, Cancel last — the order every dialog in the app uses. */}
             <DialogFooter>
               <DisabledReason reason={clients.length > 0 && !ready && !sending ? t('pickFirst') : undefined}>

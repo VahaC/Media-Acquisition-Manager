@@ -1,19 +1,23 @@
 import { useState } from 'react'
-import { CircleAlert, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DestinationDialog } from '@/components/destinations/DestinationDialog'
 import { DestinationSavesTo } from '@/components/destinations/DestinationSavesTo'
+import { Banner } from '@/components/shared/Banner'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDeleteDestination, useDestinations } from '@/lib/queries'
 import type { Destination } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, search, banners, table and row actions of this page
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header, search, table and row actions of this page
 import '@/styles/destinations.css' // .destinations-key, .destinations-saves-to — the Category and Saves to cells
 
 /** Per device: a phone and a desktop want different page lengths. */
@@ -51,7 +55,9 @@ export function DestinationsPage() {
   // below keeps this discarded render off the stale page.
   if (paging.search !== appliedSearch) setPaging({ search: appliedSearch, page: 1 })
   const page = paging.search === appliedSearch ? paging.page : 1
-  const { data, error, isLoading } = useDestinations({ search: appliedSearch || undefined, page, pageSize })
+  const destinations = useDestinations({ search: appliedSearch || undefined, page, pageSize })
+  const { data, error, isLoading, isPlaceholderData } = destinations
+  const load = useLoadRetry(destinations)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
 
   const goToPage = (next: number) => setPaging({ search: appliedSearch, page: next })
@@ -109,19 +115,25 @@ export function DestinationsPage() {
 
       {/* Outside the ternary below, so a failed refresh or a refused removal adds a line above the
           rows instead of replacing them. */}
-      {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+      {error && data && !isPlaceholderData && (
+        <Banner action={<RetryButton onRetry={() => destinations.refetch()} />}>
           {t('refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
-      {actionError && <p className="settings-banner" role="alert">{actionError}</p>}
+      {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
 
-      {isLoading ? (
+      {/* A member's 403 is the server's lasting answer: no Try again for it (retryCanHelp). */}
+      {load.error ? (
+        <ErrorState
+          title={t('loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('loadFailed'))}</p>
       ) : data && data.items.length === 0 && appliedSearch !== '' ? (
         <div className="settings-empty">
           <p>{t('noMatch', { search: appliedSearch })}</p>
@@ -165,6 +177,7 @@ export function DestinationsPage() {
             pages={pages}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            totalCount={data.totalCount}
             onPage={goToPage}
             onPageSize={changePageSize}
           />

@@ -5,7 +5,7 @@ import { IntegrationDialog } from '@/components/integrations/IntegrationDialog'
 import { integrationsApi } from '@/lib/integrations-api'
 import { qk } from '@/lib/queries'
 import type { IntegrationSummary } from '@/lib/types'
-import { apiError } from '@/test/api-error'
+import { apiError, networkError } from '@/test/api-error'
 import { adapterTypes, homeJellyfin, localQbittorrent } from '@/test/integrations'
 import { locations, sourceOf, sourcesOf } from '@/test/library'
 
@@ -175,10 +175,33 @@ describe('IntegrationDialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Add integration' }))
 
     // Assert
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('An integration named “Home Jellyfin” already exists.')
+    const banner = await within(dialog).findByRole('alert')
+    expect(banner).toHaveTextContent('An integration named “Home Jellyfin” already exists.')
+    // Above the buttons, outside the scrolling fields.
+    expect(banner).toHaveClass('ui-banner')
+    expect(banner.nextElementSibling).toContainElement(within(dialog).getByRole('button', { name: 'Add integration' }))
     expect(onClose).not.toHaveBeenCalled()
     expect(within(dialog).getByRole('button', { name: 'Add integration' })).toBeEnabled()
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Home Jellyfin')
+  })
+
+  it('says the services could not be loaded, keeping Save disabled, and Try again loads them', async () => {
+    // Arrange
+    vi.mocked(integrationsApi.adapterTypes).mockRejectedValueOnce(networkError()).mockResolvedValueOnce(adapterTypes)
+    const { dialog, user } = renderDialog()
+    const state = await within(dialog).findByRole('alert')
+    const saveDisabledMeanwhile = within(dialog).getByRole('button', { name: 'Add integration' }).hasAttribute('disabled')
+
+    // Act
+    await user.click(within(dialog).getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(state).toHaveTextContent('Could not load the services this app can connect to.')
+    expect(state).toHaveTextContent('The server could not be reached.')
+    expect(saveDisabledMeanwhile).toBe(true)
+    await whenReady(dialog)
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('combobox', { name: 'Service' })).toBeEnabled()
   })
 
   it('closes once the save succeeds', async () => {

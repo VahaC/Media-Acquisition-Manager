@@ -76,7 +76,7 @@ describe('DestinationsPage', () => {
     expect(within(rowOf('Cartoons')).queryByText('Default')).not.toBeInTheDocument()
     expect(within(rowOf('Cartoons')).getByText('In the media library Мульфільми')).toBeInTheDocument()
     expect(rowOf('Movies').querySelector('td[data-label="Saves to"]')).toHaveClass('destinations-saves-to')
-    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument()
+    expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
   })
 
   it('names every media library the folder lands in', async () => {
@@ -154,9 +154,9 @@ describe('DestinationsPage', () => {
     vi.mocked(destinationsApi.list).mockImplementation(async (query) =>
       destinationsPage(query, query.search ? [movies] : query.page === 1 ? [cartoons, incoming] : [movies], 30))
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 2')
+    await screen.findByText('1–25 of 30')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–30 of 30')
 
     // Act
     await user.type(screen.getByRole('searchbox', { name: 'Search destinations' }), ' mov ')
@@ -168,20 +168,20 @@ describe('DestinationsPage', () => {
       { search: undefined, page: 2, pageSize: 25 },
       { search: 'mov', page: 1, pageSize: 25 },
     ])
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 30')).toBeInTheDocument()
   })
 
   it('remembers the page size on this device', async () => {
     // Arrange
     listing([cartoons, movies], 120)
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 5')
+    await screen.findByText('1–25 of 120')
 
     // Act
     await user.selectOptions(screen.getByRole('combobox', { name: 'Per page' }), '50')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 3')).toBeInTheDocument()
+    expect(await screen.findByText('1–50 of 120')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ search: undefined, page: 1, pageSize: 50 })
     expect(localStorage.getItem('mam:destinations:pageSize')).toBe('50')
     // Its own key: the Integrations page keeps its size.
@@ -290,6 +290,23 @@ describe('DestinationsPage', () => {
     expect(screen.getByText('Incoming', asName)).toBeInTheDocument()
   })
 
+  it('takes a refused removal\'s banner away on Dismiss', async () => {
+    // Arrange
+    vi.mocked(destinationsApi.remove).mockRejectedValue(apiError(500))
+    const { user } = renderPage()
+    await screen.findByText('Incoming', asName)
+    await user.click(within(rowOf('Incoming')).getByRole('button', { name: 'Remove' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Remove Incoming?' })).getByRole('button', { name: 'Remove' }))
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    // Assert
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Incoming', asName)).toBeInTheDocument()
+  })
+
   it('steps back a page after removing the only destination of the last page', async () => {
     // Arrange
     const firstPage = Array.from({ length: 25 }, (_, index): Destination =>
@@ -301,8 +318,8 @@ describe('DestinationsPage', () => {
       lastPage = []
     })
     const { user } = renderPage()
-    await screen.findByText('Page 1 of 2')
-    await user.click(screen.getByRole('button', { name: 'Next' }))
+    await screen.findByText('1–25 of 26')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('Incoming', asName)
     await user.click(within(rowOf('Incoming')).getByRole('button', { name: 'Remove' }))
     const confirmation = await screen.findByRole('dialog', { name: 'Remove Incoming?' })
@@ -311,7 +328,7 @@ describe('DestinationsPage', () => {
     await user.click(within(confirmation).getByRole('button', { name: 'Remove' }))
 
     // Assert
-    expect(await screen.findByText('Page 1 of 1')).toBeInTheDocument()
+    expect(await screen.findByText('1–25 of 25')).toBeInTheDocument()
     expect(lastQuery()).toEqual({ search: undefined, page: 1, pageSize: 25 })
     expect(screen.getByText('Shelf 0')).toBeInTheDocument()
   })
@@ -373,16 +390,35 @@ describe('DestinationsPage', () => {
     expect(screen.getByText('Incoming', asName)).toBeInTheDocument()
   })
 
-  it('shows its own sentence in place of the list when the first load fails without one', async () => {
+  it('asks again from Retry on the refresh banner, and drops the banner once the list is back', async () => {
     // Arrange
-    vi.mocked(destinationsApi.list).mockRejectedValue(apiError(500))
+    const { client, user } = renderPage()
+    await screen.findByText('Incoming', asName)
+    vi.mocked(destinationsApi.list).mockRejectedValueOnce(networkError())
+    await client.refetchQueries()
+    await screen.findByRole('alert')
 
     // Act
-    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the destinations.')
-    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(screen.getByText('Incoming', asName)).toBeInTheDocument()
+  })
+
+  it('says what failed in place of the list when the first load fails, and Try again loads it', async () => {
+    // Arrange
+    vi.mocked(destinationsApi.list).mockRejectedValueOnce(apiError(500))
+    const { user } = renderPage()
+    const state = await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(state).toHaveTextContent('Could not load the destinations.')
+    expect(await screen.findByText('Incoming', asName)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('shows the API sentence in place of the list for a non-owner', async () => {
@@ -394,6 +430,7 @@ describe('DestinationsPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Only the installation owner can do this.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(destinationsApi.list).toHaveBeenCalledOnce()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add destination' })).not.toBeInTheDocument()

@@ -50,12 +50,14 @@
   margin-top: 0.125rem;
 }
 
-.integrations-test-result[data-outcome='ok'] {
+/* MAM-16 — only the icon takes the green: the status green reaches 3.3:1 on the light card, short of
+   the 4.5:1 WCAG AA wants for text (the ok banner, .ui-banner[data-tone='ok'], does the same). */
+.integrations-test-result[data-outcome='ok'] svg {
   color: var(--status-up);
 }
 
 .integrations-test-result[data-outcome='err'] {
-  color: var(--destructive);
+  color: var(--text-danger);
 }
 
 /* A fieldset is at least as wide as its content by default, which would push a long path past the

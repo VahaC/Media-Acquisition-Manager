@@ -1,5 +1,6 @@
-/* MAM-4 — the sign-in and first-run setup pages (one card each), and the credential fields the
-   Users dialogs reuse so every user-name and password form in the app looks the same. */
+/* MAM-4 — the sign-in and first-run setup pages (one card each), and the fields the settings
+   dialogs reuse so every form in the app looks the same. The setup page and the Users dialogs moved
+   to MAM-16's .ui-field (ui-primitives.css), the same field with room for an error line. */
 
 .auth-page {
   display: grid;
@@ -30,17 +31,6 @@
 
 .auth-muted {
   color: var(--muted-foreground);
-}
-
-.auth-error {
-  color: var(--destructive);
-}
-
-/* The "could not check setup" sentence with its Retry button under it, left-aligned like the form. */
-.auth-status {
-  display: grid;
-  justify-items: start;
-  gap: 0.75rem;
 }
 
 /* A phone has no height to spare above the card; the content column already pads the sides. */

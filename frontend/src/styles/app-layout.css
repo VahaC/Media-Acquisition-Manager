@@ -6,35 +6,68 @@
   flex-direction: column;
 }
 
-/* `flex-wrap` so the version label drops under the name on a narrow phone instead of squeezing
-   it or pushing the page sideways. */
+/* MAM-16 — the header stays at the top of the window while the page scrolls under it, so a focused
+   control or an anchor the browser scrolls to stops below it rather than behind it (WCAG 2.4.11). */
+html {
+  scroll-padding-top: 4.5rem;
+}
+
+/* MAM-16 — the header and, while the server can't be reached, the offline strip under it: one block
+   that stays at the top of the window, so the strip sits directly under the header whatever height
+   the header takes, rather than at an offset written for one of them. */
+.app-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* MAM-16 — three columns: the brand on the left, the links in a centre column of at most 42rem, and
+   the user menu on the right. The side columns are as wide as their content and share what is left
+   evenly, so the centre column stays in the middle of the window. */
 .app-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 42rem) minmax(max-content, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  padding: 0.75rem 1.5rem;
+  gap: 1.25rem;
+  padding: 0.625rem 1.5rem;
   background: var(--card);
   border-bottom: 1px solid var(--border);
 }
 
 .app-brand {
+  justify-self: start;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.625rem;
   min-width: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
   color: var(--foreground);
+  white-space: nowrap;
 }
 
-/* AppLogo. `flex-shrink: 0` so a long name wraps instead of squeezing the tile out of shape.
+/* The name over the version, two short lines beside the logo. */
+.app-brand-text {
+  display: grid;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.app-brand-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.app-brand-version {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--subtle-foreground);
+}
+
+/* AppLogo. `flex-shrink: 0` so the name beside it never squeezes the tile out of shape.
    Fill and stroke come from tokens, which is why the logo is inline rather than an <img> of
    favicon.svg: the tile follows the theme's primary colour. */
 .app-logo {
-  width: 1.375rem;
-  height: 1.375rem;
+  width: 1.875rem;
+  height: 1.875rem;
   flex-shrink: 0;
 }
 
@@ -52,18 +85,80 @@
   border-radius: var(--radius-sm);
 }
 
-/* MAM-8 — the header links of the shared nav list, beside the name. It wraps inside itself, so a
-   second link later drops under the first rather than pushing the header wider than a phone. */
+/* MAM-16 — the centre column: the search field, taking the room the links leave it. */
+.app-header-center {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* MAM-16 — the header's search field (HeaderSearch). The icon and the "/" key sit over the field, so
+   the form is their positioning box. */
+.app-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Over the field's left padding; clicks go through it to the field. Primary on the Search page. */
+.app-search-icon {
+  position: absolute;
+  top: 10px;
+  left: 11px;
+  width: 1rem;
+  height: 1rem;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.app-search-icon[data-current] {
+  color: var(--primary);
+}
+
+/* A field set in the header rather than drawn on it. The right padding leaves the "/" key room while
+   the field is empty; once it holds text the key is gone, and the browser's clear button sits at
+   the right edge instead. Two classes, so it wins over `.ui-input` whichever sheet loads first. */
+.ui-input.app-search-input {
+  padding-left: 36px;
+  padding-right: 40px;
+  background: var(--muted);
+  border-color: transparent;
+}
+
+.ui-input.app-search-input:not(:placeholder-shown) {
+  padding-right: 12px;
+}
+
+/* The "/" hint. A mousedown on it focuses the field, as a click on the field would. */
+.app-search-key {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  cursor: text;
+}
+
+/* MAM-8 — the header links of the shared nav list. It wraps inside itself, so a link that no longer
+   fits drops under the others rather than pushing the header wider than a phone. */
 .app-nav {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.75rem;
   min-width: 0;
 }
 
 .app-nav-link {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 0.375rem;
   padding: 0.375rem 0.625rem;
@@ -88,23 +183,48 @@
    colour on a primary tint, the way a selected entry does elsewhere. */
 .app-nav-link[aria-current='page'] {
   color: var(--foreground);
-  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  background: var(--tint-selected);
 }
 
-/* MAM-4 — the version and the user menu, kept together at the right end of the header. The auto
-   margin keeps them right-aligned when a narrow phone wraps them under the name. */
+/* MAM-4 — the user menu, at the right end of the header. */
 .app-header-end {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-  margin-left: auto;
+  justify-self: end;
 }
 
-.app-version {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+/* MAM-16 — the offline strip (OfflineStrip): the sentence, the muted note and Retry now, centred and
+   wrapping on a narrow screen. The warning tint is see-through and the page scrolls under the strip,
+   so it is laid over the card colour rather than over whatever passes beneath. */
+.app-offline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 1.5rem;
+  background: linear-gradient(var(--tint-warning), var(--tint-warning)), var(--card);
+  border-bottom: 1px solid var(--tint-warning-border);
+  text-align: center;
+}
+
+/* Only the icon takes the amber: the status ambers reach about 3.3:1 on the light card, short of the
+   4.5:1 WCAG AA wants for text (the HomePage status line has the same rule). */
+.app-offline-icon {
+  flex-shrink: 0;
+  color: var(--status-attention);
+}
+
+.app-offline-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-offline-muted {
   color: var(--muted-foreground);
+}
+
+/* The strip makes the sticky block taller: a focused control stops below it too, not behind it. */
+html:has(.app-offline) {
+  scroll-padding-top: 8rem;
 }
 
 .app-main {
@@ -119,12 +239,91 @@
   color: var(--muted-foreground);
 }
 
-@media (max-width: 480px) {
+/* MAM-16 — narrow screens: the logo without the name and version, and the links as icons with
+   their titles, so the centre column keeps its room. */
+@media (max-width: 48rem) {
   .app-header {
+    gap: 0.75rem;
+  }
+
+  /* Hidden from sight only: display: none would also take them out of the link's name, and leave
+     it named by its title, a sentence about the version. */
+  .app-brand-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app-nav {
+    gap: 0.25rem;
+  }
+
+  .app-nav-link .label-text {
+    display: none;
+  }
+
+  /* A phone or a tablet has no key to press, and the field needs the room. */
+  .app-search-key {
+    display: none;
+  }
+
+  .ui-input.app-search-input {
+    padding-right: 12px;
+  }
+
+  /* The strip's sentence takes two lines here. */
+  html:has(.app-offline) {
+    scroll-padding-top: 9.5rem;
+  }
+}
+
+/* MAM-16 — on a phone the logo, the links and the menu leave the field about 140px at 375px wide and
+   90px at 320px, too little to read what was typed. The field takes a row of its own under them:
+   `display: contents` lets the centre column's field and links take places in the header's grid.
+   Tab still reaches the field right after the logo, before the links above it: it stays the header's
+   first control, as on a wider screen, rather than the DOM order changing with the width. */
+@media (max-width: 480px) {
+  html {
+    scroll-padding-top: 7rem;
+  }
+
+  .app-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.5rem 0.75rem;
     padding: 0.625rem 1rem;
+  }
+
+  .app-header-center {
+    display: contents;
+  }
+
+  .app-header-center > .app-nav {
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .app-header-center > .app-search {
+    grid-row: 2;
+    grid-column: 1 / -1;
   }
 
   .app-main {
     padding: 1rem;
+  }
+
+  /* The header's two rows, and the strip's sentence in three lines over Retry now. */
+  html:has(.app-offline) {
+    scroll-padding-top: 14.5rem;
+  }
+
+  .app-offline {
+    padding: 0.5rem 1rem;
   }
 }

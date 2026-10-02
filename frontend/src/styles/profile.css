@@ -1,0 +1,126 @@
+/* MAM-16 — the Profile page: who you are, your password, the theme and this session. A single
+   column of cards narrower than the other pages, as the approved design draws it. */
+
+.profile-page {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* The user menu's avatar (user-menu.css), at the page's size. */
+.profile-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: var(--tint-selected);
+  color: var(--primary);
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+
+/* `min-width: 0` so a 32-character user name wraps instead of pushing the page wider than a phone. */
+.profile-intro {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The name and the Owner badge beside it; the badge drops under a name that fills the line. */
+.profile-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.profile-lead {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.profile-muted {
+  color: var(--muted-foreground);
+}
+
+/* The Account card: label and value side by side, a line between the rows. */
+.profile-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 0.25rem 1.5rem;
+  align-items: center;
+  padding: 0.875rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-row:last-child {
+  border-bottom: 0;
+}
+
+.profile-row dt {
+  color: var(--muted-foreground);
+}
+
+.profile-row dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-mono {
+  font-family: var(--font-mono);
+}
+
+/* The password shown as dots while the form is closed: a password is set, nothing more. */
+.profile-masked {
+  font-family: var(--font-mono);
+  letter-spacing: 2px;
+  color: var(--muted-foreground);
+}
+
+/* A short line and its control at either end; the control drops under it on a narrow card. */
+.profile-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-password-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 22rem;
+}
+
+.profile-note {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+/* Change password first, Cancel last, as in every dialog here. */
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  /* The phone width was not designed: an 11rem label column would leave a date about 6rem, so the
+     label sits above its value instead. */
+  .profile-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -977,6 +977,68 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   download job of yours at this address. It may belong to someone else, or the link is wrong."
   `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and
   `JobProgress.test.tsx` pin it.
+- **Every signed-in user changes their own password by giving the current one, which ends their
+  other sessions and keeps this one (MAM-16, ADR 0016).** `POST /api/auth/password` takes
+  `{ currentPassword, newPassword }` and answers 204. In one transaction it stores the new hash,
+  writes a `UserPasswordChanged` audit row (the user is both actor and target) and revokes every
+  other session of the user, so another device is refused with its next request and its refresh;
+  the session the request came through, named by the access token's `sid`, stays, and the refresh
+  cookie is never read. A blank current password is 400 "Enter your current password." and a new
+  one that breaks the rule is 400 with the rule's sentence, both before any hash runs; a wrong
+  current password is 400 "The current password is incorrect." after exactly one hash, or none for
+  one over 128 characters. It is never a 401, which the web app would take for an expired token. An
+  owner's reset, disable or delete that commits while the current password is being checked wins,
+  and the change gets the wrong-password answer, as a sign-in does. Ten attempts a minute per user,
+  from whatever address and counted apart from sign-in, then 429 with the sign-in sentence and
+  `Retry-After: 60`: a stolen access token can't spread its guesses over many addresses, and a
+  mistyped password doesn't use up the sign-ins of everyone behind the same router. `GET /api/auth/me`
+  now answers `{ id, userName, isOwner, createdUtc, lastSignInUtc, sessionExpiresUtc }`, the last
+  being the end of the token's own session; sign-in, refresh and setup answer the user as before.
+  `AuditAction` is stored by name, so there is no migration, and ADR 0002 gains a section on this
+  fifth way a session ends.
+  `AuthPasswordHttpTests.ChangePassword_keeps_the_calling_session_and_ends_the_users_other_sessions_at_once`,
+  `AuthPasswordHttpTests.ChangePassword_overtaken_by_a_change_to_the_user_during_the_password_check_is_400_and_the_owners_change_stands`,
+  `AuthPasswordHttpTests.ChangePassword_is_rate_limited_per_user_whatever_the_client_address` and
+  `AuthMeHttpTests.Me_says_when_the_calling_session_ends_not_another_session_of_the_user` pin it.
+- **A Profile page for every signed-in user (MAM-16).** **Profile** in the user menu, first under
+  the user's name, which links there too and is tinted while the page is open, opens `/profile`:
+  the user's initial, name (with an Owner badge for the owner) and what their role may do; an
+  Account card with the user name, the role, when the account was created and when it last signed
+  in on any device, in the browser's locale; a Password card; the theme, with its labels, saved in
+  this browser; and a Session card that says when this session ends unless it is used again, with
+  **Sign out**. **Change password** opens a form for the current password, the new one (8–128
+  characters) and the new one again. It checks those before sending anything and puts each sentence
+  under its field; a 400 the server still answers can only be about the current password, so its
+  sentence goes there, while too many attempts or an unreachable server show in a banner above the
+  buttons. On success the form closes and a banner at the top says the other devices are signed out
+  and this one stays signed in. The web app now refreshes an expired access token for
+  `/api/auth/me` and `/api/auth/password` as for any other call, and skips that only for sign-in,
+  refresh, sign-out and setup, so Profile left open past the 15-minute token doesn't read "Sign in
+  to continue." `ProfilePage.test.tsx`, `ChangePasswordCard.test.tsx`, `UserMenu.test.tsx`,
+  `api.test.ts` and `App.test.tsx` pin it.
+- **Light, Dark or System, picked in the user menu (MAM-16).** MAM-1 applied the operating
+  system's dark-mode preference before the first paint, and nothing could change it. The menu's
+  **Theme** row now stores Light or Dark in `localStorage` under `mam:theme`, the key the pre-paint
+  script in `index.html` already read, and removes the key for System, so a reload opens in the
+  picked theme with no flash while the script and its CSP hash stay as they were. A store
+  (`lib/theme-store.ts`) sets `.dark` on `<html>`, follows the operating system live while the
+  theme is System, whether or not the menu is open, and takes a choice made in another tab. The
+  switch is a shared `SegmentedControl` of native radio buttons: one tab stop, and the arrow keys
+  move the choice. `theme-store.test.ts`, `ThemeSwitch.test.tsx` and `SegmentedControl.test.tsx`
+  pin it.
+- **A strip under the header says when the server can't be reached, and goes once it answers
+  (MAM-16).** Before, only the session gate said so, while a tab restored its session; a page open
+  when the server stopped filled with red lines. Now the first request that gets no answer — or a
+  502, 503 or 504 with no JSON body, which is what the Vite dev proxy and a reverse proxy answer for
+  a stopped API — shows a strip under the header, sticky with it: "The server could not be
+  reached. Check that it is running, then try again." and "Trying again every few seconds."
+  with **Retry now**. It asks `GET /api/health` at once and every 5 seconds, also while the browser
+  says it is offline, and goes on the first answer to any request; the page keeps what it showed,
+  and the lists and panels that failed meanwhile are asked for again by themselves. An action taken
+  meanwhile reads the same sentence, now for the proxies' empty 502, 503 and 504 too. The strip
+  stays hidden while the session gate or the sign-in page says it themselves. One axios interceptor
+  in `lib/api.ts` feeds `lib/connection-store.ts`. `OfflineStrip.test.tsx`, `connection-store.test.ts`,
+  `api.test.ts` and `utils.test.ts` pin it.
 
 ### Changed
 
@@ -1109,6 +1171,108 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   paused in qBittorrent or cancelled by then: the dialog says "qBittorrent took the release, but its
   download is paused there." or "qBittorrent took the release, but its job has been cancelled since,
   so the app doesn't follow it." as a warning. Every send that answers makes the Jobs list ask again.
+- **Error sentences in the dark theme are a lighter red (MAM-16).** The dark `--destructive`
+  (#dc2626) reaches only 3.85:1 on the dark card, short of the 4.5:1 WCAG AA wants for text, so every
+  red sentence (sign-in, settings lists and dialogs, the home page, a connection test, a failed sync)
+  now takes the new `--text-danger` token: #f87171 in the dark theme, and `--destructive` as before
+  in the light one. Fills, borders and the red Delete and Remove buttons keep `--destructive`. The
+  selected and warning tints are tokens too (`--tint-selected`, `--tint-warning`,
+  `--tint-warning-border`) with the colours they had, and `design-tokens.test.ts` fails a sheet that
+  colours text with `--destructive` or writes those tints out again.
+- **Every paged list shows the range on screen and numbered pages (MAM-16).** MAM-7's pager read
+  "Page 2 of 5" beside Previous and Next. Under Users, Integrations, Destinations, Library, Search,
+  Jobs and a job's files it now shows the range on the left ("26–50 of 812", from each list's
+  `totalCount`), ‹ the page numbers › in the middle — the first and last page and the current one
+  ±1, with "…" for the pages between, the current page marked `aria-current="page"` — and Per page
+  on the right. The arrows are icon buttons named "Previous page" and "Next page". A list with no
+  items shows no pager, and a page past the end of a list that shrank says "Page 3 of 2" rather than
+  a range that ends before it starts. Below 43rem the numbers take a row of their own above the
+  range and Per page, and on the narrowest phones they wrap rather than widen the page.
+- **The header stays at the top of the window, with the version under the app name (MAM-16).**
+  MAM-1's header scrolled away with the page, with the version beside the user menu. It is now
+  sticky, in three columns: the logo with the app name and the version under it on the left (one
+  home link, named "Media Acquisition Manager v0.1.0"), the search field (see the next entry) and
+  the **Library** and **Jobs** links in a centre column of at most 42rem, and the user menu on the
+  right. Each link carries its label as a title. Under 48rem the header shows the logo alone and the
+  links as icons, under 480px the search field takes a row of its own, and a focused control or an
+  anchor stops below the header rather than behind it.
+- **A search starts in a field in the header, and the Search page narrows it (MAM-16, ADR 0015).**
+  MAM-12's **Search** link and the page's Title field are gone. Every page has a search field in the
+  header once someone is signed in, and pressing `/` anywhere else on the page jumps to it — not
+  while typing in a field, holding Ctrl, Cmd or Alt, or with a dialog open. Enter opens
+  `/search?q=<the line>`, and the page makes that search at once and puts its id in the address in
+  place of the line, so Back goes to the page before and never asks the sources again (ADR 0011);
+  React's StrictMode doesn't make it twice, and when the person searches again or goes Back before
+  an answer comes, the newest line wins; Forward to that line again waits for its search or shows the
+  answer that came meanwhile, and asks again only after a refusal. Only a year from 1900 to 2099 in
+  brackets ending the line becomes the year: "Interstellar (2014)" searches "Interstellar" of 2014,
+  while "Blade Runner 2049" and "Interstellar 2014" are titles as typed, and an id typed there is a
+  title too (ADR 0015, with a section added to ADR 0012). The page says "Results for
+  “Interstellar”." in bold, with "Searching…" beside it while the search is made; its form keeps
+  **Year**, **IMDb id** and **TMDb id** and **Apply** makes a new search with the same title as a
+  new history entry. A refusal shows the server's sentence in a banner under the form that
+  **Dismiss** clears. Without a search, the page says how to start one. On the Search page the field
+  shows the title of the search on screen, read from the cache without asking the server.
+  `search-query.test.ts`, `HeaderSearch.test.tsx` and `SearchPage.test.tsx` pin it.
+- **The user menu says who is signed in and holds the theme (MAM-16).** MAM-4's menu button showed a
+  user icon and the name; it is now a pill with the user's initial, the name (hidden on phones, as
+  before) and a chevron. The open menu starts with the user name over "Owner" or "Member", the
+  version and the home page's readiness words ("Ready", "Ready, with warnings", "Not ready") beside a
+  dot in the status colour. It asks `GET /api/health/ready` only while it is open, and leaves the
+  status out until the answer arrives and after a check fails. **Profile** follows (see Added), then
+  the owner's settings under a separator (a member has none, and no separator), then the **Theme**
+  row and **Sign out**. It is still a disclosure that closes on Escape, a click outside and the focus
+  leaving it.
+- **A library card shows its versions as rows, or side by side in a table (MAM-16).** MAM-8's card
+  listed every version open, with all its files, one under another. Each version is now a row: its
+  edition label ("Version 2" when it has none, by its place in the card), its file summed up in
+  chips and its size. The chips are the resolution class from 2160p down to 480p, read from the
+  width as much as the height (1920×800 is 1080p), the video codec, the dynamic range and the
+  language of every audio track ("UKR · UKR · ENG"); a file that gives none of them reads "No video
+  track" or "Unknown" instead. A row opens to the file lines the card showed before, one row at a
+  time; a work of one version shows it open, as a row that is no button. From two versions on, a
+  **Rows** / **Table** switch under the badges shows a table instead: a column per version and a row
+  each for resolution, video, HDR, bit rate, duration, audio and subtitles (a track a line), size
+  and file, over the note that size and file come from Jellyfin and the rest from ffprobe. A file
+  the app hasn't read, or couldn't, says so in its row and in the table's media rows, never "No
+  audio tracks"; one it has no path for says so in its row, and in the table unless an earlier
+  reading left its facts. A version of several files is summed up by its first, with the sizes added
+  up and every file listed; one without a file says so in a row that doesn't open. The choice holds
+  for every card on the Library and Search pages at once and is kept in this browser under
+  `mam:versionsView`; below 48rem the switch is hidden and the versions are always rows (owner's
+  choice). The search page's Details dialog lists the versions as before.
+  `LibraryWorkCard.versions.test.tsx`, `use-versions-view.test.ts`, `use-narrow-screen.test.ts` and
+  `media-labels.test.ts` pin it.
+- **Every failed request shows one of a few error states, each with a way on (MAM-16).** A list,
+  panel or dialog whose first load fails shows what failed and the server's sentence in a box in its
+  place, with **Try again**, which reads "Retrying…" while it asks, and the box stays through the
+  polls that ask again meanwhile instead of turning into "Loading…". A 400, 403 or 404 gets no Try
+  again: an expired search, someone else's job, a member on an owner's page, a filter the server
+  refuses. Before, each was one red sentence: the server's or the page's, never both. A refresh that
+  fails over data on screen keeps the banner it had and gains **Retry**; a refused row or page
+  action (Remove, Disable, Delete, Cancel job, Test) and a connection test's answer are banners
+  above the list that **Dismiss** clears, and a test that didn't connect now reads as an error, not
+  as news; one that connected, there and in the integration dialog, reads in the text colour beside
+  a green icon, as green text fell short of the 4.5:1 contrast text needs. A refused save, sign-in
+  or setup is a banner inside the form, above its buttons, with every field kept. Two passwords that
+  differ on Setup are said under Confirm password, which is marked invalid until either is edited,
+  and a size filter that isn't a size marks its box red. A refused Sync now or Inspect files is a
+  red status line on its row, with an icon. Sign in, Setup, Add user, Reset password and the
+  Integrations, Destinations and Download dialogs follow the same rules. The shared pieces are
+  `Banner`, `ErrorState`, `Field`, `FieldErrorLine`, `RetryButton` and `useLoadRetry`, and the old
+  `.settings-banner`, `.settings-error`, `.settings-dialog-error`, `.auth-error` and `.home-banner`
+  lines are gone. Every page's and dialog's tests pin it.
+- **Add user and Reset password say each refusal where it belongs, and the Users page says when a
+  password was reset (MAM-16).** MAM-4's two dialogs showed every refusal as one red line under the
+  form. Two passwords that differ are now said under **Confirm password**, marked invalid until
+  either password is edited, and a taken name — the 409 — under **User name** until the name is
+  edited. Every other sentence is a banner above the buttons, with every field kept: a user-name or
+  password rule (both are a 400 that names its field only in English, and the dialogs copy none of
+  the server's rules to place them), a user who is gone, a server that can't be reached. A reset
+  that goes through closes its dialog, and a banner above the list says "The password of olena was
+  reset." until **Dismiss** or the next action; a refused reset stays in its dialog with what was
+  typed. `CreateUserDialog.test.tsx`, `ResetPasswordDialog.test.tsx` and `UsersPage.test.tsx` pin
+  it.
 
 ### Notes for upgraders
 

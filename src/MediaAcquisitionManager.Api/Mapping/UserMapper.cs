@@ -10,6 +10,9 @@ public sealed class UserMapper : IUserMapper
     public CurrentUserResponse ToCurrentUser(UserEntity user, bool isOwner) =>
         new(user.Id, user.UserName, isOwner);
 
+    public CurrentUserProfileResponse ToProfile(UserEntity user, bool isOwner, DateTime sessionExpiresUtc) =>
+        new(user.Id, user.UserName, isOwner, user.CreatedUtc, user.LastSignInUtc, sessionExpiresUtc);
+
     public SignInResponse ToSignInResponse(UserEntity user, bool isOwner, AccessToken accessToken) =>
         new(accessToken.Token, accessToken.ExpiresUtc, ToCurrentUser(user, isOwner));
 

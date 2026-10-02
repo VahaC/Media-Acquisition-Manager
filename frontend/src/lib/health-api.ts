@@ -4,6 +4,14 @@ import type { HealthReport } from './types'
 
 export const healthApi = {
   /**
+   * MAM-16 — `GET /api/health`, liveness: 200 while the process is up, with no checks run. The
+   * offline strip asks it while the server can't be reached; whether it answers is all it learns
+   * (lib/api.ts records that for every request), so a report that says something failed is still
+   * the server answering.
+   */
+  live: async (): Promise<HealthReport> => (await api.get<HealthReport>('/api/health')).data,
+
+  /**
    * `GET /api/health/ready`. 200 when every readiness check passes, 503 when one fails — and the
    * 503 carries the same report, naming the failing check. That 503 is returned rather than thrown,
    * so the page can say *what* is not ready instead of a bare "request failed".

@@ -20,7 +20,7 @@
 --tint-danger:color-mix(in oklab,var(--destructive) 8%,transparent);
 --tint-ok:color-mix(in oklab,var(--status-up) 8%,transparent);
 --overlay:rgb(0 0 0 / .5);
-/* error text: --destructive reads 6.5:1 on white but only ~3.2:1 on the dark card, so dark text uses red-400 */
+/* error text: --destructive reads 6.47:1 on white but only 3.85:1 on the dark card, so dark text uses red-400 */
 --text-danger:var(--destructive);
 }
 .dark{

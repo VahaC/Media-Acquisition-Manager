@@ -50,6 +50,7 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.True(actions.Count >= 10, $"Only {actions.Count} controller actions were found.");
         Assert.Contains("AuthController.SignIn", actions);
         Assert.Contains("AuthController.Me", actions);
+        Assert.Contains("AuthController.ChangePassword", actions);
         Assert.Contains("SetupController.Complete", actions);
         Assert.Contains("UsersController.Delete", actions);
         Assert.Contains("IntegrationsController.Create", actions);

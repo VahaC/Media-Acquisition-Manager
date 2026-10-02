@@ -293,7 +293,8 @@ describe('LibrarySyncPanel file inspection', () => {
     // Assert
     const row = within(await findInspectionRow())
     expect(await row.findByRole('alert')).toHaveTextContent(sentence)
-    expect(row.getByRole('alert')).toHaveClass('settings-error')
+    expect(row.getByRole('alert')).toHaveClass('library-source-status')
+    expect(row.getByRole('alert')).toHaveAttribute('data-status', 'Failed')
     expect(row.getByRole('status')).toHaveTextContent(/^File inspection is off/)
     expect(within(rowOf('Home Jellyfin')).queryByRole('alert')).not.toBeInTheDocument()
   })

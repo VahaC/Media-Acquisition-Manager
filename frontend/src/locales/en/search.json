@@ -3,8 +3,8 @@
   "lead": "Look for a movie in your library and in every release source at once. What the sources list is kept for a day, so filtering and sorting never ask them again.",
   "form": {
     "label": "Search for a movie",
-    "title": "Title",
-    "titlePlaceholder": "Interstellar",
+    "resultsFor": "Results for <strong>“<text/>”</strong>.",
+    "narrow": "Add a year or an id to narrow them.",
     "year": "Year",
     "yearPlaceholder": "2014",
     "imdbId": "IMDb id",
@@ -12,9 +12,13 @@
     "tmdbId": "TMDb id",
     "tmdbIdPlaceholder": "157336",
     "optional": "(optional)",
-    "submit": "Search",
+    "apply": "Apply",
     "submitting": "Searching…",
     "failed": "Could not search."
+  },
+  "empty": {
+    "title": "Type a movie title in the search field at the top, then press Enter.",
+    "hint": "Add the year in brackets after the title to narrow it: “Interstellar (2014)”. Press / on any page to jump to the field."
   },
   "expired": "This search is no longer available. Search again.",
   "loadFailed": "Could not load this search.",

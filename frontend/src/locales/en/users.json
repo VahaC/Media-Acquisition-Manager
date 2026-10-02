@@ -42,7 +42,8 @@
     "newPassword": "New password",
     "submit": "Reset password",
     "submitting": "Saving…",
-    "failed": "Could not reset the password."
+    "failed": "Could not reset the password.",
+    "done": "The password of {{name}} was reset."
   },
   "delete": {
     "title": "Delete {{name}}?",

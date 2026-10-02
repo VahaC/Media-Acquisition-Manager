@@ -6,7 +6,7 @@ namespace MediaAcquisitionManager.Api.Services.Accounts;
 /// <param name="Status">How it ended.</param>
 /// <param name="User">The user as they are now, when <see cref="UserAccountStatus.Succeeded"/> and the
 /// change leaves a user to show.</param>
-/// <param name="Error">The sentence for the owner when it failed with a reason to give.</param>
+/// <param name="Error">The sentence for the caller when it failed with a reason to give.</param>
 public sealed record UserAccountResult(UserAccountStatus Status, UserDto? User, string? Error)
 {
     public static UserAccountResult NotFound { get; } = new(UserAccountStatus.NotFound, null, null);

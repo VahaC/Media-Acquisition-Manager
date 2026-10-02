@@ -49,7 +49,7 @@ Add these tokens to `src/index.css`. The light values go under `:root`; the dark
 | `--tint-warning-border` | `color-mix(in oklab, var(--status-attention) 55%, transparent)` | same formula |
 | `--text-danger` | `var(--destructive)` (#b91c1c) | `#f87171` |
 
-`--text-danger` exists because the dark `--destructive` (#dc2626) reads only about 3.2:1 on the dark card (#131313), and error text needs 4.5:1. Use it for every red sentence: banners, field errors and status lines. Keep `--destructive` for fills and borders.
+`--text-danger` exists because the dark `--destructive` (#dc2626) reads only 3.85:1 on the dark card (#131313), and error text needs 4.5:1. Use it for every red sentence: banners, field errors and status lines. Keep `--destructive` for fills and borders.
 
 If a stylesheet already writes the 12% primary mix inline (the active nav link, for example), switch it to `--tint-selected`.
 

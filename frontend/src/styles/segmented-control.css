@@ -1,0 +1,57 @@
+/* MAM-16 — SegmentedControl: a row of pills of which one is picked (the theme, how a library card
+   shows its versions). Each pill sits over its radio button, which is visually hidden (.sr-only)
+   but still takes the focus and the arrow keys, so the pill after it shows what the radio is:
+   picked, focused. Sizes from the approved design (docs/design-system/components/core/ThemeSwitch.jsx). */
+
+.segmented-control {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* `position: relative` holds the absolutely positioned .sr-only radio inside its own option: placed
+   elsewhere on the page, focusing it could scroll the page to wherever that is. */
+.segmented-control-option {
+  position: relative;
+  display: inline-flex;
+}
+
+.segmented-control-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 0.625rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+/* Icons only: square pills; the label stays the radio's name and the option's title. */
+.segmented-control[data-icon-only] .segmented-control-pill {
+  width: 28px;
+  padding: 0;
+}
+
+.segmented-control-option:hover .segmented-control-pill {
+  color: var(--foreground);
+}
+
+/* The one place --shadow-sm is used: it lifts the picked pill off the grey track. */
+.segmented-control-option input:checked + .segmented-control-pill {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.segmented-control-option input:focus-visible + .segmented-control-pill {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

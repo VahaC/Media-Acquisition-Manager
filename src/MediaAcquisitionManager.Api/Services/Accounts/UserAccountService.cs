@@ -24,6 +24,8 @@ public sealed class UserAccountService(
 {
     private const string OwnerCannotBeDisabled = "The installation owner can't be disabled.";
     private const string OwnerCannotBeDeleted = "The installation owner can't be deleted.";
+    private const string CurrentPasswordRequired = "Enter your current password.";
+    private const string CurrentPasswordIncorrect = "The current password is incorrect.";
 
     public async Task<UserListResult> ListAsync(string? search, int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -183,13 +185,69 @@ public sealed class UserAccountService(
             await db.SaveChangesAsync(cancellationToken);
             // MAM-4 — a reset is how the owner locks someone out of an account whose password leaked,
             // so every session opened with the old one ends too. Except the caller's own: the owner may
-            // reset their own password (there is no other way to change it yet) and stays signed in on
-            // the device they did it from. For any other user the caller's session isn't theirs anyway.
+            // reset their own password here, without giving the current one (MAM-16 added a change on
+            // Profile that asks for it), and stays signed in on the device they did it from. For any
+            // other user the caller's session isn't theirs anyway.
             await sessions.RevokeAllForUserAsync(user.Id, caller.SessionId, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
 
         logger.LogInformation("{ActorUserName} reset the password of {UserName}.", actor.UserName, user.UserName);
+        return UserAccountResult.Succeeded();
+    }
+
+    public async Task<UserAccountResult> ChangeOwnPasswordAsync(AccountCaller caller, string currentPassword, string newPassword, CancellationToken cancellationToken = default)
+    {
+        // Checked before anything is read or hashed: a blank field or a broken rule costs no PBKDF2 run.
+        if (string.IsNullOrEmpty(currentPassword))
+            return UserAccountResult.Invalid(CurrentPasswordRequired);
+        if (PasswordRules.Validate(newPassword) is { } passwordError)
+            return UserAccountResult.Invalid(passwordError);
+
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == caller.UserId, cancellationToken);
+        if (user is null)
+            return UserAccountResult.NotFound;
+
+        // MAM-16 — a current password no rule would have let anyone set can't match, so it is refused
+        // without the hash ever running over what someone posted (up to the request size limit).
+        if (currentPassword.Length > PasswordRules.MaximumLength || !hasher.Verify(currentPassword, user.PasswordHash))
+            return WrongCurrentPassword(user);
+
+        // Hashed before the transaction: BEGIN IMMEDIATE takes SQLite's write lock, and holding it
+        // through a PBKDF2 run (600,000 iterations in production) would stall every other write.
+        var newPasswordHash = hasher.Hash(newPassword);
+
+        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            // MAM-16 — the check above ran on a copy read a PBKDF2 run ago. An owner's reset, a disable
+            // or a delete that committed since must win, as it does over a sign-in (SessionService):
+            // the reset is how the owner takes an account back from whoever knows its old password,
+            // which is exactly who would be racing it here. So the change is claimed with a conditional
+            // update that only matches the user as verified — same hash, still enabled, still there —
+            // inside a transaction that holds the write lock until the other sessions are revoked.
+            var changed = await db.Users
+                .Where(u => u.Id == user.Id && u.PasswordHash == user.PasswordHash && !u.IsDisabled)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.PasswordHash, newPasswordHash), cancellationToken) == 1;
+            // Changed or gone since the check: the same refusal as a wrong password, never a 500. The
+            // next request of a disabled or deleted user is refused by its session check anyway. The
+            // log says what happened, though: the password matched, and an operator looking into an
+            // owner's lockout shouldn't read a mismatch that never was.
+            if (!changed)
+            {
+                logger.LogInformation("A password change by {UserName} was refused: the account changed while the current password was being checked.", user.UserName);
+                return UserAccountResult.Invalid(CurrentPasswordIncorrect);
+            }
+
+            auditTrail.Record(AuditAction.UserPasswordChanged, AuditActor.From(user), AuditTarget.User(user));
+            await db.SaveChangesAsync(cancellationToken);
+            // ADR 0016 — whoever else knew the old password may be signed in somewhere; their sessions
+            // end at once. The caller's own stays: they just proved who they are, and signing them out
+            // of the page they are on would only make them type the new password straight away.
+            await sessions.RevokeAllForUserAsync(user.Id, caller.SessionId, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        logger.LogInformation("{UserName} changed their password.", user.UserName);
         return UserAccountResult.Succeeded();
     }
 
@@ -244,6 +302,14 @@ public sealed class UserAccountService(
 
     private static UserAccountResult NameTaken(string userName) =>
         UserAccountResult.NameTaken($"A user named “{userName}” already exists.");
+
+    // Information, not Warning: a mistyped password is routine, and the per-user rate limit already
+    // bounds how many guesses a stolen access token buys.
+    private UserAccountResult WrongCurrentPassword(UserEntity user)
+    {
+        logger.LogInformation("A password change by {UserName} was refused: the current password did not match.", user.UserName);
+        return UserAccountResult.Invalid(CurrentPasswordIncorrect);
+    }
 
     // MAM-4 — a conditional update claims the change: of two requests at once (a double click),
     // exactly one finds the flag the other way round and flips it, so only one of them records it.

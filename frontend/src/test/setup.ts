@@ -16,6 +16,22 @@ globalThis.ResizeObserver ??= ResizeObserverStub
 
 Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
+// The theme store asks for the operating system's colour scheme when it loads, and useNarrowScreen
+// whether the window is a phone's. Here every query answers "no match": a light system that never
+// changes, and a wide window, so a library card can show its versions as a table unless a test
+// fakes a narrow one (test/match-media.ts). theme-store.test.ts brings its own.
+window.matchMedia ??= (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList
+
 // jsdom's own getContext prints "Not implemented" to the console on every call.
 HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext
 

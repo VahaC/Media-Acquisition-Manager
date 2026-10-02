@@ -9,8 +9,8 @@ public enum UserAccountStatus
     /// <summary>No user has that id; nothing was written.</summary>
     NotFound = 2,
 
-    /// <summary>The user name or the password breaks a rule, which the error names; nothing was
-    /// written.</summary>
+    /// <summary>The user name or the password breaks a rule, or the current password given for a
+    /// change of one's own is blank or wrong, which the error names; nothing was written.</summary>
     Invalid = 3,
 
     /// <summary>Another user already has that name, in some letter case; nothing was written.</summary>

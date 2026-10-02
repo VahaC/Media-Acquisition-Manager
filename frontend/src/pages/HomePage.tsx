@@ -1,7 +1,12 @@
 import { CircleAlert, CircleCheck, CircleX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
+import { RetryButton } from '@/components/shared/RetryButton'
+import { HEALTH_STATUS_TEXT } from '@/lib/health-status'
 import { useReadiness } from '@/lib/queries'
 import type { HealthReport, HealthStatus } from '@/lib/types'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/home.css' // .home-* — this page's layout and the service status card
 
@@ -11,7 +16,11 @@ import '@/styles/home.css' // .home-* — this page's layout and the service sta
  */
 export function HomePage() {
   const { t } = useTranslation(['home', 'common'])
-  const { data, error, isLoading } = useReadiness()
+  const readiness = useReadiness()
+  const { data, error, isLoading } = readiness
+  // MAM-16 — the report is polled every minute, failed or not: the first failure stays on screen
+  // through those polls rather than blinking to "Loading…" each time.
+  const load = useLoadRetry(readiness)
 
   return (
     <div className="home-page">
@@ -25,22 +34,21 @@ export function HomePage() {
           <h2 id="home-status-title" className="ui-card-title">{t('status.title')}</h2>
           <p className="ui-card-description">{t('status.description')}</p>
         </div>
-        <div className="ui-card-content">
+        <div className="ui-card-content home-status-body">
           {/* Outside the ternary below, so a failed refresh adds a line above the last known
               status instead of replacing it. */}
           {error && data && (
-            <p className="home-banner" role="alert">
-              <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+            <Banner action={<RetryButton onRetry={() => readiness.refetch()} />}>
               {t('status.refreshFailed')}{' '}
               {getApiErrorMessage(error)}
-            </p>
+            </Banner>
           )}
-          {isLoading ? (
+          {load.error ? (
+            <ErrorState title={t('status.loadFailed')} onRetry={load.retry} retrying={load.retrying}>
+              {getApiErrorMessage(load.error)}
+            </ErrorState>
+          ) : isLoading ? (
             <p className="home-muted">{t('common:loading')}</p>
-          ) : error && !data ? (
-            <p className="home-error" role="alert">
-              {getApiErrorMessage(error, t('status.loadFailed'))}
-            </p>
           ) : data ? (
             <ReadinessSummary report={data} />
           ) : null}
@@ -52,13 +60,6 @@ export function HomePage() {
 
 // ── readiness summary ──
 
-const STATUS_TEXT = {
-  Healthy: 'status.ready',
-  // ASP.NET answers 200 for Degraded: the server works, but a check wants attention.
-  Degraded: 'status.readyWithWarnings',
-  Unhealthy: 'status.notReady',
-} as const satisfies Record<HealthStatus, string>
-
 // A check's description is the API's own English sentence and is shown as sent, like every API
 // message (ADR 0001); only the fallback for a check without one is UI text.
 function ReadinessSummary({ report }: { report: HealthReport }) {
@@ -69,7 +70,7 @@ function ReadinessSummary({ report }: { report: HealthReport }) {
     <div className="home-status" data-status={report.status}>
       <p className="home-status-line">
         <StatusIcon status={report.status} />
-        <span>{t(STATUS_TEXT[report.status])}</span>
+        <span>{t(HEALTH_STATUS_TEXT[report.status])}</span>
       </p>
       {failing.length > 0 && (
         <ul className="home-status-checks">

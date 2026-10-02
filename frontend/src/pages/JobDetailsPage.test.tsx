@@ -187,20 +187,20 @@ describe('JobDetailsPage', () => {
     // Arrange
     serve(downloadingJob, [filmFile], 60)
     const { user } = renderAt(`/jobs/${downloadingJob.id}`)
-    await screen.findByText('Page 1 of 3')
+    await screen.findByText('1–25 of 60')
 
     // Act
-    await user.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('Page 2 of 3')
+    await user.click(screen.getByRole('button', { name: 'Next page' }))
+    await screen.findByText('26–50 of 60')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Per page' }), '50')
 
     // Assert
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument()
+    expect(await screen.findByText('1–50 of 60')).toBeInTheDocument()
     expect(downloadsApi.files).toHaveBeenLastCalledWith(downloadingJob.id, { page: 1, pageSize: 50 })
     expect(localStorage.getItem('mam:jobFiles:pageSize')).toBe('50')
   })
 
-  it('shows the server sentence in place of the files when they can\'t be loaded', async () => {
+  it('shows the server sentence in place of the files when they are refused, with no Try again', async () => {
     // Arrange
     vi.mocked(downloadsApi.files).mockRejectedValue(apiError(400, 'The page must be 1 or more.'))
 
@@ -208,8 +208,27 @@ describe('JobDetailsPage', () => {
     renderAt(`/jobs/${downloadingJob.id}`)
 
     // Assert
-    expect(await within(await screen.findByRole('region', { name: 'Files' })).findByRole('alert'))
-      .toHaveTextContent('The page must be 1 or more.')
+    const files = within(await screen.findByRole('region', { name: 'Files' }))
+    const state = await files.findByRole('alert')
+    expect(state).toHaveTextContent('Could not load this job\'s files.')
+    expect(state).toHaveTextContent('The page must be 1 or more.')
+    expect(files.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('says the files could not be loaded while the facts stay, and Try again loads them', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.files).mockRejectedValueOnce(networkError())
+    const { user } = renderAt(`/jobs/${downloadingJob.id}`)
+    const files = within(await screen.findByRole('region', { name: 'Files' }))
+    await files.findByRole('alert')
+
+    // Act
+    await user.click(files.getByRole('button', { name: 'Try again' }))
+
+    // Assert
+    expect(await within(await filesTable()).findByText(filmFile.path, { selector: '.jobs-file-path' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it.each([
@@ -225,6 +244,7 @@ describe('JobDetailsPage', () => {
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'There is no download job of yours at this address. It may belong to someone else, or the link is wrong.')
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
     expect(downloadsApi.files).not.toHaveBeenCalled()
     expect(screen.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs')
   })
@@ -245,15 +265,19 @@ describe('JobDetailsPage', () => {
     },
   )
 
-  it('shows the server sentence when the job can\'t be loaded for another reason', async () => {
+  it('says the job could not be loaded for another reason, with the server sentence, and Try again shows it', async () => {
     // Arrange
-    vi.mocked(downloadsApi.get).mockRejectedValue(networkError())
+    vi.mocked(downloadsApi.get).mockRejectedValueOnce(networkError())
+    const { user } = renderAt(`/jobs/${downloadingJob.id}`)
+    const state = await screen.findByRole('alert')
 
     // Act
-    renderAt(`/jobs/${downloadingJob.id}`)
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
 
     // Assert
-    expect(await screen.findByRole('alert')).toHaveTextContent('The server could not be reached.')
+    expect(state).toHaveTextContent('Could not load this download job.')
+    expect(state).toHaveTextContent('The server could not be reached.')
+    expect(await screen.findByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
   })
 
   it('goes back to the list from the Jobs link', async () => {
@@ -300,6 +324,23 @@ describe('JobDetailsPage', () => {
     // Assert
     expect(await screen.findByRole('alert'))
       .toHaveTextContent('This download is already downloaded, so there\'s nothing to stop following.')
+  })
+
+  it('takes a refused cancel\'s banner away on Dismiss', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.cancel).mockRejectedValue(apiError(500))
+    const { user } = renderAt(`/jobs/${downloadingJob.id}`)
+    await user.click(await screen.findByRole('button', { name: 'Cancel job' }))
+    const confirmation = await screen.findByRole('dialog', { name: `Cancel the job for ${downloadingJob.releaseTitle}?` })
+    await user.click(within(confirmation).getByRole('button', { name: 'Cancel job' }))
+    await screen.findByRole('alert')
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Dismiss' }))
+
+    // Assert
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
   })
 
   it('offers no Cancel for a job that has ended', async () => {
@@ -407,6 +448,26 @@ describe('JobDetailsPage', () => {
       expect(downloadsApi.files).toHaveBeenCalledOnce()
     })
 
+    it('keeps the files\' failed load on screen through the poll that asks again, without reading Retrying…', async () => {
+      // Arrange
+      serve({ ...downloadingJob, status: 'Paused' })
+      vi.mocked(downloadsApi.files)
+        .mockRejectedValueOnce(networkError())
+        .mockReturnValueOnce(new Promise(() => {}))
+      renderAt(`/jobs/${downloadingJob.id}`)
+      const files = within(await screen.findByRole('region', { name: 'Files' }))
+      await files.findByRole('alert')
+
+      // Act
+      await nextPoll()
+
+      // Assert
+      expect(downloadsApi.files).toHaveBeenCalledTimes(2)
+      expect(files.getByRole('alert')).toHaveTextContent('Could not load this job\'s files.')
+      expect(files.getByRole('button', { name: 'Try again' })).toBeEnabled()
+      expect(files.queryByText('Loading…')).not.toBeInTheDocument()
+    })
+
     it('asks for the files again on the next poll after their load failed, while the job stays put, and shows them', async () => {
       // Arrange
       serve({ ...downloadingJob, status: 'Paused' })
@@ -453,6 +514,36 @@ describe('JobDetailsPage', () => {
       // Assert
       expect(await screen.findByText(/Refresh failed, showing what was last loaded\./)).toBeInTheDocument()
       expect(screen.getByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
+    })
+
+    it('asks for the job again from Retry on the refresh banner, and drops the banner once it is back', async () => {
+      // Arrange
+      const { user } = renderAt(`/jobs/${downloadingJob.id}`)
+      await screen.findByRole('heading', { level: 1, name: downloadingJob.releaseTitle })
+      vi.mocked(downloadsApi.get).mockRejectedValueOnce(networkError())
+      await nextPoll()
+      await screen.findByRole('alert')
+
+      // Act
+      await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+      // Assert
+      await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+      expect(screen.getByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
+    })
+
+    it('says the job is gone, with no Retry, when a refresh answers a bare 404', async () => {
+      // Arrange
+      renderAt(`/jobs/${downloadingJob.id}`)
+      await screen.findByRole('heading', { level: 1, name: downloadingJob.releaseTitle })
+      vi.mocked(downloadsApi.get).mockRejectedValue(apiError(404))
+
+      // Act
+      await nextPoll()
+
+      // Assert
+      expect(await screen.findByRole('alert')).toHaveTextContent('There is no download job of yours at this address.')
+      expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
     })
   })
 })

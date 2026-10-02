@@ -1,19 +1,22 @@
 import { useState } from 'react'
-import { CircleAlert } from 'lucide-react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { CancelJobButton } from '@/components/jobs/CancelJobButton'
 import { JobProgress } from '@/components/jobs/JobProgress'
 import { JobStatus } from '@/components/jobs/JobStatus'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { canCancelJob, DOWNLOAD_JOB_STATUSES } from '@/lib/download-jobs'
 import { formatDateTime } from '@/lib/format'
 import { useDownloadJobs } from '@/lib/queries'
 import type { DownloadJob, DownloadJobStatus } from '@/lib/types'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, toolbar, banners, table and row actions of this page
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import '@/styles/settings-list.css' // .settings-* — the header, toolbar, table and row actions of this page
 import '@/styles/library.css' // .library-link — the release title that opens its job, the link to Search
 import '@/styles/jobs.css' // .jobs-stacked-cell — the Status cell that stacks its sentences on a phone
 
@@ -47,7 +50,9 @@ export function JobsPage() {
   if (!onFilter) setPaging({ status, page: 1 })
   const page = onFilter ? paging.page : 1
   const filtered = status !== ''
-  const { data, dataUpdatedAt, error, isLoading, isPlaceholderData } = useDownloadJobs({ status: status || undefined, page, pageSize })
+  const jobs = useDownloadJobs({ status: status || undefined, page, pageSize })
+  const { data, dataUpdatedAt, error, isLoading, isPlaceholderData } = jobs
+  const load = useLoadRetry(jobs)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
   // A job that ends or is cancelled can leave a filtered list with fewer pages than the one on
   // screen: the refetched page is empty, so move to the last one there is. Only on this page's own
@@ -86,19 +91,24 @@ export function JobsPage() {
 
       {/* Outside the ternary below, so a failed refresh or a refused cancel adds a line above the
           rows instead of replacing them. */}
-      {error && data && (
-        <p className="settings-banner" role="alert">
-          <CircleAlert className="h-3.5 w-3.5 inline" aria-hidden="true" />{' '}
+      {error && data && !isPlaceholderData && (
+        <Banner action={<RetryButton onRetry={() => jobs.refetch()} />}>
           {t('refreshFailed')}{' '}
           {getApiErrorMessage(error)}
-        </p>
+        </Banner>
       )}
-      {actionError && <p className="settings-banner" role="alert">{actionError}</p>}
+      {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
 
-      {isLoading ? (
+      {load.error ? (
+        <ErrorState
+          title={t('loadFailed')}
+          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+          retrying={load.retrying}
+        >
+          {getApiErrorMessage(load.error)}
+        </ErrorState>
+      ) : isLoading ? (
         <p className="settings-muted">{t('common:loading')}</p>
-      ) : error && !data ? (
-        <p className="settings-error" role="alert">{getApiErrorMessage(error, t('loadFailed'))}</p>
       ) : data && data.totalCount === 0 && filtered ? (
         <div className="settings-empty">
           <p>{t('noMatch')}</p>
@@ -145,6 +155,7 @@ export function JobsPage() {
             pages={pages}
             pageSize={pageSize}
             pageSizes={PAGE_SIZES}
+            totalCount={data.totalCount}
             onPage={goToPage}
             onPageSize={changePageSize}
           />

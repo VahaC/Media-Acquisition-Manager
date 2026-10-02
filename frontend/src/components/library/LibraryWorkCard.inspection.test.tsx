@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { LibraryWorkCard } from '@/components/library/LibraryWorkCard'
 import type { FileInspectionStatus, LibraryFile, LibraryFileInspection, LibraryWork, MediaFacts } from '@/lib/types'
 import { aliens, aliensInspection, continental, trackOf, unknownWork } from '@/test/library'
@@ -16,17 +17,24 @@ function inspectedAs(media: MediaFacts): LibraryWork {
   return continentalWith({ inspection: { ...aliensInspection, media } })
 }
 
+/** `work` with the row of its version labelled `label` opened, as a click opens it. */
+async function renderOpened(work: LibraryWork, label: string) {
+  const user = userEvent.setup()
+  render(<LibraryWorkCard work={work} />)
+  await user.click(screen.getByRole('button', { name: new RegExp(`^${label}`) }))
+}
+
 /** The entries of the track list named `name` ("Audio", "Subtitles"). */
 const tracksOf = (name: string) =>
   within(screen.getByRole('list', { name })).getAllByRole('listitem').map((item) => item.textContent)
 
 describe('LibraryWorkCard file inspection', () => {
-  it('shows the length, the picture, the video codec, the dynamic range and the bit rate', () => {
+  it('shows the length, the picture, the video codec, the dynamic range and the bit rate', async () => {
     // Arrange
     const work = aliens
 
     // Act
-    render(<LibraryWorkCard work={work} />)
+    await renderOpened(work, 'Theatrical Cut')
 
     // Assert
     const summary = screen.getByText('2:17:17').closest('p')!
@@ -34,12 +42,12 @@ describe('LibraryWorkCard file inspection', () => {
       .toEqual(['2:17:17', '1920×1040', 'HEVC Main 10', 'SDR', '14.42 Mb/s'])
   })
 
-  it('lists the audio tracks by language, codec, channels and flags, in the file order', () => {
+  it('lists the audio tracks by language, codec, channels and flags, in the file order', async () => {
     // Arrange
     const work = aliens
 
     // Act
-    render(<LibraryWorkCard work={work} />)
+    await renderOpened(work, 'Theatrical Cut')
 
     // Assert
     expect(tracksOf('Audio')).toEqual([
@@ -49,27 +57,29 @@ describe('LibraryWorkCard file inspection', () => {
     ])
   })
 
-  it('lists the subtitles by language, format and flags', () => {
+  it('lists the subtitles by language, format and flags', async () => {
     // Arrange
     const work = aliens
 
     // Act
-    render(<LibraryWorkCard work={work} />)
+    await renderOpened(work, 'Theatrical Cut')
 
     // Assert
     expect(tracksOf('Subtitles')).toEqual(['Ukrainian · SRT · forced', 'English · SRT · SDH', 'English · PGS'])
   })
 
-  it('says when the app has not looked at a file yet', () => {
+  it('says when the app has not looked at a file yet, in its row and once it is opened', async () => {
     // Arrange — the Special Edition was synced after the last inspection.
     const work = aliens
 
     // Act
-    render(<LibraryWorkCard work={work} />)
+    await renderOpened(work, 'Special Edition')
 
     // Assert
-    expect(screen.getAllByText('Not inspected yet')).toHaveLength(1)
-    expect(screen.getAllByRole('list', { name: 'Audio' })).toHaveLength(1)
+    expect(screen.getAllByText('Not inspected yet')).toHaveLength(2)
+    // Never a fact about tracks of a file the app hasn't read.
+    expect(screen.queryByText('No audio tracks')).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Audio' })).not.toBeInTheDocument()
   })
 
   it('names every value ffprobe did not give as unknown instead of guessing', () => {
@@ -107,10 +117,9 @@ describe('LibraryWorkCard file inspection', () => {
     render(<LibraryWorkCard work={work} />)
 
     // Assert
-    expect(screen.getByText('26:19')).toBeInTheDocument()
-    expect(screen.getByText('1280×720')).toBeInTheDocument()
-    expect(screen.getByText('H.264')).toBeInTheDocument()
-    expect(screen.getByText('640 kb/s')).toBeInTheDocument()
+    const summary = screen.getByText('26:19').closest('p')!
+    expect([...summary.children].map((part) => part.textContent))
+      .toEqual(['26:19', '1280×720', 'H.264', 'HDR unknown', '640 kb/s'])
     expect(tracksOf('Audio')).toEqual(['QAA · PCM_S16LE · 2 ch · forced', 'English · AAC · stereo'])
   })
 
@@ -130,8 +139,8 @@ describe('LibraryWorkCard file inspection', () => {
     render(<LibraryWorkCard work={work} />)
 
     // Assert
-    expect(screen.getByText(expected)).toBeInTheDocument()
-    expect(screen.getByText('3840×2160')).toBeInTheDocument()
+    const summary = screen.getByText('3840×2160').closest('p')!
+    expect(within(summary).getByText(expected)).toBeInTheDocument()
   })
 
   it('says when a file has no video track, no audio and no subtitles', () => {
@@ -141,8 +150,9 @@ describe('LibraryWorkCard file inspection', () => {
     // Act
     render(<LibraryWorkCard work={work} />)
 
-    // Assert
-    expect(screen.getByText('No video track')).toBeInTheDocument()
+    // Assert — the row says it as well, in place of chips.
+    const summary = screen.getByText('0:01').closest('p')!
+    expect(within(summary).getByText('No video track')).toBeInTheDocument()
     expect(screen.getByText('No audio tracks')).toBeInTheDocument()
     expect(screen.getByText('No subtitles')).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Audio' })).not.toBeInTheDocument()
@@ -184,12 +194,12 @@ describe('LibraryWorkCard file inspection', () => {
     expect(screen.queryByText('ffprobe couldn\'t read this file as a video.')).not.toBeInTheDocument()
   })
 
-  it('does not repeat why a file without an app path could not be read', () => {
+  it('does not repeat why a file without an app path could not be read', async () => {
     // Arrange — the inspection's sentence is the mapper's, which the path line already shows.
     const work = unknownWork
 
     // Act
-    render(<LibraryWorkCard work={work} />)
+    await renderOpened(work, 'Version 1')
 
     // Assert
     expect(screen.getAllByText('No path mapping of “Home Jellyfin” covers /srv/other/untitled.mkv.')).toHaveLength(1)

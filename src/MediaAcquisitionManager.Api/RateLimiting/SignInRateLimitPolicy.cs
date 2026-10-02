@@ -4,8 +4,9 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace MediaAcquisitionManager.Api.RateLimiting;
 
 /// <summary>
-/// The limit on endpoints that take a password: sign-in and the first-run setup. Applied with
-/// <c>[EnableRateLimiting(SignInRateLimitPolicy.Name)]</c>.
+/// The limit on the anonymous endpoints that take a password: sign-in and the first-run setup.
+/// Applied with <c>[EnableRateLimiting(SignInRateLimitPolicy.Name)]</c>. A signed-in user changing
+/// their own password is counted per user instead, by <see cref="PasswordChangeRateLimitPolicy"/>.
 /// </summary>
 /// <remarks>
 /// MAM-4 — partitioned by the connection's remote address, never by a header the client sends

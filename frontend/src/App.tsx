@@ -21,6 +21,7 @@ const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default:
 const MediaFoldersPage = lazy(() =>
   import('@/pages/settings/MediaFoldersPage').then((m) => ({ default: m.MediaFoldersPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
+const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((m) => ({ default: m.SearchPage })))
 const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })))
 const UsersPage = lazy(() => import('@/pages/settings/UsersPage').then((m) => ({ default: m.UsersPage })))
@@ -45,6 +46,8 @@ export default function App() {
                   {/* MAM-14 — every signed-in user's own jobs; another user's job reads like no job. */}
                   <Route path="jobs" element={<JobsPage />} />
                   <Route path="jobs/:id" element={<JobDetailsPage />} />
+                  {/* MAM-16 — every signed-in user's own account: their password, theme and session. */}
+                  <Route path="profile" element={<ProfilePage />} />
                   <Route path="settings/integrations" element={<IntegrationsPage />} />
                   <Route path="settings/destinations" element={<DestinationsPage />} />
                   <Route path="settings/media-folders" element={<MediaFoldersPage />} />

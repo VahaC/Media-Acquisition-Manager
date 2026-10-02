@@ -1,12 +1,16 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
+import { Banner } from '@/components/shared/Banner'
+import { ErrorState } from '@/components/shared/ErrorState'
+import { Field } from '@/components/shared/Field'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
 import { useCompleteSetup, useSetupStatus } from '@/lib/queries'
+import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/auth.css' // .auth-* — the centred card, the form and its fields
+import '@/styles/auth.css' // .auth-* — the centred card and the form
 
 /**
  * First-run setup: creates the installation owner, who is signed in at once. Only while no owner
@@ -20,12 +24,15 @@ export function SetupPage() {
   const { t } = useTranslation(['auth', 'common'])
   const status = useAuthStore((state) => state.status)
   const setup = useSetupStatus()
+  const setupLoad = useLoadRetry(setup)
   const complete = useCompleteSetup()
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  // MAM-16 — the passwords differed at the last submit: said under Confirm password until either
+  // of them is edited.
+  const [mismatch, setMismatch] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const passwordHintId = useId()
 
   // The owner created here is signed in: on to the app.
   if (status === 'authenticated') return <Navigate to="/" replace />
@@ -33,11 +40,11 @@ export function SetupPage() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setError(null)
     if (password !== confirmPassword) {
-      setError(t('passwordsDiffer'))
+      setMismatch(true)
       return
     }
-    setError(null)
     try {
       await complete.mutateAsync({ userName: userName.trim(), password })
     } catch (e: unknown) {
@@ -53,53 +60,58 @@ export function SetupPage() {
           <p className="ui-card-description">{t('setup.description')}</p>
         </div>
         <div className="ui-card-content">
-          {setup.isLoading ? (
+          {setupLoad.error ? (
+            <ErrorState title={t('setupCheckFailed')} onRetry={setupLoad.retry} retrying={setupLoad.retrying}>
+              {getApiErrorMessage(setupLoad.error)}
+            </ErrorState>
+          ) : setup.isLoading ? (
             <p className="auth-muted">{t('common:loading')}</p>
-          ) : setup.error && !setup.data ? (
-            <div className="auth-status">
-              <p className="auth-error" role="alert">{getApiErrorMessage(setup.error, t('setupCheckFailed'))}</p>
-              <Button type="button" variant="outline" size="sm" onClick={() => void setup.refetch()}>
-                {t('retry')}
-              </Button>
-            </div>
           ) : (
             // noValidate: the rules live on the server, and its sentence is the one to show.
             <form className="auth-form" noValidate onSubmit={(event) => void submit(event)}>
-              <label className="auth-field">
-                <span className="ui-label">{t('userName')}</span>
-                <Input
-                  value={userName}
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  autoFocus
-                  onChange={(event) => setUserName(event.target.value)}
-                />
-              </label>
-              {/* The hint sits outside the label so it describes the field instead of joining its name. */}
-              <div className="auth-field">
-                <label className="auth-field">
-                  <span className="ui-label">{t('password')}</span>
+              <Field label={t('userName')}>
+                {(control) => (
                   <Input
+                    {...control}
+                    value={userName}
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    autoFocus
+                    onChange={(event) => setUserName(event.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label={t('password')} hint={t('setup.passwordHint')}>
+                {(control) => (
+                  <Input
+                    {...control}
                     type="password"
                     value={password}
                     autoComplete="new-password"
-                    aria-describedby={passwordHintId}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value)
+                      setMismatch(false)
+                    }}
                   />
-                </label>
-                <p id={passwordHintId} className="auth-hint">{t('setup.passwordHint')}</p>
-              </div>
-              <label className="auth-field">
-                <span className="ui-label">{t('confirmPassword')}</span>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  autoComplete="new-password"
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                />
-              </label>
-              {error && <p className="auth-error" role="alert">{error}</p>}
+                )}
+              </Field>
+              <Field label={t('confirmPassword')} error={mismatch ? t('passwordsDiffer') : null}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="password"
+                    value={confirmPassword}
+                    autoComplete="new-password"
+                    onChange={(event) => {
+                      setConfirmPassword(event.target.value)
+                      setMismatch(false)
+                    }}
+                  />
+                )}
+              </Field>
+              {/* MAM-16 — what the server refused, above the button; the fields keep what was typed. */}
+              {error && <Banner>{error}</Banner>}
               <Button type="submit" className="w-full" disabled={complete.isPending}>
                 {complete.isPending ? t('setup.submitting') : t('setup.submit')}
               </Button>

@@ -4,6 +4,8 @@ import axios, { isAxiosError, type InternalAxiosRequestConfig } from 'axios'
 // another's exports while it loads, only later inside functions.
 import { authApi } from './auth-api'
 import { signOutGeneration, useAuthStore } from './auth-store'
+import { useConnectionStore } from './connection-store'
+import { isServerUnreachable } from './utils'
 
 /**
  * The one HTTP client every `<domain>-api.ts` module goes through. Same origin in every setup:
@@ -29,8 +31,12 @@ const CONFLICT_RETRY_DELAYS_MS = [0, 100, 250] as const
 /**
  * Sign-in, refresh, sign-out and setup answer 401 for their own reasons (a wrong password, an ended
  * session). Refreshing on those would loop, or turn a refused password into "session ended".
+ *
+ * MAM-16 — only those four: `/api/auth/me` and `/api/auth/password` (the Profile page) answer 401
+ * for an expired access token like any other call, so they refresh and retry too. Excluded as well,
+ * the Profile page left open for 15 minutes would read "Sign in to continue." on its next request.
  */
-const SESSION_REQUEST = /^\/?api\/(?:auth\/|setup(?:[/?#]|$))/
+const SESSION_REQUEST = /^\/?api\/(?:auth\/(?:sign-in|refresh|sign-out)|setup)(?:[/?#]|$)/
 
 /** A request config that remembers it has already been retried after a refresh. */
 type RetriableRequestConfig = InternalAxiosRequestConfig & { mamRetriedAfterRefresh?: boolean }
@@ -53,6 +59,24 @@ api.interceptors.response.use(undefined, async (error: unknown) => {
   // The request interceptor puts the new token on it.
   return api.request(config)
 })
+
+// MAM-16 — every request tells the offline strip whether the server answered. Here rather than in
+// TanStack's onError hooks, which would miss the session refresh and every call made outside a
+// query or a mutation. Registered after the 401 interceptor, so it sees how a request finally ended
+// once any refresh and retry are done; the refresh and the retry pass through here themselves too.
+api.interceptors.response.use(
+  (response) => {
+    useConnectionStore.getState().markReachable()
+    return response
+  },
+  (error: unknown) => {
+    // Any answer at all, a 4xx or the API's own 5xx included, proves the server is there. A cancelled
+    // request (no response, but nobody waits for one) says nothing either way.
+    if (isServerUnreachable(error)) useConnectionStore.getState().markUnreachable()
+    else if (isAxiosError(error) && error.response) useConnectionStore.getState().markReachable()
+    throw error
+  },
+)
 
 let refreshInFlight: Promise<string> | null = null
 

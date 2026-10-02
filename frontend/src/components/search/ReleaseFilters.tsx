@@ -1,11 +1,12 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { Input } from '@/components/ui/input'
 import { languageName } from '@/lib/media-labels'
 import { bytesFromGibibytes } from '@/lib/size-input'
 import type { SearchFacets, SearchReleaseSort, SearchSource } from '@/lib/types'
-import '@/styles/settings-list.css' // .settings-toolbar, .settings-filter, .settings-error — the row of filters and its hint
-import '@/styles/search.css' // .search-filters, .search-size-* — the size pair and the hint under the row
+import '@/styles/settings-list.css' // .settings-toolbar, .settings-filter — the row of filters
+import '@/styles/search.css' // .search-filters, .search-size-* — the size pair, its invalid bounds and the line under the row
 
 /** What the release filters hold. `''` is "not filtered"; the sizes are the GiB text as typed. */
 export interface ReleaseFilterValues {
@@ -123,8 +124,10 @@ export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFil
           {SORTS.map((sort) => <option key={sort} value={sort}>{t(`filters.sorts.${sort}`)}</option>)}
         </select>
       </div>
+      {/* MAM-16 — the line under a form's field that broke a rule; the bound it is about has a red
+          border. */}
       {(minInvalid || maxInvalid) && (
-        <p id={sizeHintId} className="settings-error" role="alert">{t('filters.sizeInvalid')}</p>
+        <FieldErrorLine id={sizeHintId}>{t('filters.sizeInvalid')}</FieldErrorLine>
       )}
     </div>
   )

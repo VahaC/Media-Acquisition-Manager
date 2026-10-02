@@ -86,7 +86,7 @@
 }
 
 .library-source-status[data-status='Failed'] {
-  color: var(--destructive);
+  color: var(--text-danger);
 }
 
 /* Only the icon takes the amber: the status ambers reach about 3.3:1 on the light card, short of the
@@ -130,8 +130,8 @@
    icon, for the same contrast reason as the warning line above. */
 .ui-badge.library-badge-warning {
   gap: 0.25rem;
-  border-color: color-mix(in oklab, var(--status-attention) 55%, transparent);
-  background: color-mix(in oklab, var(--status-attention) 8%, transparent);
+  border-color: var(--tint-warning-border);
+  background: var(--tint-warning);
   color: var(--foreground);
 }
 
@@ -140,10 +140,18 @@
   color: var(--status-attention);
 }
 
-/* The title block and the identifier badges side by side on a wide screen; `.ui-card-header` is a
-   column, so two classes win over it whichever sheet loads first. */
-.ui-card-header.library-work-header {
-  flex-direction: row;
+/* MAM-16 — a work's card as the approved layout draws it: one grid of the head and the versions,
+   with padding of its own, rather than .ui-card-header over .ui-card-content. Two classes win over
+   `.ui-card` whichever sheet loads first. */
+.ui-card.library-work {
+  display: grid;
+  gap: 0.875rem;
+  padding: 1.25rem 1.5rem;
+}
+
+/* The title block and the badges side by side on a wide screen. */
+.library-work-header {
+  display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem 1rem;
@@ -167,6 +175,15 @@
   color: var(--muted-foreground);
 }
 
+/* The identifier badges over the versions switch, both at the card's right edge. No `min-width: 0`:
+   beside a long title the column keeps the width of the switch and of its widest badge, and the
+   title wraps instead. */
+.library-work-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+
 .library-work-ids {
   display: flex;
   flex-wrap: wrap;
@@ -175,7 +192,8 @@
   min-width: 0;
 }
 
-/* One block per version, separated by a line like the source rows. */
+/* One block per version, separated by a line like the source rows: the search page's Details
+   dialog (VersionItem). The cards list versions as rows or a table (below). */
 .library-versions {
   display: grid;
 }
@@ -278,13 +296,165 @@
 /* One track as a light outline chip, so "Ukrainian · AC-3 · 5.1" reads as one entry and the next
    track as another, and an entry wraps whole onto the next line. Not `.ui-badge`: its weight and
    padding would make a row of tracks outshout the identifier badges of the card's header. A chip
-   wider than a phone line breaks inside rather than widening the card. */
-.library-inspection-track {
+   wider than a phone line breaks inside rather than widening the card. A version's row (MAM-16)
+   sums its file up in the same chips. */
+.library-inspection-track,
+.library-version-chip {
   padding: 0 0.375rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* ── MAM-16: a card's versions as rows ── */
+
+/* Framed, with a line between two rows. `overflow: hidden` keeps a row's hover fill inside the
+   rounded corners, so the focus ring of a row is drawn inside it (below). */
+.library-version-rows {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.library-version-rows > li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* The label, the chips and the size; a version that opens is a button with a chevron before them. */
+.library-version-row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+button.library-version-row {
+  grid-template-columns: 16px 6rem minmax(0, 1fr) auto;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+/* A fill nested in a card is --muted (docs/design-system/readme.md): the dark --surface is darker
+   than the card. */
+button.library-version-row:hover {
+  background: var(--muted);
+}
+
+button.library-version-row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.library-version-chevron {
+  color: var(--muted-foreground);
+}
+
+.library-version-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.library-version-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.library-version-size {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A row that doesn't open among rows that do (a version without a file): its label lines up with
+   theirs, past the chevron's 16px and the gap after it. */
+.library-version-row-inset {
+  padding-left: 2.5rem;
+}
+
+/* The open part, under the label (past the chevron) when there is one. The approved layout draws a
+   version of one file; the files of a version of several are .75rem apart, three times the space
+   between the lines of one file, so where one file ends and the next begins reads at a glance. */
+.library-version-details {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.25rem 0.75rem 0.75rem;
+}
+
+button.library-version-row + .library-version-details {
+  padding-left: 2.5rem;
+}
+
+/* FileLines spaces its lines 2px apart for the Details dialog; here they are 4px apart, as the
+   approved layout draws them. */
+.library-version-details .library-file {
+  gap: 0.25rem;
+}
+
+/* ── MAM-16: a card's versions as a table ── */
+
+/* A table's own border can't be rounded; the frame around it is. Never wider than the card: the
+   columns share what is left after the labels, and a long value breaks anywhere. */
+.library-version-table-frame {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.library-version-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.library-version-table th,
+.library-version-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+/* One audio track, subtitle or file a line: a block of its own rather than a line break in one text
+   run, so a screen reader reads the tracks apart. */
+.library-version-table-line {
+  display: block;
+}
+
+.library-version-table tbody > tr > * {
+  border-top: 1px solid var(--border);
+}
+
+/* The labels: 7rem, muted. */
+.library-version-table tr > :first-child {
+  width: 7rem;
+  color: var(--muted-foreground);
+}
+
+/* The version names over their columns, on the nested fill of a card. */
+.library-version-table thead > tr > * {
+  background: var(--muted);
+}
+
+.library-version-table thead th {
+  font-weight: 600;
+}
+
+.library-version-table-file {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.library-version-table-caption {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
 }
 
 @media (max-width: 48rem) {
@@ -299,12 +469,30 @@
   }
 
   /* The badges under the title: beside it they would squeeze a long title into a narrow column. */
-  .ui-card-header.library-work-header {
+  .library-work-header {
     flex-direction: column;
+  }
+
+  .library-work-side {
+    justify-items: start;
   }
 
   .library-work-ids {
     justify-content: flex-start;
+  }
+
+  /* MAM-16 — owner's choice: a phone always shows the versions as rows, as a table of several
+     leaves a few characters a column at 375px. LibraryWorkCard renders the rows here too, through
+     useNarrowScreen at this same width; the choice stays stored for a wider screen. */
+  .library-work-view {
+    display: none;
+  }
+}
+
+/* The padding every other card has on a phone. */
+@media (max-width: 640px) {
+  .ui-card.library-work {
+    padding: 1rem;
   }
 }
 
@@ -312,5 +500,26 @@
   /* The icon only on a phone; the button keeps its label in title=, which also names it. */
   .library-source-actions .label-text {
     display: none;
+  }
+}
+
+/* On a phone the chips take a line of their own under the label and the size: beside them they
+   would have about 60px at 375px, a chip a line. */
+@media (max-width: 480px) {
+  .library-version-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  button.library-version-row {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+  }
+
+  .library-version-chips {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  button.library-version-row .library-version-chips {
+    grid-column: 2 / -1;
   }
 }

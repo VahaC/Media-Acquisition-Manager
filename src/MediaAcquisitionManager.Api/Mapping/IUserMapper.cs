@@ -11,6 +11,10 @@ public interface IUserMapper
     /// the user row, so the caller supplies it.</summary>
     CurrentUserResponse ToCurrentUser(UserEntity user, bool isOwner);
 
+    /// <summary>The signed-in user as their Profile page shows them, with when the session they call
+    /// from ends; the caller supplies both, as for <see cref="ToCurrentUser"/>.</summary>
+    CurrentUserProfileResponse ToProfile(UserEntity user, bool isOwner, DateTime sessionExpiresUtc);
+
     /// <summary>A signed-in session's answer: <paramref name="accessToken"/> for <paramref name="user"/>.</summary>
     SignInResponse ToSignInResponse(UserEntity user, bool isOwner, AccessToken accessToken);
 

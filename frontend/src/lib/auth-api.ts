@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { CurrentUser, SignInRequest, SignInResponse } from './types'
+import type { ChangePasswordRequest, CurrentUserProfile, SignInRequest, SignInResponse } from './types'
 
 export const authApi = {
   /**
@@ -31,6 +31,19 @@ export const authApi = {
     await api.post('/api/auth/sign-out')
   },
 
-  /** `GET /api/auth/me`. 200 with the signed-in user; 401 without a live session. */
-  me: async (): Promise<CurrentUser> => (await api.get<CurrentUser>('/api/auth/me')).data,
+  /**
+   * `GET /api/auth/me`. 200 with the signed-in user, when the account was created and last signed
+   * in, and when this session ends; 401 without a live session. MAM-16 — the Profile page's data.
+   */
+  me: async (): Promise<CurrentUserProfile> => (await api.get<CurrentUserProfile>('/api/auth/me')).data,
+
+  /**
+   * MAM-16 — `POST /api/auth/password`, the signed-in user's own password. 204: changed, every other
+   * session of the user has ended and this one stays (ADR 0016). 400 `{ error }`: a blank current
+   * password, a new one that breaks the rule, or a wrong current password — never a 401, which
+   * would read as an expired token. 429 after ten attempts in a minute by this user.
+   */
+  changePassword: async (request: ChangePasswordRequest): Promise<void> => {
+    await api.post('/api/auth/password', request)
+  },
 }

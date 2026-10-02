@@ -1,8 +1,10 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
+import { useConnectionStore } from '@/lib/connection-store'
 import { queryClient } from '@/lib/query-client'
 import { owner, sessionFor, signInAs } from '@/test/auth-session'
+import { resetConnectionStore } from '@/test/connection'
 
 interface Reply {
   status: number
@@ -59,6 +61,7 @@ describe('api', () => {
     api.defaults.adapter = originalAdapter
     Reflect.deleteProperty(navigator, 'locks')
     queryClient.clear()
+    resetConnectionStore()
   })
 
   it('sends the access token as a bearer header', async () => {
@@ -186,6 +189,8 @@ describe('api', () => {
     // Assert
     await expect(result).rejects.toMatchObject({ code: AxiosError.ERR_NETWORK })
     expect(useAuthStore.getState()).toMatchObject({ accessToken: 'token-1', status: 'authenticated' })
+    // MAM-16 — the refresh is a request like any other: the offline strip shows for it too.
+    expect(useConnectionStore.getState().unreachable).toBe(true)
   })
 
   it('hands a second 401 to the caller instead of refreshing again', async () => {
@@ -206,7 +211,6 @@ describe('api', () => {
     '/api/auth/sign-in',
     '/api/auth/refresh',
     '/api/auth/sign-out',
-    '/api/auth/me',
     '/api/setup',
   ])('never refreshes after a 401 from %s', async (url) => {
     // Arrange
@@ -219,6 +223,24 @@ describe('api', () => {
     await expect(result).rejects.toMatchObject({ response: { status: 401 } })
     expect(adapter).toHaveBeenCalledOnce()
     expect(useAuthStore.getState()).toMatchObject({ accessToken: 'token-1', status: 'authenticated' })
+  })
+
+  // MAM-16 — the Profile page's calls live under /api/auth/ too, but their 401 is an expired access
+  // token like anyone else's: left out, the page would read "Sign in to continue." after 15 minutes.
+  it.each([
+    ['get', '/api/auth/me'],
+    ['post', '/api/auth/password'],
+  ] as const)('refreshes once and retries once after a 401 from %s %s', async (method, url) => {
+    // Arrange
+    const adapter = serverThatRefreshesTo()
+
+    // Act
+    const response = await api[method](url)
+
+    // Assert
+    expect(response.data).toBe(`answer from ${url}`)
+    expect(bearersSentTo(adapter, REFRESH_URL)).toHaveLength(1)
+    expect(bearersSentTo(adapter, url)).toEqual(['Bearer token-1', 'Bearer token-2'])
   })
 
   it.each([
@@ -276,5 +298,75 @@ describe('api', () => {
     // Taking the lock and then refreshing after it was released would leave the tabs racing.
     expect(refreshedInsideLock).toEqual([true])
     expect(bearersSentTo(adapter, REFRESH_URL)).toHaveLength(1)
+  })
+})
+
+describe('api, on whether the server can be reached', () => {
+  const originalAdapter = api.defaults.adapter
+
+  beforeEach(() => {
+    signInAs(owner, 'token-1')
+  })
+
+  afterEach(() => {
+    api.defaults.adapter = originalAdapter
+    queryClient.clear()
+    resetConnectionStore()
+  })
+
+  it('marks the server unreachable when a request gets no response', async () => {
+    // Arrange
+    serve((config) => {
+      throw new AxiosError('Network Error', AxiosError.ERR_NETWORK, config)
+    })
+
+    // Act
+    const result = api.get('/api/things')
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ code: AxiosError.ERR_NETWORK })
+    expect(useConnectionStore.getState().unreachable).toBe(true)
+  })
+
+  it('marks the server unreachable when a proxy in front of it answers 502 with an empty body', async () => {
+    // Arrange — the Vite dev proxy, and a reverse proxy, while the API is stopped.
+    serve(() => ({ status: 502, data: '' }))
+
+    // Act
+    const result = api.get('/api/things')
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ response: { status: 502 } })
+    expect(useConnectionStore.getState().unreachable).toBe(true)
+  })
+
+  it.each([
+    ['a 200', { status: 200, data: 'answer' }],
+    ['a refusal', { status: 404, data: '' }],
+    ["the API's own 502 with its sentence", { status: 502, data: { error: 'Jellyfin could not be reached.' } }],
+  ])('marks it reachable again on the next answer, %s included', async (_, reply) => {
+    // Arrange
+    useConnectionStore.setState({ unreachable: true })
+    serve(() => reply)
+
+    // Act
+    await api.get('/api/things').catch(() => {})
+
+    // Assert
+    expect(useConnectionStore.getState().unreachable).toBe(false)
+  })
+
+  it('leaves the state alone for a cancelled request, which nobody waits for', async () => {
+    // Arrange
+    serve((config) => {
+      throw new AxiosError('canceled', AxiosError.ERR_CANCELED, config)
+    })
+
+    // Act
+    const result = api.get('/api/things')
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ code: AxiosError.ERR_CANCELED })
+    expect(useConnectionStore.getState().unreachable).toBe(false)
   })
 })
