@@ -8,8 +8,9 @@ release search), MAM-11 (qBittorrent's categories and the download destinations)
 search page of library copies and releases), MAM-13 (sending a release to qBittorrent), MAM-14
 (following each download in qBittorrent until it finishes) and MAM-16 (the approved layout: the
 search field in the header, numbered pages, versions as rows or a table, one error state per kind of
-failure, and a Profile page where every user changes their own password) are built; no phase has
-shipped yet.
+failure, and a Profile page where every user changes their own password) are built, and MAM-15
+checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
+access tokens) is still to do; no phase has shipped yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -204,8 +205,8 @@ existing file untouched.
   and the works holding the words of the title, one only through its file's path
   (`SearchesLibraryMatchingHttpTests.Create_lists_the_works_holding_every_word_of_the_title_after_the_matches`,
   `SearchReleasesMatchingHttpTests.Releases_are_never_matched_to_a_work_by_words`).
-  The page was checked in a browser at desktop and phone width against fake services, not yet
-  against the reference installation.
+  The page was checked in a browser at desktop and phone width against fake services; MAM-13,
+  MAM-15 and MAM-16 then used it against the reference installation.
 - **MAM-13 Send to client** (built): every signed-in user sends a release of their own search to a
   download client from the Search page's **Download** dialog (MAM-13's decision 1) — a client that
   can take it, one of its destinations with the default picked first, and a summary that says the
@@ -305,8 +306,20 @@ existing file untouched.
   and the list and the files of one's own jobs only
   (`DownloadsListHttpTests.List_of_the_installation_owner_holds_only_their_own_jobs`,
   `DownloadJobFilesHttpTests.Files_of_another_users_job_are_a_bare_404_even_for_the_installation_owner`).
-- **MAM-15 Phase A acceptance:** run the acceptance bar below against the live installation and
-  record which integrations were tested live and which remain unverified.
+- **MAM-15 Phase A acceptance** (done): the acceptance bar below, checked on 2026-10-03 against the
+  reference installation — Jellyfin 12.1.0, Prowlarr 2.6.5 serving the Toloka.to indexer, and
+  qBittorrent 5.2.4 — through the app run from the repository. The header search "Sherlock Holmes
+  (2009)" found the movie in `/media/movies/Guy Ritchie. Collection` where it is, beside Toloka's 12
+  releases. With the Torznab feed pointed for one search at an indexer Prowlarr doesn't have, the
+  Search page still showed the library's match and said under Available releases what Prowlarr
+  answered (404); the address was then put back. MAM-13's request of 2026-10-02, sent again with its
+  request id, answered with the same job, and the same Toloka release from a new search was refused
+  as already sent: still two jobs and two `DownloadRequested` audit rows, and nothing added to
+  qBittorrent. The destination Movies is qBittorrent's category `Movies`, which saves into the
+  Jellyfin library "Фільми", where MAM-13's send landed with no save path. A library sync afterwards
+  listed each of the 866 files of the 2026-10-01 sync at the same path with the same size. What was
+  tried live, and what wasn't, is in the README's [Tested with](README.md#tested-with) and the
+  release note.
 - **MAM-16 Approved layout** (built): the web app takes the layout the owner approved on
   2026-10-02 (`docs/design-system/design_handoff_approved_layout/README.md`), with the ticket's plan
   deciding where the brief is wrong about the code. The header stays at the top of the window and
@@ -400,7 +413,8 @@ and is limited per user (`AuthPasswordHttpTests`); no Phase A code path writes t
 **Acceptance bar:** a movie in a `Collection` folder can be found without moving it; Toloka (or
 another indexer) appears in search when its integration actually works, and a Toloka failure shows
 an explicit source-specific error; retrying the same command does not create duplicate jobs; the
-category determines the expected destination without an overriding path.
+category determines the expected destination without an overriding path. Met on the reference
+installation on 2026-10-03 (MAM-15), with no existing file moved, changed or removed.
 
 ### Phase B — Scanner and duplicates
 

@@ -179,6 +179,52 @@ application.
   configure; the container reports healthy only when the database is ready. See
   [Quick start](#quick-start-docker-compose) and [Deployment](#deployment).
 
+### Tested with
+
+The integrations were tried against the reference installation, whose recorded answers are the
+adapters' test samples, through the app run from this repository. MAM-15 checked Phase A's
+acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed too.
+
+| Service | Version tried | Used as |
+| --- | --- | --- |
+| Jellyfin | 12.1.0 | Media library |
+| Prowlarr, serving the Toloka.to indexer over Torznab | 2.6.5, read on 2026-09-29 (a Torznab feed doesn't say its version) | Release source |
+| qBittorrent | 5.2.4 | Download client |
+
+- **Jellyfin:** the connection test, and syncs of all its movies, collections included (876 items
+  on 2026-10-03). The header search "Sherlock Holmes (2009)" found the movie inside
+  `/media/movies/Guy Ritchie. Collection` where it is, matched by title and year. A sync after
+  every other check listed each of the 866 files of the 2026-10-01 sync at the same path with the
+  same size: nothing was moved, changed or removed.
+- **Prowlarr and Toloka:** the connection test, and searches by title and year — "Interstellar"
+  2014 answered 16 movie releases on 2026-10-01, "Sherlock Holmes" 2009 answered 12 on 2026-10-03,
+  six of them matched to the copy in the library. With the feed pointed for one search at an
+  indexer Prowlarr doesn't have, the Search page said under **Available releases** "Prowlarr ·
+  Answered in a way this app can't read. Nothing answers Torznab at this address (404 Not Found)…"
+  and still showed the library's match. On 2026-10-02 a release was fetched through Prowlarr for a
+  download, and a fetch Prowlarr failed ("Download failed") ended its job `Failed` with that
+  sentence, having sent nothing.
+- **qBittorrent:** the connection test, its four categories and their folders, and the destination
+  Movies landing in the Jellyfin library "Фільми" at `/media/movies` (2026-10-01). On 2026-10-02 a
+  release went into the category Movies with automatic torrent management and no save path, and was
+  confirmed by the info hash the app worked out. On 2026-10-03 that request, sent again with its
+  request id, answered with the same job, and the same release from a new search was refused as
+  already sent: still two jobs, and nothing added to qBittorrent. The background passes that follow
+  a job ran against it too, for a torrent qBittorrent no longer lists.
+
+Not tried live yet:
+
+- Jackett, other gateways and indexers, and a feed that searches by IMDb or TMDb id, lists them or
+  gives magnet links.
+- qBittorrent before 5.2 — the answers of 4.4.1 to 5.1 are written from qBittorrent's source — and
+  a qBittorrent on a Windows host.
+- A Jellyfin older than 12.1 (the app takes 10.9 and later), and one that merges several versions
+  into one item, which the reference installation never does.
+- A download followed through `Downloading` to `Downloaded`, a paused one, a job's files, and a job
+  that needs linking.
+- The file inspection on the installation's own files: ffprobe's real answers are the parser's
+  samples, and no inspection of that media folder by the app is recorded.
+
 ### What it will do
 
 - **Link a download by hand.** Tie a job the app couldn't tell apart from the client's other
@@ -757,8 +803,8 @@ answers, the stored rows or the log). The rules are tested on their own in the c
 `TitleMatchKeyTests`, `ReleaseWorkClaimsTests`, `WorkMatchingTests` and
 `SearchReleaseListRulesTests` — and in Infrastructure the ids a listing gives
 (`TorznabAdapterSearchIdentifiersTests`) and the new tables' keys (`SearchPersistenceTests`). The
-Search page was checked in a browser at desktop and phone width against fake services; it has not
-been tried against the reference installation yet.
+Search page was checked in a browser at desktop and phone width against fake services, and later
+against the reference installation (see [Tested with](#tested-with)).
 
 The download destinations are tested against the real qBittorrent 5.2.3 answers: the adapter lists
 the categories of `categories.json` with their folders, and qBittorrent's recorded answer to a

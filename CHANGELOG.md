@@ -977,6 +977,31 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   download job of yours at this address. It may belong to someone else, or the link is wrong."
   `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and
   `JobProgress.test.tsx` pin it.
+- **Phase A's acceptance bar holds on the reference installation, and the README and the release
+  note say which integrations were tried live and which weren't (MAM-15).** Checked on 2026-10-03
+  through the app run from the repository against Jellyfin 12.1.0, Prowlarr 2.6.5 serving the
+  Toloka.to indexer, and qBittorrent 5.2.4. The header search "Sherlock Holmes (2009)" found the
+  movie inside `/media/movies/Guy Ritchie. Collection` where it is, matched by title and year,
+  beside Toloka's 12 releases, six of them matched to it. With the Torznab feed pointed for one
+  search at an indexer Prowlarr doesn't have (`/999/api`, its key kept), the Search page still
+  showed that match and said under Available releases "Prowlarr · Answered in a way this app can't
+  read. Nothing answers Torznab at this address (404 Not Found)…"; the address was then put back,
+  and both changes are `IntegrationUpdated` audit rows. MAM-13's request of 2026-10-02, sent again
+  with its request id, answered 200 with that same job, and the same release (Toloka's topic
+  `t126881`) from a new search answered 409 "This release was already sent to “qBittorrent”, so it
+  isn't sent twice."; the database still held two jobs and two `DownloadRequested` audit rows, and
+  the following passes still found the torrent missing from qBittorrent, removed there since
+  MAM-13's check, so nothing was added. The destination Movies is qBittorrent's category `Movies`,
+  saving to `/downloads/movies` (`/media/movies` for the app) inside the Jellyfin library "Фільми",
+  and MAM-13's send landed there under automatic torrent management with no save path. A library
+  sync afterwards (876 items, 872 files) listed each of the 866 files of the 2026-10-01 sync at the
+  same path with the same size; the six new files are a collection added outside the app. Not tried
+  live yet: Jackett and other gateways and indexers, a feed that searches by IMDb or TMDb id, lists
+  them or gives magnet links, qBittorrent before 5.2 or on a Windows host, a Jellyfin older than
+  12.1 or one that merges versions, a download followed to `Downloaded`, a paused one, a job's files
+  and a job that needs linking, and the file inspection on the installation's own files. The README
+  (**Tested with**) and the release note list both; the README's and the roadmap's MAM-12 lines no
+  longer say the Search page wasn't tried against the reference installation.
 - **Every signed-in user changes their own password by giving the current one, which ends their
   other sessions and keeps this one (MAM-16, ADR 0016).** `POST /api/auth/password` takes
   `{ currentPassword, newPassword }` and answers 204. In one transaction it stores the new hash,
