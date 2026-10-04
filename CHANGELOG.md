@@ -5,6 +5,26 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 [semantic versioning](https://semver.org/) — released as tags of the Docker image
 `vahac/media-acquisition-manager`.
 
+## [0.2.0] — 2026-10-04
+
+### Added
+
+- **Duplicate detection will cover episodes as well as movies, and where the library's files come
+  from was measured (MAM-17, ADR 0017, ADR 0018).** Specification §7 questions 3 and 6 are answered
+  against the reference installation. Vasyl chose movies and TV in full: series, seasons and
+  episodes will be imported from Jellyfin in every library (MAM-32). An episode is a work known by
+  its own IMDb and TVDB ids and by its series' ids with its season and episode numbers, never by
+  Jellyfin's series item, as The Grand Tour is four of them; a series' TMDb id never matches a
+  movie's. Whether an item is a movie or an episode is the library's word alone: the 38 episodes
+  Jellyfin lists as movies stay movies, and no file name changes that. On the media disk no file
+  has a second name; 822 of the 1394 video files in the library folders are a seeding torrent's own
+  data and 571 belong to no torrent; Radarr has never imported a file; and no two of those video
+  files have the same size. A seeding file is a duplicate like any other, so Phase B reads no
+  download client. Jellyfin's answers for series, seasons and episodes are new samples in
+  `tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/Jellyfin/`, among them an episode
+  item that holds 65 different episodes and a virtual episode whose only media source is a
+  placeholder without a path.
+
 ## [0.1.0] — 2026-09-28
 
 ### Added

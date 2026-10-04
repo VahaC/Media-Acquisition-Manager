@@ -2,7 +2,9 @@
 
 Real answers from the reference installation, collected on 2026-09-29 for MAM-6, so the connection
 tests of MAM-7 and the adapters of MAM-8 to MAM-11 are tested against what the services actually send
-rather than against their documentation. `RepositoryPaths.VendorSamples` points here.
+rather than against their documentation. MAM-17 added Jellyfin's series, seasons and episodes on
+2026-10-04, from the same Jellyfin, for the import of MAM-32. `RepositoryPaths.VendorSamples` points
+here.
 
 | Service | Version |
 | --- | --- |
@@ -38,6 +40,9 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Jellyfin/system-info.json` | `GET /System/Info` | Answers only with a valid key |
 | `Jellyfin/virtual-folders.json` | `GET /Library/VirtualFolders` | Five libraries; `movies` and `tvshows` have a collection type, the cartoon and documentary libraries have none (mixed), and the `boxsets` library lives in Jellyfin's config, not in the media folder |
 | `Jellyfin/movies-page.json` | `GET /Items?recursive=true&includeItemTypes=Movie&collapseBoxSetItems=false&fields=Path,MediaSources,ProviderIds,OriginalTitle,DateCreated&sortBy=SortName&sortOrder=Ascending&startIndex=…&limit=100&enableImages=false&enableUserData=false&enableTotalRecordCount=true` (four picked from the 870) | Four movies, see below. The envelope is rebuilt around them, so `TotalRecordCount` is the library's 870, not the items in the file: paging tests need pages of their own |
+| `Jellyfin/series-page.json` | `GET /Items?recursive=true&includeItemTypes=Series&collapseBoxSetItems=false&fields=Path,MediaSources,ProviderIds,OriginalTitle,DateCreated,ParentId&sortBy=SortName&sortOrder=Ascending&startIndex=…&limit=200&enableImages=false&enableUserData=false&enableTotalRecordCount=true` (five picked from the 10, 2026-10-04, MAM-17) | Yellowstone and Clarkson's Farm in the TV library, How the Universe Works and Mickey Mouse Clubhouse in the mixed libraries, and The Penguins of Madagascar, which Jellyfin named after its folder and gave no ids. The envelope is rebuilt like `movies-page.json`'s, around the real total |
+| `Jellyfin/seasons-page.json` | The same with `includeItemTypes=Season` (four picked from the 25) | The seasons of the picked episodes, Mickey Mouse Clubhouse's virtual "Specials", without a path, among them |
+| `Jellyfin/episodes-page.json` | The same with `includeItemTypes=Episode` (six picked from the 471) | An ordinary episode (Yellowstone S01E01); the Tom & Jerry Kids item, one episode with 65 media sources and no series; a documentary episode in a mixed library; the two halves of Mickey Mouse Clubhouse S03E09, with the same numbers and ids; and a virtual special whose one media source is a `Placeholder` without a path |
 | `QBittorrent/app-version.txt`, `webapi-version.txt`, `build-info.json` | `GET /api/v2/app/...` | Versions |
 | `QBittorrent/categories.json` | `GET /api/v2/torrents/categories` | Four categories, each saving to the folder of one Jellyfin library, under qBittorrent's `/downloads` |
 | `QBittorrent/preferences.json` | `GET /api/v2/app/preferences` (allowlisted) | Automatic torrent management on, no separate folder for incomplete downloads, content layout `Original` |
@@ -75,8 +80,28 @@ The four movies in `movies-page.json`:
   movies into collections" setting only for a user: without one, a query for movies collapses box
   sets whatever that setting says. So the library sync sends `collapseBoxSetItems=false` with every
   page, and turning the setting off in Jellyfin would change nothing.
-- **Jellyfin never merged versions here.** None of the 870 movies has more than one media source;
-  15 TMDb ids belong to two or more items instead. 222 movies have no TMDb id and 210 no IMDb id.
+- **A Jellyfin series is not a series, and an episode item not an episode** (MAM-17,
+  [ADR 0017](../../../docs/adr/0017-an-episode-is-a-work-known-by-registry-ids-and-the-library-alone-says-what-an-item-is.md)).
+  The Grand Tour is four series items, one per season folder, all with the same ids, and its three
+  season-5 files lie in no series item at all. Jellyfin made the 65 files of the Tom & Jerry Kids
+  folder, 65 different episodes, one episode with 65 media sources and no series; it gave the two
+  halves of eight Mickey Mouse Clubhouse episodes (`S03E09a`, `S03E09b`) the same numbers and ids,
+  and "The Golden Boo Boo" (S03E31) the ids of "Donald Hatches an Egg" (S03E33). The mixed
+  libraries hold movies and series side by side (Мульфільми: 194 movies, 314 episodes in 2 series
+  and one episode item in none; Документалки: 35 movies, 1 series with 16 episodes), and 38 movie
+  items are episodes by their names: The Continental's S01E01–03 in the movie library, sharing one
+  IMDb id, and in the documentary library Greatest Events of World War II in Colour's S01E01–10
+  and the 25 episodes of Planet Earth, Planet Earth II and Planet Earth III, without ids.
+- **Episodes carry other ids than movies** (MAM-17). Of the 471 episodes, 287 have an IMDb id and
+  301 a TVDB id of their own, none a TMDb id; 9 of the 10 series items have IMDb, TMDb and TVDB ids,
+  the Penguins of Madagascar none. `SeriesId`, `SeasonId`, `ParentIndexNumber` and `IndexNumber`
+  came without being asked for in `fields`.
+- **A virtual episode has a media source too** (MAM-17). The 31 virtual episodes (`LocationType`
+  `Virtual`), 22 of them specials, each list one media source with protocol `File` and no path (the
+  sampled one is of type `Placeholder`): an import must not take it for a file.
+- **Jellyfin never merged movie versions here.** None of the 870 movies has more than one media
+  source; 15 TMDb ids belong to two or more items instead. 222 movies have no TMDb id and 210 no
+  IMDb id.
 - **Jellyfin 12** accepted the API key in `Authorization: MediaBrowser Token="…"`. By its source,
   `X-Emby-Token` and `api_key` work only while legacy authorization is switched on, and 12 switches
   it off by default.

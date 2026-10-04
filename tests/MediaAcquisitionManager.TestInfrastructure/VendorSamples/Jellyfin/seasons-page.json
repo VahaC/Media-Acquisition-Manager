@@ -1,0 +1,115 @@
+{
+  "Items": [
+    {
+      "Name": "Сезон 1",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "7087ff3538867f9a651a87f68b7f580d",
+      "DateCreated": "2025-04-29T15:46:05.3530811Z",
+      "PremiereDate": "2018-06-19T21:00:00.0000000Z",
+      "Path": "/media/tv-shows/Yellowstone/Yellowstone.2018.S01.WEBRip.1080p",
+      "ChannelId": null,
+      "ProductionYear": 2018,
+      "IndexNumber": 1,
+      "ProviderIds": {
+        "Tvdb": "747299"
+      },
+      "IsFolder": true,
+      "ParentId": "bad3e58c7b81156c7bccd6235599accd",
+      "Type": "Season",
+      "SeriesName": "Yellowstone",
+      "SeriesId": "bad3e58c7b81156c7bccd6235599accd",
+      "PrimaryImageAspectRatio": 0.6666666666666666,
+      "SeriesPrimaryImageTag": "7060953c5bc967a2e947ecc514b77a37",
+      "ImageBlurHashes": {
+        "Primary": {
+          "7060953c5bc967a2e947ecc514b77a37": "dUDlp2%Lx[%2~pxtxtxtxFRjbHt7IUM|WBWCNHj?V@M|"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown"
+    },
+    {
+      "Name": "Сезон 1",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "427bfd21c9e11effba317a1d009bbc00",
+      "DateCreated": "2026-04-17T22:30:49.0988306Z",
+      "PremiereDate": "2010-04-24T21:00:00.0000000Z",
+      "Path": "/media/documentary/How the Universe Works (Seasons 1-2) (2010-2012) WEB-DL 1080p [Hurtom]/How.the.Universe.Works.2010.S01.AMZN.WEB-DL.1080p",
+      "ChannelId": null,
+      "ProductionYear": 2010,
+      "IndexNumber": 1,
+      "ProviderIds": {},
+      "IsFolder": true,
+      "ParentId": "d0d8035e1431be7c3631b3cf6e1e266b",
+      "Type": "Season",
+      "SeriesName": "How the Universe Works",
+      "SeriesId": "d0d8035e1431be7c3631b3cf6e1e266b",
+      "PrimaryImageAspectRatio": 0.6666666666666666,
+      "SeriesPrimaryImageTag": "658e4aa24e972c31d2f4af570181385c",
+      "ImageBlurHashes": {
+        "Primary": {
+          "658e4aa24e972c31d2f4af570181385c": "d668Eex]9FRk-;M{IToe-:V@IUM{~qofD*V[-;M{IUt7"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown"
+    },
+    {
+      "Name": "Season 3",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "424ae277b253680bf2587cb74656e86a",
+      "DateCreated": "2026-06-30T11:44:02.8579592Z",
+      "PremiereDate": "2010-02-26T22:00:00.0000000Z",
+      "Path": "/media/cartoons/Mickey Mouse Clubhouse WEB-DL 1080p [Hurtom] by urij546724/Mickey Mouse Clubhouse (2010-2012) [S3] [ukr_eng] WEB-DL 1080p [Hurtom] by urij546724",
+      "ChannelId": null,
+      "ProductionYear": 2010,
+      "IndexNumber": 3,
+      "ProviderIds": {
+        "Tvdb": "205721"
+      },
+      "IsFolder": true,
+      "ParentId": "5d35cbe1d774979d932ee85791c466db",
+      "Type": "Season",
+      "SeriesName": "Mickey Mouse Clubhouse",
+      "SeriesId": "5d35cbe1d774979d932ee85791c466db",
+      "PrimaryImageAspectRatio": 0.6666666666666666,
+      "SeriesPrimaryImageTag": "01de7f6467277e81d5abec6fc8256006",
+      "ImageBlurHashes": {
+        "Primary": {
+          "01de7f6467277e81d5abec6fc8256006": "dlG0B{KgR,xs.Tw}W?t7tUxuWFRQ-=bbNwRjnoRko}tR"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown"
+    },
+    {
+      "Name": "Specials",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "5c87923f585cb1e41f825cd8ece847f8",
+      "DateCreated": "2026-06-30T12:15:14.5775692Z",
+      "PremiereDate": "2007-03-19T22:00:00.0000000Z",
+      "ChannelId": null,
+      "ProductionYear": 2007,
+      "IndexNumber": 0,
+      "ProviderIds": {
+        "Tvdb": "27251"
+      },
+      "IsFolder": true,
+      "ParentId": "5d35cbe1d774979d932ee85791c466db",
+      "Type": "Season",
+      "SeriesName": "Mickey Mouse Clubhouse",
+      "SeriesId": "5d35cbe1d774979d932ee85791c466db",
+      "PrimaryImageAspectRatio": 0.6666666666666666,
+      "SeriesPrimaryImageTag": "01de7f6467277e81d5abec6fc8256006",
+      "ImageBlurHashes": {
+        "Primary": {
+          "01de7f6467277e81d5abec6fc8256006": "dlG0B{KgR,xs.Tw}W?t7tUxuWFRQ-=bbNwRjnoRko}tR"
+        }
+      },
+      "LocationType": "Virtual",
+      "MediaType": "Unknown"
+    }
+  ],
+  "TotalRecordCount": 25,
+  "StartIndex": 0
+}

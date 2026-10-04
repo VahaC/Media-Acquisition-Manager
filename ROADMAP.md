@@ -10,14 +10,16 @@ search page of library copies and releases), MAM-13 (sending a release to qBitto
 search field in the header, numbered pages, versions as rows or a table, one error state per kind of
 failure, and a Profile page where every user changes their own password) are built, and MAM-15
 checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
-access tokens) is still to do; no phase has shipped yet.
+access tokens) is still to do; no phase has shipped yet. Phase B, release 0.2.0, has started: MAM-17
+answered specification §7 questions 3 and 6 against the live installation on 2026-10-04.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`. Releases for phases B–D are not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32. Releases for
+phases C and D are not decided yet.
 
 ## Phases
 
@@ -72,7 +74,8 @@ existing file untouched.
   The app runs beside them with its own sign-in, published on the local network at port 8118. Real,
   sanitized answers of every service are the adapters' test fixtures
   (`tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/`). Questions 3, 4 and 6 stay
-  open and are listed under Phases B and C.
+  open and are listed under Phases B and C (MAM-17 has since answered 3 and 6 for Phase B; their
+  replacement side is MAM-23's).
 - **MAM-7 Core model and integration settings** (built): the core entities of specification §4
   that Phase A needs — works, their titles and identifiers, versions, physical files, releases,
   download jobs and destinations — where every title, identifier, version, file and release names
@@ -399,8 +402,8 @@ existing file untouched.
   back it up there.
 
 **Out of scope:** removing, moving or replacing any library file (Phase C); duplicate detection
-(Phase B); a second search or client adapter, Plex and Emby (Phase D); TV shows (specification
-§7 question 3, which MAM-6 leaves open for Phases B and C).
+(Phase B); a second search or client adapter, Plex and Emby (Phase D); TV shows (Phase B, where
+MAM-17 answered specification §7 question 3 and MAM-32 imports them).
 
 **Tests:** every endpoint over real HTTP, with vendor APIs faked at the network seam; a failing
 source returns its own error while the other sources still answer; submitting the same release
@@ -418,46 +421,60 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
+**Release:** 0.2.0. **Tickets:** MAM-17 to MAM-22 and MAM-32.
+
 **Complexity:** Medium
-**Value:** see which files are true duplicates, which are other versions of the same movie, and
-how much space could really be recovered — without the app guessing.
+**Value:** see which files are true duplicates, which are other versions of the same movie or
+episode, and how much space could really be recovered — without the app guessing.
 
 **Scope:**
 
-- Scan the allowed roots for files no library reported, inside them only and without following
-  links out of them — the rules MAM-9's inspection already applies to the library's own files
-  (ADR 0009).
+- **MAM-17 Media types and file origins** (done): specification §7 questions 3 and 6 answered
+  against the reference installation on 2026-10-04. Duplicate detection covers movies and episodes
+  in every library (Vasyl's decision). An episode is a work known by its own IMDb and TVDB ids and
+  by its series' ids with its season and episode numbers, never by Jellyfin's series item (The Grand
+  Tour is four), and the library alone says whether an item is a movie or an episode: the 38
+  episodes Jellyfin lists as movies (The Continental, Greatest Events of World War II in Colour,
+  Planet Earth I–III) stay movies, as the library stays as it is
+  ([ADR 0017](docs/adr/0017-an-episode-is-a-work-known-by-registry-ids-and-the-library-alone-says-what-an-item-is.md)).
+  No file on the media disk has a second name: 822 of the 1394 video files in the library folders
+  (4.07 of 7.31 TiB) are a seeding torrent's own data and 571 belong to no torrent; Radarr, which
+  Vasyl doesn't use, has never imported a file; and no two of those video files have the same size.
+  A seeding file is a duplicate like any other, so Phase B reads no download client (Vasyl's
+  decision, [ADR 0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
+  Jellyfin's real answers for series, seasons and episodes are new adapter samples.
+- Import series, seasons and episodes from Jellyfin, in every library, as works with versions and
+  files like movies, and list them on the Library page (MAM-32, ADR 0017).
+- Scan the allowed roots for files no library reported, movies' and episodes' alike, inside them
+  only and without following links out of them — the rules MAM-9's inspection already applies to
+  the library's own files (ADR 0009).
 - Account for hardlinks (same device and inode, which MAM-9 records on every file name with its link
   count), and hash candidate files lazily, with the hash cache keyed by file identity, size and
   modification time like MAM-9's inspection cache.
 - Separate the duplicate classes of specification §3.3: the same file or a hardlink,
-  byte-identical copies, other versions of the same work, and possible matches.
+  byte-identical copies, other versions of the same work — a registry id the files share, for an
+  episode its own or its series' with its numbers (ADR 0017) — and possible matches. A seeding file
+  is classed like any other (ADR 0018).
 - A Duplicates page with a filter per class and the evidence behind each grouping; a recoverable
   space estimate only where the storage relationship is known.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
-  by rescanning, so they need no export of their own.
+  by rescanning, so they need no export of their own; the series, seasons and episodes come back
+  with the next sync, like the movies.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
-Phase C.
-
-**Open questions (specification §7, left open by MAM-6):**
-
-- Question 3: does the scan cover TV shows, seasons, anime and documentaries, or movies only? On
-  the reference installation the movie library holds a TV miniseries too, the cartoon library mixes
-  movies and series, and the documentary library holds series.
-- Question 6: are the library files original seeding files, hardlinks of them, or independent
-  copies? It decides how often two names share one set of bytes, and so how much space a
-  duplicate really takes. None of the files MAM-6 listed had a second link, so those at least are
-  not hardlinks; Radarr, which runs beside qBittorrent, was not inspected and may import files its
-  own way.
+Phase C. Searching releases for an episode, and downloading one, which no phase plans yet. Letting a
+file name decide what a library item is (ADR 0017).
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
-versions; conflicting IDs require manual review.
+versions; conflicting IDs require manual review; a series known by several library items is one
+series, and a movie and a series sharing a TMDb number stay apart; a seeding file is classed like
+any other.
 
-**Acceptance bar:** two hardlink names do not inflate occupied space; movies with similar names or
-years are not merged incorrectly; different cuts are not deleted; conflicting IDs require manual
-review.
+**Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
+similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
+require manual review. The reference installation has no hardlinks and no two video files of one
+size (MAM-17), so there the first criterion and a byte-identical pair of videos rest on the tests.
 
 ### Phase C — Safe replacement
 
@@ -482,17 +499,16 @@ downloaded, verified and visible in Jellyfin, and you can get it back.
 **Out of scope:** automatic quarantine cleanup (it needs retention and disk-space policies first),
 Jellyfin's `DELETE /Items/{id}`, and deleting a torrent or its data from the client.
 
-**Open questions (specification §7, left open by MAM-6):**
+**Open questions (specification §7, for MAM-23):**
 
 - Question 3: can a replacement target an episode or a season, or only a movie?
 - Question 4: which quarantine mode and retention period, and is a second manual approval needed
   before a quarantined file is finally deleted?
-- Question 6: are the old files original seeding files, hardlinks of them, or independent copies?
-  A seeding file must stay untouched (specification §3.4, check 6), so the answer decides how often
-  a replacement can move the old copy at all. On the reference installation torrents download
-  straight into the library folders, so an old copy is often a seeding torrent's own data; how often
-  was not measured
-  ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
+- Question 6, for replacement: what replacing means when the old copy is a seeding torrent's own
+  data, which a replacement must leave untouched (specification §3.4, check 6). MAM-17 measured how
+  often that is: 822 of the 1394 video files in the library folders (4.07 of 7.31 TiB) are a
+  seeding torrent's own data, 571 belong to no torrent, and no file has a second name
+  ([ADR 0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
 
 **Tests:** each failure case of the acceptance bar ends in `NeedsReview` or `Failed` with the old
 file untouched; a successful replacement writes the audit trail and leaves a restorable

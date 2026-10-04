@@ -231,3 +231,14 @@ the stored folders.
 `QBittorrentCategoryPathsTests.FolderOf_a_category_under_a_default_save_path_with_a_leading_double_slash_is_unknown`
 and `QBittorrentAdapterDestinationsTests.ListDestinations_lists_a_windows_hosts_unc_category_and_its_subcategory_inside_that_share`
 pin the network folders.
+
+## Measured (added 0.2.0, MAM-17)
+
+What the Context left unmeasured was measured on 2026-10-04. Of the 1394 video files in the library
+folders (7.31 TiB), 822 (4.07 TiB) are the own data, at the path qBittorrent wrote, of a complete
+torrent seeding (768) or queued to seed (54); one is a torrent still downloading, and 571 (3.22 TiB)
+belong to no torrent; no file on the filesystem has a second name. Radarr, which runs here too,
+mounts the same folder at `/downloads`, uses qBittorrent's `/downloads/movies` as its root folder
+and has never imported a file. So most library files here are a seeding torrent's data; what
+replacing one means is MAM-23's decision. The figures, and why seeding plays no part in a
+duplicate, are in [ADR 0018](0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md).

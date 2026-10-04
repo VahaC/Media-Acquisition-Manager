@@ -2,7 +2,8 @@
 
 # Media Acquisition Manager
 
-**Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built. Today the app is an
+**Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built, and Phase B
+(release 0.2.0, the version the app now reports) has started. Today the app is an
 API and a web shell that report their own health, with accounts, integration settings and the
 library: the installation owner created on first run, the users the owner manages, sign-in, and a
 Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
@@ -961,15 +962,16 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16).
+of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
    destinations, submission and status tracking, and persisted jobs. Search and download must work
    while leaving existing files untouched.
-2. **Phase B: inventory and duplicate detection.** Scan the allowed folders for files no library
-   reported, count hardlinks once, and hash candidate files when useful. Label exact, same-work, and
-   possible matches separately.
+2. **Phase B: inventory and duplicate detection (release 0.2.0).** Import series, seasons and
+   episodes from Jellyfin beside the movies, scan the allowed folders for files no library reported,
+   count hardlinks once, and hash candidate files when useful. Label exact, same-work, and possible
+   matches separately, for movies and episodes alike.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different
@@ -979,11 +981,11 @@ of each, and the tickets of Phase A (MAM-1 to MAM-16).
 ## Project documentation
 
 - [Development specification](docs/Media_Acquisition_Manager_Spec.md) — requirements, the data
-  model, acceptance criteria for each phase, and the open questions (§7) that Phase A answers
-  against the real installation before configuring live integrations.
+  model, acceptance criteria for each phase, and the open questions (§7), answered against the
+  real installation by MAM-6 in Phase A and MAM-17 in Phase B.
 - [Roadmap](ROADMAP.md) and [Changelog](CHANGELOG.md).
 - [Publishing](PUBLISHING.md) — the Jenkins pipeline, the image tags and how to cut a release.
-- [Release notes](frontend/src/release-notes/0.1.0.md) — the user-facing What's new, one file per
+- [Release notes](frontend/src/release-notes/) — the user-facing What's new, one file per
   version.
 - Architecture decision records live in `docs/adr/`; new ones start from the
   [template](docs/adr/0000-template.md).
