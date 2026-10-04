@@ -169,6 +169,51 @@ public sealed class IntegrationsDeleteHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Fact]
+    public async Task Delete_of_a_media_library_purges_its_series_episodes_and_their_positions()
+    {
+        //Arrange
+        // MAM-32 — two servers with the same sample series and episodes: whatever stays is the other's.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var removed = await _integrations.Create("jellyfin", "Living room", apiKey: "stored-api-key-1234");
+        var kept = await _integrations.Create("jellyfin", "Bedroom", SecondJellyfinAddress, apiKey: "stored-api-key-5678");
+        var servers = new[] { new FakeJellyfinServer(), new FakeJellyfinServer(SecondJellyfinAddress) };
+        foreach (var server in servers)
+        {
+            server.Movies.Clear();
+            server.Series.AddRange(JellyfinSamples.Series());
+            server.Episodes.AddRange(JellyfinSamples.Episodes());
+        }
+
+        FakeJellyfinServer.Arm(_factory.JellyfinHttp, servers);
+        var snapshots = new LibrarySnapshotSeeder(_factory.Scope);
+        await snapshots.Sync(removed, _owner.User);
+        await snapshots.Sync(kept, _owner.User);
+
+        //Act
+        var response = await _factory.DeleteHttpRequest($"{BaseUrl}/{removed.Id}", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            // The other library's 5 series and 4 episodes with their 5 positions, and nothing of the removed
+            // one's: its series and episodes went with their facts.
+            var works = await db.MediaWorks.ToListAsync(cancellationToken);
+            var positions = await db.MediaEpisodePositions.ToListAsync(cancellationToken);
+            Assert.Equal((5, 4), (works.Count(work => work.Kind == MediaWorkKind.Series), works.Count(work => work.Kind == MediaWorkKind.Episode)));
+            Assert.Equal(5, positions.Count);
+            Assert.All(positions, position => Assert.Equal(kept.Id, position.SourceConnectionId));
+            var workIds = works.Select(work => work.Id).ToHashSet();
+            Assert.All(positions, position =>
+            {
+                Assert.Contains(position.MediaWorkId, workIds);
+                Assert.True(position.SeriesWorkId is null || workIds.Contains(position.SeriesWorkId.Value));
+            });
+            Assert.All(await db.MediaWorkTitles.ToListAsync(cancellationToken), title => Assert.Equal(kept.Id, title.SourceConnectionId));
+        });
+    }
+
+    [Fact]
     public async Task Delete_of_a_release_source_keeps_its_releases_with_the_source_name()
     {
         //Arrange
@@ -191,6 +236,33 @@ public sealed class IntegrationsDeleteHttpTests : IClassFixture<MediaAcquisition
             Assert.Equal("Toloka", row.SourceName);
             Assert.Equal(ProvenanceSourceKind.ReleaseSearch, row.SourceKind);
             Assert.Equal(release.Title, row.Title);
+        });
+    }
+
+    [Fact]
+    public async Task Delete_of_a_release_source_removes_its_sections_and_keeps_their_destinations()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var toloka = await _integrations.Create("torznab", "Toloka", apiKey: "stored-api-key-1234");
+        var other = await _integrations.Create("torznab", "Other", apiKey: "stored-api-key-5678");
+        var client = await _integrations.Create("qbittorrent", "Downloads", pathMappings: [new PathMappingPair("/downloads", "/media")]);
+        var cartoons = await new DestinationMappingSeeder(_factory.Scope).Create(client, "Cartoons", "Cartoons", isDefault: true);
+        var sections = new DestinationSectionSeeder(_factory.Scope);
+        await sections.Map(cartoons, toloka, "Мультсеріали", true, "100125", "100044");
+        var kept = await sections.Map(cartoons, other, "Мультсеріали", true, "100125");
+
+        //Act
+        var response = await _factory.DeleteHttpRequest($"{BaseUrl}/{toloka.Id}", _owner.AccessToken);
+
+        //Assert
+        // MAM-32 — a removed source lists nothing any more, so its sections say nothing (ADR 0020): they go
+        // with it, and the destination they sent releases to stays, with the other source's section.
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal([kept[0].Id], await db.DestinationSections.Select(section => section.Id).ToListAsync(cancellationToken));
+            Assert.Equal([cartoons.Id], await db.DestinationMappings.Select(destination => destination.Id).ToListAsync(cancellationToken));
         });
     }
 

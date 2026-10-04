@@ -7,7 +7,7 @@ import { integrationsApi } from '@/lib/integrations-api'
 import { qk } from '@/lib/queries'
 import type { ClientDestinationList, Destination } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
-import { cartoons, checkOf, destinationsPage, movies, sampleCategories, spareQbittorrent } from '@/test/destinations'
+import { cartoons, checkOf, destinationsPage, movies, sampleCategories, sectionsOf, spareQbittorrent, tolokaSections } from '@/test/destinations'
 import { localQbittorrent } from '@/test/integrations'
 
 vi.mock('@/lib/destinations-api')
@@ -51,6 +51,7 @@ describe('DestinationDialog', () => {
     vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
       ({ items: [localQbittorrent, spareQbittorrent], totalCount: 2, page: query.page, pageSize: query.pageSize }))
     vi.mocked(destinationsApi.clientDestinations).mockResolvedValue(sampleCategories)
+    vi.mocked(destinationsApi.sections).mockResolvedValue(sectionsOf(tolokaSections))
   })
 
   it('offers the download clients by name, asked from the server by kind, a switched-off one marked', async () => {

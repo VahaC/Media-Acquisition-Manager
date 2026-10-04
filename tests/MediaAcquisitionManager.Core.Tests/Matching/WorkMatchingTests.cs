@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Matching;
+using MediaAcquisitionManager.Core.Search;
 
 namespace MediaAcquisitionManager.Core.Tests.Matching;
 
@@ -87,7 +88,7 @@ public sealed class WorkMatchingTests
         //Arrange
         // A second source gives the displayed title another year; the original one has the claim's.
         ReportedTitle[] titles = [new("Interstellar", MediaTitleKind.Display, 2015), InterstellarOriginal];
-        var claim = new WorkClaim(["interstellar"], 2014, [Imdb("tt0816692")]);
+        var claim = new WorkClaim(["interstellar"], ClaimedYears.Exactly(2014), [Imdb("tt0816692")]);
 
         //Act
         var match = WorkMatching.Match(claim, titles, InterstellarIds);
@@ -102,7 +103,7 @@ public sealed class WorkMatchingTests
     public void Match_by_an_identifier_names_a_matching_title_of_another_year_when_none_has_the_claims()
     {
         //Arrange
-        var claim = new WorkClaim(["Interstellar"], 2015, [Tmdb("157336")]);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(2015), [Tmdb("157336")]);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, InterstellarIds);
@@ -117,7 +118,7 @@ public sealed class WorkMatchingTests
     public void Match_by_the_displayed_title_and_the_year_is_title_and_year_evidence()
     {
         //Arrange
-        var claim = new WorkClaim(["Інтерстеллар"], 2014, []);
+        var claim = new WorkClaim(["Інтерстеллар"], ClaimedYears.Exactly(2014), []);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, InterstellarIds);
@@ -134,7 +135,7 @@ public sealed class WorkMatchingTests
     public void Match_by_the_original_title_and_the_year_is_title_and_year_evidence()
     {
         //Arrange
-        var claim = new WorkClaim(["Interstellar"], 2014, []);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(2014), []);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, InterstellarIds);
@@ -150,7 +151,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         // Toloka's "Інтерстеллар / Interstellar (2014)".
-        var claim = new WorkClaim(["Інтерстеллар", "Interstellar"], 2014, []);
+        var claim = new WorkClaim(["Інтерстеллар", "Interstellar"], ClaimedYears.Exactly(2014), []);
 
         //Act
         var match = WorkMatching.Match(claim, [InterstellarOriginal, InterstellarDisplay], InterstellarIds);
@@ -166,7 +167,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         ReportedTitle[] titles = [new("Spider-Man: No Way Home", MediaTitleKind.Display, 2021)];
-        var claim = new WorkClaim(["spider man no way home"], 2021, []);
+        var claim = new WorkClaim(["spider man no way home"], ClaimedYears.Exactly(2021), []);
 
         //Act
         var match = WorkMatching.Match(claim, titles, []);
@@ -187,7 +188,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         ReportedTitle[] titles = [new(held, MediaTitleKind.Display, year)];
-        var claim = new WorkClaim([sought], year, []);
+        var claim = new WorkClaim([sought], ClaimedYears.Exactly(year), []);
 
         //Act
         var match = WorkMatching.Match(claim, titles, []);
@@ -204,7 +205,7 @@ public sealed class WorkMatchingTests
         //Arrange
         // The displayed title has no year; another title's 2014 says nothing about it.
         ReportedTitle[] titles = [new("Interstellar", MediaTitleKind.Display, null), new("Інтерстеллар", MediaTitleKind.Original, 2014)];
-        var claim = new WorkClaim(["Interstellar"], 2014, []);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(2014), []);
 
         //Act
         var match = WorkMatching.Match(claim, titles, []);
@@ -224,7 +225,7 @@ public sealed class WorkMatchingTests
     public void Match_by_the_title_without_its_year_is_title_only_evidence(int? year)
     {
         //Arrange
-        var claim = new WorkClaim(["Interstellar"], year, []);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(year), []);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, InterstellarIds);
@@ -234,6 +235,89 @@ public sealed class WorkMatchingTests
         Assert.Equal(MatchEvidence.TitleOnly, match.Evidence);
         Assert.Empty(match.MatchedIdentifiers);
         Assert.Equal(InterstellarOriginal, match.MatchedTitle);
+    }
+
+    [Theory]
+    // MAM-32 — a span: the show begun in 2018 is of each year of it, its ends included.
+    [InlineData(2018, 2024, MatchEvidence.TitleAndYear)]
+    [InlineData(2016, 2018, MatchEvidence.TitleAndYear)]
+    [InlineData(2010, 2030, MatchEvidence.TitleAndYear)]
+    // A span the show's year is outside: the title alone, never a year either side of it.
+    [InlineData(2019, 2024, MatchEvidence.TitleOnly)]
+    [InlineData(2009, 2017, MatchEvidence.TitleOnly)]
+    // No earliest year, a pack of later seasons': any year up to the latest, the latest included.
+    [InlineData(null, 2018, MatchEvidence.TitleAndYear)]
+    [InlineData(null, 2022, MatchEvidence.TitleAndYear)]
+    [InlineData(null, 2017, MatchEvidence.TitleOnly)]
+    // One year: exactly it, as before.
+    [InlineData(2018, 2018, MatchEvidence.TitleAndYear)]
+    [InlineData(2021, 2021, MatchEvidence.TitleOnly)]
+    [InlineData(2017, 2017, MatchEvidence.TitleOnly)]
+    public void Match_by_the_title_takes_a_year_within_the_claimed_years(int? earliest, int latest, MatchEvidence expected)
+    {
+        //Arrange
+        ReportedTitle[] yellowstone = [new("Єллоустоун", MediaTitleKind.Display, 2018), new("Yellowstone", MediaTitleKind.Original, 2018)];
+        var claim = new WorkClaim(["Yellowstone"], new ClaimedYears(earliest, latest), []);
+
+        //Act
+        var match = WorkMatching.Match(claim, yellowstone, []);
+
+        //Assert
+        Assert.NotNull(match);
+        Assert.Equal(expected, match.Evidence);
+        Assert.Equal(yellowstone[1], match.MatchedTitle);
+    }
+
+    [Theory]
+    // MAM-32 — the years a TV release's title allows (ReleaseWorkClaims.YearsToMatch), against the show
+    // begun in 2018. With season 1, its first year exactly: inside the span is not enough.
+    [InlineData("Yellowstone (S1-5) (2018-2024) WEB-DL", MatchEvidence.TitleAndYear)]
+    [InlineData("Yellowstone (S1-5) (2017-2024) WEB-DL", MatchEvidence.TitleOnly)]
+    [InlineData("Yellowstone (S1) (2019) WEB-DL", MatchEvidence.TitleOnly)]
+    // The BBC documentary of 2009.
+    [InlineData("Yellowstone (S1) (2009) BDRip", MatchEvidence.TitleOnly)]
+    // Later seasons only: the show began that year or before, its own year included.
+    [InlineData("Yellowstone (S5) (2022-2024) WEB-DL", MatchEvidence.TitleAndYear)]
+    [InlineData("Yellowstone (S4) (2021) WEB-DL", MatchEvidence.TitleAndYear)]
+    [InlineData("Yellowstone (S2) (2018) WEB-DL", MatchEvidence.TitleAndYear)]
+    // A pack whose first year is before the show began is another show's.
+    [InlineData("Yellowstone (S2) (2017) WEB-DL", MatchEvidence.TitleOnly)]
+    [InlineData("Yellowstone (S0) (2018) WEB-DL", MatchEvidence.TitleAndYear)]
+    [InlineData("Yellowstone (S0) (2017) WEB-DL", MatchEvidence.TitleOnly)]
+    // No season: any year of the span, its ends included.
+    [InlineData("Yellowstone (2016-2018) WEB-DL", MatchEvidence.TitleAndYear)]
+    [InlineData("Yellowstone (2018-2024) WEB-DL", MatchEvidence.TitleAndYear)]
+    [InlineData("Yellowstone (2019-2024) WEB-DL", MatchEvidence.TitleOnly)]
+    [InlineData("Yellowstone (2018) WEB-DL", MatchEvidence.TitleAndYear)]
+    public void Match_of_a_tv_releases_title_takes_the_shows_year_its_seasons_allow(string title, MatchEvidence expected)
+    {
+        //Arrange
+        ReportedTitle[] yellowstone = [new("Yellowstone", MediaTitleKind.Original, 2018)];
+        var read = ReleaseWorkClaims.ReadTv(title);
+        var claim = new WorkClaim(read.Titles, ReleaseWorkClaims.YearsToMatch(read), []);
+
+        //Act
+        var match = WorkMatching.Match(claim, yellowstone, []);
+
+        //Assert
+        Assert.NotNull(match);
+        Assert.Equal(expected, match.Evidence);
+    }
+
+    [Fact]
+    public void Match_with_no_earliest_year_never_takes_a_title_of_no_year()
+    {
+        //Arrange
+        // MAM-32 — "any year up to 2022" says nothing of a title the source gives no year.
+        ReportedTitle[] titles = [new("Yellowstone", MediaTitleKind.Original, null)];
+        var claim = new WorkClaim(["Yellowstone"], new ClaimedYears(null, 2022), []);
+
+        //Act
+        var match = WorkMatching.Match(claim, titles, []);
+
+        //Assert
+        Assert.NotNull(match);
+        Assert.Equal(MatchEvidence.TitleOnly, match.Evidence);
     }
 
     [Fact]
@@ -267,7 +351,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         ReportedTitle[] titles = [.. Interstellar, new("!!!", MediaTitleKind.Display, 2014)];
-        var claim = new WorkClaim([title], 2014, []);
+        var claim = new WorkClaim([title], ClaimedYears.Exactly(2014), []);
 
         //Act
         var match = WorkMatching.Match(claim, titles, InterstellarIds);
@@ -280,7 +364,7 @@ public sealed class WorkMatchingTests
     public void Match_of_nothing_in_common_is_null()
     {
         //Arrange
-        var claim = new WorkClaim(["Aliens"], 1986, [Imdb("tt0090605"), Tmdb("679")]);
+        var claim = new WorkClaim(["Aliens"], ClaimedYears.Exactly(1986), [Imdb("tt0090605"), Tmdb("679")]);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, InterstellarIds);
@@ -308,7 +392,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         // The search asked for tt0816692; the work holds another IMDb id.
-        var claim = new WorkClaim(["Interstellar"], 2014, [Imdb("tt0816692")]);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(2014), [Imdb("tt0816692")]);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, [Imdb("tt9999999"), Tmdb("157336")]);
@@ -371,7 +455,7 @@ public sealed class WorkMatchingTests
     public void Match_flags_each_conflicting_scheme_once_in_scheme_order()
     {
         //Arrange
-        var claim = new WorkClaim(["Interstellar"], 2014, [Tmdb("1"), Imdb("tt0000001")]);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(2014), [Tmdb("1"), Imdb("tt0000001")]);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, [Tmdb("157336"), Tmdb("157337"), Imdb("tt0816692")]);
@@ -386,7 +470,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         // The claim has no IMDb id and the work no TMDb id: nothing to disagree about.
-        var claim = new WorkClaim(["Interstellar"], 2014, [Tmdb("157336")]);
+        var claim = new WorkClaim(["Interstellar"], ClaimedYears.Exactly(2014), [Tmdb("157336")]);
 
         //Act
         var match = WorkMatching.Match(claim, Interstellar, [Imdb("tt0816692")]);
@@ -408,7 +492,7 @@ public sealed class WorkMatchingTests
     {
         //Arrange
         // MAM-12 — the year sought is another film's: the words don't look at it.
-        var claim = new WorkClaim([sought], 2008, []);
+        var claim = new WorkClaim([sought], ClaimedYears.Exactly(2008), []);
 
         //Act
         var match = WorkMatching.MatchByWords(claim, RamboFirstBloodPartII, [], []);

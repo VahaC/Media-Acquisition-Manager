@@ -55,9 +55,19 @@ export const nasClient: DownloadClientOption = {
   destinations: [{ id: '6a3e9b20-0000-4000-8000-000000000021', name: 'Archive', clientDestinationKey: 'Archive', isDefault: false }],
 }
 
-/** The options the server answers with `clients`, in the order given (the server's is by name). */
+/**
+ * The options the server answers with `clients`, in the order given (the server's is by name). MAM-32
+ * — with the default destination among them suggested, as the server suggests it when no tracker
+ * section of the release is mapped; `suggestedOf` sets another.
+ */
 export function optionsOf(...clients: DownloadClientOption[]): DownloadOptions {
-  return { clients }
+  const suggested = clients.flatMap((client) => client.destinations).find((destination) => destination.isDefault)
+  return { clients, suggestedDestinationId: suggested?.id ?? null }
+}
+
+/** MAM-32 — the options of `clients` with `destinationId` suggested: a mapped section's, or null for none. */
+export function suggestedOf(destinationId: string | null, ...clients: DownloadClientOption[]): DownloadOptions {
+  return { clients, suggestedDestinationId: destinationId }
 }
 
 /** The job a send of the Toloka release to Local qBittorrent's Movies makes; `changes` sets the outcome. */

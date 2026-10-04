@@ -25,6 +25,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<DestinationMappingEntity> DestinationMappings => Set<DestinationMappingEntity>();
 
+    public DbSet<DestinationSectionEntity> DestinationSections => Set<DestinationSectionEntity>();
+
     public DbSet<MediaWorkEntity> MediaWorks => Set<MediaWorkEntity>();
 
     public DbSet<MediaWorkTitleEntity> MediaWorkTitles => Set<MediaWorkTitleEntity>();
@@ -32,6 +34,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<MediaWorkIdentifierEntity> MediaWorkIdentifiers => Set<MediaWorkIdentifierEntity>();
 
     public DbSet<MediaVersionEntity> MediaVersions => Set<MediaVersionEntity>();
+
+    public DbSet<MediaEpisodePositionEntity> MediaEpisodePositions => Set<MediaEpisodePositionEntity>();
 
     public DbSet<PhysicalFileEntity> PhysicalFiles => Set<PhysicalFileEntity>();
 
@@ -156,6 +160,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasFilter("\"IsDefault\" = 1");
         });
 
+        modelBuilder.Entity<DestinationSectionEntity>(e =>
+        {
+            // MAM-32 — one destination per section of a source: a release never gets two answers from
+            // one section. Leading with the source, so it also serves its foreign key and the Download
+            // dialog's "the sections of this release's source".
+            e.HasIndex(x => new { x.ReleaseSourceConnectionId, x.CategoryId }).IsUnique();
+            // Cascade: a section maps to its destination and means nothing without it.
+            e.HasOne<DestinationMappingEntity>().WithMany()
+                .HasForeignKey(x => x.DestinationMappingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Cascade: a removed release source lists nothing any more, so its sections say nothing.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.ReleaseSourceConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<MediaWorkEntity>(e =>
         {
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
@@ -192,6 +212,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<MediaWorkEntity>().WithMany()
                 .HasForeignKey(x => x.MediaWorkId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MediaEpisodePositionEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            // Cascade: a position says something only about its episode.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // MAM-32 — SetNull: a series that goes leaves its episodes known, just without a series, as a
+            // file without a library; the next sync places them again. Indexed for "the episodes of this
+            // series", which the Library page asks for every series it lists.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.SeriesWorkId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => new { x.SeriesWorkId, x.SeasonNumber });
         });
 
         modelBuilder.Entity<PhysicalFileEntity>(e =>
@@ -310,6 +346,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             ConfigureProvenance(e);
             e.Property(x => x.PayloadKind).HasConversion<string>().HasMaxLength(32);
+            // MAM-32 — the migration fills the rows stored before it with Movie: every one was a movie
+            // search's.
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
             // MAM-12 — "the releases of this search source", which every read of a stored search's list
             // asks for.
             e.HasIndex(x => x.SearchSourceId);

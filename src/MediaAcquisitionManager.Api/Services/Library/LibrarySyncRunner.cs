@@ -27,26 +27,34 @@ public sealed class LibrarySyncRunner(
     ILogger<LibrarySyncRunner> logger) : ILibrarySyncRunner
 {
     /// <summary>
-    /// Movies per request. A page of 50 stays far inside the client's 4 MiB buffer and its 15 s timeout
-    /// (the heaviest sample movie is about 12 KB as Jellyfin sends it; <c>IntegrationsInfrastructureExtensions</c>),
+    /// Items per request. A page of 50 stays far inside the client's 4 MiB buffer and its 15 s timeout
+    /// (the heaviest sample movie is about 12 KB as Jellyfin sends it, and the heaviest episode, the
+    /// Tom &amp; Jerry Kids item with 65 media sources, about 149 KB; <c>IntegrationsInfrastructureExtensions</c>),
     /// while the reference library of 870 movies still takes only 18 requests with the one-item overlap.
     /// </summary>
     public const int LibraryPageSize = 50;
+
+    /// <summary>
+    /// MAM-32 — the library's lists, read one after the other: its movies, its series, then its
+    /// episodes, each with its own total and its own checks (ADR 0008, ADR 0019).
+    /// </summary>
+    private static readonly MediaWorkKind[] Lists = [MediaWorkKind.Movie, MediaWorkKind.Series, MediaWorkKind.Episode];
 
     private const string RemovedBeforeStartError = "The integration was removed before the sync started.";
     private const string RemovedWhileSyncingError = "The integration was removed while it was being synced; nothing was stored.";
     private const string SwitchedOffBeforeStartError = "“{0}” was switched off before the sync started.";
 
     // ADR 0008 — the three ways a read shows the library changed under it. {0} is the type's display
-    // name; each ends by saying nothing was stored and what to do.
+    // name and {3} the list's noun (movies, series, episodes); each ends by saying nothing was stored and
+    // what to do.
     private const string TotalChangedError =
-        "{0} listed {1} movies when the sync began and {2} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
+        "{0} listed {1} {3} when the sync began and {2} by its end, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
 
     private const string PagesShiftedError =
-        "{0}'s list of movies shifted between two pages, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
+        "{0}'s list of {3} shifted between two pages, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
 
     private const string DistinctCountError =
-        "The sync read {1} different movies of the {2} {0} listed, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
+        "The sync read {1} different {3} of the {2} {0} listed, so its library changed while it was being read. Nothing was changed here; sync again once {0}'s library scan has finished.";
 
     public async Task RunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
@@ -128,10 +136,11 @@ public sealed class LibrarySyncRunner(
             case LibrarySnapshotStatus.Applied:
                 // Information: counts only — never an address, a path or a title.
                 logger.LogInformation(
-                    "Library sync {RunId} of integration {IntegrationId} finished: {Works} works, {Versions} versions, {Files} files.",
+                    "Library sync {RunId} of integration {IntegrationId} finished: {Works} works, {Series} series, {Versions} versions, {Files} files.",
                     runId,
                     integration.Id,
                     snapshot.WorksCount,
+                    snapshot.SeriesCount,
                     snapshot.VersionsCount,
                     snapshot.FilesCount);
                 await QueueInspectionAsync(runId, cancellationToken);
@@ -150,19 +159,26 @@ public sealed class LibrarySyncRunner(
     }
 
     /// <summary>
-    /// Every item of the library, read in pages that overlap by one (ADR 0008): each page after the
-    /// first starts at the previous page's last item, which must come back first again. Jellyfin applies
-    /// <c>startIndex</c> and <c>limit</c> exactly, so a total that changes, a short or empty page before
-    /// the end, a boundary item that moved, or fewer different items than the total all mean the library
-    /// changed while it was read — and a sync that read it anyway could store a movie twice or miss one.
+    /// Every item of the library, its movies, series and episodes, each list read in pages that overlap
+    /// by one (ADR 0008): each page after the first starts at the previous page's last item, which must
+    /// come back first again. Jellyfin applies <c>startIndex</c> and <c>limit</c> exactly, so a total that
+    /// changes, a short or empty page before the end, a boundary item that moved, or fewer different items
+    /// than the total all mean the library changed while it was read — and a sync that read it anyway
+    /// could store a movie twice or miss one.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// MAM-32 — the first page of every list is read before the rest of any, so the progress knows the
+    /// whole library's total from the third request on, instead of a total that grows list by list.
+    /// </para>
+    /// <para>
     /// Not every change shows. A removal and an addition that both sort before a boundary already read,
     /// between two page requests, leave the total, every boundary and the count of different items as
     /// they were: the run succeeds and stores a stale row for the removed movie and none for the new
     /// one, which the next sync corrects. Nothing real is deleted — a sync only ever writes this app's
     /// rows. A second, id-only pass over the whole list would narrow the gap at the price of a second
     /// round of requests on every sync; ADR 0008 accepts the gap instead.
+    /// </para>
     /// </remarks>
     private async Task<ReadOutcome> ReadItemsAsync(
         Guid runId,
@@ -171,42 +187,74 @@ public sealed class LibrarySyncRunner(
         string displayName,
         CancellationToken cancellationToken)
     {
-        // By id, keeping the last listing of an id: the overlapping item is read twice by design.
-        var items = new Dictionary<string, LibraryItem>(StringComparer.Ordinal);
-        int? firstTotal = null;
-        string? boundaryId = null;
-        var startIndex = 0;
-        while (true)
+        var lists = Lists.Select(kind => new ListRead(kind)).ToList();
+        int ItemsRead() => lists.Sum(list => list.Items.Count);
+
+        // The first page of each list, for the whole library's total.
+        foreach (var list in lists)
         {
-            var result = await provider.ListItemsAsync(settings, new LibraryPageRequest(startIndex, LibraryPageSize), cancellationToken);
-            if (!result.IsSuccess)
-                return ReadOutcome.Failed(result.Status.ToString(), result.Error!);
-
-            var page = result.Value!;
-            firstTotal ??= page.TotalCount;
-            if (page.TotalCount != firstTotal)
-                return ReadOutcome.Failed("LibraryChanged", Format(TotalChangedError, displayName, firstTotal, page.TotalCount));
-            if (boundaryId is not null
-                && (page.Items.Count == 0 || !string.Equals(page.Items[0].SourceItemId, boundaryId, StringComparison.Ordinal)))
-                return ReadOutcome.Failed("LibraryChanged", Format(PagesShiftedError, displayName));
-
-            foreach (var item in page.Items)
-                items[item.SourceItemId] = item;
-            await ReportProgressAsync(runId, items.Count, page.TotalCount, cancellationToken);
-
-            if (startIndex + page.Items.Count >= page.TotalCount)
-                break;
-            // Short before the end: items went missing from under the read.
-            if (page.Items.Count < LibraryPageSize)
-                return ReadOutcome.Failed("LibraryChanged", Format(PagesShiftedError, displayName));
-
-            boundaryId = page.Items[^1].SourceItemId;
-            startIndex += LibraryPageSize - 1;
+            if (await ReadPageAsync(list, provider, settings, displayName, cancellationToken) is { } failed)
+                return failed;
         }
 
-        if (items.Count != firstTotal)
-            return ReadOutcome.Failed("LibraryChanged", Format(DistinctCountError, displayName, items.Count, firstTotal));
-        return new ReadOutcome([.. items.Values], null, null);
+        var itemsTotal = lists.Sum(list => list.FirstTotal!.Value);
+        await ReportProgressAsync(runId, ItemsRead(), itemsTotal, cancellationToken);
+
+        foreach (var list in lists)
+        {
+            while (!list.IsDone)
+            {
+                if (await ReadPageAsync(list, provider, settings, displayName, cancellationToken) is { } failed)
+                    return failed;
+                await ReportProgressAsync(runId, ItemsRead(), itemsTotal, cancellationToken);
+            }
+
+            if (list.Items.Count != list.FirstTotal)
+                return ReadOutcome.Failed("LibraryChanged", Format(DistinctCountError, displayName, list.Items.Count, list.FirstTotal, list.Noun));
+        }
+
+        return new ReadOutcome([.. lists.SelectMany(list => list.Items.Values)], null, null);
+    }
+
+    /// <summary>
+    /// The next page of <paramref name="list"/>, added to it; the failure that ends the read when the
+    /// call failed or the page shows the list changed, else <c>null</c>.
+    /// </summary>
+    private static async Task<ReadOutcome?> ReadPageAsync(
+        ListRead list,
+        IMediaLibraryProvider provider,
+        IntegrationConnectionSettings settings,
+        string displayName,
+        CancellationToken cancellationToken)
+    {
+        var result = await provider.ListItemsAsync(settings, new LibraryPageRequest(list.Kind, list.StartIndex, LibraryPageSize), cancellationToken);
+        if (!result.IsSuccess)
+            return ReadOutcome.Failed(result.Status.ToString(), result.Error!);
+
+        var page = result.Value!;
+        list.FirstTotal ??= page.TotalCount;
+        if (page.TotalCount != list.FirstTotal)
+            return ReadOutcome.Failed("LibraryChanged", Format(TotalChangedError, displayName, list.FirstTotal, page.TotalCount, list.Noun));
+        if (list.BoundaryId is not null
+            && (page.Items.Count == 0 || !string.Equals(page.Items[0].SourceItemId, list.BoundaryId, StringComparison.Ordinal)))
+            return ReadOutcome.Failed("LibraryChanged", Format(PagesShiftedError, displayName, null, null, list.Noun));
+
+        foreach (var item in page.Items)
+            list.Items[item.SourceItemId] = item;
+
+        if (list.StartIndex + page.Items.Count >= page.TotalCount)
+        {
+            list.IsDone = true;
+            return null;
+        }
+
+        // Short before the end: items went missing from under the read.
+        if (page.Items.Count < LibraryPageSize)
+            return ReadOutcome.Failed("LibraryChanged", Format(PagesShiftedError, displayName, null, null, list.Noun));
+
+        list.BoundaryId = page.Items[^1].SourceItemId;
+        list.StartIndex += LibraryPageSize - 1;
+        return null;
     }
 
     // The "Syncing… X of Y" the page polls for, after each page. Not terminal, so it is cancelled with
@@ -258,5 +306,31 @@ public sealed class LibrarySyncRunner(
     private sealed record ReadOutcome(IReadOnlyList<LibraryItem> Items, string? FailureStatus, string? Error)
     {
         public static ReadOutcome Failed(string status, string error) => new([], status, error);
+    }
+
+    /// <summary>How far one of the library's lists has been read (MAM-32).</summary>
+    private sealed class ListRead(MediaWorkKind kind)
+    {
+        public MediaWorkKind Kind { get; } = kind;
+
+        /// <summary>The list's noun in the sentences: "movies", "series", "episodes".</summary>
+        public string Noun { get; } = kind switch
+        {
+            MediaWorkKind.Movie => "movies",
+            MediaWorkKind.Series => "series",
+            _ => "episodes",
+        };
+
+        /// <summary>By id, keeping the last listing of an id: the overlapping item is read twice by
+        /// design.</summary>
+        public Dictionary<string, LibraryItem> Items { get; } = new(StringComparer.Ordinal);
+
+        public int? FirstTotal { get; set; }
+
+        public string? BoundaryId { get; set; }
+
+        public int StartIndex { get; set; }
+
+        public bool IsDone { get; set; }
     }
 }

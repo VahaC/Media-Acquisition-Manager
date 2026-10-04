@@ -132,7 +132,7 @@ describe('AppLayout', () => {
     const banner = screen.getByRole('banner')
 
     // Act
-    await user.type(within(banner).getByRole('searchbox', { name: 'Search for a movie' }), 'Aliens{Enter}')
+    await user.type(within(banner).getByRole('searchbox', { name: 'Search for a movie or a series' }), 'Aliens{Enter}')
 
     // Assert
     expect(screen.getByText('Search content')).toBeInTheDocument()

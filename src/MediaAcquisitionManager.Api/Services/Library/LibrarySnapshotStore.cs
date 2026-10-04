@@ -44,21 +44,40 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
             var now = time.GetUtcNow().UtcDateTime;
             var existing = await LoadExistingAsync(integrationId, cancellationToken);
 
-            // Each media source goes to one item before the items are grouped, so merged versions that
-            // several items all list are stored once (ADR 0008). A group none of whose items says
-            // anything — no title, identifier or version — gets no work: an empty work would only be
-            // deleted again below.
-            var groups = LibraryWorkGrouping.Group(LibraryVersionOwnership.Resolve(items))
-                .Where(group => group.Items.Any(HasFacts))
-                .ToList();
-            var assignment = await AssignWorksAsync(integrationId, groups, existing, now, cancellationToken);
+            // ADR 0017 — a missing episode is known to the library but holds no file: it was read, so the
+            // pages of its list added up, and it is stored as nothing. Each media source goes to one item
+            // before the items are grouped, so merged versions that several items all list are stored
+            // once (ADR 0008).
+            var resolved = LibraryVersionOwnership.Resolve([.. items.Where(item => !item.IsMissing)]);
+
+            // MAM-32 — each kind is grouped on its own, so a movie and a series sharing a TMDb number are
+            // never one work (ADR 0017); series first, as an episode is known by its series' ids with its
+            // numbers too, and lands in the series work its series item landed on.
+            var seriesItems = resolved
+                .Where(item => item.Kind == MediaWorkKind.Series)
+                .ToDictionary(item => item.SourceItemId, StringComparer.Ordinal);
+            var seriesGroups = GroupsOf(resolved, MediaWorkKind.Series, _ => []);
+            var movieGroups = GroupsOf(resolved, MediaWorkKind.Movie, _ => []);
+            var episodeGroups = GroupsOf(resolved, MediaWorkKind.Episode, item => SeriesPositionKeys(item, seriesItems));
+
+            var previous = await LoadPreviousWorksAsync(integrationId, existing, cancellationToken);
+            var seriesWorkIds = AssignWorks(seriesGroups, MediaWorkKind.Series, existing, previous, _ => [], now);
+            var seriesWorkOfItem = seriesGroups
+                .SelectMany((group, index) => group.Items.Select(item => (item.SourceItemId, WorkId: seriesWorkIds[index])))
+                .ToDictionary(item => item.SourceItemId, item => item.WorkId, StringComparer.Ordinal);
+            var movieWorkIds = AssignWorks(movieGroups, MediaWorkKind.Movie, existing, previous, _ => [], now);
+            var episodeWorkIds = AssignWorks(
+                episodeGroups, MediaWorkKind.Episode, existing, previous, item => PositionKeys(item, seriesWorkOfItem), now);
 
             var upserts = new SnapshotUpserts(db, existing, integrationId, sourceName, now);
             upserts.UpsertLocations(locations);
-            for (var index = 0; index < groups.Count; index++)
+            foreach (var (groups, workIds) in new[] { (seriesGroups, seriesWorkIds), (movieGroups, movieWorkIds), (episodeGroups, episodeWorkIds) })
             {
-                foreach (var item in groups[index].Items)
-                    upserts.UpsertItem(item, assignment.WorkIds[index]);
+                for (var index = 0; index < groups.Count; index++)
+                {
+                    foreach (var item in groups[index].Items)
+                        upserts.UpsertItem(item, workIds[index], SeriesWorkOf(item, seriesWorkOfItem));
+                }
             }
 
             upserts.RemoveUntouched();
@@ -66,16 +85,17 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
 
             // Every work this connection's facts sat on, and every work made just now: the ones left with
             // nothing to say go.
-            await DeleteEmptyWorksAsync([.. existing.WorkIds, .. assignment.CreatedWorkIds], cancellationToken);
+            await DeleteEmptyWorksAsync([.. existing.WorkIds, .. previous.Created], cancellationToken);
 
-            if (!await MarkSucceededAsync(runId, items.Count, groups.Count, upserts.VersionsCount, upserts.FilesCount))
+            var worksCount = movieGroups.Count + episodeGroups.Count;
+            if (!await MarkSucceededAsync(runId, items.Count, worksCount, seriesGroups.Count, upserts.VersionsCount, upserts.FilesCount))
                 return LibrarySnapshotResult.RunNoLongerRunning;
 
             // Not cancelled either: the whole library is read and written, and a shutdown arriving now
             // would throw that away at the last step, leaving the run for the reconciler to blame on a
             // restart.
             await transaction.CommitAsync(CancellationToken.None);
-            return LibrarySnapshotResult.Applied(groups.Count, upserts.VersionsCount, upserts.FilesCount);
+            return LibrarySnapshotResult.Applied(worksCount, seriesGroups.Count, upserts.VersionsCount, upserts.FilesCount);
         }
         finally
         {
@@ -101,6 +121,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         await db.PhysicalFiles.Where(ReportedBy<PhysicalFileEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.MediaWorkTitles.Where(ReportedBy<MediaWorkTitleEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.MediaWorkIdentifiers.Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
+        await db.MediaEpisodePositions.Where(ReportedBy<MediaEpisodePositionEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.LibraryLocations.Where(ReportedBy<LibraryLocationEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await DeleteEmptyWorksAsync(workIds, cancellationToken);
     }
@@ -128,7 +149,8 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
     private IQueryable<Guid> WorksReportedBy(Guid integrationId) =>
         db.MediaWorkTitles.Where(ReportedBy<MediaWorkTitleEntity>(integrationId)).Select(title => title.MediaWorkId)
             .Union(db.MediaWorkIdentifiers.Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId)).Select(identifier => identifier.MediaWorkId))
-            .Union(db.MediaVersions.Where(ReportedBy<MediaVersionEntity>(integrationId)).Select(version => version.MediaWorkId));
+            .Union(db.MediaVersions.Where(ReportedBy<MediaVersionEntity>(integrationId)).Select(version => version.MediaWorkId))
+            .Union(db.MediaEpisodePositions.Where(ReportedBy<MediaEpisodePositionEntity>(integrationId)).Select(position => position.MediaWorkId));
 
     /// <summary>
     /// Every row of the snapshot, one query per table. No N+1: the rows are indexed in memory
@@ -147,13 +169,15 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
             await Ordered(db.MediaWorkTitles.AsTracking().Where(ReportedBy<MediaWorkTitleEntity>(integrationId))).ToListAsync(cancellationToken),
             await Ordered(db.MediaWorkIdentifiers.AsTracking().Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId))).ToListAsync(cancellationToken),
             await Ordered(db.MediaVersions.AsTracking().Where(ReportedBy<MediaVersionEntity>(integrationId))).ToListAsync(cancellationToken),
-            await Ordered(db.PhysicalFiles.AsTracking().Where(ReportedBy<PhysicalFileEntity>(integrationId))).ToListAsync(cancellationToken));
+            await Ordered(db.PhysicalFiles.AsTracking().Where(ReportedBy<PhysicalFileEntity>(integrationId))).ToListAsync(cancellationToken),
+            await Ordered(db.MediaEpisodePositions.AsTracking().Where(ReportedBy<MediaEpisodePositionEntity>(integrationId))).ToListAsync(cancellationToken));
 
     private static IQueryable<TFact> Ordered<TFact>(IQueryable<TFact> facts) where TFact : ProvenancedEntity =>
         facts.OrderBy(fact => fact.CreatedUtc).ThenBy(fact => fact.Id);
 
-    /// <summary>Deletes those of <paramref name="workIds"/> that no longer hold a title, an identifier or
-    /// a version of any source.</summary>
+    /// <summary>Deletes those of <paramref name="workIds"/> that no longer hold a title, an identifier, a
+    /// version or an episode position of any source. A series that goes leaves its episodes' positions
+    /// pointing at no series (the database's SetNull, MAM-32).</summary>
     private Task<int> DeleteEmptyWorksAsync(List<Guid> workIds, CancellationToken cancellationToken) =>
         db.MediaWorks
             // One JSON parameter (EF.Parameter) rather than EF Core 10's default of one parameter per id:
@@ -161,7 +185,8 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
             .Where(work => EF.Parameter(workIds).Contains(work.Id)
                 && !db.MediaWorkTitles.Any(title => title.MediaWorkId == work.Id)
                 && !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id)
-                && !db.MediaVersions.Any(version => version.MediaWorkId == work.Id))
+                && !db.MediaVersions.Any(version => version.MediaWorkId == work.Id)
+                && !db.MediaEpisodePositions.Any(position => position.MediaWorkId == work.Id))
             .ExecuteDeleteAsync(cancellationToken);
 
     /// <summary>
@@ -169,7 +194,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
     /// <see cref="LibrarySyncRunUpdates"/>, never cancelled for the same reason); <c>false</c> when
     /// something else finished it first.
     /// </summary>
-    private async Task<bool> MarkSucceededAsync(Guid runId, int itemsCount, int worksCount, int versionsCount, int filesCount)
+    private async Task<bool> MarkSucceededAsync(Guid runId, int itemsCount, int worksCount, int seriesCount, int versionsCount, int filesCount)
     {
         var finishedUtc = time.GetUtcNow().UtcDateTime;
         return await db.LibrarySyncRuns
@@ -181,13 +206,50 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
                     .SetProperty(run => run.ItemsRead, itemsCount)
                     .SetProperty(run => run.ItemsTotal, itemsCount)
                     .SetProperty(run => run.WorksCount, worksCount)
+                    .SetProperty(run => run.SeriesCount, seriesCount)
                     .SetProperty(run => run.VersionsCount, versionsCount)
                     .SetProperty(run => run.FilesCount, filesCount)
                     .SetProperty(run => run.Error, (string?)null),
                 CancellationToken.None) == 1;
     }
 
-    private static bool HasFacts(LibraryItem item) => item.Titles.Count > 0 || item.Identifiers.Count > 0 || item.Versions.Count > 0;
+    private static bool HasFacts(LibraryItem item) =>
+        item.Titles.Count > 0
+        || item.Identifiers.Count > 0
+        || item.Versions.Count > 0
+        || item.Episode is { SeriesSourceItemId: not null } or { SeasonNumber: not null } or { EpisodeNumber: not null };
+
+    /// <summary>
+    /// The works the items of <paramref name="kind"/> make (<see cref="LibraryWorkGrouping"/>), with
+    /// <paramref name="moreKeys"/> as further identifiers. A group none of whose items says anything — no
+    /// title, identifier, version or position — gets no work: an empty work would only be deleted again.
+    /// </summary>
+    private static List<LibraryWorkGroup> GroupsOf(
+        IReadOnlyList<LibraryItem> items, MediaWorkKind kind, Func<LibraryItem, IEnumerable<(string Key, string Value)>> moreKeys) =>
+        [.. LibraryWorkGrouping.Group([.. items.Where(item => item.Kind == kind)], moreKeys).Where(group => group.Items.Any(HasFacts))];
+
+    /// <summary>
+    /// MAM-32 — an episode's position as identifiers for the grouping (ADR 0017): each registry id of its
+    /// series item with its season and episode numbers, under a key of the id's scheme. None when it has
+    /// no series item, no numbers, or a series item the library didn't list: the library's own series id
+    /// is never one of them, as one show can be several series items.
+    /// </summary>
+    private static IEnumerable<(string Key, string Value)> SeriesPositionKeys(LibraryItem item, Dictionary<string, LibraryItem> seriesItems) =>
+        item.Episode is { SeriesSourceItemId: { } seriesItemId, SeasonNumber: { } season, EpisodeNumber: { } episode }
+        && seriesItems.TryGetValue(seriesItemId, out var series)
+            ? series.Identifiers.Select(identifier => ($"Series{identifier.Scheme}", $"{identifier.Value.Trim()}/{season}/{episode}"))
+            : [];
+
+    /// <summary>MAM-32 — an episode's position as a key for the work assignment: the series work its
+    /// series item landed on, with its numbers.</summary>
+    private static IEnumerable<(string Scheme, string Value)> PositionKeys(LibraryItem item, Dictionary<string, Guid> seriesWorkOfItem) =>
+        item.Episode is { SeasonNumber: { } season, EpisodeNumber: { } episode } && SeriesWorkOf(item, seriesWorkOfItem) is { } seriesWorkId
+            ? [(PositionKey, PositionValue(seriesWorkId, season, episode))]
+            : [];
+
+    /// <summary>The series work the episode's series item landed on; <c>null</c> for anything else.</summary>
+    private static Guid? SeriesWorkOf(LibraryItem item, Dictionary<string, Guid> seriesWorkOfItem) =>
+        item.Episode is { SeriesSourceItemId: { } seriesItemId } && seriesWorkOfItem.TryGetValue(seriesItemId, out var workId) ? workId : null;
 
     /// <summary>The rows of one integration's snapshot as they were before the sync.</summary>
     private sealed record ExistingSnapshot(
@@ -196,14 +258,17 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         List<MediaWorkTitleEntity> Titles,
         List<MediaWorkIdentifierEntity> Identifiers,
         List<MediaVersionEntity> Versions,
-        List<PhysicalFileEntity> Files)
+        List<PhysicalFileEntity> Files,
+        List<MediaEpisodePositionEntity> Positions)
     {
-        /// <summary>Every work one of the snapshot's titles, identifiers or versions sat on.</summary>
+        /// <summary>Every work one of the snapshot's titles, identifiers, versions or episode positions sat
+        /// on.</summary>
         public HashSet<Guid> WorkIds { get; } =
         [
             .. Titles.Select(title => title.MediaWorkId),
             .. Identifiers.Select(identifier => identifier.MediaWorkId),
             .. Versions.Select(version => version.MediaWorkId),
+            .. Positions.Select(position => position.MediaWorkId),
         ];
     }
 }

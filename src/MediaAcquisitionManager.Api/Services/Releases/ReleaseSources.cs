@@ -25,6 +25,7 @@ public sealed class ReleaseSources(
     public async Task<IReadOnlyList<ReleaseSourceOutcome>> SearchAsync(
         string text,
         int? year,
+        int? season,
         IReadOnlyList<MediaIdentifier> identifiers,
         CancellationToken cancellationToken = default)
     {
@@ -40,12 +41,21 @@ public sealed class ReleaseSources(
         // Specification §2: the sources are queried concurrently, so the slowest one sets the wait, not
         // their sum, and one that fails can't hold the others back.
         return await Task.WhenAll(
-            integrations.Select(integration => SearchSourceAsync(integration, text, year, identifiers, cancellationToken)));
+            integrations.Select(integration => SearchSourceAsync(integration, text, year, season, identifiers, cancellationToken)));
     }
 
     /// <summary>The sentence for a source whose type this build can't search through (ADR 0005).</summary>
     internal static string TypeUnavailableError(string adapterType) =>
         $"This version of the app can't search releases through “{adapterType}”.";
+
+    /// <summary>
+    /// The sentence for a source <c>ReleaseSearchPlanning</c> makes no query for. MAM-32 — the movie and the
+    /// TV searches both; a season is searched for in TV alone, so for one it says why TV can't be.
+    /// </summary>
+    internal static string NoUsableSearchError(string name, int? season) =>
+        season is null
+            ? $"“{name}” offers no search this app can use: no search by text, and no movie or TV search by title or by an id that was asked for."
+            : $"“{name}” offers no search this app can use for a season: no TV category, or neither a search by text nor a TV search by title or by an id that was asked for.";
 
     /// <summary>
     /// One source, from its row to what it listed. Never throws but for the caller's cancellation: a
@@ -56,6 +66,7 @@ public sealed class ReleaseSources(
         IntegrationConnectionEntity integration,
         string text,
         int? year,
+        int? season,
         IReadOnlyList<MediaIdentifier> identifiers,
         CancellationToken cancellationToken)
     {
@@ -76,26 +87,40 @@ public sealed class ReleaseSources(
             if (!capabilities.IsSuccess)
                 return Failed(integration, capabilities.Status, capabilities.Error!, settings);
 
-            var queries = ReleaseSearchPlanning.For(text, year, identifiers, capabilities.Value!);
-            if (queries.Count == 0)
-            {
-                return NotSearched(
-                    integration,
-                    ReleaseSourceNotSearchedReason.NoUsableSearch,
-                    $"“{integration.Name}” offers no search this app can use: no search by text, and no movie search by title or by an id that was asked for.");
-            }
+            // MAM-32 — the movie family, then the TV family (ADR 0020): one title may be either, and a
+            // search can't tell which. A season is a show's, so a search for one asks for no movie.
+            var searchable = capabilities.Value!;
+            IReadOnlyList<ReleaseSearchQuery>[] families = season is null
+                ? [ReleaseSearchPlanning.For(text, year, identifiers, searchable), ReleaseSearchPlanning.ForTv(text, null, identifiers, searchable)]
+                : [ReleaseSearchPlanning.ForTv(text, season, identifiers, searchable)];
+            if (families.All(family => family.Count == 0))
+                return NotSearched(integration, ReleaseSourceNotSearchedReason.NoUsableSearch, NoUsableSearchError(integration.Name, season));
 
-            // The tiers in order until one lists a release (ReleaseSearchPlanning): an id search that
-            // finds nothing is followed by the title, never reported as "nothing there".
-            IReadOnlyList<ReleaseSearchHit> hits = [];
-            foreach (var query in queries)
+            // Each family's tiers in order until one lists a release (ReleaseSearchPlanning): an id search
+            // that finds nothing is followed by the title, never reported as "nothing there". The families
+            // one after the other, as the tiers are: a source is still sent one request at a time, and lists
+            // its releases in the same order on every search. Any query that fails fails the source, as
+            // before: half of what it lists would read as all of it.
+            var hits = new List<ReleaseSearchHit>();
+            var listedIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var family in families)
             {
-                var found = await provider.SearchAsync(settings, query, cancellationToken);
-                if (!found.IsSuccess)
-                    return Failed(integration, found.Status, found.Error!, settings);
-                hits = found.Value!;
-                if (hits.Count > 0)
-                    break;
+                IReadOnlyList<ReleaseSearchHit> found = [];
+                foreach (var query in family)
+                {
+                    var answer = await provider.SearchAsync(settings, query, cancellationToken);
+                    if (!answer.IsSuccess)
+                        return Failed(integration, answer.Status, answer.Error!, settings);
+                    found = answer.Value!;
+                    if (found.Count > 0)
+                        break;
+                }
+
+                // A listing both families find (filed under a movie and a TV category both) is kept once, as
+                // the movie family found it: two rows of one release would list it twice. One the source
+                // gives no id is never the same as another.
+                hits.AddRange(found.Where(hit => hit.SourceItemId is null || !listedIds.Contains(hit.SourceItemId)));
+                listedIds.UnionWith(found.Select(hit => hit.SourceItemId).OfType<string>());
             }
 
             logger.LogInformation(
@@ -104,7 +129,7 @@ public sealed class ReleaseSources(
                 integration.AdapterType,
                 hits.Count);
             return new ReleaseSourceOutcome(
-                integration.Id, integration.Name, IntegrationCallStatus.Succeeded, null, null, hits, capabilities.Value!.Categories);
+                integration.Id, integration.Name, IntegrationCallStatus.Succeeded, null, null, hits, searchable.Categories);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {

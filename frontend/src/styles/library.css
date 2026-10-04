@@ -398,6 +398,87 @@ button.library-version-row + .library-version-details {
   gap: 0.25rem;
 }
 
+/* ── MAM-32: a series' seasons and their episodes ── */
+
+/* Framed like the version rows above, a season a row. Classes of their own rather than
+   .library-version-row: a season has a name and a count, not a version's label, chips and size, and
+   its open part holds whole episodes with their own version rows. */
+.library-season-rows {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.library-season-rows > li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* The chevron, the season's name and its episode count. */
+.library-season-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+/* The nested fill of a card, and the ring inside the frame, as a version row has them. */
+.library-season-row:hover {
+  background: var(--muted);
+}
+
+.library-season-row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.library-season-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.library-season-count {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The opened season: its episodes, then its pager, under the name (past the chevron). */
+.library-season-episodes {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.25rem 0.75rem 0.75rem 2.5rem;
+}
+
+.library-episodes {
+  display: grid;
+  gap: 1rem;
+}
+
+.library-episode {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The number and title beside the ids it lacks, as a card's head lays out its title and badges. */
+.library-episode-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.library-episode-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 /* ── MAM-16: a card's versions as a table ── */
 
 /* A table's own border can't be rounded; the frame around it is. Never wider than the card: the
@@ -481,6 +562,11 @@ button.library-version-row + .library-version-details {
     justify-content: flex-start;
   }
 
+  /* MAM-32 — an episode's missing ids go under its title too. */
+  .library-episode-head {
+    flex-direction: column;
+  }
+
   /* MAM-16 — owner's choice: a phone always shows the versions as rows, as a table of several
      leaves a few characters a column at 375px. LibraryWorkCard renders the rows here too, through
      useNarrowScreen at this same width; the choice stays stored for a wider screen. */
@@ -521,5 +607,11 @@ button.library-version-row + .library-version-details {
 
   button.library-version-row .library-version-chips {
     grid-column: 2 / -1;
+  }
+
+  /* MAM-32 — an opened season keeps a narrower indent on a phone, so its episodes' version rows keep
+     the width they need. */
+  .library-season-episodes {
+    padding-left: 0.75rem;
   }
 }

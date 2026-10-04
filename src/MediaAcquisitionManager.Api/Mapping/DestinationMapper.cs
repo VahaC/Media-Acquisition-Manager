@@ -25,6 +25,22 @@ public sealed class DestinationMapper : IDestinationMapper
                 new ClientDestinationDto(listed.Destination.Key, listed.Destination.DisplayName, ToDto(listed.Check)))],
             result.Error);
 
+    public DestinationSectionSourceDto ToDto(
+        IntegrationConnectionEntity source,
+        IReadOnlyList<DestinationSectionGroup> sections,
+        IReadOnlyDictionary<Guid, string> destinationNames,
+        string? error) =>
+        new(
+            source.Id,
+            source.Name,
+            [.. sections.Select(section => new DestinationSectionDto(
+                section.Name,
+                section.CategoryIds,
+                section.IsSourceSpecific,
+                section.DestinationId,
+                section.DestinationId is { } destinationId ? destinationNames.GetValueOrDefault(destinationId) : null))],
+            error);
+
     private static DestinationCheckDto ToDto(DestinationPathCheckResult check) =>
         new(check.Status, check.ServicePath, check.AppPath, check.LibraryNames, check.Problem);
 }

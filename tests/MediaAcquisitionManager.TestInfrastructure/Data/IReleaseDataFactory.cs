@@ -12,7 +12,8 @@ public interface IReleaseDataFactory
     /// purpose <c>ReleasePayloadLocatorPurpose.For</c>. The default link carries a planted API key, the
     /// way a gateway's link does (ADR 0004). Given <paramref name="searchSourceId"/>, it is a release that
     /// stored search's source found (MAM-12). MAM-13 — the source's id for the listing, the info hash it
-    /// states and the payload kind it names, when a test needs a listing that says them.
+    /// states and the payload kind it names, when a test needs a listing that says them; MAM-32 — the
+    /// categories it is listed in, comma-separated as the release store keeps them.
     /// </summary>
     Task<ReleaseEntity> Create(
         Guid? sourceConnectionId,
@@ -22,5 +23,6 @@ public interface IReleaseDataFactory
         Guid? searchSourceId = null,
         string? sourceItemId = null,
         string? infoHash = null,
-        ReleasePayloadKind? payloadKind = null);
+        ReleasePayloadKind? payloadKind = null,
+        string? categoryIds = null);
 }

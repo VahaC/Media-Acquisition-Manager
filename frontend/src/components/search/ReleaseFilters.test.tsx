@@ -5,7 +5,7 @@ import { ReleaseFilters, type ReleaseFilterValues } from '@/components/search/Re
 import type { SearchFacets } from '@/lib/types'
 import { aliensSearch, other, searchSourceOf, toloka } from '@/test/search'
 
-const noFilters: ReleaseFilterValues = { source: '', language: '', quality: '', minSize: '', maxSize: '', sort: 'seeders' }
+const noFilters: ReleaseFilterValues = { source: '', kind: '', language: '', quality: '', minSize: '', maxSize: '', sort: 'seeders' }
 
 /** A source that answered with nothing, which the source filter leaves out. */
 const quiet = searchSourceOf({ id: '5ea4c000-0000-4000-8000-000000000013', name: 'Quiet', releaseCount: 0 })
@@ -71,7 +71,7 @@ describe('ReleaseFilters', () => {
 
   it('leaves Unknown out of a filter when every release claims a value', () => {
     // Arrange
-    const facets: SearchFacets = { audioLanguages: ['ukr'], hasUnknownAudioLanguage: false, resolutions: [1080], hasUnknownResolution: false }
+    const facets: SearchFacets = { audioLanguages: ['ukr'], hasUnknownAudioLanguage: false, resolutions: [1080], hasUnknownResolution: false, kinds: ['Movie'] }
 
     // Act
     renderFilters(facets)
@@ -135,5 +135,28 @@ describe('ReleaseFilters', () => {
     expect(screen.getByRole('textbox', { name: 'Largest size in GiB' })).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: 'Largest size in GiB' })).toHaveAccessibleDescription('Enter a size in GiB, such as 4.5.')
     expect(screen.getByRole('textbox', { name: 'Smallest size in GiB' })).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('offers the kinds the sources listed, and reports the one picked', async () => {
+    // Arrange — MAM-32
+    const { changes, user } = renderFilters({ ...aliensSearch.facets, kinds: ['Movie', 'Tv'] })
+
+    // Act
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Kind' }), 'TV')
+
+    // Assert
+    expect(optionsOf('Kind')).toEqual(['Movies and TV', 'Movies', 'TV'])
+    expect(changes.at(-1)).toEqual({ ...noFilters, kind: 'Tv' })
+  })
+
+  it('offers only the kind every release is', () => {
+    // Arrange
+    const facets = { ...aliensSearch.facets, kinds: ['Movie' as const] }
+
+    // Act
+    renderFilters(facets)
+
+    // Assert
+    expect(optionsOf('Kind')).toEqual(['Movies and TV', 'Movies'])
   })
 })

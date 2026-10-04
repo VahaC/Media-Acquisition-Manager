@@ -11,7 +11,8 @@ search field in the header, numbered pages, versions as rows or a table, one err
 failure, and a Profile page where every user changes their own password) are built, and MAM-15
 checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
 access tokens) is still to do; no phase has shipped yet. Phase B, release 0.2.0, has started: MAM-17
-answered specification §7 questions 3 and 6 against the live installation on 2026-10-04.
+answered specification §7 questions 3 and 6 against the live installation on 2026-10-04, and MAM-32
+(series and episodes in the library, and searching, matching and sending their releases) is built.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -403,7 +404,8 @@ existing file untouched.
 
 **Out of scope:** removing, moving or replacing any library file (Phase C); duplicate detection
 (Phase B); a second search or client adapter, Plex and Emby (Phase D); TV shows (Phase B, where
-MAM-17 answered specification §7 question 3 and MAM-32 imports them).
+MAM-17 answered specification §7 question 3 and MAM-32 imports them and searches and sends their
+releases).
 
 **Tests:** every endpoint over real HTTP, with vendor APIs faked at the network seam; a failing
 source returns its own error while the other sources still answer; submitting the same release
@@ -443,8 +445,24 @@ episode, and how much space could really be recovered — without the app guessi
   A seeding file is a duplicate like any other, so Phase B reads no download client (Vasyl's
   decision, [ADR 0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
   Jellyfin's real answers for series, seasons and episodes are new adapter samples.
-- Import series, seasons and episodes from Jellyfin, in every library, as works with versions and
-  files like movies, and list them on the Library page (MAM-32, ADR 0017).
+- **MAM-32 Series and episodes, and their releases** (built): a sync imports Jellyfin's series and
+  episodes from every library beside its movies, reading three lists (movies, series, episodes) each
+  with its own checks. A series is a work holding the show's titles and IMDb, TMDb TV and TVDB ids
+  and no version; an episode is a work with versions and files, placed in its series by a position
+  per library item (series work, season, episode); the seasons are read from the episodes' numbers,
+  and an episode Jellyfin lists without a file is left out (Vasyl's decisions 1 and 3,
+  [ADR 0019](docs/adr/0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+  The Library page shows a series as one card with collapsible seasons whose episodes load a page
+  at a time (`GET /api/library/works/{id}/episodes`), an episode of no series as a card of its own,
+  and a Movies/Series filter (Vasyl's decisions 2 and 6). The release search asks every source for
+  TV beside movies — the title without the year in its TV categories, a season where asked — and a
+  release is TV by its category; a TV title is read for its seasons, episodes and span of years, a
+  TV release matches library series only and a movie release movies only, and each TV match counts
+  the episodes held of what it claims; the Search page lists series in **In your library**, has a
+  Season field and a Movies/TV filter (Vasyl's decisions 4 and 6). The owner maps a release source's
+  sections to destinations, and the Download dialog opens on the destination the release's section
+  is mapped to, else the default (Vasyl's decision 5,
+  [ADR 0020](docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
 - Scan the allowed roots for files no library reported, movies' and episodes' alike, inside them
   only and without following links out of them — the rules MAM-9's inspection already applies to
   the library's own files (ADR 0009).
@@ -459,22 +477,36 @@ episode, and how much space could really be recovered — without the app guessi
   space estimate only where the storage relationship is known.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
   by rescanning, so they need no export of their own; the series, seasons and episodes come back
-  with the next sync, like the movies.
+  with the next sync, like the movies. The tracker sections mapped to destinations are rows of the
+  database beside the destinations, in the data directory's backup; a search's season and its
+  releases' kinds and categories live for a day, like the search.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
-Phase C. Searching releases for an episode, and downloading one, which no phase plans yet. Letting a
-file name decide what a library item is (ADR 0017).
+Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
+yet: a release's title says which episodes it holds, and a season can be searched for. Jellyfin's
+season items and its virtual (missing) episodes (Vasyl's decisions 1 and 3). Letting a file name
+decide what a library item is (ADR 0017), or a release's title what a release is: its source's
+category decides (ADR 0020).
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
 versions; conflicting IDs require manual review; a series known by several library items is one
 series, and a movie and a series sharing a TMDb number stay apart; a seeding file is classed like
-any other.
+any other. MAM-32: a series' seasons come from its episodes' own numbers, and a virtual episode is
+stored as nothing; a list of series or episodes that changes while it is read stores nothing; the
+TV queries go to the TV categories without the year, with the season where asked, and a failing one
+fails its source; a TV release matches series only, a movie release movies only, a season-1 pack
+by its first year exactly and a later seasons' pack by a series of that year or earlier, with the
+episodes held counted once each; the Download dialog's suggestion prefers the source's own section,
+and a tie suggests nothing.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
 require manual review. The reference installation has no hardlinks and no two video files of one
 size (MAM-17), so there the first criterion and a byte-identical pair of videos rest on the tests.
+For MAM-32: a sync of the reference installation lists each show once with its seasons; a search
+for a series through Toloka lists its TV releases matched to it with the episodes held; and a TV
+release sent from there lands in the destination its section is mapped to.
 
 ### Phase C — Safe replacement
 

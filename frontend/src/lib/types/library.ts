@@ -1,8 +1,14 @@
-/** What a media work is. Movies only in Phase A. */
-export type MediaWorkKind = 'Movie'
+/**
+ * What a media work is. MAM-32 — a series is a work of its own, with seasons but no versions; its
+ * episodes are works too, each with its versions, listed under it.
+ */
+export type MediaWorkKind = 'Movie' | 'Episode' | 'Series'
 
-/** A public registry whose id names one work. */
-export type MediaIdentifierScheme = 'Imdb' | 'Tmdb'
+/**
+ * A public registry whose id names one work. MAM-32 — `TmdbTv` is a show's TMDb id: TMDb numbers
+ * films and shows apart, so it never matches a movie's (ADR 0017).
+ */
+export type MediaIdentifierScheme = 'Imdb' | 'Tmdb' | 'Tvdb' | 'TmdbTv'
 
 /**
  * How a file's path in the service became a path in this app, through the integration's current
@@ -13,8 +19,14 @@ export type PathMapStatus = 'Identity' | 'Mapped' | 'NotCovered' | 'Ambiguous' |
 /** Where a library sync is. Queued and Running are under way; the other two are final. */
 export type LibrarySyncStatus = 'Queued' | 'Running' | 'Succeeded' | 'Failed'
 
-/** The identifiers filter of the works list: works lacking an IMDb or a TMDb id. */
+/** The identifiers filter of the works list: works lacking an id of their kind. */
 export type LibraryIdentifierFilter = 'Missing'
+
+/**
+ * MAM-32 — the kind filter of the works list: the movies, or the series with the episodes of no
+ * series.
+ */
+export type LibraryKindFilter = 'Movie' | 'Series'
 
 /** A reliable id of a work, and the integration that reported it. */
 export interface LibraryIdentifier {
@@ -124,6 +136,23 @@ export interface LibraryVersion {
   files: LibraryFile[]
 }
 
+/** MAM-32 — where an episode sits, as the library places it. */
+export interface LibraryEpisode {
+  /** The series work it belongs to; null when the library names none. */
+  seriesId: string | null
+  /** Its season, 0 for the specials; null when the library gives none. */
+  seasonNumber: number | null
+  /** Its number within the season; null when the library gives none. */
+  episodeNumber: number | null
+}
+
+/** MAM-32 — one season of a series, with how many of its episodes the list's search and filters keep. */
+export interface LibrarySeason {
+  /** The season, 0 for the specials; null for the episodes the library gives no season. */
+  number: number | null
+  episodeCount: number
+}
+
 /** One work of `GET /api/library/works`. Every value the library didn't report is null. */
 export interface LibraryWork {
   id: string
@@ -132,9 +161,20 @@ export interface LibraryWork {
   originalTitle: string | null
   year: number | null
   identifiers: LibraryIdentifier[]
-  /** The schemes it has no id of; a work needs both to be matched reliably. */
+  /**
+   * The schemes of its kind it has no id of; a work needs them all to be matched reliably — IMDb and
+   * TMDb for a movie, MAM-32: IMDb and TVDB for an episode, IMDb, TMDb TV and TVDB for a series.
+   */
   missingIdentifiers: MediaIdentifierScheme[]
+  /** None for a series: its episodes hold the versions. */
   versions: LibraryVersion[]
+  /** MAM-32 — where an episode sits; null for anything else. */
+  episode: LibraryEpisode | null
+  /**
+   * MAM-32 — a series' seasons, regular ones first, then the specials, then the episodes without a
+   * season; null for anything but a series.
+   */
+  seasons: LibrarySeason[] | null
 }
 
 /** One page of `GET /api/library/works`. */
@@ -154,9 +194,31 @@ export interface LibraryWorksQuery {
   search?: string
   locationId?: string
   identifiers?: LibraryIdentifierFilter
+  /** MAM-32 */
+  kind?: LibraryKindFilter
   page: number
   pageSize: number
 }
+
+/**
+ * MAM-32 — the query params of `GET /api/library/works/{id}/episodes`: one season of a series, with
+ * the works list's own search and filters, so a season lists the episodes its count was made of.
+ */
+export interface LibraryEpisodesQuery {
+  /** A season number (`0` for the specials), or `None` for the episodes without one; left out for every season. */
+  season?: string
+  search?: string
+  locationId?: string
+  identifiers?: LibraryIdentifierFilter
+  page: number
+  pageSize: number
+}
+
+/**
+ * MAM-32 — the works list's search and filters a series card passes on to its seasons, so an opened
+ * season lists the episodes its count was made of.
+ */
+export type LibraryEpisodeFilters = Pick<LibraryEpisodesQuery, 'search' | 'locationId' | 'identifiers'>
 
 /** A library of a media library integration (a Jellyfin library) that holds at least one file. */
 export interface LibraryLocation {
@@ -183,11 +245,14 @@ export interface LibrarySyncRun {
   createdUtc: string
   startedUtc: string | null
   finishedUtc: string | null
-  /** Distinct movies read so far. */
+  /** Distinct items read so far: MAM-32 — movies, series and episodes. */
   itemsRead: number
-  /** How many movies the library listed; null until the first page arrived. */
+  /** How many items the library listed; null until the first page of each list arrived. */
   itemsTotal: number | null
+  /** The movies and episodes stored as works. */
   worksCount: number | null
+  /** MAM-32 — the series stored; null unless it succeeded, and for a sync from before series were read. */
+  seriesCount: number | null
   versionsCount: number | null
   filesCount: number | null
   /** Why it failed. The installation owner only: null for everyone else (MAM-8). */

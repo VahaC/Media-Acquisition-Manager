@@ -14,6 +14,7 @@ import {
   nasClient,
   optionsOf,
   seedboxClient,
+  suggestedOf,
 } from '@/test/downloads'
 import { tolokaRemux } from '@/test/search'
 
@@ -242,7 +243,101 @@ describe('DownloadDialog', () => {
     expect(summary(dialog)).toContainEqual(['Download client', 'Not picked yet'])
   })
 
-  it('forgets the destination picked for one client when another is picked', async () => {
+  it('opens on the destination the server suggests for the tracker section of the release, over the default', async () => {
+    // Arrange — MAM-32: Toloka's «Мультсеріали» is mapped to Series of the seedbox; Movies stays the default.
+    const [, series] = seedboxClient.destinations
+    vi.mocked(downloadsApi.options).mockResolvedValue(suggestedOf(series.id, localClient, seedboxClient))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(clientSelect(dialog)).toHaveValue(seedboxClient.id)
+    expect(destinationSelect(dialog)).toHaveValue(series.id)
+    expect(summary(dialog)).toContainEqual(['Destination', 'Series — category “tv”'])
+    expect(sendButton(dialog)).toBeEnabled()
+  })
+
+  it('opens on the placeholders when the server suggests none, though a default is listed', async () => {
+    // Arrange — two sections of the release mapped to two destinations: the server picks neither.
+    vi.mocked(downloadsApi.options).mockResolvedValue(suggestedOf(null, localClient, seedboxClient))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(clientSelect(dialog)).toHaveValue('')
+    expect(destinationSelect(dialog)).toHaveValue('')
+    expect(sendButton(dialog)).toBeDisabled()
+  })
+
+  it('opens on the only client but on no destination when the server suggests none, though the client holds the default', async () => {
+    // Arrange — the default is a pick for a client chosen by hand, never for the opening one.
+    vi.mocked(downloadsApi.options).mockResolvedValue(suggestedOf(null, localClient))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(clientSelect(dialog)).toHaveValue(localClient.id)
+    expect(destinationSelect(dialog)).toHaveValue('')
+    expect(sendButton(dialog)).toBeDisabled()
+  })
+
+  // A client picked by hand comes with, in this order: the suggested destination, the default, its
+  // only destination, or none.
+
+  it('picks the suggested destination of a client picked by hand, over the default it holds too', async () => {
+    // Arrange — Cartoons is suggested; Movies, of the same client, stays the default.
+    vi.mocked(downloadsApi.options).mockResolvedValue(suggestedOf(cartoonsOption.id, localClient, seedboxClient))
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+    await user.selectOptions(clientSelect(dialog), seedboxClient.id)
+
+    // Act
+    await user.selectOptions(clientSelect(dialog), localClient.id)
+
+    // Assert
+    expect(destinationSelect(dialog)).toHaveValue(cartoonsOption.id)
+    expect(sendButton(dialog)).toBeEnabled()
+  })
+
+  it.each<[string, string | null]>([
+    ['the suggested one is another client\'s', seedboxClient.destinations[0].id],
+    ['the server suggests none', null],
+  ])('picks the default destination of a client picked by hand when %s', async (_, suggestedId) => {
+    // Arrange
+    vi.mocked(downloadsApi.options).mockResolvedValue(suggestedOf(suggestedId, localClient, seedboxClient))
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+
+    // Act
+    await user.selectOptions(clientSelect(dialog), localClient.id)
+
+    // Assert
+    expect(destinationSelect(dialog)).toHaveValue(moviesOption.id)
+    expect(summary(dialog)).toContainEqual(['Destination', 'Movies — category “Movies”'])
+    expect(sendButton(dialog)).toBeEnabled()
+  })
+
+  it('picks the only destination of a client picked by hand that holds neither the suggested one nor the default', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient, nasClient))
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+
+    // Act
+    await user.selectOptions(clientSelect(dialog), nasClient.id)
+
+    // Assert
+    expect(destinationSelect(dialog)).toHaveValue(nasClient.destinations[0].id)
+    expect(sendButton(dialog)).toBeEnabled()
+  })
+
+  it('picks no destination of a client picked by hand that holds several but neither the suggested one nor the default, and forgets the last client\'s pick', async () => {
     // Arrange
     const { dialog, user } = renderDialog()
     await optionsLoaded(dialog)
@@ -257,20 +352,6 @@ describe('DownloadDialog', () => {
     expect(optionTexts(destinationSelect(dialog))).toEqual(['Choose a destination', 'Films', 'Series'])
     expect(summary(dialog)).toContainEqual(['Destination', 'Not picked yet'])
     expect(sendButton(dialog)).toBeDisabled()
-  })
-
-  it('picks the only destination of a client picked by hand', async () => {
-    // Arrange
-    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient, nasClient))
-    const { dialog, user } = renderDialog()
-    await optionsLoaded(dialog)
-
-    // Act
-    await user.selectOptions(clientSelect(dialog), nasClient.id)
-
-    // Assert
-    expect(destinationSelect(dialog)).toHaveValue(nasClient.destinations[0].id)
-    expect(sendButton(dialog)).toBeEnabled()
   })
 
   it('sums up the source, the release, the client, the destination with its category, and that existing copies are kept', async () => {

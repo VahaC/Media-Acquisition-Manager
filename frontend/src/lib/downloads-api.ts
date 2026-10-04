@@ -21,6 +21,8 @@ export const downloadsApi = {
    * `GET /api/downloads/options?releaseId=`. 200 with every enabled download client this build can
    * send to that takes the release's payload (one whose kind is still unknown needs a client that
    * takes a .torrent file or a magnet link) and has a destination: clients and destinations by name.
+   * MAM-32 — with the destination to pick first: the one the release's tracker section is mapped to,
+   * else the installation's default, else none (`suggestedDestinationId`, ADR 0020).
    * 400 `{ error }` without a release; 404 `{ error }` when the release isn't one of the caller's
    * searches' — another user's, more than a day old, or none.
    */

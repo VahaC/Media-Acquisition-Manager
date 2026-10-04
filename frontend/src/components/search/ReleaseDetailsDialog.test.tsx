@@ -3,12 +3,28 @@ import userEvent from '@testing-library/user-event'
 import { ReleaseDetailsDialog } from '@/components/search/ReleaseDetailsDialog'
 import type { LibraryMatch, SearchRelease } from '@/lib/types'
 import { aliens, continental } from '@/test/library'
-import { aliensMatch, continentalMatch, otherUhd, releaseOf, tolokaRemux, untitledRip } from '@/test/search'
+import {
+  aliensMatch,
+  continentalMatch,
+  otherUhd,
+  releaseOf,
+  tolokaRemux,
+  untitledRip,
+  yellowstoneEpisodes,
+  yellowstoneMatch,
+  yellowstonePack,
+} from '@/test/search'
 
 function renderDialog(release: SearchRelease, library: LibraryMatch[] = [aliensMatch]) {
   const onClose = vi.fn()
   render(<ReleaseDetailsDialog release={release} library={library} onClose={onClose} />)
   return { onClose, user: userEvent.setup(), dialog: screen.getByRole('dialog') }
+}
+
+/** The facts the dialog read from the title, as `[term, value]` pairs: the list right under its heading. */
+function readAs(dialog: HTMLElement): [string, string][] {
+  const list = within(dialog).getByRole('heading', { name: 'Read from the title' }).nextElementSibling!
+  return [...list.querySelectorAll('dt')].map((term) => [term.textContent!, term.nextElementSibling!.textContent!])
 }
 
 /** The facts list after the heading `name`, as `[term, value]` pairs. */
@@ -45,6 +61,7 @@ describe('ReleaseDetailsDialog', () => {
       ['Seeders', '12'],
       ['Peers', '15'],
       ['Published', '9/28/2026, 9:30:00 PM'],
+      ['Listed as', 'A movie'],
       ['Downloaded as', 'A torrent file'],
     ])
   })
@@ -63,6 +80,7 @@ describe('ReleaseDetailsDialog', () => {
       ['Seeders', 'Unknown'],
       ['Peers', 'Unknown'],
       ['Published', 'Unknown'],
+      ['Listed as', 'A movie'],
       ['Downloaded as', 'Known once it is fetched'],
     ])
   })
@@ -102,7 +120,7 @@ describe('ReleaseDetailsDialog', () => {
     // Assert
     const ids = within(within(dialog).getByRole('list', { name: 'Ids in the listing' })).getAllByRole('listitem')
     expect(ids.map((id) => id.textContent)).toEqual(['IMDb tt0090605'])
-    expect(within(dialog).queryByText('The listing gives no IMDb or TMDb id.')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('The listing gives no IMDb, TMDb or TVDB id.')).not.toBeInTheDocument()
   })
 
   it('says when the listing gives no id', () => {
@@ -113,15 +131,15 @@ describe('ReleaseDetailsDialog', () => {
     const { dialog } = renderDialog(release)
 
     // Assert
-    expect(within(dialog).getByText('The listing gives no IMDb or TMDb id.')).toBeInTheDocument()
+    expect(within(dialog).getByText('The listing gives no IMDb, TMDb or TVDB id.')).toBeInTheDocument()
   })
 
   it('shows every library work the release matches, strongest first, with why and its verified facts', () => {
     // Arrange
     const release = releaseOf({
       libraryMatches: [
-        { workId: aliens.id, evidence: 'Identifier', conflictingSchemes: ['Tmdb'] },
-        { workId: continental.id, evidence: 'TitleOnly', conflictingSchemes: [] },
+        { workId: aliens.id, evidence: 'Identifier', conflictingSchemes: ['Tmdb'], heldEpisodeCount: null },
+        { workId: continental.id, evidence: 'TitleOnly', conflictingSchemes: [], heldEpisodeCount: null },
       ],
     })
 
@@ -171,5 +189,53 @@ describe('ReleaseDetailsDialog', () => {
     expect([...footer.children].map((control) => control.textContent)).toEqual(['Open source', 'Close'])
     expect(within(footer).getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://toloka.to/t123456')
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('says a TV release is listed as TV, and reads its span of years and the seasons it claims', () => {
+    // Arrange — MAM-32
+    const release = yellowstonePack
+
+    // Act
+    const { dialog } = renderDialog(release, [yellowstoneMatch])
+
+    // Assert
+    expect(factsUnder(dialog, 'The listing')).toContainEqual(['Listed as', 'TV'])
+    expect(readAs(dialog)).toEqual([
+      ['Titles', 'Yellowstone'],
+      ['Year', '2018–2024'],
+      ['Seasons', 'Seasons 1–5'],
+    ])
+  })
+
+  it('reads the episodes a TV release claims of its season', () => {
+    // Arrange
+    const release = yellowstoneEpisodes
+
+    // Act
+    const { dialog } = renderDialog(release, [yellowstoneMatch])
+
+    // Assert
+    expect(readAs(dialog)).toEqual([
+      ['Titles', 'Yellowstone'],
+      ['Year', '2018'],
+      ['Seasons', 'Season 1'],
+      ['Episodes', 'Episodes 1–9'],
+    ])
+    expect(within(dialog).getByText('TVDB 341164')).toBeInTheDocument()
+  })
+
+  it('shows a series the release matches with how many of its episodes the library holds, and its seasons', () => {
+    // Arrange
+    const release = yellowstonePack
+
+    // Act
+    const { dialog } = renderDialog(release, [yellowstoneMatch])
+
+    // Assert
+    const work = within(dialog).getByRole('heading', { level: 4, name: 'Єллоустоун' }).closest('section')!
+    expect(within(work).getByText('Series')).toBeInTheDocument()
+    expect(within(work).getByText('19 of its episodes in your library')).toBeInTheDocument()
+    expect(within(within(work).getByRole('list', { name: 'Seasons' })).getAllByRole('button')).toHaveLength(4)
+    expect(within(work).queryByText('No versions reported.')).not.toBeInTheDocument()
   })
 })

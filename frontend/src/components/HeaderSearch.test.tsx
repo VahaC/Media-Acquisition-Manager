@@ -64,7 +64,7 @@ function renderAt(
   return { client, user: userEvent.setup() }
 }
 
-const field = () => screen.getByRole('searchbox', { name: 'Search for a movie' })
+const field = () => screen.getByRole('searchbox', { name: 'Search for a movie or a series' })
 
 /** The client with the stored Aliens search in its cache, as the Search page leaves it. */
 function clientWithAliens() {
@@ -178,7 +178,7 @@ describe('HeaderSearch', () => {
     // Assert
     expect(typed).toBe(true)
     // The open dialog hides the rest of the page from the accessibility tree.
-    expect(screen.getByRole('searchbox', { name: 'Search for a movie', hidden: true })).not.toHaveFocus()
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie or a series', hidden: true })).not.toHaveFocus()
   })
 
   it.each([
@@ -382,7 +382,7 @@ describe('HeaderSearch', () => {
 
     // Assert
     expect(field()).toHaveAttribute('aria-keyshortcuts', '/')
-    expect(field()).toHaveAttribute('placeholder', 'Search a movie by title, e.g. Interstellar (2014)')
+    expect(field()).toHaveAttribute('placeholder', 'Search a movie or a series by title, e.g. Interstellar (2014)')
     expect(screen.getByRole('search')).toContainElement(field())
   })
 

@@ -11,4 +11,6 @@ public sealed record LibraryWorkListResult(LibraryWorkListStatus Status, Library
     public static LibraryWorkListResult Listed(LibraryWorkListResponse list) => new(LibraryWorkListStatus.Listed, list, null);
 
     public static LibraryWorkListResult Invalid(string error) => new(LibraryWorkListStatus.Invalid, null, error);
+
+    public static LibraryWorkListResult NotFound { get; } = new(LibraryWorkListStatus.NotFound, null, null);
 }

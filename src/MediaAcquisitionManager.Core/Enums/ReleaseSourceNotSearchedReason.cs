@@ -14,6 +14,7 @@ public enum ReleaseSourceNotSearchedReason
     TypeUnavailable = 2,
 
     /// <summary>It offers no search this app can use: no search by text, and no movie search by text or
-    /// by an id that was asked for.</summary>
+    /// by an id that was asked for — MAM-32: nor a TV search in a TV category; for a season, the TV search
+    /// alone counts.</summary>
     NoUsableSearch = 3,
 }

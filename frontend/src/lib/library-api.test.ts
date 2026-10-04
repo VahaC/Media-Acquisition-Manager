@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { libraryApi } from '@/lib/library-api'
-import { inspectionRunOf, locations, runOf, sourceOf, sourcesOf, worksPage, aliens } from '@/test/library'
+import { inspectionRunOf, locations, runOf, sourceOf, sourcesOf, worksPage, aliens, yellowstone, yellowstoneEpisodeOf } from '@/test/library'
 
 /**
  * Answers every request with `status` and `body`, and keeps the requests it was sent. A replaced
@@ -56,6 +56,47 @@ describe('libraryApi', () => {
 
     // Assert
     expect(api.getUri(requests[0])).toBe('/api/library/works?page=1&pageSize=25')
+  })
+
+  it('asks for the works of one kind with the kind as a query param', async () => {
+    // Arrange
+    const query = { kind: 'Series' as const, page: 1, pageSize: 25 }
+    const requests = respondWith(200, worksPage(query, [yellowstone]))
+
+    // Act
+    const page = await libraryApi.works(query)
+
+    // Assert
+    expect(page.items).toEqual([yellowstone])
+    expect(api.getUri(requests[0])).toBe('/api/library/works?kind=Series&page=1&pageSize=25')
+  })
+
+  it('asks for one page of one season of a series with the filters of the works list as query params', async () => {
+    // Arrange
+    const episode = yellowstoneEpisodeOf({})
+    const query = { season: '1', search: 'daybreak', locationId: locations.items[1].id, identifiers: 'Missing' as const, page: 2, pageSize: 10 }
+    const requests = respondWith(200, worksPage(query, [episode], 11))
+
+    // Act
+    const page = await libraryApi.episodes(yellowstone.id, query)
+
+    // Assert
+    expect(page).toEqual({ items: [episode], totalCount: 11, page: 2, pageSize: 10 })
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe(
+      `/api/library/works/${yellowstone.id}/episodes?season=1&search=daybreak&locationId=${locations.items[1].id}&identifiers=Missing&page=2&pageSize=10`)
+  })
+
+  it('rejects the episodes of what is not a series with the bare 404', async () => {
+    // Arrange
+    respondWith(404, '')
+
+    // Act
+    const result = libraryApi.episodes(aliens.id, { season: 'None', page: 1, pageSize: 25 })
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 404, data: '' } })
   })
 
   it('reads the locations and the sources', async () => {

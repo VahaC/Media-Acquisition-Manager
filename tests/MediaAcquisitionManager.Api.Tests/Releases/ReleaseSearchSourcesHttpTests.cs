@@ -219,7 +219,7 @@ public sealed class ReleaseSearchSourcesHttpTests : IClassFixture<MediaAcquisiti
         Assert.Null(source.Status);
         Assert.Equal(ReleaseSourceNotSearchedReason.NoUsableSearch, source.NotSearchedReason);
         Assert.Equal(
-            "“Toloka” offers no search this app can use: no search by text, and no movie search by title or by an id that was asked for.",
+            "“Toloka” offers no search this app can use: no search by text, and no movie or TV search by title or by an id that was asked for.",
             source.Error);
         // The capabilities were read; nothing was searched.
         Assert.Single(_factory.TorznabHttp.Requests);

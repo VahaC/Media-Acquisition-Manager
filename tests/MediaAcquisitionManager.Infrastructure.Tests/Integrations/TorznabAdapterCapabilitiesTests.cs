@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
@@ -54,9 +55,18 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
         Assert.Equal(new ReleaseCategory("2000", "Movies", null, true), caps.Categories[0]);
         Assert.Equal(new ReleaseCategory("2040", "Movies/HD", "2000", true), caps.Categories[2]);
         Assert.Equal(new ReleaseCategory("3020", "Audio/Video", "3000", false), caps.Categories[5]);
-        Assert.Contains(new ReleaseCategory("100096", "|-Фільми в HD", null, false), caps.Categories);
+        Assert.Contains(new ReleaseCategory("100096", "|-Фільми в HD", null, false, IsSourceSpecific: true), caps.Categories);
         // Torznab's Movies range only: a gateway's own ids say nothing the core could rely on.
         Assert.Equal(["2000", "2020", "2040", "2070"], caps.Categories.Where(category => category.HoldsMovies).Select(category => category.Id));
+        // MAM-32 — and its TV range, where Prowlarr files Toloka's series and cartoon series.
+        Assert.Equal(["5000", "5040", "5050", "5060", "5070", "5080"], caps.Categories.Where(category => category.HoldsTv).Select(category => category.Id));
+        Assert.Contains(new ReleaseCategory("100125", "|-Мультсеріали", null, false, IsSourceSpecific: true), caps.Categories);
+        Assert.All(caps.Categories, category => Assert.Equal(int.Parse(category.Id, CultureInfo.InvariantCulture) >= 100000, category.IsSourceSpecific));
+        // Toloka's TV search takes q, season and ep: no show's id.
+        Assert.NotNull(caps.TvSearch);
+        Assert.True(caps.TvSearch.TakesText);
+        Assert.True(caps.TvSearch.TakesSeason);
+        Assert.Empty(caps.TvSearch.IdentifierSchemes);
         // The real caps list 100137 twice; the first entry is kept.
         Assert.Single(caps.Categories, category => category.Id == "100137");
         Assert.Equal(caps.Categories.Count, caps.Categories.Select(category => category.Id).Distinct(StringComparer.Ordinal).Count());
@@ -202,8 +212,8 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
                 new ReleaseCategory("2045", "Movies/UHD", "2000", true),
                 // A blank name is the id.
                 new ReleaseCategory("2060", "2060", "2000", true),
-                // Cleaned like any remote text: no bidi override, no line break.
-                new ReleaseCategory("5000", "TV HD", null, false),
+                // Cleaned like any remote text: no bidi override, no line break. MAM-32: TV's range.
+                new ReleaseCategory("5000", "TV HD", null, false, HoldsTv: true),
             ],
             result.Value!.Categories);
     }

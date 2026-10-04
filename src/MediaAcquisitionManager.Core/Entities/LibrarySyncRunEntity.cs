@@ -45,14 +45,21 @@ public class LibrarySyncRunEntity : AuditableEntity
     /// <summary>When it succeeded or failed; <c>null</c> until then.</summary>
     public DateTime? FinishedUtc { get; set; }
 
-    /// <summary>How many different items have been read so far: the progress the page shows.</summary>
+    /// <summary>How many different items have been read so far — movies, series and episodes alike
+    /// (MAM-32): the progress the page shows.</summary>
     public int ItemsRead { get; set; }
 
-    /// <summary>How many items the library reported in all; <c>null</c> until the first page.</summary>
+    /// <summary>How many items the library reported in all, its lists of movies, series and episodes
+    /// together; <c>null</c> until the first page of each was read.</summary>
     public int? ItemsTotal { get; set; }
 
-    /// <summary>How many works the snapshot holds; <c>null</c> unless the sync succeeded.</summary>
+    /// <summary>How many movies and episodes the snapshot holds as works; <c>null</c> unless the sync
+    /// succeeded.</summary>
     public int? WorksCount { get; set; }
+
+    /// <summary>How many series the snapshot holds (MAM-32); <c>null</c> unless the sync succeeded, and
+    /// for a sync from before series were read.</summary>
+    public int? SeriesCount { get; set; }
 
     /// <summary>How many versions the snapshot holds; <c>null</c> unless the sync succeeded.</summary>
     public int? VersionsCount { get; set; }

@@ -36,7 +36,11 @@ public class SearchEntity : AuditableEntity
     [MaxLength(64)]
     public string? ImdbId { get; set; }
 
-    /// <summary>The TMDb id asked for (<c>157336</c>); <c>null</c> when none was.</summary>
+    /// <summary>The TMDb id asked for (<c>157336</c>), a movie's; <c>null</c> when none was.</summary>
     [MaxLength(64)]
     public string? TmdbId { get; set; }
+
+    /// <summary>The season asked for (MAM-32): then the sources are asked for that season of a show only,
+    /// and for no movie. <c>null</c> when none was.</summary>
+    public int? Season { get; set; }
 }

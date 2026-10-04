@@ -280,3 +280,44 @@ onto `ClientJobState` and nothing more.
 `QBittorrentAdapterDestinationJobsTests.ListDestinationJobs_finds_a_hybrid_qbittorrent_renamed_with_the_v1_hash_among_its_hashes`
 and `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
 pin it.
+
+## Implementation (added 0.2.0, MAM-32)
+
+**The contracts learn TV, and the core still decides.** As the Consequences allowed, MAM-32 adds
+members to two kind contracts and no product name to the core. The media library contract reads one
+list at a time: `LibraryPageRequest` gains the list (`Kind`: the library's movies, series or
+episodes, each counted on its own), and a `LibraryItem` gains where an episode sits
+(`LibraryEpisode`: its series item and its numbers) and whether the library holds no file for it
+(`IsMissing`); the item's kind is the library's word alone
+([ADR 0019](0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+The release search contract gains a TV search in the capabilities (`ReleaseTvSearchCapabilities`:
+whether it takes a title, which ids, whether a season), a TV mode and a season in the query
+(`ReleaseSearchMode.Tv`, `ReleaseSearchQuery.Season`), and what a hit is (`ReleaseSearchHit.Kind`).
+`ReleaseSearchPlanning.ForTv`, in Core, chooses the TV queries as `For` chooses the movie ones;
+`JellyfinAdapter` translates a list into `includeItemTypes`, and `TorznabAdapter` a TV query into
+`t=tvsearch` with `season=`, `tvdbid=` or a show's `tmdbid=`.
+
+**The adapter knows its numbering, so it says what a category and a hit are.** A category says
+whether it holds TV (Torznab's 5000 to 5999) and whether it is the source's own section rather than
+a standard category (`IsSourceSpecific`, Torznab's ids of 100000 and up), as MAM-10's category says
+whether it holds movies; a hit is TV when it lists a TV category, and a TV listing's TMDb id is a
+show's (`TmdbTv`)
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+The connection test names the TV search beside the movie search ("…; movie search by title, TV
+search by title, season and episode.").
+
+**A source's sections are read as its search is.** The Destinations dialog's tracker sections come
+from `GetCapabilitiesAsync`, every source asked at once each time (`IReleaseSourceCategoryReader`),
+and the list answers 200 whatever the sources said: a switched-off source, one of a type this build
+no longer registers and one whose key can't be read are not asked and say why, and one whose call
+failed gives its sentence, masked of its secrets, beside its mapped sections; an exception an
+adapter should never have thrown costs its source the answer, logged with its type and stack but
+never its message.
+
+`JellyfinAdapterTvTests.ListItems_asks_for_one_page_of_the_list_with_its_fields`,
+`JellyfinAdapterTvTests.ListItems_fails_the_page_on_an_item_of_another_type_than_the_list`,
+`TorznabAdapterSearchIdentifiersTests.Search_tells_a_tv_listing_from_a_movie_by_its_categories`,
+`TorznabAdapterSearchIdentifiersTests.Search_reads_a_tmdb_id_in_the_space_of_the_listings_kind`,
+`ReleaseSearchPlanningTests.ForTv_never_sends_a_movies_tmdb_id_to_the_tv_search` and
+`DestinationsSectionsHttpTests.Sections_of_a_source_that_can_not_be_reached_answers_its_sentence_and_its_mapped_sections_beside_the_others`
+pin it.

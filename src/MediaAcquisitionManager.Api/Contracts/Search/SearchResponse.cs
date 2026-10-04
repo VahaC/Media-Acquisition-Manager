@@ -13,6 +13,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Year">The year asked for; <c>null</c> when none was.</param>
 /// <param name="ImdbId">The IMDb id asked for, trimmed; <c>null</c> when none was.</param>
 /// <param name="TmdbId">The TMDb id asked for, trimmed; <c>null</c> when none was.</param>
+/// <param name="Season">The season asked for (MAM-32); <c>null</c> when none was.</param>
 /// <param name="CreatedUtc">When the search was made; it is removed a day later.</param>
 /// <param name="Library">Every library work that matches, strongest evidence first; then, MAM-12, at most
 /// 20 works that don't but whose one title or one file path holds every word of the title, evidence
@@ -28,6 +29,7 @@ public sealed record SearchResponse(
     int? Year,
     string? ImdbId,
     string? TmdbId,
+    int? Season,
     DateTime CreatedUtc,
     IReadOnlyList<LibraryMatchDto> Library,
     int LibraryUnlistedCount,

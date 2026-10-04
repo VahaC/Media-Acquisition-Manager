@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +15,22 @@ namespace MediaAcquisitionManager.Api.Services.Library;
 /// </remarks>
 public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper mapper) : ILibraryWorkReader
 {
-    public async Task<List<LibraryWorkDto>> ReadAsync(IReadOnlyList<MediaWorkEntity> works, bool forOwner, CancellationToken cancellationToken = default)
+    public async Task<List<LibraryWorkDto>> ReadAsync(
+        IReadOnlyList<MediaWorkEntity> works,
+        bool forOwner,
+        IReadOnlyDictionary<Guid, IReadOnlyList<LibrarySeasonDto>>? seasons = null,
+        CancellationToken cancellationToken = default)
     {
         var workIds = works.Select(work => work.Id).ToList();
+        // MAM-32 — the episodes' places, and the series' seasons when the caller has no counts of its own.
+        var positions = (await db.MediaEpisodePositions.AsNoTracking()
+                .Where(position => workIds.Contains(position.MediaWorkId))
+                .ToListAsync(cancellationToken))
+            .ToLookup(position => position.MediaWorkId);
+        var seriesIds = works.Where(work => work.Kind == MediaWorkKind.Series).Select(work => work.Id).ToList();
+        seasons ??= seriesIds.Count == 0
+            ? new Dictionary<Guid, IReadOnlyList<LibrarySeasonDto>>()
+            : await LibrarySeasonCounts.ReadAsync(db.MediaEpisodePositions.AsNoTracking(), seriesIds, cancellationToken);
         var titles = (await db.MediaWorkTitles.AsNoTracking()
                 .Where(title => workIds.Contains(title.MediaWorkId))
                 .ToListAsync(cancellationToken))
@@ -77,7 +91,9 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
                     file.LibraryLocationId is { } location ? locationNames.GetValueOrDefault(location) : null,
                     file.MediaInspectionId is { } readingId ? readings.GetValueOrDefault(readingId) : null,
                     file.MediaInspectionId is { } trackReadingId ? [.. tracks[trackReadingId]] : [],
-                    forOwner))])),
+                    forOwner))],
+                [.. positions[work.Id]],
+                seasons.GetValueOrDefault(work.Id))),
         ];
     }
 }

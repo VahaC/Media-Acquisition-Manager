@@ -10,16 +10,14 @@ namespace MediaAcquisitionManager.Api.Mapping;
 /// <inheritdoc cref="ILibraryMapper"/>
 public sealed class LibraryMapper : ILibraryMapper
 {
-    /// <summary>The schemes a work needs to be matched reliably (specification §3.1), in the order
-    /// <see cref="LibraryWorkDto.MissingIdentifiers"/> lists the ones it lacks.</summary>
-    private static readonly MediaIdentifierScheme[] ReliableSchemes = [MediaIdentifierScheme.Imdb, MediaIdentifierScheme.Tmdb];
-
     public LibraryWorkDto ToDto(
         MediaWorkEntity work,
         IReadOnlyList<MediaWorkTitleEntity> titles,
         IReadOnlyList<MediaWorkIdentifierEntity> identifiers,
         IReadOnlyList<MediaVersionEntity> versions,
-        Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf)
+        Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf,
+        IReadOnlyList<MediaEpisodePositionEntity> positions,
+        IReadOnlyList<LibrarySeasonDto>? seasons)
     {
         // MAM-8 — chosen by the comparer the list is sorted by in SQL (the LIBRARY_TITLE collation), so
         // the title a card shows is the one that put it where it is on the page.
@@ -35,7 +33,7 @@ public sealed class LibraryMapper : ILibraryMapper
             // Unknown stays unknown: no year is made up from another source's title.
             title?.Year ?? originalTitle?.Year,
             ToDtos(identifiers),
-            [.. ReliableSchemes.Where(scheme => !schemes.Contains(scheme))],
+            [.. LibraryReliableSchemes.Of(work.Kind).Where(scheme => !schemes.Contains(scheme))],
             [.. versions
                 .OrderBy(version => version.SourceName, LibraryTitleOrder.Comparer)
                 .ThenBy(version => version.EditionLabel, LibraryTitleOrder.Comparer)
@@ -47,8 +45,23 @@ public sealed class LibraryMapper : ILibraryMapper
                     version.SourceItemId,
                     version.EditionLabel,
                     version.ObservedUtc,
-                    [.. filesOf(version).OrderBy(file => file.ServicePath, StringComparer.Ordinal)]))]);
+                    [.. filesOf(version).OrderBy(file => file.ServicePath, StringComparer.Ordinal)]))],
+            work.Kind == MediaWorkKind.Episode ? ToEpisodeDto(positions) : null,
+            work.Kind == MediaWorkKind.Series ? seasons ?? [] : null);
     }
+
+    // MAM-32 — the first place an episode has, by season as a series lists them (the regular ones, then the
+    // specials, then none — the episodes list's order), then number (none last), then id: two sources, or
+    // two items of one episode, can place it twice.
+    private static LibraryEpisodeDto ToEpisodeDto(IReadOnlyList<MediaEpisodePositionEntity> positions) =>
+        positions
+            .OrderBy(position => position.SeasonNumber is null ? 2 : position.SeasonNumber == 0 ? 1 : 0)
+            .ThenBy(position => position.SeasonNumber)
+            .ThenBy(position => position.EpisodeNumber ?? int.MaxValue)
+            .ThenBy(position => position.SeriesWorkId is null)
+            .ThenBy(position => position.Id)
+            .Select(position => new LibraryEpisodeDto(position.SeriesWorkId, position.SeasonNumber, position.EpisodeNumber))
+            .FirstOrDefault() ?? new LibraryEpisodeDto(null, null, null);
 
     public IReadOnlyList<LibraryIdentifierDto> ToDtos(IReadOnlyList<MediaWorkIdentifierEntity> identifiers) =>
         // MAM-8 — one entry per claim (scheme, value, source): the items of one library that share their
@@ -100,6 +113,7 @@ public sealed class LibraryMapper : ILibraryMapper
             run.ItemsRead,
             run.ItemsTotal,
             run.WorksCount,
+            run.SeriesCount,
             run.VersionsCount,
             run.FilesCount,
             // MAM-8 — the sentence can name the address or a redirect target; integrations are the

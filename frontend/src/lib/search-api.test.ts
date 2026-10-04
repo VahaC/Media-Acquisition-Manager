@@ -84,6 +84,18 @@ describe('searchApi', () => {
         + '&minSizeBytes=4831838208&maxSizeBytes=32212254720&sort=largest&page=2&pageSize=50')
   })
 
+  it('asks for the releases of one kind with the kind as a query param', async () => {
+    // Arrange
+    const query = { kind: 'Tv' as const, page: 1, pageSize: 25 }
+    const requests = respondWith(200, releasesPage(query, []))
+
+    // Act
+    await searchApi.releases(searchId, query)
+
+    // Assert
+    expect(api.getUri(requests[0])).toBe(`/api/searches/${searchId}/releases?kind=Tv&page=1&pageSize=25`)
+  })
+
   it('leaves the filters that are not set out of the address', async () => {
     // Arrange
     const query = { source: undefined, language: undefined, quality: undefined, minSizeBytes: undefined, maxSizeBytes: undefined, sort: 'seeders' as const, page: 1, pageSize: 25 }

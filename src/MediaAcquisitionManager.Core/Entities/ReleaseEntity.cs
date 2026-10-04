@@ -29,6 +29,10 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </remarks>
 public class ReleaseEntity : ProvenancedEntity
 {
+    /// <summary>The longest <see cref="CategoryIds"/> the column holds; the ids past it are left out,
+    /// whole (MAM-32).</summary>
+    public const int CategoryIdsMaximumLength = 512;
+
     /// <summary>The title as listed; every quality it names is a claim (specification §3.1).</summary>
     [Required, MaxLength(1000)]
     public string Title { get; set; } = default!;
@@ -90,7 +94,25 @@ public class ReleaseEntity : ProvenancedEntity
     public string? ImdbId { get; set; }
 
     /// <summary>The TMDb id the listing gives (<c>157336</c>), a claim like its title (MAM-12);
-    /// <c>null</c> when it gives none or two.</summary>
+    /// <c>null</c> when it gives none or two. A movie's on a movie release, a show's on a TV release
+    /// (<see cref="Kind"/>, MAM-32): TMDb numbers the two separately.</summary>
     [MaxLength(64)]
     public string? TmdbId { get; set; }
+
+    /// <summary>The TVDB id the listing gives (<c>341164</c>), the show's, a claim like its title
+    /// (MAM-32); <c>null</c> when it gives none or two.</summary>
+    [MaxLength(64)]
+    public string? TvdbId { get; set; }
+
+    /// <summary>Whether the source lists it as a movie or as TV (MAM-32), from its categories; a row
+    /// stored before MAM-32 was a movie search's, so a movie.</summary>
+    public ReleaseKind Kind { get; set; } = ReleaseKind.Movie;
+
+    /// <summary>
+    /// The source's categories it is listed in, comma-separated in the listing's order
+    /// (<c>5040,100173</c>), so the Download dialog can pick the destination its tracker section goes to
+    /// (MAM-32); <c>null</c> when it lists none, and for a row stored before MAM-32.
+    /// </summary>
+    [MaxLength(CategoryIdsMaximumLength)]
+    public string? CategoryIds { get; set; }
 }

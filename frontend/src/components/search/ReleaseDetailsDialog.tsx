@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SeriesSeasons } from '@/components/library/SeriesSeasons'
 import { VersionItem } from '@/components/library/VersionItem'
 import { ClaimedQuality } from '@/components/search/ClaimedQuality'
 import { MatchBadges } from '@/components/search/MatchBadges'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatDateTime, formatFileSize, formatNumber } from '@/lib/format'
 import { compareVersions } from '@/lib/library-versions'
+import { claimedEpisodeRange, claimedSeasons } from '@/lib/release-claims'
 import type { LibraryMatch, LibraryWork, ReleaseLibraryMatch, SearchRelease } from '@/lib/types'
 import '@/styles/settings-list.css' // .settings-muted — the "nothing here" lines
 import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body above the buttons
@@ -32,6 +34,10 @@ interface ReleaseDetailsDialogProps {
  * the facts the app verified — the Library page's own blocks — so a claim and a fact can be
  * compared before anything is downloaded. Two columns on a wide screen, stacked on a phone.
  *
+ * MAM-32 — a TV release says it is listed as TV, its title is read with its span of years and the
+ * seasons or episodes it claims, and a series it matches shows how many of those episodes the
+ * library holds, with its seasons opening to their episodes as on the Library page.
+ *
  * The parent mounts it only while it is open. Its body is the one scroller; Close sits last.
  */
 export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetailsDialogProps) {
@@ -39,6 +45,8 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
   const listingId = useId()
   const libraryId = useId()
   const { claimedWork } = release
+  const episodes = claimedWork.episodes
+  const episodeRange = episodes === null ? null : claimedEpisodeRange(episodes)
   // A match whose work the search no longer lists (the library was synced since) has nothing to show.
   const matches = release.libraryMatches.flatMap((match) => {
     const work = library.find((candidate) => candidate.work.id === match.workId)?.work
@@ -67,11 +75,13 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
               <dd>{release.peers === null ? unknown : formatNumber(release.peers)}</dd>
               <dt>{t('details.published')}</dt>
               <dd>{release.publishedUtc === null ? unknown : formatDateTime(release.publishedUtc)}</dd>
+              <dt>{t('details.kind')}</dt>
+              <dd>{t(`details.kinds.${release.kind}`)}</dd>
               <dt>{t('details.payload')}</dt>
               {/* MAM-10 — a gateway's link can turn out to be a magnet, so the listing doesn't always say. */}
               <dd>{release.payloadKind === null ? t('details.payloadUnknown') : t(`details.payloadKind.${release.payloadKind}`)}</dd>
             </dl>
-            <ClaimedQuality claimed={release.claimed} />
+            <ClaimedQuality claimed={release.claimed} kind={release.kind} episodes={episodes} />
 
             <h3 className="search-details-heading">{t('details.readAs')}</h3>
             {claimedWork.titles.length === 0 ? (
@@ -81,7 +91,25 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
                 <dt>{t('details.titles')}</dt>
                 <dd>{claimedWork.titles.join(t('common:separator'))}</dd>
                 <dt>{t('details.year')}</dt>
-                <dd>{claimedWork.year ?? unknown}</dd>
+                <dd>
+                  {claimedWork.year === null
+                    ? unknown
+                    : claimedWork.lastYear === null
+                      ? claimedWork.year
+                      : t('details.yearSpan', { first: claimedWork.year, last: claimedWork.lastYear })}
+                </dd>
+                {episodes !== null && (
+                  <>
+                    <dt>{t('details.seasons')}</dt>
+                    <dd>{claimedSeasons(episodes)}</dd>
+                  </>
+                )}
+                {episodeRange !== null && (
+                  <>
+                    <dt>{t('details.episodes')}</dt>
+                    <dd>{episodeRange}</dd>
+                  </>
+                )}
               </dl>
             )}
 
@@ -119,7 +147,10 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
 
 // ── one library work the release matches ──
 
-/** The work's title and year, why the release matched it, and its versions as the Library page shows them. */
+/**
+ * The work's title and year, why the release matched it, and its versions as the Library page shows
+ * them — MAM-32: a series' seasons, which open to their episodes and their versions.
+ */
 function MatchedWork({ match, work }: { match: ReleaseLibraryMatch; work: LibraryWork }) {
   const { t } = useTranslation('library')
   const titleId = useId()
@@ -130,11 +161,20 @@ function MatchedWork({ match, work }: { match: ReleaseLibraryMatch; work: Librar
     <section className="search-details-work" aria-labelledby={titleId}>
       <h4 id={titleId} className="search-details-work-title">{work.title ?? t('work.unknownTitle')}</h4>
       <p className="library-work-meta">
+        {work.kind === 'Series' && <span>{t('work.series')}</span>}
         {showOriginalTitle && <span>{t('work.originalTitle', { title: work.originalTitle })}</span>}
         <span>{work.year ?? t('work.unknownYear')}</span>
       </p>
-      <MatchBadges evidence={match.evidence} conflictingSchemes={match.conflictingSchemes} />
-      {versions.length === 0 ? (
+      <MatchBadges
+        evidence={match.evidence}
+        conflictingSchemes={match.conflictingSchemes}
+        heldEpisodeCount={match.heldEpisodeCount}
+      />
+      {work.kind === 'Series' ? (
+        work.seasons !== null && work.seasons.length > 0
+          ? <SeriesSeasons seriesId={work.id} seasons={work.seasons} />
+          : <p className="settings-muted">{t('work.noEpisodes')}</p>
+      ) : versions.length === 0 ? (
         <p className="settings-muted">{t('work.noVersions')}</p>
       ) : (
         <ul className="library-versions" aria-label={t('work.versions')}>

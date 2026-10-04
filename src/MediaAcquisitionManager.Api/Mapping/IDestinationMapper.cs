@@ -18,4 +18,15 @@ public interface IDestinationMapper
     /// <summary>What a download client offers, each category with its check, in the client's order — or
     /// why it couldn't be asked.</summary>
     ClientDestinationListResponse ToResponse(ClientDestinationsResult result);
+
+    /// <summary>
+    /// MAM-32 — a release source with its <paramref name="sections"/>, each naming its destination from
+    /// <paramref name="destinationNames"/>, and the sentence saying why it couldn't be asked
+    /// (<paramref name="error"/>), if it couldn't.
+    /// </summary>
+    DestinationSectionSourceDto ToDto(
+        IntegrationConnectionEntity source,
+        IReadOnlyList<DestinationSectionGroup> sections,
+        IReadOnlyDictionary<Guid, string> destinationNames,
+        string? error);
 }

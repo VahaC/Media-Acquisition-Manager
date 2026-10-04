@@ -331,7 +331,7 @@ describe('IntegrationsPage', () => {
     // Assert
     const confirmation = await screen.findByRole('dialog', { name: 'Remove Home Jellyfin?' })
     expect(confirmation).toHaveTextContent(
-      'The app forgets Home Jellyfin, its stored credentials and its path mappings, and removes the library it imported: its movies, versions and files leave the Library page for everyone. Your files and Jellyfin itself are not touched. This can\'t be undone.')
+      'The app forgets Home Jellyfin, its stored credentials and its path mappings, and removes the library it imported: its movies, series, versions and files leave the Library page for everyone. Your files and Jellyfin itself are not touched. This can\'t be undone.')
     expect(integrationsApi.remove).not.toHaveBeenCalled()
   })
 

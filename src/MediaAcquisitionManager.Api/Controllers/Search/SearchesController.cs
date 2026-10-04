@@ -35,7 +35,8 @@ public class SearchesController(ISearchService searches) : ControllerBase
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] SearchRequest? request,
         CancellationToken cancellationToken)
     {
-        var result = await searches.CreateAsync(request?.Text, request?.Year, request?.ImdbId, request?.TmdbId, UserId, cancellationToken);
+        var result = await searches.CreateAsync(
+            request?.Text, request?.Year, request?.ImdbId, request?.TmdbId, request?.Season, UserId, cancellationToken);
         return result.Status switch
         {
             SearchCreateStatus.Created => CreatedAtAction(nameof(Get), new { id = result.Search!.Id }, result.Search),
@@ -64,6 +65,7 @@ public class SearchesController(ISearchService searches) : ControllerBase
         var result = await searches.ListReleasesAsync(
             id,
             request.Source,
+            request.Kind,
             request.Language,
             request.Quality,
             request.MinSizeBytes,

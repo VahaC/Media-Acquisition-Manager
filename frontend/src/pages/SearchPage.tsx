@@ -37,19 +37,21 @@ const SIZE_DEBOUNCE_MS = 300
 /** The form's fields, as typed. MAM-16 — the title is typed in the header, so it has none. */
 interface SearchForm {
   year: string
+  /** MAM-32 */
+  season: string
   imdbId: string
   tmdbId: string
 }
 
-const EMPTY_FORM: SearchForm = { year: '', imdbId: '', tmdbId: '' }
+const EMPTY_FORM: SearchForm = { year: '', season: '', imdbId: '', tmdbId: '' }
 
 /** No filter, the server's default order. */
-const NO_FILTERS: ReleaseFilterValues = { source: '', language: '', quality: '', minSize: '', maxSize: '', sort: 'seeders' }
+const NO_FILTERS: ReleaseFilterValues = { source: '', kind: '', language: '', quality: '', minSize: '', maxSize: '', sort: 'seeders' }
 
 /** The release list's query without its paging: what a change of starts again at page 1. */
 type AppliedFilters = Omit<SearchReleasesQuery, 'page' | 'pageSize'>
 
-const FILTER_KEYS = ['source', 'language', 'quality', 'minSizeBytes', 'maxSizeBytes', 'sort'] as const
+const FILTER_KEYS = ['source', 'kind', 'language', 'quality', 'minSizeBytes', 'maxSizeBytes', 'sort'] as const
 
 /**
  * MAM-12 — the Search page: a title (and, to narrow it, a year, an IMDb or a TMDb id) looked for in
@@ -69,6 +71,10 @@ const FILTER_KEYS = ['source', 'language', 'quality', 'minSizeBytes', 'maxSizeBy
  * address (`?id=`), so F5 and Back bring the same search back, and every filter, sort and page reads
  * the stored releases instead of asking the sources again. Every signed-in user searches; someone
  * else's search, like an expired one, is a 404, which the page words as "no longer available".
+ *
+ * MAM-32 — the same for a series: the library side lists series (their seasons opening to their
+ * episodes), the sources are asked for TV releases beside the movies, and the form narrows by a
+ * season too, which asks the sources' TV search alone.
  */
 export function SearchPage() {
   const { t } = useTranslation(['search', 'common'])
@@ -175,6 +181,7 @@ export function SearchPage() {
         text,
         // Left out rather than sent empty; the server reads what is there and words what is wrong.
         year: shown.year.trim() || undefined,
+        season: shown.season.trim() || undefined,
         imdbId: shown.imdbId.trim() || undefined,
         tmdbId: shown.tmdbId.trim() || undefined,
       },
@@ -222,6 +229,16 @@ export function SearchPage() {
                   inputMode="numeric"
                   autoComplete="off"
                   onChange={(event) => edit({ year: event.target.value })}
+                />
+              </label>
+              <label className="auth-field">
+                <span className="ui-label">{t('form.season')}{' '}{t('form.optional')}</span>
+                <Input
+                  value={shown.season}
+                  placeholder={t('form.seasonPlaceholder')}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  onChange={(event) => edit({ season: event.target.value })}
                 />
               </label>
               <label className="auth-field">
@@ -295,6 +312,7 @@ export function SearchPage() {
 function formOf(search: SearchResponse): SearchForm {
   return {
     year: search.year === null ? '' : String(search.year),
+    season: search.season === null ? '' : String(search.season),
     imdbId: search.imdbId ?? '',
     tmdbId: search.tmdbId ?? '',
   }
@@ -410,6 +428,7 @@ function ReleasesSection({ search }: { search: SearchResponse }) {
     typed.trim() === '' ? undefined : bytesFromGibibytes(debounced) ?? undefined
   const applied: AppliedFilters = {
     source: filters.source || undefined,
+    kind: filters.kind || undefined,
     language: filters.language || undefined,
     quality: filters.quality || undefined,
     minSizeBytes: sizeBound(filters.minSize, debouncedMinSize),

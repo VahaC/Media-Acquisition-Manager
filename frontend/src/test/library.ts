@@ -73,6 +73,8 @@ export const aliens: LibraryWork = {
     { scheme: 'Tmdb', value: '679', sourceName: 'Home Jellyfin' },
   ],
   missingIdentifiers: [],
+  episode: null,
+  seasons: null,
   // Not in edition label order, as a later sync may send them, so the card's own order shows.
   versions: [
     {
@@ -121,6 +123,8 @@ export const continental: LibraryWork = {
   year: 2023,
   identifiers: [{ scheme: 'Imdb', value: 'tt29669983', sourceName: 'Home Jellyfin' }],
   missingIdentifiers: ['Tmdb'],
+  episode: null,
+  seasons: null,
   versions: [{
     id: '7a1e0000-0000-4000-8000-000000000013',
     sourceName: 'Home Jellyfin',
@@ -150,6 +154,8 @@ export const unknownWork: LibraryWork = {
   year: null,
   identifiers: [],
   missingIdentifiers: ['Imdb', 'Tmdb'],
+  episode: null,
+  seasons: null,
   versions: [
     {
       id: '7a1e0000-0000-4000-8000-000000000014',
@@ -185,6 +191,98 @@ export const unknownWork: LibraryWork = {
   ],
 }
 
+/**
+ * MAM-32 — Yellowstone as the MAM-32 Jellyfin samples give it: a series with a show's ids and its
+ * seasons counted from its episodes, the specials after the regular seasons. No versions: its
+ * episodes hold them.
+ */
+export const yellowstone: LibraryWork = {
+  id: '7a1e0000-0000-4000-8000-000000000401',
+  kind: 'Series',
+  title: 'Єллоустоун',
+  originalTitle: 'Yellowstone',
+  year: 2018,
+  identifiers: [
+    { scheme: 'Imdb', value: 'tt4236770', sourceName: 'Home Jellyfin' },
+    { scheme: 'Tvdb', value: '341164', sourceName: 'Home Jellyfin' },
+  ],
+  missingIdentifiers: ['TmdbTv'],
+  versions: [],
+  episode: null,
+  seasons: [
+    { number: 1, episodeCount: 9 },
+    { number: 2, episodeCount: 10 },
+    { number: 0, episodeCount: 1 },
+    { number: null, episodeCount: 2 },
+  ],
+}
+
+/** MAM-32 — an episode of Yellowstone's first season as the episodes endpoint lists it; `changes` sets the fields a test is about. */
+export function yellowstoneEpisodeOf(changes: Partial<LibraryWork>): LibraryWork {
+  return {
+    id: '7a1e0000-0000-4000-8000-000000000111',
+    kind: 'Episode',
+    title: 'Daybreak',
+    originalTitle: null,
+    year: 2018,
+    identifiers: [{ scheme: 'Imdb', value: 'tt7608156', sourceName: 'Home Jellyfin' }],
+    missingIdentifiers: ['Tvdb'],
+    versions: [{
+      id: '7a1e0000-0000-4000-8000-000000000121',
+      sourceName: 'Home Jellyfin',
+      sourceItemId: 'y101',
+      editionLabel: null,
+      observedUtc: '2026-10-04T08:00:00Z',
+      files: [{
+        id: '7a1e0000-0000-4000-8000-000000000131',
+        servicePath: '/media/tv/Yellowstone/Season 1/Yellowstone S01E01 Daybreak WEB-DL 1080p.mkv',
+        appPath: '/library/tv/Yellowstone/Season 1/Yellowstone S01E01 Daybreak WEB-DL 1080p.mkv',
+        pathStatus: 'Mapped',
+        pathProblem: null,
+        sizeBytes: 3_221_225_472,
+        locationName: 'Серіали',
+        inspection: null,
+      }],
+    }],
+    episode: { seriesId: yellowstone.id, seasonNumber: 1, episodeNumber: 1 },
+    seasons: null,
+    ...changes,
+  }
+}
+
+/**
+ * MAM-32 — an episode of no series, a card of its own: Tom & Jerry Kids of the samples, its sixty-five
+ * copies cut to seven here, more than the versions table compares.
+ */
+export const tomAndJerryKids: LibraryWork = {
+  id: '7a1e0000-0000-4000-8000-000000000201',
+  kind: 'Episode',
+  title: 'Tom & Jerry Kids',
+  originalTitle: null,
+  year: 1990,
+  identifiers: [],
+  missingIdentifiers: ['Imdb', 'Tvdb'],
+  versions: Array.from({ length: 7 }, (_, index) => ({
+    id: `7a1e0000-0000-4000-8000-0000000002${String(index + 10)}`,
+    sourceName: 'Home Jellyfin',
+    sourceItemId: `tj${index}`,
+    editionLabel: null,
+    observedUtc: '2026-10-04T08:00:00Z',
+    files: [{
+      id: `7a1e0000-0000-4000-8000-0000000003${String(index + 10)}`,
+      servicePath: `/media/cartoons/Tom & Jerry Kids/Tom & Jerry Kids ${String(index + 1).padStart(2, '0')}.avi`,
+      appPath: `/library/cartoons/Tom & Jerry Kids/Tom & Jerry Kids ${String(index + 1).padStart(2, '0')}.avi`,
+      pathStatus: 'Mapped' as const,
+      pathProblem: null,
+      sizeBytes: 183_500_800,
+      locationName: 'Мультфільми',
+      inspection: null,
+    }],
+  })),
+  episode: { seriesId: null, seasonNumber: 1, episodeNumber: 4 },
+  seasons: null,
+}
+
 /** The page the server answers `query` with, out of `total` works. */
 export function worksPage(query: LibraryWorksQuery, items: LibraryWork[], total = items.length): LibraryWorkList {
   return { items, totalCount: total, page: query.page, pageSize: query.pageSize }
@@ -211,6 +309,8 @@ export function runOf(changes: Partial<LibrarySyncRun>): LibrarySyncRun {
     itemsRead: 870,
     itemsTotal: 870,
     worksCount: 855,
+    // A sync from before series were read (MAM-32) has no count of them.
+    seriesCount: null,
     versionsCount: 870,
     filesCount: 870,
     error: null,

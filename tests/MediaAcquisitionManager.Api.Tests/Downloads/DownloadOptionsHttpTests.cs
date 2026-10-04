@@ -94,7 +94,10 @@ public sealed class DownloadOptionsHttpTests : IClassFixture<MediaAcquisitionMan
                     ]),
                 // The type's name, whatever the owner named the client.
                 new DownloadClientOptionDto(seedbox.Id, "Seedbox", "qBittorrent", [new DownloadDestinationOptionDto(films.Id, "Films", "Movies", IsDefault: false)]),
-            ]),
+            ],
+            // MAM-32 — no section of the release is mapped, so the installation's default, as the dialog
+            // picked before.
+            movies.Id),
             body,
             strict: true);
         Assert.Equal(["qBittorrent", "Seedbox"], body!.Clients.Select(option => option.Name));
@@ -217,7 +220,7 @@ public sealed class DownloadOptionsHttpTests : IClassFixture<MediaAcquisitionMan
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
         using var document = JsonDocument.Parse(text);
-        Assert.Equal(["clients"], PropertyNames(document.RootElement));
+        Assert.Equal(["clients", "suggestedDestinationId"], PropertyNames(document.RootElement));
         var option = Assert.Single(document.RootElement.GetProperty("clients").EnumerateArray().ToList());
         Assert.Equal(["id", "name", "typeName", "destinations"], PropertyNames(option));
         var destination = Assert.Single(option.GetProperty("destinations").EnumerateArray().ToList());

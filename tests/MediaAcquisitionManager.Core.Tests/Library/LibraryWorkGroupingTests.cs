@@ -227,6 +227,62 @@ public sealed class LibraryWorkGroupingTests
     }
 
     [Fact]
+    public void Group_with_more_keys_joins_items_that_share_only_a_further_key()
+    {
+        //Arrange
+        // MAM-32 — the two halves of an episode with no ids of their own, placed at one position of a
+        // series with ids: one work with two versions (ADR 0017).
+        LibraryItem[] items = [Item("a"), Item("b"), Item("c")];
+        var keys = new Dictionary<string, (string, string)[]>
+        {
+            ["a"] = [("SeriesTvdb", "79854/3/9")],
+            ["b"] = [("SeriesTvdb", "79854/3/9")],
+            ["c"] = [("SeriesTvdb", "79854/3/10")],
+        };
+
+        //Act
+        var groups = LibraryWorkGrouping.Group(items, item => keys[item.SourceItemId]);
+
+        //Assert
+        Assert.Equal(["a b", "c"], Describe(groups));
+    }
+
+    [Fact]
+    public void Group_with_more_keys_splits_items_sharing_ids_under_different_further_keys()
+    {
+        //Arrange
+        // MAM-32 — "The Golden Boo Boo" (S03E31) carries the ids of "Donald Hatches an Egg" (S03E33): the
+        // same ids at two positions are two episodes, each holding the ids, never one (ADR 0017).
+        LibraryItem[] items = [Item("a", Imdb("tt1")), Item("b", Imdb("tt1"))];
+        var keys = new Dictionary<string, (string, string)[]>
+        {
+            ["a"] = [("SeriesImdb", "TT0784896/3/31")],
+            ["b"] = [("SeriesImdb", "TT0784896/3/33")],
+        };
+
+        //Act
+        var groups = LibraryWorkGrouping.Group(items, item => keys[item.SourceItemId]);
+
+        //Assert
+        Assert.Equal(["a", "b"], Describe(groups));
+    }
+
+    [Fact]
+    public void Group_with_more_keys_never_meets_a_registry_scheme_of_the_same_name()
+    {
+        //Arrange
+        // A further key's scheme is its own: "Imdb" spelled out by a caller is still compared as written,
+        // and a key of another name never joins items an id doesn't.
+        LibraryItem[] items = [Item("a", Imdb("tt1")), Item("b")];
+
+        //Act
+        var groups = LibraryWorkGrouping.Group(items, item => item.SourceItemId == "b" ? [("SeriesImdb", "tt1")] : []);
+
+        //Assert
+        Assert.Equal(["a", "b"], Describe(groups));
+    }
+
+    [Fact]
     public void Group_of_no_items_is_empty()
     {
         //Arrange

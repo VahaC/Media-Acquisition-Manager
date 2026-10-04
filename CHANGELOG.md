@@ -24,6 +24,171 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/Jellyfin/`, among them an episode
   item that holds 65 different episodes and a virtual episode whose only media source is a
   placeholder without a path.
+- **A library sync imports the series and episodes of every Jellyfin library beside its movies
+  (MAM-32, ADR 0019, ADR 0008).** A sync reads three lists — the movies, the series and the episodes
+  (`includeItemTypes=Movie`, `Series`, `Episode`) — each in pages that overlap by one, with its own
+  total and its own checks, the first page of each read first so the progress knows the whole
+  library's total from the third request on, and stores all of it in one transaction or nothing. A
+  series is a work that holds the show's titles and its IMDb, TMDb and TVDB ids and no version, its
+  TMDb id in a scheme of its own (`TmdbTv`) that never matches a movie's. An episode is a work with its versions and files, known by
+  its own IMDb and TVDB ids and by its series' ids with its season and episode numbers, and placed in
+  its series by a row per library item (`MediaEpisodePositions`: the series work, the season and the
+  episode number), named after its source like a title. Each kind is grouped on its own, series
+  first, so The Grand Tour's four series items are one series, the two halves of a Mickey Mouse
+  Clubhouse episode are one episode with two versions, and a movie and a series that share a TMDb
+  number stay two works. An episode Jellyfin lists without a file (`LocationType` `Virtual`) is read,
+  so the pages add up, and stored as nothing (Vasyl's decision 1). A run counts its series apart
+  (`seriesCount` on `GET /api/library/syncs/{runId}`); its works are its movies and episodes.
+  Removing the Jellyfin integration removes its series, episodes and their positions too.
+- **The Library page lists each series as one card among the movies, with its seasons (MAM-32, ADR
+  0019).** A series card shows "Series", the show's titles, its ids and the ids it lacks, and its
+  seasons as rows that open — "Season N" in order, then "Specials" (season 0), then "No season" —
+  each with how many episodes it holds; the seasons are read from the episodes' own numbers, never
+  from Jellyfin's season list (Vasyl's decisions 2 and 3). Opening a season loads its episodes from
+  the server a page at a time, with the list's search, library and identifiers filters, each as "N.
+  Title" with the ids it lacks and its versions as rows; several seasons can be open at once, and the
+  pager shows only past 10 episodes, its page size kept per device. An episode of no series, such as
+  the Tom & Jerry Kids item, is a card of its own with its place, "Season 1 · Episode 4".
+  `GET /api/library/works` lists the movies, the series and the episodes of no series in title
+  order, a series once: it is listed when at least one of its stored episodes passes the search and
+  the filters; a search or `identifiers=Missing` that the series itself answers keeps all its
+  episodes, and `locationId` goes by the episodes' files. Each work gains `episode`
+  (`{ seriesId, seasonNumber, episodeNumber }`, for an episode) and `seasons`
+  (`[{ number, episodeCount }]`, for a series, counting the episodes the list keeps), and
+  `missingIdentifiers` names the ids of its kind: IMDb and TMDb for a movie, IMDb and TVDB for an
+  episode, IMDb, TMDb TV and TVDB for a series. `kind=Movie` or `kind=Series`, in any letter case,
+  keeps one kind (`Series` takes the episodes of no series too), with a **Kind** filter on the page
+  (Movies and series, Movies, Series); any other value is 400 "“x” is not a kind filter. Use Movie
+  or Series.". `GET /api/library/works/{id}/episodes` pages a series' episodes, searched and
+  filtered as the works are, in the order of its seasons, then by episode number (a missing one
+  last), then by title: `season` is a number up to 9999 (0 for the specials), `None` for the
+  episodes without one, or blank for all, and anything else is 400 "“x” is not a season. Use a
+  season number, or None for the episodes without one."; an id that isn't a series' is a bare 404,
+  checked first. The scheme labels now include TVDB and TMDb TV, and the versions table is offered
+  for 2 to 6 versions only, so the 65 versions of one item show as rows.
+- **The release search finds TV releases beside the movies, and takes a season (MAM-32, ADR 0020,
+  ADR 0004).** Every enabled source gets the movie queries, as before, then the TV queries, one after
+  the other: in the source's TV categories (5000 to 5999), an IMDb id first where its TV search takes
+  one, then the title without the year — a TV release names the years of its seasons, so the show's
+  year would find only the packs that hold its first season — through the TV search (`t=tvsearch`)
+  or, when that takes no title, the general search. A source without a TV category gets no TV
+  query. The movie releases come first, then the TV ones, and a listing both find is kept once; any
+  failing query fails the source, as before; each source lists up to 100 releases of each kind.
+  `POST /api/searches` and `POST /api/releases/search` take `season`, a number from 0 to 9999, 0 for
+  the specials, blank for none, checked after the ids ("“x” is not a season. Use a season number,
+  such as 1, or 0 for the specials."); with one, only the TV queries run, with `season=N` where the
+  TV search takes it. The stored search answers `season` after `tmdbId`, and the Search page's
+  narrow form has a **Season (optional)** field after Year. Each stored release keeps its kind — TV
+  when its source lists it in a TV category, or in none to a TV query —, its categories in the
+  listing's order, its TVDB id and, on a TV release, its show's TMDb id, and
+  `POST /api/releases/search` gives each release `kind` (`Movie` or `Tv`) after `title`. A source
+  that offers no search the app can use says "“X” offers no search this app can use: no search by
+  text, and no movie or TV search by title or by an id that was asked for.", or with a season "“X”
+  offers no search this app can use for a season: no TV category, or neither a search by text nor a
+  TV search by title or by an id that was asked for."
+- **A TV release's title is read for its seasons, and the release is matched to the series in your
+  library only (MAM-32, ADR 0020, ADR 0012).** The first season marker gives the seasons and
+  episodes a title claims — `S01E01`, `S01E01-E10`, `S1E1-9 of 9`, `S1-3`, `S01-S03`, "Season 1",
+  "Seasons 1-2", "Сезон 1", "Сезони 1-3", ", серії 1-9 з 9", bare or in brackets — and a bracketed
+  span such as "(2018-2024)" ends the title as a year does, so Prowlarr's "Yellowstone (S1-5)
+  (2018-2024) WEB-DL-AVC" is "Yellowstone", seasons 1 to 5, of 2018 to 2024; a movie's title is read
+  as before. A TV release is matched to series only — by a show's IMDb, TMDb TV or TVDB id, then by a
+  title with a year its seasons allow, then by the title alone — and a movie release to movies only,
+  so a film and a show of one title, or of one TMDb number, never match each other's releases, and
+  an episode of no series is matched by none. A release names its seasons' years, never the show's
+  (Vasyl's choice): with season 1 among the seasons its first year must be the series' year, so
+  "Yellowstone (S1-5) (2018-2024)" is Yellowstone (2018) by title and year and the BBC's "Yellowstone
+  (S1) (2009)" by title alone; with later seasons only, or the specials alone, the series may have
+  begun in that first year or before, so "(S5) (2022-2024)" and "(S4) (2021)" are Yellowstone (2018)
+  by title and year too — as they would be for an older show of the same title; with no season, any
+  year of the span, as for "Yellowstone (2018-2024)". Each TV match carries `heldEpisodeCount`: how
+  many of the series' episodes sit in the seasons or episodes the title claims, `null` when it claims
+  no season. `GET /api/searches/{id}/releases` takes `kind=Movie` or
+  `kind=Tv` in any letter case, checked right after `source` ("“x” is not a kind filter. Use Movie or
+  Tv."); each release gains `kind` after `title`, `claimedWork` gains `lastYear` and `episodes`
+  (`{ firstSeason, lastSeason, firstEpisode, lastEpisode }`), each library match
+  `heldEpisodeCount`, and the search's `facets` gain `kinds`, Movie before Tv. **In your library**
+  shows a series as the Library page's card with its seasons, and an episode of no series as its own
+  card: an episode the search finds by a title, its IMDb id or a file path lists its series once,
+  on the stronger evidence of the series' own and the episode's, and a series counts once towards
+  the 20 works listed by their words. On the Search page a TV release's **Claimed** chips
+  start with "TV", then its seasons ("Seasons 1–5", "Season 1", "Specials") and episodes ("Episodes
+  1–9"); a TV match says how many of its episodes your library holds ("None of its episodes in your
+  library" when none); **Details** adds "Listed as", the span ("2018–2024") and the seasons and
+  episodes read from the title, with the matched series' seasons; and the list has a **Kind** filter
+  (Movies and TV, Movies, TV) of the kinds the search found.
+- **The owner maps a release source's sections to a destination, and the Download dialog opens on it
+  (MAM-32, ADR 0020).** In the **Add destination** and **Edit** dialogs of the Destinations page,
+  **Tracker sections (optional)** lists each release source as a row that opens to its sections —
+  its own sections, then the standard categories — read from the source each time the dialog opens,
+  the categories of one name one section, Prowlarr's leading "|-" dropped: Toloka's three
+  «Мультсеріали» categories are one. A section ticked for another destination says "now Cartoons"
+  and moves here when ticked, and a source that couldn't be asked says why beside the sections
+  already mapped to it. `GET /api/settings/destinations/sections` (owner only, 200 whatever the
+  sources answered) gives `{ sources: [{ id, name, sections: [{ name, categoryIds, isSourceSpecific,
+  destinationId, destinationName }], error }] }` for every release source by name, a switched-off
+  one unasked with its mapped sections. `POST` and `PUT /api/settings/destinations` take
+  `sections: [{ releaseSourceId, categoryIds, name, isSourceSpecific }]`, written in the
+  destination's own save and transaction with its one audit row: on an update, left out keeps them
+  and `[]` removes them; each category of a source is mapped to at most one destination, and one
+  mapped elsewhere moves here. A section that breaks a rule is 400 ("Pick the release source of each
+  section.", "A section needs its name.", "A section's name can't contain line breaks or other
+  control characters.", "A section needs at least one category of its release source.", "“x” is not
+  a category id of a release source."), and one whose source isn't a release source any more is 404
+  "A release source you picked sections of no longer exists. Reload the page and pick them again.";
+  a save never asks the source. The rows go with their destination or their source.
+  `GET /api/downloads/options` gains `suggestedDestinationId` (Vasyl's decision 5): among the
+  destinations it offers, the one the release's stored categories are mapped to, the source's own
+  section winning over a standard category; none when two different destinations tie at that rank;
+  else the default, when it is offered. The Download dialog opens on it and its client; with none,
+  on the placeholders, but a lone client is picked, and so is its destination when it has one only.
+
+### Changed
+
+- **A sync's progress and its result count items, works and series, and its failures name the list
+  (MAM-32, ADR 0008).** The Library page counts a running sync in items ("Syncing… N of M items")
+  and a finished one as "Synced <time>: read N items into W works and S series, V versions, F
+  files.", the items being movies, series and episodes and the works movies and episodes; a sync
+  from before the upgrade keeps its line without the series. A list that changes while it is read
+  fails the run with the list's noun: "Jellyfin's list of series shifted between two pages, so its
+  library changed while it was being read. Nothing was changed here; sync again once Jellyfin's
+  library scan has finished."
+- **The media library and release search contracts learn TV (MAM-32, ADR 0005).**
+  `LibraryPageRequest` names the list it reads (`Kind`), and `LibraryItem` gains where an episode
+  sits (`Episode`) and whether the library holds no file for it (`IsMissing`). `ReleaseCategory`
+  gains `HoldsTv` (Torznab's 5000 to 5999) and `IsSourceSpecific` (ids of 100000 and up),
+  `ReleaseSearchCapabilities` the source's `TvSearch`, `ReleaseSearchQuery` a `Season` and the mode
+  `Tv`, and `ReleaseSearchHit` its `Kind`. The core plans the TV queries
+  (`ReleaseSearchPlanning.ForTv`), and the Torznab adapter sends them as `t=tvsearch` with
+  `season=`, `tvdbid=` or a show's `tmdbid=`. Its connection test names the TV search: "Connected to
+  Prowlarr over Torznab; movie search by title, TV search by title, season and episode."
+- **The texts that said "movie" cover series (MAM-32).** The header field says "Search a movie or a
+  series by title, e.g. Interstellar (2014)"; the Library and Search pages' leads, empty states and
+  filters speak of movies and series, or of works; the Library page's identifiers filter offers
+  "Any identifiers" and "Missing an id", an id of the work's kind; and removing a media library
+  integration says its "movies, series, versions and files" leave the Library page.
+
+### Notes for upgraders
+
+- **Applying `AddSeriesAndTvReleases` rebuilds no table, so it logs no warning 20410 (MAM-32).** It
+  adds `Searches.Season`, `Releases.Kind` (`Movie` for every release already stored),
+  `Releases.CategoryIds`, `Releases.TvdbId` and `LibrarySyncRuns.SeriesCount`, and the tables
+  `MediaEpisodePositions` and `DestinationSections` with their indexes. A release stored before the
+  upgrade has no categories, so the Download dialog offers it the default destination; the next
+  search a day later removes it, unless a download job keeps it.
+- **Series and episodes appear after the next sync (MAM-32).** After the upgrade, choose **Sync
+  now** on the Library page; until then the Library page and the Search page's library side list the
+  movies alone. A sync reads two more lists than before, so it takes longer on a library with many
+  episodes.
+- **Tracker sections are picked by the owner, and none is at first (MAM-32).** Until a section is
+  ticked, the Download dialog opens on the default destination, as before. Open **Destinations** in
+  the user menu, choose **Edit** on a destination, open the release source under **Tracker sections
+  (optional)**, tick the sections whose releases go there — for example «Мультсеріали» and
+  «Мультфільми» for Cartoons, «Телесеріали» for TV Shows, the «Документальні фільми» sections for
+  Documentary — and choose **Save changes**.
+- **Each search asks every source with TV categories for TV too (MAM-32).** The TV queries go after
+  the movie ones — one more for Toloka —, so a source's answer takes longer, and a search stores up
+  to 100 movie and 100 TV releases per source. Searching needs nothing turned on.
 
 ## [0.1.0] — 2026-09-28
 

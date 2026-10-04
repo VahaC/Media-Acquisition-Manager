@@ -42,6 +42,7 @@ public static class SearchReleaseListRules
     /// value read into <paramref name="filter"/> (<c>null</c> when there is a sentence).
     /// </summary>
     /// <param name="source">A search source's id.</param>
+    /// <param name="kind">MAM-32 — <c>Movie</c> or <c>Tv</c>, in any letter case.</param>
     /// <param name="language">A three-letter ISO 639-2 code in any letter case (<c>ukr</c>), or
     /// <c>unknown</c>.</param>
     /// <param name="quality">A resolution class (<c>1080</c>), or <c>unknown</c>.</param>
@@ -52,6 +53,7 @@ public static class SearchReleaseListRules
     /// <param name="filter">What the values say, when every one is acceptable.</param>
     public static string? Validate(
         string? source,
+        string? kind,
         string? language,
         string? quality,
         string? minSizeBytes,
@@ -67,6 +69,18 @@ public static class SearchReleaseListRules
             if (!Guid.TryParse(sourceText, out var parsed))
                 return $"“{Echo(sourceText)}” is not a release source.";
             sourceId = parsed;
+        }
+
+        ReleaseKind? releaseKind = null;
+        if (Trimmed(kind) is { } kindText)
+        {
+            // By name alone: Enum.TryParse would take "1" or "Movie, Tv" as well.
+            if (string.Equals(kindText, nameof(ReleaseKind.Movie), StringComparison.OrdinalIgnoreCase))
+                releaseKind = ReleaseKind.Movie;
+            else if (string.Equals(kindText, nameof(ReleaseKind.Tv), StringComparison.OrdinalIgnoreCase))
+                releaseKind = ReleaseKind.Tv;
+            else
+                return $"“{Echo(kindText)}” is not a kind filter. Use Movie or Tv.";
         }
 
         string? audioLanguage = null;
@@ -106,7 +120,7 @@ public static class SearchReleaseListRules
         if (Trimmed(sort) is { } sortText && !Sorts.TryGetValue(sortText, out order))
             return $"“{Echo(sortText)}” is not a sort order. Use seeders, largest, smallest, newest or quality.";
 
-        filter = new SearchReleaseFilter(sourceId, audioLanguage, withoutAudioLanguage, resolution, withoutResolution, minimum, maximum, order);
+        filter = new SearchReleaseFilter(sourceId, releaseKind, audioLanguage, withoutAudioLanguage, resolution, withoutResolution, minimum, maximum, order);
         return null;
     }
 

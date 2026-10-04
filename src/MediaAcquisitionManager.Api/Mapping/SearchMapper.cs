@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Search;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
 
 namespace MediaAcquisitionManager.Api.Mapping;
@@ -18,6 +19,7 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
         IReadOnlyList<SearchSourceEntity> sources,
         IReadOnlyDictionary<Guid, int> releaseCounts,
         IReadOnlyList<string> releaseTitles,
+        IReadOnlyList<ReleaseKind> releaseKinds,
         bool forOwner)
     {
         // Read from the titles every time, as each release's own claims are (specification §3.1).
@@ -28,6 +30,7 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
             search.Year,
             search.ImdbId,
             search.TmdbId,
+            search.Season,
             search.CreatedUtc,
             [.. library.Works.Select(ToDto)],
             library.UnlistedCount,
@@ -44,7 +47,8 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
                 [.. claims.SelectMany(claim => claim.AudioLanguages).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
                 claims.Any(claim => claim.AudioLanguages.Count == 0),
                 [.. claims.Select(claim => claim.Resolution).OfType<int>().Distinct().OrderDescending()],
-                claims.Any(claim => claim.Resolution is null)));
+                claims.Any(claim => claim.Resolution is null),
+                [.. releaseKinds.Distinct().Order()]));
     }
 
     public SearchReleaseDto ToDto(SearchRelease release) =>
@@ -53,6 +57,7 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
             release.Release.SearchSourceId,
             release.SourceName,
             release.Release.Title,
+            release.Release.Kind,
             release.Release.SizeBytes,
             release.Release.Seeders,
             release.Release.Peers,
@@ -60,9 +65,18 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
             release.Release.SourcePageUrl,
             release.Release.PayloadKind,
             releaseMapper.ToDto(release.Claimed),
-            new ReleaseWorkClaimDto(release.ClaimedWork.Titles, release.ClaimedWork.Year),
+            new ReleaseWorkClaimDto(
+                release.ClaimedWork.Titles,
+                release.ClaimedWork.Year,
+                release.ClaimedWork.LastYear,
+                release.ClaimedWork.Episodes is { } episodes
+                    ? new ClaimedEpisodesDto(episodes.FirstSeason, episodes.LastSeason, episodes.FirstEpisode, episodes.LastEpisode)
+                    : null),
             [.. release.Identifiers.Select(identifier => new ReleaseIdentifierDto(identifier.Scheme, identifier.Value))],
-            [.. release.LibraryMatches.Select(match => new ReleaseLibraryMatchDto(match.WorkId, match.Match.Evidence, match.Match.ConflictingSchemes))]);
+            [
+                .. release.LibraryMatches.Select(match =>
+                    new ReleaseLibraryMatchDto(match.WorkId, match.Match.Evidence, match.Match.ConflictingSchemes, match.HeldEpisodeCount)),
+            ]);
 
     private LibraryMatchDto ToDto(LibraryWorkMatch match) =>
         new(

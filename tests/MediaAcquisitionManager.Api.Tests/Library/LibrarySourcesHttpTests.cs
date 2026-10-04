@@ -149,7 +149,7 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(
             new LibrarySyncRunDto(
                 latest.Id, synced.Id, "Living room", LibrarySyncStatus.Failed, "owner", now.AddMinutes(-1), now.AddMinutes(-1), now.AddMinutes(-1),
-                0, null, null, null, null, "Jellyfin answered 500 Internal Server Error. Its own log says why."),
+                0, null, null, null, null, null, "Jellyfin answered 500 Internal Server Error. Its own log says why."),
             source.LatestRun);
         Assert.Equal((lastSucceeded.Id, LibrarySyncStatus.Succeeded), (source.LastSucceededRun!.Id, source.LastSucceededRun.Status));
         var never = items.Single(item => item.IntegrationId == neverSynced.Id);

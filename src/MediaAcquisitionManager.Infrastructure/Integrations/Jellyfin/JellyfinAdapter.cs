@@ -14,8 +14,8 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
 /// <summary>
 /// Jellyfin behind the core's contracts (Adapter, ADR 0005): the registration and the connection test
-/// (MAM-7), and the media library contract (MAM-8). Read-only: every call is a GET, and the app never
-/// changes anything in Jellyfin.
+/// (MAM-7), and the media library contract (MAM-8): its movies, and since MAM-32 its series and
+/// episodes. Read-only: every call is a GET, and the app never changes anything in Jellyfin.
 /// </summary>
 /// <remarks>
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer
@@ -32,11 +32,16 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     public const string HttpClientName = TypeId;
 
     /// <summary>
-    /// The most movies one page may ask for. The heaviest sample movie is about 12 KB as Jellyfin sends
+    /// The most items one page may ask for. The heaviest sample movie is about 12 KB as Jellyfin sends
     /// it (VendorSamples, MAM-6), so 200 stay far inside the client's 4 MiB buffer
     /// (<see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>); a bigger page could
     /// outgrow it and fail as "far larger than anything Jellyfin sends".
     /// </summary>
+    /// <remarks>
+    /// MAM-32 — an episode item can weigh more: the Tom &amp; Jerry Kids item, 65 media sources in one, is
+    /// about 149 KB. The sync asks for 50 items a page, which holds a handful of such items among ordinary
+    /// ones; a library of nothing but 65-source items would need smaller pages.
+    /// </remarks>
     public const int MaximumPageSize = 200;
 
     /// <summary>The longest server name or version a sentence repeats.</summary>
@@ -64,17 +69,18 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     private const string LibraryForbiddenError =
         "Jellyfin accepted the key but won't let it read the library (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
 
+    // {0} is what the list holds, one of it ("a movie", "an episode", "a series", MAM-32).
     private const string PartsNotFoundError =
-        "Jellyfin no longer finds the other parts of a movie it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished.";
+        "Jellyfin no longer finds the other parts of {0} it has just listed (404 Not Found); its library is changing. Try again once Jellyfin's library scan has finished.";
 
     private const string NotJellyfinError =
         "The service at this address answered, but not the way Jellyfin does. Check the address.";
 
-    private const string MovieWithoutIdError =
-        "The service at this address listed a movie without an id, which Jellyfin never does. Check the address.";
+    private const string ItemWithoutIdError =
+        "The service at this address listed {0} without an id, which Jellyfin never does. Check the address.";
 
     private const string PartsOfOddIdError =
-        "The service at this address listed a movie in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.";
+        "The service at this address listed {0} in several parts under an id Jellyfin never gives, so the app won't ask for its other parts. Check the address.";
 
     /// <summary>
     /// MAM-8 — the oldest Jellyfin the app reads libraries from: the owner's choice. The adapter was
@@ -141,15 +147,17 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             cancellationToken);
 
     /// <summary>
-    /// <c>GET /Items</c> for one page of every movie, with its paths, media sources, provider ids and
-    /// original title, and <c>GET /Videos/{id}/AdditionalParts</c> for each movie stacked from several
-    /// files.
+    /// <c>GET /Items</c> for one page of every movie, series or episode (MAM-32), with its paths, media
+    /// sources, provider ids and original title, and <c>GET /Videos/{id}/AdditionalParts</c> for each
+    /// movie or episode stacked from several files.
     /// </summary>
     public Task<IntegrationCallResult<LibraryItemPage>> ListItemsAsync(
         IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(page);
         // A caller's mistake, not the service's answer: nothing is sent.
+        if (!Enum.IsDefined(page.Kind))
+            throw new ArgumentOutOfRangeException(nameof(page), page.Kind, "The list is not one Jellyfin has.");
         ArgumentOutOfRangeException.ThrowIfNegative(page.StartIndex);
         ArgumentOutOfRangeException.ThrowIfLessThan(page.Limit, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(page.Limit, MaximumPageSize);
@@ -185,10 +193,19 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         // the movies of a collection with one box-set item each whatever the server's setting — 670
         // items instead of 870 in the reference library (VendorSamples README). SortName, then
         // DateCreated: a stable order is what makes overlapping pages mean something, and the two
-        // "Чужі" items share a sort name. No images and no user data: nothing here reads them.
+        // "Чужі" items share a sort name, as the two halves of a Mickey Mouse Clubhouse episode do. No
+        // images and no user data: nothing here reads them. MAM-32 — a series has no files of its own,
+        // so its list asks for its ids and titles only; an episode's SeriesId, ParentIndexNumber,
+        // IndexNumber and LocationType come without being asked for (VendorSamples README).
+        var (type, fields) = page.Kind switch
+        {
+            MediaWorkKind.Series => ("Series", "ProviderIds,OriginalTitle"),
+            MediaWorkKind.Episode => ("Episode", "Path,MediaSources,ProviderIds,OriginalTitle"),
+            _ => ("Movie", "Path,MediaSources,ProviderIds,OriginalTitle"),
+        };
         var query = string.Create(
             CultureInfo.InvariantCulture,
-            $"Items?recursive=true&includeItemTypes=Movie&collapseBoxSetItems=false&fields=Path,MediaSources,ProviderIds,OriginalTitle&sortBy=SortName,DateCreated&sortOrder=Ascending&startIndex={page.StartIndex}&limit={page.Limit}&enableImages=false&enableUserData=false&enableTotalRecordCount=true");
+            $"Items?recursive=true&includeItemTypes={type}&collapseBoxSetItems=false&fields={fields}&sortBy=SortName,DateCreated&sortOrder=Ascending&startIndex={page.StartIndex}&limit={page.Limit}&enableImages=false&enableUserData=false&enableTotalRecordCount=true");
         using var request = CreateRequest(settings, query);
         using var response = await client.SendAsync(request, cancellationToken);
         if (response.StatusCode != HttpStatusCode.OK)
@@ -208,7 +225,7 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
 
             foreach (var element in itemsElement.EnumerateArray())
             {
-                var (item, isStacked, error) = ReadItem(element, secrets);
+                var (item, isStacked, error) = ReadItem(element, page.Kind, secrets);
                 if (error is not null)
                     return IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.UnexpectedResponse, error);
                 if (isStacked)
@@ -219,7 +236,7 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
 
         foreach (var index in stacked)
         {
-            var parts = await ReadAdditionalPartsAsync(client, settings, items[index].SourceItemId, sessionSecrets, cancellationToken);
+            var parts = await ReadAdditionalPartsAsync(client, settings, items[index].SourceItemId, page.Kind, sessionSecrets, cancellationToken);
             if (!parts.IsSuccess)
                 return IntegrationCallResult<LibraryItemPage>.Failed(parts.Status, parts.Error!);
             items[index] = WithParts(items[index], parts.Value!);
@@ -229,24 +246,24 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     }
 
     /// <summary>
-    /// The files after the first of a movie stacked from several (<c>part1</c>, <c>cd2</c>, …): Jellyfin
-    /// lists only the first in the movie's media source, and each further part as an item of its own
-    /// that <c>/Items</c> doesn't return.
+    /// The files after the first of a movie or an episode stacked from several (<c>part1</c>, <c>cd2</c>,
+    /// …): Jellyfin lists only the first in the item's media source, and each further part as an item of
+    /// its own that <c>/Items</c> doesn't return.
     /// </summary>
     private async Task<IntegrationCallResult<IReadOnlyList<LibraryFile>>> ReadAdditionalPartsAsync(
-        HttpClient client, IntegrationConnectionSettings settings, string itemId, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
+        HttpClient client, IntegrationConnectionSettings settings, string itemId, MediaWorkKind kind, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
     {
         // MAM-8 — the id goes into the path, and escaping leaves "." and ".." as they are, which the URI
         // then resolves: a server listing a movie with the id ".." would have the keyed GET sent to
         // {base}/AdditionalParts instead. Jellyfin's item ids are Guids, so only one that parses as a
         // Guid is sent, in Jellyfin's own 32-hex-digit form; any other fails the page.
         if (!Guid.TryParse(itemId, out var id))
-            return IntegrationCallResult<IReadOnlyList<LibraryFile>>.Failed(IntegrationCallStatus.UnexpectedResponse, PartsOfOddIdError);
+            return IntegrationCallResult<IReadOnlyList<LibraryFile>>.Failed(IntegrationCallStatus.UnexpectedResponse, Sentence(PartsOfOddIdError, kind));
 
         using var request = CreateRequest(settings, string.Create(CultureInfo.InvariantCulture, $"Videos/{id:N}/AdditionalParts"));
         using var response = await client.SendAsync(request, cancellationToken);
         if (response.StatusCode != HttpStatusCode.OK)
-            return DescribeLibraryCallStatus<IReadOnlyList<LibraryFile>>(response, PartsNotFoundError, settings, sessionSecrets);
+            return DescribeLibraryCallStatus<IReadOnlyList<LibraryFile>>(response, Sentence(PartsNotFoundError, kind), settings, sessionSecrets);
 
         using var document = await TryReadJsonAsync(response, cancellationToken);
         if (document?.RootElement is not { ValueKind: JsonValueKind.Object } root
@@ -375,37 +392,48 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         return IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Succeeded(locations.AsReadOnly());
     }
 
-    // ── the movies ───────────────────────────────────────────────────────────
+    // ── the movies, series and episodes ──────────────────────────────────────
 
     /// <summary>
-    /// One movie of the page, or the sentence that fails the whole page: an item without an id can't be
-    /// told apart from any other, and an item that isn't a movie means the list isn't what was asked
-    /// for — neither is skipped, because a sync that silently lost an item would delete its facts.
+    /// One item of the page, or the sentence that fails the whole page: an item without an id can't be
+    /// told apart from any other, and an item of another type than the list's means the list isn't what
+    /// was asked for — neither is skipped, because a sync that silently lost an item would delete its
+    /// facts.
     /// </summary>
-    private static (LibraryItem? Item, bool IsStacked, string? Error) ReadItem(JsonElement element, string?[] secrets)
+    /// <remarks>
+    /// MAM-32 — the type Jellyfin gives is the item's kind, whatever its file is called (ADR 0017): an
+    /// episode the movie list holds stays a movie. A series has no files: its media sources, should it
+    /// list any, are not read. A virtual episode (<c>LocationType</c> <c>Virtual</c>, a missing episode
+    /// Jellyfin lists from the show's metadata) is read like any other, so the pages still add up, and
+    /// marked missing; its placeholder source has no path, so it gives no file either way.
+    /// </remarks>
+    private static (LibraryItem? Item, bool IsStacked, string? Error) ReadItem(JsonElement element, MediaWorkKind kind, string?[] secrets)
     {
         if (element.ValueKind != JsonValueKind.Object)
             return (null, false, NotJellyfinError);
         if (IdProperty(element, "Id") is not { } id)
-            return (null, false, MovieWithoutIdError);
+            return (null, false, Sentence(ItemWithoutIdError, kind));
         if (element.TryGetProperty("Type", out var type) && type.ValueKind != JsonValueKind.Null)
         {
             if (type.ValueKind != JsonValueKind.String)
                 return (null, false, NotJellyfinError);
-            if (!string.Equals(type.GetString(), "Movie", StringComparison.Ordinal))
-                return (null, false, $"Jellyfin listed an item of type “{RemoteText.Clean(type.GetString(), RemoteValueMaximumLength, secrets)}” when asked for movies only, so the app can't rely on the list. Check the address.");
+            if (!string.Equals(type.GetString(), TypeName(kind), StringComparison.Ordinal))
+                return (null, false, $"Jellyfin listed an item of type “{RemoteText.Clean(type.GetString(), RemoteValueMaximumLength, secrets)}” when asked for {Plural(kind)} only, so the app can't rely on the list. Check the address.");
         }
 
         if (element.TryGetProperty("MediaSources", out var sources)
             && sources.ValueKind is not (JsonValueKind.Array or JsonValueKind.Null))
             return (null, false, NotJellyfinError);
 
+        var hasFiles = kind != MediaWorkKind.Series;
         var item = new LibraryItem(
             id,
-            MediaWorkKind.Movie,
+            kind,
             Titles(element, secrets),
-            Identifiers(element),
-            sources.ValueKind == JsonValueKind.Array ? Versions(sources, secrets) : []);
+            Identifiers(element, kind),
+            hasFiles && sources.ValueKind == JsonValueKind.Array ? Versions(sources, secrets) : [],
+            kind == MediaWorkKind.Episode ? Episode(element) : null,
+            kind == MediaWorkKind.Episode && IsVirtual(element));
         var partCount = element.TryGetProperty("PartCount", out var parts) && parts.ValueKind == JsonValueKind.Number && parts.TryGetInt32(out var count)
             ? count
             : 1;
@@ -433,17 +461,21 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     }
 
     /// <summary>
-    /// The IMDb and TMDb ids among the provider ids, keys in any letter case, values trimmed, the first
-    /// well-formed value of each scheme. Nothing else: <c>TmdbCollection</c> names a box set, not a work,
-    /// and as a work id it would make every movie of a collection one work (ADR 0006).
+    /// The registry ids among the provider ids, keys in any letter case, values trimmed, the first
+    /// well-formed value of each scheme: IMDb and TMDb for a movie; MAM-32 — IMDb, TMDb and TVDB for a
+    /// series, its TMDb id a show's (<see cref="MediaIdentifierScheme.TmdbTv"/>: TMDb numbers shows apart
+    /// from movies, ADR 0017); IMDb and TVDB for an episode, which carries no TMDb id of a work. Nothing
+    /// else: <c>TmdbCollection</c> names a box set, not a work, and as a work id it would make every movie
+    /// of a collection one work (ADR 0006).
     /// </summary>
-    private static List<MediaIdentifier> Identifiers(JsonElement element)
+    private static List<MediaIdentifier> Identifiers(JsonElement element, MediaWorkKind kind)
     {
         if (!element.TryGetProperty("ProviderIds", out var providerIds) || providerIds.ValueKind != JsonValueKind.Object)
             return [];
 
         string? imdb = null;
         string? tmdb = null;
+        string? tvdb = null;
         foreach (var property in providerIds.EnumerateObject())
         {
             if (property.Value.ValueKind != JsonValueKind.String)
@@ -451,17 +483,73 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             var value = property.Value.GetString()!.Trim();
             if (imdb is null && string.Equals(property.Name, "Imdb", StringComparison.OrdinalIgnoreCase) && MediaIdentifierRules.IsImdbId(value))
                 imdb = value;
-            else if (tmdb is null && string.Equals(property.Name, "Tmdb", StringComparison.OrdinalIgnoreCase) && MediaIdentifierRules.IsTmdbId(value))
+            else if (tmdb is null && kind != MediaWorkKind.Episode
+                && string.Equals(property.Name, "Tmdb", StringComparison.OrdinalIgnoreCase) && MediaIdentifierRules.IsTmdbId(value))
                 tmdb = value;
+            else if (tvdb is null && kind != MediaWorkKind.Movie
+                && string.Equals(property.Name, "Tvdb", StringComparison.OrdinalIgnoreCase) && MediaIdentifierRules.IsTvdbId(value))
+                tvdb = value;
         }
 
         var identifiers = new List<MediaIdentifier>();
         if (imdb is not null)
             identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Imdb, imdb));
         if (tmdb is not null)
-            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tmdb, tmdb));
+            identifiers.Add(new MediaIdentifier(kind == MediaWorkKind.Series ? MediaIdentifierScheme.TmdbTv : MediaIdentifierScheme.Tmdb, tmdb));
+        if (tvdb is not null)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tvdb, tvdb));
         return identifiers;
     }
+
+    /// <summary>
+    /// MAM-32 — where an episode sits: its series item's id and its season and episode numbers, each only
+    /// when Jellyfin gives one (the Tom &amp; Jerry Kids item has numbers and no series). The series item
+    /// says which show's ids the core reads; it is never the show itself (ADR 0017).
+    /// </summary>
+    private static LibraryEpisode Episode(JsonElement element) =>
+        new(IdProperty(element, "SeriesId"), Number(element, "ParentIndexNumber"), Number(element, "IndexNumber"));
+
+    /// <summary>A whole number of zero or more; <c>null</c> when absent or anything else.</summary>
+    private static int? Number(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var numberElement)
+        && numberElement.ValueKind == JsonValueKind.Number
+        && numberElement.TryGetInt32(out var number)
+        && number >= 0
+            ? number
+            : null;
+
+    /// <summary>MAM-32 — Jellyfin's mark of an item it lists without a file: <c>LocationType</c>
+    /// <c>Virtual</c>.</summary>
+    private static bool IsVirtual(JsonElement element) =>
+        element.TryGetProperty("LocationType", out var location)
+        && location.ValueKind == JsonValueKind.String
+        && string.Equals(location.GetString(), "Virtual", StringComparison.Ordinal);
+
+    /// <summary>The type Jellyfin gives the items of <paramref name="kind"/>'s list.</summary>
+    private static string TypeName(MediaWorkKind kind) => kind switch
+    {
+        MediaWorkKind.Series => "Series",
+        MediaWorkKind.Episode => "Episode",
+        _ => "Movie",
+    };
+
+    /// <summary>What a sentence calls the items of <paramref name="kind"/>'s list.</summary>
+    private static string Plural(MediaWorkKind kind) => kind switch
+    {
+        MediaWorkKind.Series => "series",
+        MediaWorkKind.Episode => "episodes",
+        _ => "movies",
+    };
+
+    /// <summary><paramref name="format"/> with one item of <paramref name="kind"/>'s list as its
+    /// <c>{0}</c>.</summary>
+    private static string Sentence(string format, MediaWorkKind kind) =>
+        string.Format(CultureInfo.InvariantCulture, format, kind switch
+        {
+            MediaWorkKind.Series => "a series",
+            MediaWorkKind.Episode => "an episode",
+            _ => "a movie",
+        });
 
     /// <summary>
     /// One version per media source, the first of any two with one id. The source's name labels it only

@@ -3,6 +3,7 @@ import type {
   DownloadJobFilesQuery,
   DownloadJobsQuery,
   IntegrationsQuery,
+  LibraryEpisodesQuery,
   LibraryWorksQuery,
   SearchReleasesQuery,
   UsersQuery,
@@ -32,6 +33,11 @@ export const qk = {
     worksAll: ['library', 'works'] as const,
     /** The whole query object is part of the key, so each page and filter is cached apart. */
     works: (query: LibraryWorksQuery) => ['library', 'works', query] as const,
+    /**
+     * MAM-32 — one page of one season of a series, under `works` so what refreshes the works (a
+     * finished sync, an inspection's facts) refreshes the open seasons too.
+     */
+    episodes: (seriesId: string, query: LibraryEpisodesQuery) => ['library', 'works', seriesId, 'episodes', query] as const,
     locations: ['library', 'locations'] as const,
     sources: ['library', 'sources'] as const,
   },
@@ -98,6 +104,11 @@ export const qk = {
       /** The categories one download client offers, asked live; a destination change leaves them be. */
       clientDestinations: (downloadClientId: string) =>
         ['settings', 'destinations', 'client-destinations', downloadClientId] as const,
+      /**
+       * MAM-32 — the release sources' sections and the destinations they are mapped to: what a change
+       * to a destination invalidates, as its save moves sections and its removal frees them.
+       */
+      sections: ['settings', 'destinations', 'sections'] as const,
     },
   },
 }

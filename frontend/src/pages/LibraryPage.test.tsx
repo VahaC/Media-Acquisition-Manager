@@ -138,7 +138,7 @@ describe('LibraryPage', () => {
     const { client, user } = renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     await user.selectOptions(screen.getByRole('combobox', { name: 'Library' }), 'Мультфільми')
-    await screen.findByText('No movies match these filters.')
+    await screen.findByText('Nothing in the library matches these filters.')
     const filteredQuery = lastQuery()
     vi.mocked(libraryApi.locations).mockResolvedValue({ items: [locations.items[1]] })
 
@@ -152,7 +152,7 @@ describe('LibraryPage', () => {
     const select = screen.getByRole('combobox', { name: 'Library' })
     expect(select).toHaveValue('')
     expect([...select.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['All libraries', 'Фільми'])
-    expect(screen.queryByText('No movies match these filters.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nothing in the library matches these filters.')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
   })
 
@@ -215,7 +215,7 @@ describe('LibraryPage', () => {
     await screen.findByText('26–30 of 30')
 
     // Act
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Identifiers' }), 'Missing an IMDb or TMDb id')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Identifiers' }), 'Missing an id')
 
     // Assert
     expect(await screen.findByText('1–2 of 2')).toBeInTheDocument()
@@ -249,7 +249,7 @@ describe('LibraryPage', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Identifiers' }), 'Missing')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Library' }), 'Мультфільми')
     await user.type(screen.getByRole('searchbox', { name: 'Search the library' }), 'zz')
-    await screen.findByText('No movies match these filters.')
+    await screen.findByText('Nothing in the library matches these filters.')
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
@@ -260,10 +260,10 @@ describe('LibraryPage', () => {
     expect(screen.getByRole('searchbox', { name: 'Search the library' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Library' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Identifiers' })).toHaveValue('')
-    expect(screen.queryByText('No movies match these filters.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Nothing in the library matches these filters.')).not.toBeInTheDocument()
   })
 
-  it('says there are no movies yet while the library is empty, before or after a sync', async () => {
+  it('says there is nothing yet while the library is empty, before or after a sync', async () => {
     // Arrange — a sync that found nothing: the empty state must not contradict "Synced …" above it.
     vi.mocked(libraryApi.works).mockImplementation(async (query) => worksPage(query, []))
 
@@ -271,7 +271,7 @@ describe('LibraryPage', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByText('No movies yet. Once a media library is synced, its movies are listed here.'))
+    expect(await screen.findByText('Nothing here yet. Once a media library is synced, its movies and series are listed here.'))
       .toBeInTheDocument()
     expect(await screen.findByText(/^Synced /)).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
@@ -311,7 +311,7 @@ describe('LibraryPage', () => {
 
     // Assert
     const banner = await screen.findByRole('alert')
-    expect(banner).toHaveTextContent(/^Refresh failed, showing the last loaded movies\./)
+    expect(banner).toHaveTextContent(/^Refresh failed, showing the last loaded works\./)
     expect(banner).toHaveTextContent('The server could not be reached.')
     expect(cardTitles()).toEqual(['Чужі', 'The Continental', 'Unknown title'])
   })

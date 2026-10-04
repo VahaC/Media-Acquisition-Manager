@@ -10,10 +10,12 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 /// <param name="SourcePosition">Its source's place in the search, the first tie-break of every order.</param>
 /// <param name="SourceName">Its source's name when it was searched, as the search's source row keeps it.</param>
 /// <param name="Claimed">The quality and languages its title claims.</param>
-/// <param name="ClaimedWork">The titles and the year its title claims.</param>
-/// <param name="Identifiers">The ids its listing gives, IMDb before TMDb.</param>
-/// <param name="LibraryMatches">The search's library works it matches, strongest evidence first, then in
-/// the order the search lists those works.</param>
+/// <param name="ClaimedWork">The titles and the year its title claims — MAM-32, read as a TV release's
+/// when it is one, with the span and the seasons or episodes.</param>
+/// <param name="Identifiers">The ids its listing gives, IMDb before TMDb — MAM-32, a show's on a TV
+/// release, then its TVDB id.</param>
+/// <param name="LibraryMatches">The search's library works of its kind it matches, strongest evidence
+/// first, then in the order the search lists those works.</param>
 public sealed record SearchRelease(
     ReleaseEntity Release,
     int SourcePosition,

@@ -21,7 +21,7 @@
     "users": "Users"
   },
   "headerSearch": {
-    "placeholder": "Search a movie by title, e.g. Interstellar (2014)",
+    "placeholder": "Search a movie or a series by title, e.g. Interstellar (2014)",
     "hint": "Press / to search",
     "key": "/"
   },

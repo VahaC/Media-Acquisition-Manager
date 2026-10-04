@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
@@ -22,9 +23,9 @@ public sealed class ReleaseStore(
     /// How long a found release is kept for sending it to a client (MAM-13) when no job points at it: a
     /// result list stays open for an evening, and the next search lists the release again anyway, under a
     /// new id and with today's seeders. A day of searches is a few thousand rows at most (100 per source
-    /// per search, ReleaseSearchPlanning), so the table never needs an index for the prune. MAM-12 — a
-    /// stored search lives as long as its releases, so it is read as gone once this has passed, pruned
-    /// or not yet.
+    /// per search, ReleaseSearchPlanning — MAM-32: 100 movies and 100 TV releases), so the table never
+    /// needs an index for the prune. MAM-12 — a stored search lives as long as its releases, so it is read
+    /// as gone once this has passed, pruned or not yet.
     /// </summary>
     public static readonly TimeSpan UnusedReleaseLifetime = TimeSpan.FromHours(24);
 
@@ -108,8 +109,13 @@ public sealed class ReleaseStore(
                     Position = position,
                     Seeders = hit.Seeders,
                     Peers = hit.Peers,
-                    ImdbId = hit.Identifiers.FirstOrDefault(identifier => identifier.Scheme == MediaIdentifierScheme.Imdb)?.Value,
-                    TmdbId = hit.Identifiers.FirstOrDefault(identifier => identifier.Scheme == MediaIdentifierScheme.Tmdb)?.Value,
+                    ImdbId = Identifier(hit, MediaIdentifierScheme.Imdb),
+                    // MAM-32 — one column for TMDb's two numberings, the release's kind telling which
+                    // (ReleaseSearchTerms.IdentifiersOf): a show's on a TV release, a movie's otherwise.
+                    TmdbId = Identifier(hit, hit.Kind == ReleaseKind.Tv ? MediaIdentifierScheme.TmdbTv : MediaIdentifierScheme.Tmdb),
+                    TvdbId = Identifier(hit, MediaIdentifierScheme.Tvdb),
+                    Kind = hit.Kind,
+                    CategoryIds = CategoryIdsOf(hit.CategoryIds),
                 };
                 // Sealed to this row before its first save: the id is assigned on construction.
                 release.PayloadLocatorEncrypted = encryption.Encrypt(hit.Locator.Value, ReleasePayloadLocatorPurpose.For(release.Id));
@@ -164,6 +170,31 @@ public sealed class ReleaseStore(
         {
             logger.LogWarning(exception, "Removing the searches made more than a day ago failed; the next search tries again.");
         }
+    }
+
+    private static string? Identifier(ReleaseSearchHit hit, MediaIdentifierScheme scheme) =>
+        hit.Identifiers.FirstOrDefault(identifier => identifier.Scheme == scheme)?.Value;
+
+    /// <summary>
+    /// MAM-32 — the categories a release is listed in, comma-separated in the listing's order, for the
+    /// destination its tracker section goes to; <c>null</c> for none. Ids past the column are left out
+    /// whole, never cut: a cut id would name another category. Prowlarr lists two per Toloka release
+    /// (VendorSamples), so the column is far more than a listing needs.
+    /// </summary>
+    private static string? CategoryIdsOf(IReadOnlyList<string> categoryIds)
+    {
+        var kept = new List<string>(categoryIds.Count);
+        var length = 0;
+        foreach (var id in categoryIds)
+        {
+            var added = length + (kept.Count > 0 ? 1 : 0) + id.Length;
+            if (added > ReleaseEntity.CategoryIdsMaximumLength)
+                break;
+            kept.Add(id);
+            length = added;
+        }
+
+        return kept.Count > 0 ? string.Join(',', kept) : null;
     }
 
     // A sentence past the column is cut with an ellipsis, so the reader sees it was cut. The column's own

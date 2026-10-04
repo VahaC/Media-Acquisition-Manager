@@ -123,3 +123,36 @@ file is still decided from the folders the sync has just read, never the stored 
 `LibraryLocationFoldersHttpTests.Delete_of_the_library_integration_leaves_none_of_its_folders_and_keeps_the_others`
 and `LibraryPersistenceTests.Deleting_a_library_integration_with_its_libraries_leaves_no_folders` pin
 it.
+
+## Three lists (added 0.2.0, MAM-32)
+
+**A sync reads the library's movies, series and episodes, each as the Decision reads the movies.**
+Jellyfin's `/Items` lists one item type at a time, so the runner reads three lists
+(`LibraryPageRequest.Kind`): first the first page of each, so the progress knows the whole library's
+total from the third request on, then the rest of the movies, of the series and of the episodes.
+Each list has its own total, its own overlapping pages and its own count of different items, and a
+change in any of them fails the run with the Decision's sentences naming the list ("Jellyfin's
+list of series shifted between two pages…"). Everything read goes into the one transaction as
+before, so a sync stores all three or nothing. A virtual episode is read and counted, so the pages
+add up, and stored as nothing
+([ADR 0019](0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+
+**Works are grouped per kind, and an episode's position is a key.** The grouping rule is unchanged
+but runs on one kind at a time, series first, so a movie and a series sharing a TMDb number stay two
+works. An episode's keys add, for each id of its series item, that id with its season and episode
+numbers, so the halves of an episode are one work and an episode that carries another's ids under
+other numbers is not. The assignment keeps a work across syncs by the same keys — the series work
+and the numbers for a position — never moves an item onto a work of another kind, and a run counts
+its series apart (`SeriesCount`); its works are its movies and episodes.
+
+**Positions are rows like the others.** `MediaEpisodePositions` (one per library item: the episode
+work, its series work, its numbers) is found again by its item, keeps its id and `CreatedUtc`, gets
+the new `ObservedUtc`, and is deleted when no item reports it; the purge of a removed integration
+takes them too. A series work that goes leaves its episodes' positions without a series.
+
+`LibrarySnapshotTvHttpTests.Sync_whose_tv_list_changes_while_it_is_read_fails_and_stores_nothing`,
+`LibrarySnapshotTvHttpTests.Sync_of_an_unchanged_tv_library_keeps_every_row_and_moves_only_the_last_seen_time`,
+`LibrarySnapshotTvHttpTests.Sync_keeps_an_episodes_work_when_its_file_comes_back_under_a_new_item_at_its_position`
+and `LibrarySnapshotTvHttpTests.Sync_puts_an_item_the_library_now_calls_an_episode_on_a_new_work`
+pin it, and `IntegrationsDeleteHttpTests.Delete_of_a_media_library_purges_its_series_episodes_and_their_positions`
+the purge.

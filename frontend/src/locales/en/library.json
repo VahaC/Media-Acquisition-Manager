@@ -1,9 +1,9 @@
 {
   "title": "Library",
-  "lead": "The movies in your media library, as its last sync found them: each with its versions, its files and the path this app reaches them at.",
+  "lead": "The movies and series in your media library, as its last sync found them: each with its versions, its files and the path this app reaches them at.",
   "search": {
     "label": "Search the library",
-    "placeholder": "Title, year, IMDb or TMDb id, or path"
+    "placeholder": "Title, year, IMDb, TMDb or TVDB id, or path"
   },
   "locationFilter": {
     "label": "Library",
@@ -13,14 +13,20 @@
   },
   "identifierFilter": {
     "label": "Identifiers",
-    "all": "All movies",
-    "missing": "Missing an IMDb or TMDb id"
+    "all": "Any identifiers",
+    "missing": "Missing an id"
   },
-  "refreshFailed": "Refresh failed, showing the last loaded movies.",
+  "kindFilter": {
+    "label": "Kind",
+    "all": "Movies and series",
+    "Movie": "Movies",
+    "Series": "Series"
+  },
+  "refreshFailed": "Refresh failed, showing the last loaded works.",
   "loadFailed": "Could not load the library.",
-  "noMatch": "No movies match these filters.",
+  "noMatch": "Nothing in the library matches these filters.",
   "clearFilters": "Clear filters",
-  "empty": "No movies yet. Once a media library is synced, its movies are listed here.",
+  "empty": "Nothing here yet. Once a media library is synced, its movies and series are listed here.",
   "sources": {
     "title": "Sources",
     "description": "The media libraries this list is read from. A sync reads a whole library again and replaces what was stored from it; nothing changes in the library itself.",
@@ -46,13 +52,16 @@
     "never": "Never synced.",
     "queued": "Queued…",
     "running": "Syncing…",
-    "runningProgress_one": "Syncing… {{read}} of {{total}} movie",
-    "runningProgress_other": "Syncing… {{read}} of {{total}} movies",
-    "succeeded": "Synced {{time}}: read {{movies}} into {{works}}, {{versions}}, {{files}}.",
-    "movies_one": "{{value}} movie",
-    "movies_other": "{{value}} movies",
+    "runningProgress_one": "Syncing… {{read}} of {{total}} item",
+    "runningProgress_other": "Syncing… {{read}} of {{total}} items",
+    "succeeded": "Synced {{time}}: read {{items}} into {{works}}, {{versions}}, {{files}}.",
+    "succeededSeries": "Synced {{time}}: read {{items}} into {{works}} and {{series}}, {{versions}}, {{files}}.",
+    "items_one": "{{value}} item",
+    "items_other": "{{value}} items",
     "works_one": "{{value}} work",
     "works_other": "{{value}} works",
+    "series_one": "{{value}} series",
+    "series_other": "{{value}} series",
     "versions_one": "{{value}} version",
     "versions_other": "{{value}} versions",
     "files_one": "{{value}} file",
@@ -98,19 +107,41 @@
   },
   "schemes": {
     "Imdb": "IMDb",
-    "Tmdb": "TMDb"
+    "Tmdb": "TMDb",
+    "Tvdb": "TVDB",
+    "TmdbTv": "TMDb TV"
   },
   "work": {
     "unknownTitle": "Unknown title",
     "originalTitle": "Original title: {{title}}",
     "unknownYear": "Year unknown",
+    "series": "Series",
     "from": "From {{source}}",
     "identifiers": "Identifiers",
     "identifier": "{{scheme}} {{value}}",
     "identifierSource": "Reported by {{source}}",
     "missingIdentifier": "No {{scheme}} id",
     "versions": "Versions",
-    "noVersions": "No versions reported."
+    "noVersions": "No versions reported.",
+    "noEpisodes": "No episodes reported."
+  },
+  "season": {
+    "numbered": "Season {{number}}",
+    "specials": "Specials",
+    "none": "No season"
+  },
+  "seasons": {
+    "label": "Seasons",
+    "episodes_one": "{{value}} episode",
+    "episodes_other": "{{value}} episodes",
+    "episodesOf": "Episodes of {{season}}",
+    "loadFailed": "Could not load the episodes of this season.",
+    "refreshFailed": "Refresh failed, showing the last loaded episodes.",
+    "noEpisodes": "This season has no episodes any more: the library changed since the page loaded."
+  },
+  "episode": {
+    "numbered": "Episode {{number}}",
+    "numberedTitle": "{{number}}. {{title}}"
   },
   "version": {
     "noFile": "No file reported for this version."

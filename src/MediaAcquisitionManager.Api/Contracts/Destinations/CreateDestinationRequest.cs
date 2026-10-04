@@ -14,8 +14,11 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// it; the client is asked whether it has it before anything is saved.</param>
 /// <param name="IsDefault">Whether it becomes the installation's default destination, taking that over from
 /// the one that is; left out or <c>false</c> makes it the default only when it is the first destination.</param>
+/// <param name="Sections">MAM-32 — the release sources' sections whose releases the Download dialog sends
+/// here first; one mapped to another destination moves here. Left out or empty maps none.</param>
 public sealed record CreateDestinationRequest(
     string? Name,
     Guid? DownloadClientId,
     string? ClientDestinationKey,
-    bool? IsDefault = null);
+    bool? IsDefault = null,
+    IReadOnlyList<DestinationSectionRequest?>? Sections = null);

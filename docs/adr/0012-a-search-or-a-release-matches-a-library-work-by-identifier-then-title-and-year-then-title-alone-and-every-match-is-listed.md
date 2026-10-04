@@ -321,3 +321,40 @@ number stays in the title ("Blade Runner 2049"), and no id is read from the line
 keeps the Year, IMDb id and TMDb id fields, to narrow the search on screen as a new search with the
 same title, so the claim matched here is still a title, a year and ids. Matching is unchanged.
 `search-query.test.ts` pins the reading of the line.
+
+## Series, episodes and TV releases (added 0.2.0, MAM-32)
+
+**The library side lists series.** The search's library side now holds movies, series and episodes of
+no series
+([ADR 0019](0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+An episode of a series is never listed itself: when the search finds it — by a title, its IMDb id
+(the search takes no TVDB id) or a file path — its series is listed once, on the strongest evidence
+of the series' own and of its found episodes', the series' own winning a tie; `matchedTitle` and
+`matchedIdentifiers` are then the episode's. A series none of whose episodes is stored is not
+listed, as on the Library page. The cap of 20 works listed by their words counts the list's
+entries, a series once however many of its episodes hold the words. A scheme that conflicts can now
+also be `Tvdb` or `TmdbTv`.
+
+**A release matches the works of its kind, and a year its seasons allow.** A TV release is matched to
+the listed series only, by their own titles and ids, never an episode's, and a movie release to the
+movies only; an episode of no series is matched by no release
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+A TV title is read by `ReleaseWorkClaims.ReadTv`, which ends the title at a bracketed span such as
+"(2018-2024)" — the range the movie reading above refuses as a year — and at a season marker; a
+movie's title is read as before. `WorkMatching` takes the years a claim allows (`ClaimedYears`)
+instead of one year: a search and a movie release still name one year, which the title's must equal,
+while a TV release's years are its seasons' (`ReleaseWorkClaims.YearsToMatch`, ADR 0020) — with
+season 1 among them its first year exactly, with later seasons only or the specials any year up to
+its first, and with no season any year of its span. The rule is otherwise unchanged: every match
+listed strongest first, conflicts flagged, nothing stored.
+
+**A match still picks nothing.** The MAM-13 section's "neither the dialog's choices nor the send read
+the release's matches" holds: the destination the Download dialog now picks first comes from the
+release's tracker section, never from a match.
+
+`WorkMatchingTests.Match_by_the_title_takes_a_year_within_the_claimed_years`,
+`SearchesTvLibraryHttpTests.Create_by_an_episodes_imdb_id_lists_its_series_with_the_episodes_id_as_the_evidence`,
+`SearchesTvLibraryHttpTests.Create_by_a_title_of_the_series_and_of_its_episode_lists_the_series_on_the_stronger_its_own_on_a_tie`,
+`SearchesTvLibraryHttpTests.Create_counts_a_series_whose_episodes_hold_the_words_as_one_work_of_the_limit`
+and `SearchReleasesTvMatchingHttpTests.Releases_of_a_search_that_found_a_series_by_an_episode_matches_the_shows_title_not_the_episodes`
+pin it.

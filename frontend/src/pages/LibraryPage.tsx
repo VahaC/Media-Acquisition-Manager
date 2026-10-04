@@ -10,7 +10,7 @@ import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useLibraryLocations, useLibraryWorks } from '@/lib/queries'
-import type { LibraryIdentifierFilter, LibraryLocation } from '@/lib/types'
+import type { LibraryIdentifierFilter, LibraryKindFilter, LibraryLocation } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
@@ -27,6 +27,11 @@ const SEARCH_DEBOUNCE_MS = 300
  * filtered (by Jellyfin library, by missing identifiers) and paged by the server, each with its
  * versions and files. The sources panel above says how the syncs went and starts one (the owner).
  *
+ * MAM-32 — and every series, one card among the movies in title order, its seasons opening to their
+ * episodes; an episode of no series is a card of its own. A kind filter shows the movies or the
+ * series alone, and the search and filters reach into a series: its season counts, and the episodes
+ * a season lists, are the ones they keep.
+ *
  * Every signed-in user reads it. A finished sync refreshes the list by itself (useLibrarySources).
  */
 export function LibraryPage() {
@@ -39,12 +44,13 @@ export function LibraryPage() {
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const [locationId, setLocationId] = useState('')
   const [identifiers, setIdentifiers] = useState<LibraryIdentifierFilter | ''>('')
+  const [kind, setKind] = useState<LibraryKindFilter | ''>('')
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)
   // The page remembers the filters it belongs to, so different filters start again at page 1
   // without an effect — the idiom of IntegrationsPage.
-  const [paging, setPaging] = useState({ search: '', locationId: '', identifiers: '', page: 1 })
+  const [paging, setPaging] = useState({ search: '', locationId: '', identifiers: '', kind: '', page: 1 })
 
-  // Typing waits for a pause; emptying the box shows every movie at once.
+  // Typing waits for a pause; emptying the box shows every work at once.
   const debouncedSearch = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS)
   const appliedSearch = search.trim() === '' ? '' : debouncedSearch
   // MAM-8 — a sync can take away the library the filter names (emptied or removed in Jellyfin, or
@@ -58,28 +64,30 @@ export function LibraryPage() {
   const onFilters = paging.search === appliedSearch
     && paging.locationId === appliedLocationId
     && paging.identifiers === identifiers
-  if (!onFilters) setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, page: 1 })
+    && paging.kind === kind
+  if (!onFilters) setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, page: 1 })
   const page = onFilters ? paging.page : 1
-  const filtered = appliedSearch !== '' || appliedLocationId !== '' || identifiers !== ''
-  const works = useLibraryWorks({
+  const filtered = appliedSearch !== '' || appliedLocationId !== '' || identifiers !== '' || kind !== ''
+  // MAM-32 — what a series card's seasons were counted by, so an opened season lists those episodes.
+  // The kind filter isn't one of them: it picks works, never episodes.
+  const episodeFilters = {
     search: appliedSearch || undefined,
     locationId: appliedLocationId || undefined,
     identifiers: identifiers || undefined,
-    page,
-    pageSize,
-  })
+  }
+  const works = useLibraryWorks({ ...episodeFilters, kind: kind || undefined, page, pageSize })
   const { data, error, isLoading, isPlaceholderData } = works
   const load = useLoadRetry(works)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
-  // A sync can leave fewer movies than the page on screen needs: the refetched page is empty, so
+  // A sync can leave fewer works than the page on screen needs: the refetched page is empty, so
   // move to the last one there is. Only on this page's own answer, not the one kept on screen while
   // it loads.
   if (onFilters && data && !isPlaceholderData && page > pages) {
-    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, page: pages })
+    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, page: pages })
   }
 
   const goToPage = (next: number) =>
-    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, page: next })
+    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, page: next })
 
   const changePageSize = (next: number) => {
     setPageSize(next)
@@ -90,6 +98,7 @@ export function LibraryPage() {
     setSearch('')
     setLocationId('')
     setIdentifiers('')
+    setKind('')
   }
 
   /**
@@ -125,6 +134,16 @@ export function LibraryPage() {
         />
         <select
           className="ui-input settings-filter"
+          value={kind}
+          aria-label={t('kindFilter.label')}
+          onChange={(event) => setKind(event.target.value as LibraryKindFilter | '')}
+        >
+          <option value="">{t('kindFilter.all')}</option>
+          <option value="Movie">{t('kindFilter.Movie')}</option>
+          <option value="Series">{t('kindFilter.Series')}</option>
+        </select>
+        <select
+          className="ui-input settings-filter"
           value={appliedLocationId}
           aria-label={t('locationFilter.label')}
           onChange={(event) => setLocationId(event.target.value)}
@@ -147,7 +166,7 @@ export function LibraryPage() {
 
       {/* MAM-8 — without the libraries the filter offers All libraries alone, which looks like there
           is nothing to choose; this says why instead. A refresh that fails keeps the last list.
-          MAM-16 — a banner, not an error state: the movies below still load without it. */}
+          MAM-16 — a banner, not an error state: the works below still load without it. */}
       {locations.error && !locations.data && (
         <Banner action={<RetryButton onRetry={() => locations.refetch()} />}>
           {t('locationFilter.loadFailed')}{' '}
@@ -193,7 +212,7 @@ export function LibraryPage() {
           <ul className="library-works">
             {data.items.map((work) => (
               <li key={work.id}>
-                <LibraryWorkCard work={work} />
+                <LibraryWorkCard work={work} episodeFilters={episodeFilters} />
               </li>
             ))}
           </ul>

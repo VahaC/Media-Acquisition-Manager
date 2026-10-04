@@ -1,12 +1,14 @@
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DestinationSavesTo } from '@/components/destinations/DestinationSavesTo'
+import { DestinationSectionsField } from '@/components/destinations/DestinationSectionsField'
 import { Banner } from '@/components/shared/Banner'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { useClientDestinations, useCreateDestination, useIntegrations, useUpdateDestination } from '@/lib/queries'
+import { sectionRequests, sectionsMappedTo } from '@/lib/destination-sections'
+import { useClientDestinations, useCreateDestination, useDestinationSections, useIntegrations, useUpdateDestination } from '@/lib/queries'
 import type { Destination, DestinationCheck, IntegrationsQuery } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every settings dialog lays them out
@@ -36,6 +38,11 @@ interface DestinationDialogProps {
  * default alone can still be saved.
  *
  * Every rule is the server's, shown as its sentence — the client confirming the category included.
+ *
+ * MAM-32 — and the release sources' tracker sections whose releases the Download dialog sends here
+ * first (DestinationSectionsField). They are sent with the save only once the owner has ticked or
+ * unticked one: left out, an edit keeps the sections as they are, so a sections list that failed to
+ * load can't clear them.
  */
 export function DestinationDialog({ destination, onClose }: DestinationDialogProps) {
   const { t } = useTranslation(['destinations', 'common'])
@@ -51,7 +58,11 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
   const [key, setKey] = useState(destination?.clientDestinationKey ?? '')
   const [isDefault, setIsDefault] = useState(destination?.isDefault ?? false)
   const [error, setError] = useState<string | null>(null)
+  // Null until the owner ticks or unticks a section: the picks then follow the list as it loads.
+  const [pickedSections, setPickedSections] = useState<ReadonlySet<string> | null>(null)
   const categories = useClientDestinations(clientId)
+  const sections = useDestinationSections()
+  const picked = pickedSections ?? (sections.data ? sectionsMappedTo(sections.data, destination?.id) : new Set<string>())
   const saving = create.isPending || update.isPending
 
   const listedClients = clients.data?.items ?? []
@@ -72,6 +83,12 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
   // nothing about it.
   const savedKeyMissing = keepsSavedKey && categories.data !== undefined && categories.data.error === null
   const chosen = offered.find((category) => category.key === key)
+
+  const toggleSection = (key: string) => {
+    const next = new Set(picked)
+    if (!next.delete(key)) next.add(key)
+    setPickedSections(next)
+  }
 
   /** Another client has other categories: the one picked for the last client goes. */
   const pickClient = (next: string) => {
@@ -118,6 +135,7 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
       // As the client spells it, never trimmed: it is the client's own name for the category.
       clientDestinationKey: key,
       isDefault,
+      sections: pickedSections !== null && sections.data ? sectionRequests(sections.data, pickedSections) : undefined,
     }
     try {
       if (destination) await update.mutateAsync({ id: destination.id, request })
@@ -218,6 +236,15 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
               </label>
               <p id={defaultHintId} className="auth-hint">{t('dialog.defaultHint')}</p>
             </div>
+
+            <DestinationSectionsField
+              list={sections.data}
+              isLoading={sections.isLoading}
+              error={sections.error}
+              destinationId={destination?.id}
+              picked={picked}
+              onToggle={toggleSection}
+            />
           </div>
           {/* MAM-16 — outside the scrolling body, above the buttons; the fields keep what was picked. */}
           {error && <Banner>{error}</Banner>}

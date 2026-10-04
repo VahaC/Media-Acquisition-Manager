@@ -96,7 +96,12 @@ public sealed class DownloadService(
                 options.Add(mapper.ToOption(client, adapter.Descriptor.DisplayName, own));
         }
 
-        return DownloadOptionsResult.Listed(new DownloadOptionsResponse(options));
+        var offered = options.SelectMany(option => option.Destinations).ToList();
+        var suggested = DestinationSuggestion.For(
+            await SectionsHoldingAsync(release, cancellationToken),
+            offered.Select(destination => destination.Id).ToHashSet(),
+            offered.FirstOrDefault(destination => destination.IsDefault)?.Id);
+        return DownloadOptionsResult.Listed(new DownloadOptionsResponse(options, suggested));
     }
 
     public async Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
@@ -381,6 +386,22 @@ public sealed class DownloadService(
             join search in db.Searches.AsNoTracking() on searchSource.SearchId equals search.Id
             where release.Id == releaseId && search.UserId == callerUserId && search.CreatedUtc >= cutoff
             select release).SingleOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// MAM-32 — the mapped sections of the release's source that hold it: the rows of the categories the
+    /// release was stored with (ADR 0020). None for a release of a removed source, or one stored before
+    /// MAM-32, which kept no categories: the dialog picks the default for it, as it did.
+    /// </summary>
+    private async Task<IReadOnlyCollection<DestinationSectionEntity>> SectionsHoldingAsync(ReleaseEntity release, CancellationToken cancellationToken)
+    {
+        var categoryIds = release.CategoryIds?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+        if (release.SourceConnectionId is not { } sourceId || categoryIds.Length == 0)
+            return [];
+        return await db.DestinationSections
+            .AsNoTracking()
+            .Where(section => section.ReleaseSourceConnectionId == sourceId && categoryIds.Contains(section.CategoryId))
+            .ToListAsync(cancellationToken);
     }
 
     // Not a download client is the same as none (the DestinationService rule). Read with its path mappings,

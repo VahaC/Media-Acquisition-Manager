@@ -93,6 +93,50 @@ public sealed class ReleaseSearchRulesTests
         Assert.Null(value);
     }
 
+    // MAM-32 — the season of the search form: TV alone is searched for it.
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("  ", null)]
+    [InlineData("1", 1)]
+    [InlineData(" 01 ", 1)]
+    // The specials, as the Library numbers them.
+    [InlineData("0", 0)]
+    [InlineData("9999", 9999)]
+    public void ValidateSeason_reads_a_season_or_nothing(string? season, int? expected)
+    {
+        //Arrange
+
+        //Act
+        var error = ReleaseSearchRules.ValidateSeason(season, out var value);
+
+        //Assert
+        Assert.Null(error);
+        Assert.Equal(expected, value);
+    }
+
+    [Theory]
+    [InlineData("one", "“one” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("S01", "“S01” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("10000", "“10000” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("-1", "“-1” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("+1", "“+1” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("1.5", "“1.5” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("1-3", "“1-3” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("99999999999", "“99999999999” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    [InlineData("123456789012345678901234567890123456", "“12345678901234567890123456789012…” is not a season. Use a season number, such as 1, or 0 for the specials.")]
+    public void ValidateSeason_refuses_anything_but_a_season(string season, string expected)
+    {
+        //Arrange
+
+        //Act
+        var error = ReleaseSearchRules.ValidateSeason(season, out var value);
+
+        //Assert
+        Assert.Equal(expected, error);
+        Assert.Null(value);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData(" ")]

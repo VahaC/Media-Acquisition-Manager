@@ -31,7 +31,7 @@ public sealed class TorznabAdapterTests : IDisposable
     }
 
     [Fact]
-    public async Task TestConnection_reads_the_caps_sample_as_movie_search_by_title()
+    public async Task TestConnection_reads_the_caps_sample_as_movie_search_by_title_and_tv_search_by_title_season_and_episode()
     {
         //Arrange
         _harness.TorznabHttp.Handler = (_, _) => VendorResponses.Sample("Torznab/prowlarr-toloka-caps.xml", "application/xml; charset=utf-8");
@@ -41,8 +41,38 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        // Toloka's movie search takes only q (VendorSamples README).
-        Assert.Equal("Connected to Prowlarr over Torznab; movie search by title.", result.Message);
+        // Toloka's movie search takes only q, its TV search q, season and ep (VendorSamples README, MAM-32).
+        Assert.Equal("Connected to Prowlarr over Torznab; movie search by title, TV search by title, season and episode.", result.Message);
+    }
+
+    [Theory]
+    [InlineData("q,tvdbid,imdbid,tmdbid,season,ep", "title, TVDB id, IMDb id, TMDb id, season and episode")]
+    [InlineData("", "title")]
+    public async Task TestConnection_names_the_parameters_of_the_tv_search(string parameters, string expectedParameters)
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => Xml(
+            $"""<caps><server title="Jackett" /><searching><movie-search available="yes" supportedParams="q" /><tv-search available="yes" supportedParams="{parameters}" /></searching></caps>""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal($"Connected to Jackett over Torznab; movie search by title, TV search by {expectedParameters}.", result.Message);
+    }
+
+    [Fact]
+    public async Task TestConnection_with_a_tv_search_and_no_movie_search_says_both()
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => Xml(
+            """<caps><searching><movie-search available="no" /><tv-search available="yes" supportedParams="q,season" /></searching></caps>""");
+
+        //Act
+        var result = await Adapter.TestConnectionAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal("Connected to the feed over Torznab, but it offers no movie search; TV search by title and season.", result.Message);
     }
 
     [Theory]
@@ -78,7 +108,7 @@ public sealed class TorznabAdapterTests : IDisposable
     [InlineData("""<caps><searching><movie-search available="no" supportedParams="q,imdbid" /></searching></caps>""")]
     [InlineData("""<caps><searching><search available="yes" supportedParams="q" /></searching></caps>""")]
     [InlineData("""<caps><server title="  " /></caps>""")]
-    public async Task TestConnection_without_movie_search_says_so(string caps)
+    public async Task TestConnection_without_movie_or_tv_search_says_so(string caps)
     {
         //Arrange
         _harness.TorznabHttp.Handler = (_, _) => Xml(caps);
@@ -89,7 +119,7 @@ public sealed class TorznabAdapterTests : IDisposable
         //Assert
         // Still a working feed: the owner learns what it can't do before a search finds nothing.
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
-        Assert.Equal("Connected to the feed over Torznab, but it offers no movie search.", result.Message);
+        Assert.Equal("Connected to the feed over Torznab, but it offers no movie or TV search.", result.Message);
     }
 
     [Fact]

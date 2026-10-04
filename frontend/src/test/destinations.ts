@@ -4,6 +4,9 @@ import type {
   Destination,
   DestinationCheck,
   DestinationList,
+  DestinationSection,
+  DestinationSectionList,
+  DestinationSectionSource,
   DestinationsQuery,
   IntegrationSummary,
 } from '@/lib/types'
@@ -98,4 +101,32 @@ export const sampleCategories: ClientDestinationList = {
     categoryOf('TV Shows', 'tv-shows', 'Серіали'),
   ],
   error: null,
+}
+
+/** MAM-32 — a section of a release source; `changes` sets what a test is about. */
+export function sectionOf(name: string, categoryIds: string[], changes: Partial<DestinationSection> = {}): DestinationSection {
+  return { name, categoryIds, isSourceSpecific: true, destinationId: null, destinationName: null, ...changes }
+}
+
+/**
+ * MAM-32 — Toloka's sections as GET /api/settings/destinations/sections lists them from its real caps:
+ * «Мультсеріали» (three ids under one name) mapped to Cartoons, «Українські фільми» to Movies,
+ * «Телесеріали» to none, then the standard categories, Movies/HD mapped to Movies.
+ */
+export const tolokaSections: DestinationSectionSource = {
+  id: '5d1c7a90-0000-4000-8000-000000000002',
+  name: 'Toloka',
+  sections: [
+    sectionOf('Українські фільми', ['100016'], { destinationId: movies.id, destinationName: movies.name }),
+    sectionOf('Мультсеріали', ['100044', '100125', '100195'], { destinationId: cartoons.id, destinationName: cartoons.name }),
+    sectionOf('Телесеріали', ['100137']),
+    sectionOf('Movies/HD', ['2040'], { isSourceSpecific: false, destinationId: movies.id, destinationName: movies.name }),
+    sectionOf('TV', ['5000'], { isSourceSpecific: false }),
+  ],
+  error: null,
+}
+
+/** The sections list of `sources`, in the order given (the server's is by name). */
+export function sectionsOf(...sources: DestinationSectionSource[]): DestinationSectionList {
+  return { sources }
 }

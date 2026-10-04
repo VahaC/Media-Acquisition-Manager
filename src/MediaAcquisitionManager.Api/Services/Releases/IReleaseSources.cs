@@ -14,14 +14,19 @@ public interface IReleaseSources
     /// makes from what that source can search by; one outcome per source, in that order. Never throws but
     /// for <paramref name="cancellationToken"/>: a source that fails, or that the app can't ask, answers
     /// with its own status and masked sentence while the others still list theirs. Nothing is stored.
+    /// MAM-32 — each source is asked for movies, then for TV, each until a tier lists a release, and lists
+    /// the movies then the TV releases, a listing both find once; one query that fails fails the source.
+    /// With a <paramref name="season"/>, for TV alone.
     /// </summary>
     /// <param name="text">The title, already validated and trimmed (<see cref="ReleaseSearchTerms"/>).</param>
     /// <param name="year">The year; <c>null</c> for none.</param>
+    /// <param name="season">The season (MAM-32); <c>null</c> for none.</param>
     /// <param name="identifiers">The ids asked for, IMDb before TMDb.</param>
     /// <param name="cancellationToken">The request's cancellation.</param>
     Task<IReadOnlyList<ReleaseSourceOutcome>> SearchAsync(
         string text,
         int? year,
+        int? season,
         IReadOnlyList<MediaIdentifier> identifiers,
         CancellationToken cancellationToken = default);
 }

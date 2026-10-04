@@ -12,9 +12,14 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="CreatedUtc">When it was requested.</param>
 /// <param name="StartedUtc">When the app began reading; <c>null</c> while queued.</param>
 /// <param name="FinishedUtc">When it succeeded or failed; <c>null</c> while under way.</param>
-/// <param name="ItemsRead">How many different items were read so far.</param>
-/// <param name="ItemsTotal">How many items the library listed; <c>null</c> until the first page.</param>
-/// <param name="WorksCount">How many works the stored snapshot holds; <c>null</c> unless it succeeded.</param>
+/// <param name="ItemsRead">How many different items were read so far: movies, series and episodes
+/// (MAM-32).</param>
+/// <param name="ItemsTotal">How many items the library listed; <c>null</c> until the first page of each
+/// list.</param>
+/// <param name="WorksCount">How many movies and episodes the stored snapshot holds as works; <c>null</c>
+/// unless it succeeded.</param>
+/// <param name="SeriesCount">How many series it holds (MAM-32); <c>null</c> unless it succeeded, and for a
+/// sync from before series were read.</param>
 /// <param name="VersionsCount">How many versions it holds; <c>null</c> unless it succeeded.</param>
 /// <param name="FilesCount">How many files it holds; <c>null</c> unless it succeeded.</param>
 /// <param name="Error">Why it failed, every secret masked. For the installation owner only: it can name
@@ -31,6 +36,7 @@ public sealed record LibrarySyncRunDto(
     int ItemsRead,
     int? ItemsTotal,
     int? WorksCount,
+    int? SeriesCount,
     int? VersionsCount,
     int? FilesCount,
     string? Error);

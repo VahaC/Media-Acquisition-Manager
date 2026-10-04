@@ -63,7 +63,7 @@ public sealed class LibrarySyncStartHttpTests : IClassFixture<MediaAcquisitionMa
         var run = await response.Content.ReadFromJsonAsync<LibrarySyncRunDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         Assert.Equal($"{BaseUrl}/syncs/{run!.Id}", response.Headers.Location!.AbsolutePath);
         Assert.Equal(
-            new LibrarySyncRunDto(run.Id, jellyfin.Id, "Living room", LibrarySyncStatus.Queued, "owner", now, null, null, 0, null, null, null, null, null),
+            new LibrarySyncRunDto(run.Id, jellyfin.Id, "Living room", LibrarySyncStatus.Queued, "owner", now, null, null, 0, null, null, null, null, null, null),
             run);
         // Only queued: the worker takes it; nothing reached Jellyfin and no snapshot row exists yet.
         Assert.Empty(_factory.JellyfinHttp.Requests);

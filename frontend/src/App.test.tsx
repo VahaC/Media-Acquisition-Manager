@@ -109,7 +109,7 @@ describe('App', () => {
     await screen.findByRole('heading', { name: 'Service status' })
 
     // Act
-    await user.type(screen.getByRole('searchbox', { name: 'Search for a movie' }), 'Aliens (1986){Enter}')
+    await user.type(screen.getByRole('searchbox', { name: 'Search for a movie or a series' }), 'Aliens (1986){Enter}')
 
     // Assert
     // The page's code loads first, on its first visit, while the home page stays on screen.
@@ -117,7 +117,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
     expect(window.location.pathname + window.location.search).toBe(`/search?id=${searchId}`)
     expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens', year: '1986' })
-    expect(screen.getByRole('searchbox', { name: 'Search for a movie' })).toHaveValue('Aliens')
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie or a series' })).toHaveValue('Aliens')
     expect(searchApi.get).not.toHaveBeenCalled()
     window.history.back()
     expect(await screen.findByRole('heading', { name: 'Service status' })).toBeInTheDocument()
@@ -133,8 +133,8 @@ describe('App', () => {
 
     // Assert
     expect(await screen.findByRole('heading', { level: 1, name: 'Search' })).toBeInTheDocument()
-    expect(screen.getByText('Type a movie title in the search field at the top, then press Enter.')).toBeInTheDocument()
-    expect(screen.getByRole('searchbox', { name: 'Search for a movie' })).toHaveValue('')
+    expect(screen.getByText('Type a title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie or a series' })).toHaveValue('')
     expect(searchApi.create).not.toHaveBeenCalled()
     expect(searchApi.get).not.toHaveBeenCalled()
     expect(searchApi.releases).not.toHaveBeenCalled()
@@ -152,7 +152,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: 'Чужі' })).toBeInTheDocument()
     expect(screen.getByText((_, element) => element?.textContent === 'Results for “Aliens”.')).toBeInTheDocument()
-    expect(screen.getByRole('searchbox', { name: 'Search for a movie' })).toHaveValue('Aliens')
+    expect(screen.getByRole('searchbox', { name: 'Search for a movie or a series' })).toHaveValue('Aliens')
     expect(searchApi.get).toHaveBeenCalledExactlyOnceWith(searchId)
     expect(searchApi.create).not.toHaveBeenCalled()
   })

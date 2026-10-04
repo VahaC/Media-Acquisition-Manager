@@ -1,12 +1,14 @@
 {
   "title": "Search",
-  "lead": "Look for a movie in your library and in every release source at once. What the sources list is kept for a day, so filtering and sorting never ask them again.",
+  "lead": "Look for a movie or a series in your library and in every release source at once. What the sources list is kept for a day, so filtering and sorting never ask them again.",
   "form": {
-    "label": "Search for a movie",
+    "label": "Search for a movie or a series",
     "resultsFor": "Results for <strong>“<text/>”</strong>.",
-    "narrow": "Add a year or an id to narrow them.",
+    "narrow": "Add a year, a season or an id to narrow them.",
     "year": "Year",
     "yearPlaceholder": "2014",
+    "season": "Season",
+    "seasonPlaceholder": "1",
     "imdbId": "IMDb id",
     "imdbIdPlaceholder": "tt0816692",
     "tmdbId": "TMDb id",
@@ -17,8 +19,8 @@
     "failed": "Could not search."
   },
   "empty": {
-    "title": "Type a movie title in the search field at the top, then press Enter.",
-    "hint": "Add the year in brackets after the title to narrow it: “Interstellar (2014)”. Press / on any page to jump to the field."
+    "title": "Type a title in the search field at the top, then press Enter.",
+    "hint": "Add the year in brackets after the title to narrow it: “Interstellar (2014)”. A season goes in the Season field once the results are on screen. Press / on any page to jump to the field."
   },
   "expired": "This search is no longer available. Search again.",
   "loadFailed": "Could not load this search.",
@@ -27,8 +29,8 @@
     "title": "In your library",
     "empty": "Nothing in your library matches this search.",
     "wordsLead": "Not matched, but a title or a file path holds every word of “{{text}}”:",
-    "unlisted_one": "{{value}} more movie in your library holds these words.",
-    "unlisted_other": "{{value}} more movies in your library hold these words.",
+    "unlisted_one": "{{value}} more work in your library holds these words.",
+    "unlisted_other": "{{value}} more works in your library hold these words.",
     "unlistedLink": "Search “{{text}}” on the Library page"
   },
   "match": {
@@ -39,7 +41,7 @@
     "titleOnly": "Possible match — check it",
     "words": "Title contains “{{text}}” — not a match",
     "wordsInPath": "A file path contains “{{text}}” — not a match",
-    "wordsHint": "Every word searched for is in one of this movie's titles or file paths, but the movie matched in no other way. It is shown for you to look at, not as a possible match.",
+    "wordsHint": "Every word searched for is in one of its titles or file paths, but it matched in no other way. It is shown for you to look at, not as a possible match.",
     "wordsLabel": "Why it is listed",
     "inLibrary": {
       "Identifier": "In your library: {{work}} — matched by id",
@@ -56,7 +58,11 @@
     },
     "titleSource": "{{kind}}, reported by {{source}}",
     "conflict": "Conflicting {{scheme}} ids",
-    "conflictHint": "The ids reported for this movie, or the one searched for, don't agree. Nothing was merged: check which one is right.",
+    "conflictHint": "The ids reported for this work, or the one searched for, don't agree. Nothing was merged: check which one is right.",
+    "held_one": "{{value}} of its episodes in your library",
+    "held_other": "{{value}} of its episodes in your library",
+    "heldNone": "None of its episodes in your library",
+    "heldHint": "How many episodes of the seasons or episodes this release claims your library already holds.",
     "work": "{{title}} ({{year}})",
     "workYearUnknown": "{{title}} (year unknown)"
   },
@@ -94,6 +100,12 @@
   "filters": {
     "source": "Source",
     "allSources": "All sources",
+    "kind": "Kind",
+    "allKinds": "Movies and TV",
+    "kinds": {
+      "Movie": "Movies",
+      "Tv": "TV"
+    },
     "language": "Audio language",
     "allLanguages": "All languages",
     "unknownLanguage": "Unknown",
@@ -134,6 +146,9 @@
   },
   "claimed": {
     "label": "Claimed",
+    "tv": "TV",
+    "seasons": "Seasons {{first}}–{{last}}",
+    "episodes": "Episodes {{first}}–{{last}}",
     "resolution": "{{value}}p",
     "resolutionUnknown": "Resolution unknown",
     "medium": {
@@ -171,13 +186,21 @@
       "Nzb": "An NZB file"
     },
     "payloadUnknown": "Known once it is fetched",
+    "kind": "Listed as",
+    "kinds": {
+      "Movie": "A movie",
+      "Tv": "TV"
+    },
     "unknown": "Unknown",
     "readAs": "Read from the title",
     "titles": "Titles",
     "year": "Year",
-    "noClaimedWork": "The title gives no year, so the app can't tell the movie's name from the rest of it. This release matches your library by an id only.",
+    "yearSpan": "{{first}}–{{last}}",
+    "seasons": "Seasons",
+    "episodes": "Episodes",
+    "noClaimedWork": "The title gives no year or season, so the app can't tell the name from the rest of it. This release matches your library by an id only.",
     "identifiers": "Ids in the listing",
-    "noIdentifiers": "The listing gives no IMDb or TMDb id.",
+    "noIdentifiers": "The listing gives no IMDb, TMDb or TVDB id.",
     "library": "In your library",
     "noLibrary": "Nothing in your library matches this release."
   }

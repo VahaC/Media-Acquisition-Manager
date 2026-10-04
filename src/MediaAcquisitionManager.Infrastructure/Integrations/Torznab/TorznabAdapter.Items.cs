@@ -10,7 +10,7 @@ using MediaAcquisitionManager.Core.Media;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
-// MAM-10 — the releases of a t=search or t=movie answer, every field read by name (house rule 8) and
+// MAM-10 — the releases of a t=search, t=movie or t=tvsearch (MAM-32) answer, every field read by name (house rule 8) and
 // every number and address parsed, never trusted: an item this app can't use is skipped, never the
 // search.
 internal sealed partial class TorznabAdapter
@@ -44,12 +44,13 @@ internal sealed partial class TorznabAdapter
         XElement channel, IntegrationConnectionSettings settings, ReleaseSearchQuery query, string?[] secrets)
     {
         var feed = new Uri(EndpointFor(settings.BaseUrl));
+        var kindAsked = KindAsked(query);
         var hits = new List<ReleaseSearchHit>();
         foreach (var item in channel.Elements("item"))
         {
             if (hits.Count == query.Limit)
                 break;
-            if (ReadHit(item, feed, settings.ApiKey, secrets) is not { } read)
+            if (ReadHit(item, feed, settings.ApiKey, kindAsked, secrets) is not { } read)
                 continue;
 
             // MAM-10 — the payload fetch only ever requests the feed's own origin, so a link elsewhere
@@ -75,7 +76,9 @@ internal sealed partial class TorznabAdapter
     /// One listed release, or <c>null</c> when it has no title or no download link this app takes;
     /// with its parsed web link, when the locator is one, for the origin rule.
     /// </summary>
-    private static (ReleaseSearchHit Hit, Uri? WebLink)? ReadHit(XElement item, Uri feed, string? apiKey, string?[] secrets)
+    /// <param name="kindAsked">What the search that listed it asked for (<see cref="KindAsked"/>): the kind of
+    /// a release listed in no category at all (MAM-32).</param>
+    private static (ReleaseSearchHit Hit, Uri? WebLink)? ReadHit(XElement item, Uri feed, string? apiKey, ReleaseKind kindAsked, string?[] secrets)
     {
         var title = RemoteText.Clean((string?)item.Element("title"), TitleMaximumLength, secrets);
         if (title.Length == 0)
@@ -113,6 +116,8 @@ internal sealed partial class TorznabAdapter
 
         var locatorValues = TorznabLinks.QueryValues(locator);
         var pageLink = TorznabLinks.PageLink((string?)item.Element("comments"), feed, locatorValues, secrets);
+        var categoryIds = CategoryIds(item, attributes);
+        var kind = KindOf(categoryIds, kindAsked);
         var hit = new ReleaseSearchHit(
             TorznabLinks.ItemId((string?)item.Element("guid"), pageLink, secrets),
             title,
@@ -121,14 +126,15 @@ internal sealed partial class TorznabAdapter
             Count(AttributeValues(attributes, "peers").FirstOrDefault()),
             Published((string?)item.Element("pubDate")),
             pageLink,
-            CategoryIds(item, attributes),
+            categoryIds,
             // Prowlarr and Jackett label every torrent enclosure application/x-bittorrent, even one
             // whose link turns into a magnet: only a magnet locator says what the payload is, and
             // otherwise the fetch decides.
             webLink is null ? ReleasePayloadKind.Magnet : null,
             InfoHash(AttributeValues(attributes, "infohash").FirstOrDefault()),
-            Identifiers(attributes),
-            new ReleasePayloadLocator(stored));
+            Identifiers(attributes, kind),
+            new ReleasePayloadLocator(stored),
+            kind);
         return (hit, webLink);
     }
 
@@ -161,20 +167,58 @@ internal sealed partial class TorznabAdapter
 
     /// <summary>
     /// The registry ids the listing gives (MAM-12): IMDb from <c>imdbid</c> and <c>imdb</c>, TMDb from
-    /// <c>tmdbid</c>, at most one per scheme and IMDb first. A listing that gives two different values of
-    /// one scheme gives none of it: a listing that contradicts itself can't be matched to anything (the
-    /// <c>LibraryWorkGrouping</c> rule for an item naming two values of one scheme). Toloka lists none.
+    /// <c>tmdbid</c>, TVDB from <c>tvdbid</c> (MAM-32), at most one per scheme and IMDb first. A listing
+    /// that gives two different values of one scheme gives none of it: a listing that contradicts itself
+    /// can't be matched to anything (the <c>LibraryWorkGrouping</c> rule for an item naming two values of
+    /// one scheme). Toloka lists none.
     /// </summary>
-    private static List<MediaIdentifier> Identifiers(IReadOnlyList<XElement> attributes)
+    /// <remarks>
+    /// MAM-32 — a TV listing's <c>tmdbid</c> is a show's, in TMDb's other numbering (ADR 0017), so it is
+    /// read as <see cref="MediaIdentifierScheme.TmdbTv"/> and can never match a movie with that number.
+    /// </remarks>
+    private static List<MediaIdentifier> Identifiers(IReadOnlyList<XElement> attributes, ReleaseKind kind)
     {
-        var identifiers = new List<MediaIdentifier>(2);
+        var identifiers = new List<MediaIdentifier>(3);
         var imdbValues = AttributeValues(attributes, "imdbid").Concat(AttributeValues(attributes, "imdb"));
         if (OnlyValue(imdbValues.Select(ImdbId)) is { } imdb)
             identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Imdb, imdb));
-        if (OnlyValue(AttributeValues(attributes, "tmdbid").Select(TmdbId)) is { } tmdb)
-            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tmdb, tmdb));
+        if (OnlyValue(AttributeValues(attributes, "tmdbid").Select(NumericId)) is { } tmdb)
+            identifiers.Add(new MediaIdentifier(kind == ReleaseKind.Tv ? MediaIdentifierScheme.TmdbTv : MediaIdentifierScheme.Tmdb, tmdb));
+        if (OnlyValue(AttributeValues(attributes, "tvdbid").Select(NumericId)) is { } tvdb)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tvdb, tvdb));
         return identifiers;
     }
+
+    /// <summary>
+    /// MAM-32 — a release is TV when it lists a TV category (Torznab's 5000 to 5999: TV, TV/HD, TV/Anime,
+    /// TV/Documentary …, where Prowlarr files Toloka's «Телесеріали» and «Мультсеріали»), and a movie
+    /// otherwise; one that lists no category is what the search that found it asked for.
+    /// </summary>
+    private static ReleaseKind KindOf(IReadOnlyList<string> categoryIds, ReleaseKind kindAsked)
+    {
+        if (categoryIds.Any(HoldsTv))
+            return ReleaseKind.Tv;
+        return categoryIds.Count == 0 ? kindAsked : ReleaseKind.Movie;
+    }
+
+    /// <summary>
+    /// MAM-32 — what a search asked for, which a listing in no category is taken to be: a TV search TV, a
+    /// movie search movies, and a general search TV when every category it asked holds TV — the title tier
+    /// <c>ReleaseSearchPlanning.ForTv</c> sends a source whose TV search takes no text — and movies
+    /// otherwise.
+    /// </summary>
+    /// <remarks>
+    /// The asked ids are tested with <see cref="HoldsTv"/>, the rule that marked them <c>HoldsTv</c> in the
+    /// caps the planning picked them from, so the query alone tells it. Any other id asked beside them, a
+    /// gateway's own section included (Toloka's 100xxx), may hold a movie, and the search is then not TV.
+    /// </remarks>
+    private static ReleaseKind KindAsked(ReleaseSearchQuery query) =>
+        query.Mode switch
+        {
+            ReleaseSearchMode.Tv => ReleaseKind.Tv,
+            ReleaseSearchMode.General when query.CategoryIds.Count > 0 && query.CategoryIds.All(HoldsTv) => ReleaseKind.Tv,
+            _ => ReleaseKind.Movie,
+        };
 
     /// <summary>The one id among <paramref name="values"/> (<c>null</c> ones are none); <c>null</c> when
     /// there is none or more than one.</summary>
@@ -200,9 +244,9 @@ internal sealed partial class TorznabAdapter
         return MediaIdentifierRules.IsImdbId(id) ? id : null;
     }
 
-    /// <summary>A TMDb movie id, digits only; <c>null</c> for anything else, blank and all zeros
-    /// included.</summary>
-    private static string? TmdbId(string? value)
+    /// <summary>A TMDb or TVDB id, digits only; <c>null</c> for anything else, blank and all zeros
+    /// included (Jackett writes <c>0</c> for none).</summary>
+    private static string? NumericId(string? value)
     {
         var text = value?.Trim() ?? "";
         return MediaIdentifierRules.IsTmdbId(text) && text.Any(digit => digit != '0') ? text : null;

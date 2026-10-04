@@ -87,6 +87,99 @@
   overflow-wrap: anywhere;
 }
 
+/* ── MAM-32: the dialog's tracker sections ── */
+
+/* A source a row, framed like a library card's version rows, with a line between two. */
+.destinations-sources {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.destinations-sources > li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* A source's own block: its row, the sentence of a source that couldn't be asked, and its sections
+   once it is opened. */
+.destinations-source {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.25rem 0;
+}
+
+/* The chevron, the source's name and how many of its sections are ticked. */
+.destinations-source-toggle {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.destinations-source-toggle:hover {
+  background: var(--muted);
+}
+
+.destinations-source-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.destinations-source-toggle svg {
+  color: var(--muted-foreground);
+}
+
+.destinations-source-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* The sentence of a source that couldn't be asked, and the sections, past the chevron. */
+.destinations-source > :not(.destinations-source-toggle) {
+  padding: 0 0.75rem 0 2.25rem;
+}
+
+.destinations-source-sections {
+  display: grid;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+
+/* `min-width: 0`: a fieldset is at least as wide as its content by default (the reason of
+   .integrations-mappings). Its legend is no grid item, so it is spaced on its own. */
+.destinations-sections-group {
+  display: grid;
+  min-width: 0;
+}
+
+.destinations-sections-group > legend {
+  margin-bottom: 0.375rem;
+}
+
+.destinations-sections {
+  display: grid;
+  gap: 0.375rem;
+}
+
+/* A box at the first line of a name that wraps, a long section name breaking rather than widening
+   the dialog. */
+.destinations-sections .settings-check {
+  align-items: flex-start;
+}
+
+.destinations-sections .settings-check input {
+  margin-top: 0.1875rem;
+}
+
+.destinations-section-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 48rem) {
   /* Two folders and a sentence need the card's whole width: the cell's caption goes above them
      instead of beside them, and the lines start at the left like any text. */
@@ -103,5 +196,12 @@
 
   .settings-table td.destinations-saves-to + td.settings-actions-cell > .settings-actions {
     flex-wrap: wrap;
+  }
+}
+
+/* On a phone the sections keep a shorter indent, so a long name has the width to wrap in. */
+@media (max-width: 480px) {
+  .destinations-source > :not(.destinations-source-toggle) {
+    padding-left: 0.75rem;
   }
 }

@@ -164,8 +164,8 @@ describe('SearchPage', () => {
     renderPage({ path })
 
     // Assert
-    expect(screen.getByText('Type a movie title in the search field at the top, then press Enter.')).toBeInTheDocument()
-    expect(screen.getByText('Add the year in brackets after the title to narrow it: “Interstellar (2014)”. Press / on any page to jump to the field.'))
+    expect(screen.getByText('Type a title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(screen.getByText('Add the year in brackets after the title to narrow it: “Interstellar (2014)”. A season goes in the Season field once the results are on screen. Press / on any page to jump to the field.'))
       .toBeInTheDocument()
     // Nothing to narrow yet.
     expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
@@ -185,7 +185,7 @@ describe('SearchPage', () => {
     renderPage({ path })
 
     // Assert
-    expect(screen.getByText('Type a movie title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(screen.getByText('Type a title in the search field at the top, then press Enter.')).toBeInTheDocument()
     expect(searchApi.create).not.toHaveBeenCalled()
   })
 
@@ -295,7 +295,7 @@ describe('SearchPage', () => {
     await vi.waitFor(() => expect(searchApi.create).toHaveBeenCalledOnce())
     await user.click(screen.getByRole('button', { name: 'Back' }))
     await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
-    expect(noteBeside('Aliens')).toHaveTextContent('Add a year or an id to narrow them.')
+    expect(noteBeside('Aliens')).toHaveTextContent('Add a year, a season or an id to narrow them.')
     expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled()
 
     // Act
@@ -405,7 +405,7 @@ describe('SearchPage', () => {
     // Assert
     const line = await screen.findByText((_, element) => element?.textContent === 'Results for “Aliens”.')
     expect(within(line).getByText('Aliens').closest('strong')).toHaveTextContent('“Aliens”')
-    expect(noteBeside('Aliens')).toHaveTextContent(/^Add a year or an id to narrow them\.$/)
+    expect(noteBeside('Aliens')).toHaveTextContent(/^Add a year, a season or an id to narrow them\.$/)
   })
 
   it('shows a title that looks like markup or a placeholder exactly as it was typed', async () => {
@@ -667,8 +667,8 @@ describe('SearchPage', () => {
   })
 
   it.each([
-    [1, '1 more movie in your library holds these words.'],
-    [35, '35 more movies in your library hold these words.'],
+    [1, '1 more work in your library holds these words.'],
+    [35, '35 more works in your library hold these words.'],
   ])('counts the %s works holding the words past the ones listed, and links to the Library page searched for the title', async (count, line) => {
     // Arrange
     vi.mocked(searchApi.get).mockResolvedValue(searchOf({ ...ramboSearch, text: 'Rambo: First Blood', libraryUnlistedCount: count }))
@@ -788,6 +788,7 @@ describe('SearchPage', () => {
 
   it.each([
     ['source', 'Source', 'Toloka', { source: toloka.id }],
+    ['kind', 'Kind', 'Movies', { kind: 'Movie' as const }],
     ['audio language', 'Audio language', 'Ukrainian', { language: 'ukr' }],
     ['unknown audio language', 'Audio language', 'Unknown', { language: 'unknown' }],
     ['quality', 'Quality', '2160p', { quality: '2160' }],

@@ -67,15 +67,15 @@ public sealed class LibrarySyncRunHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var run = await ReadRunAsync(response, cancellationToken);
-        // Four movies read of four listed, into three works (the two "Чужі" items are one), four versions
-        // and four files.
+        // Four movies read of four listed, into three works (the two "Чужі" items are one), no series,
+        // four versions and four files.
         Assert.Equal(
-            new LibrarySyncRunDto(run.Id, jellyfin.Id, "Living room", LibrarySyncStatus.Succeeded, "owner", requested, ran, ran, 4, 4, 3, 4, 4, null),
+            new LibrarySyncRunDto(run.Id, jellyfin.Id, "Living room", LibrarySyncStatus.Succeeded, "owner", requested, ran, ran, 4, 4, 3, 0, 4, 4, null),
             run);
         // Counts only: never an address, a path or a title.
         var finished = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(LibrarySyncRunner).FullName);
         Assert.Equal(LogLevel.Information, finished.Level);
-        Assert.Equal($"Library sync {run.Id} of integration {jellyfin.Id} finished: 3 works, 4 versions, 4 files.", finished.Message);
+        Assert.Equal($"Library sync {run.Id} of integration {jellyfin.Id} finished: 3 works, 0 series, 4 versions, 4 files.", finished.Message);
     }
 
     [Fact]
@@ -89,12 +89,15 @@ public sealed class LibrarySyncRunHttpTests : IClassFixture<MediaAcquisitionMana
         await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
 
         //Assert
-        // The version gate (the connection test), the libraries, then one page of movies — and nothing
-        // that writes: MAM-8 never changes anything in Jellyfin.
+        // The version gate (the connection test), the libraries, then one page of movies, of series and
+        // of episodes (MAM-32) — and nothing that writes: MAM-8 never changes anything in Jellyfin.
         var requests = _factory.JellyfinHttp.Requests;
         Assert.Equal(
-            ["/System/Info", "/Library/VirtualFolders", "/Items"],
+            ["/System/Info", "/Library/VirtualFolders", "/Items", "/Items", "/Items"],
             requests.Select(request => request.Uri.AbsolutePath));
+        Assert.Equal(
+            ["includeItemTypes=Movie", "includeItemTypes=Series", "includeItemTypes=Episode"],
+            requests.Skip(2).Select(request => Regex.Match(request.Uri.Query, "includeItemTypes=[A-Za-z]+").Value));
         Assert.All(requests, request =>
         {
             Assert.Equal(HttpMethod.Get, request.Method);
@@ -133,9 +136,11 @@ public sealed class LibrarySyncRunHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(
             ["startIndex=0&limit=50", "startIndex=49&limit=50", "startIndex=98&limit=50"],
             _factory.JellyfinHttp.Requests
-                .Where(request => request.Uri.AbsolutePath == "/Items")
+                .Where(request => request.Uri.AbsolutePath == "/Items" && request.Uri.Query.Contains("includeItemTypes=Movie", StringComparison.Ordinal))
                 .Select(request => Regex.Match(request.Uri.Query, "startIndex=[0-9]+&limit=[0-9]+").Value));
-        // "Syncing… 50 of 120" once the first page is in, then 99 different movies after the second.
+        // MAM-32 — the first page of every list comes first, so the total is known before the rest:
+        // "Syncing… 50 of 120" once the series and episodes (none here) are counted, then 99 different
+        // movies after the second page.
         Assert.Equal([(0, 0, null), (49, 50, 120), (98, 99, 120)], progress);
         // 120 movies: every four make three works (the two "Чужі" copies of a number share their ids).
         Assert.Equal(

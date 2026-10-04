@@ -12,6 +12,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="SourceId">The search's source that listed it (<see cref="SearchSourceDto.Id"/>).</param>
 /// <param name="SourceName">That source's name when it was searched.</param>
 /// <param name="Title">The title as listed.</param>
+/// <param name="Kind">MAM-32 — what the source lists it as, by its categories (ADR 0020): <c>Tv</c> is
+/// matched to library series only, <c>Movie</c> to movies only.</param>
 /// <param name="SizeBytes">The size the listing claims; <c>null</c> when it gives none.</param>
 /// <param name="Seeders">The seeders the listing claims; <c>null</c> when it gives none.</param>
 /// <param name="Peers">The peers it claims — seeders and leechers together, as the source counts them.</param>
@@ -21,8 +23,10 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="PayloadKind"><c>Magnet</c> when the listing links a magnet; <c>null</c> when only the
 /// download says.</param>
 /// <param name="Claimed">The quality and languages its title claims.</param>
-/// <param name="ClaimedWork">The titles and the year its title claims.</param>
-/// <param name="Identifiers">The ids its listing gives, IMDb before TMDb; claims like its title.</param>
+/// <param name="ClaimedWork">The titles and the year its title claims — MAM-32, and a TV release's span and
+/// seasons or episodes.</param>
+/// <param name="Identifiers">The ids its listing gives, IMDb before TMDb — MAM-32: a show's TMDb id on a TV
+/// release, then its TVDB id; claims like its title.</param>
 /// <param name="LibraryMatches">The search's library works it matches, strongest evidence first; empty when
 /// it matches none of them.</param>
 public sealed record SearchReleaseDto(
@@ -30,6 +34,7 @@ public sealed record SearchReleaseDto(
     Guid? SourceId,
     string SourceName,
     string Title,
+    ReleaseKind Kind,
     long? SizeBytes,
     int? Seeders,
     int? Peers,

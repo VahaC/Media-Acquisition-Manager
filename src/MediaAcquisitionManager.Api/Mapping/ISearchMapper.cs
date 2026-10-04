@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Search;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -14,7 +15,8 @@ public interface ISearchMapper
     /// and the title that matched (or holds the words) and who claimed them; the sources in the order
     /// given, each with how many releases it listed (<paramref name="releaseCounts"/>, by source row id) and
     /// its sentence only when <paramref name="forOwner"/> — it can name the service's address; and what the
-    /// titles of all its releases (<paramref name="releaseTitles"/>) claim, for the list's filters.
+    /// titles of all its releases (<paramref name="releaseTitles"/>) claim, for the list's filters — MAM-32,
+    /// with the kinds the sources listed them as (<paramref name="releaseKinds"/>).
     /// </summary>
     SearchResponse ToResponse(
         SearchEntity search,
@@ -22,6 +24,7 @@ public interface ISearchMapper
         IReadOnlyList<SearchSourceEntity> sources,
         IReadOnlyDictionary<Guid, int> releaseCounts,
         IReadOnlyList<string> releaseTitles,
+        IReadOnlyList<ReleaseKind> releaseKinds,
         bool forOwner);
 
     /// <summary>A release of the search with what its title and listing claim, and the search's works it

@@ -23,6 +23,12 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <see cref="Intercept"/>'s.
 /// </para>
 /// <para>
+/// MAM-32 — <c>includeItemTypes</c> picks the list: <see cref="Movies"/>, <see cref="Series"/> or
+/// <see cref="Episodes"/>. The series and episodes are empty until a test fills them, so a test about
+/// movies reads the library it always did; <see cref="BeforeTypedItemsPage"/> and
+/// <see cref="TotalRecordCountOf"/> change any list while it is read.
+/// </para>
+/// <para>
 /// One server per address: <see cref="Arm(RecordingHttpHandler, FakeJellyfinServer[])"/> gives one
 /// handler several, each answering the requests to its own <see cref="BaseUrl"/>, so two integrations
 /// synced side by side each read their own library. A request to no server's address answers 503, like
@@ -62,6 +68,12 @@ public sealed class FakeJellyfinServer
     /// order): the four samples until a test changes the list.</summary>
     public List<JsonObject> Movies { get; } = JellyfinSamples.Movies();
 
+    /// <summary>The library's series (MAM-32): none until a test adds them.</summary>
+    public List<JsonObject> Series { get; } = [];
+
+    /// <summary>The library's episodes (MAM-32): none until a test adds them.</summary>
+    public List<JsonObject> Episodes { get; } = [];
+
     /// <summary>The further parts of each stacked movie by its id, for
     /// <c>/Videos/{id}/AdditionalParts</c> (<see cref="JellyfinSamples.Part"/>); another id answers 404.</summary>
     public Dictionary<string, List<JsonObject>> AdditionalParts { get; } = new(StringComparer.Ordinal);
@@ -81,6 +93,14 @@ public sealed class FakeJellyfinServer
     /// <summary>The <c>TotalRecordCount</c> a page reports, given its <c>startIndex</c>;
     /// <see cref="Movies"/>' count when unset.</summary>
     public Func<int, int>? TotalRecordCountFor { get; set; }
+
+    /// <summary>MAM-32 — runs before a page of any list is cut, given the list's type
+    /// (<c>Movie</c>, <c>Series</c>, <c>Episode</c>) and the page's <c>startIndex</c>.</summary>
+    public Action<string, int>? BeforeTypedItemsPage { get; set; }
+
+    /// <summary>MAM-32 — the <c>TotalRecordCount</c> a page of any list reports, given its type and
+    /// <c>startIndex</c>; the list's count when unset or <c>null</c>.</summary>
+    public Func<string, int, int?>? TotalRecordCountOf { get; set; }
 
     /// <summary>Makes <paramref name="handler"/> answer as this server.</summary>
     public void Arm(RecordingHttpHandler handler) => Arm(handler, this);
@@ -127,14 +147,33 @@ public sealed class FakeJellyfinServer
         var query = Query(uri);
         var startIndex = query.TryGetValue("startIndex", out var start) ? int.Parse(start, CultureInfo.InvariantCulture) : 0;
         var limit = query.TryGetValue("limit", out var size) ? int.Parse(size, CultureInfo.InvariantCulture) : int.MaxValue;
+        var type = query.TryGetValue("includeItemTypes", out var types) ? types : "Movie";
 
-        BeforeItemsPage?.Invoke(startIndex);
-        var total = TotalRecordCountFor?.Invoke(startIndex) ?? Movies.Count;
-        var page = new JsonArray([.. Movies.Skip(startIndex).Take(limit).Select(movie => movie.DeepClone())]);
+        BeforeTypedItemsPage?.Invoke(type, startIndex);
+        List<JsonObject> list;
+        int? total;
+        switch (type)
+        {
+            case "Series":
+                list = Series;
+                total = TotalRecordCountOf?.Invoke(type, startIndex);
+                break;
+            case "Episode":
+                list = Episodes;
+                total = TotalRecordCountOf?.Invoke(type, startIndex);
+                break;
+            default:
+                BeforeItemsPage?.Invoke(startIndex);
+                list = Movies;
+                total = TotalRecordCountOf?.Invoke(type, startIndex) ?? TotalRecordCountFor?.Invoke(startIndex);
+                break;
+        }
+
+        var page = new JsonArray([.. list.Skip(startIndex).Take(limit).Select(item => item.DeepClone())]);
         return JsonAnswer(new JsonObject
         {
             ["Items"] = page,
-            ["TotalRecordCount"] = total,
+            ["TotalRecordCount"] = total ?? list.Count,
             ["StartIndex"] = startIndex,
         });
     }

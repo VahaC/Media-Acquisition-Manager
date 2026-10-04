@@ -188,3 +188,14 @@ the job lookup (`torrents/info?hashes=…`).
 pins the one add, its fields and no save path in any request,
 `DownloadsSendFailuresHttpTests.Create_whose_category_is_gone_fails_and_sends_nothing` the live
 check, and `QBittorrentAdapterSubmitTests` the renewal at the version read and the 403 never resent.
+
+## The destination offered first (added 0.2.0, MAM-32)
+
+The Consequences' "a default to offer first" now comes second. The owner can map sections of a
+release source (Toloka's «Мультсеріали», «Телесеріали», …) to a destination in its dialog, and the
+Download dialog opens on the destination the release's section is mapped to, the source's own
+section winning over a standard category; with none mapped, on the default, as before, and with two
+of its sections of that rank mapped to different destinations, on none
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+A destination is still a client's category and nothing else: a section only says which one is
+offered first, and the person can pick another. `DownloadOptionsSuggestionHttpTests` pins it.

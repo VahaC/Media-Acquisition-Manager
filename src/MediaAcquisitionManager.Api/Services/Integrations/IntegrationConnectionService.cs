@@ -264,14 +264,15 @@ public sealed partial class IntegrationConnectionService(
         // whose row stayed (or the other way round) would be a state nobody asked for. Disposed without
         // a commit, it rolls both back.
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        // A library's snapshot goes with it (ADR 0006, MAM-8): the titles, identifiers, versions, files
-        // and libraries it reported, and the works left with nothing. Only its own: every other
-        // integration's facts, and anything a non-library source said, stay.
+        // A library's snapshot goes with it (ADR 0006, MAM-8): the titles, identifiers, versions, episode
+        // positions (MAM-32), files and libraries it reported, and the works left with nothing. Only its
+        // own: every other integration's facts, and anything a non-library source said, stay.
         await librarySnapshots.PurgeAsync(integration.Id, cancellationToken);
         // The audit row copies the name: it has to say what was removed after the row is gone.
         auditTrail.Record(AuditAction.IntegrationDeleted, actor, AuditTarget.Integration(integration));
         // A tracked delete rather than ExecuteDelete, so it commits in the same save as its audit row.
-        // The database does the rest (ADR 0006): the path and destination mappings cascade; the facts
+        // The database does the rest (ADR 0006): the path and destination mappings cascade, and so do
+        // the tracker sections mapped to destinations when it is a release source (MAM-32); the facts
         // a non-library source reported, the download jobs sent to it and its library sync runs stay,
         // their link set to null and its name kept.
         db.IntegrationConnections.Remove(integration);

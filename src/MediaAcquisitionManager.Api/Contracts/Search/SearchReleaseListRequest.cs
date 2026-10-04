@@ -7,6 +7,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// rules' <c>{ error }</c> sentence, not a validation body. A blank filter filters nothing.
 /// </remarks>
 /// <param name="Source">A source of the search (<see cref="SearchSourceDto.Id"/>): only its releases.</param>
+/// <param name="Kind">MAM-32 — <c>Movie</c> or <c>Tv</c>, in any letter case: only the releases the source
+/// lists as that kind.</param>
 /// <param name="Language">A three-letter ISO 639-2 code in any letter case (<c>ukr</c>): only the releases
 /// whose title claims that audio language; <c>unknown</c> for those claiming none.</param>
 /// <param name="Quality">A resolution class (<c>1080</c>): only the releases whose title claims exactly it;
@@ -19,6 +21,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="PageSize">Releases per page, 1 to 100; 25 unless asked otherwise.</param>
 public sealed record SearchReleaseListRequest(
     string? Source = null,
+    string? Kind = null,
     string? Language = null,
     string? Quality = null,
     string? MinSizeBytes = null,

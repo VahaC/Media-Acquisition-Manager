@@ -72,6 +72,7 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
                 "GET api/settings/destinations",
                 "GET api/settings/destinations/{id:guid}",
                 "GET api/settings/destinations/client-destinations/{downloadClientId:guid}",
+                "GET api/settings/destinations/sections",
                 "GET api/settings/integrations",
                 "GET api/settings/integrations/adapter-types",
                 "GET api/settings/integrations/{id:guid}",

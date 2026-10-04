@@ -8,8 +8,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 
 /// <summary>
 /// One Torznab feed behind a <see cref="RecordingHttpHandler"/> (MAM-10): it answers <c>t=caps</c>,
-/// <c>t=search</c> and <c>t=movie</c> at the feed's endpoint and the download links beside it, from the
-/// real samples (<see cref="TorznabSamples"/>) unless a test changes them.
+/// <c>t=search</c>, <c>t=movie</c> and (MAM-32) <c>t=tvsearch</c> at the feed's endpoint and the download
+/// links beside it, from the real samples (<see cref="TorznabSamples"/>) unless a test changes them.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -50,6 +50,13 @@ public sealed class FakeTorznabServer
     /// this feed.</summary>
     public string SearchXml { get; set; }
 
+    /// <summary>
+    /// What <c>t=tvsearch</c> answers (MAM-32): an empty feed, so a search asks the sample's TV categories
+    /// and finds nothing there, and every movie a test expects stays the whole answer; a TV test sets one
+    /// of the TV samples.
+    /// </summary>
+    public string TvSearchXml { get; set; } = TorznabSamples.Feed();
+
     /// <summary>What a download link answers, as <c>application/x-bittorrent</c>.</summary>
     public byte[] TorrentFile { get; set; } = TorznabSamples.TorrentFile();
 
@@ -85,6 +92,7 @@ public sealed class FakeTorznabServer
             {
                 "caps" => Xml(CapsXml, "application/xml"),
                 "search" or "movie" => Xml(SearchXml, "application/rss+xml"),
+                "tvsearch" => Xml(TvSearchXml, "application/rss+xml"),
                 // What a Torznab feed answers a function it doesn't have.
                 _ => Xml("""<?xml version="1.0" encoding="UTF-8"?><error code="202" description="No such function" />""", "application/xml"),
             };

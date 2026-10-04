@@ -4,7 +4,7 @@ import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { Input } from '@/components/ui/input'
 import { languageName } from '@/lib/media-labels'
 import { bytesFromGibibytes } from '@/lib/size-input'
-import type { SearchFacets, SearchReleaseSort, SearchSource } from '@/lib/types'
+import type { ReleaseKind, SearchFacets, SearchReleaseSort, SearchSource } from '@/lib/types'
 import '@/styles/settings-list.css' // .settings-toolbar, .settings-filter — the row of filters
 import '@/styles/search.css' // .search-filters, .search-size-* — the size pair, its invalid bounds and the line under the row
 
@@ -12,6 +12,8 @@ import '@/styles/search.css' // .search-filters, .search-size-* — the size pai
 export interface ReleaseFilterValues {
   /** A search source's id. */
   source: string
+  /** MAM-32 — what the sources listed the releases as. */
+  kind: ReleaseKind | ''
   /** A three-letter code, or `unknown`. */
   language: string
   /** A resolution class such as `1080`, or `unknown`. */
@@ -24,7 +26,7 @@ export interface ReleaseFilterValues {
 interface ReleaseFiltersProps {
   /** The search's sources; only those that listed something are offered. */
   sources: SearchSource[]
-  /** What the stored releases claim, which is all the language and quality filters offer. */
+  /** What the stored releases claim, which is all the kind, language and quality filters offer. */
   facets: SearchFacets
   values: ReleaseFilterValues
   onChange: (values: ReleaseFilterValues) => void
@@ -42,6 +44,9 @@ const SORTS: readonly SearchReleaseSort[] = ['seeders', 'largest', 'smallest', '
  * Sizes are typed in GiB, the unit the rows show, and sent as bytes. A bound that isn't a size is
  * left out of the request and said so under the row, rather than turned into a byte count the
  * person never typed.
+ *
+ * MAM-32 — a kind filter, Movies or TV, offering the kinds the sources listed: one search for a title
+ * finds both a film and a show of it.
  */
 export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFiltersProps) {
   const { t } = useTranslation('search')
@@ -65,6 +70,15 @@ export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFil
           {sources.filter((source) => source.releaseCount > 0).map((source) => (
             <option key={source.id} value={source.id}>{source.name}</option>
           ))}
+        </select>
+        <select
+          className="ui-input settings-filter"
+          value={values.kind}
+          aria-label={t('filters.kind')}
+          onChange={(event) => change({ kind: event.target.value as ReleaseKind | '' })}
+        >
+          <option value="">{t('filters.allKinds')}</option>
+          {facets.kinds.map((kind) => <option key={kind} value={kind}>{t(`filters.kinds.${kind}`)}</option>)}
         </select>
         <select
           className="ui-input settings-filter"

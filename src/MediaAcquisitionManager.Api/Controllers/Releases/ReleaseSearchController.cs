@@ -34,7 +34,8 @@ public class ReleaseSearchController(IReleaseSearchService releases) : Controlle
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ReleaseSearchRequest? request,
         CancellationToken cancellationToken)
     {
-        var result = await releases.SearchAsync(request?.Text, request?.Year, request?.ImdbId, request?.TmdbId, UserId, cancellationToken);
+        var result = await releases.SearchAsync(
+            request?.Text, request?.Year, request?.ImdbId, request?.TmdbId, request?.Season, UserId, cancellationToken);
         return result.Status switch
         {
             ReleaseSearchStatus.Searched => Ok(result.Response),

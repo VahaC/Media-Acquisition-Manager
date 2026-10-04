@@ -45,7 +45,7 @@
   "remove": {
     "title": "Remove {{name}}?",
     "message": "The app forgets {{name}}, its stored credentials and its path mappings. Nothing changes in the service itself. This can't be undone.",
-    "messageLibrary": "The app forgets {{name}}, its stored credentials and its path mappings, and removes the library it imported: its movies, versions and files leave the Library page for everyone. Your files and {{service}} itself are not touched. This can't be undone.",
+    "messageLibrary": "The app forgets {{name}}, its stored credentials and its path mappings, and removes the library it imported: its movies, series, versions and files leave the Library page for everyone. Your files and {{service}} itself are not touched. This can't be undone.",
     "messageDownloadClient": "The app forgets {{name}}, its stored credentials and its path mappings, and removes every destination that uses it, including the default destination if it is one of them. Their categories stay in {{service}}, and {{service}} itself is not touched. This can't be undone.",
     "confirm": "Remove"
   },

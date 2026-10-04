@@ -282,7 +282,7 @@ function finishedAt(run: Pick<LibrarySyncRun | FileInspectionRun, 'finishedUtc' 
 
 /**
  * The source's latest run in one line. `role="status"`, so a screen reader reads a change out —
- * "Syncing… 50 of 120 movies", then the outcome — without moving the focus.
+ * "Syncing… 50 of 120 items", then the outcome — without moving the focus.
  */
 function RunLine({ run }: { run: LibrarySyncRun | null }) {
   const { t } = useTranslation('library')
@@ -301,17 +301,25 @@ function RunLine({ run }: { run: LibrarySyncRun | null }) {
             total: formatNumber(run.itemsTotal),
           })
       case 'Succeeded': {
-        // Movies read and works stored are counted apart: two copies of one movie are one work.
+        // Items read and works stored are counted apart: two copies of one movie are one work.
+        // MAM-32 — the items are movies, series and episodes; the works movies and episodes, and the
+        // series are counted on their own. A sync from before series were read has no such count.
         const works = run.worksCount ?? 0
         const versions = run.versionsCount ?? 0
         const files = run.filesCount ?? 0
-        return t('run.succeeded', {
+        const counts = {
           time: formatDateTime(finishedAt(run), INSTANT_FORMAT),
-          movies: t('run.movies', { count: run.itemsRead, value: formatNumber(run.itemsRead) }),
+          items: t('run.items', { count: run.itemsRead, value: formatNumber(run.itemsRead) }),
           works: t('run.works', { count: works, value: formatNumber(works) }),
           versions: t('run.versions', { count: versions, value: formatNumber(versions) }),
           files: t('run.files', { count: files, value: formatNumber(files) }),
-        })
+        }
+        return run.seriesCount === null
+          ? t('run.succeeded', counts)
+          : t('run.succeededSeries', {
+            ...counts,
+            series: t('run.series', { count: run.seriesCount, value: formatNumber(run.seriesCount) }),
+          })
       }
       case 'Failed':
         // Null for anyone but the owner: the sentence can name the service's address.

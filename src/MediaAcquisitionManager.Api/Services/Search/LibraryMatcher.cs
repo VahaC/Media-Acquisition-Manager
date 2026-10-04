@@ -30,6 +30,12 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 /// pick) before any card is read, so a common word costs its candidates' titles, ids and paths, never
 /// hundreds of cards.
 /// </para>
+/// <para>
+/// MAM-32 — a search finds movies, series and episodes of no series, as the Library page lists them
+/// (ADR 0019). An episode of a series that the search finds — by a title, an id or a file path — finds
+/// its series instead: listed once, on the strongest evidence of its own and of its episodes found, and
+/// never the episodes themselves. A series holding no episode is not listed, as on the Library page.
+/// </para>
 /// </remarks>
 public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader reader) : ILibraryMatcher
 {
@@ -44,15 +50,45 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
         if (Candidates(query) is not { } candidates)
             return LibrarySearchResult.None;
 
-        var works = await db.MediaWorks.AsNoTracking()
+        var found = await db.MediaWorks.AsNoTracking()
             .Where(work => candidates.Contains(work.Id))
             .ToListAsync(cancellationToken);
+        if (found.Count == 0)
+            return LibrarySearchResult.None;
+
+        // MAM-32 — an episode found counts for its series (ADR 0019): the series is listed in its place, once,
+        // and the episode is evidence of it. An episode no position puts in a series is listed itself, as on
+        // the Library page.
+        var foundEpisodeIds = found.Where(work => work.Kind == MediaWorkKind.Episode).Select(work => work.Id).ToList();
+        var foundEpisodesBySeries = (await db.MediaEpisodePositions.AsNoTracking()
+                .Where(position => position.SeriesWorkId != null && foundEpisodeIds.Contains(position.MediaWorkId))
+                .Select(position => new { SeriesWorkId = position.SeriesWorkId!.Value, position.MediaWorkId })
+                .Distinct()
+                .ToListAsync(cancellationToken))
+            .ToLookup(position => position.SeriesWorkId, position => position.MediaWorkId);
+        var seriesIds = found.Where(work => work.Kind == MediaWorkKind.Series).Select(work => work.Id)
+            .Concat(foundEpisodesBySeries.Select(series => series.Key))
+            .Distinct()
+            .ToList();
+        // A series only while it holds an episode, as on the Library page: one whose every episode is missing
+        // holds nothing of the show.
+        var series = await db.MediaWorks.AsNoTracking()
+            .Where(work => seriesIds.Contains(work.Id)
+                && work.Kind == MediaWorkKind.Series
+                && db.MediaEpisodePositions.Any(position => position.SeriesWorkId == work.Id))
+            .ToListAsync(cancellationToken);
+        var episodesOfASeries = foundEpisodesBySeries.SelectMany(episodes => episodes).ToHashSet();
+        List<MediaWorkEntity> works =
+        [
+            .. found.Where(work => work.Kind == MediaWorkKind.Movie || (work.Kind == MediaWorkKind.Episode && !episodesOfASeries.Contains(work.Id))),
+            .. series,
+        ];
         if (works.Count == 0)
             return LibrarySearchResult.None;
 
-        // Batched, no N+1: one query each for the candidates' titles, their ids and their files' paths,
-        // however many.
-        var workIds = works.Select(work => work.Id).ToList();
+        // Batched, no N+1: one query each for the titles, the ids and the files' paths of the works found and
+        // of the series listed for them, however many.
+        var workIds = found.Select(work => work.Id).Union(series.Select(work => work.Id)).ToList();
         var titles = (await db.MediaWorkTitles.AsNoTracking()
                 .Where(title => workIds.Contains(title.MediaWorkId))
                 .ToListAsync(cancellationToken))
@@ -68,28 +104,28 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
                     select new { version.MediaWorkId, file.ServicePath })
                 .ToListAsync(cancellationToken))
             .ToLookup(file => file.MediaWorkId, file => file.ServicePath);
+        var evidence = workIds.ToDictionary(
+            workId => workId,
+            workId => EvidenceOf(query, titles[workId], identifiers[workId], filePaths[workId]));
 
         var listed = new List<Candidate>();
         foreach (var work in works)
         {
-            // In the Library page's title order (LibraryMapper's), so of two titles that match equally the
-            // one shown as matched is the one the card shows.
-            var titleRows = titles[work.Id]
-                .OrderBy(title => title.Text, LibraryTitleOrder.Comparer)
-                .ThenBy(title => title.Text, StringComparer.Ordinal)
-                .ThenBy(title => title.Id)
-                .ToList();
-            var identifierRows = identifiers[work.Id]
-                .OrderBy(identifier => identifier.Scheme)
-                .ThenBy(identifier => identifier.Value, StringComparer.Ordinal)
-                .ThenBy(identifier => identifier.SourceName, StringComparer.Ordinal)
-                .ThenBy(identifier => identifier.Id)
-                .ToList();
-            var reportedTitles = titleRows.Select(title => new ReportedTitle(title.Text, title.Kind, title.Year)).ToList();
-            var reportedIdentifiers = identifierRows.Select(identifier => new MediaIdentifier(identifier.Scheme, identifier.Value)).ToList();
-            // MAM-12 — a work that doesn't match may still hold every word of the title, in a title or a path.
-            var match = WorkMatching.Match(query, reportedTitles, reportedIdentifiers)
-                ?? WorkMatching.MatchByWords(query, reportedTitles, [.. filePaths[work.Id].Order(StringComparer.Ordinal)], reportedIdentifiers);
+            var own = evidence[work.Id];
+            var (match, by) = (own.Match, own);
+            // MAM-32 — a series on the strongest evidence of its own and of its episodes found: its own first,
+            // then theirs in title order — then by id, as two episodes can share a title — so the same search
+            // always shows the same evidence.
+            foreach (var episode in foundEpisodesBySeries[work.Id]
+                         .OrderBy(episodeId => evidence[episodeId].CardTitle, LibraryTitleOrder.Comparer)
+                         .ThenBy(episodeId => evidence[episodeId].CardTitle, StringComparer.Ordinal)
+                         .ThenBy(episodeId => episodeId)
+                         .Select(episodeId => evidence[episodeId]))
+            {
+                if (episode.Match is { } episodeMatch && (match is null || episodeMatch.Evidence < match.Evidence))
+                    (match, by) = (episodeMatch, episode);
+            }
+
             if (match is null)
                 continue;
 
@@ -99,13 +135,13 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
             listed.Add(new Candidate(
                 work,
                 match,
-                reportedTitles,
-                reportedIdentifiers,
-                [.. identifierRows.Where(identifier => matchedKeys.Contains(Key(new MediaIdentifier(identifier.Scheme, identifier.Value))))],
-                match.MatchedTitle is { } matchedTitle ? titleRows[reportedTitles.IndexOf(matchedTitle)] : null,
-                // The title the card shows, as the Library page sorts by it: displayed, else original.
-                (LibraryMapper.FirstInTitleOrder(titleRows, MediaTitleKind.Display)
-                    ?? LibraryMapper.FirstInTitleOrder(titleRows, MediaTitleKind.Original))?.Text ?? ""));
+                // MAM-32 — a release is matched against the work's own titles and ids: a TV release claims the
+                // show, never one of its episodes.
+                own.Titles,
+                own.Identifiers,
+                [.. by.IdentifierRows.Where(identifier => matchedKeys.Contains(Key(new MediaIdentifier(identifier.Scheme, identifier.Value))))],
+                match.MatchedTitle is { } matchedTitle ? by.TitleRows[by.Titles.IndexOf(matchedTitle)] : null,
+                own.CardTitle));
         }
 
         var ordered = listed
@@ -114,6 +150,7 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
             .ThenBy(candidate => candidate.Work.Id)
             .ToList();
         // MAM-12 — every match, then the first of the works holding the words; the rest are only counted.
+        // MAM-32 — the works listed: a series is one, however many of its episodes hold the words.
         var byWords = ordered.Where(candidate => candidate.Match.Evidence == MatchEvidence.Words).ToList();
         List<Candidate> shown =
         [
@@ -124,7 +161,7 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
         if (shown.Count == 0)
             return LibrarySearchResult.None;
 
-        var dtos = await reader.ReadAsync([.. shown.Select(candidate => candidate.Work)], forOwner, cancellationToken);
+        var dtos = await reader.ReadAsync([.. shown.Select(candidate => candidate.Work)], forOwner, cancellationToken: cancellationToken);
         return new LibrarySearchResult(
             [
                 .. shown.Select((candidate, index) => new LibraryWorkMatch(
@@ -136,6 +173,45 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
                     candidate.MatchedTitle)),
             ],
             unlistedCount);
+    }
+
+    /// <summary>
+    /// How one work answers <paramref name="query"/>, with its rows in the orders the page shows them: a
+    /// match, else — MAM-12 — whether one of its titles or paths holds every word of the title.
+    /// </summary>
+    private static WorkEvidence EvidenceOf(
+        WorkClaim query,
+        IEnumerable<MediaWorkTitleEntity> titles,
+        IEnumerable<MediaWorkIdentifierEntity> identifiers,
+        IEnumerable<string> filePaths)
+    {
+        // In the Library page's title order (LibraryMapper's), so of two titles that match equally the one
+        // shown as matched is the one the card shows.
+        var titleRows = titles
+            .OrderBy(title => title.Text, LibraryTitleOrder.Comparer)
+            .ThenBy(title => title.Text, StringComparer.Ordinal)
+            .ThenBy(title => title.Id)
+            .ToList();
+        var identifierRows = identifiers
+            .OrderBy(identifier => identifier.Scheme)
+            .ThenBy(identifier => identifier.Value, StringComparer.Ordinal)
+            .ThenBy(identifier => identifier.SourceName, StringComparer.Ordinal)
+            .ThenBy(identifier => identifier.Id)
+            .ToList();
+        var reportedTitles = titleRows.Select(title => new ReportedTitle(title.Text, title.Kind, title.Year)).ToList();
+        var reportedIdentifiers = identifierRows.Select(identifier => new MediaIdentifier(identifier.Scheme, identifier.Value)).ToList();
+        // MAM-12 — a work that doesn't match may still hold every word of the title, in a title or a path.
+        var match = WorkMatching.Match(query, reportedTitles, reportedIdentifiers)
+            ?? WorkMatching.MatchByWords(query, reportedTitles, [.. filePaths.Order(StringComparer.Ordinal)], reportedIdentifiers);
+        return new WorkEvidence(
+            titleRows,
+            identifierRows,
+            reportedTitles,
+            reportedIdentifiers,
+            match,
+            // The title the card shows, as the Library page sorts by it: displayed, else original.
+            (LibraryMapper.FirstInTitleOrder(titleRows, MediaTitleKind.Display)
+                ?? LibraryMapper.FirstInTitleOrder(titleRows, MediaTitleKind.Original))?.Text ?? "");
     }
 
     /// <summary>
@@ -224,6 +300,16 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
         var value = identifier.Value.Trim().ToUpperInvariant();
         return value.Length == 0 ? null : (identifier.Scheme, value);
     }
+
+    /// <summary>One work's rows in the page's orders, and how it answers the search — a match, the words
+    /// held, or <c>null</c> — with the title its card shows.</summary>
+    private sealed record WorkEvidence(
+        List<MediaWorkTitleEntity> TitleRows,
+        List<MediaWorkIdentifierEntity> IdentifierRows,
+        List<ReportedTitle> Titles,
+        List<MediaIdentifier> Identifiers,
+        WorkMatch? Match,
+        string CardTitle);
 
     /// <summary>A work the search lists, before it is read into the Library page's card; with the title
     /// that card will show, which the list is ordered and cut by.</summary>

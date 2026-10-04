@@ -18,5 +18,14 @@ public interface ILibraryWorkReader
     /// reported them, and the readings of the files the app inspected with their tracks — however many
     /// works.
     /// </summary>
-    Task<List<LibraryWorkDto>> ReadAsync(IReadOnlyList<MediaWorkEntity> works, bool forOwner, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// MAM-32 — an episode with its place in its series, and a series with its seasons: the counts the
+    /// list's search and filters keep, <paramref name="seasons"/>, when the caller has them, else every
+    /// episode the series holds.
+    /// </remarks>
+    Task<List<LibraryWorkDto>> ReadAsync(
+        IReadOnlyList<MediaWorkEntity> works,
+        bool forOwner,
+        IReadOnlyDictionary<Guid, IReadOnlyList<LibrarySeasonDto>>? seasons = null,
+        CancellationToken cancellationToken = default);
 }

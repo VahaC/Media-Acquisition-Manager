@@ -50,6 +50,12 @@ export interface DownloadClientOption {
  */
 export interface DownloadOptions {
   clients: DownloadClientOption[]
+  /**
+   * MAM-32 — the destination the dialog picks first, always one of `clients`': the one the release's
+   * tracker section is mapped to, else the installation's default; null when two destinations tie
+   * or there is no default (ADR 0020).
+   */
+  suggestedDestinationId: string | null
 }
 
 /**

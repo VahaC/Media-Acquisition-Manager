@@ -31,6 +31,15 @@ Vasyl's initial setup involves Jellyfin, Toloka search, qBittorrent categories, 
 | File layout | Existing names and nested folders remain usable; no mandatory renaming | Requirement |
 | Deployment | Docker Compose, SQLite for service state, local UI | Initial proposal |
 
+**Note (2026-10-04, MAM-17 and MAM-32):** the primary media type is no longer movies alone. The
+owner chose movies and TV in full (§7, question 3;
+[ADR 0017](adr/0017-an-episode-is-a-work-known-by-registry-ids-and-the-library-alone-says-what-an-item-is.md)),
+and release 0.2.0 imports Jellyfin's series and episodes beside its movies
+([ADR 0019](adr/0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)),
+searches the release sources for TV releases, matches them to the library's series and sends them
+to a download client
+([ADR 0020](adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+
 **Approach:** implement one complete end-to-end workflow with one adapter of each type and stable contracts, then add more adapters. This gives the interfaces broad applicability without implementing every supported product at once.
 
 **Search-source alternatives:** direct Torznab/Newznab; Prowlarr API; Jackett; a site-specific adapter. Using Jackett in the first slice is a practical hypothesis because its documentation lists Toloka and Torznab support. The core must not depend on Jackett.
@@ -166,6 +175,10 @@ These are not assumptions about the current setup. Resolve the answers at the st
 1. What are the OS/filesystem and exact read/write mount paths for the service, Jellyfin, and client? Which directories are managed by active torrents? Can quarantine moves be atomic within one filesystem?
 2. What qBittorrent categories and save paths already exist? Is automatic torrent management enabled? Are incomplete downloads stored separately?
 3. Does the MVP need TV shows, seasons, anime, or documentaries, or are movies sufficient?
+   *Answered 2026-10-04 (MAM-17): movies and TV in full, in every library — cartoon series and
+   documentaries included; an episode is a work of its own (ADR 0017). Built in release 0.2.0
+   (MAM-32): series, seasons and episodes in the library, and TV releases searched, matched and sent
+   (ADR 0019, ADR 0020).*
 4. What quarantine mode and retention period should be used? Is additional manual approval required before final deletion?
 5. Which indexing route actually works with the Toloka account? Is an additional Jackett or Prowlarr container acceptable?
 6. Are the old files to be replaced original seeding files, hardlinks, or independent copies?

@@ -21,6 +21,12 @@ export type MediaTitleKind = 'Display' | 'Original'
 /** Why a search didn't ask one release source (MAM-10). */
 export type ReleaseSourceNotSearchedReason = 'SecretUnreadable' | 'TypeUnavailable' | 'NoUsableSearch'
 
+/**
+ * MAM-32 — what a source lists a release as, by its categories (ADR 0020): a `Tv` release is matched
+ * to library series only, a `Movie` one to movies only.
+ */
+export type ReleaseKind = 'Movie' | 'Tv'
+
 /** What a release is downloaded from. */
 export type ReleasePayloadKind = 'TorrentFile' | 'Magnet' | 'Nzb'
 
@@ -49,6 +55,8 @@ export interface SearchRequest {
   year?: string
   imdbId?: string
   tmdbId?: string
+  /** MAM-32 — a season (`0` for the specials), searched for in TV alone. */
+  season?: string
 }
 
 /** A title of a library work, and the integration that reported it. */
@@ -102,6 +110,8 @@ export interface SearchFacets {
   /** Resolution classes (2160, 1080…), largest first. */
   resolutions: number[]
   hasUnknownResolution: boolean
+  /** MAM-32 — every kind the sources listed a release as, `Movie` before `Tv`. */
+  kinds: ReleaseKind[]
 }
 
 /** A stored search: `POST /api/searches` and `GET /api/searches/{id}`. */
@@ -112,6 +122,8 @@ export interface SearchResponse {
   year: number | null
   imdbId: string | null
   tmdbId: string | null
+  /** MAM-32 — the season asked for; null when none was. */
+  season: number | null
   /** UTC with a trailing `Z`. */
   createdUtc: string
   /**
@@ -139,10 +151,33 @@ export interface ClaimedReleaseQuality {
   subtitleLanguages: string[]
 }
 
-/** The work a release's title claims to be: every title it gives, and its year. Empty without a year. */
+/**
+ * MAM-32 — the seasons, or the episodes of one season, a TV release's title claims: claims, never
+ * checked against the files.
+ */
+export interface ClaimedEpisodes {
+  /** 0 for the specials. */
+  firstSeason: number
+  /** The first again for one season. */
+  lastSeason: number
+  /** Of that one season; null when the title claims whole seasons. */
+  firstEpisode: number | null
+  /** The first again for one episode; null when it is. */
+  lastEpisode: number | null
+}
+
+/**
+ * The work a release's title claims to be: every title it gives, and its year. Empty without a year
+ * — MAM-32, or a TV release's season.
+ */
 export interface ReleaseWorkClaim {
   titles: string[]
+  /** MAM-32 — the first year of a TV release's span. */
   year: number | null
+  /** MAM-32 — the last year of the span a TV release names, "(2018-2024)"; null for one year and for a movie. */
+  lastYear: number | null
+  /** MAM-32 — what a TV release's title claims; null when it claims none, and for a movie. */
+  episodes: ClaimedEpisodes | null
 }
 
 /** A registry id the release's listing gives. */
@@ -159,6 +194,11 @@ export interface ReleaseLibraryMatch {
   workId: string
   evidence: ReleaseMatchEvidence
   conflictingSchemes: MediaIdentifierScheme[]
+  /**
+   * MAM-32 — on a TV release's match, how many episodes of the series the library holds among the
+   * seasons or episodes its title claims; null on a movie's, and when the title claims none.
+   */
+  heldEpisodeCount: number | null
 }
 
 /**
@@ -171,6 +211,8 @@ export interface SearchRelease {
   sourceId: string | null
   sourceName: string
   title: string
+  /** MAM-32 */
+  kind: ReleaseKind
   sizeBytes: number | null
   seeders: number | null
   /** Seeders and leechers together, as the source counts them. */
@@ -203,6 +245,8 @@ export interface SearchReleaseList {
 export interface SearchReleasesQuery {
   /** A search source's id. */
   source?: string
+  /** MAM-32 */
+  kind?: ReleaseKind
   /** A three-letter code, or `unknown`. */
   language?: string
   /** A resolution class such as `1080`, or `unknown`. */

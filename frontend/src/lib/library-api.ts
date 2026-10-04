@@ -1,6 +1,7 @@
 import { api } from './api'
 import type {
   FileInspectionRun,
+  LibraryEpisodesQuery,
   LibraryLocationList,
   LibrarySourceList,
   LibrarySyncRun,
@@ -22,14 +23,27 @@ const BASE_URL = '/api/library'
  */
 export const libraryApi = {
   /**
-   * `GET /api/library/works?search=&locationId=&identifiers=&page=&pageSize=`. One page of works,
-   * searched (titles, IMDb and TMDb ids, year, file paths; any letter case), filtered by library and
-   * by missing identifiers, and ordered by title on the server. 400 `{ error }` for a page below 1,
-   * a page size outside 1–100, a location that isn't an id or an identifiers filter other than
-   * `Missing`.
+   * `GET /api/library/works?search=&locationId=&identifiers=&kind=&page=&pageSize=`. One page of
+   * works, searched (titles, registry ids, year, file paths; any letter case), filtered by library,
+   * by missing identifiers and — MAM-32 — by kind, and ordered by title on the server. 400 `{ error }`
+   * for a page below 1, a page size outside 1–100, a location that isn't an id, an identifiers filter
+   * other than `Missing` or a kind other than `Movie` or `Series`.
+   *
+   * MAM-32 — a series is one work, listed when one of its episodes passes the search and filters,
+   * with its seasons counted by them; an episode of no series is a work of its own.
    */
   works: async (query: LibraryWorksQuery): Promise<LibraryWorkList> =>
     (await api.get<LibraryWorkList>(`${BASE_URL}/works`, { params: query })).data,
+
+  /**
+   * MAM-32 — `GET /api/library/works/{seriesId}/episodes?season=&search=&locationId=&identifiers=&page=&pageSize=`.
+   * One page of a series' episodes, each a work with its versions, in season, number and title order:
+   * one season (`None` for the episodes without one), searched and filtered as the works are. A bare
+   * 404 when the id isn't a series'; 400 `{ error }` for a season that isn't one, and for the works'
+   * own refusals.
+   */
+  episodes: async (seriesId: string, query: LibraryEpisodesQuery): Promise<LibraryWorkList> =>
+    (await api.get<LibraryWorkList>(`${BASE_URL}/works/${seriesId}/episodes`, { params: query })).data,
 
   /** `GET /api/library/locations`. 200 with the libraries that hold at least one file. */
   locations: async (): Promise<LibraryLocationList> =>

@@ -1,5 +1,6 @@
-import { CircleCheck, CircleHelp, TextSearch, TriangleAlert } from 'lucide-react'
+import { CircleCheck, CircleHelp, Library, TextSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { formatNumber } from '@/lib/format'
 import type { LibraryIdentifier, LibraryTitle, MatchEvidence, MediaIdentifierScheme } from '@/lib/types'
 import '@/styles/library.css' // .library-badge-warning — the amber of a possible match and of a conflict
 import '@/styles/search.css' // .search-badges — the badge row and its icons
@@ -26,6 +27,11 @@ interface MatchBadgesProps {
    * evidence, so never `Words`.
    */
   inLibraryOf?: string
+  /**
+   * MAM-32 — on a TV release's match, how many episodes of the series the library holds among what
+   * the release claims; null or left out when there is no count to show.
+   */
+  heldEpisodeCount?: number | null
 }
 
 /**
@@ -38,8 +44,12 @@ interface MatchBadgesProps {
  * no tooltip — in the outline tone of a plain fact rather than the tick of a match or the amber of
  * one to check: the title searched for is in one of its titles, or in a file path only. Its list is
  * named "Why it is listed", so a screen reader doesn't call a work that isn't a match a match.
+ *
+ * MAM-32 — a TV release's match also says how many episodes of what it claims the library already
+ * holds ("9 of its episodes in your library"), a plain fact in the outline tone: a season pack of
+ * episodes all held is likely a second copy, one of none a gap to fill.
  */
-export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers = [], matchedTitle = null, searchText = '', inLibraryOf }: MatchBadgesProps) {
+export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers = [], matchedTitle = null, searchText = '', inLibraryOf, heldEpisodeCount = null }: MatchBadgesProps) {
   const { t } = useTranslation(['search', 'library'])
   const scheme = (value: MediaIdentifierScheme) => t(`library:schemes.${value}`)
 
@@ -104,6 +114,16 @@ export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers =
             {matchedTitle.year === null
               ? t('match.matchedTitleNoYear', { title: matchedTitle.text })
               : t('match.matchedTitle', { title: matchedTitle.text, year: matchedTitle.year })}
+          </span>
+        </li>
+      )}
+      {heldEpisodeCount !== null && (
+        <li>
+          <span className="ui-badge ui-badge-outline" title={t('match.heldHint')}>
+            <Library className="h-3 w-3" aria-hidden="true" />
+            {heldEpisodeCount === 0
+              ? t('match.heldNone')
+              : t('match.held', { count: heldEpisodeCount, value: formatNumber(heldEpisodeCount) })}
           </span>
         </li>
       )}

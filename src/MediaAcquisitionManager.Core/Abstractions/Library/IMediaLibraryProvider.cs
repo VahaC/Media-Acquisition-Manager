@@ -24,6 +24,11 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// (Jellyfin does), so a short page before the end, or a first item that isn't the previous page's
 /// last, means the library changed while it was being read.
 /// </para>
+/// <para>
+/// MAM-32 — a library has three lists, read and counted one by one: its movies, its series and its
+/// episodes (<see cref="LibraryPageRequest.Kind"/>). Each item says what it is, and an item of another
+/// kind in a list means the list isn't what was asked for.
+/// </para>
 /// </remarks>
 public interface IMediaLibraryProvider
 {
@@ -31,8 +36,9 @@ public interface IMediaLibraryProvider
     MediaLibraryCapabilities Capabilities { get; }
 
     /// <summary>
-    /// One page of the library's items in a stable order: exactly <see cref="LibraryPageRequest.Limit"/>
-    /// items unless the page reaches the end, and the library's total count with every page.
+    /// One page of one of the library's lists in a stable order: exactly
+    /// <see cref="LibraryPageRequest.Limit"/> items unless the page reaches the end, and the list's total
+    /// count with every page.
     /// </summary>
     Task<IntegrationCallResult<LibraryItemPage>> ListItemsAsync(IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default);
 

@@ -13,9 +13,10 @@ public interface IDownloadService
     /// <summary>
     /// The Download dialog's choices for the release <paramref name="releaseId"/>: every switched-on
     /// download client of a type this build can send to that takes its payload and has a destination, with
-    /// its destinations, by name. <see cref="DownloadOptionsStatus.Invalid"/> when the id is missing or
-    /// malformed; <see cref="DownloadOptionsStatus.ReleaseMissing"/> when the release isn't the caller's.
-    /// No client is asked.
+    /// its destinations, by name — and (MAM-32) the destination to pick first, by the release's tracker
+    /// section (<c>DestinationSuggestion</c>). <see cref="DownloadOptionsStatus.Invalid"/> when the id is
+    /// missing or malformed; <see cref="DownloadOptionsStatus.ReleaseMissing"/> when the release isn't the
+    /// caller's. No client or source is asked.
     /// </summary>
     Task<DownloadOptionsResult> GetOptionsAsync(string? releaseId, Guid callerUserId, CancellationToken cancellationToken = default);
 

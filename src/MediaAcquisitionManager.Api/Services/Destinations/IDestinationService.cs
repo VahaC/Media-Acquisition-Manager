@@ -57,4 +57,18 @@ public interface IDestinationService
     /// client integration has that id.
     /// </summary>
     Task<ClientDestinationListResponse?> ListClientDestinationsAsync(Guid downloadClientId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-32 — the sections of every release search integration, by its name, each with the destination
+    /// it is mapped to (ADR 0020): what each enabled one lists right now (<see cref="IReleaseSourceCategoryReader"/>),
+    /// grouped by name (<c>DestinationSectionGrouping</c>), then the mapped ones it no longer lists; for one
+    /// that couldn't be asked, the mapped ones beside the sentence saying why.
+    /// </summary>
+    /// <remarks>
+    /// A create or an update with <see cref="CreateDestinationRequest.Sections"/> maps the sections it names
+    /// to its destination in the same save as the rest, moving one mapped to another destination; an update
+    /// replaces the destination's own. A section names a release search integration, or the save is
+    /// <see cref="DestinationChangeStatus.SourceMissing"/>; nothing asks the source.
+    /// </remarks>
+    Task<DestinationSectionListResponse> ListSectionsAsync(CancellationToken cancellationToken = default);
 }

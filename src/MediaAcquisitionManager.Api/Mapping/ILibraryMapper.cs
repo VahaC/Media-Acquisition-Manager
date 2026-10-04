@@ -13,15 +13,20 @@ public interface ILibraryMapper
     /// A work with what the libraries reported about it: its title and original title each the first of
     /// its kind in title order (<c>LibraryTitleOrder</c>, then ordinal, then id — the order the list is
     /// sorted by), the year given with the chosen title, else with the original one; its identifiers by
-    /// scheme, then value; the schemes it lacks; and its versions by source name, edition label, first-seen
-    /// time, then id, each with the files <paramref name="filesOf"/> gives.
+    /// scheme, then value; the schemes of its kind it lacks; and its versions by source name, edition label,
+    /// first-seen time, then id, each with the files <paramref name="filesOf"/> gives. MAM-32 — an episode
+    /// with the first of its <paramref name="positions"/> by season (the regular ones, then the specials,
+    /// then none), then number; a series with its
+    /// <paramref name="seasons"/>.
     /// </summary>
     LibraryWorkDto ToDto(
         MediaWorkEntity work,
         IReadOnlyList<MediaWorkTitleEntity> titles,
         IReadOnlyList<MediaWorkIdentifierEntity> identifiers,
         IReadOnlyList<MediaVersionEntity> versions,
-        Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf);
+        Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf,
+        IReadOnlyList<MediaEpisodePositionEntity> positions,
+        IReadOnlyList<LibrarySeasonDto>? seasons);
 
     /// <summary>
     /// Identifier claims the way a work lists them: by scheme, then value, then source name, each claim

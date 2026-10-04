@@ -289,13 +289,16 @@ public sealed class SearchReleasesListHttpTests : IClassFixture<MediaAcquisition
         var release = body["items"]![0]!.AsObject();
         Assert.Equal(
             [
-                "id", "sourceId", "sourceName", "title", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl", "payloadKind",
+                "id", "sourceId", "sourceName", "title", "kind", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl", "payloadKind",
                 "claimed", "claimedWork", "identifiers", "libraryMatches",
             ],
             release.Select(property => property.Key));
         Assert.Equal("2026-08-03T00:00:00Z", (string)release["publishedUtc"]!);
         Assert.Equal("BluRayRemux", (string)release["claimed"]!["medium"]!);
-        Assert.Equal(["titles", "year"], release["claimedWork"]!.AsObject().Select(property => property.Key));
+        Assert.Equal("Movie", (string)release["kind"]!);
+        // MAM-32 — a movie's claim names no span and no seasons, present as null.
+        Assert.Equal(["titles", "year", "lastYear", "episodes"], release["claimedWork"]!.AsObject().Select(property => property.Key));
+        Assert.Null(release["claimedWork"]!["episodes"]);
         // A release with nothing listed: present, as null.
         var bare = body["items"]!.AsArray()[^1]!.AsObject();
         Assert.Equal(Titles["T3"], (string)bare["title"]!);

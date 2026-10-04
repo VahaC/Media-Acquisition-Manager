@@ -13,6 +13,9 @@ import {
   releaseOf,
   tolokaRemux,
   untitledRip,
+  yellowstoneEpisodes,
+  yellowstoneMatch,
+  yellowstonePack,
 } from '@/test/search'
 
 function renderRow(release: SearchRelease, library: LibraryMatch[] = [aliensMatch]) {
@@ -125,7 +128,7 @@ describe('ReleaseRow', () => {
     // Arrange
     const dune1984 = { ...aliensMatch, work: { ...aliens, id: '7a1e0000-0000-4000-8000-000000000101', title: 'Дюна', year: 1984 } }
     const dune2021 = { ...aliensMatch, work: { ...aliens, id: '7a1e0000-0000-4000-8000-000000000102', title: 'Дюна', year: 2021 } }
-    const release = releaseOf({ libraryMatches: [{ workId: dune2021.work.id, evidence: 'TitleAndYear', conflictingSchemes: [] }] })
+    const release = releaseOf({ libraryMatches: [{ workId: dune2021.work.id, evidence: 'TitleAndYear', conflictingSchemes: [], heldEpisodeCount: null }] })
 
     // Act
     renderRow(release, [dune1984, dune2021])
@@ -149,7 +152,7 @@ describe('ReleaseRow', () => {
   it('words a title and a year the library did not report as unknown', () => {
     // Arrange
     const unknownMatch = { ...aliensMatch, work: unknownWork, matchedIdentifiers: [], matchedTitle: null }
-    const release = releaseOf({ libraryMatches: [{ workId: unknownWork.id, evidence: 'Identifier', conflictingSchemes: [] }] })
+    const release = releaseOf({ libraryMatches: [{ workId: unknownWork.id, evidence: 'Identifier', conflictingSchemes: [], heldEpisodeCount: null }] })
 
     // Act
     renderRow(release, [unknownMatch])
@@ -172,7 +175,7 @@ describe('ReleaseRow', () => {
 
   it('calls a title-only match a possible one, naming the copy', () => {
     // Arrange
-    const release = releaseOf({ libraryMatches: [{ workId: aliensMatch.work.id, evidence: 'TitleOnly', conflictingSchemes: [] }] })
+    const release = releaseOf({ libraryMatches: [{ workId: aliensMatch.work.id, evidence: 'TitleOnly', conflictingSchemes: [], heldEpisodeCount: null }] })
 
     // Act
     renderRow(release)
@@ -259,5 +262,49 @@ describe('ReleaseRow', () => {
     // Assert
     expect(controls.map((control) => control.getAttribute('title'))).toEqual(['Details', 'Open source', 'Download'])
     for (const control of controls) expect(control.querySelector('.label-text')).toHaveTextContent(control.title)
+  })
+
+  it('says a TV release is TV, with the seasons its title claims and how many of their episodes the library holds', () => {
+    // Arrange — MAM-32
+    const release = yellowstonePack
+
+    // Act
+    renderRow(release, [yellowstoneMatch])
+
+    // Assert
+    expect(claimedChips().slice(0, 2)).toEqual(['TV', 'Seasons 1–5'])
+    expect(badgeTexts()).toEqual([
+      'In your library: Єллоустоун (2018) — matched by title and year',
+      '19 of its episodes in your library',
+    ])
+    expect(screen.getByText('19 of its episodes in your library'))
+      .toHaveAttribute('title', 'How many episodes of the seasons or episodes this release claims your library already holds.')
+  })
+
+  it('names the episodes a TV release claims of its season, and says when the library holds none of them', () => {
+    // Arrange
+    const release = yellowstoneEpisodes
+
+    // Act
+    renderRow(release, [yellowstoneMatch])
+
+    // Assert
+    expect(claimedChips().slice(0, 3)).toEqual(['TV', 'Season 1', 'Episodes 1–9'])
+    expect(badgeTexts()).toEqual([
+      'In your library: Єллоустоун (2018) — matched by title and year',
+      'None of its episodes in your library',
+    ])
+  })
+
+  it('gives a movie release no TV chip and no episode count', () => {
+    // Arrange
+    const release = tolokaRemux
+
+    // Act
+    renderRow(release)
+
+    // Assert
+    expect(claimedChips()[0]).toBe('1080p')
+    expect(screen.queryByText(/of its episodes in your library$/)).not.toBeInTheDocument()
   })
 })

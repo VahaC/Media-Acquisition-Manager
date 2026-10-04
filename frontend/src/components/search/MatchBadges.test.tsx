@@ -114,4 +114,31 @@ describe('MatchBadges', () => {
     expect(badgeTexts()).toEqual([text])
     expect(screen.getByText(text)).not.toHaveAttribute('title')
   })
+
+  it.each([
+    [19, '19 of its episodes in your library'],
+    [1, '1 of its episodes in your library'],
+    [0, 'None of its episodes in your library'],
+  ])('says that a match of a TV release holds %s episodes in the library', (held, expected) => {
+    // Arrange — MAM-32
+    const heldEpisodeCount = held
+
+    // Act
+    render(<MatchBadges evidence="TitleAndYear" conflictingSchemes={[]} inLibraryOf="Єллоустоун (2018)" heldEpisodeCount={heldEpisodeCount} />)
+
+    // Assert
+    expect(badgeTexts()).toEqual(['In your library: Єллоустоун (2018) — matched by title and year', expected])
+    expect(screen.getByText(expected)).toHaveClass('ui-badge', 'ui-badge-outline')
+  })
+
+  it('shows no episode count for the match of a movie', () => {
+    // Arrange
+    const heldEpisodeCount = null
+
+    // Act
+    render(<MatchBadges evidence="TitleAndYear" conflictingSchemes={[]} inLibraryOf="Чужі (1986)" heldEpisodeCount={heldEpisodeCount} />)
+
+    // Assert
+    expect(badgeTexts()).toEqual(['In your library: Чужі (1986) — matched by title and year'])
+  })
 })

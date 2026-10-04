@@ -295,7 +295,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
 
         //Act
         await library.ListLocationsAsync(settings, cancellationToken);
-        await library.ListItemsAsync(settings, new LibraryPageRequest(0, 50), cancellationToken);
+        await library.ListItemsAsync(settings, new LibraryPageRequest(MediaWorkKind.Movie, 0, 50), cancellationToken);
 
         //Assert
         Assert.Equal(2, harness.JellyfinHttp.Requests.Count);

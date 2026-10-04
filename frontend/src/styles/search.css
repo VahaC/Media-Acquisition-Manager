@@ -49,10 +49,11 @@
 
 /* The year narrow, the ids beside it, the button at the end — one row on a wide screen, as wide as
    its fields rather than the page. The fields line up at their inputs (`end`), so a label that wraps
-   never pushes its input below the others. */
+   never pushes its input below the others. MAM-32 — the season beside the year, a little wider so
+   "Season (optional)" stays on one line. */
 .search-form-fields {
   display: grid;
-  grid-template-columns: minmax(0, 6rem) minmax(0, 11rem) minmax(0, 11rem) auto;
+  grid-template-columns: minmax(0, 6rem) minmax(0, 7.5rem) minmax(0, 11rem) minmax(0, 11rem) auto;
   justify-content: start;
   align-items: end;
   gap: 0.75rem;
@@ -262,7 +263,7 @@
 }
 
 @media (max-width: 48rem) {
-  /* The year and the ids pair up, then the button. */
+  /* The year and the season, then the ids, pair up, then the button. */
   .search-form-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

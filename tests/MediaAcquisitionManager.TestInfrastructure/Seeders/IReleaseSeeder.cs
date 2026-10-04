@@ -16,7 +16,8 @@ public interface IReleaseSeeder
     /// one a Download dialog sends. Its download link is <paramref name="locator"/>, or by default one on the
     /// source's own feed carrying the API key placeholder and a planted <c>link=</c> token — the shape the
     /// Torznab adapter stores, which a <c>FakeTorznabServer</c> at the source's address answers with its
-    /// .torrent.
+    /// .torrent. MAM-32 — listed in <paramref name="categoryIds"/>, comma-separated as the release store
+    /// keeps them, or in none.
     /// </summary>
     Task<ReleaseEntity> CreateFound(
         UserEntity user,
@@ -25,5 +26,6 @@ public interface IReleaseSeeder
         string? locator = null,
         string? sourceItemId = null,
         string? infoHash = null,
-        ReleasePayloadKind? payloadKind = null);
+        ReleasePayloadKind? payloadKind = null,
+        string? categoryIds = null);
 }

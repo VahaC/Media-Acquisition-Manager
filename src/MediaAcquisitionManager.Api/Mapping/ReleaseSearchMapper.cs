@@ -40,6 +40,7 @@ public sealed class ReleaseSearchMapper : IReleaseSearchMapper
         new(
             releaseId,
             hit.Title,
+            hit.Kind,
             hit.SizeBytes,
             hit.Seeders,
             hit.Peers,

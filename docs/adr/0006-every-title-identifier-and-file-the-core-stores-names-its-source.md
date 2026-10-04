@@ -262,3 +262,32 @@ The migration adds columns, a table and indexes and rebuilds no table.
 `DownloadJobPersistenceTests.Deleting_a_job_deletes_its_files_and_no_other_jobs` and
 `DownloadJobPersistenceTests.A_job_keeps_its_progress_and_its_block_reason_with_whose_sentence_it_is_by_name`
 pin the rows.
+
+## Implementation (added 0.2.0, MAM-32)
+
+**An episode's place is a fact with its source.** MAM-32 adds another table on `ProvenancedEntity`:
+`MediaEpisodePositions`, one row per library item that is an episode — the episode work, the series
+work its series item landed on, and the season and episode numbers the library gives — stamped like
+a title and found again by its item, so two items of one episode each place it and two sources that
+disagree both stay
+([ADR 0019](0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+The Decision holds: a work is still only its kind, a series is a work with titles and ids like a
+movie's, and the numbers are never columns of the episode work. The library's series id is never a
+work identifier, as a collection id isn't: one show can be several series items. The schemes gain
+`Tvdb` and `TmdbTv`, a show's TMDb id, which never meets a movie's `Tmdb`
+([ADR 0017](0017-an-episode-is-a-work-known-by-registry-ids-and-the-library-alone-says-what-an-item-is.md)).
+A position goes with its episode work, points at no series once its series work goes, and goes with
+the rest of a media library's snapshot when the library is removed (the MAM-8 section).
+
+**A release row says what its listing is.** It gains `Kind` (`Movie` or `Tv`, from the categories
+its source lists it in), `CategoryIds` and `TvdbId`, and its `TmdbId` is a show's on a TV release,
+told by `Kind`
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+Still no path, no file list and no work. The migration adds columns, tables and indexes and rebuilds
+no table.
+
+`LibrarySnapshotTvHttpTests.Sync_of_the_tv_samples_places_each_episode_in_its_series_work_with_its_numbers_and_provenance`,
+`LibrarySnapshotTvHttpTests.Sync_after_a_series_item_is_gone_keeps_its_episodes_without_a_series`,
+`IntegrationsDeleteHttpTests.Delete_of_a_media_library_purges_its_series_episodes_and_their_positions`
+and `ReleaseSearchTvHttpTests.Search_lists_the_movie_releases_then_the_tv_releases_and_stores_each_with_its_kind_and_categories`
+pin it.

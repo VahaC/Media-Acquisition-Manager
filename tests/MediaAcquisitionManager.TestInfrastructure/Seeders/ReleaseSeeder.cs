@@ -27,7 +27,8 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
         string? locator = null,
         string? sourceItemId = null,
         string? infoHash = null,
-        ReleasePayloadKind? payloadKind = null)
+        ReleasePayloadKind? payloadKind = null,
+        string? categoryIds = null)
     {
         var search = await Searches.Create(user.Id);
         var searchSource = await Searches.AddSource(search.Id, source.Id, source.Name);
@@ -43,6 +44,7 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
             // A listing's own id, so two found releases are two listings unless a test says otherwise.
             sourceItemId ?? $"https://toloka.to/t{Guid.NewGuid():N}",
             infoHash,
-            payloadKind);
+            payloadKind,
+            categoryIds);
     }
 }

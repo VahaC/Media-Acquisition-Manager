@@ -8,6 +8,9 @@ namespace MediaAcquisitionManager.Core.Matching;
 /// ids its listing gives.
 /// </summary>
 /// <param name="Titles">The titles sought; empty when only an identifier can match.</param>
-/// <param name="Year">The year that goes with the titles; <c>null</c> when none is known.</param>
+/// <param name="Years">The years a title must be of to go with the titles; <c>null</c> when no year is
+/// known. One year for a search or a movie release; MAM-32 — for a TV release, what its title's years and
+/// seasons allow (<c>ReleaseWorkClaims.YearsToMatch</c>), as they are its seasons' years, not the
+/// show's.</param>
 /// <param name="Identifiers">The registry ids sought.</param>
-public sealed record WorkClaim(IReadOnlyList<string> Titles, int? Year, IReadOnlyList<MediaIdentifier> Identifiers);
+public sealed record WorkClaim(IReadOnlyList<string> Titles, ClaimedYears? Years, IReadOnlyList<MediaIdentifier> Identifiers);

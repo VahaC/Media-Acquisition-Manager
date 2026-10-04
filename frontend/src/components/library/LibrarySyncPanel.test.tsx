@@ -68,10 +68,28 @@ describe('LibrarySyncPanel', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Sources' })).toBeInTheDocument()
     await screen.findByText('Home Jellyfin')
     expect(statusOf('Home Jellyfin')).toHaveTextContent(
-      /^Synced Sep 30, 2026, 11:00\sAM: read 870 movies into 855 works, 870 versions, 870 files\.$/)
-    expect(statusOf('Cartoons')).toHaveTextContent(/read 1 movie into 1 work, 1 version, 1 file\.$/)
+      /^Synced Sep 30, 2026, 11:00\sAM: read 870 items into 855 works, 870 versions, 870 files\.$/)
+    expect(statusOf('Cartoons')).toHaveTextContent(/read 1 item into 1 work, 1 version, 1 file\.$/)
     expect(within(rowOf('Home Jellyfin')).getByText('Jellyfin')).toBeInTheDocument()
     expect(within(rowOf('Home Jellyfin')).queryByText('Disabled')).not.toBeInTheDocument()
+  })
+
+  it('counts the series a sync stored beside its works, one series or several', async () => {
+    // Arrange — MAM-32: the items are movies, series and episodes; the works movies and episodes.
+    const sources = [
+      sourceOf({ latestRun: runOf({ itemsRead: 1_375, worksCount: 1_295, seriesCount: 9, versionsCount: 1_400, filesCount: 1_500 }) }),
+      sourceOf({ integrationId: 'other', name: 'Cartoons', latestRun: runOf({ itemsRead: 3, worksCount: 2, seriesCount: 1, versionsCount: 2, filesCount: 2 }) }),
+    ]
+    serve(...sources)
+
+    // Act
+    renderPanel()
+
+    // Assert
+    await screen.findByText('Home Jellyfin')
+    expect(statusOf('Home Jellyfin')).toHaveTextContent(
+      /^Synced Sep 30, 2026, 11:00\sAM: read 1,375 items into 1,295 works and 9 series, 1,400 versions, 1,500 files\.$/)
+    expect(statusOf('Cartoons')).toHaveTextContent(/read 3 items into 2 works and 1 series, 2 versions, 2 files\.$/)
   })
 
   it('says a source was never synced', async () => {
@@ -88,8 +106,8 @@ describe('LibrarySyncPanel', () => {
   it.each([
     ['queued', runOf({ status: 'Queued', startedUtc: null, finishedUtc: null, itemsRead: 0, itemsTotal: null }), 'Queued…'],
     ['started, before its first page', runOf({ status: 'Running', finishedUtc: null, itemsRead: 0, itemsTotal: null }), 'Syncing…'],
-    ['reading', runOf({ status: 'Running', finishedUtc: null, itemsRead: 50, itemsTotal: 120 }), 'Syncing… 50 of 120 movies'],
-    ['reading a big library', runOf({ status: 'Running', finishedUtc: null, itemsRead: 1_200, itemsTotal: 12_345 }), 'Syncing… 1,200 of 12,345 movies'],
+    ['reading', runOf({ status: 'Running', finishedUtc: null, itemsRead: 50, itemsTotal: 120 }), 'Syncing… 50 of 120 items'],
+    ['reading a big library', runOf({ status: 'Running', finishedUtc: null, itemsRead: 1_200, itemsTotal: 12_345 }), 'Syncing… 1,200 of 12,345 items'],
   ])('shows a sync that is %s, and keeps Sync now disabled meanwhile', async (_, run, line) => {
     // Arrange
     serve(sourceOf({ latestRun: run }))

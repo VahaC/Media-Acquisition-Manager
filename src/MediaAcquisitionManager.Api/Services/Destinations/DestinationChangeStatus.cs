@@ -34,4 +34,8 @@ public enum DestinationChangeStatus
     /// credentials, an answer the app can't read, a version it doesn't work with; the error is the
     /// client's sentence, and nothing was written.</summary>
     ClientFailed = 8,
+
+    /// <summary>MAM-32 — a section the request maps names a release source that is not a release search
+    /// integration the app has; the error says so, and nothing was written.</summary>
+    SourceMissing = 9,
 }

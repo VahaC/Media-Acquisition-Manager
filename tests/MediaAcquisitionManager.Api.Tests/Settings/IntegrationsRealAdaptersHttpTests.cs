@@ -112,7 +112,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to Prowlarr over Torznab; movie search by title."),
+            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to Prowlarr over Torznab; movie search by title, TV search by title, season and episode."),
             await ReadTestResponseAsync(response, cancellationToken));
         var request = Assert.Single(_factory.TorznabHttp.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
@@ -297,7 +297,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to Prowlarr over Torznab; movie search by title."),
+            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to Prowlarr over Torznab; movie search by title, TV search by title, season and episode."),
             await ReadTestResponseAsync(response, cancellationToken));
         var request = Assert.Single(_factory.TorznabHttp.Requests);
         Assert.Equal(

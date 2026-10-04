@@ -192,3 +192,27 @@ before the first answered", "moves to the answer that came while the person was 
 Forward to its ?q=, without asking again" and "asks again for a ?q= the server refused when the
 person goes Back and then Forward to it"; `App.test.tsx` "searches from the header field: …" does
 it through the browser's history.
+
+## TV and a season (added 0.2.0, MAM-32)
+
+**A search stores its season and what each release is.** `Searches` gains `Season`, asked in a field
+of its own (a number from 0 to 9999, 0 for the specials) and answered as `season`; with a season,
+only the TV queries are sent. Each release keeps its `Kind`, its `CategoryIds` and its `TvdbId`, and
+a TV release's `TmdbId` is a show's
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+MAM-10's `POST /api/releases/search` takes the season too and asks and stores through the same
+code, as the Decision's "one way to ask and store" wants; its answer is unchanged and says no kind.
+
+**What a title claims is still read, not stored.** The seasons, episodes and span of years a TV
+title claims are read from it on every read, as its quality is, and each TV match's held count is
+worked out from the library's episodes as they are now. The list's `kind` filter (`Movie` or `Tv`,
+checked right after `source`) and `facets.kinds` read the stored `Kind`. A search now holds at most
+100 releases of each kind per source, still filtered, sorted and paged in memory. The Download
+dialog's suggested destination reads the release's stored categories and the sections mapped now,
+and asks no source.
+
+`SearchesTvHttpTests.Create_of_a_season_stores_and_echoes_it_and_asks_the_tv_search_alone`,
+`SearchReleasesTvMatchingHttpTests.Releases_of_a_kind_lists_only_the_releases_of_that_kind`,
+`SearchReleasesTvMatchingHttpTests.Create_offers_the_kinds_its_sources_listed_movie_before_tv` and
+`SearchReleasesTvMatchingHttpTests.Releases_of_a_kind_of_someone_elses_search_is_a_bare_404_whatever_the_kind`
+pin it.

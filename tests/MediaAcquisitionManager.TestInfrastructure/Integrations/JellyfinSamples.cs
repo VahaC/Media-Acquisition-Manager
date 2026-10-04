@@ -6,7 +6,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <summary>
 /// The real Jellyfin answers of <c>VendorSamples/Jellyfin</c> (MAM-6) as editable JSON, and variants
 /// synthesized from them for what the reference library doesn't show (MAM-8): merged versions, a
-/// library of any size, a movie without metadata, a stacked movie's parts.
+/// library of any size, a movie without metadata, a stacked movie's parts. MAM-32 adds the series,
+/// seasons and episodes MAM-17 sampled, and series and episodes of any facts.
 /// </summary>
 /// <remarks>
 /// Every call returns fresh nodes, parsed anew, so a test can change what it got (a path, a media
@@ -37,7 +38,67 @@ public static class JellyfinSamples
     /// four in the file.</summary>
     public const int SampleTotalRecordCount = 870;
 
+    /// <summary>The library "Мульфільми" (mixed), rooted at <c>/media/cartoons</c>.</summary>
+    public const string CartoonsLocationId = "2e7d31f7c627f72ad0912eff1c00353d";
+
+    /// <summary>The library "Документалки" (mixed), rooted at <c>/media/documentary</c>.</summary>
+    public const string DocumentaryLocationId = "dea595f0747f8862151db0192e565150";
+
+    /// <summary>The library "Серіали" (tvshows), rooted at <c>/media/tv-shows</c>.</summary>
+    public const string TvShowsLocationId = "f97af1337db58125aaa9a3f3695ab163";
+
+    /// <summary>Yellowstone (2018) in the TV library: IMDb tt4236770, TMDb 73586, TVDB 341164.</summary>
+    public const string YellowstoneId = "bad3e58c7b81156c7bccd6235599accd";
+
+    /// <summary>How the Universe Works (2010) in the documentary library: IMDb, TMDb and TVDB ids.</summary>
+    public const string HowTheUniverseWorksId = "d0d8035e1431be7c3631b3cf6e1e266b";
+
+    /// <summary>Mickey Mouse Clubhouse (2006) in the cartoon library: IMDb tt0784896, TMDb 3934, TVDB
+    /// 79854.</summary>
+    public const string MickeyMouseClubhouseId = "5d35cbe1d774979d932ee85791c466db";
+
+    /// <summary>Clarkson's Farm (2021) in the TV library: IMDb, TMDb and TVDB ids.</summary>
+    public const string ClarksonsFarmId = "d35b5d642dc60a0898a2a54bee8d9f0b";
+
+    /// <summary>The Penguins of Madagascar: a series Jellyfin named after its folder and gave no ids.</summary>
+    public const string PenguinsId = "9ac821b3ddea72fd14ba1835b4153e50";
+
+    /// <summary>Yellowstone S01E01 "Daybreak": an ordinary episode, IMDb tt7529124 and TVDB 6507316 of its
+    /// own.</summary>
+    public const string YellowstoneS01E01Id = "9dce0fa40765e5104b1c0a123a281280";
+
+    /// <summary>Tom &amp; Jerry Kids: one episode item (season 1, episode 4) holding the 65 files of the
+    /// folder, with no series and no ids.</summary>
+    public const string TomAndJerryKidsId = "4f28ab262a69cb4a9eb85ea904a6dc5d";
+
+    /// <summary>How the Universe Works S01E01 "Big Bang": a documentary episode in a mixed library, IMDb
+    /// only.</summary>
+    public const string BigBangId = "9bfab0cb16adc69d065ea37bd803c52a";
+
+    /// <summary>Mickey Mouse Clubhouse S03E09, the a half: same numbers and ids as the b half.</summary>
+    public const string RoadRallyAId = "8d461b4546ae6a601e34e85ff4e4a27b";
+
+    /// <summary>Mickey Mouse Clubhouse S03E09, the b half.</summary>
+    public const string RoadRallyBId = "ec5d83bbc45a035bc8cde248be189cb8";
+
+    /// <summary>Mickey Mouse Clubhouse S00E01 "Follow the Mouse": a virtual special, its one media source
+    /// a placeholder without a path.</summary>
+    public const string FollowTheMouseId = "1728f2c0514906e2c522eb130d401193";
+
+    /// <summary>The totals the TV samples report: the reference library's 10 series items, 25 seasons and
+    /// 471 episodes.</summary>
+    public const int SampleSeriesTotalRecordCount = 10;
+
+    /// <inheritdoc cref="SampleSeriesTotalRecordCount"/>
+    public const int SampleSeasonsTotalRecordCount = 25;
+
+    /// <inheritdoc cref="SampleSeriesTotalRecordCount"/>
+    public const int SampleEpisodesTotalRecordCount = 471;
+
     private static readonly Lazy<string> MoviesPageText = new(() => Read("movies-page.json"));
+    private static readonly Lazy<string> SeriesPageText = new(() => Read("series-page.json"));
+    private static readonly Lazy<string> SeasonsPageText = new(() => Read("seasons-page.json"));
+    private static readonly Lazy<string> EpisodesPageText = new(() => Read("episodes-page.json"));
     private static readonly Lazy<string> SystemInfoText = new(() => Read("system-info.json"));
     private static readonly Lazy<string> VirtualFoldersText = new(() => Read("virtual-folders.json"));
 
@@ -60,6 +121,77 @@ public static class JellyfinSamples
 
     /// <summary>The sample movie <paramref name="id"/>.</summary>
     public static JsonObject Movie(string id) => Movies().Single(movie => string.Equals((string?)movie["Id"], id, StringComparison.Ordinal));
+
+    /// <summary>The five series of <c>series-page.json</c>, in its order (MAM-32): Yellowstone, How the
+    /// Universe Works, Mickey Mouse Clubhouse, Clarkson's Farm, The Penguins of Madagascar.</summary>
+    public static List<JsonObject> Series() => ItemsOf(SeriesPageText.Value);
+
+    /// <summary>The sample series <paramref name="id"/>.</summary>
+    public static JsonObject Series(string id) => Series().Single(series => string.Equals((string?)series["Id"], id, StringComparison.Ordinal));
+
+    /// <summary>The four seasons of <c>seasons-page.json</c>, in its order (MAM-32): Yellowstone's season
+    /// 1, How the Universe Works' season 1, Mickey Mouse Clubhouse's season 3 and its virtual
+    /// specials.</summary>
+    public static List<JsonObject> Seasons() => ItemsOf(SeasonsPageText.Value);
+
+    /// <summary>The six episodes of <c>episodes-page.json</c>, in its order (MAM-32): Yellowstone S01E01,
+    /// the Tom &amp; Jerry Kids item, How the Universe Works S01E01, the two halves of Mickey Mouse
+    /// Clubhouse S03E09, and the virtual special.</summary>
+    public static List<JsonObject> Episodes() => ItemsOf(EpisodesPageText.Value);
+
+    /// <summary>The sample episode <paramref name="id"/>.</summary>
+    public static JsonObject Episode(string id) => Episodes().Single(episode => string.Equals((string?)episode["Id"], id, StringComparison.Ordinal));
+
+    /// <summary>
+    /// A series of its own with these facts (MAM-32): Yellowstone with its id, title, year, provider ids
+    /// and path replaced. An id that is <c>null</c> is left out, the way Jellyfin leaves out what it
+    /// doesn't know; <paramref name="tmdbId"/> is a show's.
+    /// </summary>
+    public static JsonObject SeriesWith(
+        string id, string title, int year, string path, string? imdbId = null, string? tmdbId = null, string? tvdbId = null)
+    {
+        var series = Series(YellowstoneId);
+        series["Id"] = id;
+        series["Name"] = title;
+        series["OriginalTitle"] = title;
+        series["ProductionYear"] = year;
+        series["Path"] = path;
+        series["ProviderIds"] = ProviderIds(imdbId, tmdbId, tvdbId);
+        return series;
+    }
+
+    /// <summary>
+    /// An episode of its own with these facts (MAM-32): Yellowstone S01E01 with its id, title, series,
+    /// numbers, provider ids and file replaced; a series, a number or an id that is <c>null</c> is left
+    /// out, as Jellyfin leaves out what it doesn't know.
+    /// </summary>
+    public static JsonObject EpisodeWith(
+        string id,
+        string title,
+        string? seriesId,
+        int? season,
+        int? episode,
+        string path,
+        string? imdbId = null,
+        string? tvdbId = null)
+    {
+        var item = Episode(YellowstoneS01E01Id);
+        item["Id"] = id;
+        item["Name"] = title;
+        item["Path"] = path;
+        item["SeriesId"] = seriesId;
+        item["SeasonId"] = null;
+        item.Remove("ParentIndexNumber");
+        item.Remove("IndexNumber");
+        if (season is not null)
+            item["ParentIndexNumber"] = season;
+        if (episode is not null)
+            item["IndexNumber"] = episode;
+        item["ProviderIds"] = ProviderIds(imdbId, null, tvdbId);
+        item["MediaSources"]![0]!["Id"] = id;
+        item["MediaSources"]![0]!["Path"] = path;
+        return item;
+    }
 
     /// <summary>
     /// The theatrical "Чужі" listing the special edition's media source as well, labelled by its name:
@@ -198,6 +330,27 @@ public static class JellyfinSamples
 
     private static string Read(string fileName) =>
         File.ReadAllText(Path.Combine(RepositoryPaths.VendorSamples, "Jellyfin", fileName));
+
+    // Detached from the parsed page, so each can go into another answer.
+    private static List<JsonObject> ItemsOf(string pageText)
+    {
+        var items = JsonNode.Parse(pageText)!["Items"]!.AsArray();
+        var list = items.Select(item => item!.AsObject()).ToList();
+        items.Clear();
+        return list;
+    }
+
+    private static JsonObject ProviderIds(string? imdbId, string? tmdbId, string? tvdbId)
+    {
+        var providerIds = new JsonObject();
+        if (imdbId is not null)
+            providerIds["Imdb"] = imdbId;
+        if (tmdbId is not null)
+            providerIds["Tmdb"] = tmdbId;
+        if (tvdbId is not null)
+            providerIds["Tvdb"] = tvdbId;
+        return providerIds;
+    }
 
     private static string RenumberId(string id, string prefix) => id.Length > prefix.Length ? prefix + id[prefix.Length..] : prefix + id;
 

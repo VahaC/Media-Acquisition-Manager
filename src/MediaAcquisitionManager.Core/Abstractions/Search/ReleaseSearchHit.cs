@@ -27,8 +27,11 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// <param name="InfoHash">The info hash when the source states it.</param>
 /// <param name="Identifiers">The registry ids the listing gives (MAM-12): claims of the listing, as its
 /// title's are, at most one per scheme, IMDb first; none of a scheme the listing gives two values of, and
-/// empty when it gives none.</param>
+/// empty when it gives none. A TV listing's TMDb id is a show's (<see cref="MediaIdentifierScheme.TmdbTv"/>,
+/// MAM-32).</param>
 /// <param name="Locator">Where the server fetches the payload from; never sent to the browser.</param>
+/// <param name="Kind">Whether the source lists it as a movie or as TV, from its categories (MAM-32): the
+/// adapter knows its protocol's numbering.</param>
 public sealed record ReleaseSearchHit(
     string? SourceItemId,
     string Title,
@@ -41,4 +44,5 @@ public sealed record ReleaseSearchHit(
     ReleasePayloadKind? PayloadKind,
     string? InfoHash,
     IReadOnlyList<MediaIdentifier> Identifiers,
-    ReleasePayloadLocator Locator);
+    ReleasePayloadLocator Locator,
+    ReleaseKind Kind);

@@ -8,13 +8,21 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// work it belongs to (ADR 0006).
 /// </summary>
 /// <param name="SourceItemId">The library's own id of the item.</param>
-/// <param name="Kind">What the item is.</param>
+/// <param name="Kind">What the item is, by the library's word alone (ADR 0017).</param>
 /// <param name="Titles">The titles the library gives it.</param>
 /// <param name="Identifiers">The registry ids the library claims for it.</param>
-/// <param name="Versions">Its versions: one, or several when the library groups them.</param>
+/// <param name="Versions">Its versions: one, or several when the library groups them. None for a
+/// series.</param>
+/// <param name="Episode">Where an episode sits in its series (MAM-32); <c>null</c> for a movie or a
+/// series.</param>
+/// <param name="IsMissing">Whether the library only knows of the item and holds no file for it — a
+/// missing episode it lists from the show's metadata (MAM-32). Read like any other, so the pages of the
+/// list still add up, and stored as nothing (ADR 0017).</param>
 public sealed record LibraryItem(
     string SourceItemId,
     MediaWorkKind Kind,
     IReadOnlyList<ReportedTitle> Titles,
     IReadOnlyList<MediaIdentifier> Identifiers,
-    IReadOnlyList<LibraryVersion> Versions);
+    IReadOnlyList<LibraryVersion> Versions,
+    LibraryEpisode? Episode = null,
+    bool IsMissing = false);

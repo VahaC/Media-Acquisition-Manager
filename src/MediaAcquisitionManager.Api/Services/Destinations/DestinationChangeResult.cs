@@ -26,4 +26,6 @@ public sealed record DestinationChangeResult(DestinationChangeStatus Status, Des
     public static DestinationChangeResult CategoryMissing(string error) => new(DestinationChangeStatus.CategoryMissing, null, error);
 
     public static DestinationChangeResult ClientFailed(string error) => new(DestinationChangeStatus.ClientFailed, null, error);
+
+    public static DestinationChangeResult SourceMissing(string error) => new(DestinationChangeStatus.SourceMissing, null, error);
 }

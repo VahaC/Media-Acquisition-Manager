@@ -68,10 +68,59 @@ export interface CreateDestinationRequest {
   downloadClientId?: string
   clientDestinationKey: string
   isDefault: boolean
+  /**
+   * MAM-32 — the release sources' sections whose releases the Download dialog sends here first; one
+   * mapped to another destination moves here. On an update, left out keeps them as they are and
+   * empty maps none.
+   */
+  sections?: DestinationSectionRequest[]
 }
 
-/** The body of `PUT /api/settings/destinations/{id}`: the same fields, every one sent. */
+/** The body of `PUT /api/settings/destinations/{id}`: the same fields, `sections` left out to keep them. */
 export type UpdateDestinationRequest = CreateDestinationRequest
+
+/** MAM-32 — one section of a release source a save maps to the destination, as the sections list gave it. */
+export interface DestinationSectionRequest {
+  releaseSourceId: string
+  categoryIds: string[]
+  name: string
+  isSourceSpecific: boolean
+}
+
+/**
+ * MAM-32 — one section (category) of a release source, with the destination it is mapped to. The ids
+ * a source files under one name are one section, unless they are mapped apart: then each part is
+ * listed, so the list shows exactly what is stored.
+ */
+export interface DestinationSection {
+  /** Without the gateway's subsection mark («Мультсеріали», not «|-Мультсеріали»). */
+  name: string
+  /** In the source's order; what a save sends back. */
+  categoryIds: string[]
+  /** The source's own section rather than a standard category ("TV/HD"); mapped, the source's own wins. */
+  isSourceSpecific: boolean
+  destinationId: string | null
+  destinationName: string | null
+}
+
+/** MAM-32 — one release source and its sections. */
+export interface DestinationSectionSource {
+  id: string
+  name: string
+  /** Its own order, then the mapped ones it no longer lists; only the mapped ones when it couldn't be asked. */
+  sections: DestinationSection[]
+  /** Why it couldn't be asked (switched off, unreachable, …); null when it answered. */
+  error: string | null
+}
+
+/**
+ * MAM-32 — `GET /api/settings/destinations/sections`: every release source by name, switched off ones
+ * too. Whole, never paged: a save replaces the destination's sections, so the dialog must see every
+ * one mapped.
+ */
+export interface DestinationSectionList {
+  sources: DestinationSectionSource[]
+}
 
 /** A category the download client offers, with the check its folder would get. */
 export interface ClientDestination {

@@ -13,8 +13,11 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// blank for none.</param>
 /// <param name="TmdbId">The TMDb id, such as <c>157336</c>, for the sources that can search by it; blank
 /// for none.</param>
+/// <param name="Season">The season, such as <c>1</c> (<c>0</c> for the specials), searched for in TV alone
+/// (MAM-32); blank for none.</param>
 public sealed record ReleaseSearchRequest(
     string? Text = null,
     string? Year = null,
     string? ImdbId = null,
-    string? TmdbId = null);
+    string? TmdbId = null,
+    string? Season = null);

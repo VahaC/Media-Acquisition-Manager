@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { libraryApi } from '../library-api'
 import { isSyncUnderWay } from '../library-runs'
-import type { LibrarySourceList, LibraryWorksQuery } from '../types'
+import type { LibraryEpisodesQuery, LibrarySourceList, LibraryWorksQuery } from '../types'
 import { qk } from './keys'
 
 /**
@@ -22,6 +22,19 @@ export const useLibraryWorks = (query: LibraryWorksQuery) =>
     queryFn: () => libraryApi.works(query),
     placeholderData: keepPreviousData,
     // A 400 for a bad page or filter won't change on a second try.
+    retry: false,
+  })
+
+/**
+ * MAM-32 — one page of one season of a series, asked only once the season is opened. As with the
+ * works, the page on screen stays while the next one loads.
+ */
+export const useLibraryEpisodes = (seriesId: string, query: LibraryEpisodesQuery) =>
+  useQuery({
+    queryKey: qk.library.episodes(seriesId, query),
+    queryFn: () => libraryApi.episodes(seriesId, query),
+    placeholderData: keepPreviousData,
+    // A 404 for a series a sync removed, or a 400 for a bad filter, won't change on a second try.
     retry: false,
   })
 

@@ -17,7 +17,8 @@ export const searchApi = {
    * they answered: 201 with the search (Location `/api/searches/{id}`), whatever the sources said —
    * a source that failed says so in its own entry. 400 `{ error }` for a missing or too long title,
    * control characters, or a year, IMDb or TMDb id that isn't one; nothing is stored then and no
-   * source is asked.
+   * source is asked. MAM-32 — a season (0 to 9999, 0 for the specials) is searched for in TV alone,
+   * and a season that isn't one is a 400 too.
    */
   create: async (request: SearchRequest): Promise<SearchResponse> =>
     (await api.post<SearchResponse>(BASE_URL, request)).data,
@@ -34,14 +35,14 @@ export const searchApi = {
     (await api.get<SearchResponse>(`${BASE_URL}/${encodeURIComponent(id)}`)).data,
 
   /**
-   * `GET /api/searches/{id}/releases?source=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=&page=&pageSize=`.
+   * `GET /api/searches/{id}/releases?source=&kind=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=&page=&pageSize=`.
    * One page of the search's stored releases, filtered, sorted and paged on the server — no source is
-   * asked again. 400 `{ error }` for a source that isn't a source id at all (not a GUID), a language
-   * or quality the filter can't read, a size that isn't a byte count or a smallest size above the
-   * largest, a sort it doesn't know, a page below 1 or a page size outside 1–100. A well-formed
-   * source id that isn't one of this search's (one a page kept from an earlier search, say) is not an
-   * error: it lists nothing, 200 with no items and a total of 0. A bare 404 like `get`, and the id
-   * encoded as `get` encodes it.
+   * asked again. 400 `{ error }` for a source that isn't a source id at all (not a GUID), a kind other
+   * than `Movie` or `Tv` (MAM-32), a language or quality the filter can't read, a size that isn't a
+   * byte count or a smallest size above the largest, a sort it doesn't know, a page below 1 or a page
+   * size outside 1–100. A well-formed source id that isn't one of this search's (one a page kept from
+   * an earlier search, say) is not an error: it lists nothing, 200 with no items and a total of 0. A
+   * bare 404 like `get`, and the id encoded as `get` encodes it.
    */
   releases: async (id: string, query: SearchReleasesQuery): Promise<SearchReleaseList> =>
     (await api.get<SearchReleaseList>(`${BASE_URL}/${encodeURIComponent(id)}/releases`, { params: query })).data,

@@ -25,10 +25,27 @@ public class LibraryController(ILibraryService library) : ControllerBase
     public async Task<ActionResult<LibraryWorkListResponse>> Works([FromQuery] LibraryWorkListRequest request, CancellationToken cancellationToken)
     {
         var result = await library.ListWorksAsync(
-            request.Search, request.LocationId, request.Identifiers, request.Page, request.PageSize, UserId, cancellationToken);
+            request.Search, request.LocationId, request.Identifiers, request.Kind, request.Page, request.PageSize, UserId, cancellationToken);
         return result.Status switch
         {
             LibraryWorkListStatus.Listed => Ok(result.List),
+            _ => this.BadRequestError(result.Error),
+        };
+    }
+
+    /// <summary>
+    /// MAM-32 — one page of a series' episodes, a season at a time, searched and filtered as the works
+    /// are. A bare 404 when no series has the id: an episode or a movie has no episodes to list.
+    /// </summary>
+    [HttpGet("works/{id:guid}/episodes")]
+    public async Task<ActionResult<LibraryWorkListResponse>> Episodes(Guid id, [FromQuery] LibraryEpisodeListRequest request, CancellationToken cancellationToken)
+    {
+        var result = await library.ListEpisodesAsync(
+            id, request.Season, request.Search, request.LocationId, request.Identifiers, request.Page, request.PageSize, UserId, cancellationToken);
+        return result.Status switch
+        {
+            LibraryWorkListStatus.Listed => Ok(result.List),
+            LibraryWorkListStatus.NotFound => NotFound(),
             _ => this.BadRequestError(result.Error),
         };
     }

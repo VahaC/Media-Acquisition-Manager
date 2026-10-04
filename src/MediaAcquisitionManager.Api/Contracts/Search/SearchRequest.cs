@@ -12,8 +12,11 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Year">The year, such as <c>2014</c>; blank for none.</param>
 /// <param name="ImdbId">The IMDb id, such as <c>tt0816692</c>; blank for none.</param>
 /// <param name="TmdbId">The TMDb id, such as <c>157336</c>; blank for none.</param>
+/// <param name="Season">The season, such as <c>1</c> (<c>0</c> for the specials), searched for in TV alone
+/// (MAM-32); blank for none.</param>
 public sealed record SearchRequest(
     string? Text = null,
     string? Year = null,
     string? ImdbId = null,
-    string? TmdbId = null);
+    string? TmdbId = null,
+    string? Season = null);

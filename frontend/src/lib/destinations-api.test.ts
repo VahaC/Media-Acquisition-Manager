@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { destinationsApi } from '@/lib/destinations-api'
-import { destinationsPage, movies, sampleCategories } from '@/test/destinations'
+import { destinationsPage, movies, sampleCategories, sectionsOf, tolokaSections } from '@/test/destinations'
 import { localQbittorrent } from '@/test/integrations'
 
 /**
@@ -99,6 +99,39 @@ describe('destinationsApi', () => {
     expect(requests).toHaveLength(1)
     expect(requests[0].method).toBe('delete')
     expect(api.getUri(requests[0])).toBe(`/api/settings/destinations/${movies.id}`)
+  })
+
+  it('adds a destination with the tracker sections it maps, as the sections list gave them', async () => {
+    // Arrange
+    const request = {
+      name: 'Cartoons',
+      downloadClientId: localQbittorrent.id,
+      clientDestinationKey: 'Cartoons',
+      isDefault: false,
+      sections: [{ releaseSourceId: tolokaSections.id, categoryIds: ['100044', '100125', '100195'], name: 'Мультсеріали', isSourceSpecific: true }],
+    }
+    const requests = respondWith(201, movies)
+
+    // Act
+    await destinationsApi.create(request)
+
+    // Assert
+    expect(JSON.parse(requests[0].data as string)).toEqual(request)
+  })
+
+  it('reads the sections of every release source, whole', async () => {
+    // Arrange
+    const list = sectionsOf(tolokaSections)
+    const requests = respondWith(200, list)
+
+    // Act
+    const sections = await destinationsApi.sections()
+
+    // Assert
+    expect(sections).toEqual(list)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe('/api/settings/destinations/sections')
   })
 
   it('asks for the categories of one download client', async () => {

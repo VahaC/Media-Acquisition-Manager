@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
@@ -12,23 +13,41 @@ using Microsoft.EntityFrameworkCore;
 namespace MediaAcquisitionManager.Api.Services.Library;
 
 /// <inheritdoc cref="ILibraryService"/>
+/// <remarks>
+/// MAM-32 — every filter is a set of work ids in SQL (the works a search finds, the works with a file in a
+/// library, the works lacking an id of their kind), so one rule serves a movie, an episode and a series
+/// alike: a movie or an episode of no series passes when it is in every set, a series when one of its
+/// episodes is — the series' own membership standing in for its episodes' where a search or a missing-ids
+/// filter is about the series itself. A library holds files, so only the episodes' files answer it.
+/// </remarks>
 public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mapper, ILibraryWorkReader reader) : ILibraryService
 {
     /// <summary>How much of a location id that isn't one a sentence repeats: a Guid is 36 characters, and
     /// a pasted page of text shouldn't come back whole.</summary>
     private const int LocationEchoLength = 64;
 
-    /// <summary>How much of an unknown identifiers filter a sentence repeats; the one filter is 7
-    /// characters.</summary>
-    private const int IdentifiersEchoLength = 32;
+    /// <summary>How much of an unknown identifiers or kind filter, or season, a sentence repeats; the
+    /// longest a filter takes is 7 characters.</summary>
+    private const int FilterEchoLength = 32;
 
-    /// <summary>The one identifiers filter: works lacking an IMDb or a TMDb id.</summary>
+    /// <summary>The one identifiers filter: works lacking an id of their kind.</summary>
     private const string MissingIdentifiersFilter = "Missing";
+
+    /// <summary>MAM-32 — the season of the episodes the library gives no season number.</summary>
+    private const string NoSeason = "None";
+
+    /// <summary>MAM-32 — the highest season number taken; past it is no season a library numbers.</summary>
+    private const int SeasonMaximum = 9999;
+
+    /// <summary>MAM-32 — where the specials (season 0) sort among the seasons: after every regular one,
+    /// before the episodes without a season.</summary>
+    private const int SpecialsOrder = int.MaxValue - 1;
 
     public async Task<LibraryWorkListResult> ListWorksAsync(
         string? search,
         string? locationId,
         string? identifiers,
+        string? kind,
         int page,
         int pageSize,
         Guid callerUserId,
@@ -36,35 +55,41 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     {
         if (PagingRules.Validate(page, pageSize) is { } pagingError)
             return LibraryWorkListResult.Invalid(pagingError);
-
-        var works = db.MediaWorks.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(locationId))
+        if (ReadFilters(search, locationId, identifiers) is not { } filters)
+            return LibraryWorkListResult.Invalid(FilterError(locationId, identifiers)!);
+        MediaWorkKind? kindFilter = null;
+        if (!string.IsNullOrWhiteSpace(kind))
         {
-            if (!Guid.TryParse(locationId.Trim(), out var location))
-                return LibraryWorkListResult.Invalid($"“{Echo(locationId.Trim(), LocationEchoLength)}” is not a library.");
-
-            // An id no library has is not an error: it simply holds nothing (a library a sync just
-            // removed, in a page loaded before it).
-            works = works.Where(work => db.MediaVersions.Any(version => version.MediaWorkId == work.Id
-                && db.PhysicalFiles.Any(file => file.MediaVersionId == version.Id && file.LibraryLocationId == location)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(identifiers))
-        {
-            if (!string.Equals(identifiers.Trim(), MissingIdentifiersFilter, StringComparison.OrdinalIgnoreCase))
+            kindFilter = kind.Trim() switch
             {
-                return LibraryWorkListResult.Invalid(
-                    $"“{Echo(identifiers.Trim(), IdentifiersEchoLength)}” is not an identifier filter. Use {MissingIdentifiersFilter}.");
-            }
-
-            // Specification §3.1 matches on both; a work lacking either can't be matched reliably.
-            works = works.Where(work =>
-                !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Imdb)
-                || !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Tmdb));
+                var value when string.Equals(value, nameof(MediaWorkKind.Movie), StringComparison.OrdinalIgnoreCase) => MediaWorkKind.Movie,
+                var value when string.Equals(value, nameof(MediaWorkKind.Series), StringComparison.OrdinalIgnoreCase) => MediaWorkKind.Series,
+                _ => null,
+            };
+            if (kindFilter is null)
+                return LibraryWorkListResult.Invalid($"“{Echo(kind.Trim(), FilterEchoLength)}” is not a kind filter. Use Movie or Series.");
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
-            works = Search(works, search.Trim());
+        // A movie, or an episode no position puts in a series (the Tom & Jerry Kids item): listed itself.
+        var standalone = db.MediaWorks.Where(work =>
+            (kindFilter != MediaWorkKind.Series && work.Kind == MediaWorkKind.Movie)
+            || (kindFilter != MediaWorkKind.Movie && work.Kind == MediaWorkKind.Episode
+                && !db.MediaEpisodePositions.Any(position => position.MediaWorkId == work.Id && position.SeriesWorkId != null)));
+        if (filters.SearchHits is { } searchHits)
+            standalone = standalone.Where(work => searchHits.Contains(work.Id));
+        if (filters.LocationHits is { } locationHits)
+            standalone = standalone.Where(work => locationHits.Contains(work.Id));
+        if (filters.MissingHits is { } missingHits)
+            standalone = standalone.Where(work => missingHits.Contains(work.Id));
+
+        // A series: listed when one of its episodes passes.
+        var keptPositions = KeptPositions(filters);
+        var standaloneIds = standalone.Select(work => work.Id);
+        var seriesIds = keptPositions.Select(position => position.SeriesWorkId!.Value);
+        var works = kindFilter == MediaWorkKind.Movie
+            ? db.MediaWorks.AsNoTracking().Where(work => standaloneIds.Contains(work.Id))
+            : db.MediaWorks.AsNoTracking().Where(work =>
+                standaloneIds.Contains(work.Id) || (work.Kind == MediaWorkKind.Series && seriesIds.Contains(work.Id)));
 
         var totalCount = await works.CountAsync(cancellationToken);
         // Past the last page there is nothing to read; and a page far enough out would overflow the
@@ -77,7 +102,69 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
-        var items = await reader.ReadAsync(pageWorks, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken);
+        var pageSeries = pageWorks.Where(work => work.Kind == MediaWorkKind.Series).Select(work => work.Id).ToList();
+        var seasons = pageSeries.Count == 0
+            ? new Dictionary<Guid, IReadOnlyList<LibrarySeasonDto>>()
+            : await LibrarySeasonCounts.ReadAsync(keptPositions, pageSeries, cancellationToken);
+        var items = await reader.ReadAsync(pageWorks, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), seasons, cancellationToken);
+        return LibraryWorkListResult.Listed(new LibraryWorkListResponse(items, totalCount, page, pageSize));
+    }
+
+    public async Task<LibraryWorkListResult> ListEpisodesAsync(
+        Guid seriesId,
+        string? season,
+        string? search,
+        string? locationId,
+        string? identifiers,
+        int page,
+        int pageSize,
+        Guid callerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await db.MediaWorks.AnyAsync(work => work.Id == seriesId && work.Kind == MediaWorkKind.Series, cancellationToken))
+            return LibraryWorkListResult.NotFound;
+        if (PagingRules.Validate(page, pageSize) is { } pagingError)
+            return LibraryWorkListResult.Invalid(pagingError);
+        if (ReadFilters(search, locationId, identifiers) is not { } filters)
+            return LibraryWorkListResult.Invalid(FilterError(locationId, identifiers)!);
+
+        var positions = KeptPositions(filters).Where(position => position.SeriesWorkId == seriesId);
+        if (!string.IsNullOrWhiteSpace(season))
+        {
+            var trimmed = season.Trim();
+            if (string.Equals(trimmed, NoSeason, StringComparison.OrdinalIgnoreCase))
+            {
+                positions = positions.Where(position => position.SeasonNumber == null);
+            }
+            else if (int.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number <= SeasonMaximum)
+            {
+                positions = positions.Where(position => position.SeasonNumber == number);
+            }
+            else
+            {
+                return LibraryWorkListResult.Invalid($"“{Echo(trimmed, FilterEchoLength)}” is not a season. Use a season number, or {NoSeason} for the episodes without one.");
+            }
+        }
+
+        var episodeIds = positions.Select(position => position.MediaWorkId);
+        var works = db.MediaWorks.AsNoTracking().Where(work => episodeIds.Contains(work.Id));
+        var totalCount = await works.CountAsync(cancellationToken);
+        var offset = (long)(page - 1) * pageSize;
+        if (offset >= totalCount)
+            return LibraryWorkListResult.Listed(new LibraryWorkListResponse([], totalCount, page, pageSize));
+
+        // By the place the listed positions give each episode — the seasons in the order a series lists them
+        // (LibrarySeasonCounts: the regular ones, then the specials, then none), so every season reads as
+        // one run —, a number missing put last, then by title: the halves of an episode sit side by side,
+        // and the order is total.
+        var pageWorks = await ThenByTitle(works
+                .OrderBy(work => positions.Where(position => position.MediaWorkId == work.Id)
+                    .Min(position => position.SeasonNumber == 0 ? SpecialsOrder : position.SeasonNumber) ?? int.MaxValue)
+                .ThenBy(work => positions.Where(position => position.MediaWorkId == work.Id).Min(position => position.EpisodeNumber) ?? int.MaxValue))
+            .Skip((int)offset)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        var items = await reader.ReadAsync(pageWorks, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken: cancellationToken);
         return LibraryWorkListResult.Listed(new LibraryWorkListResponse(items, totalCount, page, pageSize));
     }
 
@@ -97,6 +184,59 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
+    /// The filters as sets of work ids, each <c>null</c> when not asked for; <c>null</c> as a whole when a
+    /// filter isn't one the list takes (<see cref="FilterError"/> says why).
+    /// </summary>
+    private Filters? ReadFilters(string? search, string? locationId, string? identifiers)
+    {
+        if (FilterError(locationId, identifiers) is not null)
+            return null;
+
+        IQueryable<Guid>? locationHits = null;
+        if (!string.IsNullOrWhiteSpace(locationId))
+        {
+            // An id no library has is not an error: it simply holds nothing (a library a sync just
+            // removed, in a page loaded before it).
+            var location = Guid.Parse(locationId.Trim());
+            locationHits = db.MediaVersions
+                .Where(version => db.PhysicalFiles.Any(file => file.MediaVersionId == version.Id && file.LibraryLocationId == location))
+                .Select(version => version.MediaWorkId);
+        }
+
+        return new Filters(
+            string.IsNullOrWhiteSpace(search) ? null : SearchHits(search.Trim()),
+            locationHits,
+            string.IsNullOrWhiteSpace(identifiers) ? null : MissingHits());
+    }
+
+    /// <summary>The sentence saying which filter the list doesn't take; <c>null</c> when it takes them
+    /// all.</summary>
+    private static string? FilterError(string? locationId, string? identifiers)
+    {
+        if (!string.IsNullOrWhiteSpace(locationId) && !Guid.TryParse(locationId.Trim(), out _))
+            return $"“{Echo(locationId.Trim(), LocationEchoLength)}” is not a library.";
+        if (!string.IsNullOrWhiteSpace(identifiers) && !string.Equals(identifiers.Trim(), MissingIdentifiersFilter, StringComparison.OrdinalIgnoreCase))
+            return $"“{Echo(identifiers.Trim(), FilterEchoLength)}” is not an identifier filter. Use {MissingIdentifiersFilter}.";
+        return null;
+    }
+
+    /// <summary>
+    /// MAM-32 — the positions of the episodes the filters keep: an episode passes a search or a missing-ids
+    /// filter its series answers, and passes a library only by its own files.
+    /// </summary>
+    private IQueryable<MediaEpisodePositionEntity> KeptPositions(Filters filters)
+    {
+        var positions = db.MediaEpisodePositions.AsNoTracking().Where(position => position.SeriesWorkId != null);
+        if (filters.SearchHits is { } searchHits)
+            positions = positions.Where(position => searchHits.Contains(position.SeriesWorkId!.Value) || searchHits.Contains(position.MediaWorkId));
+        if (filters.LocationHits is { } locationHits)
+            positions = positions.Where(position => locationHits.Contains(position.MediaWorkId));
+        if (filters.MissingHits is { } missingHits)
+            positions = positions.Where(position => missingHits.Contains(position.SeriesWorkId!.Value) || missingHits.Contains(position.MediaWorkId));
+        return positions;
+    }
+
+    /// <summary>
     /// The works a search term finds: a title, an identifier or a file path containing it, in any letter
     /// case — or, when the term is a year, a title given with that year.
     /// </summary>
@@ -106,7 +246,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     /// enough for it. Contains becomes <c>instr()</c>, which reads '%' and '_' as themselves: a search is
     /// text, not a <c>LIKE</c> pattern.
     /// </remarks>
-    private IQueryable<MediaWorkEntity> Search(IQueryable<MediaWorkEntity> works, string term)
+    private IQueryable<Guid> SearchHits(string term)
     {
         var normalized = LibrarySearchText.Normalize(term);
         // Checked for a value in the query itself: without it, a term that isn't a year would compare
@@ -115,13 +255,36 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             ? number
             : null;
 
-        return works.Where(work =>
-            db.MediaWorkTitles.Any(title => title.MediaWorkId == work.Id
-                && (title.NormalizedText.Contains(normalized) || (year != null && title.Year == year)))
-            || db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id
-                && identifier.Value.ToUpper().Contains(normalized))
-            || db.MediaVersions.Any(version => version.MediaWorkId == work.Id
-                && db.PhysicalFiles.Any(file => file.MediaVersionId == version.Id && file.NormalizedServicePath.Contains(normalized))));
+        return db.MediaWorkTitles
+            .Where(title => title.NormalizedText.Contains(normalized) || (year != null && title.Year == year))
+            .Select(title => title.MediaWorkId)
+            .Union(db.MediaWorkIdentifiers
+                .Where(identifier => identifier.Value.ToUpper().Contains(normalized))
+                .Select(identifier => identifier.MediaWorkId))
+            .Union(db.MediaVersions
+                .Where(version => db.PhysicalFiles.Any(file => file.MediaVersionId == version.Id && file.NormalizedServicePath.Contains(normalized)))
+                .Select(version => version.MediaWorkId));
+    }
+
+    /// <summary>
+    /// The works lacking an id of their kind (<see cref="LibraryReliableSchemes"/>): specification §3.1
+    /// matches on them, and a work lacking one can't be matched reliably by a release naming it.
+    /// </summary>
+    private IQueryable<Guid> MissingHits()
+    {
+        return db.MediaWorks
+            .Where(work =>
+                (work.Kind == MediaWorkKind.Movie
+                    && (!db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Imdb)
+                        || !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Tmdb)))
+                || (work.Kind == MediaWorkKind.Episode
+                    && (!db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Imdb)
+                        || !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Tvdb)))
+                || (work.Kind == MediaWorkKind.Series
+                    && (!db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Imdb)
+                        || !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.TmdbTv)
+                        || !db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Tvdb))))
+            .Select(work => work.Id);
     }
 
     /// <summary>
@@ -136,26 +299,38 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     /// would put І, Є and Ї before А and Ґ after Я.
     /// </remarks>
     private IOrderedQueryable<MediaWorkEntity> OrderByTitle(IQueryable<MediaWorkEntity> works) =>
-        works
-            .OrderBy(work => EF.Functions.Collate(
-                db.MediaWorkTitles
-                    .Where(title => title.MediaWorkId == work.Id && title.Kind == MediaTitleKind.Display)
-                    .OrderBy(title => EF.Functions.Collate(title.Text, LibraryTitleOrder.CollationName))
-                    .ThenBy(title => title.Text)
-                    .ThenBy(title => title.Id)
-                    .Select(title => title.Text)
-                    .FirstOrDefault()
-                ?? db.MediaWorkTitles
-                    .Where(title => title.MediaWorkId == work.Id && title.Kind == MediaTitleKind.Original)
-                    .OrderBy(title => EF.Functions.Collate(title.Text, LibraryTitleOrder.CollationName))
-                    .ThenBy(title => title.Text)
-                    .ThenBy(title => title.Id)
-                    .Select(title => title.Text)
-                    .FirstOrDefault()
-                ?? "",
-                LibraryTitleOrder.CollationName))
-            .ThenBy(work => work.Id);
+        works.OrderBy(TitleOrderKey()).ThenBy(work => work.Id);
+
+    /// <summary>MAM-32 — <see cref="OrderByTitle"/>'s order after an order of the caller's.</summary>
+    private IOrderedQueryable<MediaWorkEntity> ThenByTitle(IOrderedQueryable<MediaWorkEntity> works) =>
+        works.ThenBy(TitleOrderKey()).ThenBy(work => work.Id);
+
+    // The title a card shows, as SQL in the list's collation: the first displayed title in title order,
+    // else the first original one, else none. An expression rather than a method, so EF Core translates it
+    // wherever it is used.
+    private Expression<Func<MediaWorkEntity, string>> TitleOrderKey() =>
+        work => EF.Functions.Collate(
+            db.MediaWorkTitles
+                .Where(title => title.MediaWorkId == work.Id && title.Kind == MediaTitleKind.Display)
+                .OrderBy(title => EF.Functions.Collate(title.Text, LibraryTitleOrder.CollationName))
+                .ThenBy(title => title.Text)
+                .ThenBy(title => title.Id)
+                .Select(title => title.Text)
+                .FirstOrDefault()
+            ?? db.MediaWorkTitles
+                .Where(title => title.MediaWorkId == work.Id && title.Kind == MediaTitleKind.Original)
+                .OrderBy(title => EF.Functions.Collate(title.Text, LibraryTitleOrder.CollationName))
+                .ThenBy(title => title.Text)
+                .ThenBy(title => title.Id)
+                .Select(title => title.Text)
+                .FirstOrDefault()
+            ?? "",
+            LibraryTitleOrder.CollationName);
 
     private static string Echo(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : string.Concat(value.AsSpan(0, maximumLength), "…");
+
+    /// <summary>The filters asked for, each the ids of the works it keeps; <c>null</c> when not asked
+    /// for.</summary>
+    private sealed record Filters(IQueryable<Guid>? SearchHits, IQueryable<Guid>? LocationHits, IQueryable<Guid>? MissingHits);
 }

@@ -84,13 +84,21 @@ public class DestinationsController(IDestinationService destinations) : Controll
     public async Task<ActionResult<ClientDestinationListResponse>> ClientDestinations(Guid downloadClientId, CancellationToken cancellationToken) =>
         await destinations.ListClientDestinationsAsync(downloadClientId, cancellationToken) is { } list ? Ok(list) : NotFound();
 
+    /// <summary>MAM-32 — every release source's sections, each with the destination it is mapped to: 200
+    /// whatever the sources said, a source that couldn't be asked answering its own sentence beside the
+    /// others' sections.</summary>
+    [HttpGet("sections")]
+    public async Task<ActionResult<DestinationSectionListResponse>> Sections(CancellationToken cancellationToken) =>
+        Ok(await destinations.ListSectionsAsync(cancellationToken));
+
     private ActionResult Failure(DestinationChangeResult result) => result.Status switch
     {
         // The addressed destination: the same bare 404 as every missing row.
         DestinationChangeStatus.NotFound => NotFound(),
         DestinationChangeStatus.Invalid => this.BadRequestError(result.Error),
-        // A client id in the body, not the addressed row, so the owner gets the sentence.
-        DestinationChangeStatus.DownloadClientMissing => this.NotFoundError(result.Error),
+        // A client id in the body, not the addressed row, so the owner gets the sentence; (MAM-32) a
+        // section's source id too.
+        DestinationChangeStatus.DownloadClientMissing or DestinationChangeStatus.SourceMissing => this.NotFoundError(result.Error),
         // Asked, and it couldn't answer: the client's failure, in its own sentence.
         DestinationChangeStatus.ClientFailed => this.BadGatewayError(result.Error),
         // The name is taken, the client can't be asked (switched off, a type this build can't use, a

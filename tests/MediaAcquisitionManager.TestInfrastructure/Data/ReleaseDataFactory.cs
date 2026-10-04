@@ -17,7 +17,8 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
         Guid? searchSourceId = null,
         string? sourceItemId = null,
         string? infoHash = null,
-        ReleasePayloadKind? payloadKind = null)
+        ReleasePayloadKind? payloadKind = null,
+        string? categoryIds = null)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var release = new ReleaseEntity
@@ -30,6 +31,7 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
             SourceItemId = sourceItemId,
             InfoHash = infoHash,
             PayloadKind = payloadKind,
+            CategoryIds = categoryIds,
             CreatedUtc = now,
             ObservedUtc = now,
         };

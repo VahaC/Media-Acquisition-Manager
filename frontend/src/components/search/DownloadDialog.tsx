@@ -45,7 +45,12 @@ interface DownloadDialogProps {
  * open, so every opening is a new submission with its own request id.
  *
  * It opens on the default destination and the client that owns it; otherwise on the only client and
- * its only destination; otherwise on the placeholders. Every rule is the server's, shown as its
+ * its only destination; otherwise on the placeholders. MAM-32 — the server now names the destination
+ * to open on (`suggestedDestinationId`): the one the release's tracker section is mapped to, else the
+ * default. None suggested — two sections' destinations tie, or there is no default — opens on the
+ * placeholders, unless there is only one destination to pick. A client picked by hand comes with the
+ * suggested destination when it holds it, else the default when it holds that, else its only one,
+ * else none. Every rule is the server's, shown as its
  * sentence in the form; a job that failed shows its sentence there too and keeps the form, so the
  * person can pick again and send. Any other job replaces the form with what happened, and Close.
  */
@@ -73,7 +78,8 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const inFlight = useRef(false)
 
   const clients = options.data?.clients ?? []
-  const preselected = preselect(clients)
+  const suggestedId = options.data?.suggestedDestinationId ?? null
+  const preselected = preselect(clients, suggestedId)
   const client = clients.find((candidate) => candidate.id === (pickedClientId ?? preselected.clientId))
   const destinationId = pickedDestinationId ?? preselected.destinationId
   const destination = client?.destinations.find((candidate) => candidate.id === destinationId)
@@ -83,7 +89,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   /** Another client has other destinations: the last client's pick goes, the new client's own preselection comes. */
   const pickClient = (next: string) => {
     setPickedClientId(next)
-    setPickedDestinationId(destinationOf(clients.find((candidate) => candidate.id === next)))
+    setPickedDestinationId(destinationPickedWith(clients.find((candidate) => candidate.id === next), suggestedId))
   }
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -217,20 +223,36 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
 }
 
 /**
- * The pick the dialog opens with: the default destination and the client that owns it, when the
- * default is one of the listed clients'; otherwise the only client, with its only destination;
- * otherwise neither (`''`, the placeholders).
+ * The pick the dialog opens with: the suggested destination and the client that owns it (MAM-32 —
+ * the server's pick, by the release's tracker section or else the default); otherwise the only
+ * client, with its only destination; otherwise neither (`''`, the placeholders).
  */
-function preselect(clients: DownloadClientOption[]): { clientId: string; destinationId: string } {
-  const client = clients.find((candidate) => candidate.destinations.some((destination) => destination.isDefault))
+function preselect(clients: DownloadClientOption[], suggestedId: string | null): { clientId: string; destinationId: string } {
+  const client = clients.find((candidate) => candidate.destinations.some((destination) => destination.id === suggestedId))
     ?? (clients.length === 1 ? clients[0] : undefined)
-  return { clientId: client?.id ?? '', destinationId: destinationOf(client) }
+  return { clientId: client?.id ?? '', destinationId: destinationOf(client, suggestedId) }
 }
 
-/** A client's own destination to start from: the default when it holds it, else its only one, else none. */
-function destinationOf(client: DownloadClientOption | undefined): string {
+/**
+ * A client's own destination to open on: the suggested one when it holds it, else its only one, else
+ * none. Never the default by itself: none suggested means the server weighed it and picked nothing.
+ */
+function destinationOf(client: DownloadClientOption | undefined, suggestedId: string | null): string {
   const destinations = client?.destinations ?? []
-  const chosen = destinations.find((destination) => destination.isDefault)
+  const chosen = destinations.find((destination) => destination.id === suggestedId)
+    ?? (destinations.length === 1 ? destinations[0] : undefined)
+  return chosen?.id ?? ''
+}
+
+/**
+ * A client's own destination once the person picks that client by hand: the suggested one when it
+ * holds it, else the installation's default when it holds that, else its only one, else none. The
+ * person chose the client, so its default is a fair start even where the server suggested nothing.
+ */
+function destinationPickedWith(client: DownloadClientOption | undefined, suggestedId: string | null): string {
+  const destinations = client?.destinations ?? []
+  const chosen = destinations.find((destination) => destination.id === suggestedId)
+    ?? destinations.find((destination) => destination.isDefault)
     ?? (destinations.length === 1 ? destinations[0] : undefined)
   return chosen?.id ?? ''
 }

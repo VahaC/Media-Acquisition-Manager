@@ -18,6 +18,7 @@ namespace MediaAcquisitionManager.Api.Services.Destinations;
 public sealed class DestinationService(
     ApplicationDbContext db,
     IDestinationChecker checker,
+    IReleaseSourceCategoryReader sectionReader,
     IAuditTrail auditTrail,
     IDestinationMapper mapper,
     TimeProvider time,
@@ -26,6 +27,8 @@ public sealed class DestinationService(
     private const string DownloadClientMissingError = "Pick the download client this destination belongs to.";
 
     private const string DownloadClientGoneError = "The download client you picked no longer exists. Reload the page and pick one again.";
+
+    private const string SourceGoneError = "A release source you picked sections of no longer exists. Reload the page and pick them again.";
 
     public async Task<DestinationListResult> ListAsync(string? search, int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -91,15 +94,20 @@ public sealed class DestinationService(
 
     public async Task<DestinationChangeResult> CreateAsync(CreateDestinationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        // MAM-11 — checked in this order: the name, the client picked, the category's name, whether the
-        // client is a download client the app has, whether the name is free for it, then whether the
+        // MAM-11 — checked in this order: the name, the client picked, the category's name, (MAM-32) the
+        // sections, whether the client is a download client the app has, (MAM-32) whether the sections'
+        // sources are release sources it has, whether the name is free for the client, then whether the
         // client confirms the category — one sentence per answer, the first rule broken, and the live call
         // last, so a request the rules refuse never reaches a client.
-        if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey) is { } error)
+        if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey, request.Sections) is { } error)
             return DestinationChangeResult.Invalid(error);
         var client = await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken);
         if (client is null)
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        // A new destination has no sections of its own to take off: none picked is nothing to map.
+        var sections = Pick(request.Sections) is { Count: > 0 } picked ? picked : null;
+        if (!await AreSourcesThereAsync(sections, cancellationToken))
+            return DestinationChangeResult.SourceMissing(SourceGoneError);
 
         var name = request.Name!.Trim();
         var normalizedName = DestinationRules.NormalizeName(name);
@@ -126,16 +134,16 @@ public sealed class DestinationService(
             CreatedUtc = time.GetUtcNow().UtcDateTime,
         };
         db.DestinationMappings.Add(destination);
-        // One row for the destination the owner added, a default taken off another one included.
-        auditTrail.Record(AuditAction.DestinationCreated, actor, AuditTarget.Destination(destination));
 
         try
         {
-            await SaveAsync(destination, takesDefault: isDefault, cancellationToken);
+            // One audit row for the destination the owner added, a default taken off another one and the
+            // sections moved here from others included.
+            await SaveAsync(destination, takesDefault: isDefault, sections, AuditAction.DestinationCreated, actor, cancellationToken);
         }
         catch (DbUpdateException exception)
         {
-            if (await LostRaceAsync(exception, client, name, normalizedName, exceptDestinationId: null, cancellationToken) is { } lost)
+            if (await LostRaceAsync(exception, client, name, normalizedName, exceptDestinationId: null, sections, cancellationToken) is { } lost)
                 return lost;
             throw;
         }
@@ -156,11 +164,15 @@ public sealed class DestinationService(
             return DestinationChangeResult.NotFound;
 
         // The create order, against the destination as the save would leave it.
-        if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey) is { } error)
+        if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey, request.Sections) is { } error)
             return DestinationChangeResult.Invalid(error);
         var client = await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken);
         if (client is null)
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        // MAM-32 — left out keeps the destination's sections; empty takes every one off it.
+        var sections = Pick(request.Sections);
+        if (!await AreSourcesThereAsync(sections, cancellationToken))
+            return DestinationChangeResult.SourceMissing(SourceGoneError);
 
         var name = request.Name!.Trim();
         var normalizedName = DestinationRules.NormalizeName(name);
@@ -188,17 +200,12 @@ public sealed class DestinationService(
         if (request.IsDefault is { } isDefault)
             destination.IsDefault = isDefault;
 
-        // MAM-4's rule: a save that changes nothing records nothing. Asked before the audit row is added,
-        // which is a change itself.
-        if (!db.ChangeTracker.HasChanges())
-            return DestinationChangeResult.Succeeded();
-
         var actor = await ActorAsync(actorUserId, cancellationToken);
-        auditTrail.Record(AuditAction.DestinationUpdated, actor, AuditTarget.Destination(destination));
-
         try
         {
-            await SaveAsync(destination, takesDefault, cancellationToken);
+            // MAM-4's rule: a save that changes nothing records nothing.
+            if (!await SaveAsync(destination, takesDefault, sections, AuditAction.DestinationUpdated, actor, cancellationToken))
+                return DestinationChangeResult.Succeeded();
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -208,7 +215,7 @@ public sealed class DestinationService(
         }
         catch (DbUpdateException exception)
         {
-            if (await LostRaceAsync(exception, client, name, normalizedName, destinationId, cancellationToken) is { } lost)
+            if (await LostRaceAsync(exception, client, name, normalizedName, destinationId, sections, cancellationToken) is { } lost)
                 return lost;
             throw;
         }
@@ -260,17 +267,90 @@ public sealed class DestinationService(
         return client is null ? null : mapper.ToResponse(await checker.ListAsync(client, cancellationToken));
     }
 
+    public async Task<DestinationSectionListResponse> ListSectionsAsync(CancellationToken cancellationToken = default)
+    {
+        // Every database read happens before the sources are asked: the context is not safe to share
+        // between the concurrent calls (ReleaseSources' rule). The normalised name is unique, so the order
+        // is total.
+        var sources = await db.IntegrationConnections
+            .AsNoTracking()
+            .Where(integration => integration.Kind == IntegrationKind.ReleaseSearch)
+            .OrderBy(integration => integration.NormalizedName)
+            .ToListAsync(cancellationToken);
+        var mapped = (await db.DestinationSections.AsNoTracking().ToListAsync(cancellationToken))
+            .ToLookup(section => section.ReleaseSourceConnectionId);
+        var destinationNames = await db.DestinationMappings
+            .AsNoTracking()
+            .Select(destination => new { destination.Id, destination.Name })
+            .ToDictionaryAsync(destination => destination.Id, destination => destination.Name, cancellationToken);
+
+        var answers = await sectionReader.ReadAsync(sources, cancellationToken);
+        return new DestinationSectionListResponse(
+        [
+            .. sources.Select((source, index) => mapper.ToDto(
+                source,
+                DestinationSectionGrouping.Group(answers[index].Categories, [.. mapped[source.Id]]),
+                destinationNames,
+                answers[index].Error)),
+        ]);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
-    // The rules a create and an update share, in their order: the name, the client picked, then the
-    // category's name.
-    private static string? Validate(string? name, Guid? downloadClientId, string? clientDestinationKey)
+    // The rules a create and an update share, in their order: the name, the client picked, the category's
+    // name, then (MAM-32) each section picked.
+    private static string? Validate(string? name, Guid? downloadClientId, string? clientDestinationKey, IReadOnlyList<DestinationSectionRequest?>? sections)
     {
         if (DestinationRules.ValidateName(name) is { } nameError)
             return nameError;
         if (downloadClientId is null)
             return DownloadClientMissingError;
-        return DestinationRules.ValidateClientDestinationKey(clientDestinationKey);
+        if (DestinationRules.ValidateClientDestinationKey(clientDestinationKey) is { } keyError)
+            return keyError;
+        foreach (var section in sections ?? [])
+        {
+            if (DestinationSectionRules.Validate(section?.ReleaseSourceId, section?.Name, section?.CategoryIds) is { } sectionError)
+                return sectionError;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// MAM-32 — the sections of a request the rules let through, one per category of a source: the first of
+    /// a category picked twice, which means the same either way — its releases go here. <c>null</c> when the
+    /// request left them out.
+    /// </summary>
+    private static List<PickedSection>? Pick(IReadOnlyList<DestinationSectionRequest?>? sections)
+    {
+        if (sections is null)
+            return null;
+
+        var picked = new List<PickedSection>();
+        var seen = new HashSet<(Guid SourceId, string CategoryId)>();
+        foreach (var section in sections)
+        {
+            foreach (var categoryId in section!.CategoryIds!)
+            {
+                if (seen.Add((section.ReleaseSourceId!.Value, categoryId!)))
+                    picked.Add(new PickedSection(section.ReleaseSourceId.Value, categoryId!, DestinationSectionRules.StoredName(section.Name!), section.IsSourceSpecific));
+            }
+        }
+
+        return picked;
+    }
+
+    // Not a release search integration is the same as none: only a release source has sections. A switched
+    // off one is still there: the owner may map its sections before switching it on.
+    private async Task<bool> AreSourcesThereAsync(IReadOnlyList<PickedSection>? sections, CancellationToken cancellationToken)
+    {
+        if (sections is not { Count: > 0 })
+            return true;
+
+        var sourceIds = sections.Select(section => section.SourceId).Distinct().ToList();
+        var found = await db.IntegrationConnections.CountAsync(
+            integration => sourceIds.Contains(integration.Id) && integration.Kind == IntegrationKind.ReleaseSearch, cancellationToken);
+        return found == sourceIds.Count;
     }
 
     // Not a download client is the same as none: a destination names a client's category, and only a
@@ -318,34 +398,109 @@ public sealed class DestinationService(
     }
 
     /// <summary>
-    /// Saves the change with its audit row. Decision 2 — a destination taking the default clears the old
-    /// one first, by a statement of its own in the same transaction: SQLite checks the partial unique
-    /// index as each row changes, not at commit, and two saves that each take the default run one after
-    /// the other (SQLite has one writer), the second clearing the first's. Disposed without a commit, the
-    /// transaction rolls both back. A save that leaves the default alone is the one statement batch
-    /// <c>SaveChanges</c> runs in its own transaction.
+    /// Saves the change with its audit row, and says whether there was one: MAM-4's rule — a save that
+    /// changes nothing records nothing, asked before the audit row is added, which is a change itself.
     /// </summary>
-    private async Task SaveAsync(DestinationMappingEntity destination, bool takesDefault, CancellationToken cancellationToken)
+    /// <remarks>
+    /// <para>
+    /// Decision 2 — a destination taking the default clears the old one first, by a statement of its own in
+    /// the same transaction: SQLite checks the partial unique index as each row changes, not at commit, and
+    /// two saves that each take the default run one after the other (SQLite has one writer), the second
+    /// clearing the first's. Disposed without a commit, the transaction rolls both back.
+    /// </para>
+    /// <para>
+    /// MAM-32 — <paramref name="sections"/>, when given, are mapped inside the same transaction, read and
+    /// changed under its write lock (<see cref="MapSectionsAsync"/>): read before it, a section another save
+    /// moved in between would be written back over what that save did.
+    /// </para>
+    /// <para>
+    /// A save that leaves the default and the sections alone is the one statement batch
+    /// <c>SaveChanges</c> runs in its own transaction.
+    /// </para>
+    /// </remarks>
+    private async Task<bool> SaveAsync(
+        DestinationMappingEntity destination,
+        bool takesDefault,
+        IReadOnlyList<PickedSection>? sections,
+        AuditAction action,
+        AuditActor actor,
+        CancellationToken cancellationToken)
     {
-        if (!takesDefault)
+        await using var transaction = takesDefault || sections is not null
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        if (sections is not null)
+            await MapSectionsAsync(destination, sections, cancellationToken);
+        if (!db.ChangeTracker.HasChanges())
+            return false;
+
+        auditTrail.Record(action, actor, AuditTarget.Destination(destination));
+        if (takesDefault)
         {
-            await db.SaveChangesAsync(cancellationToken);
-            return;
+            await db.DestinationMappings
+                .Where(other => other.IsDefault && other.Id != destination.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(other => other.IsDefault, false), cancellationToken);
         }
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await db.DestinationMappings
-            .Where(other => other.IsDefault && other.Id != destination.Id)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(other => other.IsDefault, false), cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    /// <summary>
+    /// MAM-32 — makes <paramref name="sections"/> the destination's own, tracked for the save: a section
+    /// mapped to another destination moves here — the row itself, as one section goes to one destination
+    /// (ADR 0020) —, one mapped here keeps its row with the name it is sent with, one mapped nowhere is
+    /// added, and every section of the destination not among them is taken off. Unchanged, it changes
+    /// nothing, so a save of the sections as they are records nothing.
+    /// </summary>
+    private async Task MapSectionsAsync(DestinationMappingEntity destination, IReadOnlyList<PickedSection> sections, CancellationToken cancellationToken)
+    {
+        var sourceIds = sections.Select(section => section.SourceId).Distinct().ToList();
+        var categoryIds = sections.Select(section => section.CategoryId).Distinct().ToList();
+        // The destination's own and every row of a picked category, wherever mapped; one row per category
+        // of a source (the unique index), so a key finds at most one.
+        var rows = (await db.DestinationSections
+                .AsTracking()
+                .Where(row => row.DestinationMappingId == destination.Id
+                    || (sourceIds.Contains(row.ReleaseSourceConnectionId) && categoryIds.Contains(row.CategoryId)))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(row => (row.ReleaseSourceConnectionId, row.CategoryId));
+
+        var now = time.GetUtcNow().UtcDateTime;
+        foreach (var section in sections)
+        {
+            if (rows.Remove((section.SourceId, section.CategoryId), out var row))
+            {
+                row.DestinationMappingId = destination.Id;
+                row.Name = section.Name;
+                row.IsSourceSpecific = section.IsSourceSpecific;
+                continue;
+            }
+
+            db.DestinationSections.Add(new DestinationSectionEntity
+            {
+                DestinationMappingId = destination.Id,
+                ReleaseSourceConnectionId = section.SourceId,
+                CategoryId = section.CategoryId,
+                Name = section.Name,
+                IsSourceSpecific = section.IsSourceSpecific,
+                CreatedUtc = now,
+            });
+        }
+
+        // What is left was read for a picked category of another source, or is the destination's own and
+        // not picked: only the latter goes.
+        db.DestinationSections.RemoveRange(rows.Values.Where(row => row.DestinationMappingId == destination.Id));
     }
 
     /// <summary>
     /// The answer to a save the database refused because another request got there first, or <c>null</c>
     /// when it was something else (a full disk), which stays a failure. The MAM-4 race: two saves of one
     /// name for one client can both pass the check, and the unique index lets only one commit; the client
-    /// removed between the check and the save breaks the foreign key instead.
+    /// removed between the check and the save breaks the foreign key instead — and so (MAM-32) does a
+    /// section's source removed then, or the edited destination itself, which a section added to it names.
     /// </summary>
     private async Task<DestinationChangeResult?> LostRaceAsync(
         DbUpdateException exception,
@@ -353,9 +508,18 @@ public sealed class DestinationService(
         string name,
         string normalizedName,
         Guid? exceptDestinationId,
+        IReadOnlyList<PickedSection>? sections,
         CancellationToken cancellationToken)
     {
         db.ChangeTracker.Clear();
+        // An added section's row can reach the database before the edit of its destination does, and fails
+        // on the key rather than finding no row to update: the same bare 404 either way.
+        if (exceptDestinationId is { } destinationId && !await db.DestinationMappings.AnyAsync(row => row.Id == destinationId, cancellationToken))
+        {
+            logger.LogInformation(exception, "Destination {DestinationId} was removed before this change of it was saved; nothing was saved.", destinationId);
+            return DestinationChangeResult.NotFound;
+        }
+
         if (await IsNameTakenAsync(client.Id, normalizedName, exceptDestinationId, cancellationToken))
         {
             logger.LogInformation(
@@ -368,6 +532,12 @@ public sealed class DestinationService(
             logger.LogInformation(
                 exception, "Integration {IntegrationId} was removed before this destination change was saved; nothing was saved.", client.Id);
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        }
+
+        if (!await AreSourcesThereAsync(sections, cancellationToken))
+        {
+            logger.LogInformation(exception, "A release source was removed before this destination change was saved; nothing was saved.");
+            return DestinationChangeResult.SourceMissing(SourceGoneError);
         }
 
         return null;
@@ -385,4 +555,8 @@ public sealed class DestinationService(
 
     /// <summary>A destination and the name of its download client, read together.</summary>
     private sealed record DestinationRow(DestinationMappingEntity Destination, string ClientName);
+
+    /// <summary>MAM-32 — one category of a release source a save maps to the destination, with the name and
+    /// rank of the section it was picked in.</summary>
+    private sealed record PickedSection(Guid SourceId, string CategoryId, string Name, bool IsSourceSpecific);
 }

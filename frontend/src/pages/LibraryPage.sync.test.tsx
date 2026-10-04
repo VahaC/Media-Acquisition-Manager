@@ -91,8 +91,8 @@ describe('LibraryPage while a sync runs', () => {
     await nextPoll()
 
     // Assert
-    expect(await screen.findByText(/^Synced .*: read 120 movies into 118 works, 120 versions, 120 files\.$/)).toBeInTheDocument()
-    expect(progress).toBe('Syncing… 50 of 120 movies')
+    expect(await screen.findByText(/^Synced .*: read 120 items into 118 works, 120 versions, 120 files\.$/)).toBeInTheDocument()
+    expect(progress).toBe('Syncing… 50 of 120 items')
     expect(worksWhileRunning).toBe(1)
     await vi.waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(2))
     expect(libraryApi.locations).toHaveBeenCalledTimes(2)
@@ -102,7 +102,7 @@ describe('LibraryPage while a sync runs', () => {
     // Arrange
     latestRunIs(running)
     renderPage()
-    await screen.findByText('Syncing… 50 of 120 movies')
+    await screen.findByText('Syncing… 50 of 120 items')
     latestRunIs(succeeded)
     await nextPoll()
     await screen.findByText(/^Synced /)
@@ -122,7 +122,7 @@ describe('LibraryPage while a sync runs', () => {
     // Arrange
     latestRunIs(running)
     renderPage()
-    await screen.findByText('Syncing… 50 of 120 movies')
+    await screen.findByText('Syncing… 50 of 120 items')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     latestRunIs(failed)
 
@@ -168,7 +168,7 @@ describe('LibraryPage while a sync runs', () => {
     await user.click(await screen.findByRole('button', { name: 'Sync now' }))
 
     // Assert
-    expect(await screen.findByText(/read 120 movies into 118 works/)).toBeInTheDocument()
+    expect(await screen.findByText(/read 120 items into 118 works/)).toBeInTheDocument()
     await vi.waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(2))
     expect(libraryApi.sources).toHaveBeenCalledTimes(2)
   })
@@ -184,7 +184,7 @@ describe('LibraryPage while a sync runs', () => {
     await nextPoll()
     vi.mocked(libraryApi.sources).mockResolvedValue(twoSources({ ...running, itemsRead: 100 }))
     await nextPoll()
-    await screen.findByText('Syncing… 100 of 120 movies')
+    await screen.findByText('Syncing… 100 of 120 items')
     const worksWhileRunning = vi.mocked(libraryApi.works).mock.calls.length
     const locationsWhileRunning = vi.mocked(libraryApi.locations).mock.calls.length
     vi.mocked(libraryApi.sources).mockResolvedValue(twoSources(succeeded))
@@ -193,7 +193,7 @@ describe('LibraryPage while a sync runs', () => {
     await nextPoll()
 
     // Assert
-    expect(await screen.findByText(/read 120 movies into 118 works/)).toBeInTheDocument()
+    expect(await screen.findByText(/read 120 items into 118 works/)).toBeInTheDocument()
     expect(worksWhileRunning).toBe(1)
     expect(locationsWhileRunning).toBe(1)
     await vi.waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(2))
@@ -208,7 +208,7 @@ describe('LibraryPage while a sync runs', () => {
     vi.mocked(libraryApi.sources).mockResolvedValue(twoSources(running))
     vi.mocked(libraryApi.startSync).mockResolvedValue(queued)
     const { user } = renderPage()
-    await screen.findByText('Syncing… 50 of 120 movies')
+    await screen.findByText('Syncing… 50 of 120 items')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     let answerPoll: (list: LibrarySourceList) => void = () => {}
     let answerRefetch: (list: LibrarySourceList) => void = () => {}
@@ -230,7 +230,7 @@ describe('LibraryPage while a sync runs', () => {
     await act(async () => answerRefetch(twoSources(succeeded, queued)))
 
     // Assert
-    expect(await screen.findByText(/read 120 movies into 118 works/)).toBeInTheDocument()
+    expect(await screen.findByText(/read 120 items into 118 works/)).toBeInTheDocument()
     await vi.waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(2))
     await nextPoll()
     expect(libraryApi.works).toHaveBeenCalledTimes(2)

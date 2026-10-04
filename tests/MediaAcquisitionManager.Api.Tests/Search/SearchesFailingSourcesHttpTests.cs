@@ -307,7 +307,7 @@ public sealed class SearchesFailingSourcesHttpTests : IClassFixture<MediaAcquisi
                 ("Orphan", (IntegrationCallStatus?)null, (ReleaseSourceNotSearchedReason?)ReleaseSourceNotSearchedReason.TypeUnavailable,
                     (string?)"This version of the app can't search releases through “gone-type”."),
                 ("Toloka", null, ReleaseSourceNotSearchedReason.NoUsableSearch,
-                    "“Toloka” offers no search this app can use: no search by text, and no movie search by title or by an id that was asked for."),
+                    "“Toloka” offers no search this app can use: no search by text, and no movie or TV search by title or by an id that was asked for."),
                 ("Unreadable", null, ReleaseSourceNotSearchedReason.SecretUnreadable,
                     "The stored API key of “Unreadable” can't be read with this installation's encryption key. Enter the API key again and save."),
             ],

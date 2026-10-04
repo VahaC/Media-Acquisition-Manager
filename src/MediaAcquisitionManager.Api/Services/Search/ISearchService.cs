@@ -14,15 +14,17 @@ public interface ISearchService
     /// and asks every enabled release source, the two at once; stores the search, how each
     /// source answered and every release found, linked to its source; and removes what is more than a day
     /// old on the way. <see cref="SearchCreateStatus.Invalid"/>, with nothing stored and no source asked,
-    /// for a missing or too long title, a year that isn't one, or an id that isn't an IMDb or a TMDb id.
-    /// The sentence of a failed source, and a file's path problem, only when <paramref name="callerUserId"/>
-    /// is the installation owner.
+    /// for a missing or too long title, a year that isn't one, an id that isn't an IMDb or a TMDb id, or
+    /// (MAM-32) a season that isn't one. MAM-32 — a <paramref name="season"/> is stored with the search
+    /// and searched for in TV alone. The sentence of a failed source, and a file's path problem, only when
+    /// <paramref name="callerUserId"/> is the installation owner.
     /// </summary>
     Task<SearchCreateResult> CreateAsync(
         string? text,
         string? year,
         string? imdbId,
         string? tmdbId,
+        string? season,
         Guid callerUserId,
         CancellationToken cancellationToken = default);
 
@@ -35,16 +37,19 @@ public interface ISearchService
 
     /// <summary>
     /// One page of the caller's search's releases, filtered by <paramref name="source"/> (a search source
-    /// id), <paramref name="language"/> (a claimed audio language, or <c>unknown</c>),
-    /// <paramref name="quality"/> (a claimed resolution, or <c>unknown</c>) and the size bounds, ordered by
-    /// <paramref name="sort"/> (<c>SearchReleaseListRules</c>); each with the search's library works it
-    /// matches. <see cref="SearchReleaseListStatus.NotFound"/> as <see cref="GetAsync"/>, checked first;
-    /// then <see cref="SearchReleaseListStatus.Invalid"/> for a page below 1, a page size outside 1 to 100,
-    /// or a filter or an order the list doesn't take.
+    /// id), MAM-32 — <paramref name="kind"/> (<c>Movie</c> or <c>Tv</c>), <paramref name="language"/> (a
+    /// claimed audio language, or <c>unknown</c>), <paramref name="quality"/> (a claimed resolution, or
+    /// <c>unknown</c>) and the size bounds, ordered by <paramref name="sort"/>
+    /// (<c>SearchReleaseListRules</c>); each with the search's library works of its kind it matches —
+    /// MAM-32, a TV release's with how many of the episodes it claims the library holds.
+    /// <see cref="SearchReleaseListStatus.NotFound"/> as <see cref="GetAsync"/>, checked first; then
+    /// <see cref="SearchReleaseListStatus.Invalid"/> for a page below 1, a page size outside 1 to 100, or a
+    /// filter or an order the list doesn't take.
     /// </summary>
     Task<SearchReleaseListResult> ListReleasesAsync(
         Guid id,
         string? source,
+        string? kind,
         string? language,
         string? quality,
         string? minSizeBytes,

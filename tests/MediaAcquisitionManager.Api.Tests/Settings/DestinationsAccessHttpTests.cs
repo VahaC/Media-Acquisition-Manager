@@ -14,12 +14,14 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 
 // MAM-11 — who may call the Destinations endpoints at all: a signed-in user who owns the installation —
 // for the reads too, as a row quotes the client's folders and the owner's path mappings, and a read asks
-// the download client with its stored credentials. Every case runs against every endpoint.
+// the download client (and, MAM-32, the release sources) with its stored credentials. Every case runs
+// against every endpoint.
 public sealed class DestinationsAccessHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/destinations";
     private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
     private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private const string TolokaAddress = "http://prowlarr.test:9696/1/api";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
@@ -37,6 +39,7 @@ public sealed class DestinationsAccessHttpTests : IClassFixture<MediaAcquisition
         { "GET", "" },
         { "GET", "/{id}" },
         { "GET", "/client-destinations/{clientId}" },
+        { "GET", "/sections" },
         { "POST", "" },
         { "PUT", "/{id}" },
         { "DELETE", "/{id}" },
@@ -52,6 +55,8 @@ public sealed class DestinationsAccessHttpTests : IClassFixture<MediaAcquisition
         _member = await _users.CreateAuthorized("member");
         // Armed to answer, so a request that got through would show as a call.
         new FakeQBittorrentServer().Arm(_factory.QBittorrentHttp);
+        new FakeTorznabServer(TolokaAddress).Arm(_factory.TorznabHttp);
+        await _integrations.Create("torznab", "Toloka", TolokaAddress, apiKey: "planted-torznab-key-0001");
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -71,6 +76,7 @@ public sealed class DestinationsAccessHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal(SignInRequiredBody, await response.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(_factory.QBittorrentHttp.Requests);
+        Assert.Empty(_factory.TorznabHttp.Requests);
     }
 
     [Theory]
@@ -97,8 +103,9 @@ public sealed class DestinationsAccessHttpTests : IClassFixture<MediaAcquisition
             Assert.True(row.IsDefault);
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
         });
-        // Not asked either: a read sends the stored credentials to the client.
+        // Not asked either: a read sends the stored credentials to the client, or to the release source.
         Assert.Empty(_factory.QBittorrentHttp.Requests);
+        Assert.Empty(_factory.TorznabHttp.Requests);
     }
 
     [Fact]

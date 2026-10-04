@@ -3,8 +3,8 @@
 Real answers from the reference installation, collected on 2026-09-29 for MAM-6, so the connection
 tests of MAM-7 and the adapters of MAM-8 to MAM-11 are tested against what the services actually send
 rather than against their documentation. MAM-17 added Jellyfin's series, seasons and episodes on
-2026-10-04, from the same Jellyfin, for the import of MAM-32. `RepositoryPaths.VendorSamples` points
-here.
+2026-10-04, from the same Jellyfin, for the import of MAM-32; MAM-32 added Prowlarr's Toloka TV searches
+on the same day. `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
 | --- | --- |
@@ -52,6 +52,9 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Torznab/prowlarr-toloka-caps.xml` | `GET /1/api?t=caps` | Toloka's categories and search modes |
 | `Torznab/prowlarr-toloka-search.xml` | `GET /1/api?t=search&q=Interstellar` | 17 releases, not all of them movies |
 | `Torznab/prowlarr-toloka-movie-search.xml` | `GET /1/api?t=movie&q=Interstellar` | The same releases through the movie search, this time with topic links that carry no `sid` |
+| `Torznab/prowlarr-toloka-tv-search.xml` | `GET /1/api?t=tvsearch&q=Yellowstone` (2026-10-04, MAM-32) | 9 releases: Yellowstone (2018) whole and season by season in TV (`5000`) and TV/HD (`5040`); a BBC documentary of the same title, "Yellowstone (S1) (2009)", and two other documentaries holding the word, in TV/Documentary (`5080`). Its topic links carry `sid=REDACTED` |
+| `Torznab/prowlarr-toloka-tv-season-search.xml` | The same with `&season=1` | The first six of those releases: Toloka barely narrows by the season |
+| `Torznab/prowlarr-toloka-tv-cartoon-search.xml` | `GET /1/api?t=tvsearch&q=Mickey Mouse Clubhouse` | 4 releases of a cartoon series in TV and TV/HD, filed in Toloka's two «Мультсеріали» sections (`100044`, `100174`) |
 | `Torznab/prowlarr-wrong-key-response.txt` | `GET /1/api?t=caps`, `GET /1/api?t=search&q=Interstellar` and `GET /1/download?link=x`, each with a wrong `apikey` (2026-10-01, MAM-10) | The status line and headers of the one answer all three got: a bare 401 with no body. Read by `VendorResponses.Recorded` |
 | `Ffprobe/the-continental-s01e01.json` | `ffprobe -show_format -show_streams -show_chapters` | HEVC Main 10, four audio and four subtitle tracks, eight chapters |
 | `Ffprobe/taken-2008-bdremux.json` | the same | H.264 remux, DTS and AC-3 tracks, text and PGS subtitles, 24 chapters |
@@ -148,6 +151,14 @@ The four movies in `movies-page.json`:
   specification describes. The adapter reads both as a refused key. The search asks for the movie
   categories only (the standard `2000`–`2999`) and keeps a release that lists one of them, so the
   audio-only one is left out and the phone rip stays: it is filed under `2000`.
+- **Prowlarr rewrites Toloka's TV titles** (MAM-32). Toloka's "Єллоустоун (Сезони 1-5) / Yellowstone
+  (Seasons 1-5) (2018-2024) WEB-DL-AVC …" arrives as "Yellowstone (S1-5) (2018-2024) WEB-DL-AVC …": the
+  Ukrainian title is left out (it stays in `<description>`), the seasons become `S1-5` or `S5`, and
+  most titles repeat that marker at the end, "… WEB-DL 1080p (S5)". The year of a season pack is its
+  seasons' span ("Yellowstone (S5) (2022-2024)") or one year ("(S4) (2021)"), not the year the show
+  began. None of the TV releases gives an IMDb, TMDb or TVDB id, so they match the library by their
+  titles and years alone; the documentary "Yellowstone (S1) (2009)" has the title of the 2018 show and
+  only its year tells them apart.
 - **ffprobe reports cover art as a video stream** (`mjpeg` with `disposition.attached_pic: 1`),
   after the real video stream; it is not a second video track.
 - **A 10-bit stream need not say whether it is HDR** (MAM-9). The Continental's HEVC Main 10 video

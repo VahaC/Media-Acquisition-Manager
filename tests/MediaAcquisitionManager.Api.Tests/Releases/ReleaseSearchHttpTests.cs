@@ -185,7 +185,7 @@ public sealed class ReleaseSearchHttpTests : IClassFixture<MediaAcquisitionManag
     }
 
     [Fact]
-    public async Task Search_sends_the_title_and_year_to_the_movie_search_in_the_movie_categories()
+    public async Task Search_sends_the_title_and_year_to_the_movie_search_and_the_title_to_the_tv_search_each_in_its_categories()
     {
         //Arrange
         await _integrations.Create("torznab", "Toloka", FeedAddress, apiKey: ApiKey);
@@ -195,12 +195,14 @@ public sealed class ReleaseSearchHttpTests : IClassFixture<MediaAcquisitionManag
         await _factory.PostHttpRequest(BaseUrl, _member.AccessToken, new ReleaseSearchRequest(" Interstellar ", "2014", "tt0816692", "157336"));
 
         //Assert
-        // The capabilities, then one search: Toloka's movie search takes only text, so the ids stay
-        // home, the year goes into the text, and the first query found releases.
+        // The capabilities, then one movie search: Toloka's movie search takes only text, so the ids stay
+        // home, the year goes into the text, and the first query found releases. MAM-32 — then its TV
+        // search, by the title without the year (ADR 0020), in the TV categories.
         Assert.Equal(
             [
                 $"{FeedAddress}?t=caps&apikey={ApiKey}",
                 $"{FeedAddress}?t=movie&apikey={ApiKey}&q=Interstellar%202014&cat=2000,2020,2040,2070&limit=100",
+                $"{FeedAddress}?t=tvsearch&apikey={ApiKey}&q=Interstellar&cat=5000,5040,5050,5060,5070,5080&limit=100",
             ],
             _factory.TorznabHttp.Requests.Select(request => request.Uri.AbsoluteUri));
     }
@@ -271,11 +273,13 @@ public sealed class ReleaseSearchHttpTests : IClassFixture<MediaAcquisitionManag
         //Assert
         var body = await response.Content.ReadFromJsonAsync<ReleaseSearchResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         Assert.Equal(TorznabSamples.ItemCount - TorznabSamples.NonMovieItemCount, Assert.Single(body!.Sources).Releases.Count);
+        // MAM-32 — then the TV search, which the movie tiers' answers don't stop.
         Assert.Equal(
-            ["t=caps", "q=Interstellar%202014", "q=Interstellar&"],
+            ["t=caps", "q=Interstellar%202014", "q=Interstellar&", "t=tvsearch"],
             _factory.TorznabHttp.Requests.Select(request => request.Uri.Query switch
             {
                 var query when query.Contains("t=caps", StringComparison.Ordinal) => "t=caps",
+                var query when query.Contains("t=tvsearch", StringComparison.Ordinal) => "t=tvsearch",
                 var query when query.Contains("q=Interstellar%202014", StringComparison.Ordinal) => "q=Interstellar%202014",
                 var query when query.Contains("q=Interstellar&", StringComparison.Ordinal) => "q=Interstellar&",
                 var query => query,

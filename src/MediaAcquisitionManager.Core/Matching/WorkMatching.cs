@@ -18,7 +18,8 @@ namespace MediaAcquisitionManager.Core.Matching;
 /// <para>
 /// Identifiers compare by scheme and by value trimmed, in any letter case (<c>tt0090605</c> is
 /// <c>TT0090605</c>), the <see cref="Library.LibraryWorkGrouping"/> rule; a blank value names nothing.
-/// Titles compare by <see cref="TitleMatchKey"/> and years exactly. Nothing else is looked at — no
+/// Titles compare by <see cref="TitleMatchKey"/>, and years by the claim's <see cref="ClaimedYears"/>:
+/// one year exactly — MAM-32, or the years a TV release's seasons allow. Nothing else is looked at — no
 /// distance between titles, no year ± 1: a weaker look-alike is not a match.
 /// </para>
 /// <para>
@@ -46,7 +47,7 @@ public static class WorkMatching
 
         var claimedKeys = claim.Titles.Select(TitleMatchKey.For).Where(key => key.Length > 0).ToHashSet(StringComparer.Ordinal);
         var matchedTitles = titles.Where(title => claimedKeys.Contains(TitleMatchKey.For(title.Text))).ToList();
-        var matchedWithYear = claim.Year is { } year ? matchedTitles.Where(title => title.Year == year).ToList() : [];
+        var matchedWithYear = claim.Years is { } years ? matchedTitles.Where(title => years.Holds(title.Year)).ToList() : [];
 
         var conflicts = ConflictingSchemes(claim.Identifiers, identifiers);
         if (matchedIdentifiers.Count > 0)

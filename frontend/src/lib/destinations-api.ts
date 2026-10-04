@@ -4,6 +4,7 @@ import type {
   CreateDestinationRequest,
   Destination,
   DestinationList,
+  DestinationSectionList,
   DestinationsQuery,
   UpdateDestinationRequest,
 } from './types'
@@ -27,9 +28,10 @@ export const destinationsApi = {
   /**
    * `POST /api/settings/destinations`. 201 with the new destination, once the client has confirmed
    * the category. 400 `{ error }` names the rule that failed; 404 `{ error }` when the client is not a
-   * download client integration; 409 `{ error }` when the name is taken for that client, the client
-   * is switched off or can't be used, or it has no such category; 502 `{ error }` with the client's
-   * own sentence when it couldn't be asked.
+   * download client integration, or — MAM-32 — a section's release source no longer exists; 409
+   * `{ error }` when the name is taken for that client, the client is switched off or can't be used,
+   * or it has no such category; 502 `{ error }` with the client's own sentence when it couldn't be
+   * asked.
    */
   create: async (request: CreateDestinationRequest): Promise<Destination> =>
     (await api.post<Destination>(BASE_URL, request)).data,
@@ -37,7 +39,7 @@ export const destinationsApi = {
   /**
    * `PUT /api/settings/destinations/{id}`. 204; a bare 404 when the destination is gone; otherwise
    * the failures of `create`. Only a new client or category asks the client again: a new name or the
-   * default alone doesn't.
+   * default alone doesn't. MAM-32 — `sections` replaces the destination's own; left out keeps them.
    */
   update: async (id: string, request: UpdateDestinationRequest): Promise<void> => {
     await api.put(`${BASE_URL}/${id}`, request)
@@ -59,4 +61,13 @@ export const destinationsApi = {
    */
   clientDestinations: async (downloadClientId: string): Promise<ClientDestinationList> =>
     (await api.get<ClientDestinationList>(`${BASE_URL}/client-destinations/${downloadClientId}`)).data,
+
+  /**
+   * MAM-32 — `GET /api/settings/destinations/sections`: every release source's sections, each with
+   * the destination it is mapped to. Every enabled source is asked live; 200 whatever they said — a
+   * source that couldn't be asked carries its sentence in `error`, with the sections already mapped
+   * of it. Whole, never paged.
+   */
+  sections: async (): Promise<DestinationSectionList> =>
+    (await api.get<DestinationSectionList>(`${BASE_URL}/sections`)).data,
 }

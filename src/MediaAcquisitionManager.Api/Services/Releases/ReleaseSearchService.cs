@@ -21,14 +21,15 @@ public sealed class ReleaseSearchService(
         string? year,
         string? imdbId,
         string? tmdbId,
+        string? season,
         Guid callerUserId,
         CancellationToken cancellationToken = default)
     {
-        if (ReleaseSearchTerms.Read(text, year, imdbId, tmdbId, out var terms) is { } error)
+        if (ReleaseSearchTerms.Read(text, year, imdbId, tmdbId, season, out var terms) is { } error)
             return ReleaseSearchResult.Invalid(error);
 
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
-        var outcomes = await sources.SearchAsync(terms!.Text, terms.Year, terms.Identifiers, cancellationToken);
+        var outcomes = await sources.SearchAsync(terms!.Text, terms.Year, terms.Season, terms.Identifiers, cancellationToken);
 
         var stored = await store.StoreAsync(outcomes, search: null, cancellationToken);
         await store.PruneAsync(cancellationToken);

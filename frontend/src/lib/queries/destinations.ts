@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { destinationsApi } from '../destinations-api'
 import type { CreateDestinationRequest, DestinationsQuery, UpdateDestinationRequest } from '../types'
 import { qk } from './keys'
@@ -36,15 +36,28 @@ export const useClientDestinations = (downloadClientId: string) =>
   })
 
 /**
+ * MAM-32 — the release sources' sections, for the destination dialog's picker. Asked live each time
+ * the dialog opens (every enabled source is asked for its categories), and never retried: a source
+ * that couldn't be asked is already in the 200 with its sentence.
+ */
+export const useDestinationSections = () =>
+  useQuery({
+    queryKey: qk.settings.destinations.sections,
+    queryFn: () => destinationsApi.sections(),
+    retry: false,
+  })
+
+/**
  * The destination mutations. Each refetches the list before it resolves, so the dialog closes onto
  * the updated rows — the default badge moved off another row included — rather than onto the old
  * ones for a moment. None touches the clients' categories: a destination changes nothing in a client.
+ * MAM-32 — each drops the sections too: a save moves them, and a removal frees its own.
  */
 export const useCreateDestination = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: CreateDestinationRequest) => destinationsApi.create(request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.destinations.lists }),
+    onSuccess: () => invalidateDestinations(queryClient),
   })
 }
 
@@ -53,7 +66,7 @@ export const useUpdateDestination = () => {
   return useMutation({
     mutationFn: ({ id, request }: { id: string; request: UpdateDestinationRequest }) =>
       destinationsApi.update(id, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.destinations.lists }),
+    onSuccess: () => invalidateDestinations(queryClient),
   })
 }
 
@@ -61,6 +74,15 @@ export const useDeleteDestination = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => destinationsApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.destinations.lists }),
+    onSuccess: () => invalidateDestinations(queryClient),
   })
+}
+
+/**
+ * The lists, waited for so the dialog closes onto the new rows, and the sections, dropped without
+ * waiting: they are asked of every source, and only the next dialog reads them.
+ */
+async function invalidateDestinations(queryClient: QueryClient) {
+  void queryClient.invalidateQueries({ queryKey: qk.settings.destinations.sections })
+  await queryClient.invalidateQueries({ queryKey: qk.settings.destinations.lists })
 }

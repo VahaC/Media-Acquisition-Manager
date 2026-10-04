@@ -240,3 +240,34 @@ back, before qBittorrent is asked), and
 `DownloadsSecretsHttpTests.No_answer_log_job_or_audit_row_of_a_download_carries_a_planted_secret`
 plants the key, Prowlarr's link token and a magnet's tracker passkey and finds none in an answer, the
 log, a job or an audit row.
+
+## Toloka's TV search (added 0.2.0, MAM-32)
+
+**Toloka is searched for TV too, through the same endpoint.** The Decision's "Toloka's movie search
+takes only `q`" still holds; its caps also offer a TV search (`tv-search`) that takes `q`, `season`
+and `ep`. Every search now sends it `t=tvsearch&q=<title>` in the TV categories after the movie
+search — or alone, with `&season=N`, when a season is asked for — and never `ep`
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+The MAM-10 section's "Movies only, by category" now holds for the movie queries; the TV queries send
+and keep the TV categories (5000 to 5999: 5000, 5040, 5050, 5060, 5070 and 5080 for Toloka) the same
+way, up to 100 releases of their own. Prowlarr answered three such searches on 2026-10-04
+(`prowlarr-toloka-tv-search.xml`, `prowlarr-toloka-tv-season-search.xml` and
+`prowlarr-toloka-tv-cartoon-search.xml`): it rewrites Toloka's TV titles to "Yellowstone (S1-5)
+(2018-2024) …", keeps the Ukrainian title only in `<description>`, files each release in TV (5000),
+TV/HD (5040) or TV/Documentary (5080) beside one of Toloka's own sections (ids of 100000 and up),
+and gives no IMDb, TMDb or TVDB id, so TV releases too match by their titles and years alone.
+`season=1` left 6 of the 9 Yellowstone releases.
+
+**The links stay behind as before.** The TV answer's topic links carry the forum session (`sid`) as
+the `t=search` answer's do, and lose it the same way before they are stored, logged or shown; its
+download links are Prowlarr's, fetched by the server when a release is sent, whether it is a movie
+or TV.
+
+`TorznabAdapterCapabilitiesTests.GetCapabilities_reads_the_caps_sample` pins the TV search and the
+TV and own categories Toloka offers, `TorznabAdapterTests.TestConnection_reads_the_caps_sample_as_movie_search_by_title_and_tv_search_by_title_season_and_episode`
+the connection test's sentence, and
+`ReleaseSearchTvHttpTests.Search_of_a_season_sends_the_tv_search_alone_with_the_season` the request
+on the wire. `ReleaseSearchHttpTests.Search_sends_the_title_and_year_to_the_movie_search_in_the_movie_categories`,
+named in the MAM-10 section above, is now
+`ReleaseSearchHttpTests.Search_sends_the_title_and_year_to_the_movie_search_and_the_title_to_the_tv_search_each_in_its_categories`:
+the same movie query, then the TV query by the title alone.

@@ -40,7 +40,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
     private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, ApiKey);
 
-    private static readonly LibraryPageRequest FirstPage = new(0, 50);
+    private static readonly LibraryPageRequest FirstPage = new(MediaWorkKind.Movie, 0, 50);
 
     private readonly IntegrationAdapterHarness _harness = new();
     private readonly FakeJellyfinServer _server = new(BaseUrl);
@@ -235,7 +235,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         _server.Arm(_harness.JellyfinHttp);
 
         //Act
-        await Library.ListItemsAsync(Settings, new LibraryPageRequest(49, 50), TestContext.Current.CancellationToken);
+        await Library.ListItemsAsync(Settings, new LibraryPageRequest(MediaWorkKind.Movie, 49, 50), TestContext.Current.CancellationToken);
 
         //Assert
         var request = Assert.Single(_harness.JellyfinHttp.Requests);
@@ -291,7 +291,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         _server.Arm(_harness.JellyfinHttp);
 
         //Act
-        var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(startIndex, limit), TestContext.Current.CancellationToken);
+        var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(MediaWorkKind.Movie, startIndex, limit), TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -312,7 +312,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         // Overlapping by one, the way a sync reads (ADR 0008).
         var pages = new List<LibraryItemPage>();
         foreach (var startIndex in (int[])[0, 49, 98])
-            pages.Add((await Library.ListItemsAsync(Settings, new LibraryPageRequest(startIndex, 50), cancellationToken)).Value!);
+            pages.Add((await Library.ListItemsAsync(Settings, new LibraryPageRequest(MediaWorkKind.Movie, startIndex, 50), cancellationToken)).Value!);
 
         //Assert
         Assert.Equal([50, 50, 22], pages.Select(page => page.Items.Count));
@@ -357,7 +357,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         ArmBody("""{"Items":[],"TotalRecordCount":870,"StartIndex":900}""");
 
         //Act
-        var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(900, 50), TestContext.Current.CancellationToken);
+        var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(MediaWorkKind.Movie, 900, 50), TestContext.Current.CancellationToken);
 
         //Assert
         // Whether that is the end or a library that shrank is the sync's decision.
@@ -904,7 +904,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
 
         //Act
         var exception = await Record.ExceptionAsync(() =>
-            Library.ListItemsAsync(Settings, new LibraryPageRequest(startIndex, limit), TestContext.Current.CancellationToken));
+            Library.ListItemsAsync(Settings, new LibraryPageRequest(MediaWorkKind.Movie, startIndex, limit), TestContext.Current.CancellationToken));
 
         //Assert
         Assert.IsType<ArgumentOutOfRangeException>(exception);
@@ -918,7 +918,7 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
         _server.Arm(_harness.JellyfinHttp);
 
         //Act
-        var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(0, JellyfinAdapter.MaximumPageSize), TestContext.Current.CancellationToken);
+        var result = await Library.ListItemsAsync(Settings, new LibraryPageRequest(MediaWorkKind.Movie, 0, JellyfinAdapter.MaximumPageSize), TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);

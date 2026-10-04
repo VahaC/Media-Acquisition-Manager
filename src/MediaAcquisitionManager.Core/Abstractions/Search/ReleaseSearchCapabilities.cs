@@ -11,6 +11,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// <param name="ResultLimit">The most releases one search may ask for; <c>null</c> when the source
 /// doesn't say (MAM-10).</param>
 /// <param name="Categories">The source's categories.</param>
+/// <param name="TvSearch">Its dedicated TV search (MAM-32); <c>null</c> when it has none.</param>
 public sealed record ReleaseSearchCapabilities(
     bool HasTextSearch,
     bool HasMovieSearch,
@@ -18,4 +19,5 @@ public sealed record ReleaseSearchCapabilities(
     IReadOnlyList<MediaIdentifierScheme> MovieSearchIdentifierSchemes,
     bool MovieSearchTakesYear,
     int? ResultLimit,
-    IReadOnlyList<ReleaseCategory> Categories);
+    IReadOnlyList<ReleaseCategory> Categories,
+    ReleaseTvSearchCapabilities? TvSearch = null);

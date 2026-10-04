@@ -33,23 +33,40 @@ namespace MediaAcquisitionManager.Core.Library;
 /// the groups themselves are ordered by <see cref="LibraryItem.SourceItemId"/> (ordinal, the groups by
 /// their first item), whatever order the items came in.
 /// </para>
+/// <para>
+/// MAM-32 — the rule runs on the items of one kind at a time (the snapshot store groups movies, series
+/// and episodes apart), so a movie and a series sharing a number are never one work (ADR 0017). An
+/// episode's series' ids with its numbers are identifiers of it too: the caller adds them as further
+/// keys (<c>Group(items, moreKeys)</c>),
+/// so the two halves of an episode are one work, and two episodes carrying one episode's ids under
+/// different numbers are two.
+/// </para>
 /// </remarks>
 public static class LibraryWorkGrouping
 {
     /// <summary>The works <paramref name="items"/> make, each with its items, as the rule above
     /// decides.</summary>
-    public static IReadOnlyList<LibraryWorkGroup> Group(IReadOnlyList<LibraryItem> items)
+    public static IReadOnlyList<LibraryWorkGroup> Group(IReadOnlyList<LibraryItem> items) => Group(items, _ => []);
+
+    /// <summary>
+    /// The works <paramref name="items"/> make, with <paramref name="moreKeys"/> of each item counted as
+    /// identifiers beside its own: a key names a scheme of its own, never one of
+    /// <see cref="MediaIdentifierScheme"/>'s (MAM-32: an episode's position in its series).
+    /// </summary>
+    public static IReadOnlyList<LibraryWorkGroup> Group(
+        IReadOnlyList<LibraryItem> items, Func<LibraryItem, IEnumerable<(string Key, string Value)>> moreKeys)
     {
         ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(moreKeys);
 
         // Sorted first, so every index below — and with it the order of the groups and of the items in
         // them — is the same whatever order the library listed the items in.
         var ordered = items.OrderBy(item => item.SourceItemId, StringComparer.Ordinal).ToList();
-        var identifiers = ordered.Select(IdentifiersOf).ToList();
+        var identifiers = ordered.Select(item => IdentifiersOf(item, moreKeys(item))).ToList();
 
         var groups = new List<List<int>>();
         var parent = Enumerable.Range(0, ordered.Count).ToArray();
-        var firstHolder = new Dictionary<(MediaIdentifierScheme, string), int>();
+        var firstHolder = new Dictionary<(string, string), int>();
         var linked = new List<int>();
         for (var index = 0; index < ordered.Count; index++)
         {
@@ -87,28 +104,28 @@ public static class LibraryWorkGrouping
     }
 
     /// <summary>
-    /// The item's identifiers by scheme, each value trimmed and upper-cased (so letter case never makes
-    /// two values of one id); empty when it has none, <c>null</c> when it names two values of one
-    /// scheme itself — an item that contradicts itself can't be matched to anything.
+    /// The item's identifiers and further keys by scheme, each value trimmed and upper-cased (so letter
+    /// case never makes two values of one id); empty when it has none, <c>null</c> when it names two
+    /// values of one scheme itself — an item that contradicts itself can't be matched to anything.
     /// </summary>
-    private static Dictionary<MediaIdentifierScheme, string>? IdentifiersOf(LibraryItem item)
+    private static Dictionary<string, string>? IdentifiersOf(LibraryItem item, IEnumerable<(string Key, string Value)> moreKeys)
     {
-        var identifiers = new Dictionary<MediaIdentifierScheme, string>();
-        foreach (var identifier in item.Identifiers)
+        var identifiers = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (scheme, raw) in item.Identifiers.Select(identifier => (identifier.Scheme.ToString(), identifier.Value)).Concat(moreKeys))
         {
-            var value = identifier.Value.Trim().ToUpperInvariant();
+            var value = raw.Trim().ToUpperInvariant();
             // A blank value names nothing, so it links to nothing either.
             if (value.Length == 0)
                 continue;
-            if (identifiers.TryGetValue(identifier.Scheme, out var known) && !string.Equals(known, value, StringComparison.Ordinal))
+            if (identifiers.TryGetValue(scheme, out var known) && !string.Equals(known, value, StringComparison.Ordinal))
                 return null;
-            identifiers[identifier.Scheme] = value;
+            identifiers[scheme] = value;
         }
 
         return identifiers;
     }
 
-    private static bool IsConsistent(List<int> component, List<Dictionary<MediaIdentifierScheme, string>?> identifiers) =>
+    private static bool IsConsistent(List<int> component, List<Dictionary<string, string>?> identifiers) =>
         component
             .SelectMany(index => identifiers[index]!)
             .GroupBy(identifier => identifier.Key)
@@ -116,7 +133,7 @@ public static class LibraryWorkGrouping
 
     /// <summary>The groups of a component with two values of one scheme: its maximal identifier sets,
     /// the items that fit exactly one of them, and the rest alone.</summary>
-    private static List<List<int>> Split(List<int> component, List<Dictionary<MediaIdentifierScheme, string>?> identifiers)
+    private static List<List<int>> Split(List<int> component, List<Dictionary<string, string>?> identifiers)
     {
         var sets = component
             .Select(index => identifiers[index]!)
@@ -145,13 +162,13 @@ public static class LibraryWorkGrouping
         return [.. byMaximalSet.Values.Where(group => group.Count > 0), .. alone];
     }
 
-    private static bool IsProperSubset(Dictionary<MediaIdentifierScheme, string> set, Dictionary<MediaIdentifierScheme, string> other) =>
+    private static bool IsProperSubset(Dictionary<string, string> set, Dictionary<string, string> other) =>
         set.Count < other.Count
         && set.All(identifier => other.TryGetValue(identifier.Key, out var value) && string.Equals(value, identifier.Value, StringComparison.Ordinal));
 
     // One string per exact set: the schemes in order, each with its value.
-    private static string SetKey(Dictionary<MediaIdentifierScheme, string> set) =>
-        string.Join('\n', set.OrderBy(identifier => identifier.Key).Select(identifier => $"{identifier.Key}={identifier.Value}"));
+    private static string SetKey(Dictionary<string, string> set) =>
+        string.Join('\n', set.OrderBy(identifier => identifier.Key, StringComparer.Ordinal).Select(identifier => $"{identifier.Key}={identifier.Value}"));
 
     private static int Find(int[] parent, int index)
     {

@@ -56,6 +56,23 @@ public static class ReleaseSearchRules
         return null;
     }
 
+    /// <summary>
+    /// MAM-32 — the season in <paramref name="season"/>, or the sentence saying why it isn't one;
+    /// <c>null</c> season and <c>null</c> error for a blank value. ASCII digits only, 0 (the specials, as
+    /// the Library numbers them) to 9999 — the season the Library's episode list takes.
+    /// </summary>
+    public static string? ValidateSeason(string? season, out int? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(season))
+            return null;
+        var trimmed = season.Trim();
+        if (!int.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) || parsed > 9999)
+            return $"“{Echo(trimmed)}” is not a season. Use a season number, such as 1, or 0 for the specials.";
+        value = parsed;
+        return null;
+    }
+
     /// <summary>The sentence saying what is wrong with <paramref name="imdbId"/>, or <c>null</c>
     /// (blank included). Any id a media library may hold is accepted (<see cref="MediaIdentifierRules"/>).</summary>
     public static string? ValidateImdbId(string? imdbId) =>

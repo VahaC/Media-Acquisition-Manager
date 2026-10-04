@@ -285,13 +285,15 @@ public sealed class SearchesCreateHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))!.AsObject();
         Assert.Equal(
-            ["id", "text", "year", "imdbId", "tmdbId", "createdUtc", "library", "libraryUnlistedCount", "sources", "facets"],
+            ["id", "text", "year", "imdbId", "tmdbId", "season", "createdUtc", "library", "libraryUnlistedCount", "sources", "facets"],
             body.Select(property => property.Key));
         // MAM-12 — how many more works hold every word of the title than the list shows: none here.
         Assert.Equal(0, (int)body["libraryUnlistedCount"]!);
         // Present as null, not left away.
         Assert.True(body.ContainsKey("imdbId"));
         Assert.Null(body["imdbId"]);
+        Assert.True(body.ContainsKey("season"));
+        Assert.Null(body["season"]);
         Assert.EndsWith("Z", (string)body["createdUtc"]!, StringComparison.Ordinal);
         var match = body["library"]![0]!.AsObject();
         Assert.Equal(["work", "evidence", "matchedIdentifiers", "matchedTitle", "conflictingSchemes"], match.Select(property => property.Key));
@@ -304,8 +306,9 @@ public sealed class SearchesCreateHttpTests : IClassFixture<MediaAcquisitionMana
             source.Select(property => property.Key));
         Assert.Equal("Succeeded", (string)source["status"]!);
         Assert.Equal(
-            ["audioLanguages", "hasUnknownAudioLanguage", "resolutions", "hasUnknownResolution"],
+            ["audioLanguages", "hasUnknownAudioLanguage", "resolutions", "hasUnknownResolution", "kinds"],
             body["facets"]!.AsObject().Select(property => property.Key));
+        Assert.Equal(["Movie"], body["facets"]!["kinds"]!.AsArray().Select(kind => (string)kind!));
     }
 
     [Fact]
@@ -451,11 +454,13 @@ public sealed class SearchesCreateHttpTests : IClassFixture<MediaAcquisitionMana
 
         //Assert
         // One way to ask a source (Vasyl's decision 3): Toloka's movie search takes only text, so the ids
-        // stay home and the year goes into the text, exactly as MAM-10's search sends it.
+        // stay home and the year goes into the text, exactly as MAM-10's search sends it; MAM-32 — then its
+        // TV search by the title alone.
         Assert.Equal(
             [
                 $"{TolokaAddress}?t=caps&apikey={ApiKey}",
                 $"{TolokaAddress}?t=movie&apikey={ApiKey}&q=Interstellar%202014&cat=2000,2020,2040,2070&limit=100",
+                $"{TolokaAddress}?t=tvsearch&apikey={ApiKey}&q=Interstellar&cat=5000,5040,5050,5060,5070,5080&limit=100",
             ],
             _factory.TorznabHttp.Requests.Select(request => request.Uri.AbsoluteUri));
     }

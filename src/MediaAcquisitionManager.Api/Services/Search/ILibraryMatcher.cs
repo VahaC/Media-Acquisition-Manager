@@ -16,7 +16,8 @@ public interface ILibraryMatcher
     /// most <see cref="LibraryMatcher.MaximumWorksByWords"/> of them, with how many more there are. All in
     /// one order: strongest evidence first, then by the title the Library page shows in its order, then by
     /// id. A file's path problem and why it couldn't be inspected only <paramref name="forOwner"/>, as on
-    /// the Library page.
+    /// the Library page. MAM-32 — the works are movies, series and episodes of no series: an episode of a
+    /// series found lists its series once, as evidence of it.
     /// </summary>
     Task<LibrarySearchResult> MatchAsync(WorkClaim query, bool forOwner, CancellationToken cancellationToken = default);
 }

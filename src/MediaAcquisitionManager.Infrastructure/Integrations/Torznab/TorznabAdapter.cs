@@ -70,6 +70,17 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         ("year", "year"),
     ];
 
+    /// <summary>MAM-32 — the TV-search parameters a sentence names, in the order it names them.</summary>
+    private static readonly (string Parameter, string Name)[] TvSearchParameters =
+    [
+        ("q", "title"),
+        ("tvdbid", "TVDB id"),
+        ("imdbid", "IMDb id"),
+        ("tmdbid", "TMDb id"),
+        ("season", "season"),
+        ("ep", "episode"),
+    ];
+
     /// <summary>
     /// A hostile or wrong server can't make the parser expand entities or fetch files: a DTD is
     /// refused outright and nothing is ever resolved.
@@ -88,7 +99,7 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         /// <summary><c>t=caps</c>: the connection test and the capabilities call.</summary>
         Capabilities = 1,
 
-        /// <summary><c>t=search</c> or <c>t=movie</c>.</summary>
+        /// <summary><c>t=search</c>, <c>t=movie</c> or <c>t=tvsearch</c>.</summary>
         Search = 2,
 
         /// <summary>The fetch of a release's download link.</summary>
@@ -315,10 +326,20 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         var server = title.Length > 0 ? title : "the feed";
 
         var movieSearch = caps.Element("searching")?.Element("movie-search");
+        var tvSearch = caps.Element("searching")?.Element("tv-search");
+        // MAM-32 — the TV search is the owner's second question once series are searched for too.
+        var tv = IsAvailable(tvSearch) ? $"TV search by {ParameterNames(tvSearch!, TvSearchParameters)}" : null;
         if (!IsAvailable(movieSearch))
-            return ConnectionTestResult.Succeeded($"Connected to {server} over Torznab, but it offers no movie search.");
+        {
+            return ConnectionTestResult.Succeeded(tv is null
+                ? $"Connected to {server} over Torznab, but it offers no movie or TV search."
+                : $"Connected to {server} over Torznab, but it offers no movie search; {tv}.");
+        }
 
-        return ConnectionTestResult.Succeeded($"Connected to {server} over Torznab; movie search by {MovieSearchParameterNames(movieSearch!)}.");
+        var movie = $"movie search by {ParameterNames(movieSearch!, MovieSearchParameters)}";
+        return ConnectionTestResult.Succeeded(tv is null
+            ? $"Connected to {server} over Torznab; {movie}."
+            : $"Connected to {server} over Torznab; {movie}, {tv}.");
     }
 
     /// <summary>Whether a <c>searching</c> mode says <c>available="yes"</c>, in any letter case.</summary>
@@ -330,13 +351,13 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         ((string?)mode.Attribute("supportedParams") ?? "").Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     /// <summary>"title", "title and year", "title, IMDb id and year"; "title" when the feed names none
-    /// this app knows — a movie search always takes a query.</summary>
-    private static string MovieSearchParameterNames(XElement movieSearch)
+    /// this app knows — a movie or TV search always takes a query.</summary>
+    private static string ParameterNames(XElement mode, (string Parameter, string Name)[] known)
     {
-        var supported = SupportedParameters(movieSearch);
-        var names = MovieSearchParameters
-            .Where(known => supported.Contains(known.Parameter, StringComparer.OrdinalIgnoreCase))
-            .Select(known => known.Name)
+        var supported = SupportedParameters(mode);
+        var names = known
+            .Where(parameter => supported.Contains(parameter.Parameter, StringComparer.OrdinalIgnoreCase))
+            .Select(parameter => parameter.Name)
             .ToArray();
 
         return names.Length switch

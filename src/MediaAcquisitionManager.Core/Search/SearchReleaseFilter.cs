@@ -8,6 +8,7 @@ namespace MediaAcquisitionManager.Core.Search;
 /// </summary>
 /// <param name="SourceId">Only the releases of this search source (the search's own source row, not an
 /// integration).</param>
+/// <param name="Kind">MAM-32 — only the releases the source lists as this kind (ADR 0020).</param>
 /// <param name="AudioLanguage">Only the releases whose title claims this audio language, a lower-case
 /// ISO 639-2 code like <see cref="ClaimedReleaseQuality.AudioLanguages"/>' (<c>ukr</c>).</param>
 /// <param name="WithoutAudioLanguage">Only the releases whose title claims no audio language
@@ -23,6 +24,7 @@ namespace MediaAcquisitionManager.Core.Search;
 /// <param name="Sort">The order of the list.</param>
 public sealed record SearchReleaseFilter(
     Guid? SourceId,
+    ReleaseKind? Kind,
     string? AudioLanguage,
     bool WithoutAudioLanguage,
     int? Resolution,

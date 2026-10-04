@@ -7,8 +7,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
 /// <summary>
 /// Every row the library syncs store (MAM-8) — works, titles, identifiers, versions, files, libraries and
-/// their root folders (MAM-11) — read at once, so a test asserts what a sync stored, or that a failed one
-/// stored nothing, row by row.
+/// their root folders (MAM-11), episode positions (MAM-32) — read at once, so a test asserts what a sync
+/// stored, or that a failed one stored nothing, row by row.
 /// </summary>
 /// <param name="Works">Every work.</param>
 /// <param name="Titles">Every title.</param>
@@ -17,6 +17,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 /// <param name="Files">Every file.</param>
 /// <param name="Locations">Every library of a media library integration.</param>
 /// <param name="Folders">Every root folder of those libraries.</param>
+/// <param name="Positions">Every episode position (MAM-32).</param>
 public sealed record StoredLibrarySnapshot(
     IReadOnlyList<MediaWorkEntity> Works,
     IReadOnlyList<MediaWorkTitleEntity> Titles,
@@ -24,7 +25,8 @@ public sealed record StoredLibrarySnapshot(
     IReadOnlyList<MediaVersionEntity> Versions,
     IReadOnlyList<PhysicalFileEntity> Files,
     IReadOnlyList<LibraryLocationEntity> Locations,
-    IReadOnlyList<LibraryLocationFolderEntity> Folders)
+    IReadOnlyList<LibraryLocationFolderEntity> Folders,
+    IReadOnlyList<MediaEpisodePositionEntity> Positions)
 {
     /// <summary>Every snapshot row in <paramref name="db"/>, each table ordered by id, the folders by their
     /// library and place.</summary>
@@ -43,7 +45,8 @@ public sealed record StoredLibrarySnapshot(
             // By library and place rather than by id: a sync replaces a library's folders with new rows.
             [.. (await db.LibraryLocationFolders.AsNoTracking().ToListAsync(cancellationToken))
                 .OrderBy(row => row.LibraryLocationId)
-                .ThenBy(row => row.Position)]);
+                .ThenBy(row => row.Position)],
+            [.. (await db.MediaEpisodePositions.AsNoTracking().ToListAsync(cancellationToken)).OrderBy(row => row.Id)]);
     }
 
     /// <summary>
@@ -75,6 +78,8 @@ public sealed record StoredLibrarySnapshot(
         // Without the folder's own id: each sync replaces a library's folders with new rows (MAM-11), so the
         // id says nothing, and two syncs that read the same folders stored the same snapshot.
         .. Folders.Select(folder => Line("folder", folder.LibraryLocationId, folder.Position, folder.ServicePath)),
+        .. Positions.Select(position => Line(
+            "position", position.Id, position.MediaWorkId, position.SeriesWorkId, position.SeasonNumber, position.EpisodeNumber, Provenance(position))),
     ];
 
     /// <summary>

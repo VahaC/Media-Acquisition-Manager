@@ -35,8 +35,9 @@ public static class ReleaseSearchPlanning
     public const int MaximumResults = 100;
 
     /// <summary>
-    /// The queries to send, in order; empty when the source offers no search this app can use (no
-    /// general search, and a movie search that takes neither text nor an identifier given).
+    /// The movie queries to send, in order; empty when the source offers no search this app can use (no
+    /// general search, and a movie search that takes neither text nor an identifier given). MAM-32 asks
+    /// for TV beside them (<see cref="ForTv"/>).
     /// </summary>
     /// <param name="text">The title, trimmed and validated (<see cref="ReleaseSearchRules"/>).</param>
     /// <param name="year">The year, or <c>null</c>.</param>
@@ -48,8 +49,8 @@ public static class ReleaseSearchPlanning
         ArgumentNullException.ThrowIfNull(identifiers);
         ArgumentNullException.ThrowIfNull(capabilities);
 
-        // Movies only in Phase A (specification §2): a text search finds every section, an audio-only
-        // release of the film among them (ADR 0004).
+        // The movie categories only: a text search finds every section, an audio-only release of the
+        // film among them (ADR 0004). TV has queries of its own (ForTv, MAM-32).
         var categories = capabilities.Categories
             .Where(category => category.HoldsMovies)
             .Select(category => category.Id)
@@ -76,6 +77,61 @@ public static class ReleaseSearchPlanning
         }
 
         queries.Add(new ReleaseSearchQuery(mode, text, null, [], categories, limit));
+        return queries;
+    }
+
+    /// <summary>
+    /// MAM-32 — the TV queries to send, in order, beside the movie ones (<see cref="For"/>): a series, its
+    /// seasons and its episodes, cartoon series included, in the source's TV categories. Empty when the
+    /// source has no TV category, or no search this app can use for TV.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An identifier first, where the source's TV search takes one, then the title — never the title with
+    /// the year (ADR 0020): a release names the years of the seasons it holds ("Yellowstone (S5)
+    /// (2022-2024)"), so the show's year in the query finds only the packs that hold season 1, and their
+    /// finding stops the tiers before the rest. The year still matches the releases to the library.
+    /// </para>
+    /// <para>
+    /// A season goes as a parameter of its own where the TV search takes one; a general search can't take
+    /// it, and then every season comes back.
+    /// </para>
+    /// <para>
+    /// No TV category means no TV query: with no category to keep, a general search would list every
+    /// movie a second time as TV.
+    /// </para>
+    /// </remarks>
+    /// <param name="text">The title, trimmed and validated (<see cref="ReleaseSearchRules"/>).</param>
+    /// <param name="season">The season asked for, or <c>null</c>.</param>
+    /// <param name="identifiers">The registry ids asked for, IMDb first.</param>
+    /// <param name="capabilities">What the source can search by.</param>
+    public static IReadOnlyList<ReleaseSearchQuery> ForTv(
+        string text, int? season, IReadOnlyList<MediaIdentifier> identifiers, ReleaseSearchCapabilities capabilities)
+    {
+        ArgumentNullException.ThrowIfNull(identifiers);
+        ArgumentNullException.ThrowIfNull(capabilities);
+
+        var categories = capabilities.Categories
+            .Where(category => category.HoldsTv)
+            .Select(category => category.Id)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (categories.Count == 0)
+            return [];
+
+        var limit = capabilities.ResultLimit is > 0 and var sourceLimit ? Math.Min(sourceLimit, MaximumResults) : MaximumResults;
+        var tvSearch = capabilities.TvSearch;
+        var seasonParameter = tvSearch is { TakesSeason: true } ? season : null;
+        var queries = new List<ReleaseSearchQuery>();
+
+        if (tvSearch is not null && identifiers.FirstOrDefault(identifier => tvSearch.IdentifierSchemes.Contains(identifier.Scheme)) is { } usable)
+            queries.Add(new ReleaseSearchQuery(ReleaseSearchMode.Tv, null, null, [usable], categories, limit, seasonParameter));
+
+        if (tvSearch is { TakesText: true })
+            queries.Add(new ReleaseSearchQuery(ReleaseSearchMode.Tv, text, null, [], categories, limit, seasonParameter));
+        else if (capabilities.HasTextSearch)
+            queries.Add(new ReleaseSearchQuery(ReleaseSearchMode.General, text, null, [], categories, limit));
+
         return queries;
     }
 }

@@ -113,3 +113,28 @@ file no library reported becomes a possible match — a candidate always confirm
 is MAM-20's to decide, and the reading of a release's title stays as it is (ADR 0012). Nothing here
 decides whether a replacement can target an episode or a season: that is MAM-23's question (§7,
 question 3, for Phase C).
+
+## Implementation (added 0.2.0, MAM-32)
+
+**The import is built as decided.** The Decision's "No code implements this yet" no longer holds:
+a sync reads Jellyfin's series and episodes beside its movies, and stores a series as a work its
+episodes point at, with the show's TMDb id in a scheme of its own (`TmdbTv`)
+([ADR 0019](0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+The Grand Tour's four series items are one series; the halves of an episode are one episode with two
+versions; two episodes that carry one episode's ids under different numbers stay two works; the Tom
+& Jerry Kids item is one episode of no series with 65 versions, listed as a card of its own ("Season
+1 · Episode 4"), whose versions show as rows only, as the Library page offers the table for 2 to 6
+versions; a virtual episode is stored as nothing; and a movie item stays a movie whatever its file
+is called. The Anti-consequence's "the reading of a release's title stays as it is" now has one
+addition: a TV release's title is read for the seasons it claims, to count the episodes the library
+holds of them
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md));
+it still never makes a library item an episode.
+
+`JellyfinAdapterTvTests.ListItems_reads_a_series_imdb_tmdb_and_tvdb_ids_its_tmdb_id_as_a_shows`,
+`JellyfinAdapterTvTests.ListItems_reads_the_tom_and_jerry_kids_item_as_one_episode_of_no_series_with_65_versions`,
+`JellyfinAdapterTvTests.ListItems_reads_the_two_halves_of_an_episode_with_the_same_numbers_and_ids`,
+`JellyfinAdapterTvTests.ListItems_reads_a_virtual_special_as_missing_with_no_file`,
+`LibrarySnapshotTvHttpTests.Sync_makes_one_series_of_a_show_the_library_knows_as_two_series_items`
+and `LibrarySnapshotTvHttpTests.Sync_keeps_a_movie_and_a_series_sharing_a_tmdb_number_apart` pin
+it.

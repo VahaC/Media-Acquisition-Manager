@@ -23,7 +23,7 @@ public sealed partial class LibrarySnapshotStore
     /// (item, kind) and an identifier by (item, scheme), the first of each in the item winning; a version
     /// by its media source id, which is unique per file on the server — or, without one, by (item,
     /// position among the item's versions without one); a file by (version row, path), compared byte for
-    /// byte.
+    /// byte; MAM-32 — an episode's position by its item, one per item.
     /// </para>
     /// <para>
     /// The lookups over stored rows are built by grouping and keeping the first of each key, never with
@@ -61,6 +61,9 @@ public sealed partial class LibrarySnapshotStore
 
         private readonly ILookup<Guid, LibraryLocationFolderEntity> _folders = existing.Folders.ToLookup(folder => folder.LibraryLocationId);
 
+        private readonly Dictionary<string, MediaEpisodePositionEntity> _positions = FirstByKey(
+            existing.Positions.Where(position => position.SourceItemId is not null), position => position.SourceItemId!);
+
         // Every stored or added row this sync reached, across the tables (ids are unique across them).
         private readonly HashSet<Guid> _touched = [];
 
@@ -85,13 +88,17 @@ public sealed partial class LibrarySnapshotStore
             }
         }
 
-        /// <summary>Upserts every fact of <paramref name="item"/> onto the work <paramref name="workId"/>.</summary>
-        public void UpsertItem(LibraryItem item, Guid workId)
+        /// <summary>Upserts every fact of <paramref name="item"/> onto the work <paramref name="workId"/>; an
+        /// episode's position points at <paramref name="seriesWorkId"/>, the series work its series item
+        /// landed on (MAM-32).</summary>
+        public void UpsertItem(LibraryItem item, Guid workId, Guid? seriesWorkId)
         {
             foreach (var title in item.Titles)
                 UpsertTitle(item, title, workId);
             foreach (var identifier in item.Identifiers)
                 UpsertIdentifier(item, identifier, workId);
+            if (item.Episode is { } episode)
+                UpsertPosition(item, episode, workId, seriesWorkId);
 
             var withoutSourceId = 0;
             foreach (var version in item.Versions)
@@ -124,6 +131,7 @@ public sealed partial class LibrarySnapshotStore
             db.PhysicalFiles.RemoveRange(existing.Files.Where(Untouched));
             db.MediaVersions.RemoveRange(existing.Versions.Where(Untouched));
             db.MediaWorkIdentifiers.RemoveRange(existing.Identifiers.Where(Untouched));
+            db.MediaEpisodePositions.RemoveRange(existing.Positions.Where(Untouched));
             db.MediaWorkTitles.RemoveRange(existing.Titles.Where(Untouched));
             db.LibraryLocations.RemoveRange(existing.Locations.Where(Untouched));
         }
@@ -169,6 +177,25 @@ public sealed partial class LibrarySnapshotStore
 
             row.MediaWorkId = workId;
             row.Value = identifier.Value;
+            Observe(row, item.SourceItemId);
+        }
+
+        /// <summary>
+        /// MAM-32 — where the episode sits, when the library says anything of it: its series work and its
+        /// numbers. An episode item that names none of them places nothing.
+        /// </summary>
+        private void UpsertPosition(LibraryItem item, LibraryEpisode episode, Guid workId, Guid? seriesWorkId)
+        {
+            if (seriesWorkId is null && episode.SeasonNumber is null && episode.EpisodeNumber is null)
+                return;
+            var row = Find(_positions, item.SourceItemId, () => new MediaEpisodePositionEntity { CreatedUtc = now }, db.MediaEpisodePositions);
+            if (row is null)
+                return;
+
+            row.MediaWorkId = workId;
+            row.SeriesWorkId = seriesWorkId;
+            row.SeasonNumber = episode.SeasonNumber;
+            row.EpisodeNumber = episode.EpisodeNumber;
             Observe(row, item.SourceItemId);
         }
 

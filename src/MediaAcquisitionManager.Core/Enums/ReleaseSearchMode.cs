@@ -11,4 +11,7 @@ public enum ReleaseSearchMode
 
     /// <summary>The source's movie search, which may also take identifiers and a year.</summary>
     Movie = 2,
+
+    /// <summary>The source's TV search, which may also take a show's identifiers and a season (MAM-32).</summary>
+    Tv = 3,
 }

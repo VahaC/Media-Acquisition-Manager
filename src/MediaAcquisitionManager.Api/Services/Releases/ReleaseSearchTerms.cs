@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Media;
+using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Search;
 
@@ -13,17 +14,20 @@ namespace MediaAcquisitionManager.Api.Services.Releases;
 /// <param name="Year">The year; <c>null</c> when none was asked for.</param>
 /// <param name="ImdbId">The IMDb id as asked, trimmed; <c>null</c> when none was.</param>
 /// <param name="TmdbId">The TMDb id as asked, trimmed; <c>null</c> when none was.</param>
-public sealed record ReleaseSearchTerms(string Text, int? Year, string? ImdbId, string? TmdbId)
+/// <param name="Season">The season asked for (MAM-32); <c>null</c> when none was.</param>
+public sealed record ReleaseSearchTerms(string Text, int? Year, string? ImdbId, string? TmdbId, int? Season)
 {
     /// <summary>The ids asked for, IMDb before TMDb: the planning sends the first id a source takes.</summary>
     public IReadOnlyList<MediaIdentifier> Identifiers { get; } = IdentifiersOf(ImdbId, TmdbId);
 
     /// <summary>
     /// The sentence saying what is wrong with the first value that is wrong — the title, then the year,
-    /// then the IMDb id, then the TMDb id — or <c>null</c> with every value read into
-    /// <paramref name="terms"/> (<c>null</c> when there is a sentence). A blank year or id asks for none.
+    /// then the IMDb id, then the TMDb id, then (MAM-32) the season — or <c>null</c> with every value read
+    /// into <paramref name="terms"/> (<c>null</c> when there is a sentence). A blank year, id or season
+    /// asks for none.
     /// </summary>
-    public static string? Read(string? text, string? year, string? imdbId, string? tmdbId, out ReleaseSearchTerms? terms)
+    public static string? Read(
+        string? text, string? year, string? imdbId, string? tmdbId, string? season, out ReleaseSearchTerms? terms)
     {
         terms = null;
         if (ReleaseSearchRules.ValidateText(text) is { } textError)
@@ -34,13 +38,15 @@ public sealed record ReleaseSearchTerms(string Text, int? Year, string? ImdbId, 
             return imdbError;
         if (ReleaseSearchRules.ValidateTmdbId(tmdbId) is { } tmdbError)
             return tmdbError;
+        if (ReleaseSearchRules.ValidateSeason(season, out var searchSeason) is { } seasonError)
+            return seasonError;
 
-        terms = new ReleaseSearchTerms(text!.Trim(), searchYear, Blank(imdbId), Blank(tmdbId));
+        terms = new ReleaseSearchTerms(text!.Trim(), searchYear, Blank(imdbId), Blank(tmdbId), searchSeason);
         return null;
     }
 
     /// <summary>An IMDb and a TMDb id as a list, IMDb first, leaving out the one that is <c>null</c> — a
-    /// search's, or (MAM-12) the ones a stored release's listing gives.</summary>
+    /// search's, whose TMDb id is a movie's (MAM-32).</summary>
     public static IReadOnlyList<MediaIdentifier> IdentifiersOf(string? imdbId, string? tmdbId)
     {
         var identifiers = new List<MediaIdentifier>();
@@ -48,6 +54,28 @@ public sealed record ReleaseSearchTerms(string Text, int? Year, string? ImdbId, 
             identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Imdb, imdbId));
         if (tmdbId is not null)
             identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tmdb, tmdbId));
+        return identifiers;
+    }
+
+    /// <summary>
+    /// The ids a stored release's listing gives (MAM-12), IMDb first. MAM-32 — its TMDb id in the
+    /// numbering its <see cref="ReleaseEntity.Kind"/> tells, a show's on a TV release (ADR 0017), so a
+    /// show's number never matches a movie with the same one; then its TVDB id.
+    /// </summary>
+    public static IReadOnlyList<MediaIdentifier> IdentifiersOf(ReleaseEntity release)
+    {
+        ArgumentNullException.ThrowIfNull(release);
+        var identifiers = new List<MediaIdentifier>(3);
+        if (release.ImdbId is not null)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Imdb, release.ImdbId));
+        if (release.TmdbId is not null)
+        {
+            var scheme = release.Kind == ReleaseKind.Tv ? MediaIdentifierScheme.TmdbTv : MediaIdentifierScheme.Tmdb;
+            identifiers.Add(new MediaIdentifier(scheme, release.TmdbId));
+        }
+
+        if (release.TvdbId is not null)
+            identifiers.Add(new MediaIdentifier(MediaIdentifierScheme.Tvdb, release.TvdbId));
         return identifiers;
     }
 

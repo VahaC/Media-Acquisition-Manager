@@ -26,7 +26,8 @@ interface ReleaseRowProps {
  * MAM-12 — one release a source listed for the search: its title, what the listing says (source,
  * size, seeders and peers, when it was published), what the title claims about its quality, and —
  * when it matches a copy in the library — a badge for the strongest match, naming that copy, with
- * any conflict.
+ * any conflict. MAM-32 — a TV release says so in its chips, with the seasons or episodes it claims,
+ * and its match how many of those episodes the library holds.
  *
  * Its actions: Details (the parent opens the dialog), Open source, and Download (MAM-13: the parent
  * opens the dialog that sends the release to a download client). On a phone the actions collapse to
@@ -68,7 +69,7 @@ export function ReleaseRow({ release, library, onDetails, onDownload }: ReleaseR
               : t('release.published', { date: formatDate(release.publishedUtc) })}
           </span>
         </p>
-        <ClaimedQuality claimed={release.claimed} />
+        <ClaimedQuality claimed={release.claimed} kind={release.kind} episodes={release.claimedWork.episodes} />
         {/* The strongest match only; Details lists every one. A work the search no longer lists
             (the library was synced since) leaves the badge out rather than naming nothing. */}
         {strongest && workName !== undefined && (
@@ -76,6 +77,7 @@ export function ReleaseRow({ release, library, onDetails, onDownload }: ReleaseR
             evidence={strongest.evidence}
             conflictingSchemes={strongest.conflictingSchemes}
             inLibraryOf={workName}
+            heldEpisodeCount={strongest.heldEpisodeCount}
           />
         )}
       </div>

@@ -122,6 +122,44 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("DestinationMappings");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DestinationSectionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CategoryId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DestinationMappingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsSourceSpecific")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReleaseSourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationMappingId");
+
+                    b.HasIndex("ReleaseSourceConnectionId", "CategoryId")
+                        .IsUnique();
+
+                    b.ToTable("DestinationSections");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DownloadJobEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -496,6 +534,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("SeriesCount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("StartedUtc")
                         .HasColumnType("TEXT");
 
@@ -521,6 +562,57 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasFilter("\"Status\" IN ('Queued', 'Running')");
 
                     b.ToTable("LibrarySyncRuns");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaEpisodePositionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EpisodeNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("MediaWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SeasonNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("SeriesWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MediaWorkId");
+
+                    b.HasIndex("SeriesWorkId", "SeasonNumber");
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("MediaEpisodePositions");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaInspectionEntity", b =>
@@ -922,6 +1014,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CategoryIds")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
 
@@ -931,6 +1027,11 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<string>("InfoHash")
                         .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ObservedUtc")
@@ -992,6 +1093,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TvdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("SearchSourceId");
@@ -1013,6 +1118,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<string>("ImdbId")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("Season")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -1177,6 +1285,21 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DestinationSectionEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.DestinationMappingEntity", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationMappingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReleaseSourceConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DownloadJobEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.DestinationMappingEntity", null)
@@ -1254,6 +1377,25 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
                         .WithMany()
                         .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaEpisodePositionEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.MediaWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("MediaWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.MediaWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SeriesWorkId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
