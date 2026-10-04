@@ -271,7 +271,7 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         await PassAsync(cancellationToken);
 
         //Assert
-        // Every refused sign-in counts towards qBittorrent's ban of the app's address (MAM-11): a pass every 10 s
+        // Every refused sign-in counts towards qBittorrent's ban of the app's address (MAM-11): a pass every 2 s
         // never adds to it. The job just shows why, as qBittorrent's sentence, until then.
         Assert.Equal(
             (DownloadJobStatus.Submitted, "qBittorrent refused the user name or password."),

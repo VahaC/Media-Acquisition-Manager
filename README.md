@@ -157,14 +157,14 @@ application.
   first, filtered by status and paged on the server: each with its status, a bar of its progress,
   where it went and when, and, when it isn't moving on, why. A job's page adds its facts and its
   files, each with its size and progress, and which ones qBittorrent skips. The app reads qBittorrent
-  every 10 seconds in the background, whether or not anyone has the page open, and keeps nothing in
+  every 2 seconds in the background, whether or not anyone has the page open, and keeps nothing in
   memory, so a restart goes on where it stopped: `Submitted`, `Downloading`, `Paused`, and
   `Downloaded` once qBittorrent has finished it with a progress of 1, which ends the following. A
   client error, a torrent qBittorrent no longer lists and a client that can't be asked keep the job's
   status with the reason and keep it followed, so it goes on once the cause clears; a send a stop
   interrupted is settled once it is 5 minutes old, and can't be cancelled before then, while it may
   still be being sent. **Cancel job** stops the following and nothing more: nothing is sent to
-  qBittorrent, so the torrent and its files stay as they are, and the release may be sent again. The pages refresh every 10 seconds while they show a followed job
+  qBittorrent, so the torrent and its files stay as they are, and the release may be sent again. The pages refresh every 2 seconds while they show a followed job
   ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed. While the server can't be reached, a strip under the header
@@ -400,7 +400,7 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   caller's own jobs, the installation owner's included, and another user's job is the same bare 404.
   Why a followed job isn't moving on follows the error's rule: qBittorrent's own sentence, which can
   name its address, is the owner's, and anyone else reads the app's sentence naming the client.
-- **Following a download reads qBittorrent and never writes to it.** Every 10 seconds the app signs
+- **Following a download reads qBittorrent and never writes to it.** Every 2 seconds the app signs
   in, or uses the session it keeps, and sends qBittorrent GETs only — its version, the followed
   torrents by hash, a destination's torrents by category (every torrent, kept to the category in the
   app, for a category whose name holds a `+`, which qBittorrent can't read in a query), a torrent's

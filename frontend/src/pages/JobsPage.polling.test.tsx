@@ -10,7 +10,7 @@ import { downloadedJob, downloadingJob, jobOf, jobsPage, sentMinutesAgo } from '
 
 vi.mock('@/lib/downloads-api')
 
-// MAM-14 — the Jobs page asks for its list again every 10 s while it shows a job the app still
+// MAM-14 — the Jobs page asks for its list again every 2 s while it shows a job the app still
 // follows (Created, Submitted, Downloading, Paused), and stops once every job on it has ended.
 
 /** The server lists `items` for every request from now on. */
@@ -19,7 +19,7 @@ function listing(...items: DownloadJob[]) {
 }
 
 /** Lets the polling interval pass once, with the answers it brings. */
-const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(10_000))
+const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 
 /** The table row of the job whose release is `title`. */
 const rowOf = (title: string) => screen.getByText(title, { selector: '.settings-name-text' }).closest('tr')!
@@ -69,7 +69,7 @@ describe('JobsPage while a job is followed', () => {
     expect(downloadsApi.list).toHaveBeenCalledTimes(3)
   })
 
-  it.each<DownloadJobStatus>(['Created', 'Submitted', 'Downloading', 'Paused'])('asks again every 10 s while a %s job is on the page', async (status) => {
+  it.each<DownloadJobStatus>(['Created', 'Submitted', 'Downloading', 'Paused'])('asks again every 2 s while a %s job is on the page', async (status) => {
     // Arrange
     listing(jobOf({ status }), downloadedJob)
     renderPage()
@@ -85,7 +85,7 @@ describe('JobsPage while a job is followed', () => {
 
   it('offers Cancel on a Created job once a poll finds it 5 minutes old, with no timer of its own', async () => {
     // Arrange
-    listing(jobOf({ status: 'Created', clientJobId: null, createdUtc: sentMinutesAgo(4.95) }))
+    listing(jobOf({ status: 'Created', clientJobId: null, createdUtc: sentMinutesAgo(4.98) }))
     renderPage()
     await screen.findByText(downloadingJob.releaseTitle, { selector: '.settings-name-text' })
     const before = within(rowOf(downloadingJob.releaseTitle)).queryByRole('button', { name: 'Cancel job' })

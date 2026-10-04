@@ -34,7 +34,7 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  * follows, or one that needs linking, can be cancelled: the app stops following it, and the torrent
  * stays in the client.
  *
- * While a job on the page is still followed, the list is asked for again every 10 s
+ * While a job on the page is still followed, the list is asked for again every 2 s
  * (useDownloadJobs), so statuses and progress move on by themselves.
  */
 export function JobsPage() {
@@ -172,7 +172,7 @@ interface JobRowProps {
   /**
    * When the list on screen came back (ms since the epoch): the instant a `Created` job's age is
    * judged at for Cancel (canCancelJob). Not the clock read during render, which a render must not
-   * do; the list is asked for again every 10 s while it shows a `Created` job, so Cancel still
+   * do; the list is asked for again every 2 s while it shows a `Created` job, so Cancel still
    * appears within one poll of the job counting as interrupted. 0 while another page's list stands
    * in for this one's, which hides Cancel on a `Created` row until this page's answer is back.
    */

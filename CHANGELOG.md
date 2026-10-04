@@ -819,9 +819,9 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   summary and **Close**. With no client to offer, it says "No download client can take this release
   yet. The owner sets them up under Integrations and Destinations." The dialog is mounted only while
   it is open, so every opening is a new request.
-- **The app follows every download it sent by reading its client every 10 seconds, until the
+- **The app follows every download it sent by reading its client every 2 seconds, until the
   download finishes, and a restart goes on where the rows are (MAM-14, ADR 0014).** A background
-  service (`DownloadJobTracker`) runs a pass right after the app starts, then 10 seconds after each
+  service (`DownloadJobTracker`) runs a pass right after the app starts, then 2 seconds after each
   pass ends, so two never overlap; each pass reads the followed jobs from the database and keeps
   nothing in memory. Followed are `Submitted`, `Downloading`, the new `Paused`, and a `Created` job at
   least 5 minutes old — a send a stop interrupted, as no send takes that long, so a send still under
@@ -963,7 +963,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   bar and a percentage that never rounds up to 100 before the download is complete, or "Not known yet";
   where it went (the client and the destination); and when it was sent. It filters by status on the
   server, starting again at page 1, pages with a page size remembered per device, turns into cards on
-  a phone, and asks again every 10 seconds while it shows a job the app still follows. With no job
+  a phone, and asks again every 2 seconds while it shows a job the app still follows. With no job
   yet it says "No download jobs yet. Send a release from Search, and it is followed here until it
   finishes.", linking to Search. A job's page shows its source, client, destination with its category,
   status, progress, when it was sent and its status last changed, and the client's id, then its files

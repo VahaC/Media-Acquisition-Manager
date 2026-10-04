@@ -17,7 +17,7 @@ export const DOWNLOAD_JOB_STATUSES: readonly DownloadJobStatus[] = [
 
 /**
  * MAM-14 — the statuses the app still follows by reading the client (ADR 0014). A page that shows a
- * job in one of them asks again every 10 s, as the job can move on by itself; one whose jobs have all
+ * job in one of them asks again every 2 s, as the job can move on by itself; one whose jobs have all
  * ended asks nothing more. `Created` is in: the server follows one left by an interrupted send.
  */
 const FOLLOWED_STATUSES: ReadonlySet<DownloadJobStatus> = new Set<DownloadJobStatus>([

@@ -380,9 +380,9 @@ describe('JobDetailsPage', () => {
     })
 
     /** Lets the polling interval pass once, with the answers it brings. */
-    const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(10_000))
+    const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 
-    it('asks for the job every 10 s, its files again when it moved, and nothing more once it is downloaded', async () => {
+    it('asks for the job every 2 s, its files again when it moved, and nothing more once it is downloaded', async () => {
       // Arrange
       renderAt(`/jobs/${downloadingJob.id}`)
       await filesTable()

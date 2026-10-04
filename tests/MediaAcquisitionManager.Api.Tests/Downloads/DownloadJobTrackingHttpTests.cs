@@ -462,7 +462,7 @@ public sealed class DownloadJobTrackingHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         // Information: the change itself, by id, and nothing else — the job the client reports an error for changed
-        // no status, and the pass's counts go to Debug, below what the app logs: a pass runs every 10 s.
+        // no status, and the pass's counts go to Debug, below what the app logs: a pass runs every 2 s.
         var poller = _factory.Logs.Entries.Where(entry => entry.Category == typeof(DownloadJobPoller).FullName).ToList();
         Assert.Equal(
             [(LogLevel.Information, $"Download job {moving.Id} went from Submitted to Downloading.")],

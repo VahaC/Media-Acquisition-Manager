@@ -123,7 +123,7 @@ public sealed class DownloadJobPoller(
             }
         }
 
-        // Debug, not Information: a pass runs every 10 s while anything is followed.
+        // Debug, not Information: a pass runs every 2 s while anything is followed.
         logger.LogDebug(
             "Followed {Count} download jobs of {Clients} download clients; {Changes} changed status.", jobs.Count, clients.Count, changes);
     }

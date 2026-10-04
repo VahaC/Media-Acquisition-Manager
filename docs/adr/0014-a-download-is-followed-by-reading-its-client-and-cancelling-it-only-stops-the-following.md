@@ -141,3 +141,15 @@ error), unthrottled.
 Following reads; it licenses no write to the client. A later ticket that wants to remove, stop or pause
 a torrent needs its own decision and its own contract member, and the convention test will say so.
 `Cancelled` is the app's word only: it says nothing about the torrent, which may still be downloading.
+
+## A pass every 2 seconds (added 0.1.0)
+
+**The pass now runs 2 seconds after the previous one ends, not 10, and the Jobs pages ask again
+every 2 seconds while they show a followed job.** The owner wanted a download's progress on the page
+closer to what qBittorrent shows, and the page refreshing faster than the pass would
+only bring the same rows back, so both numbers move together (`DownloadJobTracker.PollInterval`,
+`JOBS_POLL_MS`). The cost stays small: a pass is still one `app/version` and one
+`torrents/info?hashes=…` per client on a kept session, plus a files read per job that moved, and
+qBittorrent's own Web UI asks every 1.5 s. Refused credentials are still never sent again, so a
+faster pass doesn't feed qBittorrent's ban. The rest of the decision stands, the interval included
+being a constant rather than a setting.

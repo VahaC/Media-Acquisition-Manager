@@ -23,11 +23,11 @@ public sealed class DownloadJobTracker(
     /// <summary>
     /// The pause between passes. A pass is <c>GET app/version</c> and <c>GET torrents/info?hashes=…</c> per
     /// client on a session it keeps, and a files read per job that moved — trivial for a qBittorrent on the LAN,
-    /// whose own Web UI asks every 1.5 s — while 10 s keeps the Jobs page, which refreshes as often, close to
+    /// whose own Web UI asks every 1.5 s — while 2 s keeps the Jobs page, which refreshes as often, close to
     /// what the client shows. A constant, not a setting: nothing about an installation makes another number
     /// better (the house rule for tuned numbers).
     /// </summary>
-    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

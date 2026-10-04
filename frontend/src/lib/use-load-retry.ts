@@ -38,7 +38,7 @@ interface LoadRetry<TError> {
  *
  * Each time a query that has no data fetches, TanStack resets it to pending with no error. On the
  * query alone, a page swaps its ErrorState for "Loading…" the moment Try again is pressed, so the
- * button never reads "Retrying…", and a query polled while in error (a job's files every 10 s, the
+ * button never reads "Retrying…", and a query polled while in error (a job's files every 2 s, the
  * readiness report every minute) or refetched on reconnect blinks the same way. Here the last
  * failure stays until the query has data of its own: an answer clears it, and a new failure
  * replaces it.

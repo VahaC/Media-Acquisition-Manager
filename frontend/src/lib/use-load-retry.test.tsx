@@ -14,7 +14,7 @@ const SECOND_PAGE: DownloadJobFilesQuery = { page: 2, pageSize: 25 }
 
 /**
  * A job's files and the load-retry state over them, the way the job's page reads both. The files'
- * query is the app's own: it is asked again every 10 s exactly while it is in error, which is the
+ * query is the app's own: it is asked again every 2 s exactly while it is in error, which is the
  * case the hook exists for besides Try again.
  */
 function renderFiles(jobId: string = downloadingJob.id, query: DownloadJobFilesQuery = FIRST_PAGE) {
@@ -119,7 +119,7 @@ describe('useLoadRetry', () => {
     holdFiles()
 
     // Act
-    await act(() => vi.advanceTimersByTimeAsync(10_000))
+    await act(() => vi.advanceTimersByTimeAsync(2_000))
     await waitFor(() => expect(result.current.files.isFetching).toBe(true))
 
     // Assert

@@ -5,9 +5,9 @@ import type { DownloadJob, DownloadJobFileList, DownloadJobFilesQuery, DownloadJ
 import { qk } from './keys'
 
 /**
- * MAM-14 — how often a page that shows a followed job asks again: the cadence of the app's other live
- * views, and the server's own pass over the client (it reads qBittorrent every 10 s), so asking more
- * often would only bring the same answer back.
+ * MAM-14 — how often a page that shows a followed job asks again: the server's own pass over the
+ * client (it reads qBittorrent every 2 s, `DownloadJobTracker.PollInterval`), so asking more often
+ * would only bring the same answer back.
  */
 const JOBS_POLL_MS = 2_000
 
@@ -50,7 +50,7 @@ export const useSendDownload = () => {
 
 /**
  * MAM-14 — one page of the caller's own jobs, filtered and paged by the server. The previous page
- * stays on screen while the next one loads. Asked again every 10 s while the page shows a job the
+ * stays on screen while the next one loads. Asked again every 2 s while the page shows a job the
  * app still follows, as its status and progress move without anyone acting; a page of ended jobs
  * asks nothing more.
  */
@@ -69,7 +69,7 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
 
 /**
  * MAM-14 — one of the caller's own jobs, for its details page; nothing is asked without an id (an
- * address that holds none). Asked again every 10 s while the app still follows it.
+ * address that holds none). Asked again every 2 s while the app still follows it.
  *
  * When an answer shows the job moved — another status or progress than the cached one — its files
  * are asked for again, and so they are while a followed job has none listed yet (a magnet still
@@ -111,7 +111,7 @@ export const useDownloadJob = (id: string) => {
  * MAM-14 — one page of a job's files, by position, as the client last listed them. Not polled while
  * they load: the job's own query asks for them again whenever the job moves (useDownloadJob).
  *
- * Asked again every 10 s only while this query's last fetch failed, and no more once one succeeds:
+ * Asked again every 2 s only while this query's last fetch failed, and no more once one succeeds:
  * the job's query asks for them only on a move, so a failed load on a job that stays put (Paused, or
  * held by a block reason) or on one that just ended would otherwise stay failed until the page is
  * opened again — the answer is never retried (`retry: false`), and nothing refetches on focus.
@@ -125,7 +125,7 @@ export const useDownloadJobFiles = (id: string, query: DownloadJobFilesQuery) =>
     refetchInterval: (current) => (current.state.status === 'error' ? JOBS_POLL_MS : false),
     // Not retried at once: a 400 for a bad page or a 404 for a job gone won't change on a second
     // try. Any failure is asked for again on the poll above instead, at the jobs' own cadence: a
-    // passing one then clears, and a lasting one costs one request per 10 s while the page is open.
+    // passing one then clears, and a lasting one costs one request per 2 s while the page is open.
     retry: false,
   })
 

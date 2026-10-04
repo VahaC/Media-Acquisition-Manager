@@ -355,7 +355,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // request ids free of each other, as SQLite never counts two nulls the same.
             e.HasIndex(x => new { x.RequestedByUserId, x.RequestId }).IsUnique();
             e.Property(x => x.BlockReasonOrigin).HasConversion<string>().HasMaxLength(32);
-            // MAM-14 — "every followed job", which the poller reads every 10 s (DownloadJobTracker). Partial,
+            // MAM-14 — "every followed job", which the poller reads every 2 s (DownloadJobTracker). Partial,
             // so it holds the few jobs still followed and never the history, which only grows. Its filter is
             // the core's list (DownloadJobFollowing.FollowedStatuses) rather than a copy of it: a status added
             // to the list changes the model, and the app refuses to start on a model its migrations don't

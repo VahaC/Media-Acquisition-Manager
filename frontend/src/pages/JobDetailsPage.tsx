@@ -46,7 +46,7 @@ const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
  *
  * Another user's job, the installation owner's view of it included, is a bare 404 (MAM-14's
  * decision 1), worded like an address that holds no job. While the app follows the job, it is asked
- * for again every 10 s, and its files whenever it comes back moved.
+ * for again every 2 s, and its files whenever it comes back moved.
  */
 export function JobDetailsPage() {
   const { t } = useTranslation(['jobs', 'common'])
@@ -76,7 +76,7 @@ export function JobDetailsPage() {
             <h1 className="settings-title jobs-title">{job.releaseTitle}</h1>
           </div>
           {/* A Created job's age is judged at its answer's arrival, not by reading the clock in
-              render: it is asked for again every 10 s, so Cancel appears within one poll of the
+              render: it is asked for again every 2 s, so Cancel appears within one poll of the
               job counting as interrupted. */}
           {canCancelJob(job, dataUpdatedAt) && (
             <div className="settings-actions">
@@ -178,7 +178,7 @@ function JobFacts({ job }: { job: DownloadJob }) {
  * the job's folder exactly as the client names it, the size, and how far each has got — or Skipped,
  * for a file the client was told not to download. A magnet still fetching its metadata lists none
  * yet. Asked again whenever the job comes back moved (useDownloadJob), as their progress moves with it,
- * and every 10 s while their last load failed (useDownloadJobFiles), so a passing error clears itself.
+ * and every 2 s while their last load failed (useDownloadJobFiles), so a passing error clears itself.
  */
 function JobFiles({ job }: { job: DownloadJob }) {
   const { t } = useTranslation(['jobs', 'common'])
@@ -187,7 +187,7 @@ function JobFiles({ job }: { job: DownloadJob }) {
   const [page, setPage] = useState(1)
   const files = useDownloadJobFiles(job.id, { page, pageSize })
   const { data, error, isLoading, isPlaceholderData } = files
-  // MAM-16 — files that failed are asked for again every 10 s: the failure stays on screen through
+  // MAM-16 — files that failed are asked for again every 2 s: the failure stays on screen through
   // those polls rather than blinking to "Loading…" each time.
   const load = useLoadRetry(files)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
