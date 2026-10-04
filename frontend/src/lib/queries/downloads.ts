@@ -9,7 +9,7 @@ import { qk } from './keys'
  * views, and the server's own pass over the client (it reads qBittorrent every 10 s), so asking more
  * often would only bring the same answer back.
  */
-const JOBS_POLL_MS = 10_000
+const JOBS_POLL_MS = 2_000
 
 /**
  * MAM-13 — the download clients and destinations a release can be sent to, for the Download dialog.
