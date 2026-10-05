@@ -63,6 +63,11 @@ public interface ILibraryMapper
     /// <paramref name="forOwner"/>, the sync run's rule.</summary>
     FileInspectionRunDto ToDto(FileInspectionRunEntity run, bool forOwner);
 
+    /// <summary>A scan of the media folders (MAM-18); who asked for it, its first problem and its error
+    /// only when <paramref name="forOwner"/>, the inspection run's rule — the problem quotes the owner's
+    /// paths.</summary>
+    FolderScanRunDto ToDto(FolderScanRunEntity run, bool forOwner);
+
     /// <summary>
     /// A media library integration with where its syncs stand. <paramref name="adapter"/> is the
     /// descriptor of its type, or <c>null</c> when this build no longer registers the type; the caller

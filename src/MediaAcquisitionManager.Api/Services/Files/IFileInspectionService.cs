@@ -6,8 +6,8 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// <summary>
 /// Starting and reading inspections of the library's files (MAM-9): a run is queued for
 /// <see cref="FileInspectionWorker"/> (202 + run row + reconciler) by the owner's Inspect files, by a
-/// library sync and by the app's start. Expected failures come back as result statuses, never as
-/// exceptions.
+/// library sync, by a scan of the media folders (MAM-18) and by the app's start. Expected failures come
+/// back as result statuses, never as exceptions.
 /// </summary>
 /// <remarks>
 /// At most one run is queued at a time: a request that finds one waiting joins it, as that run will read
@@ -24,7 +24,7 @@ public interface IFileInspectionService
     Task<FileInspectionStartResult> StartAsync(Guid requestedByUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Queues a run for <paramref name="trigger"/> — a sync's or the app's start — or joins the one
+    /// Queues a run for <paramref name="trigger"/> — a sync's, a folder scan's or the app's start — or joins the one
     /// waiting; quietly nothing when no folder is allowed, which is the default.
     /// </summary>
     Task<FileInspectionStartResult> EnsureQueuedAsync(FileInspectionTrigger trigger, CancellationToken cancellationToken = default);

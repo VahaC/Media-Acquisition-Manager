@@ -43,6 +43,14 @@
   border-top: 1px solid var(--border);
 }
 
+/* MAM-18 — without a media library the list holds the Media folders row alone, under the sentence
+   that says how to connect one; the same line parts the two, so the row doesn't read as part of that
+   empty state. The row is the list's first child and has no padding of its own above. */
+.library-sources > .settings-empty + .library-source-list {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
 .library-source-body {
   display: grid;
   gap: 0.25rem;

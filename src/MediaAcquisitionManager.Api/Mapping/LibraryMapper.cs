@@ -136,6 +136,22 @@ public sealed class LibraryMapper : ILibraryMapper
             run.FilesProbed,
             forOwner ? run.Error : null);
 
+    public FolderScanRunDto ToDto(FolderScanRunEntity run, bool forOwner) =>
+        new(
+            run.Id,
+            run.Status,
+            // MAM-18 — only the owner asks for one: the owner's sign-in name (the inspection run's reason).
+            forOwner ? run.RequestedByUserName : null,
+            run.CreatedUtc,
+            run.StartedUtc,
+            run.FinishedUtc,
+            run.FilesFound,
+            run.FilesUnreported,
+            run.ProblemCount,
+            // The sentence quotes a path in the owner's media folders, as a file's inspection problem does.
+            forOwner ? run.Problem : null,
+            forOwner ? run.Error : null);
+
     public LibrarySourceDto ToDto(
         IntegrationConnectionEntity integration,
         IntegrationAdapterDescriptor? adapter,

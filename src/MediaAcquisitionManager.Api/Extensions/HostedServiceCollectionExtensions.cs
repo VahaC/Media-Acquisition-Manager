@@ -31,6 +31,14 @@ public static class HostedServiceCollectionExtensions
         services.AddHostedService(provider => provider.GetRequiredService<FileInspectionReconciler>());
         services.AddSingleton<FileInspectionWorker>();
         services.AddHostedService(provider => provider.GetRequiredService<FileInspectionWorker>());
+        // MAM-18 — the same order for folder scans: the reconciler fails the scan a stop interrupted before the
+        // worker takes any, so the worker never claims a scan while a dead one still holds the running slot
+        // (IX_FolderScanRuns_OneRunPerActiveStatus). After the inspection's: a scan that finishes queues an
+        // inspection, which then joins the start's run the inspection reconciler queued rather than racing it.
+        services.AddSingleton<FolderScanReconciler>();
+        services.AddHostedService(provider => provider.GetRequiredService<FolderScanReconciler>());
+        services.AddSingleton<FolderScanWorker>();
+        services.AddHostedService(provider => provider.GetRequiredService<FolderScanWorker>());
         // MAM-14 — the download jobs' tracker, last: it needs nothing settled before it, as every pass reads the
         // followed jobs from the rows (a restart resumes where they are), and a start that only enters its loop
         // holds up nothing after it. No reconciler: a send a stop interrupted is the tracker's own to settle,

@@ -1,6 +1,8 @@
 import type {
   FileInspectionOverview,
   FileInspectionRun,
+  FolderScanOverview,
+  FolderScanRun,
   LibraryFileInspection,
   LibraryLocationList,
   LibrarySource,
@@ -362,7 +364,45 @@ export function inspectionOf(changes: Partial<FileInspectionOverview>): FileInsp
   return { hasAllowedRoots: true, activeRun: null, lastFinishedRun: inspectionRunOf({}), hasQueuedRun: false, ...changes }
 }
 
-/** The sources list of `items`, with the inspection as `inspectionOf({})` describes it. */
+/**
+ * MAM-18 — a scan of the media folders that stored what it found: as many files as MAM-17 counted on
+ * the media host, twelve of them in no library. `changes` sets the fields a test is about.
+ */
+export function scanRunOf(changes: Partial<FolderScanRun>): FolderScanRun {
+  return {
+    id: '5ca00000-0000-4000-8000-000000000001',
+    status: 'Succeeded',
+    requestedByUserName: 'vasyl',
+    createdUtc: '2026-09-30T08:10:00Z',
+    startedUtc: '2026-09-30T08:10:01Z',
+    finishedUtc: '2026-09-30T08:12:00Z',
+    filesFound: 1_394,
+    filesUnreported: 12,
+    problemCount: 0,
+    problem: null,
+    error: null,
+    ...changes,
+  }
+}
+
+/**
+ * MAM-18 — where the scan of the media folders stands; by default the last scan has finished and the
+ * inspection after it read the twelve names it stored. `changes` sets the fields a test is about.
+ */
+export function scanOf(changes: Partial<FolderScanOverview>): FolderScanOverview {
+  return {
+    activeRun: null,
+    lastFinishedRun: scanRunOf({}),
+    hasQueuedRun: false,
+    files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 0, problem: null },
+    ...changes,
+  }
+}
+
+/**
+ * The sources list of `items`, with the inspection as `inspectionOf({})` and the scan as
+ * `scanOf({})` describe them.
+ */
 export function sourcesOf(...items: LibrarySource[]): LibrarySourceList {
-  return { items, inspection: inspectionOf({}) }
+  return { items, inspection: inspectionOf({}), scan: scanOf({}) }
 }

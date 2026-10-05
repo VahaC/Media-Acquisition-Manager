@@ -321,3 +321,25 @@ never its message.
 `ReleaseSearchPlanningTests.ForTv_never_sends_a_movies_tmdb_id_to_the_tv_search` and
 `DestinationsSectionsHttpTests.Sections_of_a_source_that_can_not_be_reached_answers_its_sentence_and_its_mapped_sections_beside_the_others`
 pin it.
+
+## Implementation (added 0.2.0, MAM-18)
+
+**The file inventory gains the walk of the allowed roots, still outside the registry.**
+`IFileInventory.ListMediaFilesAsync(allowedRoots, cancellationToken)` yields the media file names it
+finds under the roots the caller read, in the owner's order, as an `IAsyncEnumerable` of
+`FileListingEntry` — a status, the name's or the place's app path, for a media file where it really
+is, and for anything else a sentence — so the scan reads a walk as it goes, its progress moving with
+it, and can stop it between two entries. `FileListingStatus` says what an entry is: `MediaFile`,
+`Unlisted` (a place the walk couldn't list now, whose earlier names stand), `Skipped` (a place it
+refuses) and `LimitReached`, given last. Which names are media files is the core's rule (`MediaFileNames`), so a
+second inventory takes the same ones
+([ADR 0021](0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+`LocalFileInventory` walks with `FolderWalker`, and its platform reader, the Strategy that already
+opens a file, gains `OpenFolder`: on Linux the folder opened name by name without following a link
+and listed through its descriptor, with its device and inode; on Windows and elsewhere the folder's
+own path and no identity. `FakeFileInventory` lists what a test plants, a linked name and a listing
+problem included, the way the API tests already replace the inventory.
+
+`LocalFileInventoryListingTests.List_walks_the_roots_in_the_owners_order`,
+`LinuxFileStatusReaderTests.OpenFolder_lists_the_folder_it_opened_even_after_its_path_leads_elsewhere`
+and `FolderScanRunHttpTests.Scan_gives_the_inventory_the_allowed_roots_in_the_owners_order` pin it.

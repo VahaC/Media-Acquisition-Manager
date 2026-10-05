@@ -3,7 +3,8 @@ using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
-/// <summary>Creates file names of a media version directly in the database.</summary>
+/// <summary>Creates file names of a media version, or ones a scan of the media folders found, directly in
+/// the database.</summary>
 public interface IPhysicalFileDataFactory
 {
     /// <summary>
@@ -22,6 +23,13 @@ public interface IPhysicalFileDataFactory
         Guid? sourceConnectionId = null,
         string? sourceName = null,
         Guid? libraryLocationId = null);
+
+    /// <summary>
+    /// A saved name <paramref name="appPath"/> as a scan of the media folders stores one no library reported
+    /// (MAM-18): the app as its source, with no connection, no version, no library and no size as reported;
+    /// the path is the app's own, and it was first and last seen at the factory's now.
+    /// </summary>
+    Task<PhysicalFileEntity> CreateUnreported(string appPath);
 
     /// <summary>
     /// Writes on the name <paramref name="fileId"/> what an inspection run writes when it read the file (MAM-9):

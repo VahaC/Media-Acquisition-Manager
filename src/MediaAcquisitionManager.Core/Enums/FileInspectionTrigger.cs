@@ -11,4 +11,8 @@ public enum FileInspectionTrigger
 
     /// <summary>The app started, and picks up whatever a stop interrupted or a file changed meanwhile.</summary>
     AppStarted = 3,
+
+    /// <summary>A scan of the media folders (MAM-18) stored the names it found, which may name files not
+    /// read yet.</summary>
+    FolderScanned = 4,
 }

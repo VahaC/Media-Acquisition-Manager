@@ -2,8 +2,8 @@ namespace MediaAcquisitionManager.Core.Abstractions.Files;
 
 /// <summary>
 /// The app's own read-only look at files on its mounts (MAM-9, Phase B) — local, so not an
-/// integration connection. Phase A members only: MAM-9 reads a file's identity and its streams, Phase B
-/// adds the scan and the hash, Phase C the quarantine.
+/// integration connection. MAM-9 reads a file's identity and its streams, MAM-18 walks the allowed roots
+/// for their media files; MAM-19 adds the hash, Phase C the quarantine.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,4 +47,16 @@ public interface IFileInventory
     /// <param name="cancellationToken">Cancels the read, stopping the inspector.</param>
     Task<FileInventoryResult<MediaInspection>> InspectMediaAsync(
         string appPath, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Walks every one of <paramref name="allowedRoots"/>, in their order, and yields each media file name
+    /// it finds (<see cref="Core.Files.MediaFileNames"/>) and each folder, link or name it didn't go into or
+    /// through, with why (MAM-18, ADR 0021). Links inside the roots are followed and one leading out is
+    /// never; a loop ends; nothing is opened for reading. A walk that reaches its limit yields
+    /// <see cref="FileListingStatus.LimitReached"/> last.
+    /// </summary>
+    /// <param name="allowedRoots">The folders to walk, in canonical form; none yields nothing.</param>
+    /// <param name="cancellationToken">Cancels the walk.</param>
+    IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
+        IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
 }

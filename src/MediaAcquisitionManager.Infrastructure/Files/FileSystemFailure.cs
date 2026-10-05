@@ -24,12 +24,20 @@ internal static class FileSystemFailure
     /// </summary>
     /// <param name="exception">An <see cref="IOException"/> or an <see cref="UnauthorizedAccessException"/>.</param>
     /// <param name="appPath">The path as the caller gave it, for the sentence.</param>
-    public static FileInventoryResult<T> For<T>(Exception exception, string appPath) where T : class => exception switch
+    /// <param name="calledPath">
+    /// MAM-18 — the path the failing call was given when it isn't <paramref name="appPath"/>: the walk lists a folder
+    /// through <c>/proc/self/fd/&lt;n&gt;</c> on Linux, and .NET ends its message with <c> : '&lt;that path&gt;'</c>,
+    /// which names a descriptor, not the folder the sentence is about. That ending is left out.
+    /// </param>
+    public static FileInventoryResult<T> For<T>(Exception exception, string appPath, string? calledPath = null) where T : class => exception switch
     {
         FileNotFoundException or DirectoryNotFoundException => Refused<T>(FileInventoryStatus.NotFound, FileInventoryMessages.NotFound(appPath)),
         UnauthorizedAccessException => Refused<T>(FileInventoryStatus.Unreadable, FileInventoryMessages.NotAllowedToRead(appPath)),
-        _ => Refused<T>(FileInventoryStatus.Unreadable, FileInventoryMessages.CouldNotRead(appPath, exception.Message)),
+        _ => Refused<T>(FileInventoryStatus.Unreadable, FileInventoryMessages.CouldNotRead(appPath, Reason(exception, calledPath))),
     };
+
+    private static string Reason(Exception exception, string? calledPath) =>
+        calledPath is null ? exception.Message : exception.Message.Replace($" : '{calledPath}'", "", StringComparison.Ordinal);
 
     /// <summary>
     /// Opens the file for reading and closes it again: the refusal when the app may not read it, or

@@ -2,7 +2,7 @@
   "title": "Media folders",
   "lead": "The folders inside this app where it may read your library's files, such as /media inside its container. Files outside them, or reached through a link that leads out of them, are never read.",
   "listTitle": "Folders the app may read",
-  "listDescription": "Give each folder's path as the app sees it. Saving doesn't inspect the files: use Inspect files on the Library page, or wait for the next sync.",
+  "listDescription": "Give each folder's path as the app sees it. Saving doesn't look at the files: on the Library page, use Scan folders to find the files no library reported and Inspect files to read them all, or wait for the next sync.",
   "folder": "Folder {{number}}",
   "placeholder": "/media",
   "remove": "Remove folder {{number}}",

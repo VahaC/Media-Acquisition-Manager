@@ -63,8 +63,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// one transaction interceptor, <see cref="TransactionHook"/>, and one command interceptor,
 /// <see cref="DbCommandHook"/>, do nothing until a test arms them to stage a race. The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
-/// instead — the library sync and file inspection workers and reconcilers through their singletons
-/// (<see cref="Resolve{T}"/>).
+/// instead — the library sync, file inspection and folder scan workers and reconcilers through their
+/// singletons (<see cref="Resolve{T}"/>).
 /// Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
 /// <see cref="PipelineProbeApiFactory"/>).
 /// </para>
@@ -152,8 +152,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// command is sent (MAM-12); does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
     public DbCommandHook DbCommandHook { get; } = new();
 
-    /// <summary>The app's mounts and media inspector (MAM-9); nothing is anywhere until a test adds a
-    /// file. Emptied by <see cref="ResetAsync"/>.</summary>
+    /// <summary>The app's mounts and media inspector (MAM-9), and the walk of its media folders (MAM-18);
+    /// nothing is anywhere until a test adds a file. Emptied by <see cref="ResetAsync"/>.</summary>
     public FakeFileInventory Files { get; } = new();
 
     /// <summary>
@@ -236,9 +236,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
     /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>,
     /// <see cref="TransactionHook"/> and <see cref="DbCommandHook"/>, empties
-    /// <see cref="Files"/>, drains the library sync and file inspection queues (a run id a test queued but
-    /// never ran would otherwise reach the next test's worker), unpins the client address and renews
-    /// <see cref="Scope"/>.
+    /// <see cref="Files"/>, drains the library sync, file inspection and folder scan queues (a run id a test
+    /// queued but never ran would otherwise reach the next test's worker), unpins the client address and
+    /// renews <see cref="Scope"/>.
     /// Model-driven: a new entity needs no line here.
     /// </summary>
     public async Task ResetAsync()
@@ -263,6 +263,11 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
 
         var inspectionQueue = Services.GetRequiredService<FileInspectionQueue>();
         while (inspectionQueue.Reader.TryRead(out _))
+        {
+        }
+
+        var scanQueue = Services.GetRequiredService<FolderScanQueue>();
+        while (scanQueue.Reader.TryRead(out _))
         {
         }
 

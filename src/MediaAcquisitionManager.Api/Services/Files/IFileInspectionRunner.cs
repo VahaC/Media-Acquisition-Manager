@@ -1,9 +1,10 @@
 namespace MediaAcquisitionManager.Api.Services.Files;
 
 /// <summary>
-/// Runs one queued inspection of the library's files (MAM-9): claims it, looks at every file name the
-/// libraries reported through the file inventory, inside the allowed roots only, reads with the media
-/// inspector what the cache doesn't already hold, and writes what each file showed as it goes.
+/// Runs one queued inspection of the library's files (MAM-9): claims it, looks at every stored file name —
+/// the libraries' and, since MAM-18, the ones a scan of the media folders found that no library reported
+/// (ADR 0021) — through the file inventory, inside the allowed roots only, reads with the media inspector
+/// what the cache doesn't already hold, and writes what each file showed as it goes.
 /// </summary>
 /// <remarks>
 /// A file that can't be read is a result of the run, written on the file with its sentence — never a

@@ -295,13 +295,18 @@ export interface LibrarySourceList {
   items: LibrarySource[]
   /** MAM-9: one for the whole library, as a run reads the files of every source. */
   inspection: FileInspectionOverview
+  /** MAM-18: the Media folders row, beside the libraries, as the app's own source of file names. */
+  scan: FolderScanOverview
 }
 
 /** Where an inspection of the library's files is. Queued and Running are under way; the other two are final. */
 export type FileInspectionRunStatus = 'Queued' | 'Running' | 'Succeeded' | 'Failed'
 
-/** What queued an inspection: the owner's Inspect files, a finished sync, or the app's start. */
-export type FileInspectionTrigger = 'Requested' | 'LibrarySynced' | 'AppStarted'
+/**
+ * What queued an inspection: the owner's Inspect files, a finished sync, the app's start, or — MAM-18
+ * — a scan of the media folders that stored the names it found.
+ */
+export type FileInspectionTrigger = 'Requested' | 'LibrarySynced' | 'AppStarted' | 'FolderScanned'
 
 /** MAM-9 — where the inspection of the library's files stands. */
 export interface FileInspectionOverview {
@@ -332,6 +337,49 @@ export interface FileInspectionRun {
   filesChecked: number
   /** How many ffprobe read in this run; the rest came from the cache or couldn't be read. */
   filesProbed: number
+  /** Why it failed. The installation owner only: null for everyone else. */
+  error: string | null
+}
+
+/** MAM-18 — where a scan of the media folders is. Queued and Running are under way; the other two are final. */
+export type FolderScanStatus = 'Queued' | 'Running' | 'Succeeded' | 'Failed'
+
+/**
+ * MAM-18 — where the scan of the media folders for the files no library reported stands: the Library
+ * page's Media folders row.
+ */
+export interface FolderScanOverview {
+  /** The scan under way: the running one, else the queued one; null when none is. */
+  activeRun: FolderScanRun | null
+  /** The latest scan that succeeded or failed; null before the first. */
+  lastFinishedRun: FolderScanRun | null
+  /** Whether a scan waits to start: the active one, or one queued behind the running one. */
+  hasQueuedRun: boolean
+  /**
+   * The names the scans stored, by what the app's last look at each found — only those no library
+   * reports under the current path mappings, so a sync that starts reporting one takes it off at once.
+   */
+  files: LibrarySourceInspection
+}
+
+/** MAM-18 — one scan of the media folders, from the request to its outcome. */
+export interface FolderScanRun {
+  id: string
+  status: FolderScanStatus
+  /** Who asked for it. The installation owner only: null for everyone else. */
+  requestedByUserName: string | null
+  /** UTC with a trailing `Z`: when it was queued. */
+  createdUtc: string
+  startedUtc: string | null
+  finishedUtc: string | null
+  /** The media files the walk has reached so far, each once however many links lead to it; the total once it succeeded. */
+  filesFound: number
+  /** How many of them no library reported; null until the scan stored what it found. */
+  filesUnreported: number | null
+  /** The folders, links and names the walk didn't go into or through. */
+  problemCount: number
+  /** The first of those problems' sentences; it quotes paths. The installation owner only: null for everyone else. */
+  problem: string | null
   /** Why it failed. The installation owner only: null for everyone else. */
   error: string | null
 }

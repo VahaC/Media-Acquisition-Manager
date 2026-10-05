@@ -291,3 +291,37 @@ no table.
 `IntegrationsDeleteHttpTests.Delete_of_a_media_library_purges_its_series_episodes_and_their_positions`
 and `ReleaseSearchTvHttpTests.Search_lists_the_movie_releases_then_the_tv_releases_and_stores_each_with_its_kind_and_categories`
 pin it.
+
+## Implementation (added 0.2.0, MAM-18)
+
+**The app's own file names are stored at last, with no version.** The MAM-9 section kept
+`ProvenanceSourceKind.FileInspection` unused until Phase B's scan; MAM-18 writes it. A file the scan
+of the media folders finds that no library reported gets one `PhysicalFiles` row of that kind, with
+no source connection, name or item id, no library, no reported size and no version:
+`MediaVersionId` is nullable now, null only on these rows, as which work such a file is, if any, is
+not the app's to guess from its name (ADR 0017). A library's name always has its version and still
+goes with it; the scan's names go with no version, no integration and no purge, only with a later
+scan
+([ADR 0021](0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+
+**Their `ServicePath` is the app's own path, which the Decision's reason allows.** The Decision never
+stores the app path because a stored one would go stale when a mapping is edited (ADR 0003). On these
+rows the app is the reporting source: no connection's mappings apply (`PathMapper` maps a path with no
+pairs as it is), so no edit can make it stale: the path as its source reported it is the app's own,
+in canonical form. Every reader still maps every name through its connection's current pairs, these
+included, and a library's name keeps its service's path.
+
+**Every name gains what the disk said of its size and last write.** The inspection writes
+`ReadSizeBytes` and `ReadModifiedUtc` with the identity and link count on every name it looks at, a
+library's as well as the scan's: null until read, and null again when the last look found nothing
+there. `SizeBytes` stays the size a library reported, and is null on the scan's names. The migration
+(`AddFolderScan`) rebuilds `PhysicalFiles` for the nullable column, the rebuild
+[ADR 0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)
+avoided, accepted in its MAM-18 section.
+
+`FolderScanRunHttpTests.Scan_finds_every_media_file_stores_a_name_for_each_one_no_library_reported_and_reads_none`,
+`FolderScanPersistenceTests.A_name_without_a_version_is_stored_and_kept_when_a_librarys_version_goes`,
+`FolderScanPersistenceTests.A_name_without_a_version_is_kept_as_it_is_when_an_integration_goes`,
+`FolderScanInspectionHttpTests.Inspect_writes_the_size_and_time_the_disk_said_on_a_librarys_name_too_and_clears_them_once_the_file_is_gone`
+and `FolderScanIsolationHttpTests.Scan_of_a_name_whose_path_holds_a_works_title_changes_nothing_the_library_shows_or_finds`
+pin it.

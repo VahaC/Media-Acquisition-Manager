@@ -119,6 +119,83 @@ public sealed class LinuxFileStatusReaderTests : IDisposable
         Assert.Equal(opened.Facts, again.Value);
     }
 
+    // MAM-18 — the walk of the allowed roots opens each folder the same way (ADR 0021).
+
+    [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    public void OpenFolder_reports_the_folders_identity_the_same_each_time_it_is_opened()
+    {
+        //Arrange
+        var movies = _folder.CreateFolder("media", "movies");
+        var shows = _folder.CreateFolder("media", "shows");
+        var reader = new LinuxFileStatusReader();
+
+        //Act
+        using var first = reader.OpenFolder(movies, movies).Value!;
+        using var again = reader.OpenFolder(movies, movies).Value!;
+        using var other = reader.OpenFolder(shows, shows).Value!;
+
+        //Assert
+        Assert.NotNull(first.DeviceId);
+        Assert.NotNull(first.Inode);
+        Assert.Equal((first.DeviceId, first.Inode), (again.DeviceId, again.Inode));
+        Assert.Equal(first.DeviceId, other.DeviceId);
+        Assert.NotEqual(first.Inode, other.Inode);
+    }
+
+    [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    public void OpenFolder_through_a_folder_swapped_for_a_link_since_the_check_is_refused()
+    {
+        //Arrange
+        // The walk listed /media and found the folder "movies"; then someone who may write in /media put a link to a
+        // folder outside in its place.
+        _folder.WriteFile("secret", "outside", "movie.mkv");
+        var path = _folder.PathOf("media", "movies");
+        FileLinks.CreateFolderLink(path, _folder.PathOf("outside"));
+
+        //Act
+        var result = new LinuxFileStatusReader().OpenFolder(path, path);
+
+        //Assert
+        Assert.Null(result.Value);
+        Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
+        Assert.Equal(
+            $"“{path}” changed while the app was checking it: a folder on the way or the file itself became a link or something else, so the app didn't open it.",
+            result.Error);
+    }
+
+    [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    public void OpenFolder_of_a_file_is_refused()
+    {
+        //Arrange
+        var path = _folder.WriteFile("12345", "media", "movie.mkv");
+
+        //Act
+        var result = new LinuxFileStatusReader().OpenFolder(path, path);
+
+        //Assert
+        Assert.Null(result.Value);
+        Assert.Equal(FileInventoryStatus.Unreadable, result.Status);
+    }
+
+    [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    public void OpenFolder_lists_the_folder_it_opened_even_after_its_path_leads_elsewhere()
+    {
+        //Arrange
+        _folder.WriteFile("the movie", "media", "movies", "movie.mkv");
+        _folder.WriteFile("secret", "outside", "mam.db");
+        var path = _folder.PathOf("media", "movies");
+        using var opened = new LinuxFileStatusReader().OpenFolder(path, path).Value!;
+        // Swapped after the open: the folder moved aside, a link to the app's data in its place.
+        Directory.Move(path, _folder.PathOf("media", "aside"));
+        FileLinks.CreateFolderLink(path, _folder.PathOf("outside"));
+
+        //Act
+        var names = new DirectoryInfo(opened.ListPath).EnumerateFileSystemInfos().Select(entry => entry.Name).ToList();
+
+        //Assert
+        Assert.Equal(["movie.mkv"], names);
+    }
+
     private static void CreateNamedPipe(string path)
     {
         if (MakeFifo(path, Convert.ToUInt32("644", 8)) != 0)

@@ -27,7 +27,8 @@ public class FileInspectionController(IFileInspectionService inspections) : Cont
 {
     private Guid UserId => User.GetUserId();
 
-    /// <summary>Queues an inspection of every file the libraries reported.</summary>
+    /// <summary>Queues an inspection of every stored file name: the libraries' and those a scan of the media
+    /// folders found that no library reported (MAM-18).</summary>
     [HttpPost]
     [RequireInstallationOwner]
     public async Task<ActionResult<FileInspectionRunDto>> Start(CancellationToken cancellationToken)

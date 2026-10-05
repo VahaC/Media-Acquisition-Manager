@@ -177,3 +177,44 @@ This allows reading only. The roots are not a licence to write: Phase C's quaran
 access of its own, limited to the roots (specification §4). A shared reading says two names are one
 set of bytes, nothing about which work they are (ADR 0006, ADR 0008). And a mapped path is still
 only where to look (ADR 0003): the identity the app reads itself decides what a file is.
+
+## Implementation (added 0.2.0, MAM-18)
+
+**The rebuild of `PhysicalFiles` this record avoided is accepted for the scan's names.** The Decision
+kept the name without a foreign key to its reading, as SQLite adds one only by rebuilding the table,
+in three transactions with foreign keys off between them. MAM-18 rebuilds it anyway: a name the scan
+finds that no library reported has no version (Vasyl's decision 1), and SQLite makes
+`MediaVersionId` nullable only by a rebuild. The cost weighed then is the same — a process killed
+between the transactions leaves the migration half applied — and it buys something a guard of one
+deletion didn't: one table of names, the libraries' and the app's own, for the inspection, MAM-19's
+hash and MAM-20's grouping. The table holds the library's file names (1,378 on the reference
+installation), so the copy takes a moment, and the upgrade note says to back up `mam.db` first. The
+foreign key to the reading is still not added: who deletes a reading hasn't changed
+([ADR 0021](0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+
+**A fourth trigger, and every stored name read.** A scan that stores its names queues the inspection
+with `FolderScanned`, or joins the run waiting, as a sync does; failing to queue it is logged and
+never fails the scan. A run now reads every stored name, the scan's included: they have no
+connection, so they map as they are, and are looked at inside the allowed roots and read through the
+same cache. One the look finds outside the roots — kept from before the owner narrowed them, or
+behind a link that leads out since — is `OutsideAllowedRoots` and never read. Each look also records
+the size and modification time the disk said (`ReadSizeBytes`, `ReadModifiedUtc`) beside the
+identity. The scan itself runs only when the owner asks: on no timer, as the table above rejected
+for reading, and neither after a sync nor at the start.
+
+**The walk extends the rules of the links to folders.** The scan reaches each folder as a look
+reaches a file: by its path with every link resolved (40 at most), following a link only when it
+ends inside a resolved root and refusing one that leads out, never listing through it. On Linux the
+folder is opened from `/` one name at a time with `O_NOFOLLOW`, the last name as a folder too, and
+listed through `/proc/self/fd/<n>`, so a folder swapped for a link after the walk checked it is
+refused, as a file swapped so is; on Windows it is listed again by its path. Nothing is opened for
+reading by the walk.
+
+`AddFolderScanMigrationTests.Upgrading_keeps_every_value_of_every_file_name_its_version_included`,
+`AddFolderScanMigrationTests.Upgrading_rebuilds_the_file_names_table_with_its_indexes_and_foreign_keys`,
+`FolderScanInspectionHttpTests.RunQueued_after_a_scan_reads_the_new_names_and_records_their_identity_size_and_modification_time`,
+`FolderScanInspectionHttpTests.Scan_and_inspect_again_reads_only_the_file_that_changed`,
+`FolderScanRunHttpTests.Scan_stores_a_listed_name_the_inspection_then_finds_outside_the_roots_and_never_reads_it`,
+`LinuxFileStatusReaderTests.OpenFolder_through_a_folder_swapped_for_a_link_since_the_check_is_refused`
+and `LocalFileInventoryListingTests.List_refuses_a_folder_link_leading_out_and_lists_nothing_behind_it`
+pin it.

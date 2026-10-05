@@ -56,7 +56,8 @@ public sealed partial class LibrarySnapshotStore
             .GroupBy(version => version.SourceItemId!, StringComparer.Ordinal)
             .ToDictionary(item => item.Key, item => item.ToList(), StringComparer.Ordinal);
 
-        private readonly Dictionary<(Guid, string), PhysicalFileEntity> _files = FirstByKey(
+        // MAM-18 — a library's name always has its version; only the scan's own names have none.
+        private readonly Dictionary<(Guid?, string), PhysicalFileEntity> _files = FirstByKey(
             existing.Files, file => (file.MediaVersionId, file.ServicePath));
 
         private readonly ILookup<Guid, LibraryLocationFolderEntity> _folders = existing.Folders.ToLookup(folder => folder.LibraryLocationId);
@@ -201,7 +202,7 @@ public sealed partial class LibrarySnapshotStore
 
         private void UpsertFile(LibraryItem item, MediaVersionEntity version, LibraryFile file)
         {
-            var row = Find(_files, (version.Id, file.ServicePath), () => new PhysicalFileEntity { MediaVersionId = version.Id, CreatedUtc = now }, db.PhysicalFiles);
+            var row = Find(_files, ((Guid?)version.Id, file.ServicePath), () => new PhysicalFileEntity { MediaVersionId = version.Id, CreatedUtc = now }, db.PhysicalFiles);
             // The same path twice in one version: one name, one row.
             if (row is null)
                 return;

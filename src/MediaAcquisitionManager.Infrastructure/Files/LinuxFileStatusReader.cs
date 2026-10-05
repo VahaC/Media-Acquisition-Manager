@@ -22,6 +22,12 @@ namespace MediaAcquisitionManager.Infrastructure.Files;
 /// checked here, whatever its path leads to by then.
 /// </para>
 /// <para>
+/// MAM-18, ADR 0021 — the walk of the allowed roots opens each folder the same way, every name a folder and
+/// none followed, and lists the descriptor through <c>/proc/self/fd/&lt;n&gt;</c>: a folder swapped for a link
+/// after its parent was listed is refused, never listed through. The folder's device and inode tell the walk a
+/// loop no path shows, such as a bind mount of a folder inside itself.
+/// </para>
+/// <para>
 /// statx rather than <c>stat</c>: glibc's <c>struct stat</c> differs between architectures (amd64 and arm64 lay
 /// it out differently), while <c>struct statx</c> is one fixed 256-byte layout everywhere, so one declaration
 /// serves both images. <c>O_DIRECTORY</c> and <c>O_NOFOLLOW</c> do differ, so they are picked by architecture.
@@ -84,7 +90,7 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         if (names.Length == 0)
             return FileSystemFailure.Refused<IOpenedFile>(FileInventoryStatus.NotARegularFile, FileInventoryMessages.Folder(appPath));
 
-        var located = OpenPathOnly(names, appPath);
+        var located = OpenPathOnly(names, appPath, asFolder: false);
         if (located.Value is not { } pathOnly)
             return FileSystemFailure.Relay<SafeFileHandle, IOpenedFile>(located);
 
@@ -106,11 +112,40 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         }
     }
 
+    /// <inheritdoc/>
+    public FileInventoryResult<IOpenedFolder> OpenFolder(string systemPath, string appPath)
+    {
+        var located = OpenPathOnly(systemPath.Split('/', StringSplitOptions.RemoveEmptyEntries), appPath, asFolder: true);
+        if (located.Value is not { } folder)
+            return FileSystemFailure.Relay<SafeFileHandle, IOpenedFolder>(located);
+
+        if (Statx((int)folder.DangerousGetHandle(), "", DescriptorItself, BasicStats, out var status) != 0)
+        {
+            var error = Marshal.GetLastPInvokeError();
+            folder.Dispose();
+            return Refusal<IOpenedFolder>(error, appPath);
+        }
+
+        // As for a file: the identity is the pair, and a file system that leaves the inode out gives none, so the
+        // walk falls back to the folder's path.
+        var hasInode = (status.Mask & InodeReported) != 0;
+        return new FileInventoryResult<IOpenedFolder>(
+            FileInventoryStatus.Found,
+            new OpenedFolder(
+                folder,
+                hasInode ? DeviceId(status.DeviceMajor, status.DeviceMinor) : null,
+                hasInode ? unchecked((long)status.Inode) : null),
+            null);
+    }
+
     /// <summary>
     /// The last of <paramref name="names"/> opened with <c>O_PATH</c>, reached from <c>/</c> one name at a time
-    /// with <c>O_NOFOLLOW</c>, every name before it as a folder.
+    /// with <c>O_NOFOLLOW</c>, every name before it as a folder — and the last one too when
+    /// <paramref name="asFolder"/>, so a folder swapped for a link or a file is refused rather than opened.
     /// </summary>
-    private static FileInventoryResult<SafeFileHandle> OpenPathOnly(string[] names, string appPath)
+    /// <remarks>Every descriptor with <c>O_CLOEXEC</c>: an ffprobe the inspection starts meanwhile inherits only
+    /// the file it is meant to read, never a folder the walk holds.</remarks>
+    private static FileInventoryResult<SafeFileHandle> OpenPathOnly(string[] names, string appPath, bool asFolder)
     {
         var current = OpenAt(CurrentFolderDescriptor, "/", PathOnly | FolderOnly | CloseOnExec);
         if (current < 0)
@@ -119,7 +154,7 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         for (var index = 0; index < names.Length; index++)
         {
             var isLast = index == names.Length - 1;
-            var next = OpenAt(current, names[index], PathOnly | DontFollowLink | CloseOnExec | (isLast ? 0 : FolderOnly));
+            var next = OpenAt(current, names[index], PathOnly | DontFollowLink | CloseOnExec | (isLast && !asFolder ? 0 : FolderOnly));
             var error = Marshal.GetLastPInvokeError();
             Close(current);
             if (next < 0)
@@ -237,6 +272,21 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         public string ProbePath => OwnDescriptorPath(handle);
 
         public FileInventoryResult<FileFacts> ReadFactsAgain(string appPath) => Describe(handle, appPath);
+
+        public void Dispose() => handle.Dispose();
+    }
+
+    /// <summary>
+    /// The folder held with <c>O_PATH</c>, listed through <c>/proc/self</c>: opening that path again opens this
+    /// very folder, and the read permission is checked then, so a folder the app may not list fails its listing.
+    /// </summary>
+    private sealed class OpenedFolder(SafeFileHandle handle, long? deviceId, long? inode) : IOpenedFolder
+    {
+        public string ListPath => OwnDescriptorPath(handle);
+
+        public long? DeviceId => deviceId;
+
+        public long? Inode => inode;
 
         public void Dispose() => handle.Dispose();
     }

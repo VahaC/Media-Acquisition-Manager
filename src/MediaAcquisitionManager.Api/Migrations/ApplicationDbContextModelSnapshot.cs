@@ -351,6 +351,63 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("FileInspectionRuns");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FolderScanRunEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FilesFound")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("FilesUnreported")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("FinishedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Problem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProblemCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByUserName")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedUtc");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex(new[] { "Status" }, "IX_FolderScanRuns_OneRunPerActiveStatus")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('Queued', 'Running')");
+
+                    b.ToTable("FolderScanRuns");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.InstallationEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -958,7 +1015,7 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<Guid?>("MediaInspectionId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("MediaVersionId")
+                    b.Property<Guid?>("MediaVersionId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedServicePath")
@@ -968,6 +1025,12 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<DateTime>("ObservedUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReadModifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ReadSizeBytes")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ServicePath")
                         .IsRequired()
@@ -1341,6 +1404,14 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FolderScanRunEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.InstallationEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
@@ -1469,8 +1540,7 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasOne("MediaAcquisitionManager.Core.Entities.MediaVersionEntity", null)
                         .WithMany()
                         .HasForeignKey("MediaVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
                         .WithMany()

@@ -23,6 +23,10 @@ namespace MediaAcquisitionManager.Infrastructure.Files;
 /// writes, renames or deletes: the inventory is read-only by construction.
 /// </para>
 /// <para>
+/// MAM-18, ADR 0021 — the walk of the allowed roots for media file names goes the same way, folder by folder
+/// (<see cref="FolderWalker"/>).
+/// </para>
+/// <para>
 /// Every call reads the file system afresh and keeps nothing, so one instance serves every inspection at
 /// once.
 /// </para>
@@ -38,6 +42,14 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
 
     /// <inheritdoc/>
     public FileInventoryCapabilities Capabilities { get; } = new(Reader.ReportsFileIdentity);
+
+    /// <summary>The folders one walk lists at most: <see cref="FolderWalker.MaximumFolders"/>; a test sets a few
+    /// rather than make a hundred thousand.</summary>
+    internal int MaximumListedFolders { get; init; } = FolderWalker.MaximumFolders;
+
+    /// <summary>The entries one walk gives at most: <see cref="FolderWalker.MaximumEntries"/>; a test sets a
+    /// few.</summary>
+    internal int MaximumListedEntries { get; init; } = FolderWalker.MaximumEntries;
 
     /// <inheritdoc/>
     public Task<FileInventoryResult<FileFacts>> DescribeAsync(
@@ -107,6 +119,13 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
         return new FileInventoryResult<MediaInspection>(FileInventoryStatus.Found, new MediaInspection(facts, media), null);
     }
 
+    /// <inheritdoc/>
+    /// <remarks>The roots are trusted as for a look at one file: only those that parse as this platform's paths
+    /// are walked.</remarks>
+    public IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
+        IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default) =>
+        FolderWalker.WalkAsync(UsableRoots(allowedRoots), Reader, MaximumListedFolders, MaximumListedEntries, cancellationToken);
+
     /// <summary>
     /// Where <paramref name="appPath"/> really is, once every check has passed: inside an allowed root by its
     /// text, every link on the way followed, and still inside an allowed root (a root that is itself a link
@@ -114,11 +133,7 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     /// </summary>
     private static FileInventoryResult<NormalizedPath> Locate(string appPath, IReadOnlyList<string> allowedRoots)
     {
-        var roots = allowedRoots
-            .Select(root => NormalizedPath.TryParse(root, out var parsed, out _) ? parsed : null)
-            .OfType<NormalizedPath>()
-            .Where(root => root.Style == AllowedRootRules.PlatformStyle)
-            .ToList();
+        var roots = UsableRoots(allowedRoots);
         if (roots.Count == 0)
             return FileSystemFailure.Refused<NormalizedPath>(FileInventoryStatus.OutsideAllowedRoots, FileInventoryMessages.NoAllowedRoots);
 
@@ -146,6 +161,18 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
             : FileSystemFailure.Refused<NormalizedPath>(
                 FileInventoryStatus.OutsideAllowedRoots, FileInventoryMessages.LinkLeadsOut(appPath, resolvedPath.ToString()));
     }
+
+    /// <summary>
+    /// The allowed roots that parse as paths of this platform's style, in their order; the others are dropped,
+    /// so a bad value can only narrow what is read, never widen it.
+    /// </summary>
+    private static List<NormalizedPath> UsableRoots(IReadOnlyList<string> allowedRoots) =>
+    [
+        .. allowedRoots
+            .Select(root => NormalizedPath.TryParse(root, out var parsed, out _) ? parsed : null)
+            .OfType<NormalizedPath>()
+            .Where(root => root.Style == AllowedRootRules.PlatformStyle),
+    ];
 
     /// <summary>
     /// The same version of the file: same identity, size and modification time — the cache key. The link count

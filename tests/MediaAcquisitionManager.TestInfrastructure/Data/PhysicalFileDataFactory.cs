@@ -42,6 +42,25 @@ public sealed class PhysicalFileDataFactory(ApplicationDbContext db, TimeProvide
         return file;
     }
 
+    // Field for field what FolderScanRunner stores for a file no library reported.
+    public async Task<PhysicalFileEntity> CreateUnreported(string appPath)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        var file = new PhysicalFileEntity
+        {
+            SourceKind = ProvenanceSourceKind.FileInspection,
+            ServicePath = appPath,
+            NormalizedServicePath = LibrarySearchText.Normalize(appPath),
+            CreatedUtc = now,
+            ObservedUtc = now,
+        };
+
+        db.PhysicalFiles.Add(file);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        return file;
+    }
+
     // Set-based, like FileInspectionRunner.WriteAsync.
     public Task Link(Guid fileId, Guid readingId, FileInspectionStatus status = FileInspectionStatus.Inspected)
     {

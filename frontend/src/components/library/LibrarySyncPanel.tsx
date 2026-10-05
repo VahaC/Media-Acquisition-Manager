@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CircleCheck, Loader2, RefreshCw, ScanSearch, TriangleAlert } from 'lucide-react'
+import { CircleAlert, CircleCheck, FolderSearch, Loader2, RefreshCw, ScanSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { Banner } from '@/components/shared/Banner'
@@ -11,11 +11,14 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
 import { formatDateTime, formatNumber } from '@/lib/format'
 import { isSyncUnderWay } from '@/lib/library-runs'
-import { qk, useLibrarySources, useStartFileInspection, useStartLibrarySync } from '@/lib/queries'
+import { qk, useLibrarySources, useStartFileInspection, useStartFolderScan, useStartLibrarySync } from '@/lib/queries'
 import type {
   FileInspectionOverview,
   FileInspectionRun,
+  FolderScanOverview,
+  FolderScanRun,
   LibrarySource,
+  LibrarySourceInspection,
   LibrarySourceList,
   LibrarySyncRun,
   LibrarySyncStatus,
@@ -50,6 +53,10 @@ interface StartError {
  * MAM-9 — each source also counts how far the app's look at its files has got, and a last row tells
  * how the inspection of all the files stands, with Inspect files for the owner. It is polled, like a
  * sync, while a run is under way.
+ *
+ * MAM-18 — a Media folders row closes the list of sources: the app's own scan of the allowed folders
+ * for the files no library reported, with Scan folders for the owner, polled while a scan is under
+ * way. It and the inspection row show without a media library too, as neither needs one.
  */
 export function LibrarySyncPanel() {
   const { t } = useTranslation(['library', 'common'])
@@ -61,8 +68,21 @@ export function LibrarySyncPanel() {
   const load = useLoadRetry(sources)
   const start = useStartLibrarySync()
   const inspect = useStartFileInspection()
+  const scanFolders = useStartFolderScan()
   const [startError, setStartError] = useState<StartError | null>(null)
   const [inspectError, setInspectError] = useState<string | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
+
+  const startScan = async () => {
+    setScanError(null)
+    try {
+      await scanFolders.mutateAsync()
+    } catch (e: unknown) {
+      // As with Inspect files: mostly a 409 (no media folder is allowed any more), which the refetch
+      // the start ends with has already shown on the row; the sentence says why under it.
+      setScanError(getApiErrorMessage(e, t('scan.startFailed')))
+    }
+  }
 
   const startInspection = async () => {
     setInspectError(null)
@@ -123,17 +143,20 @@ export function LibrarySyncPanel() {
           </ErrorState>
         ) : isLoading ? (
           <p className="settings-muted">{t('common:loading')}</p>
-        ) : data && data.items.length === 0 ? (
-          <div className="settings-empty">
-            <p>{isOwner ? t('sources.emptyOwner') : t('sources.emptyMember')}</p>
-            {isOwner && (
-              <Button asChild variant="outline" size="sm">
-                <Link to="/settings/integrations">{t('sources.openIntegrations')}</Link>
-              </Button>
-            )}
-          </div>
         ) : data ? (
           <>
+            {/* MAM-18 — no media library leaves the sentence that says how to connect one; the rows
+                under it stay, as the folders are scanned and the files inspected without one. */}
+            {data.items.length === 0 && (
+              <div className="settings-empty">
+                <p>{isOwner ? t('sources.emptyOwner') : t('sources.emptyMember')}</p>
+                {isOwner && (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/settings/integrations">{t('sources.openIntegrations')}</Link>
+                  </Button>
+                )}
+              </div>
+            )}
             <ul className="library-source-list">
               {data.items.map((source) => (
                 <SourceRow
@@ -145,8 +168,18 @@ export function LibrarySyncPanel() {
                   onSync={() => void startSync(source)}
                 />
               ))}
+              {/* MAM-18 — the app's own source of file names, after the libraries: a row of the same
+                  list, parted from them by its line. */}
+              <ScanRow
+                scan={data.scan}
+                hasAllowedRoots={data.inspection.hasAllowedRoots}
+                isOwner={isOwner}
+                starting={scanFolders.isPending}
+                startError={scanError}
+                onScan={() => void startScan()}
+              />
             </ul>
-            {/* Under the sources, as one run reads the files of them all. */}
+            {/* Under the sources and the Media folders row, as one run reads the files of them all. */}
             <InspectionRow
               overview={data.inspection}
               isOwner={isOwner}
@@ -206,7 +239,7 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
             {t('run.lastSucceeded', { time: formatDateTime(finishedAt(lastSucceeded), INSTANT_FORMAT) })}
           </p>
         )}
-        <InspectionCounts source={source} />
+        <InspectionCounts inspection={source.inspection} frame={(counts) => t('inspection.sourceFiles', { counts })} />
         {source.filesWithoutAppPathCount > 0 && (
           <p className="library-source-warning">
             <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
@@ -271,10 +304,10 @@ function StartErrorLine({ message }: { message: string }) {
 }
 
 /**
- * When a run ended; a finished run always has it, the request time stands in otherwise. A sync's or
- * (MAM-9) an inspection's.
+ * When a run ended; a finished run always has it, the request time stands in otherwise. A sync's,
+ * (MAM-9) an inspection's or (MAM-18) a scan's.
  */
-function finishedAt(run: Pick<LibrarySyncRun | FileInspectionRun, 'finishedUtc' | 'createdUtc'>): string {
+function finishedAt(run: Pick<LibrarySyncRun | FileInspectionRun | FolderScanRun, 'finishedUtc' | 'createdUtc'>): string {
   return run.finishedUtc ?? run.createdUtc
 }
 
@@ -337,7 +370,8 @@ function RunLine({ run }: { run: LibrarySyncRun | null }) {
   )
 }
 
-function RunIcon({ run }: { run: LibrarySyncRun }) {
+/** A run's status as its icon. MAM-18 — a scan's statuses are a sync's, and so are its icons. */
+function RunIcon({ run }: { run: LibrarySyncRun | FolderScanRun }) {
   switch (run.status) {
     case 'Queued':
     case 'Running':
@@ -355,10 +389,16 @@ function RunIcon({ run }: { run: LibrarySyncRun }) {
  * MAM-9 — a source's files by what the app's last look at each found, the parts that aren't zero
  * only: "Files: 650 inspected · 3 couldn't be read · 217 not inspected yet". Nothing for a source
  * without files.
+ *
+ * MAM-18 — the Media folders row counts the names its scans stored in the same parts; `frame` puts
+ * them in each row's own sentence.
  */
-function InspectionCounts({ source }: { source: LibrarySource }) {
+function InspectionCounts({ inspection, frame }: {
+  inspection: LibrarySourceInspection
+  frame: (counts: string) => string
+}) {
   const { t } = useTranslation(['library', 'common'])
-  const { inspectedCount, problemCount, notInspectedCount } = source.inspection
+  const { inspectedCount, problemCount, notInspectedCount } = inspection
   const parts = [
     inspectedCount > 0 && t('inspection.inspected', { count: inspectedCount, value: formatNumber(inspectedCount) }),
     problemCount > 0 && t('inspection.problems', { count: problemCount, value: formatNumber(problemCount) }),
@@ -366,7 +406,7 @@ function InspectionCounts({ source }: { source: LibrarySource }) {
       && t('inspection.notInspected', { count: notInspectedCount, value: formatNumber(notInspectedCount) }),
   ].filter((part) => typeof part === 'string')
   if (parts.length === 0) return null
-  return <p className="settings-muted">{t('inspection.sourceFiles', { counts: parts.join(t('common:separator')) })}</p>
+  return <p className="settings-muted">{frame(parts.join(t('common:separator')))}</p>
 }
 
 interface InspectionRowProps {
@@ -498,4 +538,158 @@ function InspectionIcon({ run }: { run: FileInspectionRun }) {
     case 'Failed':
       return <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
   }
+}
+
+// ── the scan of the media folders ──
+
+interface ScanRowProps {
+  scan: FolderScanOverview
+  /** Whether the owner has allowed any media folder: the inspection's flag, as one list serves both. */
+  hasAllowedRoots: boolean
+  isOwner: boolean
+  /** Its Scan folders request is on its way. */
+  starting: boolean
+  /** The API's refusal of the last Scan folders. */
+  startError: string | null
+  onScan: () => void
+}
+
+/**
+ * MAM-18 — the app's own source of file names, laid out like a library's row: how the scan of the
+ * media folders stands, the folders it couldn't go into, the names it stored that no library
+ * reported by what the app's look at each found, and Scan folders. A running scan leaves the button
+ * on: another one queues behind it.
+ */
+function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan }: ScanRowProps) {
+  const { t } = useTranslation('library')
+  // The first reason that applies; the API would refuse the start with the same one, except for a
+  // queued scan — on its own or behind the running one — which it would answer with that scan again.
+  const reason = !isOwner
+    ? t('scan.reasons.notOwner')
+    : !hasAllowedRoots
+      ? t('scan.reasons.noFolders')
+      : scan.hasQueuedRun
+        ? t('scan.reasons.queued')
+        : undefined
+  const label = starting ? t('scan.starting') : t('scan.scanFolders')
+  // The scan the status line tells of; none while the line says scanning is off. Its problems are
+  // known once it has finished, so a scan under way has none yet.
+  const run = hasAllowedRoots ? scan.activeRun ?? scan.lastFinishedRun : null
+  const problems = run !== null && run.problemCount > 0
+    ? { count: run.problemCount, value: formatNumber(run.problemCount) }
+    : null
+
+  return (
+    <li className="library-source library-scan">
+      <div className="library-source-body">
+        <p className="library-source-name">
+          <span className="settings-name-text">{t('scan.name')}</span>
+        </p>
+        <ScanLine scan={scan} hasAllowedRoots={hasAllowedRoots} isOwner={isOwner} />
+        {run !== null && problems !== null && (
+          <p className="library-source-warning">
+            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+            {/* The first problem's sentence quotes the owner's paths: null for anyone else, who reads
+                how many there were. */}
+            <span>
+              {run.problem === null
+                ? t('scan.problemsMember', problems)
+                : t('scan.problemsOwner', { ...problems, problem: run.problem })}
+            </span>
+          </p>
+        )}
+        <InspectionCounts inspection={scan.files} frame={(counts) => t('scan.files', { counts })} />
+        {/* The owner's sentence for the first of those names that couldn't be read, as a source's row
+            shows its own. */}
+        {scan.files.problem && (
+          <p className="library-source-warning">
+            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{scan.files.problem}</span>
+          </p>
+        )}
+        {startError && <StartErrorLine message={startError} />}
+      </div>
+      <div className="library-source-actions">
+        <DisabledReason reason={reason}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title={label}
+            disabled={reason !== undefined || starting}
+            onClick={onScan}
+          >
+            {starting || scan.activeRun !== null
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              : <FolderSearch className="h-3.5 w-3.5" aria-hidden="true" />}
+            <span className="label-text">{label}</span>
+          </Button>
+        </DisabledReason>
+      </div>
+    </li>
+  )
+}
+
+/**
+ * MAM-18 — the scan in one line, `role="status"` like a source's run line: off without a media
+ * folder, the scan under way, else the last one that finished.
+ */
+function ScanLine({ scan, hasAllowedRoots, isOwner }: {
+  scan: FolderScanOverview
+  hasAllowedRoots: boolean
+  isOwner: boolean
+}) {
+  const { t } = useTranslation('library')
+
+  // Off first, as the inspection's line: without a media folder a scan has nothing to walk.
+  if (!hasAllowedRoots) {
+    return (
+      <p role="status" className="library-source-warning">
+        <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+        <span>
+          {t('scan.off')}
+          {isOwner && (
+            <>
+              {' '}
+              <Link to="/settings/media-folders" className="library-link">{t('scan.chooseFolders')}</Link>
+            </>
+          )}
+        </span>
+      </p>
+    )
+  }
+
+  const run = scan.activeRun ?? scan.lastFinishedRun
+  const text = (() => {
+    if (run === null) return t('scan.never')
+    switch (run.status) {
+      case 'Queued':
+        return t('scan.queued')
+      case 'Running':
+        return t('scan.running', { count: run.filesFound, found: formatNumber(run.filesFound) })
+      case 'Succeeded':
+        return t('scan.succeeded', {
+          count: run.filesFound,
+          time: formatDateTime(finishedAt(run), INSTANT_FORMAT),
+          found: formatNumber(run.filesFound),
+          // Stored with the success; null only before it.
+          unreported: formatNumber(run.filesUnreported ?? 0),
+        })
+      case 'Failed':
+        // Null for anyone but the owner, like a failed sync's.
+        return run.error === null
+          ? t('scan.failedHidden')
+          : t('scan.failed', { time: formatDateTime(finishedAt(run), INSTANT_FORMAT), error: run.error })
+    }
+  })()
+
+  // A scan queued behind the running one shows only here: the running one is what happens now.
+  const shown = run?.status === 'Running' && scan.hasQueuedRun ? t('scan.followedBy', { line: text }) : text
+
+  return (
+    <p role="status" className="library-source-status" data-status={run?.status}>
+      {run !== null && <RunIcon run={run} />}
+      <span>{shown}</span>
+    </p>
+  )
 }

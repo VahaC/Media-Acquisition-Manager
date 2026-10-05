@@ -52,6 +52,15 @@ internal sealed class WindowsFileStatusReader : IFileStatusReader
         }
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// MAM-18, ADR 0021 — listed again by its path, and with no identity: a junction swapped in at the path since
+    /// the checks is followed, which only the Linux reader, where the app runs, refuses; and the walk tells a loop
+    /// by the folder's resolved path instead.
+    /// </remarks>
+    public FileInventoryResult<IOpenedFolder> OpenFolder(string systemPath, string appPath) =>
+        new(FileInventoryStatus.Found, new FolderListedByPath(systemPath), null);
+
     private static FileInventoryResult<FileFacts> Describe(SafeFileHandle handle, string appPath)
     {
         if (!GetFileInformationByHandle(handle, out var information))

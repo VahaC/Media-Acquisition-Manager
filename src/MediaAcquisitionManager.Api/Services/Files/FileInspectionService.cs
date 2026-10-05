@@ -71,7 +71,7 @@ public sealed class FileInspectionService(
     private async Task<FileInspectionStartResult> QueueAsync(
         FileInspectionTrigger trigger, Guid? requestedByUserId, string? requestedByUserName, CancellationToken cancellationToken)
     {
-        // MAM-9 — nothing to read without a root, and the default is none: a sync or the app's start
+        // MAM-9 — nothing to read without a root, and the default is none: a sync, a folder scan or the app's start
         // queues nothing then, and the owner's request is told how to allow one.
         if (!await db.AllowedRoots.AnyAsync(cancellationToken))
             return FileInspectionStartResult.NoAllowedRoots(NoAllowedRootsError);

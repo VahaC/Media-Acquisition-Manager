@@ -9,12 +9,18 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// <inheritdoc cref="IFileInspectionRunner"/>
 /// <remarks>
 /// <para>
-/// MAM-9, ADR 0009 — one pass over every file name the libraries reported, in four steps: map each name to the
+/// MAM-9, ADR 0009 — one pass over every stored file name, in four steps: map each name to the
 /// app's path through its integration's current mappings (ADR 0003); look at each distinct path through
 /// the file inventory, inside the allowed roots only; answer from the cache what it holds for the file's
 /// identity, size and modification time (specification §3.3); and read with the media inspector, once per
 /// key, what it doesn't. Readings no name points at any more are then forgotten, which is how a changed
 /// file's old reading goes.
+/// </para>
+/// <para>
+/// MAM-18, ADR 0021 — every stored name, not only the libraries': the names a scan of the media folders found
+/// that no library reported have no version and no source connection, so they map as they are, and are read
+/// like any other (FolderScanInspectionHttpTests). Narrowing the names loaded here to the libraries' would leave
+/// them unread.
 /// </para>
 /// <para>
 /// What each file showed is written as soon as it is known, so the Library page's counts move while the

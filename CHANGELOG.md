@@ -142,6 +142,85 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   section winning over a standard category; none when two different destinations tie at that rank;
   else the default, when it is offered. The Download dialog opens on it and its client; with none,
   on the placeholders, but a lone client is picked, and so is its destination when it has one only.
+- **The owner scans the media folders for the files no library reported (MAM-18, ADR 0021, ADR
+  0009).** `POST /api/library/scans` answers 202 with the queued scan and its `Location`
+  (`/api/library/scans/{runId}`), or with the one already waiting, which the request joins; one asked
+  for while a scan runs is queued behind it. It is owner-only (`[RequireInstallationOwner]`, swept by
+  `LibraryWritesAreOwnerOnlyHttpTests`: 403 "Only the installation owner can do this." for anyone
+  else), 409 with "No media folders are allowed yet. Add the folders the app may read under Media
+  folders in the user menu, then scan again." while no folder is allowed, and 503 with "Too many
+  folder scans are waiting. Try again in a minute." when the queue is full, the run kept as failed
+  with that sentence. At most one scan is queued and one running
+  (`IX_FolderScanRuns_OneRunPerActiveStatus`). `GET /api/library/scans/{runId}` gives every
+  signed-in user `{ id, status, requestedByUserName, createdUtc, startedUtc, finishedUtc,
+  filesFound, filesUnreported, problemCount, problem, error }` — `filesFound` the files the walk has
+  reached so far, each once however many links lead to it, `filesUnreported` how many no library
+  reported once it stored them, `problem` the first place it didn't scan — the requester, the problem
+  and the error for the owner only; a bare 404 for an unknown run. A scan runs only when the owner
+  asks — no timer, not after a sync, not at the start — and reads no download client (ADR 0018). The
+  reconciler fails a scan a stop interrupted ("The app restarted before this scan finished, so
+  nothing it found was stored. Scan the folders again.") and queues a queued one again, but queues
+  none of its own; a running scan the next claim finds dead fails with "The scan stopped because of
+  an error in the app. Its log says more.", and one whose folders were all removed before it started
+  with "No media folders are allowed any more, so there was nothing to scan. Add one under Media
+  folders in the user menu." The log gives counts, never a path.
+- **The scan walks every allowed folder, follows a link only inside them and opens no file (MAM-18,
+  ADR 0021).** The local file inventory walks the roots in the owner's order, depth first, each
+  folder's entries in ordinal name order, hidden ones included, and lists every media file: a regular
+  file whose name ends in `mkv`, `mp4`, `m4v`, `avi`, `mov`, `ts`, `m2ts`, `mts`, `mpg`, `mpeg`,
+  `vob`, `wmv`, `asf`, `flv`, `webm`, `ogv`, `rm`, `rmvb` or `iso`, letter case ignored (Vasyl's
+  decision 2), the clips of Blu-ray and DVD folders included. A symbolic link or junction inside a
+  root is resolved as a look at a file resolves it (40 links at most) and followed when it ends inside
+  a root, its files listed under the link's own path; one leading out is never followed, and a folder
+  that leads back to the one it is in or one above it — by its path, and on Linux by its device and
+  inode too — isn't walked again. On Linux each folder is opened from `/` one name at a time with
+  `O_NOFOLLOW` and listed through `/proc/self/fd/<n>`, so a folder swapped for a link after the walk
+  checked it is refused. A root that is missing or lists nothing ("“/media” is empty; if it is a
+  mount, it may be away, so the files found in it before are kept."), a folder the app may not list
+  or that changed while it was checked, and a link that leads nowhere now are places the scan
+  couldn't list, and what it found there before is kept; a link leading out, a loop ("“…” leads back
+  to a folder above it, so the app doesn't walk it again."), a name that isn't valid text ("A name in
+  “…” isn't valid text, so the app skips it.") and a path longer than 4096 characters are places it
+  refuses. Both kinds are counted as problems, never a failure. A walk lists at most 100,000 folders
+  and gives at most 200,000 entries; past either the scan fails with "The media folders hold more than
+  200,000 media files or 100,000 folders, or links inside them lead to the same folders many times
+  over, so the scan stopped.", storing nothing and queuing no inspection.
+- **A scan stores one name, with no version, of each file no library reported (MAM-18, ADR 0021,
+  ADR 0006).** The names that lead to one file through links are one file. A file is reported when
+  one of its names is where the app finds a file a library reported — a movie's or an episode's,
+  through its integration's current path mappings — by path alone, never by a file name, a title or
+  an id. Each file no library reported keeps one `PhysicalFiles` row: source kind `FileInspection`,
+  no connection, no version, the app's own path as `ServicePath`, the row one of its names already
+  had (its id, first-seen time and readings kept, its last-seen time moved) or else its first name.
+  In one transaction with the run's outcome, a name stored before goes when the walk reached it under
+  a library's path or as another name of a file, stays when it lies outside every root this scan
+  walked or at or under a place it couldn't list, and goes otherwise; a scan that fails or is
+  stopped stores nothing. Such a name belongs to no work: the works list with its search and filters,
+  the list of Jellyfin libraries, each library's counts and a search's library matches never show it
+  (Vasyl's decision 1).
+- **The Library page has a Media folders row with Scan folders (MAM-18).** Under **Sources**, after
+  the Jellyfin libraries, the row **Media folders** says how the scan stands: "Waiting to scan the
+  media folders…", "Scanning the media folders… N files found", "Scanned <time>: N files, U in no
+  library.", "Scan failed <time>: …" — "The last scan failed. The owner can see why." for everyone
+  else — or "The media folders have not been scanned yet.", and that another scan follows the
+  running one when one waits. A scan with problems warns "N folders or links weren't scanned:" with
+  the first one's sentence to the owner, and "N folders or links weren't scanned. Ask the owner
+  which." to everyone else. "Files in no library: I inspected · P couldn't be read · W not inspected
+  yet" counts the scan's names by the app's last look at each, as each library's row counts its
+  files, with the first unreadable one's sentence for the owner. With no folder
+  allowed the row says "Scanning is off: no media folder is allowed yet.", with **Choose media
+  folders** for the owner. **Scan folders** is disabled with its reason for anyone but the owner,
+  with no folder allowed and while a scan waits, and stays enabled while one runs; a refused start
+  shows its sentence under the row. The page asks again every 2 seconds while a scan is under way
+  (Vasyl's decision 3).
+- **A scan queues the file inspection, which records each file's size and modification time
+  (MAM-18, ADR 0009).** Once a scan has stored its names it queues an inspection with the new trigger
+  `FolderScanned`, or joins the one waiting, as a sync does; when none can be queued, the scan still
+  succeeds and the log says why. The inspection reads the scan's names with ffprobe through the
+  same cache as the library's, so a file already read isn't read again. Every name it looks at, a
+  library's too, now keeps the size and the modification time the disk said
+  (`PhysicalFiles.ReadSizeBytes` and `ReadModifiedUtc`) with its identity: empty until the app has
+  looked, and empty again when its last look found nothing there.
 
 ### Changed
 
@@ -167,6 +246,29 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   filters speak of movies and series, or of works; the Library page's identifiers filter offers
   "Any identifiers" and "Missing an id", an id of the work's kind; and removing a media library
   integration says its "movies, series, versions and files" leave the Library page.
+- **`IFileInventory` walks the allowed roots (MAM-18, ADR 0005).** The contract gains
+  `ListMediaFilesAsync(allowedRoots)`, an `IAsyncEnumerable` of `FileListingEntry` — a status
+  (`MediaFile`, `Unlisted`, `Skipped` or `LimitReached`), the app path, where a media file really
+  is, and a sentence for anything else — and which names are media files is the core's
+  `MediaFileNames`. The platform's file reader gains `OpenFolder`.
+- **`GET /api/library/sources` gains `scan` (MAM-18).** `{ activeRun, lastFinishedRun,
+  hasQueuedRun, files }`: the scan under way — the running one, else the queued one —, the latest
+  that succeeded or failed, each as `GET /api/library/scans/{runId}` gives it, whether one waits, and
+  `files` `{ inspectedCount, problemCount, notInspectedCount, problem }` counted when read over the
+  scan's names that no file a library reported maps to now, so a sync that starts reporting a path,
+  or a fixed path mapping, takes a name off at once, without another scan; `problem` for the owner
+  only. A scanned name never counts in a library's own row.
+- **A file name may have no version (MAM-18, ADR 0006).** `PhysicalFiles.MediaVersionId` is nullable,
+  null only on the names a scan found that no library reported; a library's name still has its
+  version and goes with it. Everything that reads the library's files keeps those names out.
+- **The file inspection reads every stored name and records more of each (MAM-18, ADR 0009).** A run
+  looks at the names the scans stored as well as the libraries', and writes on every name the size
+  and modification time the disk said beside its identity. `GET /api/library/inspections/{runId}`'s
+  `trigger` may be `FolderScanned`.
+- **The Library page's Sources card shows its rows without a media library too (MAM-18).** With no
+  Jellyfin connected, the card says how to connect one, then shows the Media folders row and the
+  file inspection's row, as neither needs a library. Its description, and the Media folders page's,
+  say what **Scan folders** does.
 
 ### Notes for upgraders
 
@@ -189,6 +291,22 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **Each search asks every source with TV categories for TV too (MAM-32).** The TV queries go after
   the movie ones — one more for Toloka —, so a source's answer takes longer, and a search stores up
   to 100 movie and 100 TV releases per source. Searching needs nothing turned on.
+- **Applying `AddFolderScan` rebuilds the `PhysicalFiles` table, and logs EF Core warning 20410
+  once: back up `mam.db` before you upgrade (MAM-18).** Letting a file name have no version makes
+  SQLite rebuild `PhysicalFiles`, which EF Core does with foreign keys off outside the migration's
+  transaction, so the log shows `Microsoft.EntityFrameworkCore.Migrations[20410]` for
+  `PRAGMA foreign_keys = 0`, as for `AddStoredSearches`. Unlike `AddLibraryInventory`'s rebuild of
+  the same table, empty then, this one copies every file name your libraries reported, with what the
+  app read of each: every value comes through, but a process killed in the middle leaves the
+  migration half applied, and the next start can't apply it again without a repair by hand. Back up
+  the data directory with the container stopped (README, Deployment → Data and backups), then let
+  the first start after the upgrade finish before you stop the container. It also adds
+  `PhysicalFiles.ReadSizeBytes` and `ReadModifiedUtc`, empty until the next inspection, and the
+  `FolderScanRuns` table.
+- **Nothing is scanned until the owner asks (MAM-18).** With a media folder allowed under **Media
+  folders** in the user menu, choose **Scan folders** on the **Media folders** row under **Sources**
+  on the Library page; the inspection it queues then reads the files it found, which takes a while
+  the first time. Scan again after you add files no library lists: the app doesn't watch the folders.
 
 ## [0.1.0] — 2026-09-28
 

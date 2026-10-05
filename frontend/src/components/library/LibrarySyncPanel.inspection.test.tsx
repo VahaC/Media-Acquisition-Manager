@@ -312,8 +312,8 @@ describe('LibrarySyncPanel file inspection', () => {
     expect(screen.getByRole('button', { name: 'Inspect files' })).toBeEnabled()
   })
 
-  it('shows no inspection row while no media library is connected', async () => {
-    // Arrange
+  it('shows both rows, Media folders and the inspection, while no media library is connected', async () => {
+    // Arrange — MAM-18: the app's own scan finds names without a library, and the inspection reads them.
     vi.mocked(libraryApi.sources).mockResolvedValue(sourcesOf())
 
     // Act
@@ -321,6 +321,10 @@ describe('LibrarySyncPanel file inspection', () => {
 
     // Assert
     expect(await screen.findByText(/^No media library is connected yet\./)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Inspect files' })).not.toBeInTheDocument()
+    const inspection = document.querySelector<HTMLElement>('.library-inspection')!
+    expect(within(inspection).getByRole('status')).toHaveTextContent(/^Files last inspected /)
+    expect(within(inspection).getByRole('button', { name: 'Inspect files' })).toBeEnabled()
+    expect(within(screen.getByText('Media folders').closest('li')!).getByRole('button', { name: 'Scan folders' }))
+      .toBeEnabled()
   })
 })

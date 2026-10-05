@@ -23,6 +23,7 @@ public sealed class LibrarySyncService(
     LibrarySyncQueue queue,
     ILibraryMapper mapper,
     IFileInspectionService inspections,
+    IFolderScanService scans,
     TimeProvider time,
     ILogger<LibrarySyncService> logger) : ILibrarySyncService
 {
@@ -153,10 +154,20 @@ public sealed class LibrarySyncService(
                 // MAM-8 — the reason quotes the path and the mapping; integrations are the owner's. The
                 // works list keeps each file's reason to the owner by the same rule (LibraryService).
                 isOwner ? unmapped.FirstOrDefault()?.Reason : null,
-                InspectionOf(sourceFiles, isOwner));
+                // MAM-9 — where the app's look at this source's files stands; the Media folders row counts
+                // the scan's names by the same rule (MAM-18).
+                FileInspectionCounts.Of(
+                    [.. sourceFiles.Select(file => (file.File.InspectionStatus, file.File.InspectionError, file.Path.HasAppPath))],
+                    isOwner));
         });
 
-        return new LibrarySourceListResponse([.. items], await inspections.GetOverviewAsync(isOwner, cancellationToken));
+        // MAM-18 — the scan before the inspection, as the syncs above come before it: a scan commits its outcome
+        // and only then queues the inspection that reads what it found, so read in this order one answer never
+        // shows the scan finished without the inspection it queued, which would end the page's polling with that
+        // inspection unseen.
+        var scan = await scans.GetOverviewAsync(isOwner, cancellationToken);
+        var inspection = await inspections.GetOverviewAsync(isOwner, cancellationToken);
+        return new LibrarySourceListResponse([.. items], inspection, scan);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -180,27 +191,6 @@ public sealed class LibrarySyncService(
                     .First())
             .ToListAsync(cancellationToken);
         return latest.ToDictionary(run => run.IntegrationConnectionId!.Value);
-    }
-
-    // MAM-9 — where the app's look at one source's files stands: the files it read, those it couldn't
-    // (whatever the reason, a missing app path included), and those it hasn't looked at; the first
-    // problem's sentence, in path order, to the owner only, like each file's (LibraryMapper). A file
-    // the last run found no app path for, which the mappings give one now, waits for the next run,
-    // the works list's rule: a fixed mapping shows at once, as the path warning does.
-    private static LibrarySourceInspectionDto InspectionOf(List<MappedSourceFile> sourceFiles, bool isOwner)
-    {
-        var looks = sourceFiles
-            .Where(file => !(file.File.InspectionStatus == FileInspectionStatus.NoAppPath && file.Path.HasAppPath))
-            .Select(file => file.File)
-            .ToList();
-        var problems = looks
-            .Where(file => file.InspectionStatus is { } status && status != FileInspectionStatus.Inspected)
-            .ToList();
-        return new LibrarySourceInspectionDto(
-            looks.Count(file => file.InspectionStatus == FileInspectionStatus.Inspected),
-            problems.Count,
-            sourceFiles.Count - looks.Count + looks.Count(file => file.InspectionStatus is null),
-            isOwner ? problems.FirstOrDefault()?.InspectionError : null);
     }
 
     /// <summary>What the sources list reads of one file.</summary>

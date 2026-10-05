@@ -9,6 +9,7 @@ import { qk } from './keys'
  * seconds, and its "Syncing… 50 of 120" line would be useless at the 10 s of other live views.
  * MAM-9 — the same cadence while files are being inspected: one cheap request for the counts, and
  * one refresh of the works page at most when the counts moved (see `inspectionMoved`).
+ * MAM-18 — and while the media folders are being scanned, for its "… files found" line.
  */
 const SYNC_POLL_MS = 2_000
 
@@ -47,8 +48,9 @@ export const useLibraryLocations = () =>
   })
 
 /**
- * The media library integrations, how their syncs went and how far the file inspection has got,
- * polled every 2 s while a sync or an inspection is under way.
+ * The media library integrations, how their syncs went, how far the file inspection has got and —
+ * MAM-18 — how the scan of the media folders stands, polled every 2 s while a sync, an inspection or
+ * a scan is under way.
  *
  * MAM-8 — when a run it last saw queued or running comes back Succeeded, the stored library has just
  * been replaced, so the works and the library filter are asked for again. That is decided here, on
@@ -59,6 +61,11 @@ export const useLibraryLocations = () =>
  * whenever an answer shows it moved: more files checked by the run under way, or a run that has
  * finished since the last answer. While files are being read that is at most once per poll, and the
  * facts fill in on the cards as they come; once the run ends, the last of them arrive with it.
+ *
+ * MAM-18 — a scan's end brings nothing again: the names it stores belong to no work, and the
+ * inspection it queues to read them is followed as above. That inspection is queued a moment after
+ * the scan ends, so an answer that shows the scan just ended and no inspection under way asks once
+ * more a poll later; otherwise the polling would stop with the inspection unseen.
  */
 export const useLibrarySources = () => {
   const queryClient = useQueryClient()
@@ -80,12 +87,17 @@ export const useLibrarySources = () => {
         void queryClient.invalidateQueries({ queryKey: qk.library.worksAll })
       }
       if (synced) void queryClient.invalidateQueries({ queryKey: qk.library.locations })
+      if (scanEndedBeforeItsInspection(previous, next)) {
+        setTimeout(() => void queryClient.invalidateQueries({ queryKey: qk.library.sources }), SYNC_POLL_MS)
+      }
       return next
     },
     refetchInterval: (query) => {
       const list = query.state.data
       const underWay = list !== undefined
-        && (list.items.some((source) => isSyncUnderWay(source.latestRun)) || list.inspection.activeRun !== null)
+        && (list.items.some((source) => isSyncUnderWay(source.latestRun))
+          || list.inspection.activeRun !== null
+          || list.scan.activeRun !== null)
       return underWay ? SYNC_POLL_MS : false
     },
     retry: false,
@@ -140,6 +152,30 @@ export const useStartFileInspection = () => {
   })
 }
 
+/**
+ * MAM-18 — starts a scan of the media folders for the files no library reported (owner-only), as
+ * `useStartFileInspection` starts an inspection.
+ *
+ * The queued scan goes into the cached sources at once unless one is already under way there (a
+ * running one stays on screen; the new one waits behind it), which also starts the polling. The
+ * sources are asked for again whatever the answer: a 409 means no media folder is allowed any more,
+ * which the refetch then shows.
+ */
+export const useStartFolderScan = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => libraryApi.startScan(),
+    onSuccess: (run) => {
+      queryClient.setQueryData<LibrarySourceList>(qk.library.sources, (list) => list && {
+        ...list,
+        // The scan it queued (or joined) waits, behind the running one when there is one.
+        scan: { ...list.scan, activeRun: list.scan.activeRun ?? run, hasQueuedRun: true },
+      })
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: qk.library.sources }),
+  })
+}
+
 /** Whether a run `previous` showed queued or running is Succeeded in `next`. */
 function finishedSyncing(previous: LibrarySourceList | undefined, next: LibrarySourceList): boolean {
   if (previous === undefined) return false
@@ -149,6 +185,15 @@ function finishedSyncing(previous: LibrarySourceList | undefined, next: LibraryS
     const before = previous.items.find((item) => item.integrationId === source.integrationId)?.latestRun
     return before?.id === run.id && isSyncUnderWay(before)
   })
+}
+
+/**
+ * MAM-18 — whether a scan the last answer showed under way has ended while no inspection is: the one it
+ * queues after it ends hasn't shown yet.
+ */
+function scanEndedBeforeItsInspection(previous: LibrarySourceList | undefined, next: LibrarySourceList): boolean {
+  return previous !== undefined && previous.scan.activeRun !== null
+    && next.scan.activeRun === null && next.inspection.activeRun === null
 }
 
 /**

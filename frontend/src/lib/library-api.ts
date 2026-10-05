@@ -1,6 +1,7 @@
 import { api } from './api'
 import type {
   FileInspectionRun,
+  FolderScanRun,
   LibraryEpisodesQuery,
   LibraryLocationList,
   LibrarySourceList,
@@ -20,6 +21,9 @@ const BASE_URL = '/api/library'
  *
  * MAM-9 — the same holds for the file inspection: a run's `error` and `requestedByUserName`, and
  * every inspection `problem` (they quote paths inside the app), are the owner's only.
+ *
+ * MAM-18 — and for the scan of the media folders: a scan's `error`, `problem` and
+ * `requestedByUserName`, and the `problem` of the names it stored.
  */
 export const libraryApi = {
   /**
@@ -75,4 +79,14 @@ export const libraryApi = {
    */
   startInspection: async (): Promise<FileInspectionRun> =>
     (await api.post<FileInspectionRun>(`${BASE_URL}/inspections`)).data,
+
+  /**
+   * MAM-18 — `POST /api/library/scans`, owner-only. 202 with the queued scan (Location
+   * `/api/library/scans/{id}`); the scan walks the media folders in the background, and `sources`
+   * shows how it goes. When a scan is already queued it answers 202 with that one; a scan that is
+   * running gets a new one queued behind it. 409 `{ error }` when no media folder is allowed yet;
+   * 403 `{ error }` for anyone but the owner; 503 `{ error }` when too many scans are waiting.
+   */
+  startScan: async (): Promise<FolderScanRun> =>
+    (await api.post<FolderScanRun>(`${BASE_URL}/scans`)).data,
 }

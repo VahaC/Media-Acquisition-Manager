@@ -5,4 +5,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Items">Every media library integration, ordered by name, letter case ignored.</param>
 /// <param name="Inspection">Where the inspection of the library's files stands (MAM-9): one for the
 /// whole library, as a run reads the files of every source.</param>
-public sealed record LibrarySourceListResponse(IReadOnlyList<LibrarySourceDto> Items, FileInspectionOverviewDto Inspection);
+/// <param name="Scan">Where the scan of the media folders stands (MAM-18): the Media folders row, beside
+/// the libraries, as the app's own source of file names.</param>
+public sealed record LibrarySourceListResponse(
+    IReadOnlyList<LibrarySourceDto> Items,
+    FileInspectionOverviewDto Inspection,
+    FolderScanOverviewDto Scan);

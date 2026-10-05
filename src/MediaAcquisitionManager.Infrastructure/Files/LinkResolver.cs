@@ -50,8 +50,21 @@ internal static class LinkResolver
     /// </summary>
     /// <param name="path">An absolute path of this platform's style.</param>
     /// <param name="appPath">The path as the caller gave it, for the sentences.</param>
-    public static FileInventoryResult<NormalizedPath> Resolve(NormalizedPath path, string appPath)
+    public static FileInventoryResult<NormalizedPath> Resolve(NormalizedPath path, string appPath) =>
+        Resolve(path, appPath, out _);
+
+    /// <inheritdoc cref="Resolve(NormalizedPath, string)"/>
+    /// <param name="path">An absolute path of this platform's style.</param>
+    /// <param name="appPath">The path as the caller gave it, for the sentences.</param>
+    /// <param name="refused">
+    /// MAM-18 — <c>true</c> when the resolver itself refused to follow the links (more than
+    /// <see cref="MaximumLinkHops"/> of them, or a target it can't follow safely); <c>false</c> when the file system
+    /// couldn't answer now (a name missing, a folder the app may not look into, an I/O error), which the walk of
+    /// the media folders reads as a place it couldn't list rather than one it refuses (ADR 0021).
+    /// </param>
+    public static FileInventoryResult<NormalizedPath> Resolve(NormalizedPath path, string appPath, out bool refused)
     {
+        refused = false;
         var root = path.Root;
         var resolved = new List<string>(path.Segments.Count);
         var pending = new Stack<string>(path.Segments.Reverse());
@@ -86,10 +99,14 @@ internal static class LinkResolver
             if (target is not null)
             {
                 if (++hops > MaximumLinkHops)
+                {
+                    refused = true;
                     return FileSystemFailure.Refused<NormalizedPath>(FileInventoryStatus.Unreadable, FileInventoryMessages.TooManyLinks(appPath));
+                }
 
                 if (!TrySplitTarget(target, path.Style, root, out var targetRoot, out var targetSegments))
                 {
+                    refused = true;
                     return FileSystemFailure.Refused<NormalizedPath>(
                         FileInventoryStatus.OutsideAllowedRoots, FileInventoryMessages.UnfollowableLink(appPath, target));
                 }

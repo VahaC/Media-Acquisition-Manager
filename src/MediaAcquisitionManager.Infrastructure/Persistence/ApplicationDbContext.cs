@@ -53,6 +53,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<FileInspectionRunEntity> FileInspectionRuns => Set<FileInspectionRunEntity>();
 
+    public DbSet<FolderScanRunEntity> FolderScanRuns => Set<FolderScanRunEntity>();
+
     public DbSet<ReleaseEntity> Releases => Set<ReleaseEntity>();
 
     public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
@@ -236,9 +238,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Groups the names of one inode (hardlinks), which are counted once. Not unique: two
             // names of one file are exactly two rows sharing it.
             e.HasIndex(x => new { x.DeviceId, x.Inode });
-            // MAM-7 — Cascade, not SetNull: a row is a name reported for a version, and a name with
-            // no version is nothing the core can use. Forgetting a version forgets its names, never a
-            // file on disk.
+            // MAM-7 — Cascade, not SetNull: a library's name is reported for a version, and forgetting
+            // the version forgets its names, never a file on disk. MAM-18 — a name the scan found that no
+            // library reported has no version at all (ADR 0021), so no version's going touches it.
             e.HasOne<MediaVersionEntity>().WithMany()
                 .HasForeignKey(x => x.MediaVersionId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -335,6 +337,23 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .IsUnique()
                 .HasFilter("\"Status\" IN ('Queued', 'Running')");
             // "The latest finished run", which the Library page asks for on every poll.
+            e.HasIndex(x => x.CreatedUtc);
+            // SetNull: the run outlives the user who asked for it; RequestedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<FolderScanRunEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            // MAM-18 — at most one queued and one running scan, the inspection's rule: a request that
+            // finds one queued joins it (the service checks first; this settles two requests racing), and
+            // a finished scan never blocks the next one.
+            e.HasIndex(x => x.Status, "IX_FolderScanRuns_OneRunPerActiveStatus")
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Queued', 'Running')");
+            // "The latest finished scan", which the Library page asks for on every poll.
             e.HasIndex(x => x.CreatedUtc);
             // SetNull: the run outlives the user who asked for it; RequestedByUserName keeps who.
             e.HasOne<UserEntity>().WithMany()

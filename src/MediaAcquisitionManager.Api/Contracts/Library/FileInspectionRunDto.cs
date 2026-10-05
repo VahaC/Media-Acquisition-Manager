@@ -7,7 +7,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Trigger">What started it.</param>
 /// <param name="Status">Where it stands; <c>Queued</c> and <c>Running</c> are under way.</param>
 /// <param name="RequestedByUserName">Who asked for it. For the installation owner only, like a sync's
-/// (MAM-8): <c>null</c> for everyone else, and when a sync or the app's start queued it.</param>
+/// (MAM-8): <c>null</c> for everyone else, and when a sync, a folder scan or the app's start queued it.</param>
 /// <param name="CreatedUtc">When it was queued.</param>
 /// <param name="StartedUtc">When the app began looking; <c>null</c> while queued.</param>
 /// <param name="FinishedUtc">When it succeeded or failed; <c>null</c> while under way.</param>

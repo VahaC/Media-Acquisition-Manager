@@ -9,7 +9,8 @@ library: the installation owner created on first run, the users the owner manage
 Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
 source such as Prowlarr and qBittorrent, tests each connection, and imports the Jellyfin library —
 its movies, series and episodes — which every signed-in user can browse, with what each file really
-holds once the app has inspected it inside the media folders the owner allows; the owner also maps
+holds once the app has inspected it inside the media folders the owner allows; the owner also scans
+those folders for the files no library reported, which the app then inspects too, and maps
 download destinations to qBittorrent's categories, and a release source's tracker sections to
 destinations. Every signed-in user searches the library and the release sources together on the
 Search page, for movies and TV, sends a release found there to qBittorrent, and sees its download on
@@ -103,12 +104,24 @@ application.
   (language, codec, forced, SDH); what the file doesn't say shows as unknown, never guessed. The app
   reads only inside the media folders the owner allows on the **Media folders** page — none by
   default — resolving every link and refusing one that leads out of them. An inspection runs in the
-  background after every successful sync, at each start and on **Inspect files**, two files at a
-  time; a file is read again only when its identity, size or modification time changes, and two
-  names of one file are read once
+  background after every successful sync or scan of the media folders, at each start and on
+  **Inspect files**, two files at a time; a file is read again only when its identity, size or
+  modification time changes, and two names of one file are read once
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
   The Library page shows how many files of each source were inspected, couldn't be read or wait,
   and why a file couldn't be read (the reason to the owner only).
+- **The files no library reported.** **Scan folders**, on the **Media folders** row under the
+  Library page's sources, walks every allowed media folder — hidden folders included, a link
+  followed only when it ends inside them, a loop walked once, no file opened — for video files by
+  their extension, Blu-ray and DVD clips included. A file Jellyfin lists, a movie's or an
+  episode's, is recognised by its path through the current path mappings, never by its name; each
+  file no library lists is remembered by one name of its own, with no work, and the file inspection
+  then reads it like the library's files. The row shows how far the scan has got, how many files it
+  found, how many are in no library and how far the inspection of those has got, and how many
+  folders or links it didn't go into, the reason to the owner only. A folder the app can't list now
+  — a disk that is away — keeps what was found there before. Only the owner starts a scan, and the
+  app never starts one by itself
+  ([ADR 0021](docs/adr/0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
 - **Search: your library and the release sources side by side.** Every signed-in user types a title
   in the search field at the top of every page (`/` jumps to it) and presses Enter; the Search page
   looks for it in the library and in every enabled release source at once. A year in brackets at
@@ -242,6 +255,16 @@ acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed 
   Toloka's sections ticked under Settings → Destinations, the Download dialog offered TV Shows for
   the show, Documentary for the BBC and nature films, and Cartoons for the four "Mickey Mouse
   Clubhouse" packs.
+- **The scan of the media folders (MAM-18, 2026-10-05):** an image of this change ran on the
+  installation's host beside production, on a copy of its data and with `/media` mounted read-only.
+  Its start applied `AddFolderScan` to the copied database — the rebuild of `PhysicalFiles` logged
+  warning 20410 and kept every row. **Scan folders** found 1,395 media files in `/media` and no
+  folder or link it couldn't walk: the 1,378 files Jellyfin lists, movies' and episodes' alike, each
+  matched to its file row by path, and 17 no library reports. The other 1,394 lie in the library
+  folders, the number MAM-17 counted; the one outside them is a software disc image at the root of
+  `/media`. The inspection the scan queued read exactly those 17 with ffprobe on the real disk —
+  16 read, the disc image unreadable with ffprobe's own verdict — and took the 1,378 others from the
+  cache; a second scan and its inspection read nothing.
 
 Not tried live yet:
 
@@ -253,10 +276,11 @@ Not tried live yet:
   into one item, which the reference installation never does.
 - A download followed through `Downloading` to `Downloaded`, a paused one, a job's files, and a job
   that needs linking.
-- The file inspection on the installation's own files: ffprobe's real answers are the parser's
-  samples, and no inspection of that media folder by the app is recorded.
 - A TV release sent to qBittorrent (MAM-32): the destination its tracker section picks was checked
   live, but no TV release was sent.
+- Links in the media folders and a media disk that is away during a scan (MAM-18): the scan of the
+  reference installation met no link leading out and its disk was mounted, so a link followed or
+  refused, a loop and the names kept for a disk that is away rest on the tests.
 
 ### What it will do
 
@@ -456,6 +480,13 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   an inspection is owner-only; why a file couldn't be read, which quotes paths and what ffprobe said,
   goes to the owner only
   ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+  The scan of the media folders walks only those folders, by the same rules: it follows a link only
+  when it ends inside them, never lists through one leading out, doesn't walk again a folder that
+  leads back to one above it, opens each folder on Linux name by name without following a link and
+  lists the folder it opened, and opens no file and writes nothing. It stops at 100,000
+  folders or 200,000 entries, so links can't keep it walking for hours. Asking for a scan is
+  owner-only, and the sentence of a place it didn't scan, which quotes a path, goes to the owner only
+  ([ADR 0021](docs/adr/0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
   every user's change of their own password (`UserPasswordChanged`), every change to an integration
   (add, edit, remove), every save of the media folders, every change
@@ -464,9 +495,9 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   audit row in the same transaction as the change:
   what happened, when, who did it and to whom or what, with both names copied so the row outlives
   them. A save that changes nothing and a connection test write none, and neither does a retry of a
-  download already sent, a cancel of a job that already ended, a library sync or a file inspection,
-  whose run rows record who started them; nor does a pass that follows the downloads, which no one
-  started. There is no screen for it yet.
+  download already sent, a cancel of a job that already ended, a library sync, a file inspection or
+  a scan of the media folders, whose run rows record who started them; nor does a pass that follows
+  the downloads, which no one started. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
   stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
@@ -593,8 +624,9 @@ a category's folder without a path in the app. The container's user (uid 10001) 
 files readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that owns
 them to the service with `group_add`. Mounting is not enough for the app to read a file: the owner
 also adds the folder, as the app sees it (`/media` in the compose file's example), under the user
-menu → **Media folders**. Until then the app reads no file, and **Inspect files** on the Library
-page says so. A mount the app doesn't see shows on the Library page as files it found nothing at.
+menu → **Media folders**. Until then the app reads no file, and **Inspect files** and **Scan
+folders** on the Library page say so. A mount the app doesn't see shows on the Library page as files
+it found nothing at, and to a scan as a media folder it couldn't list or found empty.
 
 ## Local development
 
@@ -716,10 +748,12 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/library/works?search=&locationId=&identifiers=&kind=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode. `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, or "“x” is not a kind filter. Use Movie or Series." |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
-| `GET /api/library/sources` | 200 `{ items, inspection }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem } }`, by name, and `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun }` for the whole library, the active run being the running one, else the queued one; `pathProblem`, `problem` and each run's `requestedByUserName` and `error` only for the owner, `null` for everyone else. |
+| `GET /api/library/sources` | 200 `{ items, inspection, scan }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem } }`, by name, `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun, hasQueuedRun }` for the whole library, and `scan` `{ activeRun, lastFinishedRun, hasQueuedRun, files }` for the media folders (ADR 0021), each run as `GET /api/library/scans/{runId}` gives it; an active run is the running one, else the queued one. `files` counts the names the scans stored that no file a library reported maps to now, as each library's `inspection` counts its files, so a sync that starts reporting a path, or a fixed path mapping, takes a name off at once; a scanned name never counts in a library's row. `pathProblem`, `problem` and each run's `requestedByUserName`, `problem` and `error` only for the owner, `null` for everyone else. |
 | `POST /api/library/sources/{integrationId}/syncs` | Owner only. 202 with the queued run and its `Location`; the sync runs in the background. 404 for an unknown integration or one that isn't a media library; 409 when it is switched off, its type can't read a library, or a sync of it is under way; 503 when too many syncs are waiting. |
 | `POST /api/library/inspections` | Owner only. 202 with the queued file inspection and its `Location`, or with the one already waiting, which the request joins; the inspection runs in the background. 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then inspect again." }`; 503 when too many inspections are waiting. |
-| `GET /api/library/inspections/{runId}` | 200 `{ id, trigger, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesTotal, filesChecked, filesProbed, error }`, `trigger` being `Requested`, `LibrarySynced` or `AppStarted`; `requestedByUserName` and `error` only for the owner. 404. |
+| `GET /api/library/inspections/{runId}` | 200 `{ id, trigger, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesTotal, filesChecked, filesProbed, error }`, `trigger` being `Requested`, `LibrarySynced`, `AppStarted` or `FolderScanned` (queued by a scan once it stored its names); `requestedByUserName` and `error` only for the owner. 404. |
+| `POST /api/library/scans` | Owner only. 202 with the queued scan of the media folders and its `Location`, or with the one already waiting, which the request joins; one asked for while a scan runs is queued behind it. The scan walks every allowed folder in the background, follows a link only when it ends inside them, opens no file, stores one name with no version for each media file no library reported, then queues a file inspection (ADR 0021). 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then scan again." }`; 503 `{ "error": "Too many folder scans are waiting. Try again in a minute." }`, the run kept as failed with it. |
+| `GET /api/library/scans/{runId}` | 200 `{ id, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesFound, filesUnreported, problemCount, problem, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`: `filesFound` is how many media files the walk has reached so far, each once however many links lead to it, `filesUnreported` how many of them no library reported (`null` until the scan stored them), `problemCount` how many folders, links and names it didn't go into or through, and `problem` the first one's sentence; `requestedByUserName`, `problem` and `error` only for the owner, `null` for everyone else. A bare 404 for an unknown run. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, seriesCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; the items are the library's movies, series and episodes, the works its movies and episodes, and `seriesCount` `null` for a run that didn't succeed or ran before 0.2.0; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
 | `POST /api/releases/search` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Searches every enabled release source at once, each for movies and then for TV (ADR 0020), and stores each release found. 200 `{ sources }` whatever the sources answered, by name, each `{ integrationId, name, status, notSearchedReason, error, releases }`: `status` is the call's outcome (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, …) or `null` when the app didn't ask the source, `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) says why, `error` the sentence for the owner only; each release `{ id, title, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, categories: [{ id, name }], payloadKind, claimed: { resolution, medium, videoCodec, dynamicRanges, audioLanguages, subtitleLanguages } }` in the source's order, the movie releases then the TV ones, at most 100 of each per source, `kind` `Movie` or `Tv` (TV when the source lists it in a TV category, or in none to a TV query), `payloadKind` `Magnet` or `null`, the release's download link never included. With a `season` (0 to 9999, 0 for the specials), only the TV search runs. 400 with the broken rule's sentence: no title, one longer than 200 characters, a year that isn't one, an id that isn't an IMDb (`tt0816692`) or a TMDb (`157336`) id, a season that isn't one; every field is a string. |
 | `POST /api/searches` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Asks the library — the snapshot the last sync imported — and every enabled release source at once, the sources the way `POST /api/releases/search` does, and stores the search, how each source answered and every release found, for a day. 201 with the search and its `Location` whatever the sources answered: `{ id, text, year, imdbId, tmdbId, season, createdUtc, library, libraryUnlistedCount, sources, facets }`, the search as asked and trimmed. `library` is every matching work, strongest first, then at most 20 works that match in no way but one of whose titles or file paths holds every word of the title, each whole (ADR 0012), each `{ work, evidence, matchedIdentifiers: [{ scheme, value, sourceName }], matchedTitle: { text, kind, year, sourceName }, conflictingSchemes }`: `work` exactly as `GET /api/library/works` gives it, a movie, a series or an episode of no series — an episode of a series that the search finds lists its series once, with the episode's `matchedTitle` and `matchedIdentifiers` (ADR 0012) —, its owner-only fields `null` for everyone else; `evidence` `Identifier`, `TitleAndYear`, `TitleOnly` or `Words`, which is no match; `matchedIdentifiers` every source's row of a matched id; `matchedTitle` the title that matched, or for `Words` the title holding the words, `null` when none did or only a file path holds them; `conflictingSchemes` (`Imdb`, `Tmdb`, `Tvdb`, `TmdbTv`) the schemes the search and the work, or the work's own sources, disagree on. `libraryUnlistedCount` is how many more works hold every word of the title than `library` lists, `0` when none were left out. `sources` by name, each `{ id, integrationId, name, status, notSearchedReason, error, releaseCount }` as for the release search, `id` being what the releases' `source` filter takes and `integrationId` `null` once the integration is removed. `facets` `{ audioLanguages, hasUnknownAudioLanguage, resolutions, hasUnknownResolution, kinds }`: what the search's releases claim, and their kinds, `Movie` before `Tv`, for the filters. 400 with the broken rule's sentence, nothing stored and no source asked: "Enter the title to search for.", "The search text can be at most 200 characters long.", "The search text can't contain line breaks or other control characters.", "“twenty” is not a year.", "“816692” is not an IMDb id, which looks like tt0816692.", "“tt157336” is not a TMDb id, which is a number such as 157336.", "“first” is not a season. Use a season number, such as 1, or 0 for the specials." (a value is repeated trimmed, cut at 32 characters with "…"). |
@@ -917,6 +951,26 @@ replace the inventory with `FakeFileInventory`, the way they replace the vendors
 drive real inspection runs over HTTP: the cache and its invalidation, every outcome of a file, two
 reads at a time and the triggers.
 
+The scan of the media folders (MAM-18) is tested the same two ways. `LocalFileInventoryListingTests`
+walks real folders in a temporary directory — media files by extension in any letter case, nested
+and hidden folders, folder and file links that stay inside or lead out, loops, a dangling link, a
+missing, empty or linked root, a path past 4096 characters and the walk's limits — and
+`LocalFileInventoryListingLinuxTests` what only Linux can show: a folder swapped for a link after
+the check, names that aren't UTF-8, a folder the app may not list and a named pipe never opened;
+`MediaFileNamesTests` pins the extensions. Over HTTP, `FakeFileInventory` lists the files a test
+plants, with linked names and listing problems: `FolderScanStartHttpTests` (202, 401, 403, 409,
+503, joining a waiting scan and the race for it), `FolderScanRunHttpTests` (what is reported and
+what is stored, kept or forgotten, a movie's and an episode's files, links, problems, the limit and
+a failure mid-walk), `FolderScanWorkerHttpTests` (the reconciler, a dead or stopped scan, and a
+shutdown or a failure while it stores, which leaves the names as they were),
+`FolderScanInspectionHttpTests` (the inspection a scan queues and the size
+and time it records), `FolderScanIsolationHttpTests` (a scanned name never in the works list, a
+search, the locations, a library's counts or a match) and `LibrarySourcesScanHttpTests` (the
+Media folders row's data, counted when read). `FolderScanPersistenceTests` and
+`AddFolderScanMigrationTests` pin the new table and the rebuild of `PhysicalFiles` with every value
+kept, and `LibrarySyncPanel.scan.test.tsx` and `LibraryPage.scan.test.tsx` the Media folders row and
+its polling.
+
 Series, episodes and TV releases (MAM-32) are tested against the real answers too. The Jellyfin
 adapter reads the real series and episode samples (`JellyfinAdapterTvTests`: the 65-source item, the
 halves of an episode, the virtual special), and `FakeJellyfinServer` answers the series and episode
@@ -962,7 +1016,8 @@ src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
                                                and sessions, user management, integration
                                                settings, the library and its background sync,
-                                               the media folders and the file inspection, the
+                                               the media folders, the file inspection and the
+                                               scan of the media folders, the
                                                release search, the stored searches and their
                                                library matches, the download destinations, the
                                                downloads sent to a client and their following,
@@ -970,7 +1025,8 @@ src/
                                                EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
                                                integrations, adapter contracts, options, rules,
-                                               path mapping, the allowed roots' rules, the
+                                               path mapping, the allowed roots' rules, which
+                                               file names are media files, the
                                                library's grouping and title order, the release
                                                search's planning and title claims, the matching
                                                of a search and its releases to the library's
@@ -983,7 +1039,8 @@ src/
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab and qBittorrent adapters, the
-                                               local file inventory and ffprobe
+                                               local file inventory with its walk of the media
+                                               folders, and ffprobe
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
@@ -1026,9 +1083,9 @@ of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM
    while leaving existing files untouched.
 2. **Phase B: inventory and duplicate detection (release 0.2.0).** Import series, seasons and
    episodes from Jellyfin beside the movies and search, match and send their releases (built), scan
-   the allowed folders for files no library reported, count hardlinks once, and hash candidate files
-   when useful. Label exact, same-work, and possible matches separately, for movies and episodes
-   alike.
+   the allowed folders for files no library reported (built), count hardlinks once, and hash
+   candidate files when useful. Label exact, same-work, and possible matches separately, for movies
+   and episodes alike.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different

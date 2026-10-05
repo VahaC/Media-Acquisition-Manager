@@ -28,6 +28,7 @@ public sealed partial class FileInspectionRunner
         var error = outcome.Error is null ? null : FileInspectionRunUpdates.Cut(outcome.Error, MediaInspectionEntity.ErrorMaximumLength);
         FileInspectionStatus? status = outcome.Status;
         var (deviceId, inode, linkCount) = (outcome.Facts?.DeviceId, outcome.Facts?.Inode, outcome.Facts?.LinkCount);
+        var (readSizeBytes, readModifiedUtc) = (outcome.Facts?.SizeBytes, outcome.Facts?.ModifiedUtc);
         var readingId = outcome.MediaInspectionId;
         await _writes.WaitAsync(cancellationToken);
         try
@@ -46,7 +47,11 @@ public sealed partial class FileInspectionRunner
                         // names in Phase B).
                         .SetProperty(file => file.DeviceId, deviceId)
                         .SetProperty(file => file.Inode, inode)
-                        .SetProperty(file => file.LinkCount, linkCount),
+                        .SetProperty(file => file.LinkCount, linkCount)
+                        // MAM-18 — what the disk said of its size and last write, by the identity's rule: a
+                        // name the scan found has no size a library reported, so this is the only one it has.
+                        .SetProperty(file => file.ReadSizeBytes, readSizeBytes)
+                        .SetProperty(file => file.ReadModifiedUtc, readModifiedUtc),
                     cancellationToken);
             if (readingId is { } linked)
             {

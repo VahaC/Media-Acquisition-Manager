@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { libraryApi } from '@/lib/library-api'
-import { inspectionRunOf, locations, runOf, sourceOf, sourcesOf, worksPage, aliens, yellowstone, yellowstoneEpisodeOf } from '@/test/library'
+import { inspectionRunOf, locations, runOf, scanRunOf, sourceOf, sourcesOf, worksPage, aliens, yellowstone, yellowstoneEpisodeOf } from '@/test/library'
 
 /**
  * Answers every request with `status` and `body`, and keeps the requests it was sent. A replaced
@@ -182,6 +182,34 @@ describe('libraryApi', () => {
 
     // Act
     const result = libraryApi.startInspection()
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 409, data: { error: sentence } } })
+  })
+
+  it('starts a scan of the media folders and resolves with the queued scan (202)', async () => {
+    // Arrange
+    const queued = scanRunOf({ status: 'Queued', startedUtc: null, finishedUtc: null, filesFound: 0, filesUnreported: null })
+    const requests = respondWith(202, queued)
+
+    // Act
+    const run = await libraryApi.startScan()
+
+    // Assert
+    expect(run).toEqual(queued)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('post')
+    expect(requests[0].data).toBeUndefined()
+    expect(api.getUri(requests[0])).toBe('/api/library/scans')
+  })
+
+  it('rejects a scan without a media folder with the API sentence in the body (409)', async () => {
+    // Arrange
+    const sentence = 'No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then scan again.'
+    respondWith(409, { error: sentence })
+
+    // Act
+    const result = libraryApi.startScan()
 
     // Assert
     await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 409, data: { error: sentence } } })

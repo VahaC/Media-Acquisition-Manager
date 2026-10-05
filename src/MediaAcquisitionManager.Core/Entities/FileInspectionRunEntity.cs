@@ -5,13 +5,15 @@ using MediaAcquisitionManager.Core.Enums;
 namespace MediaAcquisitionManager.Core.Entities;
 
 /// <summary>
-/// One inspection of the library's files (MAM-9): queued by a library sync, by the app's start or by
-/// the installation owner, worked through in the background, and polled by the Library page.
+/// One inspection of the library's files (MAM-9): queued by a library sync, by a scan of the media
+/// folders (MAM-18), by the app's start or by the installation owner, worked through in the background,
+/// and polled by the Library page.
 /// <see cref="AuditableEntity.CreatedUtc"/> is when it was queued.
 /// </summary>
 /// <remarks>
 /// <para>
-/// A run looks at every file name every library reported, so it is not tied to one integration; at
+/// A run looks at every stored file name — every library's, and the ones a folder scan found that no
+/// library reported (MAM-18) — so it is not tied to one integration; at
 /// most one is queued and one running at a time. A run queued while another runs exists for the files
 /// a sync added meanwhile.
 /// </para>
@@ -28,7 +30,7 @@ public class FileInspectionRunEntity : AuditableEntity
     /// <summary>What started it.</summary>
     public FileInspectionTrigger Trigger { get; set; }
 
-    /// <summary>The owner who asked for it; <c>null</c> when a sync or the app's start queued it, or once
+    /// <summary>The owner who asked for it; <c>null</c> when a sync, a folder scan or the app's start queued it, or once
     /// that user is deleted.</summary>
     public Guid? RequestedByUserId { get; set; }
 

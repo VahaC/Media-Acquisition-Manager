@@ -29,7 +29,7 @@
   "empty": "Nothing here yet. Once a media library is synced, its movies and series are listed here.",
   "sources": {
     "title": "Sources",
-    "description": "The media libraries this list is read from. A sync reads a whole library again and replaces what was stored from it; nothing changes in the library itself.",
+    "description": "The media libraries this list is read from, and the media folders, scanned for the files no library reported. A sync reads a whole library again and replaces what was stored from it; a scan only lists the files' names. Nothing changes in the libraries or the folders themselves.",
     "loadFailed": "Could not load the media libraries.",
     "refreshFailed": "Refresh failed, showing the last known sync status.",
     "emptyOwner": "No media library is connected yet. Add Jellyfin under Integrations, then sync it here.",
@@ -98,6 +98,33 @@
     "problems_other": "{{value}} couldn't be read",
     "notInspected_one": "{{value}} not inspected yet",
     "notInspected_other": "{{value}} not inspected yet"
+  },
+  "scan": {
+    "name": "Media folders",
+    "off": "Scanning is off: no media folder is allowed yet.",
+    "chooseFolders": "Choose media folders",
+    "queued": "Waiting to scan the media folders…",
+    "running_one": "Scanning the media folders… {{found}} file found",
+    "running_other": "Scanning the media folders… {{found}} files found",
+    "followedBy": "{{line}}; another scan starts after this one.",
+    "succeeded_one": "Scanned {{time}}: {{found}} file, {{unreported}} in no library.",
+    "succeeded_other": "Scanned {{time}}: {{found}} files, {{unreported}} in no library.",
+    "failed": "Scan failed {{time}}: {{error}}",
+    "failedHidden": "The last scan failed. The owner can see why.",
+    "never": "The media folders have not been scanned yet.",
+    "problemsOwner_one": "{{value}} folder or link wasn't scanned: {{problem}}",
+    "problemsOwner_other": "{{value}} folders or links weren't scanned: {{problem}}",
+    "problemsMember_one": "{{value}} folder or link wasn't scanned. Ask the owner which.",
+    "problemsMember_other": "{{value}} folders or links weren't scanned. Ask the owner which.",
+    "scanFolders": "Scan folders",
+    "starting": "Starting…",
+    "startFailed": "Could not start the scan of the media folders.",
+    "reasons": {
+      "notOwner": "Only the owner can scan the media folders.",
+      "noFolders": "No media folder is allowed yet. Choose the folders the app may read under Media folders first.",
+      "queued": "A scan is already waiting to start."
+    },
+    "files": "Files in no library: {{counts}}"
   },
   "paths": {
     "ownerWarning_one": "{{value}} file has no path in this app.",

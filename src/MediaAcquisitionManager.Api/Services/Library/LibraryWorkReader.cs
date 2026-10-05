@@ -43,7 +43,8 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
             .Where(version => workIds.Contains(version.MediaWorkId))
             .ToListAsync(cancellationToken);
 
-        var versionIds = versions.Select(version => version.Id).ToList();
+        // Nullable to match the column: only the scan's own names (MAM-18) have no version, and none is asked for.
+        var versionIds = versions.Select(version => (Guid?)version.Id).ToList();
         var files = await db.PhysicalFiles.AsNoTracking()
             .Where(file => versionIds.Contains(file.MediaVersionId))
             .ToListAsync(cancellationToken);

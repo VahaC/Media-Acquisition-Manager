@@ -5,12 +5,20 @@ using MediaAcquisitionManager.Core.Library;
 namespace MediaAcquisitionManager.Core.Entities;
 
 /// <summary>
-/// One name of a file of a version, as a source reports it — a name, not one copy of the bytes.
+/// One name of a file — of a version, as a library reports it, or one the app found in the media folders
+/// itself that no library reported (MAM-18) — a name, not one copy of the bytes.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Two names of one inode (hardlinks) are two rows sharing <see cref="DeviceId"/> and
 /// <see cref="Inode"/>: one set of bytes, counted once. A byte-identical copy is a different identity
 /// (Phase B hashes it). Occupied space is counted per identity, never per row.
+/// </para>
+/// <para>
+/// MAM-18, ADR 0021 — a name the scan found that no library reported has the source kind
+/// <see cref="Enums.ProvenanceSourceKind.FileInspection"/>, no source connection and no version: which
+/// work it is, if any, is not the app's to guess from a file name (ADR 0017).
+/// </para>
 /// </remarks>
 public class PhysicalFileEntity : ProvenancedEntity
 {
@@ -21,16 +29,25 @@ public class PhysicalFileEntity : ProvenancedEntity
 
     /// <summary>
     /// The version; forgetting a version forgets the names reported for it — never a file on disk.
+    /// <c>null</c> only for a name the scan found that no library reported (MAM-18): a library's name
+    /// always has its version.
     /// </summary>
-    public Guid MediaVersionId { get; set; }
+    public Guid? MediaVersionId { get; set; }
 
     /// <summary>
     /// The path exactly as the reporting service sees it; 4096 is Linux's <c>PATH_MAX</c>.
     /// </summary>
     /// <remarks>
-    /// The app's own path is never stored: <see cref="Paths.PathMapper"/> works it out through the
-    /// integration's current mappings when it is needed, so an edited mapping can't leave stale paths
-    /// behind — and a mapped path is only where to look, not proof of identity (ADR 0003).
+    /// <para>
+    /// The app's own path is never stored for a service's name: <see cref="Paths.PathMapper"/> works it
+    /// out through the integration's current mappings when it is needed, so an edited mapping can't leave
+    /// stale paths behind — and a mapped path is only where to look, not proof of identity (ADR 0003).
+    /// </para>
+    /// <para>
+    /// MAM-18 — on a name the scan found itself the app is the reporting source, so this is the app's own
+    /// path in canonical form: no mapping applies to it (no source connection maps a path as it is), so no
+    /// edited mapping can make it stale.
+    /// </para>
     /// </remarks>
     [Required, MaxLength(ServicePathMaximumLength)]
     public string ServicePath { get; set; } = default!;
@@ -50,7 +67,8 @@ public class PhysicalFileEntity : ProvenancedEntity
     /// </summary>
     public Guid? LibraryLocationId { get; set; }
 
-    /// <summary>The size in bytes as reported; <c>null</c> when unknown.</summary>
+    /// <summary>The size in bytes as a library reported it; <c>null</c> when unknown, and on a name the scan
+    /// found itself (its size is <see cref="ReadSizeBytes"/>).</summary>
     public long? SizeBytes { get; set; }
 
     /// <summary>
@@ -72,6 +90,20 @@ public class PhysicalFileEntity : ProvenancedEntity
     /// for Phase B, which counts a file with several names once. <c>null</c> until read.
     /// </summary>
     public int? LinkCount { get; set; }
+
+    /// <summary>
+    /// The size of the file the name leads to (<c>st_size</c>) as the app's last look read it, with
+    /// <see cref="DeviceId"/> (MAM-18); <c>null</c> until read, and again when the last look found nothing
+    /// there. Unlike <see cref="SizeBytes"/>, what the disk says, whoever reported the name.
+    /// </summary>
+    public long? ReadSizeBytes { get; set; }
+
+    /// <summary>
+    /// When the file the name leads to was last written (<c>st_mtime</c>, UTC, to the tick) as the app's
+    /// last look read it, with <see cref="DeviceId"/> (MAM-18); <c>null</c> until read, and again when the
+    /// last look found nothing there.
+    /// </summary>
+    public DateTime? ReadModifiedUtc { get; set; }
 
     /// <summary>
     /// What the app's last look at this name found (MAM-9); <c>null</c> until it has looked. A library

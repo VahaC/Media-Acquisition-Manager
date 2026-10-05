@@ -12,7 +12,8 @@ failure, and a Profile page where every user changes their own password) are bui
 checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
 access tokens) is still to do; no phase has shipped yet. Phase B, release 0.2.0, has started: MAM-17
 answered specification §7 questions 3 and 6 against the live installation on 2026-10-04, and MAM-32
-(series and episodes in the library, and searching, matching and sending their releases) is built.
+(series and episodes in the library, and searching, matching and sending their releases) and MAM-18
+(the scan of the media folders for the files no library reported) are built.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -463,9 +464,24 @@ episode, and how much space could really be recovered — without the app guessi
   sections to destinations, and the Download dialog opens on the destination the release's section
   is mapped to, else the default (Vasyl's decision 5,
   [ADR 0020](docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
-- Scan the allowed roots for files no library reported, movies' and episodes' alike, inside them
-  only and without following links out of them — the rules MAM-9's inspection already applies to
-  the library's own files (ADR 0009).
+- **MAM-18 Scan of the media folders** (built): the owner's **Scan folders** on the Library page
+  (`POST /api/library/scans`, owner-only, 202 + run row + reconciler) walks every allowed folder for
+  media files — a video extension, letter case ignored, Blu-ray and DVD clips included — following a
+  link only when it ends inside the folders, never one leading out, ending loops, and opening no
+  file; on Linux each folder is opened name by name without following a link and listed through its
+  descriptor. A folder it couldn't list now keeps the names found there before, and a walk past
+  100,000 folders or 200,000 entries stores nothing. A file is reported when one of its names is
+  where the app finds a library's file, a movie's or an episode's, through the current path
+  mappings, by path alone; each file no library reported keeps one name with no version, kept across
+  scans, and the usual file inspection then reads it (`FolderScanned`). A **Media folders** row
+  beside the Jellyfin sources says how the scan stands and counts the files in no library by the
+  app's look at each, counted when read, so a sync that starts reporting a path takes it off at once.
+  It runs only when the owner asks and reads no download client (Vasyl's decisions 1–4,
+  [ADR 0021](docs/adr/0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md),
+  [ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+  Checked on the reference installation on 2026-10-05, on a copy of its data beside production:
+  1,395 media files in `/media`, the 1,378 Jellyfin lists each matched by path and 17 in no library,
+  and a second scan read nothing new.
 - Account for hardlinks (same device and inode, which MAM-9 records on every file name with its link
   count), and hash candidate files lazily, with the hash cache keyed by file identity, size and
   modification time like MAM-9's inspection cache.
@@ -498,7 +514,15 @@ TV queries go to the TV categories without the year, with the season where asked
 fails its source; a TV release matches series only, a movie release movies only, a season-1 pack
 by its first year exactly and a later seasons' pack by a series of that year or earlier, with the
 episodes held counted once each; the Download dialog's suggestion prefers the source's own section,
-and a tie suggests nothing.
+and a tie suggests nothing. MAM-18: the walk lists media files by extension in any letter case,
+hidden folders included, follows a link inside the folders under its own name, refuses one leading
+out and a loop, and answers a missing or empty root, a dangling link, a folder it may not list and
+a folder swapped for a link after the check as places it couldn't list; a movie's and an episode's
+file are reported by their mapped path alone, a file reached by two names is stored once, a name
+stored where the walk couldn't look stays and one it looked for and didn't find goes, and a walk
+past its limit, a failure or a stop stores nothing; the count of files in no library follows a
+sync or a fixed mapping at once; a scanned name never shows in the works list, a search or a match;
+and the inspection after a scan reads only what is new or changed.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -506,7 +530,14 @@ require manual review. The reference installation has no hardlinks and no two vi
 size (MAM-17), so there the first criterion and a byte-identical pair of videos rest on the tests.
 For MAM-32: a sync of the reference installation lists each show once with its seasons; a search
 for a series through Toloka lists its TV releases matched to it with the episodes held; and a TV
-release sent from there lands in the destination its section is mapped to.
+release sent from there lands in the destination its section is mapped to. For MAM-18: a scan of the
+reference installation's `/media` finds the video files MAM-17 counted, every file Jellyfin lists —
+an episode's included — counts as reported, and the files in no library are the ones Jellyfin
+doesn't list; and the inspection after a second scan reads nothing new. Checked on 2026-10-05 with
+an image of the change beside production, on a copy of its data with the media read-only (Vasyl's
+decision 4): 1,395 files — the 1,394 in the library folders MAM-17 counted, and a software disc
+image at the root of `/media` — of which the 1,378 Jellyfin lists matched by path and 17 are in no
+library; the inspection read only those 17, and a second scan read nothing.
 
 ### Phase C — Safe replacement
 

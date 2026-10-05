@@ -138,3 +138,21 @@ it still never makes a library item an episode.
 `LibrarySnapshotTvHttpTests.Sync_makes_one_series_of_a_show_the_library_knows_as_two_series_items`
 and `LibrarySnapshotTvHttpTests.Sync_keeps_a_movie_and_a_series_sharing_a_tmdb_number_apart` pin
 it.
+
+## Implementation (added 0.2.0, MAM-18)
+
+**The scan matches an episode's file as it matches a movie's: by its path.** The Consequences' ticket
+order holds: MAM-32 stored the episodes' files first, and MAM-18's scan of every allowed folder,
+whatever it holds, counts a file as reported when one of the names it was reached by is the app path
+of any file a library reported — a movie's or an episode's alike, through its integration's current
+path mappings
+([ADR 0021](0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+No file or folder name decides anything: an `S01E01` in a name makes no file an episode, a title in a
+path joins it to no work, and the same file name in another folder is another file. A file no library
+reported is stored as a name with no version, so it belongs to no work, neither a movie nor an
+episode; how it becomes a possible match stays MAM-20's, as the Anti-consequence says.
+
+`FolderScanRunHttpTests.Scan_counts_a_movies_and_an_episodes_file_as_reported_and_stores_no_name_for_them`,
+`FolderScanRunHttpTests.Scan_matches_by_the_librarys_current_mappings_and_by_path_alone` and
+`FolderScanIsolationHttpTests.Scan_of_a_name_whose_path_holds_a_works_title_changes_nothing_the_library_shows_or_finds`
+pin it.

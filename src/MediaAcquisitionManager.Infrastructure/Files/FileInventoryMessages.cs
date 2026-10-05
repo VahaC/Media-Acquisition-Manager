@@ -1,11 +1,14 @@
+using System.Globalization;
+using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Infrastructure.Integrations;
 
 namespace MediaAcquisitionManager.Infrastructure.Files;
 
 /// <summary>
-/// The sentences <see cref="LocalFileInventory"/> answers with (MAM-9): one readable English sentence each,
-/// every path quoted with “ ”. The owner reads them on the Library page, so they say what happened to the
-/// file in the words of the app, not an operating system's error code.
+/// The sentences <see cref="LocalFileInventory"/> answers with (MAM-9), its walk of the allowed roots included
+/// (MAM-18): one readable English sentence each, every path quoted with “ ”. The owner reads them on the
+/// Library page, so they say what happened to the file in the words of the app, not an operating system's
+/// error code.
 /// </summary>
 internal static class FileInventoryMessages
 {
@@ -66,6 +69,32 @@ internal static class FileInventoryMessages
     public static string InspectorUnavailable(string reason) =>
         $"The app couldn't start ffprobe ({Reason(reason)}); the Docker image includes it, and elsewhere FFmpeg " +
         "must be installed with ffprobe on the PATH.";
+
+    /// <summary>
+    /// MAM-18 — an allowed root that lists nothing at all: an unmounted disk looks exactly like this, so it is
+    /// a root the walk couldn't list, never a folder found empty.
+    /// </summary>
+    public static string EmptyRoot(string appPath) =>
+        $"{Quote(appPath)} is empty; if it is a mount, it may be away, so the files found in it before are kept.";
+
+    /// <param name="folderAppPath">The folder the name is in: the name itself can't be quoted.</param>
+    public static string UnusableName(string folderAppPath) =>
+        $"A name in {Quote(folderAppPath)} isn't valid text, so the app skips it.";
+
+    public static string PathTooLong(string appPath) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Quote(appPath)} is longer than {PhysicalFileEntity.ServicePathMaximumLength} characters, so the app skips it and everything in it.");
+
+    public static string LeadsBackUp(string appPath) =>
+        $"{Quote(appPath)} leads back to a folder above it, so the app doesn't walk it again.";
+
+    /// <param name="maximumEntries">The entries one walk gives at most (<see cref="FolderWalker.MaximumEntries"/>).</param>
+    /// <param name="maximumFolders">The folders one walk lists at most (<see cref="FolderWalker.MaximumFolders"/>).</param>
+    public static string LimitReached(int maximumEntries, int maximumFolders) =>
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"The media folders hold more than {maximumEntries:N0} media files or {maximumFolders:N0} folders, or links inside them lead to the same folders many times over, so the scan stopped.");
 
     /// <summary>
     /// <paramref name="text"/> in “ ”, made safe to show: a path is whatever a service reported or a file

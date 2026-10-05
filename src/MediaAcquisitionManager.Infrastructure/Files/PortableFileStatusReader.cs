@@ -25,6 +25,15 @@ internal sealed class PortableFileStatusReader : IFileStatusReader
             : FileSystemFailure.Relay<FileFacts, IOpenedFile>(described);
     }
 
+    /// <inheritdoc/>
+    /// <remarks>
+    /// MAM-18, ADR 0021 — listed again by its path, like a file is read again by it here, and with no identity: a
+    /// link swapped in at the path since the checks is followed; the walk tells a loop by the folder's resolved
+    /// path instead.
+    /// </remarks>
+    public FileInventoryResult<IOpenedFolder> OpenFolder(string systemPath, string appPath) =>
+        new(FileInventoryStatus.Found, new FolderListedByPath(systemPath), null);
+
     private static FileInventoryResult<FileFacts> Describe(string systemPath, string appPath)
     {
         try

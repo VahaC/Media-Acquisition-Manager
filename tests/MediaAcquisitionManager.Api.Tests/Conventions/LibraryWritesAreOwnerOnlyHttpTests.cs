@@ -53,6 +53,8 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
                 "POST api/library/sources/{integrationId:guid}/syncs",
                 // MAM-9 — the owner's Inspect files.
                 "POST api/library/inspections",
+                // MAM-18 — the owner's Scan folders.
+                "POST api/library/scans",
             },
             writes);
     }
@@ -63,7 +65,7 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         // MAM-9 — a folder allowed, so a write that slipped past the owner check would queue an inspection
-        // rather than stop at "no media folders" and write nothing anyway.
+        // (or, MAM-18, a scan) rather than stop at "no media folders" and write nothing anyway.
         await new AllowedRootSeeder(_factory.Scope).Allow("/media");
         var writes = LibraryWrites();
 
@@ -90,6 +92,7 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
         {
             Assert.Equal(0, await db.LibrarySyncRuns.CountAsync(cancellationToken));
             Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.FolderScanRuns.CountAsync(cancellationToken));
         });
     }
 
