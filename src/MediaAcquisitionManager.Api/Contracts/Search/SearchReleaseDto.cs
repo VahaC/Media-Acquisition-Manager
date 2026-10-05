@@ -12,6 +12,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="SourceId">The search's source that listed it (<see cref="SearchSourceDto.Id"/>).</param>
 /// <param name="SourceName">That source's name when it was searched.</param>
 /// <param name="Title">The title as listed.</param>
+/// <param name="Description">MAM-33 — the listing's description when it says more than the title: Toloka's
+/// own topic title, Ukrainian title first; <c>null</c> when it gives none, or the release was stored before
+/// MAM-33.</param>
 /// <param name="Kind">MAM-32 — what the source lists it as, by its categories (ADR 0020): <c>Tv</c> is
 /// matched to library series only, <c>Movie</c> to movies only.</param>
 /// <param name="SizeBytes">The size the listing claims; <c>null</c> when it gives none.</param>
@@ -34,6 +37,7 @@ public sealed record SearchReleaseDto(
     Guid? SourceId,
     string SourceName,
     string Title,
+    string? Description,
     ReleaseKind Kind,
     long? SizeBytes,
     int? Seeders,

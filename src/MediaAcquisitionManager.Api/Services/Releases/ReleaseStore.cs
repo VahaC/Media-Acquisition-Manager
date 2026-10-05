@@ -98,6 +98,7 @@ public sealed class ReleaseStore(
                     ObservedUtc = now,
                     CreatedUtc = now,
                     Title = hit.Title,
+                    Description = hit.Description,
                     SizeBytes = hit.SizeBytes,
                     PublishedUtc = hit.PublishedUtc,
                     SourcePageUrl = hit.SourcePageUrl,
@@ -179,9 +180,10 @@ public sealed class ReleaseStore(
     /// MAM-32 — the categories a release is listed in, comma-separated in the listing's order, for the
     /// destination its tracker section goes to; <c>null</c> for none. Ids past the column are left out
     /// whole, never cut: a cut id would name another category. Prowlarr lists two per Toloka release
-    /// (VendorSamples), so the column is far more than a listing needs.
+    /// (VendorSamples), so the column is far more than a listing needs. MAM-33 — a feed entry keeps a release's
+    /// categories the same way, in a column as long.
     /// </summary>
-    private static string? CategoryIdsOf(IReadOnlyList<string> categoryIds)
+    internal static string? CategoryIdsOf(IReadOnlyList<string> categoryIds)
     {
         var kept = new List<string>(categoryIds.Count);
         var length = 0;

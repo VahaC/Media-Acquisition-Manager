@@ -1,0 +1,475 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/rBOnrVlck7BIlGeWVlzYiZeg4l2.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        18,
+        10765
+      ],
+      "id": 209867,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "葬送のフリーレン",
+      "overview": "Герої повертаються додому після перемоги над королем демонів - маг Фрірен, герой Ґіммель, священик Ґейтер і воїн Айзен. От тільки для Фрірен, ельфійки, час плине інакше, тож вона стає свідком того, як її супутники повільно вмирають один за одним. На своєму шляху Фрірен все більше поринає у жаль про втрачені можливості налагодити глибші стосунки зі своїми нині покійними друзями. Чи зустріне вона нових? І чи зможе стати ближче до людей?",
+      "popularity": 87.0701,
+      "poster_path": "/nrKaJu5cRzkjc0IptTqjJFCJNAt.jpg",
+      "first_air_date": "2023-09-29",
+      "softcore": false,
+      "name": "Фрірен: після кінця пригоди",
+      "vote_average": 8.8,
+      "vote_count": 985
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/7oBGhqJIghRBvOwo5Qe0yM0cnMc.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765
+      ],
+      "id": 246,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Avatar: The Last Airbender",
+      "overview": "Світ поділений на чотири Нації: Води, Землі, Повітря й Вогню. У кожної Нації є людина, яка володіє здібностями керувати своєю стихією. Вони називають себе магами. Найсильніший Володар світу і єдиний, хто може керувати всіма чотирма стихіями, - Аватар - воскресає для кожного Народу раз на сто років. Коли жорстока Нація Вогню загрожує поневолити Нації Води, Землі і Повітря, запеклому й пустотливому хлопчиську належить зустріти свою долю, долю Аватара, обраного, якому судилося відновити рівновагу в світі.",
+      "popularity": 40.7301,
+      "poster_path": "/4BD2KIoyJDEEKOp7iHrrWCJ6rhp.jpg",
+      "first_air_date": "2005-02-21",
+      "softcore": false,
+      "name": "Аватар: Останній Захисник",
+      "vote_average": 8.781,
+      "vote_count": 5130
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/v38qp4bySLTXYu3MF8r5GD51FN3.jpg",
+      "genre_ids": [
+        10759,
+        35,
+        16
+      ],
+      "id": 37854,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "ワンピース",
+      "overview": "Перед смертю король піратів, у якого було все - багатство, слава і влада - заховав скарб під назвою «Ван Піс». Хлопчик на ім'я Луффі вирушає у подорож по океану в надії знайти його. У відкритому морі він знайомиться з друзями, і вони потрапляють у безліч пригод, долаючи всі перешкоди в гонитві за своєю мрією",
+      "popularity": 86.8493,
+      "poster_path": "/nkFxg5yzeX015iYzZLaduJt2xlw.jpg",
+      "first_air_date": "1999-10-20",
+      "softcore": false,
+      "name": "ВАН ПІС (ЄДИНИЙ СКАРБ)",
+      "vote_average": 8.75,
+      "vote_count": 5580
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/5cvnxEHT3e39DvT6ARw4GNCFrB0.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765
+      ],
+      "id": 94605,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Arcane",
+      "overview": "На тлі розбрату між містами Пілтовер і Заун дві сестри б’ються по різні боки барикад у війні магічних технологій і суперечливих переконань.",
+      "popularity": 53.9763,
+      "poster_path": "/dPaDsS6zpata4CO9Nx8kbMMNmVQ.jpg",
+      "first_air_date": "2021-11-06",
+      "softcore": false,
+      "name": "Аркейн",
+      "vote_average": 8.748,
+      "vote_count": 6213
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/A6tMQAo6t6eRFCPhsrShmxZLqFB.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765,
+        18
+      ],
+      "id": 31911,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "鋼の錬金術師 FULLMETAL ALCHEMIST",
+      "overview": "Порушивши головну заборону Алхімії та спробувавши воскресити маму, талановиті брати Елрікі заплатили високу ціну: молодший, Альфонс,  втратив тіло, і тепер його душа прикріплена до сталевих обладунків, а старший, Едвард, позбувся руки і ноги, тому йому доводиться користуватися протезами - автобронею. Завдяки виявленим здібностям, Ед отримав звання державного алхіміка і став частиною військової машини держави. Тепер у нього є шанс повернути Алу колишнє тіло. Попереду мандри, пригоди і нескінченні битви...",
+      "popularity": 82.6756,
+      "poster_path": "/ciMfiEqVjaU0WCBELgdZjpkNbQc.jpg",
+      "first_air_date": "2009-04-05",
+      "softcore": false,
+      "name": "Сталевий алхімік. Братерство",
+      "vote_average": 8.715,
+      "vote_count": 2602
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/jIyEmnBrZtl6SEWyBoMO2hZnzMa.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765
+      ],
+      "id": 138502,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "X-Men '97",
+      "overview": "Продовженням X-Men: The Animated Series, який виходив у 1992-1997 роках та розпочнеться рівно з того моменту на якому завершився п’ятий сезон оригінального шоу.",
+      "popularity": 37.5797,
+      "poster_path": "/c65HPqFcPJl1sDJsAEwVooWjzM.jpg",
+      "first_air_date": "2024-03-20",
+      "softcore": false,
+      "name": "Люди Ікс '97",
+      "vote_average": 8.703,
+      "vote_count": 903
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/wg0GsFpeHAFPbbcfsntTQBggWCo.jpg",
+      "genre_ids": [
+        16,
+        10765,
+        10759
+      ],
+      "id": 1429,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "進撃の巨人",
+      "overview": "Кількасот років тому людство було майже винищене титанами. Титани не володіли інтелектом, вони пожирали людей просто заради розваги, а не як їжу. Невеликий відсоток людства пережив страшні часи в місті, захищеному п’ятидесятиметовою стіною.\n\nПеренесемося в наш час, де місто не бачило титанів останні 100 років. Двоє дітей стали свідками жахливого: міська стіна була пробита величезним титаном, який з’явився нізвідки, і трохи менші титани проникають до міста. Мати Ерена та Мікаси була з’їдена заживо. Ерен присягається, що знищить кожного титана та помститься за все людство.",
+      "popularity": 45.1697,
+      "poster_path": "/46MIHRocJKcBVDsa14OYMFZubot.jpg",
+      "first_air_date": "2013-04-07",
+      "softcore": false,
+      "name": "Атака титанів",
+      "vote_average": 8.687,
+      "vote_count": 7737
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/xMNH87maNLt9n2bMDYeI6db5VFm.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765
+      ],
+      "id": 127532,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "俺だけレベルアップな件",
+      "overview": "Кажуть, що все, що не вбиває, робить тебе сильнішим. Але це не стосується найслабшого мисливця у світі — Сон Джінву. Після жорстокого знищення монстрами у високорівневому підземеллі він повертається до життя разом із Системою — унікальною програмою, яку може бачити лише він і яка постійно підвищує його силу. Тепер Джінву прагне розкрити таємниці своїх здібностей і походження підземелля, що їх породило.",
+      "popularity": 64.6614,
+      "poster_path": "/hIBTVj7tKiGHp6cdwxJg6f9NIbt.jpg",
+      "first_air_date": "2024-01-07",
+      "softcore": false,
+      "name": "Тільки я візьму новий рівень",
+      "vote_average": 8.682,
+      "vote_count": 2018
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/5BDNWWHweQL0q1fmTv7gmRXfnl4.jpg",
+      "genre_ids": [
+        16,
+        35,
+        10765,
+        10759
+      ],
+      "id": 60625,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Rick and Morty",
+      "overview": "Гумористично-фантастичний мультсеріал про пригоди дідуся-винахідника Ріка та його онука-школяра Морті, яких іноді супроводжують інші члени родини: батько-невдаха Джеррі, донька-школярка Саммер та закомплексована мати Бет.",
+      "popularity": 177.7188,
+      "poster_path": "/tnXwqcZ98EVKuMzRtcvPRJukwI3.jpg",
+      "first_air_date": "2013-12-02",
+      "softcore": false,
+      "name": "Рік та Морті",
+      "vote_average": 8.681,
+      "vote_count": 11441
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/bGqKaVROpz7pWUNuBxgU8hbcXYn.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        35,
+        10765,
+        10751
+      ],
+      "id": 92685,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "The Owl House",
+      "overview": "Луз — дівчина-підліток, яка випадково натикається на портал у чарівний світ, де заводить дружбу з відьмою-бунтаркою Ідою та чарівним створінням Кінгом.",
+      "popularity": 40.7264,
+      "poster_path": "/cpzx94B6EUU75yFH2trbVVi0nGC.jpg",
+      "first_air_date": "2020-01-10",
+      "softcore": false,
+      "name": "Совиний дім",
+      "vote_average": 8.675,
+      "vote_count": 1845
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/uvCkSZwCTKnBtBOvDpcOvQA6xBg.jpg",
+      "genre_ids": [
+        16,
+        35,
+        18,
+        10759
+      ],
+      "id": 42705,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "はじめの一歩",
+      "overview": "Макуноучі Іппо - звичайний учень середньої школи в Японії. Оскільки він проводить більшу частину свого часу поза школою, допомагаючи матері вести сімейний бізнес, він не може насолоджуватися молодістю, як більшість підлітків. Життя Іппо завжди є мішенню для знущань у школі (сімейний рибальський бізнес надає йому виразний запах).\n\nОдне з таких знущань після школи змінює життя Іппо на краще, оскільки його рятує боксер на ім’я Такамура. Він вирішує піти по стопах Такамури і тренуватися, щоб стати боксером, визначивши напрямок і мету свого життя. Шлях Іппо до вдосконалення своєї бойової майстерності тільки починається...",
+      "popularity": 54.7582,
+      "poster_path": "/vvZdkNcHA4VtwzjeX72BoLrKdeM.jpg",
+      "first_air_date": "2000-10-03",
+      "softcore": false,
+      "name": "Перший крок",
+      "vote_average": 8.672,
+      "vote_count": 1236
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/vRAM2el4bAygzUWfwXdt34E71Ee.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        35,
+        10765
+      ],
+      "id": 131378,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Adventure Time: Fionna and Cake",
+      "overview": "Фіона живе простим буденним життям. Робота, купа несплачених рахунків, кілька добрих друзів і кішка Кейк — все, що в неї є. І це її не влаштовує. Дівчина відчуває, що їй чогось бракує. Чогось особливого. Чогось магічного. Так би й жила Фіона своїм простим життям, якби одного разу її кішка не втекла в інший вимір через портал у візку для морозива… А що буде далі?",
+      "popularity": 37.3825,
+      "poster_path": "/q8pfKW8MKaWOGwYAp4Oe5tLkhat.jpg",
+      "first_air_date": "2023-08-31",
+      "softcore": false,
+      "name": "Час пригод: Фіона та Кейк",
+      "vote_average": 8.652,
+      "vote_count": 353
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/vPVdWiLUNQyaGMazyZGVAyRcYBG.jpg",
+      "genre_ids": [
+        16,
+        35,
+        18,
+        10765
+      ],
+      "id": 261145,
+      "origin_country": [
+        "AU"
+      ],
+      "original_language": "en",
+      "original_name": "The Amazing Digital Circus",
+      "overview": "Жінка опиняється в дивному віртуальному світі разом з п’ятьма іншими людьми. Тепер їм доводиться підкорятися примхам ексцентричного ШІ й долати власні особисті травми.",
+      "popularity": 27.3179,
+      "poster_path": "/ltXlOfxQrNqtIUm6gYygL40QvTN.jpg",
+      "first_air_date": "2023-10-13",
+      "softcore": false,
+      "name": "Дивовижний цифровий цирк",
+      "vote_average": 8.67,
+      "vote_count": 417
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/eklM8HZeGKB5KMKRqkuff0yW0Oq.jpg",
+      "genre_ids": [
+        16,
+        35
+      ],
+      "id": 42573,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "スラムダンク",
+      "overview": "Ханамічі Сакураґі — запальний старшокласник із поганою репутацією, який страждає від постійних відмов дівчат. Все змінюється, коли він зустрічає Харуко Акаґі, яка захоплюється баскетболом. Щоб справити на неї враження, Ханамічі вирішує приєднатися до шкільної баскетбольної команди. Спочатку він нічого не знає про гру, але завдяки наполегливості, природній силі та суперництву з капітаном Такенорі Акаґі та зірковим гравцем Рукасою Каеде поступово розкриває свій потенціал.",
+      "popularity": 33.3796,
+      "poster_path": "/yTu4tAshvGHOq0427ogtPxRTLLu.jpg",
+      "first_air_date": "1993-10-16",
+      "softcore": false,
+      "name": "Слем-Данк",
+      "vote_average": 8.7,
+      "vote_count": 985
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/zBfnpI8883yeQkXK2kpLavHv9Yw.jpg",
+      "genre_ids": [
+        10759,
+        16
+      ],
+      "id": 89456,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Primal",
+      "overview": "Головний герой шоу на прізвисько Спис — печерна людина, внаслідок трагічних обставин подружився з самкою тиранозавра. У «Первісному» немає ні діалогів, ні закадрового тексту, а навколишній світ настільки жорстокий і негостинний, що глядачеві відразу дають зрозуміти — якщо ти не здатний голими руками рвати на частини птеродактилів і рапторів, то робити тобі тут нічого.",
+      "popularity": 18.1713,
+      "poster_path": "/a0tP1y4zRrFFKchpD568AHyFlGo.jpg",
+      "first_air_date": "2019-10-08",
+      "softcore": false,
+      "name": "Первісний",
+      "vote_average": 8.655,
+      "vote_count": 1624
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/bFKKyCI89Xq98Gul8cGox8K3sZa.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765
+      ],
+      "id": 46298,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "HUNTER×HUNTER",
+      "overview": "Батько 12-річного Ґона ще в дитинстві покинув його та вирушив  бути мисливцем, людиною з особливим статусом, якій у цьому світі дозволено майже все. Тепер Ґон теж вирішив стати мисливцем та на власному досвіді дізнатися, чому саме його батько обрав для себе цей шлях.",
+      "popularity": 107.7161,
+      "poster_path": "/hXxGCFGxzk2Vl0B1igNijQ5yV2c.jpg",
+      "first_air_date": "2011-10-02",
+      "softcore": false,
+      "name": "МИСЛИВЕЦЬ×МИСЛИВЕЦЬ",
+      "vote_average": 8.658,
+      "vote_count": 2219
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/gffVOVZ2Y9cmVIZ26Gt9ByMGCYH.jpg",
+      "genre_ids": [
+        16,
+        18,
+        9648
+      ],
+      "id": 220542,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "薬屋のひとりごと",
+      "overview": "При імператорському дворі в стародавньому Китаї минуло кілька місяців відтоді, як 17-річну дівчину на ім'я Маомао викрали і змусили працювати найнижчою служницею в імператорському палаці. Та все ж придворні інтриги змушують її нарешті вийти з тіні й заявити, що насправді вона досвідчена травниця, що добре розуміється на ліках та отрутах. Здивовані слуги запрошують Маомао у свиту до фаворитки імператора, де й починаються її справжні пригоди, сповнені інтриг і таємниць.",
+      "popularity": 124.0382,
+      "poster_path": "/k1pKBMvSS6g5PPWDHFyzk6jlzKv.jpg",
+      "first_air_date": "2023-10-22",
+      "softcore": false,
+      "name": "Монолог травниці",
+      "vote_average": 8.646,
+      "vote_count": 656
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/3GQKYh6Trm8pxd2AypovoYQf4Ay.jpg",
+      "genre_ids": [
+        16,
+        10759,
+        10765
+      ],
+      "id": 85937,
+      "origin_country": [
+        "JP"
+      ],
+      "original_language": "ja",
+      "original_name": "鬼滅の刃",
+      "overview": "Події відбуваються у період Тайшьо в Японії. Повсякденне життя добросердного хлопця Танджіро, який підробляє продаючи вугілля, повністю змінилось після того, як його родину було вбито. Єдина, хто лишилась в живих — його сестра Незуко, але її перетворили на моторошного демона. Попри своє спустошення через  цю похмуру реальність, Танджіро вирішує стати \"вбивцею демонів\", щоб віднайти спосіб перетворити Незуко назад у людину та вбити демона, який замордував усю його родину.",
+      "popularity": 32.6283,
+      "poster_path": "/cUr4GbbBLftzVVkd3a0tJGjt8pJ.jpg",
+      "first_air_date": "2019-04-06",
+      "softcore": false,
+      "name": "Клинок, який знищує демонів",
+      "vote_average": 8.638,
+      "vote_count": 7498
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/bhF63Jd90gRYyTHd4y5GCGA2vX6.jpg",
+      "genre_ids": [
+        16,
+        35,
+        10759,
+        10765
+      ],
+      "id": 31132,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Regular Show",
+      "overview": "Двоє нудьгуючих доглядачів, Мордекай (шість футів заввишки) і Рігбі (гіперактивний єнот), є найкращими друзями, які проводять дні, намагаючись розважити себе будь-якими засобами, що викликало невдоволення свого боса. Їхні щоденні заняття часто призводять до того, що речі виходять з-під контролю та стають сюрреалістичними.",
+      "popularity": 141.9431,
+      "poster_path": "/pMAONMbcEjBVz7RsAOVOeKagxZP.jpg",
+      "first_air_date": "2010-09-06",
+      "softcore": false,
+      "name": "Звичайне шоу",
+      "vote_average": 8.6,
+      "vote_count": 2321
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/9qrroces8C6R9aKr08hACNPVXdZ.jpg",
+      "genre_ids": [
+        16,
+        18,
+        10765,
+        10759
+      ],
+      "id": 95557,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "INVINCIBLE",
+      "overview": "17-річний Марк Грейсон дізнається, що його батько наймогутніший супергерой на Землі. Тепер підлітку належить впоратися з силами, які дісталися йому у спадок.",
+      "popularity": 74.5329,
+      "poster_path": "/nMmOmuLQKAwQigEgnbIrSeoWlxQ.jpg",
+      "first_air_date": "2021-03-25",
+      "softcore": false,
+      "name": "НЕПЕРЕМОЖНИЙ",
+      "vote_average": 8.629,
+      "vote_count": 6100
+    }
+  ],
+  "total_pages": 25,
+  "total_results": 484
+}

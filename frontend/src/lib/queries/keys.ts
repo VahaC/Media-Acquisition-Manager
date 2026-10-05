@@ -5,6 +5,7 @@ import type {
   IntegrationsQuery,
   LibraryEpisodesQuery,
   LibraryWorksQuery,
+  RecommendationsQuery,
   SearchReleasesQuery,
   UsersQuery,
 } from '../types'
@@ -25,6 +26,20 @@ export const qk = {
   auth: {
     /** MAM-16 — the signed-in user's profile and this session's end, for the Profile page. */
     me: ['auth', 'me'] as const,
+  },
+  profile: {
+    /** MAM-33 — the user's recommendation tabs and daily search limit: the header, the page and the Profile card. */
+    recommendations: ['profile', 'recommendations'] as const,
+  },
+  recommendations: {
+    /** MAM-33 — every page and filter of every tab: what a finished computation invalidates. */
+    lists: ['recommendations', 'list'] as const,
+    /** The whole query object is part of the key, so each tab, page and filter is cached apart. */
+    list: (query: RecommendationsQuery) => ['recommendations', 'list', query] as const,
+    /** The latest computation, polled while one is under way. */
+    latestRun: ['recommendations', 'runs', 'latest'] as const,
+    /** One poster as a `data:` URL, by the URL the list gave; a poster file never changes. */
+    poster: (url: string) => ['recommendations', 'posters', url] as const,
   },
   library: {
     /** The works, the library filter and the sources: what a change to an integration drops. */

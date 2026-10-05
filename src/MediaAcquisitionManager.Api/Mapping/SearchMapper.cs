@@ -57,6 +57,7 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
             release.Release.SearchSourceId,
             release.SourceName,
             release.Release.Title,
+            release.Release.Description,
             release.Release.Kind,
             release.Release.SizeBytes,
             release.Release.Seeders,

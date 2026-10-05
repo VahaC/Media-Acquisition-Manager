@@ -1,0 +1,145 @@
+# 25. The catalog is kept apart from the library
+
+Status: accepted (0.2.1, MAM-33)
+
+## Context
+
+Recommendations are built from a metadata catalog, TMDb under Vasyl's own key (decision 1): a
+work's details with its genres, collection, directors or creators, seasons and recommended works, a
+collection's parts, a person's works, the genre lists, searches, finds by IMDb id, discovery and
+posters ([ADR 0023](0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)). A
+run needs the details of every work the library holds — the reference library's 640 TMDb movie ids
+took 943 calls and about three minutes on 2026-10-05 — and the catalog's facts move slowly.
+
+The obvious home for those facts is the library's own works, and it goes wrong. The library is
+what Jellyfin reported, each title and id a row naming its source
+([ADR 0006](0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)), replaced by
+the next sync ([ADR 0008](0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)).
+A TMDb id the app found for "120. Landing Stripling" by title and year is a guess: written as a
+work's identifier, the Library page would show a match nobody made, a search would match releases by
+it ([ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)),
+and the guess would sit beside Jellyfin's word as if it were a fact. The catalog also holds thousands
+of works the library doesn't have, which are no library works at all. Asked live on every page, the
+catalog would make each page wait on the internet, and a run would ask it the same hundreds of
+questions every time. And a poster shown straight from TMDb's image host would need the
+Content-Security-Policy opened to it, and would tell TMDb which works each viewer looks at.
+
+## Decision
+
+**What the catalog said is kept in tables of its own, each parent row naming the metadata integration
+as its source, read again after 30 days; nothing from them is ever written to the library's works,
+titles or identifiers or shown on the Library page; and posters are cached on the app's own disk and
+served by the app to signed-in users only.**
+
+**Tables of their own.** The migration `AddRecommendations` creates 19 tables; eleven are the
+catalog. `CatalogWorks` — one row per film or show, unique by kind and catalog id, as TMDb numbers
+the two apart (ADR 0017): its title in Ukrainian and its original title, original language, release
+date, rating with its vote count, poster path, IMDb id, collection, and when its details were read
+(`DetailsUtc`, null for a work known from lists only) — with its genres, its directors or creators,
+its seasons (number, air date, episode count) and its recommended works, the last named by kind and
+catalog id with no key. `CatalogGenres` (each kind's list with the role a genre plays: Animation,
+Documentary or another), `CatalogCollections` with their parts, `CatalogPeople` with their directed
+films and created shows, and `CatalogLookups`, the cached answers to "which catalog work is this" by
+a key such as `Movie|imdb|tt0071562` or `Series|title|YELLOWSTONE|2018`: the work, and the evidence it
+matched by, or nothing. The other eight are the recommendations' own: runs, candidates, reasons, the
+availability per work, the budget's searches, dismissals, each user's settings and the newest
+releases of the sources ([ADR 0024](0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)).
+
+**Every parent row names its source (ADR 0006).** Works, genres, collections, people and lookups are
+`ProvenancedEntity` rows of source kind `Metadata`: the integration (set to null when it is removed),
+its name copied, the catalog's own id of the record — `movie/118340`, `tv/73586`,
+`collection/284433`, `person/24`, `genre/movie/16`, or the lookup's key — and when it last reported
+it. A child row is part of its parent's report, replaced with it and deleted with it, and carries no
+provenance of its own.
+
+**Keyed by the catalog's ids, whichever integration reported them.** One catalog type exists, and
+its ids don't change with the token it is reached by, so a TMDb integration removed and added again,
+or a second one, finds the same rows.
+
+**Read through, refreshed after 30 days** (`CatalogStore.RefreshAge`). The genres, a work's
+details, collections, people and lookups a run needs go through `CatalogStore`: rows younger than 30
+days answer — a work's details by `DetailsUtc`, everything else by `ObservedUtc`, a genre list as old
+as its oldest genre — and an older or missing one is asked again and stored. A list that names a work
+refreshes its summary; only details refresh what details alone say. A lookup is cached whatever it
+found, nothing included, so a title the catalog doesn't have isn't asked about again for 30 days; one
+whose work's details then answer "not found" is forgotten. Two calls are made on every run all the
+same: the connection test that gates the run, asked outside `CatalogStore`, and the TopRated
+fallback's discovery pages — `DiscoverPages` per wanted kind, for each tab short of seeds — of which
+only the works' summaries are stored, never the page.
+
+**The library is only read.** A run reads the library's works, titles, ids, episode positions and
+the names the folder scan found without tracking them, and writes no library table. A possible match
+— a library work without a catalog id found by its IMDb id, or by the one title-and-year result —
+seeds recommendations and keeps works out of them, and nothing more: it is never written to
+`MediaWorkIdentifiers`, never shown on the Library page or among a search's matches, and never used
+to match a release.
+
+**Posters through the app.** A recommendation's `posterUrl` is `/api/recommendations/posters/<file>`.
+The endpoint takes a signed-in user and only a poster file name (`RecommendationPosterNames`:
+letters, digits, `_` and `-`, then `.jpg`, `.jpeg` or `.png`, so no path can leave the folder) that
+some catalog work's poster path names, so it is no proxy to the image host. It answers from
+`<data>/posters/`, a catalog connected or not, and on a miss fetches the file once through
+`IMetadataCatalog.GetPosterAsync` — from TMDb's image host at `https://image.tmdb.org/t/p/w342`, with
+no credential, keeping only a JPEG or a PNG — and writes it there whole, through a temporary file;
+the folder is never pruned. A name that is no poster's, one no catalog work has, one the image host
+doesn't have, and one not kept while no catalog is connected are a bare 404. A fetch that fails is
+502 with the catalog's sentence, masked of the token, for the owner, and "The metadata catalog
+couldn't send this poster." for everyone else, as the sentence can quote the owner's address. The
+answer is `image/jpeg` or `image/png` by the extension, cached by the browser
+(`Cache-Control: private, max-age=2592000, immutable`). The web app fetches it with the user's token
+and shows it as a `data:` URL, so the Content-Security-Policy's `img-src 'self' data:` is unchanged,
+no endpoint is anonymous, and the browser never contacts TMDb.
+
+| Rejected option | Why not |
+| --- | --- |
+| Write the resolved TMDb ids onto the library's works | A guess becomes a library fact the Library page shows and the search matches by, beside Jellyfin's word |
+| Ask the catalog live for every page and run | Hundreds of calls a run, and every page waits on the internet |
+| Keep the catalog in memory only | Lost at every restart, and asked again in full |
+| A cache per integration | Two tokens for one catalog would store every work twice |
+| No cache for a lookup that found nothing | Every run would ask again about every library work TMDb can't name |
+| Provenance on every child row | A work's genres or seasons are one report, written and replaced with it |
+| `<img src>` pointing at TMDb's image host | The CSP opened to another host, and TMDb told which works each viewer looks at |
+| An anonymous poster endpoint | An endpoint that answers without a session, for an `<img>` that can't send the token |
+| Poster bytes in the database | `mam.db` and every backup of it grow by tens of kilobytes a work |
+
+`RecommendationCatalogCacheHttpTests.Recompute_stores_the_catalogs_rows_apart_from_the_library_with_their_provenance`,
+`RecommendationCatalogCacheHttpTests.Recompute_never_writes_the_librarys_works_titles_or_identifiers`,
+`RecommendationCatalogCacheHttpTests.Recompute_reads_the_catalog_again_only_once_its_rows_are_older_than_30_days`,
+`RecommendationCatalogCacheHttpTests.Recompute_looks_an_id_less_work_up_by_its_imdb_id_once_and_caches_the_answer`,
+`RecommendationCatalogCacheHttpTests.Recompute_uses_no_title_two_works_of_the_year_share_and_caches_that_as_nothing`
+and `RecommendationCatalogCacheHttpTests.Recompute_skips_a_seed_the_catalog_no_longer_has_and_forgets_the_lookup_that_named_it`
+pin the catalog; `TmdbAdapterPostersTests.GetPoster_fetches_the_w342_poster_from_tmdbs_image_host_without_the_token`,
+`TmdbAdapterPostersTests.GetPoster_of_anything_but_a_jpeg_or_a_png_is_an_unexpected_response`,
+`TmdbAdapterPostersTests.GetPoster_answered_with_a_redirect_follows_none` and
+`TmdbAdapterPostersTests.GetPoster_with_a_path_tmdb_never_gives_throws_without_sending_anything` the
+poster fetch, and `RecommendationPostersHttpTests.Poster_first_asked_for_is_fetched_from_the_image_host_without_the_token_and_kept`,
+`RecommendationPostersHttpTests.Poster_asked_for_again_is_read_from_disk_without_asking_the_image_host`,
+`RecommendationPostersHttpTests.Poster_kept_on_disk_is_served_with_no_catalog_connected`,
+`RecommendationPostersHttpTests.Poster_no_catalog_work_has_is_a_bare_404_and_asks_nothing`,
+`RecommendationPostersHttpTests.Poster_with_a_name_that_is_no_poster_file_name_is_a_bare_404_even_when_a_work_has_it`,
+`RecommendationPostersHttpTests.Poster_whose_fetch_fails_is_502_with_a_plain_sentence_for_anyone_but_the_owner`
+and `RecommendationPostersHttpTests.Poster_without_a_token_is_401_and_asks_nothing` what the endpoint
+serves and to whom.
+
+## Consequences
+
+**A run of an unchanged library asks almost nothing.** After the first run, the details of every
+seed, its collections and people and the lookups come from the rows for 30 days; the reference
+library's first run is a few minutes of calls (3 min 15 s for 815 seeds on 2026-10-05), the next
+ones a handful — the connection test and the discovery pages of the tabs short of seeds. A new
+season shows within a month.
+
+**Known limits, left on purpose.** The catalog's rows stay when the TMDb integration is removed, with
+its name (the MAM-7 rule), until a catalog is connected again and refreshes them; nothing prunes a
+work no run names any more. A possible match the catalog got wrong keeps seeding the wrong work's
+neighbours for 30 days. The posters directory is a cache nothing prunes: it grows by a few dozen
+kilobytes a poster shown, can be deleted, and is fetched again as cards are shown, while a catalog
+is connected. The catalog is TMDb's word, in Ukrainian where TMDb has a translation: a title TMDb
+spells otherwise than the library is a different title to the matching (ADR 0012).
+
+## Anti-consequence
+
+This keeps the catalog out of the library, not the library out of the catalog's reach: a run reads
+the library whole, every time. It doesn't make the catalog an authority — a catalog id is never a
+reason to replace, move or rename anything (specification §3.1) — and it doesn't stop a person from
+setting an id in Jellyfin, which the next sync then imports as the library's own.

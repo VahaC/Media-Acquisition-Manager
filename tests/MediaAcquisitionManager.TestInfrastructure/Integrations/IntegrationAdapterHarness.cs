@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
+using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
@@ -25,7 +26,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 public sealed class IntegrationAdapterHarness : IDisposable
 {
     private static readonly string[] ClientNames =
-        [JellyfinAdapter.HttpClientName, TorznabAdapter.HttpClientName, QBittorrentAdapter.HttpClientName];
+        [JellyfinAdapter.HttpClientName, TorznabAdapter.HttpClientName, QBittorrentAdapter.HttpClientName, TmdbAdapter.HttpClientName];
 
     private readonly ServiceProvider _services;
 
@@ -37,6 +38,9 @@ public sealed class IntegrationAdapterHarness : IDisposable
     {
         var services = new ServiceCollection();
         services.AddLogging(logging => logging.AddProvider(Logs).SetMinimumLevel(LogLevel.Trace));
+        // MAM-33 — the app registers the clock in Program (TryAddSingletonTimeProvider); the TMDb adapter's
+        // pacing reads its real timestamps, as the app's does.
+        services.AddSingleton(TimeProvider.System);
         services.AddIntegrationsInfrastructure();
 
         // Registered after the app's own configuration, so these actions run after it and win.
@@ -45,6 +49,7 @@ public sealed class IntegrationAdapterHarness : IDisposable
             UsePrimaryHandler(services, JellyfinAdapter.HttpClientName, JellyfinHttp);
             UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
             UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
+            UsePrimaryHandler(services, TmdbAdapter.HttpClientName, TmdbHttp);
         }
 
         if (timeout is { } clientTimeout)
@@ -64,6 +69,9 @@ public sealed class IntegrationAdapterHarness : IDisposable
 
     /// <summary>The network behind the <c>qbittorrent</c> client.</summary>
     public RecordingHttpHandler QBittorrentHttp { get; } = new();
+
+    /// <summary>MAM-33 — the network behind the <c>tmdb</c> client: TMDb's API and its image host alike.</summary>
+    public RecordingHttpHandler TmdbHttp { get; } = new();
 
     /// <summary>Every entry logged, at every level, by any category.</summary>
     public RecordingLoggerProvider Logs { get; } = new();

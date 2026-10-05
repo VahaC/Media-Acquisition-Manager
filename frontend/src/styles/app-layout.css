@@ -94,10 +94,12 @@ html {
 }
 
 /* MAM-16 — the header's search field (HeaderSearch). The icon and the "/" key sit over the field, so
-   the form is their positioning box. */
+   the form is their positioning box. MAM-33 — a zero basis, so the field takes what the links leave
+   it: with `auto` the field's own width counted too, and the two shrank together until the last link
+   wrapped onto a second row (at 769px, with room for both). */
 .app-search {
   position: relative;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -239,13 +241,35 @@ html:has(.app-offline) {
   color: var(--muted-foreground);
 }
 
-/* MAM-16 — narrow screens: the logo without the name and version, and the links as icons with
-   their titles, so the centre column keeps its room. */
-@media (max-width: 48rem) {
+/* MAM-33 — up to 64rem the header links are icons with their titles, closer together, and the
+   header's columns closer too, so the header stays on one line with a search field of at least
+   220px. With the labels, three links (Recommendations joined Library and Jobs) wrapped onto three
+   rows at 790–880px and left the field 144px.
+   Measured in Chrome with a 15px scrollbar: the brand 224px, the user menu 102px (a five-letter
+   name), the header's padding 2 × 24px; the links labelled 337px (Library 85, Recommendations 158,
+   Jobs 70, 12px apart), as icons 116px (36px each, 4px apart); 12px between the field and them.
+   - Labelled, the field gets width − 15 − 48 − 2 × 20 − 224 − 102 − 12 − 337 = width − 778px:
+     220px from 998px, 246px at 1025px — room left for a user name about 25px longer.
+   - As icons, from 769px (above 48rem the brand shows its name and version), with 12px between the
+     columns: 769 − 15 − 48 − 2 × 12 − 224 − 102 − 12 − 116 = 228px.
+   From about 1100px the centre column reaches its 42rem and the field stays at 323px. */
+@media (max-width: 64rem) {
   .app-header {
     gap: 0.75rem;
   }
 
+  .app-nav {
+    gap: 0.25rem;
+  }
+
+  .app-nav-link .label-text {
+    display: none;
+  }
+}
+
+/* MAM-16 — narrow screens: the logo without the name and version, so the centre column keeps its
+   room; the links are icons already (above). */
+@media (max-width: 48rem) {
   /* Hidden from sight only: display: none would also take them out of the link's name, and leave
      it named by its title, a sentence about the version. */
   .app-brand-text {
@@ -258,14 +282,6 @@ html:has(.app-offline) {
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
-  }
-
-  .app-nav {
-    gap: 0.25rem;
-  }
-
-  .app-nav-link .label-text {
-    display: none;
   }
 
   /* A phone or a tablet has no key to press, and the field needs the room. */

@@ -1,4 +1,4 @@
-import { isSearchId, parseSearchQuery } from '@/lib/search-query'
+import { isSearchId, parseSearchQuery, parseTmdbId } from '@/lib/search-query'
 
 describe('parseSearchQuery', () => {
   it.each([
@@ -113,5 +113,43 @@ describe('isSearchId', () => {
 
     // Assert
     expect(taken).toBe(false)
+  })
+})
+
+describe('parseTmdbId', () => {
+  it.each([
+    ['447365', '447365'],
+    [' 603 ', '603'],
+    ['1234567890', '1234567890'],
+  ])('takes “%s” as the TMDb id %s', (value, expected) => {
+    // Arrange
+    const address = value
+
+    // Act
+    const id = parseTmdbId(address)
+
+    // Assert
+    expect(id).toBe(expected)
+  })
+
+  it.each([
+    [null],
+    [''],
+    ['abc'],
+    ['12a'],
+    ['-5'],
+    ['4.5'],
+    ['tt0090605'],
+    ['12345678901'],
+    ['٤٤٧'],
+  ])('ignores %j, which is no TMDb id', (value) => {
+    // Arrange
+    const address = value
+
+    // Act
+    const id = parseTmdbId(address)
+
+    // Assert
+    expect(id).toBeNull()
   })
 })

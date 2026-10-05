@@ -22,6 +22,8 @@ const MediaFoldersPage = lazy(() =>
   import('@/pages/settings/MediaFoldersPage').then((m) => ({ default: m.MediaFoldersPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const RecommendationsPage = lazy(() =>
+  import('@/pages/RecommendationsPage').then((m) => ({ default: m.RecommendationsPage })))
 const SearchPage = lazy(() => import('@/pages/SearchPage').then((m) => ({ default: m.SearchPage })))
 const SetupPage = lazy(() => import('@/pages/SetupPage').then((m) => ({ default: m.SetupPage })))
 const UsersPage = lazy(() => import('@/pages/settings/UsersPage').then((m) => ({ default: m.UsersPage })))
@@ -43,6 +45,9 @@ export default function App() {
                   <Route index element={<HomePage />} />
                   <Route path="search" element={<SearchPage />} />
                   <Route path="library" element={<LibraryPage />} />
+                  {/* MAM-33 — every signed-in user's own lists of works the library doesn't have yet,
+                      the tabs they switched on in their Profile; the tab is in `?tab=`. */}
+                  <Route path="recommendations" element={<RecommendationsPage />} />
                   {/* MAM-14 — every signed-in user's own jobs; another user's job reads like no job. */}
                   <Route path="jobs" element={<JobsPage />} />
                   <Route path="jobs/:id" element={<JobDetailsPage />} />

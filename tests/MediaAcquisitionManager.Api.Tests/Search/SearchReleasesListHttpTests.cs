@@ -289,8 +289,8 @@ public sealed class SearchReleasesListHttpTests : IClassFixture<MediaAcquisition
         var release = body["items"]![0]!.AsObject();
         Assert.Equal(
             [
-                "id", "sourceId", "sourceName", "title", "kind", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl", "payloadKind",
-                "claimed", "claimedWork", "identifiers", "libraryMatches",
+                "id", "sourceId", "sourceName", "title", "description", "kind", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl",
+                "payloadKind", "claimed", "claimedWork", "identifiers", "libraryMatches",
             ],
             release.Select(property => property.Key));
         Assert.Equal("2026-08-03T00:00:00Z", (string)release["publishedUtc"]!);
@@ -302,9 +302,37 @@ public sealed class SearchReleasesListHttpTests : IClassFixture<MediaAcquisition
         // A release with nothing listed: present, as null.
         var bare = body["items"]!.AsArray()[^1]!.AsObject();
         Assert.Equal(Titles["T3"], (string)bare["title"]!);
+        Assert.Null(bare["description"]);
         Assert.Null(bare["publishedUtc"]);
         Assert.Null(bare["sizeBytes"]);
         Assert.Null(bare["seeders"]);
+    }
+
+    [Fact]
+    public async Task Releases_lists_each_releases_description_as_the_search_stored_it()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-33 — Toloka's real answer, each listing with its own topic title as its description.
+        _toloka.SearchXml = TorznabSamples.Search(TolokaAddress, ApiKey);
+        _other.SearchXml = TorznabSamples.Feed();
+        var search = await CreateSearchAsync(cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}/{search.Id}/releases?sort=largest&pageSize=100", _member.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var list = await ReadListAsync(response, cancellationToken);
+        Assert.Equal(TorznabSamples.ItemCount - TorznabSamples.NonMovieItemCount, list.TotalCount);
+        // The largest, 72.9 GB.
+        Assert.Equal("Інтерстеллар / Interstellar (2014) [2-Disc IMAX Edition] Blu-ray CEE Multi | Sub Multi", list.Items[0].Description);
+        Assert.All(list.Items, release => Assert.StartsWith("Інтерстеллар / Interstellar (2014)", release.Description, StringComparison.Ordinal));
+        await _factory.WithDbAsync(async db =>
+        {
+            var stored = await db.Releases.AsNoTracking().ToDictionaryAsync(release => release.Id, release => release.Description, cancellationToken);
+            Assert.All(list.Items, release => Assert.Equal(stored[release.Id], release.Description));
+        });
     }
 
     [Fact]

@@ -56,10 +56,16 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
         Assert.Equal(new ReleaseCategory("2040", "Movies/HD", "2000", true), caps.Categories[2]);
         Assert.Equal(new ReleaseCategory("3020", "Audio/Video", "3000", false), caps.Categories[5]);
         Assert.Contains(new ReleaseCategory("100096", "|-Фільми в HD", null, false, IsSourceSpecific: true), caps.Categories);
-        // Torznab's Movies range only: a gateway's own ids say nothing the core could rely on.
-        Assert.Equal(["2000", "2020", "2040", "2070"], caps.Categories.Where(category => category.HoldsMovies).Select(category => category.Id));
+        // Torznab's Movies range: a gateway's own ids say nothing the core could rely on. MAM-33 — and TV/Anime
+        // and TV/Documentary, where Toloka files films beside series (ADR 0020).
+        Assert.Equal(
+            ["2000", "2020", "2040", "2070", "5070", "5080"],
+            caps.Categories.Where(category => category.HoldsMovies).Select(category => category.Id));
         // MAM-32 — and its TV range, where Prowlarr files Toloka's series and cartoon series.
         Assert.Equal(["5000", "5040", "5050", "5060", "5070", "5080"], caps.Categories.Where(category => category.HoldsTv).Select(category => category.Id));
+        Assert.Equal(["5070", "5080"], caps.Categories.Where(category => category is { HoldsMovies: true, HoldsTv: true }).Select(category => category.Id));
+        Assert.Equal(new ReleaseCategory("5070", "TV/Anime", "5000", true, HoldsTv: true), Assert.Single(caps.Categories, category => category.Id == "5070"));
+        Assert.Equal(new ReleaseCategory("5080", "TV/Documentary", "5000", true, HoldsTv: true), Assert.Single(caps.Categories, category => category.Id == "5080"));
         Assert.Contains(new ReleaseCategory("100125", "|-Мультсеріали", null, false, IsSourceSpecific: true), caps.Categories);
         Assert.All(caps.Categories, category => Assert.Equal(int.Parse(category.Id, CultureInfo.InvariantCulture) >= 100000, category.IsSourceSpecific));
         // Toloka's TV search takes q, season and ep: no show's id.

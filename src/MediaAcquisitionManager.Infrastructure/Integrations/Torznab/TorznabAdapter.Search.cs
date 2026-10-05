@@ -154,10 +154,20 @@ internal sealed partial class TorznabAdapter
     /// <summary>
     /// Torznab's standard numbering files movies under 2000 to 2999 (Movies and its subcategories); a
     /// gateway's own ids (Toloka's 100xxx) say nothing the core could rely on. The core doesn't know the
-    /// numbering, so the adapter tells it (MAM-10, ADR 0004).
+    /// numbering, so the adapter tells it (MAM-10, ADR 0004). MAM-33 — and in TV/Anime and TV/Documentary
+    /// (<see cref="HoldsFilmsAndSeries"/>), which hold films beside series: the movie search asks them too
+    /// (ADR 0020).
     /// </summary>
     private static bool HoldsMovies(string id) =>
-        int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number is >= 2000 and <= 2999;
+        int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var number) && number is >= 2000 and <= 2999
+        || HoldsFilmsAndSeries(id);
+
+    /// <summary>
+    /// MAM-33 — TV/Anime (5070) and TV/Documentary (5080), where Toloka files its «Аніме» and documentary
+    /// sections, films and series alike: "Akira (1988)" and "Death Note (E1-31 of 37) (2006)" both list
+    /// 5070 (VendorSamples). A release there is TV only when it names seasons or episodes (<see cref="KindOf"/>).
+    /// </summary>
+    private static bool HoldsFilmsAndSeries(string id) => id is "5070" or "5080";
 
     /// <summary>
     /// MAM-32 — and TV under 5000 to 5999: TV, TV/HD, TV/Anime, TV/Documentary and the rest, where
@@ -176,7 +186,8 @@ internal sealed partial class TorznabAdapter
     /// <summary>
     /// <c>GET {endpoint}?t=movie|tvsearch|search&amp;apikey=…&amp;q=…&amp;imdbid=…&amp;tmdbid=…&amp;tvdbid=…&amp;year=…&amp;season=…&amp;cat=…&amp;limit=…</c>,
     /// only the parameters the query has, every value escaped so none can end early or add a parameter
-    /// of its own. Throws for a query no core code builds.
+    /// of its own; MAM-33 — the newest releases are <c>t=search</c> with no <c>q</c>. Throws for a query no
+    /// core code builds.
     /// </summary>
     private static Uri SearchUri(IntegrationConnectionSettings settings, ReleaseSearchQuery query)
     {
@@ -188,7 +199,11 @@ internal sealed partial class TorznabAdapter
         ArgumentOutOfRangeException.ThrowIfLessThan(query.Limit, 1, nameof(query));
         if (query.Text is not null && string.IsNullOrWhiteSpace(query.Text))
             throw new ArgumentException("The search text is blank; leave it null to search by an identifier alone.", nameof(query));
-        if (query.Text is null && query.Identifiers.Count == 0)
+        // MAM-33 — the newest releases are asked with no text and nothing else (ReleaseSearchPlanning.ForLatest);
+        // any other search without text would list the same, and be read as an answer to a title.
+        if (query.Mode == ReleaseSearchMode.Latest && (query.Text is not null || query.Identifiers.Count > 0 || query.Year is not null))
+            throw new ArgumentException("The newest releases are asked with no text, identifier or year.", nameof(query));
+        if (query.Mode != ReleaseSearchMode.Latest && query.Text is null && query.Identifiers.Count == 0)
             throw new ArgumentException("A search needs text or an identifier.", nameof(query));
         if (query.Identifiers.Count > 0 && query.Mode is not (ReleaseSearchMode.Movie or ReleaseSearchMode.Tv))
             throw new ArgumentException("Only the movie and TV searches take identifiers.", nameof(query));
@@ -213,7 +228,9 @@ internal sealed partial class TorznabAdapter
         // as a general search without its parameters.
         var function = query.Mode switch
         {
-            ReleaseSearchMode.General => "t=search",
+            // MAM-33 — Torznab's own way to ask a feed what is new: its general search with no q, which
+            // Prowlarr answers with the indexer's latest releases, newest first (VendorSamples).
+            ReleaseSearchMode.General or ReleaseSearchMode.Latest => "t=search",
             ReleaseSearchMode.Movie => "t=movie",
             ReleaseSearchMode.Tv => "t=tvsearch",
             _ => throw new ArgumentOutOfRangeException(nameof(query), query.Mode, "The search mode is not one this adapter knows."),

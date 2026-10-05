@@ -1,0 +1,400 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/u3MWQCdHyCK7IADtat4sVmBXd9U.jpg",
+      "genre_ids": [
+        99,
+        10402
+      ],
+      "id": 1022256,
+      "title": "Селена Ґомес: я та мій світ",
+      "original_language": "en",
+      "original_title": "Selena Gomez: My Mind & Me",
+      "overview": "За роки популярності Селена Ґомес здобула неймовірну славу. Та щойно вона досягла нових висот, несподіваний поворот долі занурює її в непроглядний морок. Цей відвертий і дуже особистий документальний фільм розкаже про шестирічний шлях Селени до світла.",
+      "popularity": 11.847,
+      "poster_path": "/8EHpA2uz2P1gs1dn2EUXWK7upFE.jpg",
+      "release_date": "2022-11-04",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.5,
+      "vote_count": 620
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/Amp8FamnKw8jUFptKHOXRL4VseU.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 576712,
+      "title": "Усе для всіх: Lil Peep",
+      "original_language": "en",
+      "original_title": "Everybody’s Everything",
+      "overview": "Історія дивовижного й трагічно короткого життя Ліл Піпа, який встигнув випустити всього один альбом та кілька мікстейпів і лише після смерті отримав справжнє визнання.",
+      "popularity": 4.5364,
+      "poster_path": "/udhynoxmCZdoXC4IuEEHSwe6VmY.jpg",
+      "release_date": "2019-11-12",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.4,
+      "vote_count": 311
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/c0gtBfDyOrba9e5wnFjrxn8rxQr.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 359364,
+      "title": "Людина",
+      "original_language": "fr",
+      "original_title": "Human",
+      "overview": "Фільм ЛЮДИНА (HUMAN) – це збірка історій та зображень нашого світу, яка представляє глядачеві спробу докопатися до суті того, що значить бути людиною. Хоча ці історії й сповнені любові та радості, так само як і ненависті та жорстокості, все ж ЛЮДИНА дозволяє нам зіткнутися з Іншим, змушуючи задуматися над своїм життям. Від банальних історій щоденного життя, до зображень найнеймовірніших життів. Ці болісні зустрічі, які об’єднала рідкісна щирість, з якою їх розповідали, підкреслюють хто ми такі — наші темні сторони, але також і наші благородства та універсальні якості. Наша Земля показана з допомогою неймовірних, раніше не бачених аерофотознімків, які супроводжуються піднесеною музикою, що виливається в оду красі світу.",
+      "popularity": 4.7213,
+      "poster_path": "/wLTAsQeJh8jfBAjMDyJc7MNIziI.jpg",
+      "release_date": "2015-09-12",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.4,
+      "vote_count": 314
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/hHL4pwGzYS4njLpXhIjfc9skAQJ.jpg",
+      "genre_ids": [
+        99,
+        18
+      ],
+      "id": 664280,
+      "title": "David Attenborough: A Life on Our Planet",
+      "original_language": "en",
+      "original_title": "David Attenborough: A Life on Our Planet",
+      "overview": "",
+      "popularity": 6.3345,
+      "poster_path": "/zSKwyUDKDHiFU5syTTvQRDcGBPS.jpg",
+      "release_date": "2020-09-28",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.431,
+      "vote_count": 466
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/kPDmoP4BCFaELJVBog4nIV4CPge.jpg",
+      "genre_ids": [
+        99,
+        10402
+      ],
+      "id": 24128,
+      "title": "Stop Making Sense",
+      "original_language": "en",
+      "original_title": "Stop Making Sense",
+      "overview": "",
+      "popularity": 8.4633,
+      "poster_path": "/utNpurUe1MMjEaHqvpkfxgfpSnV.jpg",
+      "release_date": "1984-10-19",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.3,
+      "vote_count": 395
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/aQ7444JX7gefPhGJTlvilj3zG2S.jpg",
+      "genre_ids": [
+        10402,
+        99
+      ],
+      "id": 553512,
+      "title": "번 더 스테이지: 더 무비",
+      "original_language": "ko",
+      "original_title": "번 더 스테이지: 더 무비",
+      "overview": "",
+      "popularity": 3.752,
+      "poster_path": "/pJKy1yvnKh8UjcuYeG3Rt35xHFA.jpg",
+      "release_date": "2018-11-15",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.3,
+      "vote_count": 436
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/zecxlBpLx0aLIjNjX1IOZuaSgo0.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 1412113,
+      "title": "Гра в кальмара: Створення сезону 2",
+      "original_language": "ko",
+      "original_title": "오징어 게임: 시즌2 제작 이야기",
+      "overview": "Від декорацій до еволюції персонажів — дізнайтеся, як створювався сезон 2 найпопулярнішого серіалу в усьому світі, з ексклюзивних інтерв’ю з акторами й режисером.",
+      "popularity": 5.6801,
+      "poster_path": "/yQGaui0bQ5Ai3KIFBB45nTeIqad.jpg",
+      "release_date": "2025-01-02",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.3,
+      "vote_count": 461
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/iytQNneOp4lNSKktRh9T6Fo3UXk.jpg",
+      "genre_ids": [
+        99,
+        10402,
+        36
+      ],
+      "id": 396194,
+      "title": "Ennio",
+      "original_language": "it",
+      "original_title": "Ennio",
+      "overview": "",
+      "popularity": 7.3569,
+      "poster_path": "/sk4t0ttm61AhBKsTmHNXU5k7VZo.jpg",
+      "release_date": "2022-02-17",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.301,
+      "vote_count": 392
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/nQRTynJcXF5GRcyEHF09yZIuQ7F.jpg",
+      "genre_ids": [
+        10402,
+        99
+      ],
+      "id": 611291,
+      "title": "브링 더 소울: 더 무비",
+      "original_language": "ko",
+      "original_title": "브링 더 소울: 더 무비",
+      "overview": "",
+      "popularity": 4.1211,
+      "poster_path": "/uQI0fm8uPild3U5spX0I6MapSHB.jpg",
+      "release_date": "2019-08-07",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.3,
+      "vote_count": 463
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/cnl95VtUon66J1PLRPpsgYgwHF7.jpg",
+      "genre_ids": [
+        99,
+        36
+      ],
+      "id": 803,
+      "title": "Ніч і туман",
+      "original_language": "fr",
+      "original_title": "Nuit et Brouillard",
+      "overview": "",
+      "popularity": 4.5852,
+      "poster_path": "/c0eZtYCYOe4XV55dOZ016XesKg3.jpg",
+      "release_date": "1956-05-22",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.3,
+      "vote_count": 590
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/sn5dvn1g977bejLHGyMUlXeEXn7.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 42733,
+      "title": "Comizi d'amore",
+      "original_language": "it",
+      "original_title": "Comizi d'amore",
+      "overview": "",
+      "popularity": 2.1974,
+      "poster_path": "/mIvizt1mlNipyfUI6dxvjU3NWpT.jpg",
+      "release_date": "1965-07-05",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.2,
+      "vote_count": 301
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/hiqB5fFZ230MeFAGLPahoy06UOE.jpg",
+      "genre_ids": [
+        99,
+        10752
+      ],
+      "id": 576017,
+      "title": "Для Сами",
+      "original_language": "en",
+      "original_title": "For Sama",
+      "overview": "Любовне послання молодої матері своїй доньці, фільм оповідає історію життя Ваад аль-Катеб на тлі п’яти років повстання в Алеппо (Сирія), упродовж яких вона закохується, одружується і народжує Саму, а руйнівний конфлікт навколо лише загострюється. Її камера схоплює неймовірні історії про втрати, сміх і виживання, доки сама Ваад міркує над неможливим вибором чи втікати з міста щоби захистити життя своєї доньки.",
+      "popularity": 3.6015,
+      "poster_path": "/mDna51F8QfrJFZOgPGQUz3VKqsB.jpg",
+      "release_date": "2019-07-26",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.238,
+      "vote_count": 320
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/c0QYwNyeURswT7fxmR2mlfpdk0l.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 14002,
+      "title": "Барака",
+      "original_language": "en",
+      "original_title": "Baraka",
+      "overview": "Культовий фільм. Шедевр невербального впливу на несвідоме. Світ за межею слів. Поєднання фантастичного відео та звукового супроводження. Це документальна стрічка про природу, планету Земля і про нас з вами. Це безперервний відеоряд, до якого увійшли приголомшливі кадри найкрасивіших місць Землі, це незвичайні ритуальні обряди племен, зйомки життя в місті та багато іншого. Зйомки \"Бараки\" проводились в 24 країнах світу впродовж 14 місяців і з бюджетом в 4 мільйони доларів. Режисер використав найсучасніше обладнання та створив спеціальну комп'ютерну систему для створення ефекту розтягнутого в часі відео.",
+      "popularity": 3.7583,
+      "poster_path": "/ldEuJQ4z7zEvL7iXraESWBUfQcz.jpg",
+      "release_date": "1992-09-15",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.2,
+      "vote_count": 725
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/7e9uENnSM93CQXyzLSuzBUgxm4P.jpg",
+      "genre_ids": [
+        99,
+        10402
+      ],
+      "id": 164558,
+      "title": "One Direction: Це ми",
+      "original_language": "en",
+      "original_title": "One Direction: This Is Us",
+      "overview": "Відзначений нагородами документаліст Морґан Сперлок наводить камеру на бойбенд «One Direction» у цьому поєднанні фільму про концерт і погляду за лаштунки.",
+      "popularity": 3.9891,
+      "poster_path": "/b720e7DW3nqRJaUH9xpTtvYhnUj.jpg",
+      "release_date": "2013-08-20",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.2,
+      "vote_count": 1080
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/8GXkzHTvuj3ftethkrqW330LJKz.jpg",
+      "genre_ids": [
+        10402,
+        99
+      ],
+      "id": 568300,
+      "title": "러브 유어셀프 인 서울",
+      "original_language": "ko",
+      "original_title": "러브 유어셀프 인 서울",
+      "overview": "",
+      "popularity": 2.1463,
+      "poster_path": "/1u0rtWPgYfAWmqveXOsQDvMRODD.jpg",
+      "release_date": "2019-01-26",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.2,
+      "vote_count": 462
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/8ys6VgwZCIQ7nN4Nv4z7GPPuFMv.jpg",
+      "genre_ids": [
+        99,
+        10402
+      ],
+      "id": 654754,
+      "title": "У світі Біллі Айліш",
+      "original_language": "en",
+      "original_title": "Billie Eilish: The World's a Little Blurry",
+      "overview": "Режисер Р. Дж. Катлер пропонує ближче познайомитися з юною співачкою Біллі Айліш. Документальний фільм висвітлює життя музикантки в дорозі, на сцені та вдома з рідними під час запису її дебютного альбому.",
+      "popularity": 7.0787,
+      "poster_path": "/fqWo8CVv18jRhI9hiKcu4Jrbrg1.jpg",
+      "release_date": "2021-02-26",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.174,
+      "vote_count": 351
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/gmNX2bJuS7jLocgWPazIqaGMfwE.jpg",
+      "genre_ids": [
+        99,
+        10402
+      ],
+      "id": 740996,
+      "title": "BLACKPINK: Осяяти небо",
+      "original_language": "ko",
+      "original_title": "블랙핑크: 세상을 밝혀라",
+      "overview": "Учасниці корейської групи BLACKPINK розповідають про важкий шлях мрій і випробувань, який привів їх до запаморочливого успіху.",
+      "popularity": 2.4619,
+      "poster_path": "/qfcnBeX8o7MndM52Ig79Zc1R4cT.jpg",
+      "release_date": "2020-10-14",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.2,
+      "vote_count": 531
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/nEo7B55t79RhcbOjLo6Zcbig4Ku.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 30238,
+      "title": "Земляни",
+      "original_language": "en",
+      "original_title": "Earthlings",
+      "overview": "Люди — не єдині «земляни» на цій планеті, ми поділяємо цей світ з мільйонами інших живих істот, і всі ми розвиваємося тут разом. Однак, тільки людські істоти намагаються займати панівне становище на планеті. Чому це так? Фільм «Земляни» — найскандальніша документальна робота. Прем’єра відбулася на фестивалі Artіvіst Fіlm Festіval, де картина отримала нагороду «Найкращий документальний фільм». Фільм також має призи Бостонського МКФ та фестивалю в Сан-Дієго. Це найжорстокіший бойовик у світі. Але відмінність в тому, що він не голівудський, а реальний. 2\\3 фільму знято прихованою камерою, тому що ніхто не дозволив би знімати ЦЕ відкрито.",
+      "popularity": 2.6534,
+      "poster_path": "/u5MGDHOjzZ13QmhlBMCS05oOuUJ.jpg",
+      "release_date": "2005-09-24",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.1,
+      "vote_count": 348
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/lqtzWKCpejXdKb22cav5bB6MqSR.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 265297,
+      "title": "Сіль землі",
+      "original_language": "fr",
+      "original_title": "Le sel de la terre",
+      "overview": "Себастьян Сальгадо - видатний фотограф сучасності. Жодна подія не сховалося від його об'єктива. Погляньте на світ іншими очима! Відкрийте для себе чарівну історію життя, проникаючу прямо в серце.",
+      "popularity": 4.1796,
+      "poster_path": "/gmaEhnoVBU9PcV9EeD2FHU0KWYW.jpg",
+      "release_date": "2014-08-29",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.1,
+      "vote_count": 697
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/vtXCGAkCx5o2p0jn3A1QmdR5u5i.jpg",
+      "genre_ids": [
+        99
+      ],
+      "id": 58496,
+      "title": "Сенна",
+      "original_language": "en",
+      "original_title": "Senna",
+      "overview": "Документальний фільм про одного з кращих гонщиків за всю історію Формули 1, спортсмена, який міг творити справжні дива на гоночних трасах і залишатися при цьому людиною з великої букви.",
+      "popularity": 4.0712,
+      "poster_path": "/aBaoysUYgktFv9PAc8UiZoZeK3w.jpg",
+      "release_date": "2010-10-07",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.099,
+      "vote_count": 1244
+    }
+  ],
+  "total_pages": 9,
+  "total_results": 175
+}

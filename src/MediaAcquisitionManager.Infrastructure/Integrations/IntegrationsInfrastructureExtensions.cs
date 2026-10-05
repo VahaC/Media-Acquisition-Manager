@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
+using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +29,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// fetch buffers whole, is well under 1 MiB: 4 MiB holds either with room to spare. MAM-14 — a torrent's
     /// files take about 300 bytes each as qBittorrent lists them (the sample pack's three are under 1 KB), so a
     /// season pack of hundreds is a few dozen KB, and only a torrent of over 12,000 files would not fit.
+    /// MAM-33 — TMDb's heaviest answers are a film's details with its credits and recommendations (about
+    /// 170 KB for Guardians of the Galaxy, VendorSamples) and a person's combined credits (about 160 KB for
+    /// Robert Zemeckis); a poster at w342 is tens of kilobytes. All far under 4 MiB.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 
@@ -48,7 +52,8 @@ internal static class IntegrationsInfrastructureExtensions
     /// qBittorrent may have added the release all the same — the caller looks for its info hash instead.
     /// MAM-14 — following a job is the same version read and one <c>torrents/info</c> (by hashes, or by
     /// category for a job they no longer find), plus one <c>torrents/files</c> of a torrent, each answered
-    /// from qBittorrent's memory.
+    /// from qBittorrent's memory. MAM-33 — TMDb answers over the internet rather than the LAN, in well under
+    /// a second; each request is bounded on its own, a 429's wait (at most 10 s) included in none of them.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
@@ -63,6 +68,9 @@ internal static class IntegrationsInfrastructureExtensions
         AddIntegrationClient(services, JellyfinAdapter.HttpClientName);
         AddIntegrationClient(services, TorznabAdapter.HttpClientName);
         AddIntegrationClient(services, QBittorrentAdapter.HttpClientName);
+        // MAM-33 — the posters from TMDb's image host go through this client too, so the test host's handler
+        // answers them and nothing reaches the real host.
+        AddIntegrationClient(services, TmdbAdapter.HttpClientName);
         // One instance per type serves every request. Jellyfin's and Torznab's are stateless apart from the
         // client factory; MAM-11 — qBittorrent's keeps its sessions and the sign-ins qBittorrent refused
         // (QBittorrentSessions), so it must stay a singleton: a scoped or transient one would sign in on
@@ -70,6 +78,9 @@ internal static class IntegrationsInfrastructureExtensions
         services.AddSingleton<IIntegrationAdapter, JellyfinAdapter>();
         services.AddSingleton<IIntegrationAdapter, TorznabAdapter>();
         services.AddSingleton<IIntegrationAdapter, QBittorrentAdapter>();
+        // MAM-33 — stateless apart from its pacing gate (TmdbRequestPacer), which must be one for every
+        // caller: TMDb limits requests per address, and an instance per scope would pace each request alone.
+        services.AddSingleton<IIntegrationAdapter, TmdbAdapter>();
         // Strategy over every IIntegrationAdapter registered, the test host's fake included.
         services.AddSingleton<IIntegrationAdapterRegistry, IntegrationAdapterRegistry>();
         return services;
@@ -77,7 +88,8 @@ internal static class IntegrationsInfrastructureExtensions
 
     // No retry or resilience handler (house rule 8): a test is one attempt, a failed qBittorrent sign-in
     // repeated counts towards its ban, and — MAM-13 — a torrents/add whose answer was lost may have added the
-    // release already.
+    // release already. MAM-33 — the TMDb adapter sends a GET again itself, only after a 429 and after the
+    // wait TMDb asked for: a read, and an answer that says it was not served.
     private static void AddIntegrationClient(IServiceCollection services, string name) =>
         services.AddHttpClient(name, client =>
             {

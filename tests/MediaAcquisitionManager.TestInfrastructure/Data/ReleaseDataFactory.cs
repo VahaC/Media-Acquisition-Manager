@@ -18,7 +18,11 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
         string? sourceItemId = null,
         string? infoHash = null,
         ReleasePayloadKind? payloadKind = null,
-        string? categoryIds = null)
+        string? categoryIds = null,
+        ReleaseKind kind = ReleaseKind.Movie,
+        string? description = null,
+        string? tmdbId = null,
+        string? imdbId = null)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var release = new ReleaseEntity
@@ -32,6 +36,10 @@ public sealed class ReleaseDataFactory(ApplicationDbContext db, IEncryptionServi
             InfoHash = infoHash,
             PayloadKind = payloadKind,
             CategoryIds = categoryIds,
+            Kind = kind,
+            Description = description,
+            TmdbId = tmdbId,
+            ImdbId = imdbId,
             CreatedUtc = now,
             ObservedUtc = now,
         };

@@ -358,3 +358,57 @@ release's tracker section, never from a match.
 `SearchesTvLibraryHttpTests.Create_counts_a_series_whose_episodes_hold_the_words_as_one_work_of_the_limit`
 and `SearchReleasesTvMatchingHttpTests.Releases_of_a_search_that_found_a_series_by_an_episode_matches_the_shows_title_not_the_episodes`
 pin it.
+
+## Recommendations (added 0.2.1, MAM-33)
+
+**`IMetadataResolver` is implemented now, and the search still doesn't use it.** The Decision's
+"`IMetadataResolver` stays unimplemented" no longer holds: TMDb's adapter implements it
+([ADR 0005](0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)). The rejected
+option "Ask the media server through `IMetadataResolver`" holds as it was: a search and its releases
+are still matched against the snapshot the last sync imported, with no call per search, and the
+Library page shows that snapshot alone. The resolver is used for recommendations only
+([ADR 0023](0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)): to find
+which catalog work a library work without a catalog id may be — by its IMDb id, else by its title
+and year, taken only when exactly one result matches by title and year — and which work one of a
+source's newest releases may be. Such a possible match is cached in the catalog
+([ADR 0025](0025-the-catalog-is-kept-apart-from-the-library.md)), and never stored on the library,
+shown on the Library page or used by a search.
+
+**TMDb's lookup keeps this rule's words.** A search result is a candidate only when its title or its
+original title has the query's key (`TitleMatchKey`): `TitleAndYear` when its year is the query's,
+`TitleOnly` otherwise; an IMDb id TMDb files a work under is `Identifier` evidence. No distance, no
+year ± 1, as above; and when two works of the year share the title, none is taken. A pack of a
+show's later seasons, which names its seasons' years and not the show's, is looked up by its title
+alone and taken only when exactly one show of that title began in or before its first year — the
+years ADR 0020 lets such a pack match.
+
+**A recommendation is kept out by this rule, never by less.** A catalog work is held, and so not
+recommended, when the library holds its catalog id, its IMDb id or — a film against the library's
+films, a show against its series — a work `WorkMatching.Match` matches by `Identifier` or
+`TitleAndYear`. A match by title alone keeps nothing out: a remake of another year stays a
+recommendation. The availability check of
+[ADR 0024](0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md) counts a
+release for a recommended work by the same rule, reading the claim from the release's title and its
+description, by `Identifier` or `TitleAndYear` only.
+
+**The scan's names are read, and only to keep a recommendation out.** The names of the files only the
+folder scan found (MAM-18) are read with `ReleaseWorkClaims.Read` — the file name without its
+extension, then its folder's name — and a name that claims a catalog work by title and year keeps it
+out of the lists, as the owner evidently has it. That is all they do: such a file still belongs to no
+work, and the Library page, a search and a match never show it
+([ADR 0021](0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md),
+ADR 0017).
+
+The Anti-consequence holds: a match, or a recommendation, is evidence for a person to read and
+authorises nothing.
+
+`TmdbAdapterLookupTests.Lookup_by_a_title_and_year_keeps_the_titles_that_match_with_their_evidence`,
+`TmdbAdapterLookupTests.Lookup_by_an_imdb_id_finds_the_film_tmdb_files_under_it`,
+`RecommendationCatalogCacheHttpTests.Recompute_uses_no_title_two_works_of_the_year_share_and_caches_that_as_nothing`,
+`RecommendationExclusionsHttpTests.Recompute_leaves_out_a_work_the_library_holds_by_title_and_year`,
+`RecommendationExclusionsHttpTests.Recompute_matches_titles_kind_against_kind_so_a_held_show_of_the_title_leaves_a_film_in`,
+`RecommendationExclusionsHttpTests.Recompute_leaves_out_a_seeds_possible_match_found_by_its_imdb_id`,
+`RecommendationExclusionsHttpTests.Recompute_leaves_out_a_work_a_scan_found_files_name_claims`,
+`RecommendationAvailabilityHttpTests.Check_counts_only_releases_of_the_work_by_its_kind_and_an_id_or_its_title_and_year`
+and `RecommendationFeedResolutionHttpTests.Read_resolves_a_show_by_its_seasons_listing_as_a_show`
+pin it.

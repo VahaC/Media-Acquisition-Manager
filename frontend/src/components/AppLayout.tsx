@@ -8,6 +8,8 @@ import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { UserMenu } from '@/components/UserMenu'
 import { useAuthStore } from '@/lib/auth-store'
 import { navItemsFor } from '@/lib/nav-items'
+import { useRecommendationSettings } from '@/lib/queries'
+import { enabledTabs } from '@/lib/recommendations'
 import '@/styles/app-layout.css' // .app-* — the header, its nav links and the content column around every page
 
 /**
@@ -21,10 +23,17 @@ import '@/styles/app-layout.css' // .app-* — the header, its nav links and the
  * A page that crashes is caught here too, so its fallback fills `<main>` and the header (the way
  * back home) stays on screen. The boundary around the whole router in App.tsx is only for a
  * failure in this shell itself.
+ *
+ * MAM-33 — the Recommendations link goes once the user's settings say all four of their tabs are off:
+ * the page would only say so. It stays while they load and when they can't be read, as a failed read
+ * must not hide a feature.
  */
 export function AppLayout() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.user)
+  const recommendationSettings = useRecommendationSettings(user !== null)
+  const recommendationsOff = recommendationSettings.data !== undefined
+    && enabledTabs(recommendationSettings.data).length === 0
 
   return (
     <div className="app-shell">
@@ -48,13 +57,15 @@ export function AppLayout() {
                 <nav className="app-nav" aria-label={t('nav.label')}>
                   {/* MAM-16 — the field stands in for MAM-12's Search link, which the list keeps as
                       the page's entry. */}
-                  {navItemsFor('header', user).filter(({ path }) => path !== '/search').map(({ path, labelKey, icon: Icon }) => (
-                    // The title names the link once a narrow screen hides its label.
-                    <NavLink key={path} to={path} className="app-nav-link" title={t(labelKey)}>
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                      <span className="label-text">{t(labelKey)}</span>
-                    </NavLink>
-                  ))}
+                  {navItemsFor('header', user)
+                    .filter(({ path }) => path !== '/search' && !(recommendationsOff && path === '/recommendations'))
+                    .map(({ path, labelKey, icon: Icon }) => (
+                      // The title names the link once a narrow screen hides its label.
+                      <NavLink key={path} to={path} className="app-nav-link" title={t(labelKey)}>
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                        <span className="label-text">{t(labelKey)}</span>
+                      </NavLink>
+                    ))}
                 </nav>
               </div>
               <div className="app-header-end">

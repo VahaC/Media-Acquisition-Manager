@@ -455,11 +455,11 @@ public sealed class SearchesCreateHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         // One way to ask a source (Vasyl's decision 3): Toloka's movie search takes only text, so the ids
         // stay home and the year goes into the text, exactly as MAM-10's search sends it; MAM-32 — then its
-        // TV search by the title alone.
+        // TV search by the title alone. MAM-33 — the movie search in TV/Anime and TV/Documentary too.
         Assert.Equal(
             [
                 $"{TolokaAddress}?t=caps&apikey={ApiKey}",
-                $"{TolokaAddress}?t=movie&apikey={ApiKey}&q=Interstellar%202014&cat=2000,2020,2040,2070&limit=100",
+                $"{TolokaAddress}?t=movie&apikey={ApiKey}&q=Interstellar%202014&cat=2000,2020,2040,2070,5070,5080&limit=100",
                 $"{TolokaAddress}?t=tvsearch&apikey={ApiKey}&q=Interstellar&cat=5000,5040,5050,5060,5070,5080&limit=100",
             ],
             _factory.TorznabHttp.Requests.Select(request => request.Uri.AbsoluteUri));

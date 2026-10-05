@@ -22,27 +22,45 @@ public sealed class ReleaseSources(
     IIntegrationSettingsFactory settingsFactory,
     ILogger<ReleaseSources> logger) : IReleaseSources
 {
-    public async Task<IReadOnlyList<ReleaseSourceOutcome>> SearchAsync(
+    public Task<IReadOnlyList<ReleaseSourceOutcome>> SearchAsync(
         string text,
         int? year,
         int? season,
         IReadOnlyList<MediaIdentifier> identifiers,
-        CancellationToken cancellationToken = default)
-    {
-        // Every database read happens before the sources are asked: the context is not safe to share
-        // between the concurrent calls below. A switched-off source is left alone (MAM-7's switch).
-        var integrations = await db.IntegrationConnections
-            .AsNoTracking()
-            .Where(integration => integration.Kind == IntegrationKind.ReleaseSearch && integration.IsEnabled)
-            // The normalised name is unique, so the order is total.
-            .OrderBy(integration => integration.NormalizedName)
-            .ToListAsync(cancellationToken);
+        CancellationToken cancellationToken = default) =>
+        AskEachSourceAsync(
+            // MAM-32 — the movie family, then the TV family (ADR 0020): one title may be either, and a
+            // search can't tell which. A season is a show's, so a search for one asks for no movie.
+            searchable => season is null
+                ? [ReleaseSearchPlanning.For(text, year, identifiers, searchable), ReleaseSearchPlanning.ForTv(text, null, identifiers, searchable)]
+                : [ReleaseSearchPlanning.ForTv(text, season, identifiers, searchable)],
+            name => NoUsableSearchError(name, season),
+            cancellationToken);
 
-        // Specification §2: the sources are queried concurrently, so the slowest one sets the wait, not
-        // their sum, and one that fails can't hold the others back.
-        return await Task.WhenAll(
-            integrations.Select(integration => SearchSourceAsync(integration, text, year, season, identifiers, cancellationToken)));
+    public Task<IReadOnlyList<ReleaseSourceOutcome>> SearchKindAsync(
+        string text, int? year, ReleaseKind kind, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        if (!Enum.IsDefined(kind))
+            throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a release kind.");
+
+        // MAM-33 — the kind is the catalog's, so only its family is asked. By the title alone, no id: an id tier that
+        // finds the few releases an indexer tagged with the id ends the tiers (ReleaseSearchPlanning), and the title's
+        // would never count the rest; the catalog's ids still match what the releases list.
+        return AskEachSourceAsync(
+            searchable => kind == ReleaseKind.Tv
+                ? [ReleaseSearchPlanning.ForTv(text, null, [], searchable)]
+                : [ReleaseSearchPlanning.For(text, year, [], searchable)],
+            name => NoUsableKindSearchError(name, kind),
+            cancellationToken);
     }
+
+    public Task<IReadOnlyList<ReleaseSourceOutcome>> LatestAsync(bool movies, bool tv, CancellationToken cancellationToken = default) =>
+        AskEachSourceAsync(
+            // One query, one tier: the newest releases are a listing, not a search a later tier could widen.
+            searchable => ReleaseSearchPlanning.ForLatest(movies, tv, searchable) is { } latest ? [[latest]] : [],
+            NoLatestError,
+            cancellationToken);
 
     /// <summary>The sentence for a source whose type this build can't search through (ADR 0005).</summary>
     internal static string TypeUnavailableError(string adapterType) =>
@@ -57,6 +75,45 @@ public sealed class ReleaseSources(
             ? $"“{name}” offers no search this app can use: no search by text, and no movie or TV search by title or by an id that was asked for."
             : $"“{name}” offers no search this app can use for a season: no TV category, or neither a search by text nor a TV search by title or by an id that was asked for.";
 
+    /// <summary>MAM-33 — the sentence for a source that has no search of one kind of work.</summary>
+    internal static string NoUsableKindSearchError(string name, ReleaseKind kind) =>
+        kind == ReleaseKind.Tv
+            ? $"“{name}” offers no TV search this app can use: no TV category, or neither a search by text nor a TV search by title."
+            : $"“{name}” offers no movie search this app can use: no search by text, and no movie search by title.";
+
+    /// <summary>MAM-33 — the sentence for a source that can't list its newest releases.</summary>
+    internal static string NoLatestError(string name) =>
+        $"“{name}” can't list its newest releases for this app: no search by text, or none of the categories asked for.";
+
+    /// <summary>
+    /// Asks every enabled source, concurrently, the query families <paramref name="plan"/> makes from what each can
+    /// search by; one outcome per source, in name order. MAM-33 — the machinery the plain, the stored, the kind and
+    /// the newest searches share; only what each asks differs.
+    /// </summary>
+    /// <param name="plan">The families of tiers to send a source, from its capabilities; none at all, or only empty
+    /// ones, means the source offers nothing this search can use.</param>
+    /// <param name="noUsableSearchError">The sentence for such a source, from its name.</param>
+    /// <param name="cancellationToken">The caller's cancellation.</param>
+    private async Task<IReadOnlyList<ReleaseSourceOutcome>> AskEachSourceAsync(
+        Func<ReleaseSearchCapabilities, IReadOnlyList<IReadOnlyList<ReleaseSearchQuery>>> plan,
+        Func<string, string> noUsableSearchError,
+        CancellationToken cancellationToken)
+    {
+        // Every database read happens before the sources are asked: the context is not safe to share
+        // between the concurrent calls below. A switched-off source is left alone (MAM-7's switch).
+        var integrations = await db.IntegrationConnections
+            .AsNoTracking()
+            .Where(integration => integration.Kind == IntegrationKind.ReleaseSearch && integration.IsEnabled)
+            // The normalised name is unique, so the order is total.
+            .OrderBy(integration => integration.NormalizedName)
+            .ToListAsync(cancellationToken);
+
+        // Specification §2: the sources are queried concurrently, so the slowest one sets the wait, not
+        // their sum, and one that fails can't hold the others back.
+        return await Task.WhenAll(
+            integrations.Select(integration => SearchSourceAsync(integration, plan, noUsableSearchError, cancellationToken)));
+    }
+
     /// <summary>
     /// One source, from its row to what it listed. Never throws but for the caller's cancellation: a
     /// source's failure is its own answer (ADR 0004 — "a Toloka failure shows an explicit source-specific
@@ -64,10 +121,8 @@ public sealed class ReleaseSources(
     /// </summary>
     private async Task<ReleaseSourceOutcome> SearchSourceAsync(
         IntegrationConnectionEntity integration,
-        string text,
-        int? year,
-        int? season,
-        IReadOnlyList<MediaIdentifier> identifiers,
+        Func<ReleaseSearchCapabilities, IReadOnlyList<IReadOnlyList<ReleaseSearchQuery>>> plan,
+        Func<string, string> noUsableSearchError,
         CancellationToken cancellationToken)
     {
         // Every source starts on its own: one whose call runs synchronously up to its first wait (a fake, an
@@ -87,14 +142,10 @@ public sealed class ReleaseSources(
             if (!capabilities.IsSuccess)
                 return Failed(integration, capabilities.Status, capabilities.Error!, settings);
 
-            // MAM-32 — the movie family, then the TV family (ADR 0020): one title may be either, and a
-            // search can't tell which. A season is a show's, so a search for one asks for no movie.
             var searchable = capabilities.Value!;
-            IReadOnlyList<ReleaseSearchQuery>[] families = season is null
-                ? [ReleaseSearchPlanning.For(text, year, identifiers, searchable), ReleaseSearchPlanning.ForTv(text, null, identifiers, searchable)]
-                : [ReleaseSearchPlanning.ForTv(text, season, identifiers, searchable)];
+            var families = plan(searchable);
             if (families.All(family => family.Count == 0))
-                return NotSearched(integration, ReleaseSourceNotSearchedReason.NoUsableSearch, NoUsableSearchError(integration.Name, season));
+                return NotSearched(integration, ReleaseSourceNotSearchedReason.NoUsableSearch, noUsableSearchError(integration.Name));
 
             // Each family's tiers in order until one lists a release (ReleaseSearchPlanning): an id search
             // that finds nothing is followed by the title, never reported as "nothing there". The families

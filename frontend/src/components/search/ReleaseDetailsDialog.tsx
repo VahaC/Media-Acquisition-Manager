@@ -14,7 +14,7 @@ import type { LibraryMatch, LibraryWork, ReleaseLibraryMatch, SearchRelease } fr
 import '@/styles/settings-list.css' // .settings-muted — the "nothing here" lines
 import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body above the buttons
 import '@/styles/library.css' // .library-work-meta, .library-versions — a work's line and its versions
-import '@/styles/search.css' // .search-details-* — the two columns, the facts and the works
+import '@/styles/search.css' // .search-details-* — the two columns, the facts and the works; .search-release-description
 
 interface ReleaseDetailsDialogProps {
   release: SearchRelease
@@ -38,6 +38,8 @@ interface ReleaseDetailsDialogProps {
  * seasons or episodes it claims, and a series it matches shows how many of those episodes the
  * library holds, with its seasons opening to their episodes as on the Library page.
  *
+ * MAM-33 — under its title, the listing's own description when it gives one.
+ *
  * The parent mounts it only while it is open. Its body is the one scroller; Close sits last.
  */
 export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetailsDialogProps) {
@@ -59,6 +61,8 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
       <DialogContent className="settings-dialog search-details-dialog">
         <DialogHeader>
           <DialogTitle className="search-details-title">{release.title}</DialogTitle>
+          {/* MAM-33 — Toloka's own topic title, which names the work in Ukrainian too. */}
+          {release.description !== null && <p className="search-release-description">{release.description}</p>}
           <DialogDescription>{t('details.description', { source: release.sourceName })}</DialogDescription>
         </DialogHeader>
         <div className="settings-dialog-body search-details-body">

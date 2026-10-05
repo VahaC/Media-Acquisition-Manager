@@ -1,0 +1,29 @@
+{
+  "movie_results": [
+    {
+      "adult": false,
+      "backdrop_path": "/pGzqRKrYeK4LogoysNro0vG8d8N.jpg",
+      "id": 240,
+      "title": "Хрещений батько 2",
+      "original_title": "The Godfather Part II",
+      "overview": "Продовження \"Хрещеного батька\", зроблена так само майстерно. Майстерно змонтовані сцени минулого та сьогодення, Коппола в центр драми висуває представників нового покоління гангстерського клану дона Корлеоне та його сина, для яких не існує моральних перешкод на шляху досягнення власної мети. Вони перетворюють мафію, побудовану за патріархальними, ще сицилійськими законами, у цілком прагматичну, жорстку корпорацію, що поступово інтегрується у великий бізнес Америки.",
+      "poster_path": "/iYbToXLBnSZ7Q0WniqSlSpzPprs.jpg",
+      "media_type": "movie",
+      "original_language": "en",
+      "genre_ids": [
+        18,
+        80
+      ],
+      "popularity": 37.4621,
+      "release_date": "1974-12-20",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.573,
+      "vote_count": 14408
+    }
+  ],
+  "person_results": [],
+  "tv_results": [],
+  "tv_episode_results": [],
+  "tv_season_results": []
+}

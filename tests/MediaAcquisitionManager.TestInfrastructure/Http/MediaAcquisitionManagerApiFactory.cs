@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -15,6 +16,7 @@ using MediaAcquisitionManager.Core.Options;
 using MediaAcquisitionManager.Core.Storage;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
+using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
@@ -52,9 +54,10 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// <para>
 /// Only seams to the outside world are replaced — the clock, the vendor HTTP and the host's files: each
 /// integration client's primary handler is a <see cref="RecordingHttpHandler"/> (<see cref="JellyfinHttp"/>,
-/// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>), so the real adapters run with the app's
-/// own client configuration and only the network is faked; and the file inventory, the Core seam to the
-/// app's mounts and the media inspector, is <see cref="Files"/> (MAM-9). One more adapter type,
+/// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>, <see cref="TmdbHttp"/> — TMDb's image host
+/// included, MAM-33), so the real adapters run with the app's own client configuration and only the
+/// network is faked; and the file inventory, the Core seam to the app's mounts and the media inspector,
+/// is <see cref="Files"/> (MAM-9). One more adapter type,
 /// <see cref="FakeAdapter"/>, is registered beside the real ones for tests about what the API does with
 /// an adapter's answer. Two more stand-ins keep the suite fast and its tests independent without
 /// faking any behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
@@ -63,8 +66,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// one transaction interceptor, <see cref="TransactionHook"/>, and one command interceptor,
 /// <see cref="DbCommandHook"/>, do nothing until a test arms them to stage a race. The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
-/// instead — the library sync, file inspection and folder scan workers and reconcilers through their
-/// singletons (<see cref="Resolve{T}"/>).
+/// instead — the library sync, file inspection, folder scan and recommendation run workers and reconcilers
+/// through their singletons (<see cref="Resolve{T}"/>).
 /// Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
 /// <see cref="PipelineProbeApiFactory"/>).
 /// </para>
@@ -139,6 +142,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>The network behind the qBittorrent adapter's client; 503 until armed. Reset by
     /// <see cref="ResetAsync"/>.</summary>
     public RecordingHttpHandler QBittorrentHttp { get; } = new();
+
+    /// <summary>MAM-33 — the network behind the TMDb adapter's client, its API and its image host alike;
+    /// 503 until armed (<c>FakeTmdbServer.Arm</c>). Reset by <see cref="ResetAsync"/>.</summary>
+    public RecordingHttpHandler TmdbHttp { get; } = new();
 
     /// <summary>A save interceptor on every DbContext of the host that runs a test's code before a chosen
     /// save; does nothing until armed. Disarmed by <see cref="ResetAsync"/>.</summary>
@@ -236,9 +243,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
     /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>,
     /// <see cref="TransactionHook"/> and <see cref="DbCommandHook"/>, empties
-    /// <see cref="Files"/>, drains the library sync, file inspection and folder scan queues (a run id a test
-    /// queued but never ran would otherwise reach the next test's worker), unpins the client address and
-    /// renews <see cref="Scope"/>.
+    /// <see cref="Files"/>, drains the library sync, file inspection, folder scan and — MAM-33 — recommendation run
+    /// queues (a run id a test queued but never ran would otherwise reach the next test's worker), unpins the client
+    /// address and renews <see cref="Scope"/>.
     /// Model-driven: a new entity needs no line here.
     /// </summary>
     public async Task ResetAsync()
@@ -252,6 +259,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         JellyfinHttp.Reset();
         TorznabHttp.Reset();
         QBittorrentHttp.Reset();
+        TmdbHttp.Reset();
         SaveChangesHook.Reset();
         TransactionHook.Reset();
         DbCommandHook.Reset();
@@ -268,6 +276,12 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
 
         var scanQueue = Services.GetRequiredService<FolderScanQueue>();
         while (scanQueue.Reader.TryRead(out _))
+        {
+        }
+
+        // MAM-33 — and the recommendations' runs, queued by a sync, a catalog saved or a request.
+        var recommendationQueue = Services.GetRequiredService<RecommendationRunQueue>();
+        while (recommendationQueue.Reader.TryRead(out _))
         {
         }
 
@@ -346,6 +360,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             UsePrimaryHandler(services, JellyfinAdapter.HttpClientName, JellyfinHttp);
             UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
             UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
+            UsePrimaryHandler(services, TmdbAdapter.HttpClientName, TmdbHttp);
         });
     }
 

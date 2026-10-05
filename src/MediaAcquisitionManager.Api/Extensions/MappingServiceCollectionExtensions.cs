@@ -14,6 +14,7 @@ public static class MappingServiceCollectionExtensions
         services.AddSingleton<ISearchMapper, SearchMapper>();
         services.AddSingleton<IDestinationMapper, DestinationMapper>();
         services.AddSingleton<IDownloadMapper, DownloadMapper>();
+        services.AddSingleton<IRecommendationMapper, RecommendationMapper>();
         return services;
     }
 }

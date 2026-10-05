@@ -16,7 +16,7 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/integrations";
-    private const string KindsSentence = "is not a kind of integration. Use MediaLibrary, ReleaseSearch or DownloadClient.";
+    private const string KindsSentence = "is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -36,7 +36,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
     // ── Adapter types ───────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task AdapterTypes_is_200_with_jellyfin_torznab_and_qbittorrent_and_what_each_takes()
+    public async Task AdapterTypes_is_200_with_jellyfin_torznab_qbittorrent_and_tmdb_and_what_each_takes()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -49,7 +49,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         var raw = await response.Content.ReadAsStringAsync(cancellationToken);
         var body = JsonSerializer.Deserialize<IntegrationAdapterTypeListResponse>(raw, MediaAcquisitionManagerApiFactory.JsonOptions);
         var types = body!.Items.ToDictionary(type => type.TypeId);
-        Assert.Equal(4, types.Count);
+        Assert.Equal(5, types.Count);
         Assert.Equal(
             new IntegrationAdapterTypeDto(
                 "jellyfin", "Jellyfin", IntegrationKind.MediaLibrary,
@@ -65,6 +65,12 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
                 "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient,
                 CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true),
             types["qbittorrent"]);
+        // MAM-33 — the catalog: its API Read Access Token in the API key field, and no paths of its own.
+        Assert.Equal(
+            new IntegrationAdapterTypeDto(
+                "tmdb", "TMDb", IntegrationKind.Metadata,
+                CredentialRequirement.NotUsed, CredentialRequirement.NotUsed, CredentialRequirement.Required, ReportsFilePaths: false),
+            types["tmdb"]);
         // The test host's own type, registered beside the real ones.
         Assert.Equal(
             new IntegrationAdapterTypeDto(
@@ -87,8 +93,8 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
 
         //Assert
         var body = await response.Content.ReadFromJsonAsync<IntegrationAdapterTypeListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        // Media libraries (Fake service, Jellyfin), then release sources, then download clients.
-        Assert.Equal(["fake", "jellyfin", "torznab", "qbittorrent"], body!.Items.Select(type => type.TypeId));
+        // Media libraries (Fake service, Jellyfin), then release sources, download clients and catalogs.
+        Assert.Equal(["fake", "jellyfin", "torznab", "qbittorrent", "tmdb"], body!.Items.Select(type => type.TypeId));
     }
 
     // ── List ────────────────────────────────────────────────────────────────────────────────────
@@ -249,6 +255,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
     [InlineData("MediaLibrary", "Fake library,Jellyfin")]
     [InlineData("ReleaseSearch", "Torznab")]
     [InlineData("DownloadClient", "qBittorrent")]
+    [InlineData("Metadata", "TMDb")]
     // Any letter case, as a person may type it into the address bar.
     [InlineData("downloadclient", "qBittorrent")]
     public async Task List_filters_by_kind_on_the_server(string kind, string expected)
@@ -258,6 +265,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         await _integrations.Create("jellyfin", "Jellyfin");
         await _integrations.Create("torznab", "Torznab");
         await _integrations.Create("qbittorrent", "qBittorrent");
+        await _integrations.Create("tmdb", "TMDb");
         await _integrations.Create(name: "Fake library");
 
         //Act

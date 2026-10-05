@@ -10,7 +10,8 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// Every field is sent as given: an identifier or a year the source doesn't take never reaches it.
 /// </remarks>
 /// <param name="Mode">Which of the source's searches to use.</param>
-/// <param name="Text">The search text; <c>null</c> when the query searches by an identifier alone.</param>
+/// <param name="Text">The search text; <c>null</c> when the query searches by an identifier alone, and always
+/// with <see cref="ReleaseSearchMode.Latest"/> (MAM-33).</param>
 /// <param name="Year">The year, sent as a parameter of its own; <c>null</c> when none is sent.</param>
 /// <param name="Identifiers">Registry ids to search by; only with <see cref="ReleaseSearchMode.Movie"/> or
 /// <see cref="ReleaseSearchMode.Tv"/> (MAM-32).</param>

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
@@ -21,9 +22,13 @@ public sealed class DownloadJobSeeder(IServiceProvider services) : SeederBase(se
         return await Create(client, release.Id);
     }
 
-    public async Task<DownloadJobEntity> Create(IntegrationConnectionEntity client, Guid releaseId)
+    public async Task<DownloadJobEntity> Create(
+        IntegrationConnectionEntity client,
+        Guid releaseId,
+        DownloadJobStatus status = DownloadJobStatus.Submitted,
+        UserEntity? requestedBy = null)
     {
         var destination = await Destinations.Create(client.Id);
-        return await Jobs.Create(releaseId, client.Id, client.Name, destination.Id);
+        return await Jobs.Create(releaseId, client.Id, client.Name, destination.Id, status, requestedBy?.Id);
     }
 }

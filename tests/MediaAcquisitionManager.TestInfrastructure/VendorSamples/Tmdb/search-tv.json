@@ -1,0 +1,31 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/tdDRR3qnwwicr2DJbaaF8CDW168.jpg",
+      "genre_ids": [
+        16,
+        35,
+        10751,
+        10762
+      ],
+      "id": 7869,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "The Penguins of Madagascar",
+      "overview": "Сюжет «Пінгвінів Мадагаскару» будується навколо самопроголошених командос Ковальського, Шкіпера, Ріко та Рядового, що виконують щоденні надтаємні операції на території нью-йоркського зоопарку, іноді пробираючись до метро та в підземні комунікації. І коли загін починає думати, що ціле місто знаходиться під їхнім контролем, у них з'являється новий схиблений сусід — лемур король Джуліан.",
+      "popularity": 50.3594,
+      "poster_path": "/uzGJu5VKP96jm9aemgUv1EOMIgZ.jpg",
+      "first_air_date": "2008-11-28",
+      "softcore": false,
+      "name": "Пінгвіни Мадагаскару",
+      "vote_average": 7.519,
+      "vote_count": 472
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 1
+}

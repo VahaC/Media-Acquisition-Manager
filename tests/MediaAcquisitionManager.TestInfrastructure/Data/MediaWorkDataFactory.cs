@@ -77,4 +77,34 @@ public sealed class MediaWorkDataFactory(ApplicationDbContext db, TimeProvider t
         db.ChangeTracker.Clear();
         return identifier;
     }
+
+    public async Task<MediaEpisodePositionEntity> AddEpisodePosition(
+        Guid episodeWorkId,
+        Guid? seriesWorkId,
+        int? seasonNumber,
+        int? episodeNumber,
+        Guid? sourceConnectionId,
+        string? sourceName,
+        string? sourceItemId)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        var position = new MediaEpisodePositionEntity
+        {
+            MediaWorkId = episodeWorkId,
+            SeriesWorkId = seriesWorkId,
+            SeasonNumber = seasonNumber,
+            EpisodeNumber = episodeNumber,
+            SourceKind = ProvenanceSourceKind.MediaLibrary,
+            SourceConnectionId = sourceConnectionId,
+            SourceName = sourceName,
+            SourceItemId = sourceItemId,
+            CreatedUtc = now,
+            ObservedUtc = now,
+        };
+
+        db.MediaEpisodePositions.Add(position);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        return position;
+    }
 }

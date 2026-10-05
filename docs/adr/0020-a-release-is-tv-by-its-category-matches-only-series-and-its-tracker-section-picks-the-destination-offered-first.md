@@ -156,3 +156,68 @@ evidence to read: nothing is sent, picked or replaced because of either (ADR 001
 make a destination anything but a client's category
 ([ADR 0010](0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)), and it decides
 nothing about replacing an episode or a season (MAM-23).
+
+## Films in TV/Anime and TV/Documentary (added 0.2.1, MAM-33)
+
+**What the category didn't say.** Toloka files films beside series in two standard categories,
+TV/Anime (5070) and TV/Documentary (5080). Of its latest 90 releases there on 2026-10-05, 12 named
+no season: films — "Akira (1988)", "Schumacher '94 - Die Geburt einer Legende (2026)", the Demon
+Slayer "Infinity Castle" film — and series that name their episodes alone, "Death Note (E1-31 of 37)
+(2006)", "Candy Candy (E01-40 of 115) (1976)", "Котодракон / Neko to Ryuu (серії 1-4 з 12)". By the
+rule above every one of them was TV, so a documentary or anime film was matched to series only, and
+the movie search, kept to 2000 to 2999, dropped the ones filed in 5080 alone.
+
+**A release in TV/Anime or TV/Documentary, and in no other TV category, is TV only when its title or
+its description names seasons or episodes, and a film otherwise; the movie search asks those two
+categories too (Vasyl's decision 6).**
+
+**The marker.** `ReleaseWorkClaims.ClaimsSeasonsOrEpisodes` reads `ReadTv`'s season markers ("S1",
+"S1-5", "Season 2", "Сезон 1") and markers of episodes alone ("E1-31 of 37", "E01-40 of 115", "серії
+1-4 з 12", "Episode 5", "епізоди 1-3"), whole words in any letter case, in the title and then in
+the description, Toloka's own topic title, which Prowlarr's title can cut to "(2026) WEB-DL 1080p
+(S1E1-25 of ?)". Vasyl's decision named season markers; the live answers made episodes-only markers
+count too, or Death Note would be a film. "Star Wars: Episode IV - A New Hope (1977)" names no
+episode number and stays a film. A marker of episodes alone also ends a TV release's title in
+`ReadTv`, as a season marker does, so "Death Note (E1-31 of 37) (2006)" is read as "Death Note" and
+matches the library's series, and TMDb's show, by its title; the "A TV title is read for its
+seasons" paragraph above, which ends a title at a season marker, now reads "at a season or an
+episodes-only marker".
+
+**The movie search asks them.** A Torznab category holds movies when it is 2000 to 2999, or 5070 or
+5080, so Toloka's movie search goes out as `cat=2000,2020,2040,2070,5070,5080` and keeps a film filed
+there; its TV search keeps asking 5000 to 5999. A release both families find is kept once, as the
+movie search found it, with the kind the rule gives it: the BBC's "Yellowstone (S1) (2009)" in 5080
+is listed by the movie search now and stays TV by its marker. A listing in no category keeps the
+MAM-32 rule: TV when the search asked TV categories alone, 5070 and 5080 counting as TV there.
+
+**What it supersedes.** The Context's "The movie search never lists a show. Its releases are kept in
+the movie categories (2000 to 2999)" now reads: the movie search asks 2000 to 2999, 5070 and 5080,
+and can list a show filed in the last two. The Decision's "a release is TV when its source lists it
+in a TV category" and "The source says what a release is"'s "calls a release TV when it lists a
+category from 5000 to 5999" now read: from 5000 to 5999 other than 5070 and 5080, and in 5070 or 5080
+alone only with a season or episodes marker. The rejected option "Read the kind from an `S01` in the
+title" is adopted for those two categories only, where the category says nothing either way; in every
+other category the source's word still decides, as the rejection argued. Matching is unchanged: a
+movie release matches the library's movies only, a TV release its series only, so a documentary or
+anime film there now matches the film you have, by title and year, and its tracker section still
+picks the destination the Download dialog opens on.
+
+| Rejected option | Why not |
+| --- | --- |
+| Keep 5070 and 5080 TV | A documentary or anime film matches only series, and the movie search misses it |
+| Count 5070 and 5080 as movies | "Death Note (E1-31 of 37)" and every anime series would match films of their titles |
+| Season markers only | A series filed by its episodes alone would be a film |
+| Read the marker in every category | Elsewhere the category is the source's word for what a release is (ADR 0017) |
+
+`ReleaseWorkClaimsTvTests.ClaimsSeasonsOrEpisodes_says_whether_a_title_names_seasons_or_episodes`
+(the real titles of the latest answers among them),
+`TorznabAdapterSearchIdentifiersTests.Search_tells_a_film_from_a_series_in_tv_anime_and_tv_documentary_by_a_season_or_episode_marker`,
+`TorznabAdapterSearchIdentifiersTests.Search_of_a_documentary_film_filed_in_tv_documentary_reads_every_release_as_a_movie`,
+`TorznabAdapterSearchIdentifiersTests.Search_reads_a_tmdb_id_in_tv_documentary_as_a_films_or_a_shows_by_the_listings_kind`,
+`ReleaseSearchPlanningTests.For_searches_movies_in_the_categories_that_hold_films_beside_series_too`
+and `SearchReleasesFilmsInTvCategoriesHttpTests.Create_asks_the_movie_search_in_tv_anime_and_tv_documentary_and_matches_the_films_there_to_the_librarys_movie`
+pin it.
+
+Known limits, left on purpose: a series filed in 5070 or 5080 whose title and description name no
+season or episode is read as a film, and a film whose title names an episode as a series; a release
+listed in 5070 and in another TV category is TV whatever it names.

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { authApi } from '@/lib/auth-api'
 import { useAuthStore } from '@/lib/auth-store'
 import { formatDateTime } from '@/lib/format'
+import { profileApi } from '@/lib/profile-api'
 import { qk } from '@/lib/queries'
 import { queryClient as appQueryClient } from '@/lib/query-client'
 import { useThemeStore } from '@/lib/theme-store'
@@ -12,8 +13,10 @@ import type { CurrentUser, CurrentUserProfile } from '@/lib/types'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { apiError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
+import { allTabsOn } from '@/test/recommendations'
 
 vi.mock('@/lib/auth-api')
+vi.mock('@/lib/profile-api')
 
 /** The format the page shows its instants in. */
 const format: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
@@ -53,6 +56,7 @@ const sessionSentence = (profile: CurrentUserProfile) =>
 describe('ProfilePage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOn)
   })
 
   afterEach(() => {
@@ -141,9 +145,10 @@ describe('ProfilePage', () => {
 
     // Assert
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('vasyl')
-    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Account' })).getByText('Loading…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change password' })).toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
     expect(screen.queryByText(/A session lasts 30 days/)).not.toBeInTheDocument()
   })
@@ -237,5 +242,19 @@ describe('ProfilePage', () => {
     expect(aboveTheCards).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(banner).not.toBeInTheDocument()
     expect(screen.getByText('••••••••••')).toBeInTheDocument()
+  })
+
+  it('shows the Recommendations card after Appearance and before Session, with its own Save', async () => {
+    // Arrange
+    vi.mocked(authApi.me).mockResolvedValue(ownerProfile)
+
+    // Act
+    renderPage(owner)
+
+    // Assert
+    expect(await screen.findByRole('textbox', { name: 'Daily search limit' })).toHaveValue('60')
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent))
+      .toEqual(['Account', 'Password', 'Appearance', 'Recommendations', 'Session'])
+    expect(within(screen.getByRole('region', { name: 'Recommendations' })).getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 })

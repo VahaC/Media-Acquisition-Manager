@@ -1,4 +1,4 @@
-import { formatBitRate, formatDate, formatDateTime, formatDuration, formatFileSize, formatNumber } from './format'
+import { formatBitRate, formatDate, formatDateTime, formatDaysAgo, formatDuration, formatFileSize, formatNumber, formatTimeAgo } from './format'
 import { i18n } from './i18n'
 
 // A fixed zone, so the expected strings don't depend on the machine running the tests.
@@ -186,5 +186,82 @@ describe('format', () => {
 
     // Assert
     expect(text).toBe('6,01 Mb/s')
+  })
+
+  it.each([
+    ['the same day', '2026-10-05T05:00:00Z', 'today'],
+    ['the day before', '2026-10-04T05:00:00Z', 'yesterday'],
+    ['three days before', '2026-10-02T15:00:00Z', '3 days ago'],
+  ])('says how many days ago an instant was on %s, in words', (_, instant, expected) => {
+    // Arrange — noon in Kyiv.
+    const now = new Date('2026-10-05T09:00:00Z')
+
+    // Act
+    const text = formatDaysAgo(instant, now)
+
+    // Assert
+    expect(text).toBe(expected)
+  })
+
+  it('counts local calendar days: 23:50 last night is yesterday at 00:10', () => {
+    // Arrange — 00:10 and 23:50 the night before, in Kyiv (UTC+3 in October).
+    const now = new Date('2026-10-04T21:10:00Z')
+    const instant = '2026-10-04T20:50:00Z'
+
+    // Act
+    const text = formatDaysAgo(instant, now)
+
+    // Assert
+    expect(text).toBe('yesterday')
+  })
+
+  it('counts a day with the clocks put back as one day', () => {
+    // Arrange — Kyiv leaves summer time on 25 October 2026, a day 25 hours long.
+    const now = new Date('2026-10-26T10:00:00Z')
+    const instant = '2026-10-24T09:00:00Z'
+
+    // Act
+    const text = formatDaysAgo(instant, now)
+
+    // Assert
+    expect(text).toBe('2 days ago')
+  })
+
+  it.each([
+    ['the same second', '2026-10-05T09:00:00Z', 'now'],
+    ['12 seconds before', '2026-10-05T08:59:48Z', '12 seconds ago'],
+    ['2 minutes 59 seconds before', '2026-10-05T08:57:01Z', '2 minutes ago'],
+    ['an hour and a half before', '2026-10-05T07:30:00Z', '1 hour ago'],
+  ])('says how long ago an instant was on %s, in its largest whole unit', (_, instant, expected) => {
+    // Arrange
+    const now = '2026-10-05T09:00:00Z'
+
+    // Act
+    const text = formatTimeAgo(instant, now)
+
+    // Assert
+    expect(text).toBe(expected)
+  })
+
+  it('says an instant a clock ahead of this one put a few seconds in the future is now', () => {
+    // Arrange — the server's clock a little ahead of the browser's.
+    const now = '2026-10-05T09:00:00Z'
+
+    // Act
+    const text = formatTimeAgo('2026-10-05T09:00:03Z', now)
+
+    // Assert
+    expect(text).toBe('now')
+  })
+
+  it('says an instant a clock ahead of this one put in the future is today', () => {
+    // Arrange
+    const now = new Date('2026-10-05T09:00:00Z')
+
+    // Act
+    const text = formatDaysAgo('2026-10-06T09:00:00Z', now)
+
+    // Assert
+    expect(text).toBe('today')
   })
 })

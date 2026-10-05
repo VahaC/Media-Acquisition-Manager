@@ -347,3 +347,51 @@ copy that takes its space twice, not a hardlink.
 `FileHashPersistenceTests.An_unsigned_device_id_past_long_MaxValue_round_trips_bit_for_bit`,
 `FileHashPersistenceTests.A_names_hash_is_the_row_its_read_facts_name_to_the_tick` and
 `LibrarySpaceHttpTests.Sources_count_two_hardlink_names_of_one_file_in_a_library_once` pin it.
+
+## The catalog's facts and a source's newest releases (added 0.2.1, MAM-33)
+
+**A fifth source kind.** `ProvenanceSourceKind` gains `Metadata` (5): what a metadata catalog
+reported. The catalog's parent rows — `CatalogWorks`, `CatalogGenres`, `CatalogCollections`,
+`CatalogPeople` and `CatalogLookups` — are `ProvenancedEntity` rows of that kind: the TMDb
+integration, set to null when it is removed, its name copied, and as `SourceItemId` the catalog's own
+id of the record, `movie/118340`, `tv/73586`, `collection/284433`, `person/24` or `genre/movie/16`, or
+for a lookup its cache key, `Movie|imdb|tt0071562` or `Series|title|YELLOWSTONE|2018`; `ObservedUtc`
+is when the catalog last said it and `CreatedUtc` when it first did. Their child rows — a work's
+genres, people, seasons and recommended works, a collection's parts, a person's works — are part of
+their parent's report, carry no provenance of their own and go with it. Removing the integration keeps
+the rows with its name, as the Decision says of every fact
+([ADR 0025](0025-the-catalog-is-kept-apart-from-the-library.md)).
+
+**The Decision holds for the library.** A catalog work is not a library work: a work is still only
+its kind, and no catalog row writes a title, an identifier or anything else onto `MediaWorks`,
+`MediaWorkTitles` or `MediaWorkIdentifiers`, nor points at them. Two sources that disagree still
+disagree where they are stored: Jellyfin's id on the library's work, TMDb's answer in the catalog.
+
+**A source's newest releases go with their source.** `SourceFeedEntries` keeps a release source's
+newest releases ([ADR 0024](0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)):
+a `ProvenancedEntity` of kind `ReleaseSearch`, unique by its source and `SourceItemId`, the listing's
+id as the MAM-10 section stores a release's, with its title, description, kind, categories, publish
+time and, once resolved, the catalog work it most likely is; a listing without an id is left out. A
+read again updates what the source says of it, its `SourceName` and `ObservedUtc`, and keeps its
+`CreatedUtc`, when the app first saw it, and what it was resolved to; an entry no source listed for
+30 days is forgotten. Unlike every other fact, it goes with its integration: the key to its source
+cascades, as a feed is nothing without the source that publishes it, and a source added again starts
+its feed afresh. The Decision's "Removing an integration keeps what it reported" holds for every
+other row. An entry is no release: it keeps no download link and no job can point at it.
+
+**A release row says what its listing describes.** `Releases` gains `Description` (1000 characters):
+the listing's own description when it says more than the title — Toloka's topic title, Ukrainian
+title first, where Prowlarr's title keeps the English part alone —, `null` when it gives none and on
+every row stored before 0.2.1. Still no path, no file list and no work. `AddReleaseDescription` adds
+that one nullable column and `AddRecommendations` creates its tables and indexes; neither rebuilds a
+table.
+
+`RecommendationCatalogCacheHttpTests.Recompute_stores_the_catalogs_rows_apart_from_the_library_with_their_provenance`,
+`RecommendationCatalogCacheHttpTests.Recompute_never_writes_the_librarys_works_titles_or_identifiers`
+and `ReleaseSearchHttpTests.Search_answers_and_stores_each_releases_description_when_it_says_more_than_the_title`
+pin it, with `RecommendationFeedHttpTests.Read_keeps_each_release_once_and_a_second_read_adds_none_and_keeps_when_it_was_first_seen`
+and `RecommendationFeedHttpTests.Read_forgets_the_entries_no_source_listed_for_30_days` for the
+entries. That an entry goes with its source is the database's cascade, which
+`RecommendationPersistenceTests.Deleting_a_release_source_deletes_its_feed_entries_and_keeps_another_sources`
+pins; `RecommendationFeedHttpTests.Read_skips_a_source_removed_during_the_read_and_keeps_what_the_others_listed`
+pins that a source removed in the middle of a read gets no entry stored.

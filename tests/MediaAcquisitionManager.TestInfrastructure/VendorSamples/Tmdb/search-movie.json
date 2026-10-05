@@ -1,0 +1,27 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/bvqgFFpdl3Jp5ATjvV8h3Ov3AWu.jpg",
+      "genre_ids": [
+        16,
+        35
+      ],
+      "id": 223021,
+      "title": "Landing Stripling",
+      "original_language": "en",
+      "original_title": "Landing Stripling",
+      "overview": "",
+      "popularity": 1.1685,
+      "poster_path": "/ooZQbu20BBYxInF542jHonKz4Pl.jpg",
+      "release_date": "1962-05-18",
+      "softcore": false,
+      "video": false,
+      "vote_average": 4.579,
+      "vote_count": 19
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 1
+}

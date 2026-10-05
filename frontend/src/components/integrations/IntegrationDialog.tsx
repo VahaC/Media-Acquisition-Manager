@@ -188,6 +188,9 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
               </div>
             )}
 
+            {/* MAM-33 — TMDb's terms of use ask every app that uses its API to say so, in these words. */}
+            {adapterType === 'tmdb' && <p className="auth-hint">{t('dialog.tmdbAttribution')}</p>}
+
             <label className="auth-field">
               <span className="ui-label">{t('dialog.name')}</span>
               <Input
@@ -327,6 +330,7 @@ function addressTextsFor(adapterType: string) {
     case 'jellyfin': return 'jellyfin' as const
     case 'torznab': return 'torznab' as const
     case 'qbittorrent': return 'qbittorrent' as const
+    case 'tmdb': return 'tmdb' as const
     default: return 'generic' as const
   }
 }

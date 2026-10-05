@@ -15,4 +15,10 @@ public enum IntegrationKind
 
     /// <summary>A client that downloads the release the owner picked (MAM-11 onwards).</summary>
     DownloadClient = 3,
+
+    /// <summary>
+    /// MAM-33 — a catalog of films and shows the app looks works up in and recommends from: what the
+    /// library doesn't have yet. Never a source of the library's own facts (ADR 0025).
+    /// </summary>
+    Metadata = 4,
 }

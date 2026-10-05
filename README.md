@@ -3,7 +3,7 @@
 # Media Acquisition Manager
 
 **Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built, and Phase B
-(release 0.2.0, the version the app now reports) has started. Today the app is an
+(releases 0.2.0 and 0.2.1, the version the app now reports) has started. Today the app is an
 API and a web shell that report their own health, with accounts, integration settings and the
 library: the installation owner created on first run, the users the owner manages, sign-in, and a
 Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
@@ -15,8 +15,10 @@ room the files take, each file counted once however many names lead to it, and h
 that could be copies of each other —, and maps download destinations to qBittorrent's categories,
 and a release source's tracker sections to destinations. Every signed-in user searches the library
 and the release sources together on the Search page, for movies and TV, sends a release found there
-to qBittorrent, and sees its download on the Jobs page until it finishes; see
-[ROADMAP.md](ROADMAP.md).
+to qBittorrent, and sees its download on the Jobs page until it finishes. Once the owner connects
+TMDb, every signed-in user also gets recommendations of the films, series, cartoons and documentaries
+the library doesn't have yet, each with why it is there and what the release sources carry of it,
+and downloads one through the Search page like any other; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -62,23 +64,27 @@ application.
   last signed in, and when this session ends unless it is used again. **Change password** asks for
   the current password and the new one twice, ends the user's other sessions and keeps this one
   ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
-  The theme can be picked there too, and **Sign out** is at the bottom.
+  The **Recommendations** card switches each of the user's four recommendation lists on or off and
+  sets how many release-source searches the app may run for them a day, with how many it ran in the
+  last 24 hours; each user changes only their own. The theme can be picked there too, and **Sign
+  out** is at the bottom.
 - **Light, Dark or System.** The **Theme** row of the user menu, and Profile, switch the web app to
   a light or a dark theme, or follow the operating system's setting as it changes. The choice is
   kept in each browser and applied before the first paint, and every open tab of the app takes it.
 - **Integration settings for the owner.** The Integrations page (**Integrations** in the owner's
-  user menu) searches by name, filters by kind (media library, release source, download client)
-  and pages on the server; adds Jellyfin, a Torznab feed or qBittorrent, edits one, switches it off
-  and removes it after a confirmation. **Test connection** checks an unsaved integration from its
-  dialog, and a row's **Test** checks a saved one, each answering with a sentence that says what the
-  service did. Services that report file paths take path mappings onto the app's own mounts
+  user menu) searches by name, filters by kind (media library, release source, download client,
+  metadata catalog) and pages on the server; adds Jellyfin, a Torznab feed, qBittorrent or TMDb,
+  edits one, switches it off and removes it after a confirmation. **Test connection** checks an
+  unsaved integration from its dialog, and a row's **Test** checks a saved one, each answering with
+  a sentence that says what the service did. Services that report file paths take path mappings onto the app's own mounts
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   Credentials are stored encrypted and never shown again. Jellyfin feeds the library, and a
   switched-off one can't be synced; a Torznab feed is searched for releases, and a switched-off one
   is left alone; qBittorrent's categories are what download destinations name, and a switched-off
-  one isn't asked for them or sent a release. The Jellyfin connection test refuses a Jellyfin older
-  than 10.9, the oldest the app reads libraries from, and the qBittorrent one a qBittorrent older
-  than 4.4.1.
+  one isn't asked for them or sent a release; TMDb, with the owner's own API Read Access Token, is
+  the metadata catalog the recommendations come from, and a switched-off one isn't asked. The
+  Jellyfin connection test refuses a Jellyfin older than 10.9, the oldest the app reads libraries
+  from, and the qBittorrent one a qBittorrent older than 4.4.1.
 - **The library.** The Library page (**Library** in the header, for every signed-in user) lists the
   movies and series of the owner's Jellyfin libraries as works: movie items that share an IMDb or
   TMDb id are one work with several versions, never merged by title and year. Each movie shows its titles,
@@ -144,10 +150,11 @@ application.
   the end of the line is the year, "Interstellar (2014)", while a bare number stays in the title
   ([ADR 0015](docs/adr/0015-only-a-bracketed-trailing-year-in-the-header-search-becomes-the-year.md)),
   and the page narrows the search by a year, an IMDb id and a TMDb id in fields of their own
-  (owner's choice), and by a season. **In your library** shows each matching movie or series as the
-  Library page does, versions and verified file facts included, with how it matched — by IMDb or
-  TMDb id, by title and year, or by title alone as a possible match to check — and a warning when
-  ids conflict; every match is listed, strongest first, and nothing is picked or merged. Below the
+  (owner's choice), and by a season; a film's TMDb id also comes in its address (`?tmdbId=`), as a
+  recommendation's **Releases** opens it. **In your library** shows each matching movie or series
+  as the Library page does, versions and verified file facts included, with how it matched — by
+  IMDb or TMDb id, by title and year, or by title alone as a possible match to check — and a
+  warning when ids conflict; every match is listed, strongest first, and nothing is picked or merged. Below the
   matches come up to 20 works that don't match but one of whose titles or file paths holds every
   word searched for, each whole, marked as no match, with how many more there are and a link to the
   Library page searched for the same text
@@ -160,8 +167,12 @@ application.
   those listed, the works by words included, by the title and year read from its title and by the
   ids its listing gives, never by words: a TV release matches series only, saying how many episodes
   of what it claims the library holds, and a movie release movies only
-  ([ADR 0020](docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
-  Each source answers for itself, so one that fails says why beside the others' releases. The
+  ([ADR 0020](docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md));
+  a film Toloka files in TV/Anime or TV/Documentary is a movie release unless its title or
+  description names seasons or episodes, and the movie search asks those categories too. Each
+  release shows its source's own title under its own when the listing gives one — Toloka's topic
+  title, Ukrainian first. Each source answers for itself, so one that fails says why beside the
+  others' releases. The
   server filters by source, kind (movies or TV), audio language, quality and size, sorts by seeders,
   size, date or quality, and pages; the search is stored for a day, so a filter, a page or a reload
   never asks the sources again
@@ -215,6 +226,38 @@ application.
   still be being sent. **Cancel job** stops the following and nothing more: nothing is sent to
   qBittorrent, so the torrent and its files stay as they are, and the release may be sent again. The pages refresh every 2 seconds while they show a followed job
   ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
+- **Recommendations of what the library doesn't have yet.** Once the owner connects TMDb, the
+  Recommendations page (**Recommendations** in the header, for every signed-in user) lists films,
+  series, cartoons and documentaries the library lacks, in four tabs — Movies, Series, Cartoons and
+  Documentaries, by the catalog's genres — each card with its poster, Ukrainian and original title,
+  year, genres and rating, and every reason it is there as a chip: a collection's missing parts ("2
+  of 3"), more by a director or creator two or more of the library's works are by, what the catalog
+  recommends beside the library's works ("Because you have …"), a held series' aired seasons with no
+  episode ("Missing seasons 4–5"), what a release source just published ("New on Toloka"), and for a
+  tab the library holds little of, the best-rated works a source carries. The order is a fixed score
+  of those reasons and of the rating, weighted by its votes, unless the reader sorts the tab by
+  rating, votes, newest or oldest, title or how many releases were found; a work recommended for
+  taste alone needs a solid rating from enough votes; works
+  not out yet, the library's own (by id, or by title and year, kinds apart) and those the scan's file
+  names claim are left out
+  ([ADR 0023](docs/adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)).
+  A background run computes the lists after every sync, when TMDb is connected and on the owner's
+  **Recompute now**, from the catalog's answers kept in tables of their own, read again after 30
+  days and never written to the library
+  ([ADR 0025](docs/adr/0025-the-catalog-is-kept-apart-from-the-library.md)); while it runs, the page
+  shows its stage, how far through it is ("240 of 815") with a progress bar, and how long ago it
+  started — a first run is a few minutes of calls to TMDb. Each card says what the
+  release sources carry of it — "4 releases · up to 2160p · Ukr", "Not found (checked 3 days ago)",
+  "Not checked yet" —, asked by the app within each user's daily limit (60 by default), at most 4
+  searches every 15 minutes, shared by every user, and Toloka's newest releases are read every 3
+  hours ([ADR 0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)).
+  The server filters by reason, genre, decade, films or series and **Available only**, sorts by the
+  **Sort** select, kept in the address beside the tab, and pages.
+  **Releases** opens the Search page for the work, and **Download** there sends it as any release:
+  nothing is sent by itself. **Not interested** hides a work for that user alone, with **Undo**; a
+  card says **Downloading** while anyone's download of it is followed, and leaves the list once that
+  download has finished, waits to be linked or was cancelled. Each user's Profile switches the tabs
+  and sets the limit.
 - **Service status.** The web app shows its version and whether the service is ready; when it is
   not, it names the check that failed. While the server can't be reached, a strip under the header
   says so and asks `GET /api/health` every 5 seconds until it answers; every failed load says what
@@ -239,6 +282,7 @@ acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed 
 | Jellyfin | 12.1.0 | Media library |
 | Prowlarr, serving the Toloka.to indexer over Torznab | 2.6.5, read on 2026-09-29 (a Torznab feed doesn't say its version) | Release source |
 | qBittorrent | 5.2.4 | Download client |
+| TMDb | API v3, read on 2026-10-05 | Metadata catalog |
 
 - **Jellyfin:** the connection test, and syncs of all its movies, collections included (876 items
   on 2026-10-03). The header search "Sherlock Holmes (2009)" found the movie inside
@@ -281,6 +325,28 @@ acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed 
   `/media`. The inspection the scan queued read exactly those 17 with ffprobe on the real disk —
   16 read, the disc image unreadable with ffprobe's own verdict — and took the 1,378 others from the
   cache; a second scan and its inspection read nothing.
+- **TMDb and Toloka's newest releases (MAM-33, 2026-10-05):** the app's container on the
+  installation's host reaches `api.themoviedb.org` and `image.tmdb.org` directly, with no proxy. With
+  Vasyl's API Read Access Token, the library's 640 TMDb movie ids were read in about 3 minutes (943
+  calls; TMDb sent no rate-limit header): 279 of the movies sit in 118 collections, 42 of them
+  incomplete with 63 released parts missing, and 138 directors have two or more films in the library
+  (Guy Ritchie 15, Ridley Scott 12, Steven Spielberg 11). By a script's estimate the library lacks
+  4,891 released films, 2,274 of them over a rating floor with a collection, a director or two
+  recommending films behind them; How the Universe Works misses seasons 3 to 11, MobLand season 2 and
+  The Grand Tour seasons 5 and 6. Of the movies with no TMDb id, 10 have an IMDb id, of which TMDb
+  found 8, and a title-and-year search found exactly one film for 23 of 25 Tom & Jerry shorts, while
+  the Planet Earth episodes found nothing. Prowlarr answers Toloka's `t=search` with no text with its
+  latest 90 releases, newest first, each with Toloka's own title in its description, and `offset`
+  pages through nothing; 12 of the latest 90 in TV/Anime and TV/Documentary named no season — films
+  such as "Akira (1988)" and series named by their episodes alone such as "Death Note (E1-31 of 37)".
+  A movie search sent with those two categories found the documentary "Schumacher '94" filed in
+  TV/Documentary. TMDb was then connected under **Integrations** with Vasyl's token, and the
+  computation adding it queued finished in 3 min 15 s: 815 seeds — 640 by their TMDb id, 169 found by
+  title and year or by IMDb id, and 6 shows — and 3,634 candidates, 2,852 in Movies, 545 in Cartoons,
+  135 in Documentaries and 102 in Series, 109 of them top-rated fallbacks waiting for a release source
+  to carry them. It recommends How the Universe Works for seasons 3 to 11, The Grand Tour for seasons 5
+  and 6 and MobLand for season 2, and Planet Earth too, as the library holds its episodes as movie
+  items with no id (MAM-34 links them).
 
 Not tried live yet:
 
@@ -300,6 +366,10 @@ Not tried live yet:
 - Hardlinks and byte-identical copies (MAM-19): the reference installation has no file with a second
   name and no two video files of one size (MAM-17), so the space counted once per file and the
   hashing of the files that could be copies rest on the tests; MAM-22 does the live check.
+- The app's checks of Toloka for the recommended works within the users' limits, its reading of
+  Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
+  the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
+  films in TV/Anime and TV/Documentary were checked live, the rest rests on the tests.
 
 ### What it will do
 
@@ -362,17 +432,20 @@ flowchart TD
     Core --> Libraries["Media library adapters"]
     Core --> Sources["Release search adapters"]
     Core --> Clients["Download client adapters"]
+    Core --> Catalogs["Metadata catalog adapters"]
     Core --> Inventory["Filesystem inventory + SQLite"]
 ```
 
 The core works with media works, versions, physical files, releases, and persisted jobs, and every
 title, identifier, version, file and release it stores names the source that reported it
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
-Adapter contracts keep it independent of any one media server, indexer, or download client. The
-first three adapters exist: Jellyfin's reads the library, the Torznab adapter searches releases and
-fetches a release's download, and qBittorrent's lists its categories with the folders they save to,
-adds a release, finds its torrents by info hash or by category, and reads their state and their
-files.
+Adapter contracts keep it independent of any one media server, indexer, download client or
+catalog. The first four adapters exist: Jellyfin's reads the library, the Torznab adapter searches
+releases, reads a source's newest releases and fetches a release's download, qBittorrent's lists its
+categories with the folders they save to, adds a release, finds its torrents by info hash or by
+category, and reads their state and their files, and TMDb's reads the film and TV catalog the
+recommendations come from — a work's details, collections, people, searches, finds, discovery,
+genres and posters — and looks up which catalog work a title or an id may be.
 The core's contracts for libraries, release search, download clients, file inventory and metadata
 live in Core and name no product
 ([ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
@@ -383,6 +456,7 @@ live in Core and name no product
 | Release search | Torznab via Prowlarr (Jackett should work the same way) | Other Torznab/Newznab providers, direct adapters |
 | Download client | qBittorrent | Transmission, SABnzbd, others |
 | File inspection | The local mounts inside the allowed roots, and `ffprobe` | Additional inventory backends if needed |
+| Metadata | TMDb | Other film and TV catalogs if needed |
 
 Toloka is searched through Prowlarr: it signs in to the tracker with your account, reads its search
 pages, and serves the results as a standard Torznab feed, so the app needs no code specific to
@@ -487,6 +561,24 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   a connection test with them works, so they never add to qBittorrent's ban of the app's address. The
   log names a job by its id and its statuses only, never a title, a path, an address or a sentence
   ([ADR 0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)).
+- **Recommendations are everyone's to read, and each user's choices their own.** Every signed-in user
+  reads the recommendations and the latest computation, which carry no address or token; their
+  controllers live outside `Controllers/Settings` and `Controllers/Library`, and **Recompute now**,
+  which spends the owner's TMDb token, declares itself owner-only. Why a computation failed can name
+  the catalog's address, and who asked for one is a user's sign-in name — the owner's for **Recompute
+  now**, the saver's when a Profile save switches on a tab nobody else has on —, so only the owner
+  reads them. "Not interested" and the Profile's lists and daily limit are each user's own: a user reads
+  and changes only theirs, under `/api/profile` rather than `/api/auth`, where the refresh cookie
+  goes. The app asks the release sources about recommended works by itself only within each user's
+  daily limit, at most 4 searches every 15 minutes, so the owner's tracker account is never crawled
+  ([ADR 0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)).
+  The posters are fetched by the server from TMDb's image host alone (`https://image.tmdb.org`, a
+  constant, never an address an answer gives), without any credential, kept only when TMDb answers a
+  JPEG or a PNG, cached in `<data>/posters/` and served by the app only to a signed-in user and only
+  for a file name that is a catalog work's poster, so the endpoint is no proxy to the image host; why
+  a fetch failed goes to the owner only, as it can quote the catalog's address. The web app shows the
+  posters as `data:` URLs, so the browser never contacts TMDb and the Content Security Policy is
+  unchanged ([ADR 0025](docs/adr/0025-the-catalog-is-kept-apart-from-the-library.md)).
 - **The app reads files only inside the allowed roots.** It opens a library file only when the
   path, and every link on the way to it, lies inside a folder the owner allowed on the **Media
   folders** page (owner-only, reading included); none is allowed by default, and the whole file
@@ -522,18 +614,25 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   them. A save that changes nothing and a connection test write none, and neither does a retry of a
   download already sent, a cancel of a job that already ended, a library sync, a file inspection —
   its hashing included — or a scan of the media folders, whose run rows record who started them;
-  nor does a pass that follows the downloads, which no one started. There is no screen for it yet.
-- **Integration credentials.** The Jellyfin and Torznab API keys and the qBittorrent password are
-  stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed to its integration and
+  nor does a pass that follows the downloads, which no one started. A computation of the
+  recommendations writes none either, its run row recording who asked for it, and neither does a
+  user's "Not interested", its undo or a save of their Profile's recommendation settings, which are
+  that user's own preferences, nor a check of the release sources for a recommended work. There is no
+  screen for it yet.
+- **Integration credentials.** The Jellyfin and Torznab API keys, TMDb's API Read Access Token and
+  the qBittorrent password are stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed
+  to its integration and
   field, so a value copied to another row or column doesn't open. The API never returns one, nor
   what it is sealed as: an integration says only `hasPassword` and `hasApiKey`, and a field left
   empty on an edit keeps what is stored. A stored secret that can't be read (the key changed, or the
   value was copied) fails only that integration's test, with 409 and a sentence asking to enter it
   again; it is never cleared on its own. A secret a service repeats in its answer is masked before
   the sentence reaches the page or a failed sync's stored reason, and none is logged: the
-  integration HTTP clients log no request URLs, because a Torznab key rides in the query. Requests
-  that carry credentials never follow a redirect (the test reports where it pointed, without its
-  query), share no cookies and are never retried. The qBittorrent adapter keeps the session it signed
+  integration HTTP clients log no request URLs, because a Torznab key rides in the query. TMDb's
+  token travels only in an `Authorization: Bearer` header, never in a URL. Requests that carry
+  credentials never follow a redirect (the test reports where it pointed, without its query), share
+  no cookies and are never retried, but for a TMDb GET that TMDb answered 429, sent again at most
+  three times after the wait TMDb asked for. The qBittorrent adapter keeps the session it signed
   in for in memory, one per integration and only while its address and credentials stay the same,
   masked like the password and never logged; when qBittorrent has forgotten it, the adapter signs in
   once more and sends that one read again, and never a write. The one write, a submission's
@@ -566,8 +665,9 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   the usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
 - **Security headers on every response:** `X-Content-Type-Options: nosniff`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a Content Security Policy that
-  forbids inline scripts. The only inline script, which applies dark mode before the first paint
-  (`frontend/index.html`), is allowed by its SHA-256 hash, pinned in
+  forbids inline scripts and allows images only from the app itself and `data:` URLs, the
+  recommendations' posters included. The only inline script, which applies dark mode before the
+  first paint (`frontend/index.html`), is allowed by its SHA-256 hash, pinned in
   `SecurityHeadersMiddleware.ThemeScriptHash`. Change one byte of that script and
   `SecurityHeadersHttpTests` fails until the hash is updated.
 - **Secrets never live in the repository.** Committed `appsettings*.json` files hold `null` for
@@ -617,8 +717,10 @@ answers and its database is open and fully migrated. When it isn't,
 `docker inspect media-acquisition-manager` shows the failing check's reason under `State.Health`.
 
 **Data and backups.** Everything the installation keeps is in `/data` inside the container, on the
-`mam-data` volume: `mam.db` and the generated secrets in `.secrets/`. Back them up together, with the
-container stopped:
+`mam-data` volume: `mam.db` and the generated secrets in `.secrets/`, and the recommendations'
+posters in `posters/`, a cache never pruned that needs no backup, as a missing poster is fetched
+again while TMDb is connected. Back up
+`mam.db` and `.secrets/` together, with the container stopped:
 
 ```bash
 docker compose stop app
@@ -753,14 +855,14 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/settings/users/{id}/enable` | Owner only. 200 with the user; the sessions the disable ended stay ended. 404. |
 | `POST /api/settings/users/{id}/password` with `{ password }` | Owner only. 204; every session of the user ends except the caller's own. 400 with the rule's sentence; 404. |
 | `DELETE /api/settings/users/{id}` | Owner only. 204; the user's sessions go with it. 409 for the owner; 404. |
-| `GET /api/settings/integrations?search=&kind=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, adapterType, adapterDisplayName, kind, isEnabled, baseUrl, userName, hasPassword, hasApiKey, pathMappings: [{ servicePrefix, appPrefix }], createdUtc }`, ordered by name; `adapterDisplayName` is `null` when this version no longer connects to the type. `search` matches part of the name in any letter case; `kind` is `MediaLibrary`, `ReleaseSearch` or `DownloadClient`. 400 for a page below 1, a page size outside 1–100 or an unknown kind. |
-| `GET /api/settings/integrations/adapter-types` | Owner only. 200 `{ items }`, each `{ typeId, displayName, kind, userName, password, apiKey, reportsFilePaths }`, a credential being `NotUsed`, `Optional` or `Required`; the types are `jellyfin`, `torznab` and `qbittorrent`. |
+| `GET /api/settings/integrations?search=&kind=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, adapterType, adapterDisplayName, kind, isEnabled, baseUrl, userName, hasPassword, hasApiKey, pathMappings: [{ servicePrefix, appPrefix }], createdUtc }`, ordered by name; `adapterDisplayName` is `null` when this version no longer connects to the type. `search` matches part of the name in any letter case; `kind` is `MediaLibrary`, `ReleaseSearch`, `DownloadClient` or `Metadata`. 400 for a page below 1, a page size outside 1–100 or an unknown kind ("“x” is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata."). |
+| `GET /api/settings/integrations/adapter-types` | Owner only. 200 `{ items }`, each `{ typeId, displayName, kind, userName, password, apiKey, reportsFilePaths }`, a credential being `NotUsed`, `Optional` or `Required`; the types are `jellyfin`, `torznab`, `qbittorrent` and `tmdb` (kind `Metadata`: an API key required, which is TMDb's API Read Access Token, no user name or password, and `reportsFilePaths` `false`). |
 | `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
-| `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. |
-| `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. |
+| `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. A TMDb integration added switched on queues a computation of the recommendations, or joins the one waiting (ADR 0023); a full queue or a failure there leaves the answer as it is. |
+| `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. Switching a TMDb integration back on queues a computation of the recommendations. |
 | `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths }`: the media folders the app may read files in, as the owner entered them, in canonical form; `[]` until the owner adds one. |
 | `PUT /api/settings/allowed-roots` with `{ paths }` | Owner only. 204; replaces the whole list, `[]` or `null` allowing nothing, and writes an audit row. 400 with the broken rule's sentence (more than 20, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another). Starts no inspection. |
-| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings and, for a release source, the tracker sections mapped to destinations; a media library's imported library goes with it (its titles, identifiers, episode positions, versions, files and libraries, and the works left empty), while its sync runs, the download jobs sent to it and what any other kind of integration reported keep its name. 404. |
+| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings and, for a release source, the tracker sections mapped to destinations; a media library's imported library goes with it (its titles, identifiers, episode positions, versions, files and libraries, and the works left empty), and a release source's newest releases read for the recommendations go with it, while its sync runs, the download jobs sent to it and what any other kind of integration reported — a metadata catalog's cached works included — keep its name. 404. |
 | `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9 or a qBittorrent older than 4.4.1); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
 | `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
 | `GET /api/settings/destinations?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, isDefault, downloadClientId, downloadClientName, clientDestinationKey, check, createdUtc }`, ordered by name, then by the client's name; `search` matches part of the name in any letter case. `check` is `{ status, servicePath, appPath, libraryNames, problem }`, worked out when the list is read by asking each download client on the page once: `status` is `InLibrary`, `OutsideLibraries`, `PathUnknown`, `LibrariesUnknown`, `CategoryMissing`, `ClientDisabled` or `ClientUnavailable`; `servicePath` is the folder the client says the category saves to and `appPath` the same folder through its path mappings, each `null` when unknown; `libraryNames` the media libraries one of whose folders holds it; `problem` the sentence why, for every status but `InLibrary`. 200 whatever the clients answered. 400 for a page below 1 or a page size outside 1–100. |
@@ -780,16 +882,24 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/library/scans` | Owner only. 202 with the queued scan of the media folders and its `Location`, or with the one already waiting, which the request joins; one asked for while a scan runs is queued behind it. The scan walks every allowed folder in the background, follows a link only when it ends inside them, opens no file, stores one name with no version for each media file no library reported, then queues a file inspection (ADR 0021). 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then scan again." }`; 503 `{ "error": "Too many folder scans are waiting. Try again in a minute." }`, the run kept as failed with it. |
 | `GET /api/library/scans/{runId}` | 200 `{ id, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesFound, filesUnreported, problemCount, problem, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`: `filesFound` is how many media files the walk has reached so far, each once however many links lead to it, `filesUnreported` how many of them no library reported (`null` until the scan stored them), `problemCount` how many folders, links and names it didn't go into or through, and `problem` the first one's sentence; `requestedByUserName`, `problem` and `error` only for the owner, `null` for everyone else. A bare 404 for an unknown run. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, seriesCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; the items are the library's movies, series and episodes, the works its movies and episodes, and `seriesCount` `null` for a run that didn't succeed or ran before 0.2.0; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
-| `POST /api/releases/search` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Searches every enabled release source at once, each for movies and then for TV (ADR 0020), and stores each release found. 200 `{ sources }` whatever the sources answered, by name, each `{ integrationId, name, status, notSearchedReason, error, releases }`: `status` is the call's outcome (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, …) or `null` when the app didn't ask the source, `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) says why, `error` the sentence for the owner only; each release `{ id, title, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, categories: [{ id, name }], payloadKind, claimed: { resolution, medium, videoCodec, dynamicRanges, audioLanguages, subtitleLanguages } }` in the source's order, the movie releases then the TV ones, at most 100 of each per source, `kind` `Movie` or `Tv` (TV when the source lists it in a TV category, or in none to a TV query), `payloadKind` `Magnet` or `null`, the release's download link never included. With a `season` (0 to 9999, 0 for the specials), only the TV search runs. 400 with the broken rule's sentence: no title, one longer than 200 characters, a year that isn't one, an id that isn't an IMDb (`tt0816692`) or a TMDb (`157336`) id, a season that isn't one; every field is a string. |
+| `POST /api/releases/search` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Searches every enabled release source at once, each for movies and then for TV (ADR 0020), and stores each release found. 200 `{ sources }` whatever the sources answered, by name, each `{ integrationId, name, status, notSearchedReason, error, releases }`: `status` is the call's outcome (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, …) or `null` when the app didn't ask the source, `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) says why, `error` the sentence for the owner only; each release `{ id, title, description, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, categories: [{ id, name }], payloadKind, claimed: { resolution, medium, videoCodec, dynamicRanges, audioLanguages, subtitleLanguages } }` in the source's order, the movie releases then the TV ones, at most 100 of each per source, `description` the listing's own description when it says more than the title (Toloka's topic title, Ukrainian first; `null` otherwise), `kind` `Movie` or `Tv` (TV when the source lists it in a TV category — in TV/Anime or TV/Documentary alone only when its title or description names seasons or episodes —, or in none to a TV query), `payloadKind` `Magnet` or `null`, the release's download link never included. With a `season` (0 to 9999, 0 for the specials), only the TV search runs. 400 with the broken rule's sentence: no title, one longer than 200 characters, a year that isn't one, an id that isn't an IMDb (`tt0816692`) or a TMDb (`157336`) id, a season that isn't one; every field is a string. |
 | `POST /api/searches` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Asks the library — the snapshot the last sync imported — and every enabled release source at once, the sources the way `POST /api/releases/search` does, and stores the search, how each source answered and every release found, for a day. 201 with the search and its `Location` whatever the sources answered: `{ id, text, year, imdbId, tmdbId, season, createdUtc, library, libraryUnlistedCount, sources, facets }`, the search as asked and trimmed. `library` is every matching work, strongest first, then at most 20 works that match in no way but one of whose titles or file paths holds every word of the title, each whole (ADR 0012), each `{ work, evidence, matchedIdentifiers: [{ scheme, value, sourceName }], matchedTitle: { text, kind, year, sourceName }, conflictingSchemes }`: `work` exactly as `GET /api/library/works` gives it, a movie, a series or an episode of no series — an episode of a series that the search finds lists its series once, with the episode's `matchedTitle` and `matchedIdentifiers` (ADR 0012) —, its owner-only fields `null` for everyone else; `evidence` `Identifier`, `TitleAndYear`, `TitleOnly` or `Words`, which is no match; `matchedIdentifiers` every source's row of a matched id; `matchedTitle` the title that matched, or for `Words` the title holding the words, `null` when none did or only a file path holds them; `conflictingSchemes` (`Imdb`, `Tmdb`, `Tvdb`, `TmdbTv`) the schemes the search and the work, or the work's own sources, disagree on. `libraryUnlistedCount` is how many more works hold every word of the title than `library` lists, `0` when none were left out. `sources` by name, each `{ id, integrationId, name, status, notSearchedReason, error, releaseCount }` as for the release search, `id` being what the releases' `source` filter takes and `integrationId` `null` once the integration is removed. `facets` `{ audioLanguages, hasUnknownAudioLanguage, resolutions, hasUnknownResolution, kinds }`: what the search's releases claim, and their kinds, `Movie` before `Tv`, for the filters. 400 with the broken rule's sentence, nothing stored and no source asked: "Enter the title to search for.", "The search text can be at most 200 characters long.", "The search text can't contain line breaks or other control characters.", "“twenty” is not a year.", "“816692” is not an IMDb id, which looks like tt0816692.", "“tt157336” is not a TMDb id, which is a number such as 157336.", "“first” is not a season. Use a season number, such as 1, or 0 for the specials." (a value is repeated trimmed, cut at 32 characters with "…"). |
 | `GET /api/searches/{id}` | Every signed-in user, for their own searches. 200 as for `POST`: the sources as stored, never asked again, and the library matched again as it is now. A bare 404 for a search that doesn't exist, is someone else's (asked for by the owner too) or is more than a day old, whether or not it has been removed yet. |
-| `GET /api/searches/{id}/releases?source=&kind=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year, lastYear, episodes }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes, heldEpisodeCount }] }`: `kind` `Movie` or `Tv`, by the categories its source lists it in; `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (no title when nothing says where it ends: no year, and for TV no season marker either), a TV title's span ending in `lastYear` and its seasons in `episodes` `{ firstSeason, lastSeason, firstEpisode, lastEpisode }`, `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words` — a series for a TV release, a movie for a movie release (ADR 0020) —, with `heldEpisodeCount` on a TV match: how many of the series' episodes are in the seasons or episodes claimed, `null` when none are claimed; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `kind` `Movie` or `Tv` in any letter case; `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“Show” is not a kind filter. Use Movie or Tv.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
+| `GET /api/searches/{id}/releases?source=&kind=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, description, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year, lastYear, episodes }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes, heldEpisodeCount }] }`: `description` and `kind` as for the release search, `description` `null` on a release stored before 0.2.1; `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (no title when nothing says where it ends: no year, and for TV no season marker either), a TV title's span ending in `lastYear` and its seasons in `episodes` `{ firstSeason, lastSeason, firstEpisode, lastEpisode }`, `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words` — a series for a TV release, a movie for a movie release (ADR 0020) —, with `heldEpisodeCount` on a TV match: how many of the series' episodes are in the seasons or episodes claimed, `null` when none are claimed; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `kind` `Movie` or `Tv` in any letter case; `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“Show” is not a kind filter. Use Movie or Tv.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
 | `GET /api/downloads/options?releaseId=` | Every signed-in user, for a release of their own searches. The Download dialog's choices, read from the database without asking any client: 200 `{ clients, suggestedDestinationId }`, by name, each `{ id, name, typeName, destinations: [{ id, name, clientDestinationKey, isDefault }] }` with its destinations by name — every switched-on download client of a type this version can send to that can take the release's payload (one whose kind the listing didn't state needs a client that takes a .torrent file or a magnet link) and has a destination; `typeName` is what it is ("qBittorrent"). `suggestedDestinationId` is the destination the dialog picks first (ADR 0020): among those offered, the one the release's stored categories are mapped to, its source's own section before a standard category; `null` when two different destinations tie at that rank; else the default when it is offered, else `null`. No address, folder or path mapping. 400 `{ "error": "Pick the release to send." }` without a well-formed `releaseId`; 404 `{ "error": "This release isn't available any more: a search keeps what it found for a day. Search again." }` for a release that isn't one of the caller's searches' from the last day. |
 | `POST /api/downloads` with `{ requestId, releaseId, downloadClientId, destinationId }` | Every signed-in user, for a release of their own searches. Sends it at most once per request id (ADR 0013): the request id is looked up first, and the caller's same id for the same release, client and destination answers 200 with the job it made, nothing fetched, sent or audited again; otherwise the job is written with an audit row before anything is fetched or sent, and the answer is 201 with the job and its `Location` whatever came of the sending — `Submitted`, `NeedsLinking`, or `Failed` with its sentence. 400 with the broken rule's sentence: "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the destination to send it to.", "“Movies” is a destination of another download client. Pick one of “qBittorrent”’s.", "“qBittorrent” can't take NZB files, which this release is."; 404 with "This release isn't available any more: a search keeps what it found for a day. Search again.", "The download client you picked no longer exists. Reload the page and pick one again." (also for an integration that isn't a download client) or "The destination you picked no longer exists. Reload the page and pick one again."; 409 with "This request id was already used to send a different download. Reload the page and try again.", "“qBittorrent” is switched off. The owner can switch it on under Integrations.", "This version of the app can't send downloads to “…”.", "The source that listed this release has been removed, so the release can't be fetched. Search again.", "“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.", "This version of the app can't fetch releases from “…”." or, when a job that didn't fail already sent the release to that client, "This release was already sent to “qBittorrent”, so it isn't sent twice.". A refused request writes and sends nothing. |
 | `GET /api/downloads?status=&page=1&pageSize=25` | Every signed-in user, for their own jobs, the installation owner's included. 200 `{ items, totalCount, page, pageSize }`, each item a job as `GET /api/downloads/{id}` answers it, newest first (by when it was sent, then by id); no client is asked. `status` is a job status by name in any letter case; blank lists every status. 400 for a page below 1, a page size outside 1–100, or "“x” is not a download status. Use Created, Submitted, Downloading, Paused, Downloaded, Failed, NeedsLinking or Cancelled." |
 | `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, progress, clientJobId, error, blockReason, createdUtc, statusChangedUtc }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Failed`, `NeedsLinking` or `Cancelled`; `progress` from 0 to 1 as the client last reported it, `null` until it has; `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; `blockReason` why a followed job isn't moving on (the client reports an error, no longer lists it, or can't be asked), `null` when nothing blocks it, a client's own sentence for the owner only; the client's and the destination's names and the category as they were when it was sent. A bare 404 for another user's job or one that doesn't exist. |
 | `GET /api/downloads/{id}/files?page=1&pageSize=25` | Every signed-in user, for their own jobs. 200 `{ items, totalCount, page, pageSize }`: the job's files as its client last listed them, in the client's order, each `{ position, path, sizeBytes, progress, isWanted }` — `path` relative to the job's folder exactly as the client names it, `isWanted` `false` for a file the client skips — and no items until the client has listed them. A bare 404 for another user's job or one that doesn't exist, checked before the paging; 400 for a page below 1 or a page size outside 1–100. |
 | `POST /api/downloads/{id}/cancel` | Every signed-in user, for their own jobs. Stops following the job and sends the client nothing, so the torrent and its files stay there (ADR 0014): 200 with the job, now `Cancelled` with no `blockReason`, and an audit row. Only a job still followed or one that needs linking: 409 "This download is already finished, so there's nothing to stop following.", "This download has already failed, so there's nothing to stop following." or "This download is already cancelled, so there's nothing to stop following.", changing nothing; a `Created` job younger than 5 minutes, whose send may still be under way, is 409 "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.", changing nothing. A bare 404 for another user's job or one that doesn't exist. |
+| `GET /api/recommendations?tab=&reason=&available=&genreId=&decade=&kind=&sort=Score&page=1&pageSize=25` | Every signed-in user, for their own lists (ADR 0023). One tab of the recommendations, filtered, sorted and paged on the server, without asking the catalog or a source: 200 `{ items, totalCount, page, pageSize, facets, catalogConnected, lastRun }`, the items ordered by `sort`, each `{ id, kind, catalogId, title, originalTitle, year, genres, rating, voteCount, posterUrl, reasons, availability, downloading, searchText, searchTmdbId }` — `id` the catalog work's, `kind` `Movie` or `Series`, `catalogId` TMDb's id, `title` in Ukrainian where TMDb has it, `genres` the names in alphabetical order, `rating` `null` when nobody rated it, `posterUrl` `/api/recommendations/posters/<file>` or `null`; `reasons` strongest first, each `{ kind, name, held, total, titles, seasons, dateUtc }`, `kind` being `MissingSeasons`, `Collection`, `Director`, `Creator`, `Recommended`, `NewAtSource` or `TopRated`, `name` the collection, person or source, `held` and `total` a collection's released parts held and released, a person's catalog works in the library, or how many of the library's catalog works recommend it, all of them (a work the library holds several times counts once), `titles` at most 5 of those works' titles, `seasons` the missing season numbers; `availability` `{ checkedUtc, found, releaseCount, bestResolution, hasUkrainianAudio, maxSeeders }` or `null` before the first check (ADR 0024); `downloading` while a followed download job's release is the work; `searchText` the title the sources are searched by and the year in brackets, and `searchTmdbId` a film's TMDb id as text (`null` for a show), what **Releases** opens the Search page with. `tab` is `Movies`, `Series`, `Cartoons` or `Documentaries` and the rest optional, in any letter case: `reason` a reason kind; `available=true` keeps the works a release source carries (`false` keeps all); `genreId` a catalog genre id; `decade` a decade's first year (`1990`); `kind` `Movie` or `Series`; `sort` `Score` by default — the score, then votes, title (ordinal) and catalog id —, `Rating` (the weighted rating `(votes × rating + 50 × 5.0) / (votes + 50)`, so a 10.0 of three votes doesn't top it), `Votes`, `Newest` or `Oldest` (by release date, a work of no known date last), `Title` (in Ukrainian alphabetical order, as the library's works) or `Releases` (the availability check's release count, the works found first, then those not found, then those never checked), ties falling back to the score's order; `pageSize` 1 to 100, 25 by default. `facets` `{ reasons: [{ kind, count }], genres: [{ id, name, count }], decades: [{ decade, count }], kinds: [{ kind, count }] }` count the caller's whole list of the tab before the request's filters, whatever the sort — the reasons in a card's order, the genres by name in Ukrainian alphabetical order, the decades and kinds in order —; `catalogConnected` says whether a metadata catalog is; `lastRun` as `GET /api/recommendations/runs/latest` answers it, or `null`. The caller's "Not interested" works are left out, and so is a fallback work until a check found it at a source. Every user's download jobs count, matched to a work by its kind and by an id the release gives or the title and year its title or description claims, and for a held series by a missing season or none named: a followed job (`Created`, `Submitted`, `Downloading`, `Paused`) makes a work `downloading`, one that ended without failing (`Downloaded`, `NeedsLinking`, `Cancelled`) leaves it out, winning over a followed one, and a failed one changes nothing. 400 with the first broken rule's sentence, the value repeated trimmed and cut at 32 characters with "…": "Choose a tab: Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation tab. Use Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation reason. Use Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.", "“x” is not an availability filter. Use true or false.", "“x” is not a genre id, which is a number such as 18.", "“x” is not a decade. Use its first year, such as 1990.", "“x” is not a kind of work. Use Movie or Series.", "“x” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or Releases.", "Page must be 1 or more.", "Page size must be between 1 and 100.", and "This tab is switched off in your profile." for a tab the caller has off. A page past the last is empty. |
+| `PUT /api/recommendations/dismissals/{kind}/{catalogId}` | Every signed-in user, for themselves. "Not interested": the work — `Movie` or `Series`, in any letter case, and TMDb's id — is left out of the caller's lists from now on, and of no one else's (Vasyl's decision 3); a work no list holds yet is kept marked for when one does. 204, also when it already was. 400 with "“x” is not a kind of work. Use Movie or Series." or "“x” is not a catalog id, which is a number such as 603.", changing nothing. Writes no audit row. |
+| `DELETE /api/recommendations/dismissals/{kind}/{catalogId}` | Every signed-in user, for themselves. **Undo** of "Not interested": 204, also when there was nothing to undo; another user's mark of the same work stays. 400 as for `PUT`. |
+| `GET /api/recommendations/posters/{fileName}` | Every signed-in user. A catalog work's poster: 200 with the bytes, `image/jpeg` or `image/png` by the extension, and `Cache-Control: private, max-age=2592000, immutable`. The first request fetches it from TMDb's image host at `https://image.tmdb.org/t/p/w342` without any credential and keeps it in `<data>/posters/`, which is never pruned; later ones read it from there, a catalog connected or not (ADR 0025). A bare 404 for a name that is no poster file name, one no catalog work has, one the image host doesn't have, or one not kept while no metadata catalog is connected. 502 when the catalog couldn't send it — its sentence, masked of the token, for the owner, and "The metadata catalog couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
+| `GET /api/recommendations/runs/latest` | Every signed-in user. 200 with the latest computation of the recommendations — the running one, else the newest by when it was queued — `{ id, status, trigger, requestedByUserName, createdUtc, startedUtc, finishedUtc, seedCount, candidateCount, stage, stageDone, stageTotal, error }`: `status` `Queued`, `Running`, `Succeeded` or `Failed`; `trigger` `LibrarySynced`, `Requested`, `TabEnabled`, `CatalogConnected` or `FeedRead`; `stage`, while it runs, `ReadingLibrary`, `FindingLibraryWorks`, `ReadingWorks`, `ReadingCollections`, `ReadingPeople`, `Discovering` or `Saving`, and `null` when it isn't running, with `stageDone` of `stageTotal` the stage's items done (`240` of `815`), both `null` for a stage without counts — written at each change of stage and at most every 2 seconds within one; `seedCount` the library works the run started from and `candidateCount` the works it recommends, for every user together, both `null` unless it succeeded; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 204 with no body before the first. |
+| `POST /api/recommendations/runs` | Owner only (**Recompute now**). 202 with the queued computation, or with the one already waiting, which the request joins; one asked for while a run runs is queued behind it, and the run reads the library, the catalog and every enabled user's tabs as they are when it starts. 409 `{ "error": "Connect a metadata catalog under Integrations first." }` without a switched-on metadata catalog of a type this version serves; 503 `{ "error": "Too many recommendation runs are waiting. Try again in a minute." }`, the run kept as failed with it. |
+| `GET /api/profile/recommendations` | Every signed-in user, for themselves. 200 `{ movies, series, cartoons, documentaries, dailySearchLimit, searchesLast24Hours }`: which of their four lists are on, how many release-source searches the app may run for their lists in 24 hours, and how many it ran for them in the last 24 hours. A user who never saved gets every list on and 60 (ADR 0024). |
+| `PUT /api/profile/recommendations` with `{ movies, series, cartoons, documentaries, dailySearchLimit }` | Every signed-in user, for themselves. 200 with the settings as saved; writes no audit row. Switching on a tab no other enabled user has on — a user who never saved has them all on — queues a computation of the recommendations (`TabEnabled`, in the saver's name) or joins the one waiting; a full queue never fails the save. Every field is required: 400 with "Say whether the Movies tab is on." (and so for Series, Cartoons and Documentaries), "The daily search limit is a whole number from 0 to 500.", or for a body that isn't the settings "Send the settings as JSON: movies, series, cartoons and documentaries true or false, and dailySearchLimit a whole number from 0 to 500.", saving nothing. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -1038,6 +1148,53 @@ core in `DestinationSectionRulesTests`, `DestinationSectionGroupingTests` and
 `LibraryWorkCard.series.test.tsx`, `LibraryPage.series.test.tsx`, `SearchPage.tv.test.tsx` and
 `DestinationDialog.sections.test.tsx` cover the new pieces.
 
+The recommendations (MAM-33) are tested against TMDb's real answers too. `TmdbSamples` loads the
+recorded TMDb answers — a film's details with its collection, credits and recommendations, a show's
+with its seasons, a collection, a person's combined credits, searches, a find by IMDb id, two
+discoveries, the genre lists and the answer to a wrong token — which `TmdbAdapterTests`,
+`TmdbAdapterWorksTests`, `TmdbAdapterListsTests`, `TmdbAdapterLookupTests` and
+`TmdbAdapterPostersTests` read, while `TmdbAdapterRateLimitTests` and `TmdbRequestPacerTests` drive the
+pacing and the 429s; `VendorSamplesTests` fails the build on a recorded bearer token.
+`TorznabAdapterSearchLatestTests` reads Toloka's recorded newest releases and their descriptions, and
+`SearchReleasesFilmsInTvCategoriesHttpTests` the documentary film filed in TV/Documentary through the
+ordinary search. Over HTTP the runs ask `FakeTmdbServer`, which answers from works a test adds
+(`FakeTmdbWork`, `FakeTmdbSeason`) and records every request, beside a synced or seeded library:
+`RecommendationRunStartHttpTests` (202, 401, 403, 409, 503, joining a waiting run, the latest run and
+who reads what), `RecommendationRunWorkerHttpTests` (the worker, the reconciler, a dead or stopped
+run, the catalog switched off or refusing the token), `RecommendationRunProgressHttpTests` (a running
+run's stage and counts, written at each stage and at most every 2 seconds, and who reads them), `RecommendationTriggerHttpTests` (a sync, a
+catalog added or switched back on), `RecommendationSignalsHttpTests`,
+`RecommendationMissingSeasonsHttpTests`, `RecommendationTabsHttpTests`,
+`RecommendationRatingFloorHttpTests`, `RecommendationExclusionsHttpTests` and
+`RecommendationCatalogCacheHttpTests` (the catalog's rows, their provenance and their age, the
+lookups, and a library never written). The availability check is driven a pass at a time against
+`FakeTorznabServer`: `RecommendationAvailabilityHttpTests` (what a search asks, which releases count
+and what is stored, a source that doesn't answer), `RecommendationAvailabilityScheduleHttpTests`
+(the rechecks, the shared result, "Not interested" and switched-off tabs, the order) and
+`RecommendationAvailabilityBudgetHttpTests` (the limit, its split between tabs, the 24 hours, four
+searches a pass and the users in turn); the newest releases in `RecommendationFeedHttpTests` (the one
+query per source, the entries kept, updated and forgotten) and `RecommendationFeedResolutionHttpTests`
+(the lookups by the description's and the title's titles, a later seasons' pack, at most 100 a pass,
+a failing catalog, the run queued). The list is tested in `RecommendationListHttpTests` (the JSON the
+page reads, the order, the paging, every 400 sentence, a tab switched off, nothing written or asked),
+`RecommendationListFiltersHttpTests` (each filter, the facets before the filters and without the
+caller's dismissed works, the fallback until found), `RecommendationListSortHttpTests` (each sort,
+the ties, the 400) and `RecommendationListDownloadsHttpTests` (a
+followed, an ended and a failed job, matched by id or title and year, by kind, and by a missing
+season), "Not interested" in `RecommendationDismissalsHttpTests`, the posters in
+`RecommendationPostersHttpTests` (fetched once without the token and kept, served from disk, every
+404 and the 502 for the owner and for everyone else), and the Profile settings in
+`RecommendationSettingsHttpTests` and `RecommendationSettingsTriggerHttpTests` (the defaults, every
+400 sentence, no audit row, and the run a tab switched on queues). The core's rules are tested on
+their own in `RecommendationScoringTests`, `RecommendationRatingFloorTests`,
+`RecommendationTabsTests`, `RecommendationSettingsRulesTests`, `RecommendationSearchBudgetTests`,
+`RecommendationQueryTitleTests`, `RecommendationPosterNamesTests` and `SeedTitleCleaningTests`. In the
+web app, `RecommendationsPage.test.tsx`, `RecommendationsPage.cards.test.tsx`,
+`RecommendationsPage.filters.test.tsx`, `RecommendationsPage.sort.test.tsx`, `RecommendationsPage.run.test.tsx`,
+`RecommendationPoster.test.tsx`, `RecommendationReasons.test.tsx`,
+`RecommendationSettingsCard.test.tsx`, `recommendations.test.ts`, `recommendations-api.test.ts` and
+`profile-api.test.ts` cover the new pieces.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -1067,6 +1224,8 @@ src/
                                                release search, the stored searches and their
                                                library matches, the download destinations, the
                                                downloads sent to a client and their following,
+                                               the recommendations with their runs, the metadata
+                                               catalog's cache and each user's profile settings,
                                                audit trail, health checks, security headers,
                                                EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
@@ -1080,18 +1239,21 @@ src/
                                                destinations' rules and path check, and the
                                                downloads' rules, a torrent's info hashes, the
                                                matching of a client's jobs and what their
-                                               states mean for a followed download; no package
-                                               references
+                                               states mean for a followed download, and the
+                                               recommendations' tabs, score, rating floor,
+                                               settings rules and the cleaning of a title for a
+                                               catalog lookup; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
-                                               Jellyfin, Torznab and qBittorrent adapters, the
-                                               local file inventory with its walk of the media
-                                               folders and its hash, and ffprobe
+                                               Jellyfin, Torznab, qBittorrent and TMDb
+                                               adapters, the local file inventory with its
+                                               walk of the media folders and its hash, and
+                                               ffprobe
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
-                                               Torznab feed, a fake qBittorrent, a fake file
-                                               inventory
+                                               Torznab feed, a fake qBittorrent, a fake TMDb, a
+                                               fake file inventory
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
@@ -1121,17 +1283,20 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32).
+of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22, MAM-32 and
+MAM-33).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
    destinations, submission and status tracking, and persisted jobs. Search and download must work
    while leaving existing files untouched.
-2. **Phase B: inventory and duplicate detection (release 0.2.0).** Import series, seasons and
-   episodes from Jellyfin beside the movies and search, match and send their releases (built), scan
-   the allowed folders for files no library reported (built), count hardlinks once and hash only the
-   files that could be copies (built). Label exact, same-work, and possible matches separately, for
-   movies and episodes alike.
+2. **Phase B: inventory and duplicate detection (releases 0.2.0 and 0.2.1).** Import series,
+   seasons and episodes from Jellyfin beside the movies and search, match and send their releases
+   (built), scan the allowed folders for files no library reported (built), count hardlinks once and
+   hash only the files that could be copies (built), and recommend the films, series, cartoons and
+   documentaries the library doesn't have yet, from TMDb, with what the release sources carry of
+   them (built, 0.2.1). Label exact, same-work, and possible matches separately, for movies and
+   episodes alike.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different
@@ -1158,6 +1323,8 @@ Integration references:
 - [Prowlarr](https://wiki.servarr.com/prowlarr) — the indexer manager that serves Toloka as Torznab
 - [Jackett API and Torznab](https://github.com/Jackett/Jackett/wiki/Jackett-API)
 - [qBittorrent WebUI API](https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-%28qBittorrent-4.1%29)
+- [TMDb API](https://developer.themoviedb.org/docs) — the film and TV catalog the recommendations
+  come from
 - [ffprobe reference](https://ffmpeg.org/ffprobe.html)
 
 Check each integration against the installed version when implementing it.

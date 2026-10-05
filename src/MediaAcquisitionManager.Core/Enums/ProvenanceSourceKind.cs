@@ -24,4 +24,10 @@ public enum ProvenanceSourceKind
     /// no version (ADR 0021).
     /// </remarks>
     FileInspection = 4,
+
+    /// <summary>
+    /// MAM-33 — a metadata catalog reported it: a film or show the app recommends, kept in tables of its
+    /// own and never on the library's works (ADR 0025).
+    /// </summary>
+    Metadata = 5,
 }

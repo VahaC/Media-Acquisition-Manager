@@ -109,6 +109,42 @@
   color: var(--muted-foreground);
 }
 
+/* MAM-33 — the Recommendations card: a failed refresh's banner above the form. */
+.profile-settings {
+  display: grid;
+  gap: 1rem;
+}
+
+/* The tabs' boxes, the limit, the count and Save, spaced like the password form. */
+.profile-settings-form {
+  display: grid;
+  gap: 1rem;
+}
+
+/* `min-width: 0`: a fieldset is at least as wide as its content by default. Its legend is no grid
+   item, so it is spaced on its own. */
+.profile-settings-group {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.profile-settings-group > legend {
+  margin-bottom: 0.5rem;
+}
+
+/* The four boxes in a row that wraps on a phone. */
+.profile-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+/* `.ui-input` is a full-width field; the limit is three digits. */
+.ui-input.profile-limit-input {
+  max-width: 8rem;
+}
+
 /* Change password first, Cancel last, as in every dialog here. */
 .profile-actions {
   display: flex;

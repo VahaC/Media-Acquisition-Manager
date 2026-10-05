@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
 
@@ -14,7 +15,12 @@ public interface IDownloadJobSeeder
 
     /// <summary>
     /// A job that sent the stored release <paramref name="releaseId"/> — one a search found, say — to
-    /// <paramref name="client"/>, the same way (MAM-12).
+    /// <paramref name="client"/>, the same way (MAM-12). MAM-33 — standing at <paramref name="status"/>, sent by
+    /// <paramref name="requestedBy"/> or by nobody named.
     /// </summary>
-    Task<DownloadJobEntity> Create(IntegrationConnectionEntity client, Guid releaseId);
+    Task<DownloadJobEntity> Create(
+        IntegrationConnectionEntity client,
+        Guid releaseId,
+        DownloadJobStatus status = DownloadJobStatus.Submitted,
+        UserEntity? requestedBy = null);
 }

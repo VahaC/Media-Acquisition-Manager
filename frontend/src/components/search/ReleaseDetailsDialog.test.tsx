@@ -47,6 +47,36 @@ describe('ReleaseDetailsDialog', () => {
     expect(dialog).toHaveAccessibleDescription(/^What Toloka lists for this release/)
   })
 
+  it('shows the listing\'s own description under the title when it gives one', () => {
+    // Arrange
+    // MAM-33 — Toloka's topic title, where Prowlarr's title keeps the English part alone.
+    const release = releaseOf({
+      title: 'Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+      description: 'Чужі / Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+    })
+
+    // Act
+    const { dialog } = renderDialog(release)
+
+    // Assert
+    const description = within(dialog).getByText(release.description!)
+    expect(description).toHaveClass('search-release-description')
+    expect(description.previousElementSibling).toBe(within(dialog).getByRole('heading', { name: release.title }))
+    // The dialog's own description still says where the listing comes from.
+    expect(dialog).toHaveAccessibleDescription(/^What Toloka lists for this release/)
+  })
+
+  it('shows no description line when the listing gives none', () => {
+    // Arrange
+    const release = tolokaRemux
+
+    // Act
+    const { dialog } = renderDialog(release)
+
+    // Assert
+    expect(dialog.querySelector('.search-release-description')).toBeNull()
+  })
+
   it('shows what the listing says, including how the release is downloaded', () => {
     // Arrange
     const release = tolokaRemux

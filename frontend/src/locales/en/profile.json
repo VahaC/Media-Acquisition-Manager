@@ -33,6 +33,23 @@
     "title": "Appearance",
     "description": "Saved in this browser."
   },
+  "recommendations": {
+    "title": "Recommendations",
+    "description": "The lists the Recommendations page shows you, and how often the app may ask the release sources about them.",
+    "tabs": "Lists",
+    "tabsHint": "A switched-off tab is hidden, and its works are never searched for you.",
+    "limit": "Daily search limit",
+    "limitHint": "How many release-source searches the app may run for your lists in 24 hours; 0 runs none.",
+    "limitInvalid": "The daily search limit is a whole number from 0 to 500.",
+    "used_one": "{{value}} search in the last 24 hours.",
+    "used_other": "{{value}} searches in the last 24 hours.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "failed": "Could not save your recommendation settings.",
+    "loadFailed": "Could not load your recommendation settings.",
+    "refreshFailed": "Refresh failed, showing your recommendation settings as last loaded."
+  },
   "session": {
     "title": "Session",
     "description": "A session lasts 30 days from its last use. This one ends {{date}} unless you use the app again."

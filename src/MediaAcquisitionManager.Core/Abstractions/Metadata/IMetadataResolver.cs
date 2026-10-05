@@ -4,9 +4,11 @@ namespace MediaAcquisitionManager.Core.Abstractions.Metadata;
 
 /// <summary>
 /// Finds which works a title or an identifier may name, as a further interface of an
-/// <see cref="IIntegrationAdapter"/> class. Phase A members only. Not implemented yet: MAM-12 matches a
-/// search and its releases against the library snapshot MAM-8 imported, which needs no call to the media
-/// server.
+/// <see cref="IIntegrationAdapter"/> class. MAM-12 matches a search and its releases against the library
+/// snapshot MAM-8 imported, which needs no call to the media server. MAM-33 — implemented by the metadata
+/// catalog's adapter (TMDb) beside <see cref="IMetadataCatalog"/>, and used only to find which catalog work
+/// a library work without a catalog id, or a new release, may be — for recommendations, never for the
+/// library (ADR 0025).
 /// </summary>
 /// <remarks>
 /// All methods return result types and never throw on expected failures (unreachable, refused,

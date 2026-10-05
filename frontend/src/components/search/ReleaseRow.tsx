@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { formatDate, formatFileSize, formatNumber } from '@/lib/format'
 import type { LibraryMatch, SearchRelease } from '@/lib/types'
 import '@/styles/library.css' // .library-file-facts — the line of listed facts
-import '@/styles/search.css' // .search-release* — the row, its title and its actions
+import '@/styles/search.css' // .search-release* — the row, its title, its description and its actions
 
 interface ReleaseRowProps {
   release: SearchRelease
@@ -27,7 +27,8 @@ interface ReleaseRowProps {
  * size, seeders and peers, when it was published), what the title claims about its quality, and —
  * when it matches a copy in the library — a badge for the strongest match, naming that copy, with
  * any conflict. MAM-32 — a TV release says so in its chips, with the seasons or episodes it claims,
- * and its match how many of those episodes the library holds.
+ * and its match how many of those episodes the library holds. MAM-33 — under its title, the listing's
+ * own description when it gives one.
  *
  * Its actions: Details (the parent opens the dialog), Open source, and Download (MAM-13: the parent
  * opens the dialog that sends the release to a download client). On a phone the actions collapse to
@@ -50,6 +51,8 @@ export function ReleaseRow({ release, library, onDetails, onDownload }: ReleaseR
     <article className="ui-card search-release" aria-labelledby={titleId}>
       <div className="search-release-body">
         <h3 id={titleId} className="search-release-title">{release.title}</h3>
+        {/* MAM-33 — Toloka's own topic title, which names the work in Ukrainian too. */}
+        {release.description !== null && <p className="search-release-description">{release.description}</p>}
         <p className="library-file-facts">
           <span>{release.sourceName}</span>
           <span>{release.sizeBytes === null ? t('release.sizeUnknown') : formatFileSize(release.sizeBytes)}</span>

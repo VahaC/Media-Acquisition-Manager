@@ -1,6 +1,6 @@
 {
   "title": "Integrations",
-  "lead": "The services this app works with: your media library, the sources it searches for releases, and your download clients.",
+  "lead": "The services this app works with: your media library, the sources it searches for releases, your download clients, and a metadata catalog (TMDb) that feeds the Recommendations page.",
   "add": "Add integration",
   "search": {
     "label": "Search integrations",
@@ -13,12 +13,14 @@
   "kindFilterOptions": {
     "MediaLibrary": "Media libraries",
     "ReleaseSearch": "Release sources",
-    "DownloadClient": "Download clients"
+    "DownloadClient": "Download clients",
+    "Metadata": "Metadata catalogs"
   },
   "kinds": {
     "MediaLibrary": "Media library",
     "ReleaseSearch": "Release source",
-    "DownloadClient": "Download client"
+    "DownloadClient": "Download client",
+    "Metadata": "Metadata catalog"
   },
   "columns": {
     "name": "Name",
@@ -38,7 +40,7 @@
   "testFailed": "Could not test the connection.",
   "loadFailed": "Could not load the integrations.",
   "refreshFailed": "Refresh failed, showing the last loaded integrations.",
-  "empty": "No integrations yet. Click Add integration to connect Jellyfin, a Torznab source such as Prowlarr, or qBittorrent.",
+  "empty": "No integrations yet. Click Add integration to connect Jellyfin, a Torznab source such as Prowlarr, qBittorrent, or a metadata catalog (TMDb) that feeds the Recommendations page.",
   "noMatch": "No integrations match these filters.",
   "clearFilters": "Clear filters",
   "testResult": "{{name}}: {{message}}",
@@ -64,14 +66,17 @@
       "generic": "http://192.168.1.10",
       "jellyfin": "http://192.168.1.10:8096",
       "torznab": "http://192.168.1.10:9696/1/api",
-      "qbittorrent": "http://192.168.1.10:8080"
+      "qbittorrent": "http://192.168.1.10:8080",
+      "tmdb": "https://api.themoviedb.org"
     },
     "addressHelp": {
       "generic": "The address the service answers at, starting with http:// or https://.",
       "jellyfin": "Jellyfin's address, with its base path if it has one, such as http://192.168.1.10:8096.",
       "torznab": "The feed's Torznab address. Prowlarr shows it in the indexer's details, such as http://192.168.1.10:9696/1/api.",
-      "qbittorrent": "The address of qBittorrent's Web UI, such as http://192.168.1.10:8080."
+      "qbittorrent": "The address of qBittorrent's Web UI, such as http://192.168.1.10:8080.",
+      "tmdb": "TMDb's API address, https://api.themoviedb.org. In the API key field, enter TMDb's API Read Access Token from themoviedb.org → Settings → API, not the shorter API key."
     },
+    "tmdbAttribution": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
     "userName": "User name",
     "password": "Password",
     "apiKey": "API key",

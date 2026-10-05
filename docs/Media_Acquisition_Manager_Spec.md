@@ -17,6 +17,13 @@ Vasyl's initial setup involves Jellyfin, Toloka search, qBittorrent categories, 
 3. Select a release, client, and destination in one workflow; schedule replacement of a **specific** old file or keep both.
 4. Find byte-identical files, other versions of the same movie, and possible matches. Never silently delete anything.
 
+**Note (2026-10-05, MAM-33):** the app now also proposes works the library doesn't have yet —
+films, series, cartoons and documentaries picked from what it has, through an external catalog
+(TMDb), each with every reason it is proposed and what the release sources carry of it (§3.5). It
+proposes only: the user still chooses every release on the search page and sends it through the
+Download dialog, and nothing is ever sent, queued or downloaded because of a recommendation
+([ADR 0023](adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)).
+
 ## 2. First-version scope and default decisions
 
 | Question | Working decision | Status |
@@ -96,6 +103,20 @@ For the MVP, **move the selected media-library copy into quarantine** instead of
 
 Do not indiscriminately call Jellyfin's `DELETE /Items/{id}`: one item may represent multiple versions, and API permissions and semantics depend on the version. Removal must target a specific file inside authorized storage and be recorded in an audit trail. Never remove the old file because a timer expired or the download reached 100%.
 
+### 3.5 Recommendations
+
+*Added 2026-10-05 (MAM-33, release 0.2.1).*
+
+- Suggest films, series, cartoons and documentaries the library doesn't have yet, from an external catalog connected as a metadata integration with the owner's own key (TMDb). Four lists by the catalog's genres: a documentary goes to Documentaries, else an animation (anime included) to Cartoons, else a film to Movies and a show to Series.
+- Every suggestion shows each reason it is there: the missing parts of a collection the library holds part of; other works of a director or show creator with two or more works in the library; the catalog's recommendations, weighted by how many library works recommend the work; the aired seasons of a held series with no episode in the library (specials ignored, partly held seasons not flagged); what a release source has just published; and, for a list with few library works, the catalog's best-rated works that a release source carries. The order is a deterministic score of those reasons and of the rating weighed by its vote count, and the user may sort a list by rating, votes, date, title or the releases found instead. A rating floor that weighs the vote count applies to reasons of taste only; works not released yet are never suggested.
+- Leave out works the library holds — by a reliable identifier, then by title and year, never by title alone (§3.1) —, works a file found by the folder scan names, works with a download job (any user's) that ended without failing — Downloaded, NeedsLinking or Cancelled —, and works the user marked "Not interested", which is kept per user. A work with a followed job (Created, Submitted, Downloading, Paused) stays listed and is marked Downloading; a failed job changes nothing.
+- Check the release sources for each suggested work within each user's daily search budget (default 60, 0 for none), split between the user's enabled lists. The result is kept per work, apart from searches, shared by every user, and checked again after a day when found and after a week when not. Read each source's newest releases every few hours, one request per source.
+- Never download automatically: a suggestion opens the search page for its work, and the user sends a release through the Download dialog (§3.2).
+- Keep the catalog's data apart from the library: never written into the library's works, titles or identifiers, never shown on the Library page, refreshed after about 30 days. A work without a catalog id is looked up by its IMDb id or title and year, as a possible match used for recommendations only. Posters are served by the app; the browser never contacts the catalog.
+- Each user switches the four lists on or off and sets the daily limit in their profile; every list is on until they change it.
+
+See [ADR 0023](adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md), [ADR 0024](adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md) and [ADR 0025](adr/0025-the-catalog-is-kept-apart-from-the-library.md).
+
 ## 4. Architecture and data model
 
 ```mermaid
@@ -104,6 +125,7 @@ flowchart TD
     Core --> Library["Media inventory adapters"]
     Core --> Indexers["Search adapters"]
     Core --> Clients["Download client adapters"]
+    Core --> Catalogs["Metadata catalog adapters"]
     Core --> Store["SQLite + filesystem scanner"]
 ```
 
@@ -115,7 +137,8 @@ Application-level contracts (interfaces/ports) with explicit capabilities:
 | `IReleaseSearchProvider` | Search and normalize results; retrieve a payload separately for client submission | Torznab (Jackett) |
 | `IDownloadClient` | Supported payload types, destination validation, submission, status, file list/status, job correlation | qBittorrent |
 | `IFileInventory` | Scan only allowed roots; file identity, size/hash, ffprobe, quarantine | Local/container mount |
-| `IMetadataResolver` | Authoritative IDs/titles and matching without silent guesses | Media-server data; external service if needed |
+| `IMetadataResolver` | Authoritative IDs/titles and matching without silent guesses | TMDb (MAM-33), for recommendations only; a search matches against the library snapshot instead |
+| `IMetadataCatalog` | Details, collections, people, genres, search, discovery and posters of works the library may not have | TMDb (MAM-33) |
 
 **Entity boundaries:** `MediaWork` (a movie or episode as a work), `MediaVersion` (edition/quality), `PhysicalFile` (file or filesystem link), `Release` (source listing), `DownloadJob` (client operation), `ReplacementJob` (intent concerning specific old files), `DestinationMapping`, `AuditEvent`. Do not assume `MediaWork == Jellyfin ItemId`, `Release == one file`, or `PhysicalFile == one physical copy of the bytes`.
 
@@ -136,6 +159,10 @@ Minimum `ReplacementJob` fields: internal ID, source/release reference or snapsh
 **Duplicates:** filters for `byte-identical`, `same work / other versions`, and `possible`; show the evidence behind each grouping. Display a numeric “potentially recoverable space” estimate only when the storage relationship is known well enough to calculate it.
 
 **Jobs:** queue with current state, verification progress, and reason for any block; cancellation of pending removal, retrying verification, and manual resolution of ambiguity. Cancelling a job does not automatically delete its torrent from the client.
+
+**Recommendations (MAM-33):** tabs for the user's enabled lists (Movies, Series, Cartoons, Documentaries); filters by reason, genre, decade, films or series, and available only. Each card shows the poster, the localized and original title, year, genres and rating, every reason as a chip, the release sources' status ("4 releases · up to 2160p · Ukr", "Not found (checked 3 days ago)" or "Not checked yet") and "Downloading" while a download of it runs. Actions: `Releases` opens the search page with the title and year, and a film's catalog (TMDb) id (a show's search takes none), then the Download dialog; `Not interested`, with undo. The owner can recompute the lists. The catalog's attribution is shown.
+
+**Profile:** besides the user's own password and session, a Recommendations section with the four list switches and the daily search limit; every user changes their own.
 
 ## 6. Implementation phases and acceptance criteria
 

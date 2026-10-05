@@ -204,3 +204,28 @@ unchanged; sending adds no request of its own to an address a service supplied
 plants a magnet's tracker passkey beside the feed's key, Prowlarr's link token and qBittorrent's
 password and session, and finds none in an answer, the log, a job's error or an audit row;
 `QBittorrentAdapterSubmitTests` pins the masking in the adapter.
+
+## TMDb's token (added 0.2.1, MAM-33)
+
+**Sealed like every key, and sent in a header.** The TMDb integration's API Read Access Token is the
+row's API key: sealed to its integration and field, never returned (`hasApiKey`), masked out of any
+text TMDb echoes. It travels only as `Authorization: Bearer`, never as v3's `api_key=` in a query, so
+unlike a Torznab key no URI carries it and the Consequences' proxy that may log a query sees none of
+it. The posters come from TMDb's image host, `https://image.tmdb.org`, a constant of the adapter
+rather than an address an answer supplies; it takes no key, and gets no `Authorization` header.
+`VendorSamplesTests` gains a "bearer token" rule: a recorded `Authorization: Bearer` followed by
+anything but `REDACTED` fails the build.
+
+**One kind of retry, of reads only.** The Decision's "retry nothing" holds for the integration HTTP
+clients, which still have no retry handler. The TMDb adapter itself sends a GET again after TMDb
+answers 429 — at most three times, after the wait TMDb asked for, 10 seconds at most
+([ADR 0005](0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)) —: an answer
+that says the request was not served, of a read that changes nothing. It sends no write, and no
+sign-in to repeat.
+
+`TmdbAdapterTests.TestConnection_reads_the_authentication_sample_with_the_token_in_the_bearer_header`,
+`TmdbAdapterWorksTests.GetWork_cleans_a_title_and_masks_a_token_it_echoes`,
+`TmdbAdapterPostersTests.GetPoster_fetches_the_w342_poster_from_tmdbs_image_host_without_the_token`,
+`TmdbAdapterRateLimitTests.A_429_is_waited_out_and_the_same_get_is_sent_again` and
+`IntegrationsInfrastructureExtensionsTests.A_metadata_call_and_a_poster_fetch_log_nothing_from_the_http_client`
+pin it.

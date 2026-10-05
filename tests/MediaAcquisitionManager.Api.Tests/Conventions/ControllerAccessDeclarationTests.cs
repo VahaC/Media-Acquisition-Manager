@@ -76,6 +76,17 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("DownloadsController.List", actions);
         Assert.Contains("DownloadsController.Files", actions);
         Assert.Contains("DownloadsController.Cancel", actions);
+        // MAM-33 — outside Controllers/Settings and Controllers/Library: every signed-in user's, the owner's write
+        // declared on its action.
+        Assert.Contains("RecommendationsController.LatestRun", actions);
+        Assert.Contains("RecommendationsController.StartRun", actions);
+        Assert.Contains("RecommendationsController.List", actions);
+        Assert.Contains("RecommendationsController.Dismiss", actions);
+        Assert.Contains("RecommendationsController.Undismiss", actions);
+        Assert.Contains("RecommendationsController.Poster", actions);
+        // The signed-in user's own preferences, by the token: outside Controllers/Settings, every user's.
+        Assert.Contains("ProfileController.GetRecommendationSettings", actions);
+        Assert.Contains("ProfileController.UpdateRecommendationSettings", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

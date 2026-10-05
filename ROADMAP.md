@@ -10,19 +10,21 @@ search page of library copies and releases), MAM-13 (sending a release to qBitto
 search field in the header, numbered pages, versions as rows or a table, one error state per kind of
 failure, and a Profile page where every user changes their own password) are built, and MAM-15
 checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
-access tokens) is still to do; no phase has shipped yet. Phase B, release 0.2.0, has started: MAM-17
-answered specification §7 questions 3 and 6 against the live installation on 2026-10-04, and MAM-32
-(series and episodes in the library, and searching, matching and sending their releases), MAM-18
-(the scan of the media folders for the files no library reported) and MAM-19 (the room the files
-take, each file counted once, and the hashing of only the files that could be copies) are built.
+access tokens) is still to do; no phase has shipped yet. Phase B, releases 0.2.0 and 0.2.1, has
+started: MAM-17 answered specification §7 questions 3 and 6 against the live installation on
+2026-10-04, and MAM-32 (series and episodes in the library, and searching, matching and sending
+their releases), MAM-18 (the scan of the media folders for the files no library reported) and
+MAM-19 (the room the files take, each file counted once, and the hashing of only the files that
+could be copies) are built. MAM-33 (recommendations of the works the library doesn't have yet, from
+TMDb, with what Toloka carries of them) is built and ships as release 0.2.1.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32. Releases for
-phases C and D are not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 and MAM-33.
+Releases for phases C and D are not decided yet.
 
 ## Phases
 
@@ -200,7 +202,8 @@ existing file untouched.
   source and Download, which MAM-13 made send the release. MAM-10's
   `POST /api/releases/search` stays as it was (owner's choice), and both searches ask and store
   through one implementation; `IMetadataResolver` stays unimplemented, as the snapshot needs no call
-  to Jellyfin. The HTTP tests cover the concurrent asking
+  to Jellyfin (MAM-33 implements it with TMDb, for recommendations only). The HTTP tests cover the
+  concurrent asking
   (`SearchesConcurrencyHttpTests.Create_asks_the_library_and_every_source_at_once`), one failing
   source (`SearchesFailingSourcesHttpTests.Create_with_one_failing_source_is_201_with_its_error_beside_the_other_sources_answer`),
   the filters and sorts (`SearchReleasesListHttpTests.Releases_filters_and_orders_the_searchs_releases_on_the_server`),
@@ -425,7 +428,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
-**Release:** 0.2.0. **Tickets:** MAM-17 to MAM-22 and MAM-32.
+**Release:** 0.2.0, and 0.2.1 for MAM-33 (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32
+and MAM-33.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -458,7 +462,8 @@ episode, and how much space could really be recovered — without the app guessi
   at a time (`GET /api/library/works/{id}/episodes`), an episode of no series as a card of its own,
   and a Movies/Series filter (Vasyl's decisions 2 and 6). The release search asks every source for
   TV beside movies — the title without the year in its TV categories, a season where asked — and a
-  release is TV by its category; a TV title is read for its seasons, episodes and span of years, a
+  release is TV by its category, in TV/Anime and TV/Documentary by a season or episodes marker since
+  MAM-33; a TV title is read for its seasons, episodes and span of years, a
   TV release matches library series only and a movie release movies only, and each TV match counts
   the episodes held of what it claims; the Search page lists series in **In your library**, has a
   Season field and a Movies/TV filter (Vasyl's decisions 4 and 6). The owner maps a release source's
@@ -501,6 +506,51 @@ episode, and how much space could really be recovered — without the app guessi
   0022](docs/adr/0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md),
   [ADR
   0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+- **MAM-33 Recommendations** (built, release 0.2.1): a Recommendations page in the header suggests
+  the films, series, cartoons and documentaries the library doesn't have yet, in four tabs — Movies,
+  Series, Cartoons, Documentaries — by their catalog genres (Vasyl's decision 2), each with every
+  reason as a chip: a collection's missing released parts ("2 of 3"), the other works of a director
+  or creator two or more library works are by, the catalog's recommendations weighted by how many
+  library works point at them, a held series' aired seasons with no episode, what a release source
+  just published, and for a tab with few library works the best-rated works a source carries. The
+  order is a fixed score of those reasons; a rating floor applies to reasons of taste only; a work not
+  released yet, one the library holds by id or by title and year, and one a scanned file's name
+  claims are left out ([ADR
+  0023](docs/adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)). The
+  catalog is TMDb under the owner's own token, a new kind of integration, Metadata (Vasyl's decision
+  1, [ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md));
+  its answers live in tables of their own with their provenance, are read again after 30 days and are
+  never written to the library ([ADR
+  0025](docs/adr/0025-the-catalog-is-kept-apart-from-the-library.md)). A background run (202 + run row
+  + reconciler) computes the lists after every successful sync, when TMDb is connected, on the
+  owner's **Recompute now**, when someone switches on a tab nobody had on and when a source's newest
+  releases resolve to new works. Toloka is asked about the recommended works within each user's daily
+  limit (60 by default, 0 for none), split between their tabs, at most 4 searches every 15 minutes, the
+  result shared by every user and checked again after a day when found and a week when not, and its
+  newest 90 releases are read every 3 hours for "New on Toloka" ([ADR
+  0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)). A
+  card's **Releases** opens the Search page with the work; nothing is sent by itself. "Not interested"
+  is each user's own (Vasyl's decision 3), and each user's Profile switches the tabs and sets the limit,
+  every tab on until they save (decision 5). A film Toloka files in TV/Anime or
+  TV/Documentary is a movie unless its title or description names seasons or episodes, and the movie
+  search asks those two categories too, which fixes the ordinary search for documentary and anime films
+  (decision 6, [ADR
+  0020](docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)
+  amended); each release keeps Toloka's own topic title. Checked live on 2026-10-05: the app's
+  container reaches TMDb's API and image host; Prowlarr answers Toloka's latest 90 releases with no
+  paging; with Vasyl's token the library's 640 TMDb movie ids took 943 calls and about 3 minutes, with
+  no rate limit met — 279 movies in 118 collections, 42 of them incomplete with 63 released parts
+  missing, 138 directors with two or more films, and, by a script's estimate, 2,274 film candidates
+  over a rating floor with a collection, a director or two recommending films behind them. TMDb was
+  then connected in the app with Vasyl's token, and the computation adding it queued took 3 min 15 s:
+  815 seeds (640 by TMDb id, 169 found by title and year or IMDb id, 6 shows) and 3,634 candidates
+  (Movies 2,852, Cartoons 545, Documentaries 135, Series 102), 109 of them top-rated fallbacks waiting
+  for a release source to carry them; the missing seasons of How the Universe Works (3–11), The Grand
+  Tour (5–6) and MobLand (2) are recommended, and so is Planet Earth, whose episodes the library holds
+  as movie items with no id (MAM-34 links them). That run's order changed the score — a rating weighed
+  by its votes, the recommenders by their logarithm — and the run's progress is now shown, as Vasyl
+  asked. The checks of Toloka for the recommended works, the app's reading of its newest releases and
+  a download from a recommendation are still to be tried live.
 - Separate the duplicate classes of specification §3.3: the same file or a hardlink,
   byte-identical copies, other versions of the same work — a registry id the files share, for an
   episode its own or its series' with its numbers (ADR 0017) — and possible matches. A seeding file
@@ -512,14 +562,21 @@ episode, and how much space could really be recovered — without the app guessi
   copies whole again — so they need no export of their own; the series, seasons and episodes come
   back with the next sync, like the movies. The tracker sections mapped to destinations are rows of
   the database beside the destinations, in the data directory's backup; a search's season and its
-  releases' kinds and categories live for a day, like the search.
+  releases' kinds and categories live for a day, like the search. MAM-33's catalog, recommendations,
+  availability checks and newest releases rebuild themselves from TMDb and the release sources, and the
+  posters in `<data>/posters/` are fetched again when missing; each user's "Not interested" and Profile
+  settings are rows of `mam.db`, in its backup.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
 yet: a release's title says which episodes it holds, and a season can be searched for. Jellyfin's
 season items and its virtual (missing) episodes (Vasyl's decisions 1 and 3). Letting a file name
 decide what a library item is (ADR 0017), or a release's title what a release is: its source's
-category decides (ADR 0020).
+category decides (ADR 0020), except in TV/Anime and TV/Documentary, where Toloka files films beside
+series and a season or episodes marker in the title or description decides (MAM-33). For MAM-33: any
+download a recommendation starts by itself; weighting by what was watched or marked favourite, as
+Jellyfin's user data needs a user and the integration has an API key only; and writing the TMDb ids
+the app found into the library or showing the catalog's data on the Library page (ADR 0025).
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -547,6 +604,17 @@ a fact only one of them knows or a file ffprobe couldn't read rules nothing out;
 modification time, inode or device hashes the file again and forgets the old hash, while a mount
 away for several runs costs no hash of a file the app has a reading of; a file that changes while it
 is hashed keeps nothing; one file is hashed at a time; and a restart's run hashes only what is left.
+MAM-33: the TMDb adapter reads its recorded answers — a film's details with its collection, credits
+and recommendations, a show's with its seasons, a collection, a person's credits, searches, a find,
+discoveries, the genre lists and a wrong token —, paces its requests and waits out a 429; the Torznab
+adapter reads Toloka's recorded newest releases and their descriptions; each signal and each
+exclusion, the tabs by genre, a tab nobody has on never asked, the rating floor for taste alone and
+the missing seasons; the catalog's rows apart from the library with their provenance, read again
+after 30 days, a lookup cached when it found nothing; the run's start, worker, reconciler and
+triggers; a film in TV/Anime or TV/Documentary matched to the library's movie by the ordinary search;
+and the list's filters and read-time rules, "Not interested" per user, the tab switches and limits
+with the budget split and the shared result, the availability check and its recheck rules, the poster
+endpoint and the Profile settings.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -563,7 +631,11 @@ doesn't list; and the inspection after a second scan reads nothing new. Checked 
 an image of the change beside production, on a copy of its data with the media read-only (Vasyl's
 decision 4): 1,395 files — the 1,394 in the library folders MAM-17 counted, and a software disc
 image at the root of `/media` — of which the 1,378 Jellyfin lists matched by path and 17 are in no
-library; the inspection read only those 17, and a second scan read nothing.
+library; the inspection read only those 17, and a second scan read nothing. For MAM-33: TMDb with
+Vasyl's token gives each tab its recommendations on the reference installation; the checks of Toloka
+stay within the users' limits; and a download from a recommendation lands in the destination of its
+section, its card gone after the next sync; and the page works in a browser at desktop and phone
+width.
 
 ### Phase C — Safe replacement
 

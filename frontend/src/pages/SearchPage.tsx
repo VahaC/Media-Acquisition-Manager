@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatNumber } from '@/lib/format'
 import { useCreateSearch, useSearch, useSearchReleases } from '@/lib/queries'
-import { isSearchId, parseSearchQuery } from '@/lib/search-query'
+import { isSearchId, parseSearchQuery, parseTmdbId } from '@/lib/search-query'
 import { bytesFromGibibytes } from '@/lib/size-input'
 import type { LibraryMatch, SearchRelease, SearchReleasesQuery, SearchRequest, SearchResponse, SearchSource } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
@@ -89,7 +89,10 @@ export function SearchPage() {
   // MAM-16 — the line typed in the header. An address with an id is that search, whatever else it
   // holds.
   const line = addressId === '' ? (searchParams.get('q') ?? '').trim() : ''
-  const asked = line === '' ? null : parseSearchQuery(line)
+  // MAM-33 — the Recommendations page's Releases link adds a film's TMDb id beside the line, which
+  // narrows the search to that film. Read with the line only, and only when it is digits.
+  const askedTmdbId = line === '' ? null : parseTmdbId(searchParams.get('tmdbId'))
+  const asked = line === '' ? null : withTmdbId(parseSearchQuery(line), askedTmdbId)
   const search = useSearch(id)
   const { data, error, isLoading } = search
   const load = useLoadRetry(search)
@@ -111,8 +114,9 @@ export function SearchPage() {
     setCreateError(null)
   }
   // Until the person types, the fields say what the search on screen was narrowed by — the one in
-  // the address on F5, one Back returns to, the one just made — or the year the line asks for.
-  const shown = edited ? form : data ? formOf(data) : { ...EMPTY_FORM, year: asked?.year ?? '' }
+  // the address on F5, one Back returns to, the one just made — or the year the line asks for (and,
+  // MAM-33, the TMDb id beside it).
+  const shown = edited ? form : data ? formOf(data) : { ...EMPTY_FORM, year: asked?.year ?? '', tmdbId: asked?.tmdbId ?? '' }
   // The title "Results for" names and the form narrows: the search on screen's, else the line's.
   const text = data?.text ?? asked?.text ?? null
   const searching = creatingFrom === entryKey
@@ -160,7 +164,7 @@ export function SearchPage() {
   // the answer that came meanwhile (it is in the cache); a page opened afresh knows of no search.
   const searchFromAddress = useEffectEvent((typed: string) => {
     const made = madeFromLine.current.get(entryKey)
-    if (made === undefined) void start(parseSearchQuery(typed), true)
+    if (made === undefined) void start(withTmdbId(parseSearchQuery(typed), askedTmdbId), true)
     else if (made !== null) setSearchParams({ id: made }, { replace: true })
   })
   useEffect(() => {
@@ -306,6 +310,11 @@ export function SearchPage() {
       ) : null}
     </div>
   )
+}
+
+/** MAM-33 — `request` narrowed by `tmdbId` when there is one; left out of the request otherwise. */
+function withTmdbId(request: SearchRequest, tmdbId: string | null): SearchRequest {
+  return tmdbId === null ? request : { ...request, tmdbId }
 }
 
 /** The search as the form shows it: every field as text, one the search didn't give left blank. */

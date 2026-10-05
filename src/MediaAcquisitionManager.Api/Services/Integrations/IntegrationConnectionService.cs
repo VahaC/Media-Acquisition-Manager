@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
@@ -26,6 +27,7 @@ public sealed partial class IntegrationConnectionService(
     IEncryptionService encryption,
     IIntegrationSettingsFactory settingsFactory,
     ILibrarySnapshotStore librarySnapshots,
+    IRecommendationRunService recommendations,
     IAuditTrail auditTrail,
     IIntegrationMapper mapper,
     TimeProvider time,
@@ -37,7 +39,8 @@ public sealed partial class IntegrationConnectionService(
     /// </summary>
     private const int AdapterTypeEchoLength = 64;
 
-    /// <summary>How much of an unknown kind a sentence repeats; the longest kind is 14 characters.</summary>
+    /// <summary>How much of an unknown kind a sentence repeats; the longest kind is 14 characters
+    /// (<c>DownloadClient</c>; MAM-33's <c>Metadata</c> is shorter).</summary>
     private const int KindEchoLength = 32;
 
     private const string AdapterTypeMissingError = "Choose the service to connect to.";
@@ -54,7 +57,7 @@ public sealed partial class IntegrationConnectionService(
             if (ParseKind(kind) is not { } parsedKind)
             {
                 return IntegrationListResult.Invalid(
-                    $"“{Echo(kind.Trim(), KindEchoLength)}” is not a kind of integration. Use MediaLibrary, ReleaseSearch or DownloadClient.");
+                    $"“{Echo(kind.Trim(), KindEchoLength)}” is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata.");
             }
 
             // On the column copied from the type at creation, so the filter runs in SQL.
@@ -167,6 +170,8 @@ public sealed partial class IntegrationConnectionService(
 
         logger.LogInformation(
             "{ActorUserName} added the integration {IntegrationName} ({AdapterType}).", actor.UserName, integration.Name, integration.AdapterType);
+        if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled)
+            await QueueRecommendationsAsync(integration.Id, cancellationToken);
         return IntegrationChangeResult.Succeeded(mapper.ToDto(integration, descriptor));
     }
 
@@ -202,6 +207,7 @@ public sealed partial class IntegrationConnectionService(
         if (await db.IntegrationConnections.AnyAsync(other => other.NormalizedName == normalizedName && other.Id != integration.Id, cancellationToken))
             return NameTaken(name);
 
+        var wasEnabled = integration.IsEnabled;
         integration.Name = name;
         integration.NormalizedName = normalizedName;
         integration.BaseUrl = IntegrationConnectionRules.NormalizeBaseUrl(request.BaseUrl!);
@@ -246,6 +252,8 @@ public sealed partial class IntegrationConnectionService(
         }
 
         logger.LogInformation("{ActorUserName} changed the integration {IntegrationName}.", actor.UserName, integration.Name);
+        if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled && !wasEnabled)
+            await QueueRecommendationsAsync(integration.Id, cancellationToken);
         return IntegrationChangeResult.Succeeded();
     }
 
@@ -295,6 +303,23 @@ public sealed partial class IntegrationConnectionService(
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// MAM-33 — with a metadata catalog just connected, or switched back on, the recommendations can be computed (again)
+    /// without waiting for the next library sync: a computation is queued (or the waiting one joined). The save has happened and stands: a full queue or a failure here is
+    /// logged, never the save's answer, and the queuing writes no audit row of its own — the run row records it.
+    /// </summary>
+    private async Task QueueRecommendationsAsync(Guid integrationId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await recommendations.EnsureQueuedAsync(RecommendationRunTrigger.CatalogConnected, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Metadata integration {IntegrationId} was saved, but no recommendation run could be queued after it.", integrationId);
+        }
+    }
 
     private IntegrationDto ToDto(IntegrationConnectionEntity integration) =>
         mapper.ToDto(integration, adapters.Find(integration.AdapterType)?.Descriptor);

@@ -8,8 +8,9 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Conventions;
 // The vendor samples are real answers from the reference installation (MAM-6), so the adapters are
 // tested against what the services actually send. A real answer can carry the credentials that
 // fetched it: Prowlarr's API key in every download link, a tracker passkey in a magnet or a tracker
-// URL, the Toloka forum session in a topic link. A sample refreshed by hand could bring one back into
-// the repository, so each of those shapes fails the build here.
+// URL, the Toloka forum session in a topic link; MAM-33 — TMDb's API Read Access Token in a recorded
+// Authorization header. A sample refreshed by hand could bring one back into the repository, so each of
+// those shapes fails the build here.
 public sealed partial class VendorSamplesTests
 {
     private const string ReadmeFileName = "README.md";
@@ -18,7 +19,7 @@ public sealed partial class VendorSamplesTests
     private const string KeyLikeNames =
         "apikey|api_key|api_token|apitoken|jackett_apikey|passkey|pk|uk|tp|token|access_token|link|authkey|torrent_pass|rsskey|key|secret|password|passwd|pwd|pass|auth|sig|signature|x-plex-token";
 
-    private static readonly string[] Integrations = ["Jellyfin", "QBittorrent", "Torznab", "Ffprobe"];
+    private static readonly string[] Integrations = ["Jellyfin", "QBittorrent", "Torznab", "Ffprobe", "Tmdb"];
 
     public static TheoryData<string> Samples() => new(SampleFiles());
 
@@ -89,6 +90,9 @@ public sealed partial class VendorSamplesTests
     [InlineData("\"proxy_password\": \"hunter2secret\"", "credential field")]
     [InlineData("Authorization: MediaBrowser Client=\"MAM\", Token=\"0123456789abcdef\"", "credential header")]
     [InlineData("X-Api-Key: 0123456789abcdef", "credential header")]
+    [InlineData("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwMTIzIn0.c2lnbmF0dXJl", "bearer token")]
+    [InlineData("authorization:bearer 0123456789abcdef", "bearer token")]
+    [InlineData("\"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwMTIzIn0.c2lnbmF0dXJl\"", "bearer token")]
     public void Leak_rules_flag_a_planted_credential(string text, string rule)
     {
         //Arrange
@@ -110,6 +114,8 @@ public sealed partial class VendorSamplesTests
     [InlineData("\"reannounce\": 41")]
     [InlineData("\"HasPassword\": false, \"TokenLifetime\": 3600")]
     [InlineData("\"title\": \"Брати по зброї / Brothers in Arms\"")]
+    [InlineData("Authorization: Bearer REDACTED")]
+    [InlineData("\"overview\": \"A bearer of bad news\"")]
     public void Leak_rules_let_redacted_and_ordinary_text_through(string text)
     {
         //Arrange
@@ -174,6 +180,7 @@ public sealed partial class VendorSamplesTests
         ("URL-encoded URL", EncodedUrl()),
         ("credential field", CredentialField()),
         ("credential header", CredentialHeader()),
+        ("bearer token", BearerToken()),
     ];
 
     [GeneratedRegex(@"[?&;](?:" + KeyLikeNames + @")(?:=|%3D)(?!REDACTED)[^&""'<>\s]", RegexOptions.IgnoreCase)]
@@ -211,4 +218,9 @@ public sealed partial class VendorSamplesTests
 
     [GeneratedRegex(@"\b(?:X-Api-Key|X-Emby-Token)\s*:\s*(?!REDACTED)\S|\bMediaBrowser\b[^\r\n]*\bToken=""(?!REDACTED"")", RegexOptions.IgnoreCase)]
     private static partial Regex CredentialHeader();
+
+    // MAM-33 — TMDb's v4 token travels as Authorization: Bearer; recorded as a header line or as JSON, only
+    // REDACTED may follow the scheme.
+    [GeneratedRegex(@"\bAuthorization[""']?\s*:\s*[""']?Bearer\s+(?!REDACTED\b)[^\s""']", RegexOptions.IgnoreCase)]
+    private static partial Regex BearerToken();
 }

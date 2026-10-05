@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ThemeSwitch } from '@/components/ThemeSwitch'
 import { ChangePasswordCard } from '@/components/profile/ChangePasswordCard'
+import { RecommendationSettingsCard } from '@/components/profile/RecommendationSettingsCard'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { RetryButton } from '@/components/shared/RetryButton'
@@ -24,6 +25,9 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  * The head comes from the signed-in user the app already holds, so it shows at once; the account's
  * dates and the session's end come from `GET /api/auth/me`. A failed first load of those shows in
  * the Account card, and the Session card leaves its sentence out until there is a date to put in it.
+ *
+ * MAM-33 — and their Recommendations: the lists they want and their daily search budget, a card with
+ * its own Save (RecommendationSettingsCard).
  */
 export function ProfilePage() {
   const { t } = useTranslation(['profile', 'auth', 'common'])
@@ -116,6 +120,8 @@ export function ProfilePage() {
           <ThemeSwitch showLabels />
         </div>
       </section>
+
+      <RecommendationSettingsCard />
 
       <section className="ui-card" aria-labelledby="profile-session-title">
         <div className="ui-card-header">

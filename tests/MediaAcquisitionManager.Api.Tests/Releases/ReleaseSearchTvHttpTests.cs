@@ -18,14 +18,17 @@ namespace MediaAcquisitionManager.Api.Tests.Releases;
 // what it sends (the movie tiers, then the TV tiers; a season to the TV search alone), what it lists (the
 // movies, then the TV releases, a listing both find once), what a failing TV query costs (the whole
 // source), and what it keeps (each release's kind, categories and ids) and answers (each release's kind).
+// MAM-33 — the movie search asks TV/Anime and TV/Documentary too, and a release there that names no season
+// or episode is a film (ADR 0020).
 public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/releases/search";
     private const string FeedAddress = "http://prowlarr.test:9696/1/api";
     private const string ApiKey = "planted-torznab-key-0001";
 
-    // The categories of Toloka's caps sample each family searches in.
-    private const string MovieCategories = "cat=2000,2020,2040,2070";
+    // The categories of Toloka's caps sample each family searches in. MAM-33 — TV/Anime and TV/Documentary
+    // in both: Toloka files films beside series there (ADR 0020).
+    private const string MovieCategories = "cat=2000,2020,2040,2070,5070,5080";
     private const string TvCategories = "cat=5000,5040,5050,5060,5070,5080";
 
     private const string SeasonSentence = "“Toloka” offers no search this app can use for a season: no TV category, or neither a search by text nor a TV search by title or by an id that was asked for.";
@@ -44,6 +47,16 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
         "World Natural Heritage USA: Yellowstone National Park (2013) IPTVRemux",
         "Wild Yellowstone She Wolf (2013) HDTV",
         "Wild Yellowstone She Wolf (2013) HDTV 1080i Ukr/Eng",
+    ];
+
+    /// <summary>
+    /// The kinds of <see cref="YellowstoneTitles"/>: MAM-33 — the last three, in TV/Documentary and naming no
+    /// season, are films; the BBC's "Yellowstone (S1) (2009)" beside them a series (ADR 0020).
+    /// </summary>
+    private static readonly ReleaseKind[] YellowstoneKinds =
+    [
+        .. Enumerable.Repeat(ReleaseKind.Tv, TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount),
+        .. Enumerable.Repeat(ReleaseKind.Movie, TorznabSamples.TvFilmItemCount),
     ];
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
@@ -84,9 +97,7 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
         // The movie search's answer first, as the movie tiers found it, then the TV search's.
         Assert.Equal(SampleMovieCount + TorznabSamples.TvItemCount, source.Releases.Count);
         Assert.Equal(YellowstoneTitles, source.Releases.Skip(SampleMovieCount).Select(release => release.Title));
-        Assert.Equal(
-            [.. Enumerable.Repeat(ReleaseKind.Movie, SampleMovieCount), .. Enumerable.Repeat(ReleaseKind.Tv, TorznabSamples.TvItemCount)],
-            source.Releases.Select(release => release.Kind));
+        Assert.Equal([.. Enumerable.Repeat(ReleaseKind.Movie, SampleMovieCount), .. YellowstoneKinds], source.Releases.Select(release => release.Kind));
         Assert.Equal(
             [
                 $"{FeedAddress}?t=caps&apikey={ApiKey}",
@@ -98,9 +109,7 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
         {
             var stored = await db.Releases.AsNoTracking().OrderBy(release => release.Position).ToListAsync(cancellationToken);
             Assert.Equal(source.Releases.Select(release => release.Id), stored.Select(release => release.Id));
-            Assert.Equal(
-                [.. Enumerable.Repeat(ReleaseKind.Movie, SampleMovieCount), .. Enumerable.Repeat(ReleaseKind.Tv, TorznabSamples.TvItemCount)],
-                stored.Select(release => release.Kind));
+            Assert.Equal([.. Enumerable.Repeat(ReleaseKind.Movie, SampleMovieCount), .. YellowstoneKinds], stored.Select(release => release.Kind));
             // The listing's categories as it lists them: the standard one, then Toloka's own section.
             Assert.Equal("2040,100096", stored[0].CategoryIds);
             Assert.Equal(
@@ -123,11 +132,12 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))!.AsObject();
         var releases = body["sources"]![0]!["releases"]!.AsArray();
+        // MAM-33 — the description between them.
         Assert.Equal(
-            ["id", "title", "kind", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl", "categories", "payloadKind", "claimed"],
+            ["id", "title", "description", "kind", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl", "categories", "payloadKind", "claimed"],
             releases[0]!.AsObject().Select(property => property.Key));
         Assert.Equal(
-            [.. Enumerable.Repeat("Movie", SampleMovieCount), .. Enumerable.Repeat("Tv", TorznabSamples.TvItemCount)],
+            [.. Enumerable.Repeat("Movie", SampleMovieCount), .. YellowstoneKinds.Select(kind => kind.ToString())],
             releases.Select(release => (string)release!["kind"]!));
         await _factory.WithDbAsync(async db =>
         {
@@ -313,7 +323,7 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
         Assert.Equal(YellowstoneTitles, Assert.Single((await ReadAsync(response, cancellationToken)).Sources).Releases.Select(release => release.Title));
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
-                Enumerable.Repeat(ReleaseKind.Tv, TorznabSamples.TvItemCount),
+                YellowstoneKinds,
                 await db.Releases.AsNoTracking().OrderBy(release => release.Position).Select(release => release.Kind).ToListAsync(cancellationToken)));
     }
 
@@ -343,7 +353,9 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
         var source = Assert.Single((await ReadAsync(response, cancellationToken)).Sources);
         Assert.Equal(SampleMovieCount + TorznabSamples.TvItemCount, source.Releases.Count);
         await _factory.WithDbAsync(async db =>
-            Assert.Equal(TorznabSamples.TvItemCount, await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Tv, cancellationToken)));
+            Assert.Equal(
+                TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount,
+                await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Tv, cancellationToken)));
     }
 
     [Fact]
@@ -412,7 +424,9 @@ public sealed class ReleaseSearchTvHttpTests : IClassFixture<MediaAcquisitionMan
             ],
             _factory.TorznabHttp.Requests.Select(request => request.Uri.AbsoluteUri));
         await _factory.WithDbAsync(async db =>
-            Assert.Equal(TorznabSamples.TvItemCount, await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Tv, cancellationToken)));
+            Assert.Equal(
+                YellowstoneKinds,
+                await db.Releases.AsNoTracking().OrderBy(release => release.Position).Select(release => release.Kind).ToListAsync(cancellationToken)));
     }
 
     [Fact]

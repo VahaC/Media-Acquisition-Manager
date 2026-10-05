@@ -5,15 +5,16 @@ using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
+using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.Settings;
 
-// MAM-7 — the three real adapters behind the API, with only the network faked (each named client's
-// primary handler) and the answers the services really send (VendorSamples, MAM-6): the request each
-// makes with the stored credentials, and the sentence the dialog gets back. The adapters' every case
-// is in Infrastructure.Tests; these pin the wiring from a saved row, or a draft, to the wire.
+// MAM-7 — the real adapters behind the API, with only the network faked (each named client's primary
+// handler) and the answers the services really send (VendorSamples, MAM-6): the request each makes with
+// the stored credentials, and the sentence the dialog gets back. MAM-33 adds TMDb. The adapters' every
+// case is in Infrastructure.Tests; these pin the wiring from a saved row, or a draft, to the wire.
 public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/integrations";
@@ -27,6 +28,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
     private const string SessionId = "Zq3xY9LmN2pQ7rT4vW8sK1aB6cD0eF5g";
     private const string SignInPath = "/api/v2/auth/login";
     private const string VersionPath = "/api/v2/app/version";
+    private const string TmdbApiKey = FakeTmdbServer.Token;
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -40,6 +42,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         { "jellyfin", "Jellyfin" },
         { "torznab", "Torznab" },
         { "qbittorrent", "qBittorrent" },
+        { "tmdb", "TMDb" },
     };
 
     public async ValueTask InitializeAsync()
@@ -256,6 +259,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
     [InlineData("jellyfin")]
     [InlineData("torznab")]
     [InlineData("qbittorrent")]
+    [InlineData("tmdb")]
     public async Task Test_answered_with_a_redirect_is_an_unexpected_response_after_one_request(string adapterType)
     {
         //Arrange
@@ -277,6 +281,58 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         // Not followed: the credentials went to the saved address only.
         var request = Assert.Single(HttpOf(adapterType).Requests);
         Assert.StartsWith(integration.BaseUrl, request.Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Test_of_tmdb_reads_authentication_with_the_token_in_the_bearer_header()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var integration = await SeedAsync("tmdb");
+        FakeTmdbServer.Arm(_factory.TmdbHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to TMDb."),
+            await ReadTestResponseAsync(response, cancellationToken));
+        var request = Assert.Single(_factory.TmdbHttp.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal($"{FakeTmdbServer.BaseUrl}/3/authentication", request.Uri.AbsoluteUri);
+        // The stored token, decrypted, in the header only: never v3's api_key= in a URI a proxy logs.
+        Assert.Equal([$"Bearer {TmdbApiKey}"], request.HeaderValues("Authorization"));
+        Assert.DoesNotContain(TmdbApiKey, request.Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestDraft_of_tmdb_with_a_wrong_token_is_authentication_failed_and_saves_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        FakeTmdbServer.Arm(_factory.TmdbHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/test", _owner.AccessToken, new TestIntegrationRequest(
+            null,
+            "tmdb",
+            $"{FakeTmdbServer.BaseUrl}/3/",
+            ApiKey: new SecretValueUpsert(SecretUpsertMode.Set, "draft-tmdb-token-0001")));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(
+                IntegrationCallStatus.AuthenticationFailed,
+                "TMDb refused the key (401 Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API, not the shorter API key."),
+            await ReadTestResponseAsync(response, cancellationToken));
+        // The address ends in the API version already, so it is used as is.
+        var request = Assert.Single(_factory.TmdbHttp.Requests);
+        Assert.Equal($"{FakeTmdbServer.BaseUrl}/3/authentication", request.Uri.AbsoluteUri);
+        Assert.Equal(["Bearer draft-tmdb-token-0001"], request.HeaderValues("Authorization"));
+        await _factory.WithDbAsync(async db => Assert.Equal(0, await db.IntegrationConnections.CountAsync(cancellationToken)));
     }
 
     [Fact]
@@ -317,6 +373,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         "torznab" => _integrations.Create("torznab", "Toloka", TorznabAddress, apiKey: TorznabApiKey),
         "qbittorrent" => _integrations.Create(
             "qbittorrent", "Downloads", QBittorrentAddress, userName: QBittorrentUserName, password: QBittorrentPassword),
+        "tmdb" => _integrations.Create("tmdb", "TMDb", FakeTmdbServer.BaseUrl, apiKey: TmdbApiKey),
         _ => throw new ArgumentOutOfRangeException(nameof(adapterType), adapterType, "Not a real adapter type."),
     };
 
@@ -325,6 +382,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         "jellyfin" => _factory.JellyfinHttp,
         "torznab" => _factory.TorznabHttp,
         "qbittorrent" => _factory.QBittorrentHttp,
+        "tmdb" => _factory.TmdbHttp,
         _ => throw new ArgumentOutOfRangeException(nameof(adapterType), adapterType, "Not a real adapter type."),
     };
 

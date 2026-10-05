@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="1.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <atom:link rel="self" type="application/rss+xml" />
+    <title>Prowlarr</title>
+    <item>
+      <title>Lanterns (S1) (2026) WEB-DL 1080p H.265 (S1)</title>
+      <description>Ліхтарі (Сезон 1) / Lanterns (Season 1) (2026) WEB-DL 1080p H.265</description>
+      <guid>https://toloka.to/t700692</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700692</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6582037381</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Lanterns+(S1)+(2026)+WEB-DL+1080p+H.265+(S1)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Lanterns+(S1)+(2026)+WEB-DL+1080p+H.265+(S1)" length="6582037381" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Buchigire Reijou wa Houfuku wo Chikaimashita (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <description>Розлючена панночка присягнула помститися (Сезон 1) / Buchigire Reijou wa Houfuku wo Chikaimashita (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t699913</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699913</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4617089843</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Buchigire+Reijou+wa+Houfuku+wo+Chikaimashita+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Buchigire+Reijou+wa+Houfuku+wo+Chikaimashita+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="4617089843" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Hell Mode: Yarikomizuki no Gamer wa (S1-2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1-2)</title>
+      <description>Режим Пекло: Хардкорний геймер домінує в іншому світі (Сезон 1-2) / Hell Mode: Yarikomizuki no Gamer wa (Season 1-2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t694485</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t694485</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10243497000</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Hell+Mode%3A+Yarikomizuki+no+Gamer+wa+(S1-2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1-2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Hell+Mode%3A+Yarikomizuki+no+Gamer+wa+(S1-2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1-2)" length="10243497000" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Lanterns (S1) (2026) WEB-DL 1080p Eng | Ukr/Multi (S1)</title>
+      <description>Ліхтарі (Сезон 1) / Lanterns (Season 1) (2026) WEB-DL 1080p Eng | Ukr/Multi</description>
+      <guid>https://toloka.to/t699714</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699714</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>14914273935</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Lanterns+(S1)+(2026)+WEB-DL+1080p+Eng+%7C+Ukr%2FMulti+(S1)</link>
+      <category>5000</category>
+      <category>100192</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Lanterns+(S1)+(2026)+WEB-DL+1080p+Eng+%7C+Ukr%2FMulti+(S1)" length="14914273935" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5000" />
+      <torznab:attr name="category" value="100192" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="23" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="44" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>« »: (S7E2-3) / JoJo no Kimyou na Bouken: Steel Ball Run (S7E2-3) (2026) WEB-DL 1080p Ukr/Jap | sub Ukr/Jap</title>
+      <description>Перегони «Сталева куля»: Химерні пригоди ДжоДжо (Сезон 7, серія 2-3) / JoJo no Kimyou na Bouken: Steel Ball Run (Season 7, episode 2-3) (2026) WEB-DL 1080p Ukr/Jap | sub Ukr/Jap</description>
+      <guid>https://toloka.to/t700483</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700483</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1879048192</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=%C2%AB+%C2%BB%3A+(S7E2-3)+%2F+JoJo+no+Kimyou+na+Bouken%3A+Steel+Ball+Run+(S7E2-3)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+sub+Ukr%2FJap</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=%C2%AB+%C2%BB%3A+(S7E2-3)+%2F+JoJo+no+Kimyou+na+Bouken%3A+Steel+Ball+Run+(S7E2-3)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+sub+Ukr%2FJap" length="1879048192" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="13" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>(2026) WEB-DL 1080p (S1E1-25 of ?)</title>
+      <description>Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026) WEB-DL 1080p</description>
+      <guid>https://toloka.to/t696309</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t696309</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>50541027655</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=(2026)+WEB-DL+1080p+(S1E1-25+of+%3F)</link>
+      <category>5080</category>
+      <category>100131</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=(2026)+WEB-DL+1080p+(S1E1-25+of+%3F)" length="50541027655" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5080" />
+      <torznab:attr name="category" value="100131" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="0" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tank Chair (S1) (2026) WEB-DL 1080p Ukr/Jap | Sub Ukr (S1E01 of XX)</title>
+      <description>Крісло-танк (Сезон 1; серії 01 з хх) / Tank Chair (Season 1) (2026) WEB-DL 1080p Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t700690</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700690</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>625999872</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Tank+Chair+(S1)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1E01+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Tank+Chair+(S1)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1E01+of+XX)" length="625999872" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ojisan wa Kawaii Mono ga Osuki (S1) (2026) WEB-DL 1080p Ukr/Jap | Sub Ukr (S1E01 of XX)</title>
+      <description>Дядечко любить милі штучки (Сезон 1; серії 01 з хх) / Ojisan wa Kawaii Mono ga Osuki (Season 1) (2026) WEB-DL 1080p Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t700689</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700689</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>209715200</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Ojisan+wa+Kawaii+Mono+ga+Osuki+(S1)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1E01+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Ojisan+wa+Kawaii+Mono+ga+Osuki+(S1)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1E01+of+XX)" length="209715200" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1/2 (S1-2, S3E01 of 12) / Ranma 1/2 (S1-2,3) (2024-2026) WEB-DL 1080p H.265</title>
+      <description>Ранма 1/2 (Сезон 1,2, Сезон 3: серії 01 з 12) / Ranma 1/2 (Season 1,2,3) (2024-2026) WEB-DL 1080p H.265</description>
+      <guid>https://toloka.to/t700688</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700688</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10780367912</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1%2F2+(S1-2%2C+S3E01+of+12)+%2F+Ranma+1%2F2+(S1-2%2C3)+(2024-2026)+WEB-DL+1080p+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1%2F2+(S1-2%2C+S3E01+of+12)+%2F+Ranma+1%2F2+(S1-2%2C3)+(2024-2026)+WEB-DL+1080p+H.265" length="10780367912" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Shingeki no Kyojin (S2) (2017) BDRip 1080p H.265 Ukr/Jap | sub Ukr (S2E07 of 12)</title>
+      <description>Атака титанів (Сезон 2, серії 07 з 12) / Shingeki no Kyojin (Season 2) (2017) BDRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <guid>https://toloka.to/t699321</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699321</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>16481936998</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Shingeki+no+Kyojin+(S2)+(2017)+BDRip+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E07+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Shingeki+no+Kyojin+(S2)+(2017)+BDRip+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E07+of+12)" length="16481936998" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Re:Zero kara Hajimeru Isekai Seikatsu (S4) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S4)</title>
+      <description>Переродження: Життя з нуля в іншому світі (Сезон 4) / Re:Zero kara Hajimeru Isekai Seikatsu (Season 4) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t695741</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t695741</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7043746365</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Re%3AZero+kara+Hajimeru+Isekai+Seikatsu+(S4)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S4)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Re%3AZero+kara+Hajimeru+Isekai+Seikatsu+(S4)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S4)" length="7043746365" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Hanaori-san wa Tensei shitemo Kenka ga Shitai (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <description>Ханаорі навіть після переродження хоче битися (Сезон 1) / Hanaori-san wa Tensei shitemo Kenka ga Shitai (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t699705</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699705</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4380866641</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Hanaori-san+wa+Tensei+shitemo+Kenka+ga+Shitai+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Hanaori-san+wa+Tensei+shitemo+Kenka+ga+Shitai+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="4380866641" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Seihantai na Kimi to Boku (S1-2) (2026) WEB-DL 1080p H.265 Ukr/Jap | Sub Ukr (S1-2)</title>
+      <description>Ми з тобою повні протилежності (Сезон 1-2) / Seihantai na Kimi to Boku (Season 1-2) (2026) WEB-DL 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t693596</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t693596</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6764573491</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Seihantai+na+Kimi+to+Boku+(S1-2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1-2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Seihantai+na+Kimi+to+Boku+(S1-2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1-2)" length="6764573491" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Clevatess II: Majuu no Ou to Itsuwari no (S2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S2)</title>
+      <description>Клеватес ІІ: Король магічних звірів і легенда про фальшивих героїв (Сезон 2) / Clevatess II: Majuu no Ou to Itsuwari no (Season 2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <guid>https://toloka.to/t698667</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t698667</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5851892940</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Clevatess+II%3A+Majuu+no+Ou+to+Itsuwari+no+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Clevatess+II%3A+Majuu+no+Ou+to+Itsuwari+no+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)" length="5851892940" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="17" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Californication (S2) (2008) BDRemux 1080p Ukr/Eng | Sub Eng (S2)</title>
+      <description>Секс і Каліфорнія (Сезон 2) / Californication (Season 2) (2008) BDRemux 1080p Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700681</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700681</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>74249247129</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Californication+(S2)+(2008)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng+(S2)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Californication+(S2)+(2008)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng+(S2)" length="74249247129" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Mato Seihei no Slave (S2) (2026) BDRip 1080p H.265 3Ukr/Jap | Sub 2Ukr/2Eng (S2)</title>
+      <description>Раб спеціального призначення (Сезон 2) / Mato Seihei no Slave (Season 2) (2026) BDRip 1080p H.265 3хUkr/Jap | Sub 2хUkr/2хEng</description>
+      <guid>https://toloka.to/t700680</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700680</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>20293720473</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Mato+Seihei+no+Slave+(S2)+(2026)+BDRip+1080p+H.265+3Ukr%2FJap+%7C+Sub+2Ukr%2F2Eng+(S2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Mato+Seihei+no+Slave+(S2)+(2026)+BDRip+1080p+H.265+3Ukr%2FJap+%7C+Sub+2Ukr%2F2Eng+(S2)" length="20293720473" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ao no Hako (S1-2) (2024-2026) WEB-DL 1080p H.265 (S1E01 of XX)</title>
+      <description>Блакитна коробка (Сезон 1, Сезон 2: серії 01 з хх) / Ao no Hako (Season 1,2) (2024-2026) WEB-DL 1080p H.265</description>
+      <guid>https://toloka.to/t681968</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t681968</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7645041786</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Ao+no+Hako+(S1-2)+(2024-2026)+WEB-DL+1080p+H.265+(S1E01+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Ao+no+Hako+(S1-2)+(2024-2026)+WEB-DL+1080p+H.265+(S1E01+of+XX)" length="7645041786" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>American Horror Story (S13) (2026) HDTV 1080p Ukr/Eng | Sub Ukr/Eng (S13E1 of 13)</title>
+      <description>Американська Історія Жаху (Сезон 13, серії: 1 з 13) / American Horror Story (Season 13) (2026) HDTV 1080p Ukr/Eng | Sub Ukr/Eng</description>
+      <guid>https://toloka.to/t700675</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700675</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1879048192</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=American+Horror+Story+(S13)+(2026)+HDTV+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S13E1+of+13)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=American+Horror+Story+(S13)+(2026)+HDTV+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S13E1+of+13)" length="1879048192" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="17" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 16 | - | | 5 Sport 4k (04.10.2026) IPTV 2160p Ukr</title>
+      <description>Формула-1 | Сезон 2026 | Етап 16 | Гран-Прі Бахрейну | Гонка | 5 Sport 4k (04.10.2026) IPTV 2160p Ukr</description>
+      <guid>https://toloka.to/t700671</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700671</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>16653735690</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1+%7C+S2026+%7C+16+%7C+-+%7C+%7C+5+Sport+4k+(04.10.2026)+IPTV+2160p+Ukr</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1+%7C+S2026+%7C+16+%7C+-+%7C+%7C+5+Sport+4k+(04.10.2026)+IPTV+2160p+Ukr" length="16653735690" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="23" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="24" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1/2 (S3E1 of 12) / Ranma 1/2 (S3) (2026) WEB-DL 1080 H.265</title>
+      <description>Рамма 1/2 (Сезон 3, серія 1 з 12) / Ranma 1/2 (Season 3) (2026) WEB-DL 1080р H.265</description>
+      <guid>https://toloka.to/t700670</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700670</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>416284672</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1%2F2+(S3E1+of+12)+%2F+Ranma+1%2F2+(S3)+(2026)+WEB-DL+1080+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1%2F2+(S3E1+of+12)+%2F+Ranma+1%2F2+(S3)+(2026)+WEB-DL+1080+H.265" length="416284672" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>2026/27 | UEFA Nations League | A | A3 | 3- | - | Spain - Czechia | Megogo 1 HD (03.10.2026) WEB-DL 1080p Ukr</title>
+      <description>Ліга націй УЄФА 2026/27 | UEFA Nations League | Ліга A | Група A3 | 3-й тур | Іспанія - Чехія | Spain - Czechia | Megogo Футбол 1 HD (03.10.2026) WEB-DL 1080p Ukr</description>
+      <guid>https://toloka.to/t700669</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700669</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5830418104</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=2026%2F27+%7C+UEFA+Nations+League+%7C+A+%7C+A3+%7C+3-+%7C+-+%7C+Spain+-+Czechia+%7C+Megogo+1+HD+(03.10.2026)+WEB-DL+1080p+Ukr</link>
+      <category>5060</category>
+      <category>100054</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=2026%2F27+%7C+UEFA+Nations+League+%7C+A+%7C+A3+%7C+3-+%7C+-+%7C+Spain+-+Czechia+%7C+Megogo+1+HD+(03.10.2026)+WEB-DL+1080p+Ukr" length="5830418104" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100054" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 16 | - | | Setanta Sports HD (04.10.2026) WEB-DL 720p Ukr</title>
+      <description>Формула-1 | Сезон 2026 | Етап 16 | Гран-Прі Бахрейну | Гонка | Setanta Sports HD (04.10.2026) WEB-DL 720p Ukr</description>
+      <guid>https://toloka.to/t700668</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700668</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6356551598</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1+%7C+S2026+%7C+16+%7C+-+%7C+%7C+Setanta+Sports+HD+(04.10.2026)+WEB-DL+720p+Ukr</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=1+%7C+S2026+%7C+16+%7C+-+%7C+%7C+Setanta+Sports+HD+(04.10.2026)+WEB-DL+720p+Ukr" length="6356551598" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="66" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="67" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>LEGO Ninjago: Dragons Rising (S1-4) (2023-2026) WEB-DL 1080p 2xUkr/Eng | sub Ukr/Eng (S1-4)</title>
+      <description>Лего Ніндзяго: Повстання драконів / Леґо Ніндзяґо: Зліт драконів (Сезон 1-4) / LEGO Ninjago: Dragons Rising (Season 1-4) (2023-2026) WEB-DL 1080p 2xUkr/Eng | sub Ukr/Eng</description>
+      <guid>https://toloka.to/t688720</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t688720</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>86135569121</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=LEGO+Ninjago%3A+Dragons+Rising+(S1-4)+(2023-2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+sub+Ukr%2FEng+(S1-4)</link>
+      <category>5040</category>
+      <category>100174</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=LEGO+Ninjago%3A+Dragons+Rising+(S1-4)+(2023-2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+sub+Ukr%2FEng+(S1-4)" length="86135569121" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100174" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>LEGO Ninjago: Dragons Rising (S1-4) (2023-2026) WEB-DL-AVC 2xUkr/Eng | sub Ukr/Eng (S1-4)</title>
+      <description>Лего Ніндзяго: Повстання драконів / Леґо Ніндзяґо: Зліт драконів (Сезон 1-4) / LEGO Ninjago: Dragons Rising (Season 1-4) (2023-2026) WEBDLRip-AVC 2xUkr/Eng | sub Ukr/Eng</description>
+      <guid>https://toloka.to/t700667</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700667</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>28089086115</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=LEGO+Ninjago%3A+Dragons+Rising+(S1-4)+(2023-2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+sub+Ukr%2FEng+(S1-4)</link>
+      <category>5000</category>
+      <category>100044</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=LEGO+Ninjago%3A+Dragons+Rising+(S1-4)+(2023-2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+sub+Ukr%2FEng+(S1-4)" length="28089086115" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5000" />
+      <torznab:attr name="category" value="100044" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.75" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dark Matter (S1-3) (2015-2017) BDRip 720p Ukr/Eng | sub Eng</title>
+      <description>Темна матерія (Сезони 1-3) / Dark Matter (Seasons 1-3) (2015-2017) BDRip 720p Ukr/Eng | sub Eng</description>
+      <guid>https://toloka.to/t692866</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t692866</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>73712376217</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Dark+Matter+(S1-3)+(2015-2017)+BDRip+720p+Ukr%2FEng+%7C+sub+Eng</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Dark+Matter+(S1-3)+(2015-2017)+BDRip+720p+Ukr%2FEng+%7C+sub+Eng" length="73712376217" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+  </channel>
+</rss>

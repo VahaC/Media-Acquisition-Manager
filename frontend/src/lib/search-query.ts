@@ -18,6 +18,13 @@ const SEARCH_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
  */
 const BRACKETED_TRAILING_YEAR = /^(.*\S)\s*\(((?:19|20)\d{2})\)$/
 
+/**
+ * MAM-33 — a TMDb id as the Recommendations page puts it beside `?q=`: ASCII digits, at most ten (TMDb
+ * numbers its films well under that). Anything else is ignored rather than sent: the address is
+ * anyone's to edit, and a refused id would cost the search its title too.
+ */
+const TMDB_ID_PATTERN = /^\d{1,10}$/
+
 /** Whether `value` is shaped like a search's id, the only `?id=` the app sends anywhere. */
 export function isSearchId(value: string): boolean {
   return SEARCH_ID_PATTERN.test(value)
@@ -32,4 +39,10 @@ export function parseSearchQuery(line: string): SearchRequest {
   const text = line.trim()
   const bracketed = BRACKETED_TRAILING_YEAR.exec(text)
   return bracketed === null ? { text } : { text: bracketed[1], year: bracketed[2] }
+}
+
+/** MAM-33 — the `?tmdbId=` of an address when it is one (digits only), else null. */
+export function parseTmdbId(value: string | null): string | null {
+  const trimmed = value?.trim() ?? ''
+  return TMDB_ID_PATTERN.test(trimmed) ? trimmed : null
 }

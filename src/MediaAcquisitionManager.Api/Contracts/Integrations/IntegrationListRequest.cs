@@ -8,8 +8,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// page shows.
 /// </remarks>
 /// <param name="Search">Part of an integration's name, in any letter case; blank lists every one.</param>
-/// <param name="Kind"><c>MediaLibrary</c>, <c>ReleaseSearch</c> or <c>DownloadClient</c>, in any letter
-/// case; blank lists every kind.</param>
+/// <param name="Kind"><c>MediaLibrary</c>, <c>ReleaseSearch</c>, <c>DownloadClient</c> or (MAM-33)
+/// <c>Metadata</c>, in any letter case; blank lists every kind.</param>
 /// <param name="Page">Which page, counted from 1.</param>
 /// <param name="PageSize">Integrations per page, 1 to 100; 25 unless asked otherwise.</param>
 public sealed record IntegrationListRequest(string? Search = null, string? Kind = null, int Page = 1, int PageSize = 25);

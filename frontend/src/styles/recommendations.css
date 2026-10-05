@@ -1,0 +1,190 @@
+/* MAM-33 — the Recommendations page: what the shared sheets (settings-list.css for the page frame,
+   the toolbar and the empty states; library.css for the run panel's row and status line;
+   modal-tabs.css for the tabs; ui-primitives.css for cards and badges) don't have — the grid of
+   cards, a card's poster beside its text, the reason chips, the availability line, the row a hidden
+   card leaves and the catalog's attribution. Imported by each component that uses it. Tokens only,
+   so dark mode needs nothing of its own. */
+
+/* The current tab's toolbar, banner, cards and pager, spaced like the page around them. */
+.recommendation-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* Two cards a row on a desktop, one from 48rem down (below). `min()` keeps a card no wider than the
+   page on a screen narrower than the track. Each item stretches, so the cards of a row are equally
+   tall. */
+.recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  gap: 0.75rem;
+}
+
+.recommendation-grid > li {
+  display: grid;
+  min-width: 0;
+}
+
+/* The poster beside the text, on a phone too: at 6rem the text keeps about 14rem at 375px. Two
+   classes, so the padding wins over `.ui-card` whichever sheet loads first. */
+.ui-card.recommendation-card {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem 1rem;
+  padding: 1rem;
+}
+
+/* 2:3, the shape of every catalog poster; the placeholder icon sits in the middle of the same box
+   while the poster loads and when there is none. */
+.recommendation-poster {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  overflow: hidden;
+}
+
+.recommendation-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recommendation-body {
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* The title and the Downloading badge beside it; the badge drops under a title that fills the line. */
+.recommendation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+}
+
+.recommendation-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-head .ui-badge {
+  gap: 0.25rem;
+}
+
+.recommendation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
+  min-width: 0;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.recommendation-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* One reason. Not `.library-version-chip`: that outline chip is a fact of a file, while a reason is
+   why the card is here, so it takes the selected tint and reads first. A long name breaks inside the
+   chip rather than widening the card. */
+.recommendation-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--tint-selected);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.recommendation-reason svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+.recommendation-availability {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+/* The icon sits on the first line of a line that wraps. */
+.recommendation-availability svg {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+/* Releases found: the line in the text colour, the icon in the status green (text in that green
+   reaches about 3.3:1 on the light card, short of the 4.5:1 WCAG AA wants). */
+.recommendation-availability[data-found] {
+  color: var(--foreground);
+}
+
+.recommendation-availability[data-found] svg {
+  color: var(--status-up);
+}
+
+/* Releases and Not interested, wrapping under each other on a narrow card. */
+.recommendation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 0.25rem;
+}
+
+/* A card after Not interested: one slim line with Undo, in the card's place, so the grid doesn't
+   close up under the pointer. It keeps to its content's height at the top of its cell instead of
+   stretching to the neighbouring card's. */
+.recommendation-hidden {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+/* TMDB's terms ask for the notice wherever its data is shown. */
+.recommendation-attribution {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 48rem) {
+  .recommendation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  /* The icons only on a phone; each action keeps its label in title=, which also names it. */
+  .recommendation-actions .label-text {
+    display: none;
+  }
+}

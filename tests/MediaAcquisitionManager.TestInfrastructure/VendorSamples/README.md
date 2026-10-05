@@ -4,7 +4,8 @@ Real answers from the reference installation, collected on 2026-09-29 for MAM-6,
 tests of MAM-7 and the adapters of MAM-8 to MAM-11 are tested against what the services actually send
 rather than against their documentation. MAM-17 added Jellyfin's series, seasons and episodes on
 2026-10-04, from the same Jellyfin, for the import of MAM-32; MAM-32 added Prowlarr's Toloka TV searches
-on the same day. `RepositoryPaths.VendorSamples` points here.
+on the same day. MAM-33 added TMDb's answers, read with Vasyl's own token, and Prowlarr's newest Toloka
+releases on 2026-10-05. `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
 | --- | --- |
@@ -12,6 +13,7 @@ on the same day. `RepositoryPaths.VendorSamples` points here.
 | qBittorrent | 5.2.3, Web API 2.15.1 (`lscr.io/linuxserver/qbittorrent`) |
 | Prowlarr | 2.6.5.5623, serving the Toloka.to indexer as Torznab |
 | ffprobe | jellyfin-ffmpeg inside the Jellyfin image |
+| TMDb | API v3 at `api.themoviedb.org`, read on 2026-10-05 with `language=uk-UA` |
 
 How the services see the media folder, and what follows from it, is in
 [ADR 0003](../../../docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md);
@@ -24,7 +26,9 @@ the same way, or `VendorSamplesTests` fails the build:
 
 - **Replaced with `REDACTED`:** API keys, sessions (qBittorrent's cookie, the Toloka forum session
   `sid=`), Prowlarr's protected download links (`link=`), any other key-like URL parameter, URL user
-  info (`scheme://REDACTED@host`) and any URL percent-encoded inside another one.
+  info (`scheme://REDACTED@host`) and any URL percent-encoded inside another one; a bearer token
+  (TMDb's API Read Access Token), whether recorded as an `Authorization: Bearer` header line or as
+  JSON, keeps only `REDACTED` after the scheme. The TMDb samples are answers alone and carry none.
 - **Cut to the host:** a tracker URL keeps its scheme and host, and its path becomes `/REDACTED`
   (`http://bt.toloka.to/REDACTED`), because the passkey can sit in the path.
 - **Removed:** the tracker parameters of a magnet link (`tr`, `ws`, `xs`, `as`); only `xt`, `dn` and
@@ -55,7 +59,23 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Torznab/prowlarr-toloka-tv-search.xml` | `GET /1/api?t=tvsearch&q=Yellowstone` (2026-10-04, MAM-32) | 9 releases: Yellowstone (2018) whole and season by season in TV (`5000`) and TV/HD (`5040`); a BBC documentary of the same title, "Yellowstone (S1) (2009)", and two other documentaries holding the word, in TV/Documentary (`5080`). Its topic links carry `sid=REDACTED` |
 | `Torznab/prowlarr-toloka-tv-season-search.xml` | The same with `&season=1` | The first six of those releases: Toloka barely narrows by the season |
 | `Torznab/prowlarr-toloka-tv-cartoon-search.xml` | `GET /1/api?t=tvsearch&q=Mickey Mouse Clubhouse` | 4 releases of a cartoon series in TV and TV/HD, filed in Toloka's two «Мультсеріали» sections (`100044`, `100174`) |
+| `Torznab/prowlarr-toloka-latest-movies.xml` | `GET /1/api?t=search&cat=2000&limit=100`, no `q` (2026-10-05, MAM-33) | Toloka's newest releases in the movie categories, newest first, each with Toloka's own topic title in `<description>`, Ukrainian first: the first 25 of the 90 it answered. Its topic links carry `sid=REDACTED` |
+| `Torznab/prowlarr-toloka-latest-tv.xml` | The same with `cat=5000` | The first 25 of 90: anime in TV/Anime (`5070`) with season or episode markers, a Ukrainian-only documentary series in TV/Documentary (`5080`) whose title Prowlarr cut to "(2026) WEB-DL 1080p (S1E1-25 of ?)", sport in TV/Sport |
+| `Torznab/prowlarr-toloka-movie-search-film-in-tv-category.xml` | `GET /1/api?t=movie&q=Schumacher '94 - Die Geburt einer Legende 2026&cat=2000,2020,2040,2070,5070,5080` (2026-10-05, MAM-33) | 5 releases of one documentary film: once in Movies, four times in Toloka's «Документальні фільми в HD», which Prowlarr lists as TV/Documentary (`5080`) |
 | `Torznab/prowlarr-wrong-key-response.txt` | `GET /1/api?t=caps`, `GET /1/api?t=search&q=Interstellar` and `GET /1/download?link=x`, each with a wrong `apikey` (2026-10-01, MAM-10) | The status line and headers of the one answer all three got: a bare 401 with no body. Read by `VendorResponses.Recorded` |
+| `Tmdb/authentication.json` | `GET /3/authentication` with the token | `{"success":true}`: the connection test's answer |
+| `Tmdb/configuration.json` | `GET /3/configuration` | The image host (`https://image.tmdb.org/t/p/`) and its sizes, `w342` among the poster sizes |
+| `Tmdb/movie-details.json` | `GET /3/movie/118340?append_to_response=credits,recommendations` | Guardians of the Galaxy (2014): in collection 284433, directed by James Gunn, with its IMDb id `tt2015381`, its whole cast and crew and 20 recommendations |
+| `Tmdb/tv-details.json` | `GET /3/tv/73586?append_to_response=credits,recommendations` | Yellowstone (2018): five seasons with their air dates and episode counts, created by Taylor Sheridan and John Linson, 20 recommendations |
+| `Tmdb/collection.json` | `GET /3/collection/284433` | The three Guardians of the Galaxy films, each with its release date |
+| `Tmdb/person-combined-credits.json` | `GET /3/person/24/combined_credits` | Robert Zemeckis: 31 films directed and no show created, among his other crew jobs and his cast credits |
+| `Tmdb/search-movie.json` | `GET /3/search/movie` for "Landing Stripling" | One result, "Landing Stripling" (1962), an animation: a cartoon the reference library holds as "120. Landing Stripling" with no id |
+| `Tmdb/search-tv.json` | `GET /3/search/tv` for "The Penguins of Madagascar" | One result, "Пінгвіни Мадагаскару" / "The Penguins of Madagascar" (2008), the series Jellyfin gave no ids |
+| `Tmdb/find-imdb.json` | `GET /3/find/tt0071562?external_source=imdb_id` | The Godfather Part II, one film (240) and no show |
+| `Tmdb/discover-movie-documentary.json` | `GET /3/discover/movie` of Documentary (`with_genres=99`), by rating, `vote_count.gte=300` | The first page of 20 documentaries, the best-rated first |
+| `Tmdb/discover-tv-animation.json` | `GET /3/discover/tv` of Animation (`with_genres=16`), by rating, `vote_count.gte=300` | The first page of 20 animated shows, the best-rated first |
+| `Tmdb/genres-movie.json`, `Tmdb/genres-tv.json` | `GET /3/genre/movie/list`, `GET /3/genre/tv/list` | TMDb's 19 movie genres and 16 TV genres, in Ukrainian; Animation is 16 and Documentary 99 in both |
+| `Tmdb/wrong-key-response.txt` | A request with a wrong token (2026-10-05) | The status line, headers and body of TMDb's answer: `401 Unauthorized` with `{"status_code":7,"status_message":"Invalid API key: You must be granted a valid key.","success":false}`. Read by `VendorResponses.Recorded` |
 | `Ffprobe/the-continental-s01e01.json` | `ffprobe -show_format -show_streams -show_chapters` | HEVC Main 10, four audio and four subtitle tracks, eight chapters |
 | `Ffprobe/taken-2008-bdremux.json` | the same | H.264 remux, DTS and AC-3 tracks, text and PGS subtitles, 24 chapters |
 
@@ -159,6 +179,46 @@ The four movies in `movies-page.json`:
   began. None of the TV releases gives an IMDb, TMDb or TVDB id, so they match the library by their
   titles and years alone; the documentary "Yellowstone (S1) (2009)" has the title of the 2018 show and
   only its year tells them apart.
+- **Prowlarr answers Toloka's search with no text with its newest releases** (MAM-33,
+  [ADR 0024](../../../docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)).
+  `t=search` without `q` answered Toloka's latest 90 releases, newest first, every one with
+  `<description>`: in the movie categories (`cat=2000`) 90 published from 2026-09-26 to 10-05, in the
+  TV categories (`cat=5000`) 90 from 09-28 to 10-05. Asked with `offset=50` or `offset=100` it
+  answered no release at all, so there is nothing to page through. Toloka's own sections filter too
+  (`cat=100019,100193,100139`), and `t=movie` without `q` answered the same as `t=search`.
+- **`<description>` holds Toloka's own topic title** (MAM-33). Where Prowlarr's title keeps the
+  English part ("Those Who Wish Me Dead (2021) BDRip 1080p …"), the description keeps Toloka's whole
+  title, Ukrainian first ("Ті, хто бажають моєї смерті / Those Who Wish Me Dead (2021) …"); for a
+  Ukrainian-only show Prowlarr's title is cut to "(2026) WEB-DL 1080p (S1E1-25 of ?)", and only the
+  description names it.
+- **TV/Anime and TV/Documentary hold films and series both** (MAM-33,
+  [ADR 0020](../../../docs/adr/0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+  Of the latest 90 in `5070` and `5080`, 12 named no season: films ("Akira (1988)", "Schumacher '94",
+  the Demon Slayer "Infinity Castle" film) and series named by their episodes alone ("Death Note (E1-31
+  of 37)", "Candy Candy (E01-40 of 115)", "Котодракон / Neko to Ryuu (серії 1-4 з 12)"), so a season
+  marker alone wouldn't tell them apart. A movie search sent with `5070` and `5080` among its
+  categories found the documentary "Schumacher '94" that Toloka files in TV/Documentary, which the
+  movie categories alone (the MAM-10 bullet above) would have left out.
+- **TMDb takes its v4 token as a bearer header** (MAM-33,
+  [ADR 0005](../../../docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
+  Vasyl's API Read Access Token is 239 characters, inside the 256 an integration's key may hold, and
+  travels as `Authorization: Bearer`; a wrong one gets 401 and TMDb's JSON with `status_code` 7. A
+  work, collection or person TMDb doesn't have answers 404 with its own JSON, `status_code` 34, which
+  a bare 404 from a wrong address lacks.
+- **TMDb sent no rate-limit header** (MAM-33). The library's 640 TMDb movie ids took 943 calls in
+  about 3 minutes and met no 429; TMDb's documentation puts its limit "somewhere in the 50 requests
+  per second range" per address, so the adapter keeps to 40.
+- **Ukrainian titles are TMDb's, the original beside them** (MAM-33). Asked with `language=uk-UA`,
+  TMDb answers its Ukrainian title where it has one and the original otherwise: for 12 of the 640
+  movies the two were the same. A show's fields are `name`, `original_name` and `first_air_date`, a
+  film's `title`, `original_title` and `release_date`; `vote_average` is `0` for a work nobody rated,
+  which the adapter reads as no rating.
+- **TMDb finds most of the library's id-less works, not all** (MAM-33). Of the 10 movies with only an
+  IMDb id, TMDb's find named 8; a search by title and year found exactly one film for 23 of 25 Tom &
+  Jerry shorts, and nothing for the Planet Earth episodes Jellyfin lists as movies.
+- **The posters come from TMDb's image host without a key** (MAM-33). `image.tmdb.org/t/p/w342/<file>`
+  answered `image/jpeg`, 48 KB for one poster, and a bare path 404; the reference installation's
+  container reached it, and `api.themoviedb.org`, directly, with no proxy.
 - **ffprobe reports cover art as a video stream** (`mjpeg` with `disposition.attached_pic: 1`),
   after the real video stream; it is not a second video track.
 - **A 10-bit stream need not say whether it is HDR** (MAM-9). The Continental's HEVC Main 10 video

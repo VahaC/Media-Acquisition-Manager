@@ -31,7 +31,13 @@ namespace MediaAcquisitionManager.Core.Abstractions.Search;
 /// MAM-32).</param>
 /// <param name="Locator">Where the server fetches the payload from; never sent to the browser.</param>
 /// <param name="Kind">Whether the source lists it as a movie or as TV, from its categories (MAM-32): the
-/// adapter knows its protocol's numbering.</param>
+/// adapter knows its protocol's numbering. MAM-33 — a release in a category that holds both films and
+/// series (TV/Anime, TV/Documentary) is TV only when its title or description names seasons or episodes
+/// (ADR 0020).</param>
+/// <param name="Description">MAM-33 — the listing's own description, when it says more than the title:
+/// Toloka's original topic title, "Єллоустоун (Сезони 1-5) / Yellowstone (Seasons 1-5) (2018-2024) …",
+/// where Prowlarr's title keeps the English part alone. <c>null</c> when the listing has none, or the same
+/// text as the title.</param>
 public sealed record ReleaseSearchHit(
     string? SourceItemId,
     string Title,
@@ -45,4 +51,5 @@ public sealed record ReleaseSearchHit(
     string? InfoHash,
     IReadOnlyList<MediaIdentifier> Identifiers,
     ReleasePayloadLocator Locator,
-    ReleaseKind Kind);
+    ReleaseKind Kind,
+    string? Description);

@@ -1,0 +1,1084 @@
+{
+  "adult": false,
+  "backdrop_path": "/ynSOcgDLZfdLCZfRSYZGiTgYJVo.jpg",
+  "created_by": [
+    {
+      "id": 1215399,
+      "credit_id": "59a5dfe9c3a36840640129db",
+      "name": "Тейлор Шерідан",
+      "original_name": "Taylor Sheridan",
+      "gender": 2,
+      "profile_path": "/enrOQII7bCIf7U0WbdxiuXGfzrs.jpg"
+    },
+    {
+      "id": 69414,
+      "credit_id": "5b341488c3a368531a019f53",
+      "name": "Джон Лінсон",
+      "original_name": "John Linson",
+      "gender": 2,
+      "profile_path": "/1rL4s8P5TS0KwbMbkwU7TvttIDy.jpg"
+    }
+  ],
+  "episode_run_time": [],
+  "first_air_date": "2018-06-20",
+  "genres": [
+    {
+      "id": 37,
+      "name": "Вестерн"
+    },
+    {
+      "id": 18,
+      "name": "Драма"
+    }
+  ],
+  "homepage": "https://www.paramountnetwork.com/shows/yellowstone",
+  "id": 73586,
+  "in_production": false,
+  "languages": [
+    "en",
+    "de"
+  ],
+  "last_air_date": "2024-12-15",
+  "last_episode_to_air": {
+    "id": 5605563,
+    "name": "Серія 14",
+    "overview": "",
+    "vote_average": 8.5,
+    "vote_count": 38,
+    "air_date": "2024-12-15",
+    "episode_number": 14,
+    "episode_type": "finale",
+    "production_code": "",
+    "runtime": 88,
+    "season_number": 5,
+    "show_id": 73586,
+    "still_path": "/ztsyXjw5HMeCydK3uqaSZwE7FVV.jpg"
+  },
+  "name": "Єллоустоун",
+  "next_episode_to_air": null,
+  "networks": [
+    {
+      "id": 2076,
+      "logo_path": "/4knr4ozp2IQrA3SMQlLSYKcM3ML.png",
+      "name": "Paramount Network",
+      "origin_country": "US"
+    }
+  ],
+  "number_of_episodes": 53,
+  "number_of_seasons": 5,
+  "origin_country": [
+    "US"
+  ],
+  "original_language": "en",
+  "original_name": "Yellowstone",
+  "overview": "Єллоустон — перший в світі національний парк, одне з найвідвідуваніших місць в США. Але тут, на кордоні цивілізації, відбувається багато такого, чого не бачать туристи, що не освітлюється засобами масової інформації. Сім’я Даттон, главою якої є Джон Даттон, володіє величезним ранчо, суміжним з територією парку. На їхню землю претендує і сам парк, і індіанська резервація, і жадібні забудовники...",
+  "popularity": 123.5361,
+  "poster_path": "/b5SrNjmklwnXN2xXwb0coWu2tna.jpg",
+  "production_companies": [
+    {
+      "id": 124254,
+      "logo_path": "/Aq2pCS1mXg4AiVwLTkh4bhcejmt.png",
+      "name": "101 Studios",
+      "origin_country": "US"
+    },
+    {
+      "id": 106789,
+      "logo_path": "/oEgUdRh5YWF6Il705WnpwauirIj.png",
+      "name": "Bosque Ranch Productions",
+      "origin_country": "US"
+    },
+    {
+      "id": 4700,
+      "logo_path": "/A32wmjrs9Psf4zw0uaixF0GXfxq.png",
+      "name": "Linson Entertainment",
+      "origin_country": "US"
+    },
+    {
+      "id": 86985,
+      "logo_path": "/3YMLaFqeXaQvtg62V0eDQxfqhaV.png",
+      "name": "Treehouse Films",
+      "origin_country": "US"
+    },
+    {
+      "id": 6329,
+      "logo_path": "/4lZJiVHPClma8YB9hXodraFXSwi.png",
+      "name": "MTV Entertainment Studios",
+      "origin_country": "US"
+    }
+  ],
+  "production_countries": [
+    {
+      "iso_3166_1": "US",
+      "name": "United States of America"
+    }
+  ],
+  "seasons": [
+    {
+      "air_date": "2018-06-20",
+      "episode_count": 9,
+      "id": 93559,
+      "name": "Сезон 1",
+      "overview": "",
+      "poster_path": "/pAYgWMmwfyMTf1thfbzoPDAE7dc.jpg",
+      "season_number": 1,
+      "vote_average": 7.7
+    },
+    {
+      "air_date": "2019-06-19",
+      "episode_count": 10,
+      "id": 120916,
+      "name": "Сезон 2",
+      "overview": "",
+      "poster_path": "/3ePlESS6eyUj9W7yPEbzhwWaiFo.jpg",
+      "season_number": 2,
+      "vote_average": 7.9
+    },
+    {
+      "air_date": "2020-06-21",
+      "episode_count": 10,
+      "id": 148960,
+      "name": "Сезон 3",
+      "overview": "",
+      "poster_path": "/eaJm0zFJenaaSNhPtgdrgGV00VG.jpg",
+      "season_number": 3,
+      "vote_average": 7.8
+    },
+    {
+      "air_date": "2021-11-07",
+      "episode_count": 10,
+      "id": 193949,
+      "name": "Сезон 4",
+      "overview": "",
+      "poster_path": "/axyyFDEtb6BSeNjyHHh8tsOGlID.jpg",
+      "season_number": 4,
+      "vote_average": 7.9
+    },
+    {
+      "air_date": "2022-11-13",
+      "episode_count": 14,
+      "id": 294246,
+      "name": "Сезон 5",
+      "overview": "",
+      "poster_path": "/s4QRRYc1V2e68Qy9Wel9MI8fhRP.jpg",
+      "season_number": 5,
+      "vote_average": 8.0
+    }
+  ],
+  "softcore": false,
+  "spoken_languages": [
+    {
+      "english_name": "English",
+      "iso_639_1": "en",
+      "name": "English"
+    },
+    {
+      "english_name": "German",
+      "iso_639_1": "de",
+      "name": "Deutsch"
+    }
+  ],
+  "status": "Ended",
+  "tagline": "Покоління крові привели до цього моменту.",
+  "type": "Scripted",
+  "vote_average": 8.274,
+  "vote_count": 3360,
+  "credits": {
+    "cast": [
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 56680,
+        "known_for_department": "Acting",
+        "name": "Люк Ґраймс",
+        "original_name": "Luke Grimes",
+        "popularity": 3.2881,
+        "profile_path": "/c547Xiwf9feeDbGfQchfJCkC111.jpg",
+        "character": "Kayce Dutton",
+        "credit_id": "5a07e02a9251414bd200decf",
+        "order": 1
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 17521,
+        "known_for_department": "Acting",
+        "name": "Келлі Райллі",
+        "original_name": "Kelly Reilly",
+        "popularity": 7.2388,
+        "profile_path": "/l8aQsryOQvxgX6SdZ4XtzU8KEXn.jpg",
+        "character": "Beth Dutton",
+        "credit_id": "5a07e0409251414bfa00dee4",
+        "order": 2
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 8210,
+        "known_for_department": "Acting",
+        "name": "Вес Бентлі",
+        "original_name": "Wes Bentley",
+        "popularity": 4.451,
+        "profile_path": "/voD93lzFZrr9xfAggwFcPRBi84i.jpg",
+        "character": "Jamie Dutton",
+        "credit_id": "5a07e0029251414bfa00de99",
+        "order": 3
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 6614,
+        "known_for_department": "Acting",
+        "name": "Коул Гаузер",
+        "original_name": "Cole Hauser",
+        "popularity": 4.902,
+        "profile_path": "/1SNoIDILoXtAUJu4f7nDCPVQH5j.jpg",
+        "character": "Rip Wheeler",
+        "credit_id": "5a07e0539251414bc600df51",
+        "order": 4
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 205976,
+        "known_for_department": "Acting",
+        "name": "Келсі Есбілл",
+        "original_name": "Kelsey Asbille",
+        "popularity": 4.4752,
+        "profile_path": "/zOr1U00vGsPMsieAJIFyYVUw8wa.jpg",
+        "character": "Monica Dutton",
+        "credit_id": "5b3412840e0a263ffc01c2c4",
+        "order": 5
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 2038314,
+        "known_for_department": "Acting",
+        "name": "Brecken Merrill",
+        "original_name": "Brecken Merrill",
+        "popularity": 1.716,
+        "profile_path": "/j2cJIrlfMSVWCq491ZMnguhGjXP.jpg",
+        "character": "Tate Dutton",
+        "credit_id": "5b3412a89251413c9101a856",
+        "order": 6
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1674161,
+        "known_for_department": "Acting",
+        "name": "Ryan Bingham",
+        "original_name": "Ryan Bingham",
+        "popularity": 1.4275,
+        "profile_path": "/mnTDK0M2ncJgTUm0T56AD4OxB83.jpg",
+        "character": "Walker",
+        "credit_id": "5b593d440e0a2612000052d4",
+        "order": 9
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1980651,
+        "known_for_department": "Acting",
+        "name": "Фінн Літтл",
+        "original_name": "Finn Little",
+        "popularity": 3.308,
+        "profile_path": "/jkMmLjj5Zk4CsABIxxFtOj0Zxic.jpg",
+        "character": "Carter",
+        "credit_id": "61897bb02f266b0043ebd07e",
+        "order": 10
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 31362,
+        "known_for_department": "Acting",
+        "name": "Ian Bohen",
+        "original_name": "Ian Bohen",
+        "popularity": 5.3044,
+        "profile_path": "/qEi3UXB3rx9vithYZPtqW3U5e3L.jpg",
+        "character": "Ryan",
+        "credit_id": "5b341b639251413c8e01b612",
+        "order": 11
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1333809,
+        "known_for_department": "Acting",
+        "name": "Форрі Дж. Сміт",
+        "original_name": "Forrie J. Smith",
+        "popularity": 2.2847,
+        "profile_path": "/dlfukfoPCoF9PraKuyuIq7rmu8Y.jpg",
+        "character": "Lloyd",
+        "credit_id": "5b341c4c0e0a26400201c855",
+        "order": 12
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 2073671,
+        "known_for_department": "Acting",
+        "name": "Denim Richards",
+        "original_name": "Denim Richards",
+        "popularity": 1.2189,
+        "profile_path": "/A2Gl1Xi0wuC7xd9AYe41SldIUmA.jpg",
+        "character": "Colby",
+        "credit_id": "5b341b8cc3a368533701848a",
+        "order": 13
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 147977,
+        "known_for_department": "Acting",
+        "name": "Wendy Moniz",
+        "original_name": "Wendy Moniz",
+        "popularity": 2.4606,
+        "profile_path": "/o6h5BiaTiezKKEOaQKiGuTGeePe.jpg",
+        "character": "Lynelle Perry",
+        "credit_id": "637266be8fdda9007fb9436b",
+        "order": 14
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 1230687,
+        "known_for_department": "Acting",
+        "name": "Jennifer Landon",
+        "original_name": "Jennifer Landon",
+        "popularity": 3.6963,
+        "profile_path": "/jpcNM8UJRcnPnCLasVMfA329wZ4.jpg",
+        "character": "Teeter",
+        "credit_id": "5f2fbb0f559d22003774b187",
+        "order": 16
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 2395140,
+        "known_for_department": "Acting",
+        "name": "Kathryn Kelly",
+        "original_name": "Kathryn Kelly",
+        "popularity": 1.6178,
+        "profile_path": "/qy8hO9fSWjizOZ9QRlCp5E6qEyV.jpg",
+        "character": "Emily",
+        "credit_id": "61c9de1be72fe8001c10a2b4",
+        "order": 17
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1367234,
+        "known_for_department": "Acting",
+        "name": "Mo Brings Plenty",
+        "original_name": "Mo Brings Plenty",
+        "popularity": 1.4207,
+        "profile_path": "/2CxofuWPRZf3G0kYJytblYiHXIy.jpg",
+        "character": "Mo Brings Plenty",
+        "credit_id": "5f4a89d9858678003714eab0",
+        "order": 18
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 84225,
+        "known_for_department": "Acting",
+        "name": "Gil Birmingham",
+        "original_name": "Gil Birmingham",
+        "popularity": 2.6939,
+        "profile_path": "/bWYOwtq0zUgpbEhTyiJHo2TmVju.jpg",
+        "character": "Thomas Rainwater",
+        "credit_id": "5b3412ef9251413c9301b68b",
+        "order": 19
+      }
+    ],
+    "crew": [
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 930009,
+        "known_for_department": "Camera",
+        "name": "Christina Alexandra Voros",
+        "original_name": "Christina Alexandra Voros",
+        "popularity": 1.0281,
+        "profile_path": "/9HIKusstJZZaT70y702KRcLCSsW.jpg",
+        "credit_id": "6767ab3a0b2fbb9dea5e3d0a",
+        "department": "Production",
+        "job": "Co-Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 1747679,
+        "known_for_department": "Art",
+        "name": "Suzanne Stover",
+        "original_name": "Suzanne Stover",
+        "popularity": 0.4791,
+        "profile_path": null,
+        "credit_id": "69a04bf924a7dab157f234dd",
+        "department": "Art",
+        "job": "Set Decoration"
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 138291,
+        "known_for_department": "Art",
+        "name": "Yvonne Boudreaux",
+        "original_name": "Yvonne Boudreaux",
+        "popularity": 0.6106,
+        "profile_path": null,
+        "credit_id": "69a04c26aaf9375d1fff4fe8",
+        "department": "Art",
+        "job": "Production Design"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 3317564,
+        "known_for_department": "Production",
+        "name": "Keith Cox",
+        "original_name": "Keith Cox",
+        "popularity": 1.0055,
+        "profile_path": null,
+        "credit_id": "673055e28f81fed6bd3f6a11",
+        "department": "Production",
+        "job": "Executive In Charge Of Production"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 2354280,
+        "known_for_department": "Sound",
+        "name": "Breton Vivian",
+        "original_name": "Breton Vivian",
+        "popularity": 0.7581,
+        "profile_path": null,
+        "credit_id": "61bf0474105611001ccb012e",
+        "department": "Sound",
+        "job": "Original Music Composer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 56435,
+        "known_for_department": "Directing",
+        "name": "Stephen Kay",
+        "original_name": "Stephen Kay",
+        "popularity": 1.348,
+        "profile_path": "/9HsKUi7Ab5jtIQ59OOGyvBtfJRI.jpg",
+        "credit_id": "668868ec552d0be7e35e5f1f",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 4232,
+        "known_for_department": "Production",
+        "name": "Bob Yari",
+        "original_name": "Bob Yari",
+        "popularity": 0.9603,
+        "profile_path": "/8PecTVSJk5uJmndCGTLwgsLPEhP.jpg",
+        "credit_id": "668868b147350b1fbf0284ce",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1254,
+        "known_for_department": "Production",
+        "name": "Art Linson",
+        "original_name": "Art Linson",
+        "popularity": 1.0768,
+        "profile_path": "/p9JPMQt4RRHYdQgvnrmFNiZ4eW6.jpg",
+        "credit_id": "5b32e3ef0e0a26400a01340a",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 69414,
+        "known_for_department": "Production",
+        "name": "Джон Лінсон",
+        "original_name": "John Linson",
+        "popularity": 1.2924,
+        "profile_path": "/1rL4s8P5TS0KwbMbkwU7TvttIDy.jpg",
+        "credit_id": "5b32e403c3a368531d0137d9",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1269,
+        "known_for_department": "Acting",
+        "name": "Кевін Костнер",
+        "original_name": "Kevin Costner",
+        "popularity": 6.4329,
+        "profile_path": "/608blZipRDZkDpzp8VItB64qMaT.jpg",
+        "credit_id": "5b32e4569251413c7401332d",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 1215399,
+        "known_for_department": "Writing",
+        "name": "Тейлор Шерідан",
+        "original_name": "Taylor Sheridan",
+        "popularity": 9.0181,
+        "profile_path": "/enrOQII7bCIf7U0WbdxiuXGfzrs.jpg",
+        "credit_id": "5b32e49fc3a36853110119e7",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 6041,
+        "known_for_department": "Sound",
+        "name": "Brian Tyler",
+        "original_name": "Brian Tyler",
+        "popularity": 1.4678,
+        "profile_path": "/wLPLAOcEgA9vfNuXSX1QI1ajguU.jpg",
+        "credit_id": "5f1852444284ea0035369d90",
+        "department": "Sound",
+        "job": "Original Music Composer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 3176244,
+        "known_for_department": "Production",
+        "name": "Michael Friedman",
+        "original_name": "Michael Friedman",
+        "popularity": 1.0824,
+        "profile_path": "/h6qBemrwTBKJcuc5gL2ZDs8qLb1.jpg",
+        "credit_id": "610180fff0647c0047d81a07",
+        "department": "Production",
+        "job": "Co-Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 21390,
+        "known_for_department": "Production",
+        "name": "David C. Glasser",
+        "original_name": "David C. Glasser",
+        "popularity": 1.521,
+        "profile_path": "/t26MlYwJl4TBLFkHz9pjixA8yo7.jpg",
+        "credit_id": "6688687cb58c8f8ace5f554e",
+        "department": "Production",
+        "job": "Executive Producer"
+      },
+      {
+        "adult": false,
+        "gender": 2,
+        "id": 561,
+        "known_for_department": "Production",
+        "name": "John Papsidera",
+        "original_name": "John Papsidera",
+        "popularity": 1.6369,
+        "profile_path": "/egwEVyrAmdWhtuLqE5fcThZf41E.jpg",
+        "credit_id": "6a79f5d157e6feff4ff57e2b",
+        "department": "Production",
+        "job": "Casting"
+      },
+      {
+        "adult": false,
+        "gender": 1,
+        "id": 563736,
+        "known_for_department": "Sound",
+        "name": "Andrea von Foerster",
+        "original_name": "Andrea von Foerster",
+        "popularity": 0.7739,
+        "profile_path": "/zKo3qNhrkeUceyHjl6W5c7DS0ET.jpg",
+        "credit_id": "6a8a3d55d972436c930d53b8",
+        "department": "Sound",
+        "job": "Music Supervisor"
+      }
+    ]
+  },
+  "recommendations": {
+    "page": 1,
+    "results": [
+      {
+        "adult": false,
+        "backdrop_path": "/ewlmL0nxo2lLqBj69upgp2gjHpV.jpg",
+        "id": 299167,
+        "name": "Ранчо Даттонів",
+        "original_name": "Dutton Ranch",
+        "overview": "Бет Даттон і Ріп Вілер борються за виживання на своєму улюбленому ранчо площею 7000 акрів в умовах важких часів і жорсткої конкуренції, водночас намагаючись допомогти юному Картеру стати тим чоловіком, яким він має бути.",
+        "poster_path": "/dtKW23O5tfxq7EXUsfeLgBx7gy1.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18
+        ],
+        "popularity": 53.1243,
+        "first_air_date": "2026-05-15",
+        "softcore": false,
+        "vote_average": 9.136,
+        "vote_count": 610,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/vIioWssbxRtEkIzgj8r0pCWYkYM.jpg",
+        "id": 157744,
+        "name": "Єллоустоун: 1923",
+        "original_name": "1923",
+        "overview": "Даттони стикаються з новими проблемами на початку 20-го століття, включаючи зростання західної експансії, сухий закон та Велику депресію.",
+        "poster_path": "/9m9R7mCEBfvnjm9swqd0gBd37v2.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          37
+        ],
+        "popularity": 34.871,
+        "first_air_date": "2022-12-18",
+        "softcore": false,
+        "vote_average": 8.3,
+        "vote_count": 863,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/29P64FqDp0UVa9oJsIl49PHn5tH.jpg",
+        "id": 240993,
+        "name": "Рансом-Каньйон",
+        "original_name": "Ransom Canyon",
+        "overview": "Пристрасті вирують у маленькому техаському містечку, де три династії власників ранчо борються за свою землю, спадщину й коханих людей.",
+        "poster_path": "/q1MAKkr8QQexbxUzVhpe5SltXdy.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          37
+        ],
+        "popularity": 13.5249,
+        "first_air_date": "2025-04-17",
+        "softcore": false,
+        "vote_average": 7.3,
+        "vote_count": 131,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/gazijGFhqouUBvrTiFE9f0ZqF07.jpg",
+        "id": 122235,
+        "name": "Joe Pickett",
+        "original_name": "Joe Pickett",
+        "overview": "A game warden and his family navigate the changing political and socio-economic climate in a small rural town in Wyoming on the verge of economic collapse. Surrounded by rich history and vast wildlife, the township hides decades of schemes and secrets that are yet to be uncovered.",
+        "poster_path": "/pWBCwK0lp5RLCyG89JzrhEVny47.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          37
+        ],
+        "popularity": 27.0256,
+        "first_air_date": "2021-12-06",
+        "softcore": false,
+        "vote_average": 7.0,
+        "vote_count": 102,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/uQUHCqxHsG9blvtCoL7vluMG9Jp.jpg",
+        "id": 118357,
+        "name": "Єллоустоун: 1883",
+        "original_name": "1883",
+        "overview": "Історія сім’ї Даттон та їхньої подорожі на захід через Великі рівнини до останнього бастіону дикої Америки. Суворий переказ західної експансії та інтенсивне дослідження однієї сім’ї, яка тікає від бідності, щоб шукати кращого майбутнього на обітованій землі Америки — Монтані.",
+        "poster_path": "/50EMw9HYyUVaFOyQhjEnlBpGBBJ.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          37
+        ],
+        "popularity": 23.3234,
+        "first_air_date": "2021-12-19",
+        "softcore": false,
+        "vote_average": 8.28,
+        "vote_count": 1045,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/dfRvmXp4sdMd052ZV9jYZkuLpc2.jpg",
+        "id": 243396,
+        "name": "Територія",
+        "original_name": "Territory",
+        "overview": "Коли найбільша у світі ферма залишається без спадкоємця, між претендентами на неї починається запекла ворожнеча, яка ставить під загрозу майбутнє цієї землі.",
+        "poster_path": "/2xgch25zROzXInjDyBTtzxvPSq2.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18,
+          10759
+        ],
+        "popularity": 8.663,
+        "first_air_date": "2024-10-24",
+        "softcore": false,
+        "vote_average": 6.9,
+        "vote_count": 76,
+        "origin_country": [
+          "AU"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/wI4aGtreUx7vFtZGcyiFoOX3qf3.jpg",
+        "id": 113985,
+        "name": "За межами",
+        "original_name": "Outer Range",
+        "overview": "Серіал розповість про простого фермера, який мешкає у Вайомінгу. Його життя не здається простим, адже сама по собі робота у чоловіка складна, а тут ще й неприємності ззовні: головний герой змушений захищати себе, свою сім'ю та свої землі від зовнішніх ворогів, які готові вбити тих, хто дізнається про їхні секрети. Здається, що на території поблизу ферми мешкають люди, прихильні до якоїсь божевільної секти. До того ж, поліція веде розслідування жорстокого вбивства, яке сталося в цих краях. Так уже вийшло, що перед чоловіком розкрилася таємниця довколишніх територій, яка активно ховалась від усіх. Тепер з новими знаннями головний герой навряд чи зможе вплинути на баланс у країні, проте вже знайшлися ті, хто відкрив на героя полювання, щоб той не розповів про прилеглі території та їхні таємниці.",
+        "poster_path": "/a0CfEhoMZZGosfdD9WSzDrtRK6.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          9648,
+          10765
+        ],
+        "popularity": 19.6637,
+        "first_air_date": "2022-04-14",
+        "softcore": false,
+        "vote_average": 6.88,
+        "vote_count": 430,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/1Nd5mAddfEL1QG5H7h1VtAAPtQl.jpg",
+        "id": 2562,
+        "name": "How the West Was Won",
+        "original_name": "How the West Was Won",
+        "overview": "The Macahans, a family from Virginia headed by Zeb Macahan, travel across the country to pioneer a new land and a new home in the American West.",
+        "poster_path": "/7SlOtDowU9k3V5nIiwUlI2ZFkEk.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18
+        ],
+        "popularity": 15.6256,
+        "first_air_date": "1977-02-06",
+        "softcore": false,
+        "vote_average": 7.0,
+        "vote_count": 35,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/1FxG2lmDYsCM1svJf7H79HNNwu2.jpg",
+        "id": 215866,
+        "name": "Первісна Америка",
+        "original_name": "American Primeval",
+        "overview": "Мати із сином, які тікають від минулого, знаходять нову сім’ю, поки подорожують вільними, але суворими й жорстокими землями американського Заходу.",
+        "poster_path": "/59hU4NnqiWjcAp0dicR4LH4oEWA.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18,
+          10759
+        ],
+        "popularity": 14.3984,
+        "first_air_date": "2025-01-09",
+        "softcore": false,
+        "vote_average": 7.715,
+        "vote_count": 520,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/grThKpUYZ5nHppqAEvmF0pTSJa0.jpg",
+        "id": 41692,
+        "name": "Lonesome Dove",
+        "original_name": "Lonesome Dove",
+        "overview": "A pair of longtime friends and former Texas Rangers crave one last adventure before hanging-up their spurs. After stealing over a thousand head of cattle from rustlers south of the border, they recruit an unlikely crew of hands to drive the herd 3,000 miles north to the grasslands of Montana.",
+        "poster_path": "/qK4iseZGf0YhYx53ecawSGhL0sl.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          37
+        ],
+        "popularity": 10.3056,
+        "first_air_date": "1989-02-05",
+        "softcore": false,
+        "vote_average": 7.9,
+        "vote_count": 220,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/31oYoyp69L8Bo6Vuz2ogB5JoipV.jpg",
+        "id": 1406,
+        "name": "Дедвуд",
+        "original_name": "Deadwood",
+        "overview": "1876 рік. Містечко Дедвуд в Південній Дакоті - справжня вигрібна яма, в якій збирається злочинний набрід з усієї Америки. Злочини і корупція настільки міцно увійшли в життя мешканців Дедвуда, що на них практично не звертають уваги. Вбивства привертають менше уваги, ніж танці дівчаток у місцевому салуні.",
+        "poster_path": "/Npqw6jCpQHu3WooCMEBKq0Lreh.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          80,
+          18
+        ],
+        "popularity": 37.382,
+        "first_air_date": "2004-03-21",
+        "softcore": false,
+        "vote_average": 8.1,
+        "vote_count": 1004,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/rhYgYFWcH13gDUSf523ftltWH72.jpg",
+        "id": 43901,
+        "name": "Longmire",
+        "original_name": "Longmire",
+        "overview": "A Wyoming sheriff rebuilds his life and career following the death of his wife. Based on the “Walt Longmire” series of mystery novels written by best-selling author Craig Johnson.",
+        "poster_path": "/yrdt5lscyJ5j5GSbhl99x3SRN66.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          80,
+          18
+        ],
+        "popularity": 54.1475,
+        "first_air_date": "2012-06-03",
+        "softcore": false,
+        "vote_average": 7.7,
+        "vote_count": 338,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/eQJwfyMqSra10ck8HOoiCrbQR32.jpg",
+        "id": 66025,
+        "name": "За законами вовків",
+        "original_name": "Animal Kingdom",
+        "overview": "Після смерті матері 17-річний Джошуа Коді переїжджає до своєї рідні у пляжне містечко в Південній Каліфорнії. Сімейною справою керує бабуся Джошуа - Джанін Коді. Головний її помічник - старший з братів Коді, Поуп. Інші сини теж допомагають матері по мірі сил. Незабаром Джошуа розуміє, що фамільний бізнес пов'язаний з криміналом, і що тепер він волею-неволею став частиною цього нового для нього і смертельно небезпечного світу.",
+        "poster_path": "/q1QMArFsIdXWcKjSkhrw4HRtMF.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          80,
+          18
+        ],
+        "popularity": 70.2923,
+        "first_air_date": "2016-06-14",
+        "softcore": false,
+        "vote_average": 7.8,
+        "vote_count": 574,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/o8FiNSdVZkGe3EqRW5bsUtygRFB.jpg",
+        "id": 5742,
+        "name": "Return to Lonesome Dove",
+        "original_name": "Return to Lonesome Dove",
+        "overview": "After returning the body of Gus McCrae to Lonesome Dove, Woodrow Call takes on the challenge of driving a herd of wild mustangs 2500 miles north to the Hat Creek Ranch in Montana. But tragedy, triumph, despair and deceit will greet him before he ever gets there.",
+        "poster_path": "/uuCU3QJqtCXVfd1okAptVOU221.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          18,
+          37
+        ],
+        "popularity": 6.2064,
+        "first_air_date": "1993-11-14",
+        "softcore": false,
+        "vote_average": 7.0,
+        "vote_count": 31,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/yVOA48U97i9NJYovcxuxuLL1po5.jpg",
+        "id": 89498,
+        "name": "Deputy",
+        "original_name": "Deputy",
+        "overview": "When the Los Angeles County’s Sheriff dies, an arcane rule forged back in the Wild West thrusts the most unlikely man into the job: a fifth-generation lawman, more comfortable taking down bad guys than navigating a sea of politics, who won’t rest until justice is served.",
+        "poster_path": "/dlnbNP169odKEYKCfzBipRrUDdk.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18,
+          80
+        ],
+        "popularity": 10.1924,
+        "first_air_date": "2020-01-02",
+        "softcore": false,
+        "vote_average": 6.9,
+        "vote_count": 93,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/3CdnJBsEm2hZffF23wOJtfC0EIq.jpg",
+        "id": 73467,
+        "name": "Знебожені",
+        "original_name": "Godless",
+        "overview": "Події серіалу розгортаються в 1884 році на Дикому Заході. Жорстокий бандит Френк Ґріффін тероризує долини в пошуках свого приймака і колишнього колеги Роя Ґуда, який накивав п'ятами з награбованим після останнього нальоту. Пошуки приводять Френка в тихе містечко Ла Белль, у якому, за дивних обставин, живуть самі жінки.",
+        "poster_path": "/3Zue0F0bh6MYzxnt10WwVdao8wX.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18
+        ],
+        "popularity": 13.3867,
+        "first_air_date": "2017-11-22",
+        "softcore": false,
+        "vote_average": 7.748,
+        "vote_count": 753,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/cyieN1P9Xo5SvLasSUT7SaAAzfy.jpg",
+        "id": 1436,
+        "name": "Своя правда",
+        "original_name": "Justified",
+        "overview": "Історія федерального маршала Рейлана Гівенса, який дотримується застарілих поглядів на правосуддя. Через його суворий моральний кодекс Гівенс швидко стає мішенню як для злочинців, так і для колег.",
+        "poster_path": "/4WnuLUwOudIZSS8rFQJAdt174Mu.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          80,
+          18
+        ],
+        "popularity": 54.0958,
+        "first_air_date": "2010-03-16",
+        "softcore": false,
+        "vote_average": 7.982,
+        "vote_count": 893,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/wk00DBQ4hmAInKSDw4s7eX3jCAj.jpg",
+        "id": 138971,
+        "name": "Біллі Кід",
+        "original_name": "Billy the Kid",
+        "overview": "Серіал, заснований на житті відомого американського злочинця Біллі Кіда, також відомого як Вільям Х. Бонні, — від його скромного ірландського коріння до його перших днів як ковбой і стрілець на американському кордоні, а також його ключової ролі у війні округу Лінкольн.",
+        "poster_path": "/aC3nA2vM8paXocgcbjpeJRpfzJS.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          37,
+          18
+        ],
+        "popularity": 17.76,
+        "first_air_date": "2022-04-24",
+        "softcore": false,
+        "vote_average": 7.7,
+        "vote_count": 177,
+        "origin_country": [
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/it34RMnArwzl38hoAtgXfCkkqpX.jpg",
+        "id": 204999,
+        "name": "Далекі пагорби",
+        "original_name": "Faraway Downs",
+        "overview": "Історія англійської аристократки, леді Сари Ешлі, яка після смерті чоловіка успадковує велике скотарське ранчо в Австралії. Коли австралійські скотарські барони планують забрати її землю, вона об'єднує зусилля зі скотарем, щоб захистити своє ранчо.",
+        "poster_path": "/kyYkaMKfKymWUG5RDjdfaBYsF5p.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          10759,
+          18,
+          37
+        ],
+        "popularity": 8.8256,
+        "first_air_date": "2023-11-26",
+        "softcore": false,
+        "vote_average": 6.938,
+        "vote_count": 72,
+        "origin_country": [
+          "AU",
+          "GB",
+          "US"
+        ]
+      },
+      {
+        "adult": false,
+        "backdrop_path": "/qdZCF4FXQwOgkd8PIIQelbDqAYO.jpg",
+        "id": 100010,
+        "name": "Big Sky",
+        "original_name": "Big Sky",
+        "overview": "Private detective Cassie Dewell partners with ex-cop Jenny Hoyt on a search for two sisters who have been kidnapped by a truck driver on a remote highway in Montana. When they discover that these are not the only girls who have disappeared in the area, they must race against the clock to stop the perpetrator before another woman is taken.",
+        "poster_path": "/4CUK42x0TvcWvuRXfjAFQlCeRdf.jpg",
+        "media_type": "tv",
+        "original_language": "en",
+        "genre_ids": [
+          80,
+          18,
+          9648
+        ],
+        "popularity": 32.3705,
+        "first_air_date": "2020-11-17",
+        "softcore": false,
+        "vote_average": 7.208,
+        "vote_count": 303,
+        "origin_country": [
+          "US"
+        ]
+      }
+    ],
+    "total_pages": 33,
+    "total_results": 651
+  }
+}

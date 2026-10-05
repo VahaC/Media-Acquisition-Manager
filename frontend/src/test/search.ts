@@ -74,6 +74,7 @@ export function releaseOf(changes: Partial<SearchRelease>): SearchRelease {
     sourceId: toloka.id,
     sourceName: 'Toloka',
     title: 'Чужі / Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+    description: null,
     kind: 'Movie',
     sizeBytes: 31_675_383_808,
     seeders: 12,

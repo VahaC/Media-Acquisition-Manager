@@ -50,7 +50,8 @@ public static class ReleaseSearchPlanning
         ArgumentNullException.ThrowIfNull(capabilities);
 
         // The movie categories only: a text search finds every section, an audio-only release of the
-        // film among them (ADR 0004). TV has queries of its own (ForTv, MAM-32).
+        // film among them (ADR 0004). TV has queries of its own (ForTv, MAM-32). MAM-33 — a category the
+        // source files films and series in (TV/Anime, TV/Documentary) holds movies too (ADR 0020).
         var categories = capabilities.Categories
             .Where(category => category.HoldsMovies)
             .Select(category => category.Id)
@@ -133,5 +134,37 @@ public static class ReleaseSearchPlanning
             queries.Add(new ReleaseSearchQuery(ReleaseSearchMode.General, text, null, [], categories, limit));
 
         return queries;
+    }
+
+    /// <summary>
+    /// MAM-33 — the one query for the source's newest releases (<see cref="ReleaseSearchMode.Latest"/>): its
+    /// general search with no text, in its movie categories, its TV categories or both. <c>null</c> when it
+    /// has no general search or none of the asked categories.
+    /// </summary>
+    /// <remarks>
+    /// One query, never a page more: Toloka's gateway answers its latest 90 and an offset finds nothing
+    /// (VendorSamples), and read every few hours that is days of releases. The categories keep out what the
+    /// app never recommends — music, books, games — as they do for a search.
+    /// </remarks>
+    /// <param name="movies">Whether films are wanted: the movie categories, TV/Anime and TV/Documentary among
+    /// them when the source files films there (ADR 0020).</param>
+    /// <param name="tv">Whether shows are wanted: the TV categories.</param>
+    /// <param name="capabilities">What the source can search by.</param>
+    public static ReleaseSearchQuery? ForLatest(bool movies, bool tv, ReleaseSearchCapabilities capabilities)
+    {
+        ArgumentNullException.ThrowIfNull(capabilities);
+        if (!capabilities.HasTextSearch)
+            return null;
+
+        var categories = capabilities.Categories
+            .Where(category => movies && category.HoldsMovies || tv && category.HoldsTv)
+            .Select(category => category.Id)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (categories.Count == 0)
+            return null;
+
+        var limit = capabilities.ResultLimit is > 0 and var sourceLimit ? Math.Min(sourceLimit, MaximumResults) : MaximumResults;
+        return new ReleaseSearchQuery(ReleaseSearchMode.Latest, null, null, [], categories, limit);
     }
 }

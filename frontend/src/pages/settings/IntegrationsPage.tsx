@@ -24,7 +24,7 @@ import '@/styles/integrations.css' // .integrations-service*, .integrations-addr
 const PAGE_SIZE_STORAGE_KEY = 'mam:integrations:pageSize'
 const SEARCH_DEBOUNCE_MS = 300
 /** The kind filter's options, in the order the API lists the kinds. */
-const KINDS: readonly IntegrationKind[] = ['MediaLibrary', 'ReleaseSearch', 'DownloadClient']
+const KINDS: readonly IntegrationKind[] = ['MediaLibrary', 'ReleaseSearch', 'DownloadClient', 'Metadata']
 
 /** The last row test that answered: the integration it tested and what the service said. */
 interface RowTestResult {
@@ -35,9 +35,10 @@ interface RowTestResult {
 
 /**
  * Settings → Integrations, owner-only: the services the app works with — media libraries, release
- * sources and download clients — searched, filtered by kind and paged by the server. Add one, edit
- * it, test its connection from its row, remove it after a confirmation. An integration whose type
- * this version no longer connects to can only be removed, and says why.
+ * sources, download clients and (MAM-33) metadata catalogs such as TMDb, which feed the
+ * Recommendations page — searched, filtered by kind and paged by the server. Add one, edit it, test
+ * its connection from its row, remove it after a confirmation. An integration whose type this
+ * version no longer connects to can only be removed, and says why.
  *
  * A non-owner who opens the address gets the API's 403 sentence in place of the list.
  */

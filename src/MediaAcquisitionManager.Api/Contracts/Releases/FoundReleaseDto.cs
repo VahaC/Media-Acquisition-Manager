@@ -10,6 +10,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Id">The stored release, for sending it to a download client. A new id every search: the
 /// same listing found twice is two snapshots.</param>
 /// <param name="Title">The title as listed.</param>
+/// <param name="Description">MAM-33 — the listing's description when it says more than the title: Toloka's
+/// own topic title, Ukrainian title first; <c>null</c> when it gives none.</param>
 /// <param name="Kind">MAM-32 — what the source lists it as, by its categories (ADR 0020): <c>Tv</c> for a
 /// series, its seasons or episodes, cartoon series included; <c>Movie</c> otherwise.</param>
 /// <param name="SizeBytes">The size the listing claims; <c>null</c> when it gives none.</param>
@@ -25,6 +27,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 public sealed record FoundReleaseDto(
     Guid Id,
     string Title,
+    string? Description,
     ReleaseKind Kind,
     long? SizeBytes,
     int? Seeders,

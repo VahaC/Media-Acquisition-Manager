@@ -30,4 +30,16 @@ public interface IMediaWorkDataFactory
         Guid? sourceConnectionId,
         string? sourceName,
         string? sourceItemId);
+
+    /// <summary>MAM-33 — a saved place of the episode work <paramref name="episodeWorkId"/> in the series
+    /// <paramref name="seriesWorkId"/> (MAM-32), as the library integration <paramref name="sourceConnectionId"/>
+    /// reported it in its item <paramref name="sourceItemId"/>.</summary>
+    Task<MediaEpisodePositionEntity> AddEpisodePosition(
+        Guid episodeWorkId,
+        Guid? seriesWorkId,
+        int? seasonNumber,
+        int? episodeNumber,
+        Guid? sourceConnectionId,
+        string? sourceName,
+        string? sourceItemId);
 }

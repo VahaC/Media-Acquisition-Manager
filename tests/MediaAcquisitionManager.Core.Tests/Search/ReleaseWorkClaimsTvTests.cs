@@ -14,6 +14,9 @@ namespace MediaAcquisitionManager.Core.Tests.Search;
 // movie's title is read as before. Seasons and years are written "first-last", episodes "season:first-last".
 // The years a library series must be of to match a release by title and year follow from its seasons:
 // with season 1 its first year exactly, with later seasons only any year up to it, with none its span.
+// MAM-33 — whether a title names seasons or episodes at all, which tells a series from a film where a
+// tracker files both under one category; and a marker of episodes without a season cut from each title, or
+// ending one without a year, as a season marker is.
 public sealed class ReleaseWorkClaimsTvTests
 {
     private static readonly string[] None = [];
@@ -89,6 +92,18 @@ public sealed class ReleaseWorkClaimsTvTests
         // A whole word only: "Season" without a number, a letter before the "S".
         { "Show Season of Love (2020) WEB-DL", ["Show Season of Love"], "2020", null },
         { "PS1 Classics (2020)", ["PS1 Classics"], "2020", null },
+        // MAM-33 — episodes without a season, Toloka's TV/Anime way (VendorSamples README): cut from each title as a
+        // season marker is, bracket and all, and still no seasons claimed.
+        { "Death Note (E1-31 of 37) (2006) BDRip 1080p", ["Death Note"], "2006", null },
+        { "Candy Candy (E01-40 of 115) (1976-1979) DVDRip 720p", ["Candy Candy"], "1976-1979", null },
+        { "Котодракон / Neko to Ryuu (серії 1-4 з 12) (2026) WEBDL 1080p H.265", ["Котодракон", "Neko to Ryuu"], "2026", null },
+        { "Зошит смерті (серії 1-31 з 37) / Death Note (E1-31 of 37) (2006) BDRip 1080p", ["Зошит смерті", "Death Note"], "2006", null },
+        { "Show (Episodes 1-3 of 10) (2020)", ["Show"], "2020", null },
+        // After the year, it ends nothing: the year ended the title already.
+        { "Shinreigari (2007) BDRip 1080p Ukr/Jap | Sub Ukr (E01-14 of 22)", ["Shinreigari"], "2007", null },
+        // Without a year, it ends the title as a season marker does.
+        { "Death Note (E1-31 of 37) BDRip 1080p", ["Death Note"], null, null },
+        { "Show.E05.1080p.WEB-DL", ["Show"], null, null },
         // A marker that opens the title: no title, but still the seasons.
         { "S01E01 1080p WEB-DL", None, null, "1:1-1" },
         // No year and no marker: no title, as a movie's.
@@ -211,6 +226,43 @@ public sealed class ReleaseWorkClaimsTvTests
 
         //Assert
         Assert.Equal(expected, Describe(years));
+    }
+
+    [Theory]
+    // MAM-33 — titles and descriptions of Toloka's real TV/Anime and TV/Documentary listings (VendorSamples):
+    // a season marker, or episodes without a season, makes the listing a series.
+    [InlineData("Lanterns (S1) (2026) WEB-DL 1080p H.265 (S1)", true)]
+    [InlineData("Ліхтарі (Сезон 1) / Lanterns (Season 1) (2026) WEB-DL 1080p H.265", true)]
+    [InlineData("(2026) WEB-DL 1080p (S1E1-25 of ?)", true)]
+    [InlineData("Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026) WEB-DL 1080p", true)]
+    [InlineData("Крісло-танк (Сезон 1; серії 01 з хх) / Tank Chair (Season 1) (2026) WEB-DL 1080p Ukr/Jap | Sub Ukr", true)]
+    [InlineData("Death Note (E1-31 of 37) (2006) BDRip 1080p", true)]
+    [InlineData("Candy Candy (E01-40 of 115) (1976)", true)]
+    [InlineData("Котодракон / Neko to Ryuu (серії 1-4 з 12) (2026) WEBDL 1080p H.265", true)]
+    [InlineData("Takarajima (1978) BDRip-AVC Jap | Sub Ukr (E3 of 26)", true)]
+    [InlineData("Show Episode 5 (2020) WEB-DL", true)]
+    [InlineData("Шоу (епізоди 1-3) (2020)", true)]
+    // Films: nothing that names a season or an episode.
+    [InlineData("Akira (1988) BDRemux 4K 2160p DV HDR H.265 Ukr/Jap | sub Ukr/Jap", false)]
+    [InlineData("Schumacher '94 - Die Geburt einer Legende (2026) WEB-DL 1080p Ukr/Ger | Sub Ukr/Eng/Ger", false)]
+    [InlineData("Шумахер 1994: Народження легенди / Schumacher '94 - Die Geburt einer Legende (2026) WEB-DL 1080p Ukr/Ger | Sub Ukr/Eng/Ger", false)]
+    [InlineData("Вовчиця - шлях до влади / Wild Yellowstone She Wolf (2013) HDTV 1080i Ukr/Eng", false)]
+    // A word "Episode" without a number is a film's title, and a collection's count is no episode.
+    [InlineData("Star Wars: Episode IV - A New Hope (1977)", false)]
+    [InlineData("Tom and Jerry: Classic Collection (4 of 163) (1940-1967) BDRemux/WEB-DL 1080p Eng | sub Ukr/Eng", false)]
+    // An audio codec and a quality tag are not an "E" with a number.
+    [InlineData("Akira (1988) WEB-DL 1080p E-AC3 DDP5.1 EAC3 Ukr/Jap", false)]
+    [InlineData("The Uprising (2026) WEB-DL 4K 2160p HDR10 Dolby Vision P8 H.265 Ukr/Eng | Sub Eng/Ukr | MA", false)]
+    [InlineData("", false)]
+    public void ClaimsSeasonsOrEpisodes_says_whether_a_title_names_seasons_or_episodes(string text, bool expected)
+    {
+        //Arrange
+
+        //Act
+        var claims = ReleaseWorkClaims.ClaimsSeasonsOrEpisodes(text);
+
+        //Assert
+        Assert.Equal(expected, claims);
     }
 
     private static string? Describe(ClaimedYears? years) =>

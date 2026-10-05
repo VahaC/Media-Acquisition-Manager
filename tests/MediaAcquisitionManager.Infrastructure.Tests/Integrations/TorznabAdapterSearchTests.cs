@@ -34,6 +34,10 @@ public sealed class TorznabAdapterSearchTests : IDisposable
     {
         ["a limit of zero"] = Query(limit: 0),
         ["neither text nor an identifier"] = Query(text: null),
+        // MAM-33 — nor in the movie and TV searches: only the newest releases are asked with no text, and
+        // anything else without it would list them too, read as an answer to a title.
+        ["a movie search with neither text nor an identifier"] = Query(ReleaseSearchMode.Movie, text: null),
+        ["a TV search with neither text nor an identifier"] = Query(ReleaseSearchMode.Tv, text: null),
         ["blank text"] = Query(text: "  "),
         ["an identifier in a general search"] = Query(identifiers: [new MediaIdentifier(MediaIdentifierScheme.Imdb, "tt0816692")]),
         ["a category that isn't a number"] = Query(categories: ["2000", "20a0"]),
@@ -44,6 +48,12 @@ public sealed class TorznabAdapterSearchTests : IDisposable
             ReleaseSearchMode.Movie,
             identifiers: [new MediaIdentifier(MediaIdentifierScheme.Imdb, "tt0816692"), new MediaIdentifier(MediaIdentifierScheme.Imdb, "tt0816693")]),
         ["an unknown mode"] = Query((ReleaseSearchMode)7),
+        // MAM-33 — the newest releases are asked with their categories alone (ReleaseSearchPlanning.ForLatest).
+        ["the newest releases with text"] = Query(ReleaseSearchMode.Latest),
+        ["the newest releases with an identifier"] = Query(
+            ReleaseSearchMode.Latest, text: null, identifiers: [new MediaIdentifier(MediaIdentifierScheme.Imdb, "tt0816692")]),
+        ["the newest releases with a year"] = Query(ReleaseSearchMode.Latest, text: null) with { Year = 2014 },
+        ["the newest releases of a season"] = Query(ReleaseSearchMode.Latest, text: null) with { Season = 1 },
     };
 
     private readonly IntegrationAdapterHarness _harness = new();
@@ -225,6 +235,8 @@ public sealed class TorznabAdapterSearchTests : IDisposable
         var hit = result.Value![0];
         Assert.Equal("https://toloka.to/t699400", hit.SourceItemId);
         Assert.Equal("Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]", hit.Title);
+        // MAM-33 — Toloka's own topic title, which Prowlarr's title cuts to its English part.
+        Assert.Equal("Інтерстеллар / Interstellar (2014) BDRemux 1080p Ukr/Eng | Sub Eng [IMAX Edition]", hit.Description);
         Assert.Equal(36711232962, hit.SizeBytes);
         Assert.Equal(8, hit.Seeders);
         Assert.Equal(8, hit.Peers);
@@ -562,6 +574,58 @@ public sealed class TorznabAdapterSearchTests : IDisposable
 
         //Assert
         Assert.Equal(new string('t', 999) + "…", Assert.Single(result.Value!).Title);
+    }
+
+    [Theory]
+    [InlineData("Інтерстеллар / Interstellar (2014) BDRip", "Інтерстеллар / Interstellar (2014) BDRip")]
+    // Cleaned like the title: no control or format character, every run of whitespace one space.
+    [InlineData("  Інтерстеллар‮ /\n\tInterstellar  (2014) ", "Інтерстеллар / Interstellar (2014)")]
+    // MAM-33 — nothing more than the title says: none, cleaned or not.
+    [InlineData("Interstellar (2014)", null)]
+    [InlineData(" Interstellar\n(2014) ", null)]
+    [InlineData("  ", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public async Task Search_reads_the_description_only_when_it_says_more_than_the_title(string? description, string? expectedDescription)
+    {
+        //Arrange
+        var extra = description is null ? "" : $"<description>{Escape(description)}</description>";
+        _harness.TorznabHttp.Handler = (_, _) => RssXml(TorznabSamples.Feed(TorznabSamples.Item("Interstellar (2014)", DownloadLink, extra: extra)));
+
+        //Act
+        var result = await Search.SearchAsync(Settings, Query(), TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(expectedDescription, Assert.Single(result.Value!).Description);
+    }
+
+    [Fact]
+    public async Task Search_masks_the_api_key_a_description_echoes()
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => RssXml(TorznabSamples.Feed(
+            TorznabSamples.Item("Interstellar (2014)", DownloadLink, extra: $"<description>Інтерстеллар {ApiKey} / Interstellar (2014)</description>")));
+
+        //Act
+        var result = await Search.SearchAsync(Settings, Query(), TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal("Інтерстеллар *** / Interstellar (2014)", Assert.Single(result.Value!).Description);
+    }
+
+    [Fact]
+    public async Task Search_cuts_a_description_to_what_a_release_holds()
+    {
+        //Arrange
+        _harness.TorznabHttp.Handler = (_, _) => RssXml(TorznabSamples.Feed(
+            TorznabSamples.Item("Interstellar (2014)", DownloadLink, extra: $"<description>{new string('d', 1500)}</description>")));
+
+        //Act
+        var result = await Search.SearchAsync(Settings, Query(), TestContext.Current.CancellationToken);
+
+        //Assert
+        // ReleaseEntity.Description holds 1000, as the title's column does.
+        Assert.Equal(new string('d', 999) + "…", Assert.Single(result.Value!).Description);
     }
 
     [Fact]

@@ -49,6 +49,7 @@ describe('IntegrationDialog', () => {
     ['jellyfin', ['API key'], ['User name', 'Password'], true],
     ['torznab', ['API key'], ['User name', 'Password'], false],
     ['qbittorrent', ['User name (optional)', 'Password (optional)'], ['API key'], true],
+    ['tmdb', ['API key'], ['User name', 'Password'], false],
   ])('offers the services grouped by kind and shows only the fields %s takes', async (typeId, shown, hidden, mappings) => {
     // Arrange
     const { dialog, user } = renderDialog()
@@ -64,6 +65,7 @@ describe('IntegrationDialog', () => {
       ['Media libraries', ['Jellyfin']],
       ['Release sources', ['Torznab']],
       ['Download clients', ['qBittorrent']],
+      ['Metadata catalogs', ['TMDb']],
     ])
     for (const label of shown) expect(within(dialog).getByLabelText(label)).toBeInTheDocument()
     for (const label of hidden) expect(within(dialog).queryByLabelText(new RegExp(`^${label}`))).not.toBeInTheDocument()
@@ -77,6 +79,7 @@ describe('IntegrationDialog', () => {
     ['Jellyfin', undefined, 'jellyfin', 'http://192.168.1.10:8096'],
     ['Torznab', undefined, 'torznab', 'http://192.168.1.10:9696/1/api'],
     ['qBittorrent', undefined, 'qbittorrent', 'http://192.168.1.10:8080'],
+    ['TMDb', undefined, 'tmdb', 'https://api.themoviedb.org'],
     ['a saved qBittorrent', localQbittorrent, undefined, 'http://192.168.1.10:8080'],
   ])('shows an example address that fits %s', async (_, integration, typeId, example) => {
     // Arrange
@@ -108,6 +111,44 @@ describe('IntegrationDialog', () => {
     // Jellyfin can't do without its key: no "(optional)" on it.
     expect(jellyfin[0]).toBeInTheDocument()
     expect(jellyfin[1]).toBeNull()
+  })
+
+  it('shows TMDb’s attribution notice while TMDb is the service, and only then', async () => {
+    // Arrange
+    const notice = 'This product uses the TMDB API but is not endorsed or certified by TMDB.'
+    const { dialog, user } = renderDialog()
+    await whenReady(dialog)
+
+    // Act
+    await pickService(user, dialog, 'tmdb')
+    const shownForTmdb = within(dialog).queryByText(notice)
+    await pickService(user, dialog, 'jellyfin')
+    const shownForJellyfin = within(dialog).queryByText(notice)
+
+    // Assert
+    expect(shownForTmdb).toHaveClass('auth-hint')
+    expect(shownForJellyfin).toBeNull()
+  })
+
+  it('shows TMDb’s attribution notice on a saved TMDb too', async () => {
+    // Arrange
+    const savedTmdb: IntegrationSummary = {
+      ...homeJellyfin,
+      id: '5d1c7a90-0000-4000-8000-000000000005',
+      name: 'Catalog',
+      adapterType: 'tmdb',
+      adapterDisplayName: 'TMDb',
+      kind: 'Metadata',
+      pathMappings: [],
+    }
+
+    // Act
+    const { dialog } = renderDialog(savedTmdb)
+    await whenReady(dialog)
+
+    // Assert
+    expect(within(dialog).getByText('This product uses the TMDB API but is not endorsed or certified by TMDB.')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Address')).toHaveAttribute('placeholder', 'https://api.themoviedb.org')
   })
 
   it('adds an integration with its secrets, switch and path mappings', async () => {

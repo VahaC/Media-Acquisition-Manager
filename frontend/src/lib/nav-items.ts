@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next'
-import { CircleUser, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, Plug, Search, Users, type LucideIcon } from 'lucide-react'
+import { CircleUser, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, Plug, Search, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import type { CurrentUser } from './types'
 
 /** Where an entry is offered: the header bar, or the signed-in user's menu. */
@@ -28,6 +28,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // MAM-16 — the header shows its search field in this link's place (AppLayout, HeaderSearch).
   { path: '/search', labelKey: 'nav.search', icon: Search, ownerOnly: false, placement: 'header' },
   { path: '/library', labelKey: 'nav.library', icon: LibraryBig, ownerOnly: false, placement: 'header' },
+  // MAM-33 — after the Library, whose gaps it fills, and before Jobs, which stays last. Every signed-in
+  // user reads their own lists; AppLayout hides the link while all four of the user's tabs are off.
+  { path: '/recommendations', labelKey: 'nav.recommendations', icon: Sparkles, ownerOnly: false, placement: 'header' },
   // MAM-14 — last in the header: the jobs are the releases sent from Search, followed until they
   // finish. Every signed-in user sends downloads (MAM-13's decision 1) and reads their own jobs only
   // (MAM-14's decision 1), so the header offers it to everyone.

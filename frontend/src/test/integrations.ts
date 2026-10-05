@@ -1,7 +1,7 @@
 import type { IntegrationAdapterType, IntegrationAdapterTypeList, IntegrationSummary } from '@/lib/types'
 
-// The three types MAM-7 ships, as GET /api/settings/integrations/adapter-types describes them, and a
-// few saved integrations. Addresses are http://127.0.0.1:9, never a host on the LAN.
+// The three types MAM-7 ships and MAM-33's TMDb, as GET /api/settings/integrations/adapter-types
+// describes them, and a few saved integrations. Addresses are http://127.0.0.1:9, never a host on the LAN.
 
 export const jellyfinType: IntegrationAdapterType = {
   typeId: 'jellyfin',
@@ -33,8 +33,19 @@ export const qbittorrentType: IntegrationAdapterType = {
   reportsFilePaths: true,
 }
 
+/** MAM-33 — the metadata catalog: its API Read Access Token goes in the API key field. */
+export const tmdbType: IntegrationAdapterType = {
+  typeId: 'tmdb',
+  displayName: 'TMDb',
+  kind: 'Metadata',
+  userName: 'NotUsed',
+  password: 'NotUsed',
+  apiKey: 'Required',
+  reportsFilePaths: false,
+}
+
 /** In the server's order: by kind, then name. */
-export const adapterTypes: IntegrationAdapterTypeList = { items: [jellyfinType, torznabType, qbittorrentType] }
+export const adapterTypes: IntegrationAdapterTypeList = { items: [jellyfinType, torznabType, qbittorrentType, tmdbType] }
 
 export const homeJellyfin: IntegrationSummary = {
   id: '5d1c7a90-0000-4000-8000-000000000001',

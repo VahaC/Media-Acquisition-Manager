@@ -67,6 +67,44 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<SearchSourceEntity> SearchSources => Set<SearchSourceEntity>();
 
+    public DbSet<CatalogWorkEntity> CatalogWorks => Set<CatalogWorkEntity>();
+
+    public DbSet<CatalogWorkGenreEntity> CatalogWorkGenres => Set<CatalogWorkGenreEntity>();
+
+    public DbSet<CatalogWorkPersonEntity> CatalogWorkPeople => Set<CatalogWorkPersonEntity>();
+
+    public DbSet<CatalogWorkSeasonEntity> CatalogWorkSeasons => Set<CatalogWorkSeasonEntity>();
+
+    public DbSet<CatalogWorkRecommendationEntity> CatalogWorkRecommendations => Set<CatalogWorkRecommendationEntity>();
+
+    public DbSet<CatalogGenreEntity> CatalogGenres => Set<CatalogGenreEntity>();
+
+    public DbSet<CatalogCollectionEntity> CatalogCollections => Set<CatalogCollectionEntity>();
+
+    public DbSet<CatalogCollectionPartEntity> CatalogCollectionParts => Set<CatalogCollectionPartEntity>();
+
+    public DbSet<CatalogPersonEntity> CatalogPeople => Set<CatalogPersonEntity>();
+
+    public DbSet<CatalogPersonWorkEntity> CatalogPersonWorks => Set<CatalogPersonWorkEntity>();
+
+    public DbSet<CatalogLookupEntity> CatalogLookups => Set<CatalogLookupEntity>();
+
+    public DbSet<RecommendationRunEntity> RecommendationRuns => Set<RecommendationRunEntity>();
+
+    public DbSet<RecommendationCandidateEntity> RecommendationCandidates => Set<RecommendationCandidateEntity>();
+
+    public DbSet<RecommendationReasonEntity> RecommendationReasons => Set<RecommendationReasonEntity>();
+
+    public DbSet<SourceFeedEntryEntity> SourceFeedEntries => Set<SourceFeedEntryEntity>();
+
+    public DbSet<ReleaseAvailabilityEntity> ReleaseAvailabilities => Set<ReleaseAvailabilityEntity>();
+
+    public DbSet<RecommendationSearchEntity> RecommendationSearches => Set<RecommendationSearchEntity>();
+
+    public DbSet<RecommendationDismissalEntity> RecommendationDismissals => Set<RecommendationDismissalEntity>();
+
+    public DbSet<UserRecommendationSettingsEntity> UserRecommendationSettings => Set<UserRecommendationSettingsEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -477,6 +515,225 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<IntegrationConnectionEntity>().WithMany()
                 .HasForeignKey(x => x.IntegrationConnectionId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // MAM-33, ADR 0025 — the metadata catalog's tables, kept apart from the library's: nothing below is a
+        // library work, and no key points from here into MediaWorks or back. The catalog's own rows carry the
+        // provenance (ADR 0006: SourceKind Metadata, SetNull to the integration, its name copied, so a catalog
+        // removed leaves what it said and who said it); their child rows are part of the report that wrote them
+        // and go with their parent.
+
+        modelBuilder.Entity<CatalogWorkEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // MAM-33 — one row per work of the catalog: every list and every details read upserts by these two,
+            // as the catalog numbers films and shows apart (ADR 0017). Unique, so two reads racing (a run and the
+            // feed reader) can't store a work twice.
+            e.HasIndex(x => new { x.Kind, x.CatalogId }).IsUnique();
+        });
+
+        modelBuilder.Entity<CatalogWorkGenreEntity>(e =>
+        {
+            // A genre once per work; leading with the work, so it also serves the foreign key.
+            e.HasIndex(x => new { x.CatalogWorkId, x.GenreId }).IsUnique();
+            // Cascade: a work's genres are part of its report.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogWorkPersonEntity>(e =>
+        {
+            // One person per place in the details' list; leading with the work, for the foreign key.
+            e.HasIndex(x => new { x.CatalogWorkId, x.Position }).IsUnique();
+            // Cascade: part of the work's details.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogWorkSeasonEntity>(e =>
+        {
+            // A season once per show; leading with the show, for the foreign key.
+            e.HasIndex(x => new { x.CatalogWorkId, x.Number }).IsUnique();
+            // Cascade: part of the show's details.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogWorkRecommendationEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // One recommended work per place in the details' list; leading with the work, for the foreign key.
+            e.HasIndex(x => new { x.CatalogWorkId, x.Position }).IsUnique();
+            // Cascade: part of the work's details. The recommended work is named by kind and id, with no key
+            // of its own (the entity says why).
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogGenreEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Role).HasConversion<string>().HasMaxLength(32);
+            // A genre once per kind's list: the catalog numbers the two lists apart.
+            e.HasIndex(x => new { x.Kind, x.GenreId }).IsUnique();
+        });
+
+        modelBuilder.Entity<CatalogCollectionEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            // One row per collection of the catalog, upserted by it.
+            e.HasIndex(x => x.CatalogId).IsUnique();
+        });
+
+        modelBuilder.Entity<CatalogCollectionPartEntity>(e =>
+        {
+            // One film per place in the collection; leading with the collection, for the foreign key.
+            e.HasIndex(x => new { x.CatalogCollectionId, x.Position }).IsUnique();
+            // Cascade: part of the collection's report.
+            e.HasOne<CatalogCollectionEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogCollectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogPersonEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            // One row per person of the catalog, upserted by it.
+            e.HasIndex(x => x.CatalogId).IsUnique();
+        });
+
+        modelBuilder.Entity<CatalogPersonWorkEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // One work per place in the person's list; leading with the person, for the foreign key.
+            e.HasIndex(x => new { x.CatalogPersonId, x.Position }).IsUnique();
+            // Cascade: part of the person's report.
+            e.HasOne<CatalogPersonEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogPersonId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogLookupEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            e.Property(x => x.ResultKind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Evidence).HasConversion<string>().HasMaxLength(32);
+            // One cached answer per question asked, which a run finds it by.
+            e.HasIndex(x => x.QueryKey).IsUnique();
+        });
+
+        modelBuilder.Entity<RecommendationRunEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Trigger).HasConversion<string>().HasMaxLength(32);
+            // By name like the status, so a stage added between two others never renumbers the rows (MAM-33).
+            e.Property(x => x.Stage).HasConversion<string>().HasMaxLength(32);
+            // MAM-33 — at most one queued and one running computation, the inspection's rule: a trigger that
+            // finds one queued joins it (the service checks first; this settles two triggers racing — a sync
+            // finishing as the owner clicks), and a finished run never blocks the next one.
+            e.HasIndex(x => x.Status, "IX_RecommendationRuns_OneRunPerActiveStatus")
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Queued', 'Running')");
+            // "The latest run", which the Recommendations page asks for on every poll.
+            e.HasIndex(x => x.CreatedUtc);
+            // SetNull: the run outlives the user who asked for it; RequestedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<RecommendationCandidateEntity>(e =>
+        {
+            e.Property(x => x.Tab).HasConversion<string>().HasMaxLength(32);
+            // One candidate per catalog work: a work has one tab and one score, its reasons all on it.
+            e.HasIndex(x => x.CatalogWorkId).IsUnique();
+            // "This tab, best first": the list reads a tab's candidates in score order.
+            e.HasIndex(x => new { x.Tab, x.Score });
+            // Cascade: a candidate says something only about its work; a run replaces them all anyway.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecommendationReasonEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // One reason per place on its card; leading with the candidate, for the foreign key.
+            e.HasIndex(x => new { x.RecommendationCandidateId, x.Position }).IsUnique();
+            // Cascade: a run replaces the candidates with one delete, which takes their reasons in the database.
+            e.HasOne<RecommendationCandidateEntity>().WithMany()
+                .HasForeignKey(x => x.RecommendationCandidateId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SourceFeedEntryEntity>(e =>
+        {
+            // The provenance columns without ConfigureProvenance: a feed entry is the one fact that goes with
+            // its source (Cascade below, not SetNull), and is unique per source and item.
+            e.Property(x => x.SourceKind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // MAM-33 — one row per release of a source: every read of the feed upserts by these two.
+            e.HasIndex(x => new { x.SourceConnectionId, x.SourceItemId }).IsUnique();
+            // Cascade: a feed is nothing without the source that publishes it, and a source removed and added
+            // again starts its feed afresh.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.SourceConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // SetNull: the entry stays known — and resolved, so it isn't looked up again — when its work's row
+            // goes.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ReleaseAvailabilityEntity>(e =>
+        {
+            // One check per catalog work, shared by every user (ADR 0024).
+            e.HasIndex(x => x.CatalogWorkId).IsUnique();
+            // Cascade: what was found for a work says nothing once its row is gone.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecommendationSearchEntity>(e =>
+        {
+            e.Property(x => x.Tab).HasConversion<string>().HasMaxLength(32);
+            // "This user's searches in the last 24 hours": the budget every pass counts. Leading with the user,
+            // so it also serves the foreign key.
+            e.HasIndex(x => new { x.UserId, x.SearchedUtc });
+            // Cascade: a deleted user has no budget left to count.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecommendationDismissalEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // A work dismissed once per user: "Not interested" is idempotent, and this settles two clicks racing.
+            // Leading with the user, so it also serves the foreign key.
+            e.HasIndex(x => new { x.UserId, x.Kind, x.CatalogId }).IsUnique();
+            // Cascade: a user's dismissals are theirs alone (Vasyl's decision 3).
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserRecommendationSettingsEntity>(e =>
+        {
+            // One row per user, saved from their Profile; none means the defaults.
+            e.HasIndex(x => x.UserId).IsUnique();
+            // Cascade: the settings are the user's alone.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

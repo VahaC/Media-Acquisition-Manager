@@ -1,11 +1,14 @@
 using MediaAcquisitionManager.Core.Abstractions.Media;
+using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Services.Releases;
 
 /// <summary>
 /// Asks every enabled release source for one title (MAM-10). The one place the sources are asked, shared
 /// by the plain release search and the stored search (MAM-12), so both ask the same way: concurrently,
-/// each answering for itself, every secret masked out of what it says.
+/// each answering for itself, every secret masked out of what it says. MAM-33 — and by the recommendations'
+/// availability check (<see cref="SearchKindAsync"/>) and their feed of newest releases
+/// (<see cref="LatestAsync"/>), through the same machinery.
 /// </summary>
 public interface IReleaseSources
 {
@@ -29,4 +32,29 @@ public interface IReleaseSources
         int? season,
         IReadOnlyList<MediaIdentifier> identifiers,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-33 — asks each enabled release source for one work whose kind is known, as <see cref="SearchAsync"/>
+    /// asks (one outcome per source, in name order; never throws but for <paramref name="cancellationToken"/>;
+    /// nothing stored), but only the query family of that kind: the movie tiers (<c>ReleaseSearchPlanning.For</c>,
+    /// the year as the source takes it) for a film, the TV tiers (<c>ReleaseSearchPlanning.ForTv</c>, no season)
+    /// for a show. The other family would only cost a request whose releases can't be the work.
+    /// </summary>
+    /// <param name="text">The title, trimmed and not blank.</param>
+    /// <param name="year">A film's year; <c>null</c> for none. A show's search never sends one (ADR 0020).</param>
+    /// <param name="kind">Whether the work is a film (<see cref="ReleaseKind.Movie"/>) or a show
+    /// (<see cref="ReleaseKind.Tv"/>).</param>
+    /// <param name="cancellationToken">The pass's cancellation.</param>
+    Task<IReadOnlyList<ReleaseSourceOutcome>> SearchKindAsync(
+        string text, int? year, ReleaseKind kind, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-33 — asks each enabled release source for its newest releases: one query each
+    /// (<c>ReleaseSearchPlanning.ForLatest</c>), in its movie categories when <paramref name="movies"/>, its TV
+    /// categories when <paramref name="tv"/>. Outcomes, order, failures and storage as <see cref="SearchAsync"/>'s.
+    /// </summary>
+    /// <param name="movies">Whether films are wanted.</param>
+    /// <param name="tv">Whether shows are wanted.</param>
+    /// <param name="cancellationToken">The pass's cancellation.</param>
+    Task<IReadOnlyList<ReleaseSourceOutcome>> LatestAsync(bool movies, bool tv, CancellationToken cancellationToken = default);
 }

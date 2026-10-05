@@ -1,5 +1,8 @@
-/** What the app uses an integration for. */
-export type IntegrationKind = 'MediaLibrary' | 'ReleaseSearch' | 'DownloadClient'
+/**
+ * What the app uses an integration for. MAM-33 — `Metadata`: a catalog of films and shows (TMDb) the
+ * app looks works up in and recommends from.
+ */
+export type IntegrationKind = 'MediaLibrary' | 'ReleaseSearch' | 'DownloadClient' | 'Metadata'
 
 /** Whether a service type takes a credential. */
 export type CredentialRequirement = 'NotUsed' | 'Optional' | 'Required'
@@ -39,7 +42,7 @@ export interface PathMapping {
 export interface IntegrationSummary {
   id: string
   name: string
-  /** The registered type id (`jellyfin`, `torznab`, `qbittorrent`); never changes. */
+  /** The registered type id (`jellyfin`, `torznab`, `qbittorrent`, `tmdb`); never changes. */
   adapterType: string
   /** Null when this version of the app no longer registers the type: it can only be removed. */
   adapterDisplayName: string | null

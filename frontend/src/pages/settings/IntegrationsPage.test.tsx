@@ -73,6 +73,15 @@ describe('IntegrationsPage', () => {
     expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
   })
 
+  it('says in its lead that a metadata catalog feeds the Recommendations page', async () => {
+    // Act
+    renderPage()
+
+    // Assert
+    const lead = await screen.findByText(/^The services this app works with/)
+    expect(lead).toHaveTextContent('your download clients, and a metadata catalog (TMDb) that feeds the Recommendations page.')
+  })
+
   it('asks the server for the search once typing pauses and starts again at page 1', async () => {
     // Arrange
     vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
@@ -115,7 +124,7 @@ describe('IntegrationsPage', () => {
     expect(screen.getByText('Local qBittorrent')).toBeInTheDocument()
     expect(screen.queryByText('Home Jellyfin')).not.toBeInTheDocument()
     expect([...screen.getByRole('combobox', { name: 'Kind' }).querySelectorAll('option')].map((option) => option.textContent))
-      .toEqual(['All kinds', 'Media libraries', 'Release sources', 'Download clients'])
+      .toEqual(['All kinds', 'Media libraries', 'Release sources', 'Download clients', 'Metadata catalogs'])
   })
 
   it('remembers the page size on this device', async () => {
@@ -179,7 +188,9 @@ describe('IntegrationsPage', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByText(/^No integrations yet\./)).toHaveTextContent('Click Add integration to connect')
+    const empty = await screen.findByText(/^No integrations yet\./)
+    expect(empty).toHaveTextContent('Click Add integration to connect')
+    expect(empty).toHaveTextContent('a metadata catalog (TMDb) that feeds the Recommendations page')
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()

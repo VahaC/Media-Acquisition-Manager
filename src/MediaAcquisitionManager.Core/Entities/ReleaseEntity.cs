@@ -37,6 +37,15 @@ public class ReleaseEntity : ProvenancedEntity
     [Required, MaxLength(1000)]
     public string Title { get; set; } = default!;
 
+    /// <summary>
+    /// MAM-33 — the listing's own description when it says more than the title: Toloka's topic title,
+    /// Ukrainian title first, where Prowlarr's title keeps the English part alone. Shown beside the title
+    /// and read to find the work in a metadata catalog; <c>null</c> when the listing gives none, and on
+    /// every row stored before MAM-33.
+    /// </summary>
+    [MaxLength(1000)]
+    public string? Description { get; set; }
+
     /// <summary>The size the listing claims; <c>null</c> when it gives none.</summary>
     public long? SizeBytes { get; set; }
 

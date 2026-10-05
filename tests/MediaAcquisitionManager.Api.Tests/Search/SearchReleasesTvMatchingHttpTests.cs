@@ -64,6 +64,7 @@ public sealed class SearchReleasesTvMatchingHttpTests : IClassFixture<MediaAcqui
         // The BBC documentary of 2009: a TV release, so never the film of 2009, and with season 1 a show
         // begun in 2009 — only a title match to the show of 2018.
         { "Yellowstone (S1) (2009) BDRip 1080p H.265 Ukr/Eng | Sub Eng (S1)", ["S TitleOnly held 2"] },
+        // MAM-33 — films of TV/Documentary, naming no season (ADR 0020): movies, of titles the library hasn't.
         { "World Natural Heritage USA: Yellowstone National Park (2013) IPTVRemux", [] },
         { "Wild Yellowstone She Wolf (2013) HDTV", [] },
         { "Wild Yellowstone She Wolf (2013) HDTV 1080i Ukr/Eng", [] },
@@ -316,8 +317,12 @@ public sealed class SearchReleasesTvMatchingHttpTests : IClassFixture<MediaAcqui
         await _factory.WithDbAsync(async db =>
         {
             var stored = await db.Releases.AsNoTracking().Select(release => new { release.Title, release.Kind }).ToListAsync(cancellationToken);
-            Assert.Equal(TorznabSamples.TvItemCount, stored.Count(release => release.Kind == ReleaseKind.Tv));
+            Assert.Equal(TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount, stored.Count(release => release.Kind == ReleaseKind.Tv));
             Assert.Equal(ReleaseKind.Movie, Assert.Single(stored, release => release.Title == FilmRelease).Kind);
+            // MAM-33 — the TV answer's films in TV/Documentary, naming no season.
+            Assert.All(
+                stored.Where(release => release.Title.StartsWith("Wild Yellowstone She Wolf", StringComparison.Ordinal)),
+                release => Assert.Equal(ReleaseKind.Movie, release.Kind));
         });
     }
 
@@ -349,11 +354,12 @@ public sealed class SearchReleasesTvMatchingHttpTests : IClassFixture<MediaAcqui
     }
 
     [Theory]
-    [InlineData("kind=Tv", 9, "Tv")]
-    [InlineData("kind=TV", 9, "Tv")]
-    [InlineData("kind=%20tv%20", 9, "Tv")]
-    [InlineData("kind=movie", 1, "Movie")]
-    [InlineData("kind=", 10, null)]
+    // MAM-33 — the series of the TV answer; its films of TV/Documentary are movies beside the film's release.
+    [InlineData("kind=Tv", TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount, "Tv")]
+    [InlineData("kind=TV", TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount, "Tv")]
+    [InlineData("kind=%20tv%20", TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount, "Tv")]
+    [InlineData("kind=movie", 1 + TorznabSamples.TvFilmItemCount, "Movie")]
+    [InlineData("kind=", 1 + TorznabSamples.TvItemCount, null)]
     public async Task Releases_of_a_kind_lists_only_the_releases_of_that_kind(string query, int expectedCount, string? expectedKind)
     {
         //Arrange
@@ -413,7 +419,9 @@ public sealed class SearchReleasesTvMatchingHttpTests : IClassFixture<MediaAcqui
 
         //Act
         var both = await CreateSearchAsync("Yellowstone", cancellationToken);
-        // A season asks the TV search alone.
+        // A season asks the TV search alone, which Toloka answers with the show's seasons (MAM-33: not the
+        // films of TV/Documentary its search by the title alone lists, which are movies).
+        _toloka.TvSearchXml = TorznabSamples.TvSeasonSearch(TolokaAddress, ApiKey);
         var season = await CreateSearchAsync("Yellowstone", cancellationToken, "5");
         _toloka.TvSearchXml = TorznabSamples.Feed();
         _toloka.SearchXml = TorznabSamples.Feed();

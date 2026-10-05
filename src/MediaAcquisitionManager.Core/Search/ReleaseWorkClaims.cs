@@ -74,6 +74,10 @@ public static partial class ReleaseWorkClaims
     /// a bare year, the scene way, or at the first season marker, whichever comes first: a marker can end
     /// a title where nothing else would ("Yellowstone S01E01 1080p" is "Yellowstone", of no year).
     /// </para>
+    /// <para>
+    /// MAM-33 — a marker of episodes alone, Toloka's TV/Anime way ("Death Note (E1-31 of 37) (2006)", "Котодракон /
+    /// Neko to Ryuu (серії 1-4 з 12) (2026)"), is cut and ends a title as a season marker does, but claims no season.
+    /// </para>
     /// </remarks>
     public static ReleaseWorkClaim ReadTv(string title)
     {
@@ -94,13 +98,33 @@ public static partial class ReleaseWorkClaims
                 return new ReleaseWorkClaim(titles, first, last == first ? null : last, episodes);
         }
 
-        var head = marker.Success ? title[..marker.Index] : title;
+        // MAM-33 — a marker of episodes alone ends a title as a season marker does: "Death Note (E1-31 of 37) BDRip" is
+        // "Death Note". The seasons claimed are still the season marker's alone.
+        var end = FirstMarkerIndex(title);
+        var head = end is { } index ? title[..index] : title;
         if (ByBareYear(head) is { } byYear)
             return byYear with { Episodes = episodes };
-        if (marker.Success && Alternatives(string.Join(' ', Words(head)), false) is { Count: > 0 } markedTitles)
+        if (end is not null && Alternatives(string.Join(' ', Words(head)), false) is { Count: > 0 } markedTitles)
             return new ReleaseWorkClaim(markedTitles, null, null, episodes);
         // Still the seasons it claims: a release matched by an id needs them as one matched by its title does.
         return Nothing with { Episodes = episodes };
+    }
+
+    /// <summary>
+    /// MAM-33 — whether <paramref name="text"/> names seasons or episodes: a season marker
+    /// (<see cref="ReadTv"/>'s, "S1", "S1-5", "Season 2", "Сезон 1"), or a marker of episodes alone, "(E1-31
+    /// of 37)", "(серії 1-4 з 12)", "Episode 5", which a series without seasons is filed with. A release in a
+    /// category that holds both films and series is a series only with one (ADR 0020).
+    /// </summary>
+    /// <remarks>
+    /// Episodes alone count because the live answers have them: Toloka's TV/Anime lists "Death Note (E1-31
+    /// of 37) (2006)" and "Котодракон / Neko to Ryuu (серії 1-4 з 12)" beside films such as "Akira (1988)"
+    /// (VendorSamples); taken for films, those series would match films of their title.
+    /// </remarks>
+    public static bool ClaimsSeasonsOrEpisodes(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return SeasonMarkerPattern().IsMatch(text) || EpisodeMarkerPattern().IsMatch(text);
     }
 
     /// <summary>
@@ -169,17 +193,33 @@ public static partial class ReleaseWorkClaims
     /// <summary>
     /// The titles a title part lists: split at a slash with whitespace on both sides, Toloka's
     /// "Інтерстеллар / Interstellar" — "Face/Off" stays whole — each trimmed, blank ones dropped. MAM-32 —
-    /// <paramref name="cutAtSeasonMarker"/>: each without its first season marker and what follows it, so
-    /// "Єллоустоун (Сезони 1-5) / Yellowstone (Seasons 1-5)" lists "Єллоустоун" and "Yellowstone".
+    /// <paramref name="cutAtMarker"/>: each without its first season marker and what follows it, so
+    /// "Єллоустоун (Сезони 1-5) / Yellowstone (Seasons 1-5)" lists "Єллоустоун" and "Yellowstone". MAM-33 — or its
+    /// first marker of episodes alone, whichever comes first: "Death Note (E1-31 of 37)" is "Death Note", which a
+    /// series of that title matches, where the whole of it matched nothing.
     /// </summary>
-    private static List<string> Alternatives(string titlePart, bool cutAtSeasonMarker) =>
+    private static List<string> Alternatives(string titlePart, bool cutAtMarker) =>
         AlternativeSeparatorPattern().Split(titlePart)
-            .Select(alternative => cutAtSeasonMarker && SeasonMarkerPattern().Match(alternative) is { Success: true } marker
-                ? alternative[..marker.Index]
+            .Select(alternative => cutAtMarker && FirstMarkerIndex(alternative) is { } index
+                ? alternative[..index]
                 : alternative)
             .Select(WithoutTrailingTags)
             .Where(alternative => alternative.Length > 0)
             .ToList();
+
+    /// <summary>
+    /// MAM-33 — where the first season marker or marker of episodes alone of <paramref name="text"/> begins, its
+    /// bracket included; <c>null</c> when it has neither. The first of the two: an episodes marker inside a season
+    /// marker ("Сезон 1, серії 1-9") begins after it.
+    /// </summary>
+    private static int? FirstMarkerIndex(string text)
+    {
+        var season = SeasonMarkerPattern().Match(text);
+        var episodes = EpisodeMarkerPattern().Match(text);
+        if (!season.Success)
+            return episodes.Success ? episodes.Index : null;
+        return episodes.Success ? Math.Min(season.Index, episodes.Index) : season.Index;
+    }
 
     /// <summary>
     /// MAM-32 — what <paramref name="marker"/> claims; <c>null</c> when there is none. A range that runs
@@ -277,6 +317,28 @@ public static partial class ReleaseWorkClaims
         """,
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace)]
     private static partial Regex SeasonMarkerPattern();
+
+    /// <summary>
+    /// MAM-33 — a marker of episodes without a season, as a whole word in any letter case: "E3", "E1-4",
+    /// "E01-E14", each maybe "of 12" (or "of ?"); "Episode 5", "Episodes 1-3"; "серія 3", "серії 1-4 з 12", "серій:
+    /// 1", "епізод 2", "епізоди 1-3". <see cref="SeasonMarkerPattern"/> already takes the episodes that follow
+    /// a season. With its brackets when it has them, as a season marker is, so a title cut at it keeps no "(":
+    /// "Death Note (E1-31 of 37)" is cut to "Death Note", "Neko to Ryuu (серії 1-4 з 12)" to "Neko to Ryuu".
+    /// </summary>
+    [GeneratedRegex(
+        """
+        (?<![\p{L}\p{N}])
+        (?:(?<open>[(\[])\s*)?
+        (?:
+            E[0-9]{1,4}(?:-E?[0-9]{1,4})?(?:\s+(?:of|з|із)\s+(?:[0-9]{1,4}|\?|[xх]{1,2}))?
+          | (?:Episodes?|Сері[яїй]|Епізод(?:и|ів)?):?\s*[0-9]{1,4}(?:\s*-\s*[0-9]{1,4})?
+                (?:\s+(?:of|з|із)\s+(?:[0-9]{1,4}|\?|[xх]{1,2}))?
+        )
+        (?(open)\s*[)\]])
+        (?![\p{L}\p{N}])
+        """,
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace)]
+    private static partial Regex EpisodeMarkerPattern();
 
     [GeneratedRegex(@"^(?:18|19|20)[0-9]{2}\z", RegexOptions.CultureInvariant)]
     private static partial Regex BareYearPattern();

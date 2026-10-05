@@ -1,0 +1,57 @@
+/* MAM-33 — underline tabs, the one tab style of the app (the house rule: underline, never pills),
+   for a page's or a dialog's tabs alike: a row of buttons on a line, the picked one underlined in the
+   primary colour. The Recommendations page is the first to have tabs; a dialog that gets some takes
+   these classes too. Imported by each component that renders them. Tokens only, so dark mode needs
+   nothing of its own. */
+
+/* The line under the row is an inset shadow rather than a border, and so is a tab's underline: the
+   row scrolls sideways when its tabs don't fit a phone, and a scroller clips whatever a tab would
+   draw over its own border. */
+.modal-tabs {
+  display: flex;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-x: auto;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.modal-tab {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, box-shadow 160ms ease;
+}
+
+.modal-tab:hover {
+  color: var(--foreground);
+}
+
+/* Inside the tab: the row scrolls, and a ring outside it would be clipped. */
+.modal-tab:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.modal-tab-active {
+  color: var(--foreground);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+/* On a phone the four tabs fit without their icons, which their labels don't need. */
+@media (max-width: 480px) {
+  .modal-tab {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .modal-tab svg {
+    display: none;
+  }
+}

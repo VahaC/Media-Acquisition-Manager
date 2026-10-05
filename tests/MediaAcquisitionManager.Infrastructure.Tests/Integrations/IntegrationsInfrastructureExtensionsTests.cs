@@ -2,12 +2,14 @@ using System.Net;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
+using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -24,7 +26,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     /// The client names written out rather than read from the adapters' constants: a renamed constant
     /// would leave these names with the factory's default, unconfigured client, and the tests fail.
     /// </summary>
-    public static TheoryData<string> ClientNames => ["jellyfin", "torznab", "qbittorrent"];
+    public static TheoryData<string> ClientNames => ["jellyfin", "torznab", "qbittorrent", "tmdb"];
 
     [Theory]
     [MemberData(nameof(ClientNames))]
@@ -89,6 +91,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     [InlineData("jellyfin")]
     [InlineData("torznab")]
     [InlineData("qbittorrent")]
+    [InlineData("tmdb")]
     public async Task A_connection_test_logs_nothing_from_the_http_client(string typeId)
     {
         //Arrange
@@ -107,7 +110,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     }
 
     [Fact]
-    public void The_registry_lists_jellyfin_torznab_and_qbittorrent_once_each_with_their_descriptors()
+    public void The_registry_lists_jellyfin_torznab_qbittorrent_and_tmdb_once_each_with_their_descriptors()
     {
         //Arrange
         using var services = BuildServices();
@@ -129,14 +132,18 @@ public sealed class IntegrationsInfrastructureExtensionsTests
                 new IntegrationAdapterDescriptor(
                     "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient,
                     CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true),
+                new IntegrationAdapterDescriptor(
+                    "tmdb", "TMDb", IntegrationKind.Metadata,
+                    CredentialRequirement.NotUsed, CredentialRequirement.NotUsed, CredentialRequirement.Required, ReportsFilePaths: false),
             ],
             registry.Descriptors);
-        Assert.Equal(3, adapters.Count);
+        Assert.Equal(4, adapters.Count);
         Assert.IsType<IntegrationAdapterRegistry>(registry);
         // Singletons: the registry hands out the very instances the container holds.
         Assert.Same(Assert.Single(adapters.OfType<JellyfinAdapter>()), registry.Find("jellyfin"));
         Assert.Same(Assert.Single(adapters.OfType<TorznabAdapter>()), registry.Find("torznab"));
         Assert.Same(Assert.Single(adapters.OfType<QBittorrentAdapter>()), registry.Find("qbittorrent"));
+        Assert.Same(Assert.Single(adapters.OfType<TmdbAdapter>()), registry.Find("tmdb"));
     }
 
     [Fact]
@@ -150,12 +157,15 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         var jellyfin = registry.Find<IMediaLibraryProvider>("jellyfin");
         var torznab = registry.Find<IMediaLibraryProvider>("torznab");
         var qBittorrent = registry.Find<IMediaLibraryProvider>("qbittorrent");
+        var tmdb = registry.Find<IMediaLibraryProvider>("tmdb");
 
         //Assert
         // MAM-8 — the same instance the connection test uses: no second registration to forget.
         Assert.Same(registry.Find("jellyfin"), jellyfin);
         Assert.Null(torznab);
         Assert.Null(qBittorrent);
+        // MAM-33 — a catalog is never a source of the library's own facts.
+        Assert.Null(tmdb);
     }
 
     [Fact]
@@ -169,12 +179,14 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         var torznab = registry.Find<IReleaseSearchProvider>("torznab");
         var jellyfin = registry.Find<IReleaseSearchProvider>("jellyfin");
         var qBittorrent = registry.Find<IReleaseSearchProvider>("qbittorrent");
+        var tmdb = registry.Find<IReleaseSearchProvider>("tmdb");
 
         //Assert
         // MAM-10 — the same instance the connection test uses: no second registration to forget.
         Assert.Same(registry.Find("torznab"), torznab);
         Assert.Null(jellyfin);
         Assert.Null(qBittorrent);
+        Assert.Null(tmdb);
     }
 
     [Fact]
@@ -188,6 +200,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         var qBittorrent = registry.Find<IDownloadClient>("qbittorrent");
         var jellyfin = registry.Find<IDownloadClient>("jellyfin");
         var torznab = registry.Find<IDownloadClient>("torznab");
+        var tmdb = registry.Find<IDownloadClient>("tmdb");
 
         //Assert
         // MAM-11 — the same instance the connection test uses: no second registration to forget, and one
@@ -195,6 +208,30 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Same(registry.Find("qbittorrent"), qBittorrent);
         Assert.Null(jellyfin);
         Assert.Null(torznab);
+        Assert.Null(tmdb);
+    }
+
+    [Fact]
+    public void The_registry_finds_tmdb_and_nothing_else_as_a_metadata_resolver_and_catalog()
+    {
+        //Arrange
+        using var services = BuildServices();
+        var registry = services.GetRequiredService<IIntegrationAdapterRegistry>();
+        string[] others = ["jellyfin", "torznab", "qbittorrent"];
+
+        //Act
+        var resolver = registry.Find<IMetadataResolver>("tmdb");
+        var catalog = registry.Find<IMetadataCatalog>("tmdb");
+        var otherResolvers = others.Select(typeId => registry.Find<IMetadataResolver>(typeId)).ToList();
+        var otherCatalogs = others.Select(typeId => registry.Find<IMetadataCatalog>(typeId)).ToList();
+
+        //Assert
+        // MAM-33 — the same instance the connection test uses: no second registration to forget, and one
+        // pacing gate for every call.
+        Assert.Same(registry.Find("tmdb"), resolver);
+        Assert.Same(registry.Find("tmdb"), catalog);
+        Assert.All(otherResolvers, Assert.Null);
+        Assert.All(otherCatalogs, Assert.Null);
     }
 
     [Fact]
@@ -305,8 +342,36 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(AnyApiKey, StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task A_metadata_call_and_a_poster_fetch_log_nothing_from_the_http_client()
+    {
+        //Arrange
+        // Every level recorded; TMDb answers, so each call reads what it got back.
+        using var harness = new IntegrationAdapterHarness();
+        var tmdb = FakeTmdbServer.Arm(harness.TmdbHttp);
+        tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Movie, 679, "Чужі", "Aliens", "1986-07-18", PosterPath: "/aliens.jpg"));
+        var settings = new IntegrationConnectionSettings(null, FakeTmdbServer.BaseUrl, null, null, FakeTmdbServer.Token);
+        var catalog = harness.Adapter<IMetadataCatalog>("tmdb");
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var work = await catalog.GetWorkAsync(settings, MediaWorkKind.Movie, "679", cancellationToken);
+        var poster = await catalog.GetPosterAsync(settings, work.Value!.Summary.PosterPath!, cancellationToken);
+
+        //Assert
+        Assert.True(poster.IsSuccess);
+        Assert.Equal(2, harness.TmdbHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(FakeTmdbServer.Token, StringComparison.Ordinal));
+    }
+
+    // The app registers the clock in Program (TryAddSingletonTimeProvider); MAM-33 — the TMDb adapter's
+    // pacing takes it.
     private static ServiceProvider BuildServices() =>
         new ServiceCollection()
+            .AddSingleton(TimeProvider.System)
             .AddIntegrationsInfrastructure()
             .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 

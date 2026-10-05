@@ -362,3 +362,76 @@ records each path it hashed, the roots it was given and how many hashes ran at o
 `LocalFileInventoryHashTests.Hash_reads_a_large_file_in_chunks_of_one_mebibyte`,
 `LocalFileInventoryHashTests.Hash_of_two_copies_is_one_digest_with_two_identities` and
 `FileInspectionHashHttpTests.Inspect_gives_the_hash_the_allowed_roots_in_the_owners_order` pin it.
+
+## A metadata catalog (added 0.2.1, MAM-33)
+
+**A fourth kind, and its adapter.** `IntegrationKind` gains `Metadata` (4), "Metadata catalog" on the
+Integrations page, and the registry a fourth type, `tmdb` ("TMDb", `TmdbAdapter`): it takes an API
+key only — TMDb's v4 "API Read Access Token", required — and reports no file paths, so it takes no
+path mappings (Vasyl's decision 1). The Decision's list of type ids now reads `jellyfin`, `torznab`,
+`qbittorrent` and `tmdb`, and the test it names,
+`IntegrationsInfrastructureExtensionsTests.The_registry_lists_jellyfin_torznab_and_qbittorrent_once_each_with_their_descriptors`,
+is now `IntegrationsInfrastructureExtensionsTests.The_registry_lists_jellyfin_torznab_qbittorrent_and_tmdb_once_each_with_their_descriptors`.
+
+**`IMetadataResolver` has its first implementation, and `IMetadataCatalog` stands beside it.** MAM-12
+left the resolver unimplemented, as a search is matched against the library snapshot and needs no
+call to the media server; it is implemented now by the catalog's adapter, not the media server's,
+and used only for recommendations
+([ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)).
+`LookupAsync` answers every candidate with its evidence and picks none: by the work's own TMDb or TMDb
+TV id (its details), else by an IMDb id (TMDb's find), else by a title and year (its search, kept to
+the results whose title key is the query's). `IMetadataCatalog` is a new kind contract of the same
+class, as every kind contract is: a work's details with its credits and recommendations in one call,
+a collection, a person's works, a search, a find by IMDb id, discovery by genre, the genre lists and
+a poster. A type serves the Metadata kind only by implementing both, and
+`AdapterKindContractTests.Every_metadata_adapter_implements_the_resolver_and_the_catalog_contracts`
+checks it.
+
+**Which catalog a computation uses is the connector's choice.** `CatalogConnector` takes the first
+switched-on integration of kind `Metadata`, by its normalised name, whose type this build registers
+and serves both contracts; a type it no longer registers is passed over as if switched off. With
+none, a computation is refused with "Connect a metadata catalog under Integrations first." (409 for
+the owner's **Recompute now**). Its settings come from `IIntegrationSettingsFactory`, and a stored
+token that can't be read fails the run with that factory's sentence, as a sync's does.
+
+**What TMDb is spoken to with.** The owner enters `https://api.themoviedb.org`; the adapter appends
+`/3` unless the address already ends in it. The token goes only in `Authorization: Bearer`, never as
+v3's `api_key=` in a query
+([ADR 0007](0007-an-integration-credential-is-sealed-to-its-row-and-never-leaves-through-the-api.md)).
+Every call is a GET in Ukrainian (`language=uk-UA`), the original title read beside the translated
+one, and every answer is read field by field by name. The connection test is
+`GET /3/authentication`: "Connected to TMDb.", or for a token TMDb refuses "TMDb refused the key (401
+Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API, not the shorter
+API key."; a run passes the same test before it asks anything else, the gate MAM-8 set for a sync.
+`NotFound` comes only from TMDb's own 404, whose JSON says `status_code` 34; a bare 404 means the
+address isn't TMDb's API ("TMDb's API wasn't found at this address (404 Not Found). Use
+https://api.themoviedb.org."). Discovery asks only for works at least 300 people rated.
+
+**Paced, and patient with a 429.** TMDb limits requests per address, "somewhere in the 50 requests
+per second range" by its documentation, so the one adapter instance holds one gate for every caller
+(`TmdbRequestPacer`): two requests never start less than 25 ms apart, at most 40 a second. A 429 holds
+back every caller for its `Retry-After` — 2 seconds without one, 10 at most — and the same GET is
+sent again, at most three times; then the call is `Refused` with "TMDb is asking the app to slow down
+(429 Too Many Requests), and still was after three retries. Try again in a minute." Only reads are
+ever sent again; the adapter writes nothing.
+
+**The release search contract learns the newest releases and a description.** `ReleaseSearchMode`
+gains `Latest` — the source's general search with no text, in the asked categories — which
+`ReleaseSearchPlanning.ForLatest` plans, and `ReleaseSearchHit` gains `Description`, the listing's own
+description when it says more than the title. The MAM-32 section's "a hit is TV when it lists a TV
+category" now reads: a hit is TV when it lists a TV category other than TV/Anime (5070) and
+TV/Documentary (5080), and in those two only when its title or description names seasons or
+episodes; a movie category says it holds movies for 5070 and 5080 too, so the movie search asks them
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+
+`TmdbAdapterTests.Descriptor_is_a_metadata_type_that_takes_an_api_key_only_and_reports_no_paths`,
+`TmdbAdapterTests.TestConnection_reads_the_authentication_sample_with_the_token_in_the_bearer_header`,
+`TmdbAdapterTests.TestConnection_with_a_wrong_token_is_authentication_failed_from_the_recorded_401`,
+`IntegrationsInfrastructureExtensionsTests.The_registry_finds_tmdb_and_nothing_else_as_a_metadata_resolver_and_catalog`,
+`TmdbAdapterLookupTests.Lookup_by_a_title_and_year_keeps_the_titles_that_match_with_their_evidence`,
+`TmdbAdapterWorksTests.GetWork_of_a_movie_asks_for_its_details_credits_and_recommendations_in_ukrainian`,
+`TmdbAdapterWorksTests.GetWork_answered_404_without_tmdbs_body_is_an_unexpected_response_not_a_missing_work`,
+`TmdbAdapterRateLimitTests.Requests_of_callers_at_once_start_at_least_25_ms_apart`,
+`TmdbAdapterRateLimitTests.A_429_four_times_is_refused_after_three_retries` and
+`RecommendationRunWorkerHttpTests.RunQueued_with_the_key_refused_fails_with_the_catalogs_sentence_after_the_connection_test_alone`
+pin it.

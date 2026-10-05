@@ -1,0 +1,77 @@
+{
+  "id": 284433,
+  "name": "Вартові галактики | Колекція",
+  "original_language": "en",
+  "original_name": "Guardians of the Galaxy Collection",
+  "overview": "Серія фільмів про супергероїв, заснована на команді супергероїв з Коміксів Марвел - \"Вартові Галактики\" та частині серії Кіновсесвіту Marvel (MCU). Серія зосереджена на групі колишніх міжгалактичних волоцюг, які об'єдналися з метою захисту Галактики від загроз планетарного масштабу. До складу Вартових Галатики під керівництвом Пітера Квілла (Зоряного Лицаря) входять Ґамора, Дракс-Руйнівник, Ракета, Ґрут.",
+  "poster_path": "/kFWLxUwcSpiLzszZbxUIZT9g6WR.jpg",
+  "backdrop_path": "/sxyF4lVkEvOLVzr8jOF5K5nrMh3.jpg",
+  "parts": [
+    {
+      "adult": false,
+      "backdrop_path": "/uLtVbjvS1O7gXL8lUOwsFOH4man.jpg",
+      "id": 118340,
+      "title": "Вартові галактики",
+      "original_title": "Guardians of the Galaxy",
+      "overview": "Пітер Квіл стає жертвою мисливців за головами після крадіжки таємничої сфери, за якою полював Ронан - могутній лиходій, повний амбіцій і загрозливий для цілого всесвіту. Щоб здолати Ронана, Пітеру доводиться об'єднатися з квартетом покидьків: озброєним до зубів єнотом Ракетою, деревоподібним гуманоїдом Ґрутом, смертельно небезпечною і загадковою Ґаморою і мстивим Драксом-Руйнівником. Але коли Пітер виявляє справжню силу сфери та дізнається наскільки вона небезпечна для космосу, він повинен зробити все можливе, щоб згуртувати всіх членів команди для останнього протистояння і повернути баланс у всій Галактиці...",
+      "poster_path": "/esaQNJKjE8IDk5G0tmEOJL7AaEP.jpg",
+      "media_type": "movie",
+      "original_language": "en",
+      "genre_ids": [
+        28,
+        878,
+        12
+      ],
+      "popularity": 20.4495,
+      "release_date": "2014-07-30",
+      "softcore": false,
+      "video": false,
+      "vote_average": 7.908,
+      "vote_count": 30397
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/aJn9XeesqsrSLKcHfHP4u5985hn.jpg",
+      "id": 283995,
+      "title": "Вартові галактики 2",
+      "original_title": "Guardians of the Galaxy Vol. 2",
+      "overview": "Цього разу банда космічних волоцюг має з’ясувати всі деталі біографії свого ватажка Зоряного Лицаря. Їхня крутість найвищого рівня - винятково сміливі, безумовно дотепні, схильні до авантюр і легкого криміналу (особливо єнот). Фантастичний екшн від MARVEL.",
+      "poster_path": "/egFmSnihLq9mSuDoJk5tbhlQ7am.jpg",
+      "media_type": "movie",
+      "original_language": "en",
+      "genre_ids": [
+        878,
+        12,
+        28
+      ],
+      "popularity": 29.2543,
+      "release_date": "2017-04-25",
+      "softcore": false,
+      "video": false,
+      "vote_average": 7.61,
+      "vote_count": 23516
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/5YZbUmjbMa3ClvSW1Wj3D6XGolb.jpg",
+      "id": 447365,
+      "title": "Вартові галактики 3",
+      "original_title": "Guardians of the Galaxy Vol. 3",
+      "overview": "Пітер Квілл, усе ще оговтуючись від утрати Ґамори, має знову об’єднати команду, щоб захистити Всесвіт та одного з них. Якщо ця місія провалиться, це може стати кінцем Вартових, якими ми їх знаємо.",
+      "poster_path": "/ebKQqIjplEhGtyi2XOfwaBIcpi2.jpg",
+      "media_type": "movie",
+      "original_language": "en",
+      "genre_ids": [
+        878,
+        12,
+        28
+      ],
+      "popularity": 37.6388,
+      "release_date": "2023-05-03",
+      "softcore": false,
+      "video": false,
+      "vote_average": 7.934,
+      "vote_count": 8905
+    }
+  ]
+}

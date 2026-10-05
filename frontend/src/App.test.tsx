@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
 import { allowedRootsApi } from '@/lib/allowed-roots-api'
@@ -7,7 +7,9 @@ import { destinationsApi } from '@/lib/destinations-api'
 import { downloadsApi } from '@/lib/downloads-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
+import { profileApi } from '@/lib/profile-api'
 import { queryClient } from '@/lib/query-client'
+import { recommendationsApi } from '@/lib/recommendations-api'
 import { searchApi } from '@/lib/search-api'
 import { setupApi } from '@/lib/setup-api'
 import { usersApi } from '@/lib/users-api'
@@ -16,6 +18,7 @@ import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
 import { downloadingJob, filesPage, jobsPage } from '@/test/downloads'
 import { sourcesOf } from '@/test/library'
+import { allTabsOn, guardians, listOf, runOf } from '@/test/recommendations'
 import { aliensSearch, releasesPage, searchId, tolokaRemux } from '@/test/search'
 
 vi.mock('@/lib/allowed-roots-api')
@@ -24,6 +27,8 @@ vi.mock('@/lib/destinations-api')
 vi.mock('@/lib/downloads-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
+vi.mock('@/lib/profile-api')
+vi.mock('@/lib/recommendations-api')
 vi.mock('@/lib/search-api')
 vi.mock('@/lib/setup-api')
 vi.mock('@/lib/users-api')
@@ -46,6 +51,8 @@ describe('App', () => {
     vi.mocked(healthApi.ready).mockResolvedValue({ status: 'Healthy', checks: [] })
     vi.mocked(setupApi.status).mockResolvedValue({ isRequired: false })
     vi.mocked(authApi.refresh).mockResolvedValue(sessionFor(owner))
+    // MAM-33 — the header reads the user's recommendation tabs once someone is signed in.
+    vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOn)
   })
 
   afterEach(() => {
@@ -80,7 +87,27 @@ describe('App', () => {
     // Assert
     expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/library')
-    expect(libraryApi.works).toHaveBeenCalledOnce()
+    // The heading renders before the works query starts, so its first call is awaited, not assumed.
+    await waitFor(() => expect(libraryApi.works).toHaveBeenCalledOnce())
+  })
+
+  it('opens Recommendations from the header link, at its first tab', async () => {
+    // Arrange
+    vi.mocked(recommendationsApi.list).mockImplementation(async (query) => listOf(query, [guardians]))
+    vi.mocked(recommendationsApi.latestRun).mockResolvedValue(runOf())
+    vi.mocked(recommendationsApi.poster).mockRejectedValue(apiError(404))
+    const { user } = renderAt('/')
+
+    // Act
+    await user.click(await screen.findByRole('link', { name: 'Recommendations' }))
+
+    // Assert
+    // The page's code loads on its first visit: in a cold, fully parallel run its transform alone
+    // can take past the 1 s a find waits by default.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Recommendations' }, { timeout: 5_000 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: guardians.title })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/recommendations')
+    expect(screen.getByRole('tab', { name: 'Movies' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('opens Jobs from the header link, and a job\'s details from its title', async () => {

@@ -80,6 +80,463 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("AuditEvents");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogCollectionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("CatalogCollections");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogCollectionPartEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogCollectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MovieCatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogCollectionId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("CatalogCollectionParts");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogGenreEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GenreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "GenreId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("CatalogGenres");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogLookupEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Evidence")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QueryKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultCatalogId")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultKind")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QueryKey")
+                        .IsUnique();
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("CatalogLookups");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogPersonEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("CatalogPeople");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogPersonWorkEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogPersonId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogPersonId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("CatalogPersonWorks");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CollectionId")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CollectionName")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DetailsUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalLanguage")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalTitle")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PosterPath")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("Rating")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateOnly?>("ReleaseDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("VoteCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "CatalogId")
+                        .IsUnique();
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.ToTable("CatalogWorks");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkGenreEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GenreId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId", "GenreId")
+                        .IsUnique();
+
+                    b.ToTable("CatalogWorkGenres");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkPersonEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PersonCatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("CatalogWorkPeople");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkRecommendationEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("CatalogWorkRecommendations");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkSeasonEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("AirDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EpisodeCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("CatalogWorkSeasons");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DestinationMappingEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1121,6 +1578,249 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("PhysicalFiles");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationCandidateEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MissingSeasons")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RequiresAvailability")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Tab")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId")
+                        .IsUnique();
+
+                    b.HasIndex("Tab", "Score");
+
+                    b.ToTable("RecommendationCandidates");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationDismissalEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Kind", "CatalogId")
+                        .IsUnique();
+
+                    b.ToTable("RecommendationDismissals");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationReasonEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DateUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Held")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RecommendationCandidateId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Seasons")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Titles")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Total")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecommendationCandidateId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("RecommendationReasons");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationRunEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CandidateCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FinishedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByUserName")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SeedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Stage")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("StageDone")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("StageTotal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("StartedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Trigger")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedUtc");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex(new[] { "Status" }, "IX_RecommendationRuns_OneRunPerActiveStatus")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('Queued', 'Running')");
+
+                    b.ToTable("RecommendationRuns");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationSearchEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SearchedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tab")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "SearchedUtc");
+
+                    b.ToTable("RecommendationSearches");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReleaseAvailabilityEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("BestResolution")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CheckedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Found")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("HasUkrainianAudio")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MaxSeeders")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReleaseCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId")
+                        .IsUnique();
+
+                    b.ToTable("ReleaseAvailabilities");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReleaseEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1132,6 +1832,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ImdbId")
@@ -1298,6 +2002,71 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("SearchSources");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SourceFeedEntryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CategoryIds")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PublishedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResolvedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId");
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId")
+                        .IsUnique();
+
+                    b.ToTable("SourceFeedEntries");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.UserEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1334,6 +2103,41 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.UserRecommendationSettingsEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CartoonsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DailySearchLimit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DocumentariesEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("MoviesEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SeriesEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserRecommendationSettings");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.UserSessionEntity", b =>
@@ -1387,6 +2191,100 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .WithMany()
                         .HasForeignKey("ActorUserId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogCollectionEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogCollectionPartEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogCollectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogCollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogGenreEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogLookupEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogPersonEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogPersonWorkEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogPersonEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogPersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkGenreEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkPersonEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkRecommendationEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkSeasonEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DestinationMappingEntity", b =>
@@ -1598,6 +2496,59 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationCandidateEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationDismissalEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationReasonEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.RecommendationCandidateEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RecommendationCandidateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationRunEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.RecommendationSearchEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReleaseAvailabilityEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReleaseEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.SearchSourceEntity", null)
@@ -1630,6 +2581,28 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasOne("MediaAcquisitionManager.Core.Entities.SearchEntity", null)
                         .WithMany()
                         .HasForeignKey("SearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SourceFeedEntryEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.UserRecommendationSettingsEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

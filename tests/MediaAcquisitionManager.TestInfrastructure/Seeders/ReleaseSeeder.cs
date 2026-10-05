@@ -18,7 +18,16 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
 
     private ISearchDataFactory Searches => new SearchDataFactory(Db, Resolve<TimeProvider>());
 
-    public Task<ReleaseEntity> Create(IntegrationConnectionEntity source) => Releases.Create(source.Id, source.Name);
+    public Task<ReleaseEntity> Create(
+        IntegrationConnectionEntity source,
+        string? title = null,
+        ReleaseKind kind = ReleaseKind.Movie,
+        string? description = null,
+        string? tmdbId = null,
+        string? categoryIds = null) =>
+        title is null
+            ? Releases.Create(source.Id, source.Name, categoryIds: categoryIds, kind: kind, description: description, tmdbId: tmdbId)
+            : Releases.Create(source.Id, source.Name, title, categoryIds: categoryIds, kind: kind, description: description, tmdbId: tmdbId);
 
     public async Task<ReleaseEntity> CreateFound(
         UserEntity user,

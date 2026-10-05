@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -10,7 +11,7 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Conventions;
 // registry never lists a type for a kind it can't serve (the type would pass its connection test and
 // then fail at the first sync). Over the registry the app builds, so a new adapter is checked the
 // moment it is registered. Every kind's contract is implemented now: MediaLibrary (MAM-8),
-// ReleaseSearch (MAM-10) and DownloadClient (MAM-11).
+// ReleaseSearch (MAM-10), DownloadClient (MAM-11) and Metadata (MAM-33), whose kind takes two contracts.
 public sealed class AdapterKindContractTests
 {
     [Fact]
@@ -70,6 +71,28 @@ public sealed class AdapterKindContractTests
         //Assert
         // Guard the guard: a scan that found no download client type would pass whatever the adapters do.
         Assert.NotEmpty(clients);
+        Assert.Empty(withoutContract);
+    }
+
+    [Fact]
+    public void Every_metadata_adapter_implements_the_resolver_and_the_catalog_contracts()
+    {
+        //Arrange
+        using var harness = new IntegrationAdapterHarness();
+        var registry = harness.Registry;
+
+        //Act
+        var catalogs = registry.Descriptors
+            .Where(descriptor => descriptor.Kind == IntegrationKind.Metadata)
+            .Select(descriptor => descriptor.TypeId)
+            .ToList();
+        var withoutContract = catalogs
+            .Where(typeId => registry.Find<IMetadataResolver>(typeId) is null || registry.Find<IMetadataCatalog>(typeId) is null)
+            .ToList();
+
+        //Assert
+        // Guard the guard: a scan that found no metadata type would pass whatever the adapters do.
+        Assert.NotEmpty(catalogs);
         Assert.Empty(withoutContract);
     }
 }

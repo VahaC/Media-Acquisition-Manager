@@ -211,6 +211,11 @@ export interface SearchRelease {
   sourceId: string | null
   sourceName: string
   title: string
+  /**
+   * MAM-33 — the listing's own description when it says more than the title: Toloka's topic title,
+   * Ukrainian title first, where the title keeps the English part alone. Null when it gives none.
+   */
+  description: string | null
   /** MAM-32 */
   kind: ReleaseKind
   sizeBytes: number | null

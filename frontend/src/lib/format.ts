@@ -17,6 +17,40 @@ export function formatDate(value: string | number | Date, options?: Intl.DateTim
   return new Date(value).toLocaleDateString(i18n.language, options)
 }
 
+const DAY_MS = 86_400_000
+
+/**
+ * MAM-33 — how many days ago an instant was, in words: "today", "yesterday", "3 days ago". Counted in
+ * local calendar days, so last night at 23:50 is "yesterday" at 00:10, not "today". `now` is for tests.
+ */
+export function formatDaysAgo(value: string | number | Date, now: Date = new Date()): string {
+  const then = new Date(value)
+  const startOf = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  // Rounded: a day with a DST change is 23 or 25 hours long.
+  const days = Math.max(0, Math.round((startOf(now) - startOf(then)) / DAY_MS))
+  return new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' }).format(-days, 'day')
+}
+
+/** The units formatTimeAgo counts in, each with how many seconds it holds, largest first. */
+const AGO_UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+]
+
+/**
+ * MAM-33 — how long ago an instant was, in its largest whole unit: "now", "12 seconds ago", "2 minutes
+ * ago", "1 hour ago". Cut down, never rounded up: 2 minutes 59 seconds is "2 minutes ago". An instant
+ * a clock ahead of `now` put in the future reads as now. `now` is when it is measured from: a page
+ * that polls passes the time of the last answer, so the words move on with each poll.
+ */
+export function formatTimeAgo(value: string | number | Date, now: string | number | Date = Date.now()): string {
+  const seconds = Math.max(0, Math.floor((new Date(now).getTime() - new Date(value).getTime()) / 1000))
+  const format = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' })
+  const [unit, size] = AGO_UNITS.find(([, length]) => seconds >= length) ?? ['second', 1]
+  return format.format(-Math.floor(seconds / size), unit)
+}
+
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
   return value.toLocaleString(i18n.language, options)
 }

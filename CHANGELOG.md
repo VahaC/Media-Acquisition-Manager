@@ -5,6 +5,263 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 [semantic versioning](https://semver.org/) — released as tags of the Docker image
 `vahac/media-acquisition-manager`.
 
+## [0.2.1] — 2026-10-05
+
+### Added
+
+- **The owner connects TMDb as a metadata catalog, the fourth kind of integration (MAM-33, ADR 0005,
+  ADR 0007).** The Integrations page adds an integration of type **TMDb** (`tmdb`), kind `Metadata`
+  ("Metadata catalog"), at `https://api.themoviedb.org`, with TMDb's API Read Access Token in the API
+  key field (Vasyl's decision 1): the dialog says "TMDb's API address, https://api.themoviedb.org. In
+  the API key field, enter TMDb's API Read Access Token from themoviedb.org → Settings → API, not the
+  shorter API key." and shows TMDb's attribution, "This product uses the TMDB API but is not endorsed
+  or certified by TMDB.". `GET /api/settings/integrations/adapter-types` lists it with `apiKey`
+  `Required`, no user name or password, and `reportsFilePaths` `false`; the list's kind filter takes
+  `Metadata` and offers **Metadata catalogs**. The adapter appends `/3` to an address that doesn't end
+  in it, sends the token only as `Authorization: Bearer`, asks everything in Ukrainian
+  (`language=uk-UA`) with the original title beside it, and only ever sends GETs. **Test connection**
+  asks `GET /3/authentication` and answers "Connected to TMDb.", or for a refused token "TMDb refused
+  the key (401 Unauthorized). Enter the API Read Access Token from themoviedb.org → Settings → API,
+  not the shorter API key.", and for an address that isn't TMDb's "TMDb's API wasn't found at this
+  address (404 Not Found). Use https://api.themoviedb.org." or "The service at this address answered,
+  but not the way TMDb's API does. Check the address: TMDb's is https://api.themoviedb.org.". Requests
+  start at least 25 ms apart, whoever sends them; a 429 holds every request back for its
+  `Retry-After` (2 seconds without one, 10 at most) and the same GET is sent again at most three
+  times, then the call fails with "TMDb is asking the app to slow down (429 Too Many Requests), and
+  still was after three retries. Try again in a minute.". Adding a TMDb integration switched on, or
+  switching one back on, queues a computation of the recommendations; the integration's save writes
+  its one audit row as before, and the queuing none.
+- **The app computes recommendations from the library and the catalog in the background (MAM-33, ADR
+  0023, ADR 0025).** A run (202 + run row + reconciler) starts after every successful library sync
+  (`LibrarySynced`), when a TMDb integration is added switched on or switched back on
+  (`CatalogConnected`), when a user switches on a tab no other user had on (`TabEnabled`), when the
+  newest releases of a source resolve to new works (`FeedRead`), and on the owner's **Recompute
+  now** (`Requested`); a trigger that finds a run waiting joins it, and without a catalog nothing is
+  queued. At most one run is queued and one running (`IX_RecommendationRuns_OneRunPerActiveStatus`).
+  `GET /api/recommendations/runs/latest` gives every signed-in user the running run, else the newest
+  by when it was queued, as `{ id, status, trigger, requestedByUserName, createdUtc, startedUtc,
+  finishedUtc, seedCount, candidateCount, stage, stageDone, stageTotal, error }` — `status` `Queued`,
+  `Running`, `Succeeded` or `Failed`, `seedCount` the library works it started from and
+  `candidateCount` the works it recommends, both `null` unless it succeeded, `requestedByUserName`
+  and `error` for the owner only —, or 204 with no body before the first run. A running run says how
+  far it is, as Vasyl asked after a first computation of his library took 3 min 15 s: `stage` is
+  `ReadingLibrary`, `FindingLibraryWorks`, `ReadingWorks`, `ReadingCollections`, `ReadingPeople`,
+  `Discovering` or `Saving`, `null` when the run isn't running, and `stageDone` of `stageTotal` the
+  stage's items done (240 of 815), both `null` for a stage without counts; the run row
+  records them at each change of stage and at most every 2 seconds within one
+  (`RecommendationRunProgressHttpTests.Recompute_writes_each_stage_in_order_with_its_counts_and_ends_with_none`,
+  `RecommendationRunProgressHttpTests.Recompute_writes_a_stages_count_at_most_every_two_seconds_and_always_at_its_end`
+  and `RecommendationRunProgressHttpTests.LatestRun_while_a_run_reads_the_catalog_shows_its_stage_and_counts_to_the_owner_and_a_member`).
+  `POST /api/recommendations/runs` is owner-only (403 "Only
+  the installation owner can do this." for anyone else) and answers 202 with the queued run, or with
+  the one already waiting; 409 "Connect a metadata catalog under Integrations first." without a
+  switched-on catalog of a type this version serves, and 503 "Too many recommendation runs are
+  waiting. Try again in a minute." when the queue is full, the run kept as failed with that sentence.
+  A run takes the first switched-on catalog by name, tests its connection before anything else, and
+  asks it only for the kinds some user's tabs want — none at all when every tab of every user who can
+  sign in is off. A failure of the catalog fails the run with the catalog's sentence, masked of the
+  token, and keeps the previous recommendations; a run a restart interrupted fails with "The app
+  restarted before these recommendations were computed. The previous ones are kept.", one that threw
+  with "The recommendations stopped computing because of an error in the app. Its log says more.",
+  and a queued one is queued again; the start queues none of its own. A run replaces every
+  recommendation in one transaction at its end. The log gives ids and counts, never a title or an
+  address.
+- **Each recommendation says why it is there, in four lists ordered by a fixed score (MAM-33, ADR
+  0023).** A run starts from the library's films and series the catalog knows — by their own TMDb or
+  TMDb TV id, else, as a possible match, by their IMDb id or by the one result their title, cleaned
+  of what a file name adds ("120. Landing Stripling" is "Landing Stripling"), and year match — and
+  keeps each reason as a chip: **Collection**, a collection's released parts the library lacks
+  ("Guardians of the Galaxy · 2 of 3"); **Director** and **Creator**, the released works of a person
+  two or more of the library's films or shows are by ("Ridley Scott · 12 in your library");
+  **Recommended**, what TMDb recommends beside the library's works, with up to five of their titles
+  and how many of the library's catalog works recommend it, a film the library holds twice counting
+  once ("Because you have X, Y and 3 more"); **MissingSeasons**, a held series' aired seasons it
+  holds no episode of ("Missing seasons 4–5"), season 0 never, a partly held season never;
+  **NewAtSource**, a work the app first saw among a release source's newest releases in the last two
+  weeks ("New on Toloka · 2 days ago", dated by the source's publish date); and **TopRated**, for a
+  tab with fewer than 10 of the library's works, TMDb's best-rated works of the tab among those at
+  least 300 people rated, listed only once a release source carries one. A documentary goes to **Documentaries**, else an animation, anime included, to
+  **Cartoons**, else a film to **Movies** and a show to **Series** (Vasyl's decision 2). Reasons of
+  taste — Recommended, Director, Creator, TopRated — are kept only for a work whose rating holds when
+  pulled toward 5.0 by 50 imagined votes (`votes × (rating − 6.0) ≥ 50`); the others whatever the
+  rating. The score is `8·MissingSeasons + 6·Collection + 3·(Director or Creator) + 2·log2(1 +
+  recommenders) + 1·NewAtSource + 0.5·TopRated` plus the shares of the library's works sharing a
+  genre and the decade (0 to 1 each), plus `1.5·(weighted rating − 6)`, the weighted rating being
+  `(votes × rating + 50 × 5.0) / (votes + 50)`; then votes, title and id break ties. The weights were
+  set after the first computation on the reference library, whose first formula — recommenders one
+  point each up to ten, a hundredth of the rating — put films rated around 6.2 on top of Movies and
+  buried "2 of 3" collection parts at ranks 17, 51 and 98; now Guardians of the Galaxy Vol. 3 (7.9,
+  "2 of 3" and its director), Back to the Future Part II and Blade Runner 2049 lead, and those parts
+  stand at 1, 6 and 4. A work not released yet is never listed; a work the library holds — by its
+  TMDb or IMDb id, or a work of its kind it matches by title and year — and one a scanned file's name
+  claims by title and year are left out, a held series keeping only its missing seasons.
+- **The catalog's answers are kept in tables of their own and read again after 30 days (MAM-33, ADR
+  0025, ADR 0006).** Films and shows, genres, collections, people and the answers to "which work is
+  this" — nothing found included — are stored with the TMDb integration as their source and the
+  catalog's own record id (`movie/118340`, `tv/73586`), and asked again only when older than 30 days,
+  so a run of an unchanged library makes a handful of calls: the connection test, and for a tab with
+  few of the library's works the discovery pages of its best-rated works, which are asked every run.
+  Nothing is written to the library's works, titles or identifiers, and a possible match is never
+  shown on the Library page or used by a search.
+- **The Recommendations page (MAM-33, ADR 0023).** **Recommendations** in the header, after
+  **Library**, opens `/recommendations` for every signed-in user, and is hidden while all four of
+  their tabs are off. Its tabs are the user's lists that are on, the tab in the address (`?tab=`); its
+  filters are the reason, the genre, the decade, films or series in **Cartoons** and
+  **Documentaries**, and **Available only**, each select counting its values over the whole tab; its
+  **Sort** — **Best match** (the score), **Rating**, **Most votes**, **Newest**, **Oldest**, **Title
+  A–Z** or **Most releases** — is kept in the address too (`&sort=`). A
+  card shows the poster, the Ukrainian and the original title, year, genres, rating with its votes,
+  the reasons as chips, what the release sources carry — "4 releases · up to 2160p · Ukr", "Not found
+  (checked 3 days ago)" or "Not checked yet" — and **Downloading** while a download job of it is
+  followed. **Releases** opens the Search page with the title, the year and a film's TMDb id
+  (`/search?q=…&tmdbId=…`), from which the Download dialog sends it as any release; **Not
+  interested** hides it for this user alone, with **Undo** (Vasyl's decision 3). Nothing is ever sent
+  by itself. The page shows when the lists were computed — while a computation runs, its stage, how
+  far through it is ("240 of 815") with a progress bar, and how long ago it started — and, to the
+  owner, **Recompute now**,
+  disabled with "Connect a metadata catalog under Integrations first." without a catalog; a member
+  reads "The last computation failed. The owner can see why." for a failed one. TMDb's attribution
+  closes the page.
+  `GET /api/recommendations?tab=&reason=&available=&genreId=&decade=&kind=&sort=Score&page=1&pageSize=25`
+  answers `{ items, totalCount, page, pageSize, facets: { reasons, genres, decades, kinds },
+  catalogConnected, lastRun }`, each item `{ id, kind, catalogId, title, originalTitle, year, genres,
+  rating, voteCount, posterUrl, reasons: [{ kind, name, held, total, titles, seasons, dateUtc }],
+  availability: { checkedUtc, found, releaseCount, bestResolution, hasUkrainianAudio, maxSeeders },
+  downloading, searchText, searchTmdbId }`, filtered, sorted and paged on the server (25 a page by
+  default, at most 100), without asking the catalog or a source. `sort` is `Score` by default — the
+  score, then votes, title and catalog id —, `Rating` (the weighted rating, so a 10.0 of three votes
+  doesn't top the tab), `Votes`, `Newest` or `Oldest` (by release date, a work of no known date last),
+  `Title` (in Ukrainian alphabetical order, as the library's works) or `Releases` (the availability
+  check's release count: the works found first, then those not found, then those never checked),
+  ties falling back to the score's order (`RecommendationListSortHttpTests.List_sorted_breaks_a_tie_by_the_score_then_votes_then_title_then_catalog_id`;
+  one test a sort, and `RecommendationListSortHttpTests.List_with_a_sort_it_doesnt_take_is_400_with_why`). The facets count the caller's whole list of the tab before
+  the filters, whatever the sort, the reasons in a card's order and the genres by name. 400 with the first broken rule's sentence, the value cut at 32
+  characters: "Choose a tab: Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation
+  tab. Use Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation reason. Use
+  Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.", "“x” is not
+  an availability filter. Use true or false.", "“x” is not a genre id, which is a number such as
+  18.", "“x” is not a decade. Use its first year, such as 1990.", "“x” is not a kind of work. Use
+  Movie or Series.", "“x” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or
+  Releases.", "Page must be 1 or more.", "Page size must be between 1 and 100." and "This tab
+  is switched off in your profile.". Every user's download jobs count, matched to a work by its kind
+  and an id or the title and year the release claims, for a held series by a missing season or none:
+  a followed job (`Created`, `Submitted`, `Downloading`, `Paused`) shows **Downloading**, one that
+  ended without failing (`Downloaded`, `NeedsLinking`, `Cancelled`) leaves the work out, even beside a
+  followed one, and a failed one changes nothing. `PUT` and
+  `DELETE /api/recommendations/dismissals/{Movie|Series}/{catalogId}` mark and unmark "Not
+  interested" for the caller alone, 204 either way and with no audit row, or 400 "“x” is not a kind of
+  work. Use Movie or Series." or "“x” is not a catalog id, which is a number such as 603.".
+  `GET /api/recommendations/posters/{fileName}` answers a catalog work's poster, `image/jpeg` or
+  `image/png` with `Cache-Control: private, max-age=2592000, immutable`: fetched once from TMDb's
+  image host without any credential and kept in `<data>/posters/`, served from there with or without
+  a catalog; a bare 404 for a name that is no poster's or no catalog work's, one the image host
+  doesn't have, or one not kept while no catalog is connected; 502 when the catalog can't send it,
+  with its masked sentence for the owner and "The metadata catalog couldn't send this poster." for
+  everyone else.
+- **The release sources are asked about recommended works within each user's daily limit (MAM-33,
+  ADR 0024).** A background check runs as the app starts, then 15 minutes after each pass ends, and
+  searches at most 4 recommended works a pass for the whole installation; it asks nothing while no
+  release source is switched on, and needs no catalog. A work is due when it was never checked, or
+  was checked a day or more ago and found, or 7 days or more ago and not found; one check per work is
+  shared by every user. Each search serves one user's list and counts against that user's limit over
+  the last 24 hours (Vasyl's decision 5), even when it fails: the limit is split evenly between their
+  tabs that are on, the remainder to the first tabs (62 over four tabs is 16, 16, 15 and 15), the due
+  tab furthest under its share goes first, and a tab at its share gets more only once no tab under its
+  share has a work due. Users take turns, the one searched for least recently first, then by user
+  name; within a tab the works never checked go first, then by score. A user's "Not interested" works
+  and the works of a tab they have off are never due for them, and a limit of 0 searches nothing. A
+  film is asked through the movie search with its year and a show through the TV search with none, by
+  the original title when every letter of it is Latin, else by the catalog's Ukrainian title, and no
+  id is sent; a release counts when it is of the work's kind and its title or description claims the
+  work by its TMDb or IMDb id or by title and year — a pack "(S5) (2022-2024)" counts for the show
+  begun in 2018 — and, for a held series, a missing season or no season. Per work the app keeps how
+  many releases, the best resolution claimed, whether one claims Ukrainian audio, the most seeders and
+  when; what the sources that answered listed is stored, and when none answered nothing is stored, the
+  work stays due and the pass stops. These searches store no search and no release, and the log of
+  them is forgotten after two days: the Search page asks again when you choose **Releases**.
+- **New on Toloka: each release source's newest releases are read every 3 hours (MAM-33, ADR 0024,
+  ADR 0004).** A read runs as the app starts, then 3 hours after each read ends, while a catalog is
+  connected and some user has a tab on: each enabled source gets one general search with no text in
+  the categories of the kinds the tabs want — Toloka answers its latest 90 — and each release is kept
+  by its source and id (a listing without one is left out), updated when it is listed again, with no
+  download link. Up to 100 releases not yet resolved, newest first, are looked up in the catalog by
+  the titles in their description, then in their title, each with its year; a pack of a show's later
+  seasons is looked up by its title alone and taken only when exactly one show of that title began by
+  its first year. A failure of the catalog leaves the rest for the next read, and when any release
+  turned out to be a work a computation is queued. A work first seen there in the last 14 days is
+  recommended as "New on Toloka". A release no source listed for 30 days is forgotten, and the
+  entries go with their source; the reads count against no user's limit.
+- **Every user sets their own lists and daily limit in Profile (MAM-33, ADR 0024).** The Profile page
+  gains a **Recommendations** card: **Movies**, **Series**, **Cartoons** and **Documentaries**, each
+  on for a user who never saved (Vasyl's decision of 2026-10-05), the **Daily search limit** (60
+  until changed, 0 for none) and "N searches in the last 24 hours.", with its own **Save**.
+  `GET /api/profile/recommendations` answers `{ movies, series, cartoons, documentaries,
+  dailySearchLimit, searchesLast24Hours }`; `PUT` takes the first five, every one required, and
+  answers 200 with the settings, or 400 "Say whether the Movies tab is on." (and so for Series,
+  Cartoons and Documentaries), "The daily search limit is a whole number from 0 to 500.", or for a
+  body that isn't the settings "Send the settings as JSON: movies, series, cartoons and documentaries
+  true or false, and dailySearchLimit a whole number from 0 to 500.". Each user reads and saves only
+  their own, and a save writes no audit row. A save that switches on a tab no other enabled user has
+  on — a user who never saved has every tab on — queues a computation in the saver's name
+  (`TabEnabled`) or joins the one waiting; a full queue never fails the save.
+- **The Search page takes a film's TMDb id in its address (MAM-33).**
+  `/search?q=Alien (1979)&tmdbId=348` narrows the search it creates by that id, as the **TMDb id**
+  field does; anything but digits is ignored.
+
+### Changed
+
+- **A film filed in TV/Anime or TV/Documentary is a movie, and the movie search finds it (MAM-33, ADR
+  0020, ADR 0004).** Toloka files films beside series in TV/Anime (5070) and TV/Documentary (5080). A
+  release listed there and in no other TV category is TV only when its title or its description names
+  seasons or episodes — "S1-5", "Сезон 1", "E1-31 of 37", "серії 1-4 з 12" — and a movie otherwise
+  (Vasyl's decision 6), and the movie search asks those two categories too
+  (`cat=2000,2020,2040,2070,5070,5080` for Toloka). So "Akira (1988)" or a documentary film filed
+  there is listed as a movie and matches the film you have by title and year, while "Death Note
+  (E1-31 of 37)" stays TV. A marker of episodes alone now also ends a TV release's title, as a season
+  marker does, so "Death Note (E1-31 of 37) (2006)" is read as "Death Note" and matches the series in
+  your library, and TMDb's, by its title. 0.2.0's rule, a release is TV "when its source lists it in a
+  TV category", now holds for every TV category but those two; a listing in no category keeps it.
+- **A release shows its source's own title under its own (MAM-33, ADR 0004, ADR 0006).** Toloka's
+  topic title, Ukrainian first, comes in each listing's `<description>`, where Prowlarr's title keeps
+  the English part alone. Each release now keeps it (`Releases.Description`) when it says more than the
+  title, and `POST /api/releases/search` and `GET /api/searches/{id}/releases` answer it as
+  `description`, after `title` and before `kind`, `null` when there is none. The Search page shows it
+  under the release's title and in **Details**.
+- **The contracts learn the catalog and the newest releases (MAM-33, ADR 0005).** `IntegrationKind`
+  gains `Metadata` and `ProvenanceSourceKind` `Metadata`; `IMetadataResolver` is implemented for the
+  first time, by the TMDb adapter, beside the new `IMetadataCatalog` (a work's details with credits
+  and recommendations, a collection, a person's works, search, find by IMDb id, discovery by genre,
+  genres and posters). `ReleaseSearchMode` gains `Latest`, planned by `ReleaseSearchPlanning.ForLatest`
+  and sent as `t=search` with no `q`; `ReleaseSearchHit` gains `Description`.
+- **The Integrations list's kind filter takes Metadata (MAM-33).** An unknown kind is 400 "“x” is not
+  a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata.".
+
+### Notes for upgraders
+
+- **Applying `AddReleaseDescription`, `AddRecommendations` and `AddRecommendationRunProgress`
+  rebuilds no table, so it logs no warning 20410 (MAM-33).** `AddReleaseDescription` adds one
+  nullable column, `Releases.Description`; `AddRecommendations` only creates tables — the catalog's
+  eleven and the recommendations' eight — and their 28 indexes; `AddRecommendationRunProgress` adds
+  three nullable columns to `RecommendationRuns`, a running run's stage and its two counts.
+- **Nothing is recommended until the owner connects TMDb (MAM-33).** Create a free account at
+  themoviedb.org, open **Settings → API**, and copy the **API Read Access Token** (the long one, not
+  the API key). In the app, open your user menu → **Integrations** → **Add integration**, choose
+  **TMDb** as the service, name it, enter `https://api.themoviedb.org` as the address and the token
+  as the API key, choose **Test connection**, then **Add integration**.
+  The first computation starts by itself; on a library of about 900 films it takes a few minutes of
+  calls to TMDb (3 min 15 s on the reference installation), its progress shown on the
+  Recommendations page, later ones a handful. Every user then sees all four lists and up to 60 searches a day
+  for them; each changes that under **Profile → Recommendations**.
+- **The release sources are asked more (MAM-33).** Each user's lists may cost up to their daily limit
+  of searches — 60 by default —, at most 4 in each pass of 15 minutes for the whole installation, plus
+  one query per source every 3 hours for its newest releases. The first pass of each runs as the app
+  starts. Set a limit to 0 to ask nothing for that user.
+- **Releases stored before the upgrade have no description (MAM-33).** They go with the next day's
+  prune of a search's releases, unless a download job keeps them.
+- **Posters are cached in the data directory (MAM-33).** `<data>/posters/` holds every poster the
+  Recommendations page has shown, a few dozen kilobytes each, and is never pruned; it needs no backup,
+  as a missing one is fetched again while TMDb is connected.
+
 ## [0.2.0] — 2026-10-04
 
 ### Added

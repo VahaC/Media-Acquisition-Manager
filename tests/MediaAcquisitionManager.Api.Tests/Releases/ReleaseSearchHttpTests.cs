@@ -197,11 +197,12 @@ public sealed class ReleaseSearchHttpTests : IClassFixture<MediaAcquisitionManag
         //Assert
         // The capabilities, then one movie search: Toloka's movie search takes only text, so the ids stay
         // home, the year goes into the text, and the first query found releases. MAM-32 — then its TV
-        // search, by the title without the year (ADR 0020), in the TV categories.
+        // search, by the title without the year (ADR 0020), in the TV categories. MAM-33 — the movie search
+        // asks TV/Anime and TV/Documentary too, where Toloka files anime and documentary films.
         Assert.Equal(
             [
                 $"{FeedAddress}?t=caps&apikey={ApiKey}",
-                $"{FeedAddress}?t=movie&apikey={ApiKey}&q=Interstellar%202014&cat=2000,2020,2040,2070&limit=100",
+                $"{FeedAddress}?t=movie&apikey={ApiKey}&q=Interstellar%202014&cat=2000,2020,2040,2070,5070,5080&limit=100",
                 $"{FeedAddress}?t=tvsearch&apikey={ApiKey}&q=Interstellar&cat=5000,5040,5050,5060,5070,5080&limit=100",
             ],
             _factory.TorznabHttp.Requests.Select(request => request.Uri.AbsoluteUri));
@@ -367,6 +368,39 @@ public sealed class ReleaseSearchHttpTests : IClassFixture<MediaAcquisitionManag
                 ],
                 (await db.Releases.AsNoTracking().OrderBy(release => release.Position).ToListAsync(cancellationToken))
                     .Select(release => (release.Position, release.Seeders, release.Peers, release.ImdbId, release.TmdbId, release.SearchSourceId))));
+    }
+
+    [Fact]
+    public async Task Search_answers_and_stores_each_releases_description_when_it_says_more_than_the_title()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _integrations.Create("torznab", "Toloka", FeedAddress, apiKey: ApiKey);
+        const string movie = "<category>2000</category>";
+        var link = $"{TorznabSamples.DownloadBaseFor(FeedAddress)}download?file=";
+        new FakeTorznabServer(FeedAddress, ApiKey)
+        {
+            SearchXml = TorznabSamples.Feed(
+                TorznabSamples.Item("Interstellar (2014) BDRip", link + "1", extra: movie + "<description>Інтерстеллар / Interstellar (2014) BDRip</description>"),
+                TorznabSamples.Item("Interstellar (2014) 720p", link + "2", extra: movie),
+                TorznabSamples.Item("Interstellar (2014) 1080p", link + "3", extra: movie + "<description>Interstellar (2014) 1080p</description>")),
+        }.Arm(_factory.TorznabHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _member.AccessToken, new ReleaseSearchRequest("Interstellar"));
+
+        //Assert
+        // MAM-33 — Toloka's own topic title, Ukrainian title first; none when the listing gives none or the
+        // title again.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var releases = Assert.Single((await response.Content.ReadFromJsonAsync<ReleaseSearchResponse>(
+            MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!.Sources).Releases;
+        string?[] expected = ["Інтерстеллар / Interstellar (2014) BDRip", null, null];
+        Assert.Equal(expected, releases.Select(release => release.Description));
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal(
+                expected,
+                await db.Releases.AsNoTracking().OrderBy(release => release.Position).Select(release => release.Description).ToListAsync(cancellationToken)));
     }
 
     [Fact]

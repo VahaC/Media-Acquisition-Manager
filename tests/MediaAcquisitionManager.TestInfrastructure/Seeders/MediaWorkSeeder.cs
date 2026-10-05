@@ -31,4 +31,53 @@ public sealed class MediaWorkSeeder(IServiceProvider services) : SeederBase(serv
             sourceName: source.Name);
         return work;
     }
+
+    public async Task<MediaWorkEntity> CreateMovie(
+        IntegrationConnectionEntity source,
+        string title,
+        int? year,
+        string? tmdbId = null,
+        string? imdbId = null,
+        string? originalTitle = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var itemId = Guid.NewGuid().ToString("N");
+        var work = await Works.Create();
+        await Works.AddTitle(work.Id, title, MediaTitleKind.Display, year, source.Id, source.Name, itemId);
+        if (originalTitle is not null)
+            await Works.AddTitle(work.Id, originalTitle, MediaTitleKind.Original, year, source.Id, source.Name, itemId);
+        if (tmdbId is not null)
+            await Works.AddIdentifier(work.Id, MediaIdentifierScheme.Tmdb, tmdbId, source.Id, source.Name, itemId);
+        if (imdbId is not null)
+            await Works.AddIdentifier(work.Id, MediaIdentifierScheme.Imdb, imdbId, source.Id, source.Name, itemId);
+        return work;
+    }
+
+    public async Task<MediaWorkEntity> CreateSeries(
+        IntegrationConnectionEntity source,
+        string title,
+        int? year,
+        string? tmdbTvId = null,
+        string? imdbId = null,
+        IReadOnlyList<int>? seasons = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var itemId = Guid.NewGuid().ToString("N");
+        var series = await Works.Create(MediaWorkKind.Series);
+        await Works.AddTitle(series.Id, title, MediaTitleKind.Display, year, source.Id, source.Name, itemId);
+        if (tmdbTvId is not null)
+            await Works.AddIdentifier(series.Id, MediaIdentifierScheme.TmdbTv, tmdbTvId, source.Id, source.Name, itemId);
+        if (imdbId is not null)
+            await Works.AddIdentifier(series.Id, MediaIdentifierScheme.Imdb, imdbId, source.Id, source.Name, itemId);
+
+        foreach (var season in seasons ?? [1])
+        {
+            var episodeItemId = Guid.NewGuid().ToString("N");
+            var episode = await Works.Create(MediaWorkKind.Episode);
+            await Works.AddTitle(episode.Id, $"{title} {season}x01", MediaTitleKind.Display, null, source.Id, source.Name, episodeItemId);
+            await Works.AddEpisodePosition(episode.Id, series.Id, season, 1, source.Id, source.Name, episodeItemId);
+        }
+
+        return series;
+    }
 }

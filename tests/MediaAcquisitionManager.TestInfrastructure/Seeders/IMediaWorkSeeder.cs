@@ -10,4 +10,30 @@ public interface IMediaWorkSeeder
     /// <paramref name="source"/>, with its id and name as the provenance of the row.
     /// </summary>
     Task<MediaWorkEntity> Create(IntegrationConnectionEntity source);
+
+    /// <summary>
+    /// MAM-33 — a movie as <paramref name="source"/> reported it: its displayed <paramref name="title"/> of
+    /// <paramref name="year"/>, an original title when one is given, and the TMDb and IMDb ids given; no version or file
+    /// (what the recommendations read of a library is its titles and ids).
+    /// </summary>
+    Task<MediaWorkEntity> CreateMovie(
+        IntegrationConnectionEntity source,
+        string title,
+        int? year,
+        string? tmdbId = null,
+        string? imdbId = null,
+        string? originalTitle = null);
+
+    /// <summary>
+    /// MAM-33 — a series as <paramref name="source"/> reported it: its displayed <paramref name="title"/> of
+    /// <paramref name="year"/>, the TMDb TV and IMDb ids given, and one episode in each of <paramref name="seasons"/>
+    /// (season 1 when <c>null</c>; a series holding no episode isn't in the library, MAM-32).
+    /// </summary>
+    Task<MediaWorkEntity> CreateSeries(
+        IntegrationConnectionEntity source,
+        string title,
+        int? year,
+        string? tmdbTvId = null,
+        string? imdbId = null,
+        IReadOnlyList<int>? seasons = null);
 }

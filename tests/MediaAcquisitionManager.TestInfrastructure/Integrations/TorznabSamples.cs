@@ -39,6 +39,28 @@ public static class TorznabSamples
     public const string TvCartoonSearchFile = "Torznab/prowlarr-toloka-tv-cartoon-search.xml";
 
     /// <summary>
+    /// MAM-33 — <c>GET /1/api?t=search&amp;cat=2000&amp;limit=100</c>, no <c>q</c>: Toloka's newest releases
+    /// in the movie categories, newest first, each with its own topic title in <c>&lt;description&gt;</c>.
+    /// It answered its latest 90, trimmed here to the first 25; asked with <c>offset=50</c> or
+    /// <c>offset=100</c> it answered none at all (recorded 2026-10-05).
+    /// </summary>
+    public const string LatestMoviesFile = "Torznab/prowlarr-toloka-latest-movies.xml";
+
+    /// <summary>
+    /// MAM-33 — the same with <c>cat=5000</c>: the newest TV releases, trimmed to 25 of 90 — anime in
+    /// TV/Anime with season or episode markers, a Ukrainian-only documentary series in TV/Documentary whose
+    /// title Prowlarr cut to "(2026) WEB-DL 1080p (S1E1-25 of ?)", sport in TV/Sport.
+    /// </summary>
+    public const string LatestTvFile = "Torznab/prowlarr-toloka-latest-tv.xml";
+
+    /// <summary>
+    /// MAM-33 — <c>GET /1/api?t=movie&amp;q=Schumacher '94 - Die Geburt einer Legende 2026&amp;cat=2000,2020,2040,2070,5070,5080</c>:
+    /// a documentary film Toloka files in Movies once and in its «Документальні фільми в HD», which Prowlarr
+    /// lists as TV/Documentary, four times.
+    /// </summary>
+    public const string FilmInTvCategorySearchFile = "Torznab/prowlarr-toloka-movie-search-film-in-tv-category.xml";
+
+    /// <summary>
     /// What Prowlarr answered <c>t=caps</c>, <c>t=search</c> and a download link alike when asked with a
     /// wrong API key (recorded 2026-10-01): a bare 401 with no body, read by
     /// <c>VendorResponses.Recorded</c>.
@@ -66,6 +88,25 @@ public static class TorznabSamples
     /// <summary>The releases <see cref="TvCartoonSearchFile"/> lists (MAM-32).</summary>
     public const int TvCartoonItemCount = 4;
 
+    /// <summary>
+    /// MAM-33 — the releases of <see cref="TvSearchFile"/> that are films: its last three, in TV/Documentary
+    /// and naming no season ("Wild Yellowstone She Wolf (2013) HDTV"), where the BBC's "Yellowstone (S1)
+    /// (2009)" beside them is a series (ADR 0020).
+    /// </summary>
+    public const int TvFilmItemCount = 3;
+
+    /// <summary>MAM-33 — the releases <see cref="LatestMoviesFile"/> lists.</summary>
+    public const int LatestMoviesItemCount = 25;
+
+    /// <summary>MAM-33 — the releases <see cref="LatestTvFile"/> lists.</summary>
+    public const int LatestTvItemCount = 25;
+
+    /// <summary>MAM-33 — the releases <see cref="FilmInTvCategorySearchFile"/> lists.</summary>
+    public const int FilmInTvCategoryItemCount = 5;
+
+    /// <summary>MAM-33 — those of them in TV/Documentary (5080) alone: all but the first.</summary>
+    public const int FilmInTvCategoryDocumentaryItemCount = 4;
+
     /// <summary>The indexer the samples' download links point at; only ever replaced, never requested.</summary>
     private const string SampleIndexerBase = "http://192.168.1.195:9696/1/";
 
@@ -77,6 +118,9 @@ public static class TorznabSamples
     private static readonly Lazy<string> TvSearchText = new(() => Read(TvSearchFile));
     private static readonly Lazy<string> TvSeasonSearchText = new(() => Read(TvSeasonSearchFile));
     private static readonly Lazy<string> TvCartoonSearchText = new(() => Read(TvCartoonSearchFile));
+    private static readonly Lazy<string> LatestMoviesText = new(() => Read(LatestMoviesFile));
+    private static readonly Lazy<string> LatestTvText = new(() => Read(LatestTvFile));
+    private static readonly Lazy<string> FilmInTvCategorySearchText = new(() => Read(FilmInTvCategorySearchFile));
 
     /// <summary>
     /// A bencoded single-file torrent the size of a byte: the shape a payload fetch accepts (a dictionary
@@ -105,6 +149,19 @@ public static class TorznabSamples
     /// <summary>The <c>t=tvsearch</c> sample of a cartoon series (MAM-32), moved the same way as
     /// <see cref="Search"/>.</summary>
     public static string TvCartoonSearch(string feedAddress, string? apiKey = null) => Rewrite(TvCartoonSearchText.Value, feedAddress, apiKey);
+
+    /// <summary>The newest releases in the movie categories (MAM-33), moved the same way as
+    /// <see cref="Search"/>.</summary>
+    public static string LatestMovies(string feedAddress, string? apiKey = null) => Rewrite(LatestMoviesText.Value, feedAddress, apiKey);
+
+    /// <summary>The newest releases in the TV categories (MAM-33), moved the same way as
+    /// <see cref="Search"/>.</summary>
+    public static string LatestTv(string feedAddress, string? apiKey = null) => Rewrite(LatestTvText.Value, feedAddress, apiKey);
+
+    /// <summary>The <c>t=movie</c> sample of a documentary film in TV/Documentary (MAM-33), moved the same way
+    /// as <see cref="Search"/>.</summary>
+    public static string FilmInTvCategorySearch(string feedAddress, string? apiKey = null) =>
+        Rewrite(FilmInTvCategorySearchText.Value, feedAddress, apiKey);
 
     /// <summary>A fresh copy of a small valid .torrent file.</summary>
     public static byte[] TorrentFile() => [.. TorrentBytes];

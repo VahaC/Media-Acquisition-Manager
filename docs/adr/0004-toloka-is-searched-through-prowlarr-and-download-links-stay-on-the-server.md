@@ -271,3 +271,44 @@ on the wire. `ReleaseSearchHttpTests.Search_sends_the_title_and_year_to_the_movi
 named in the MAM-10 section above, is now
 `ReleaseSearchHttpTests.Search_sends_the_title_and_year_to_the_movie_search_and_the_title_to_the_tv_search_each_in_its_categories`:
 the same movie query, then the TV query by the title alone.
+
+## The newest releases and the description (added 0.2.1, MAM-33)
+
+**The movie search asks two TV categories too.** The MAM-10 section's "The search sends the caps'
+movie categories (Torznab's 2000–2999: 2000, 2020, 2040, 2070 for Toloka)" now reads: 2000 to 2999,
+and TV/Anime (5070) and TV/Documentary (5080), where Toloka files films beside series — for Toloka
+`cat=2000,2020,2040,2070,5070,5080` — and a release there is a movie unless its title or description
+names seasons or episodes
+([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
+Asked so on 2026-10-05, `t=movie&q=Schumacher '94 - Die Geburt einer Legende 2026` found the
+documentary filed once in Movies and four times in Toloka's «Документальні фільми в HD», which
+Prowlarr lists as TV/Documentary.
+
+**The newest releases are a general search with no text.** For "New on Toloka"
+([ADR 0024](0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)) the
+adapter sends `t=search` with no `q`, in the categories asked and with the limit (at most 100), and
+nothing else: only `ReleaseSearchMode.Latest` may leave the text out, and it takes no id or year.
+Prowlarr answered so on 2026-10-05 with Toloka's latest 90 releases, newest first — in the movie
+categories 90 published from 2026-09-26 to 10-05, in the TV categories 90 from 09-28 to 10-05 —; with
+`offset=50` or `offset=100` it answered none at all, so there is nothing to page through, and
+`t=movie` with no `q` answered the same as `t=search`. Their topic links carry the forum session as
+the `t=search` answer's do, and lose it the same way; an entry of the newest releases keeps no
+download link.
+
+**`<description>` is read.** Toloka's own topic title comes in each item's `<description>`, Ukrainian
+title first — "Ті, хто бажають моєї смерті / Those Who Wish Me Dead (2021) BDRip 1080p …" —, where
+Prowlarr's title keeps the English part alone, and for a Ukrainian-only show nothing readable at all:
+"(2026) WEB-DL 1080p (S1E1-25 of ?)". The adapter cleans, masks and cuts it like the title, and keeps
+it as the hit's `Description` when it is neither blank nor the title itself. Every search stores it
+on the release (`Releases.Description`), answers it as `description`, and the Search page shows it
+under the release's title and in its Details; the newest releases are resolved to catalog works by
+it first. A release stored before 0.2.1 has none.
+
+`TorznabAdapterSearchLatestTests.Search_of_the_newest_releases_sends_a_general_search_with_no_text_in_the_categories_planned_from_the_caps`,
+`TorznabAdapterSearchLatestTests.Search_of_the_newest_releases_sends_only_the_parameters_it_has`,
+`TorznabAdapterSearchLatestTests.Search_of_the_newest_movies_reads_the_sample_newest_first_with_each_description`,
+`TorznabAdapterSearchTests.Search_reads_the_description_only_when_it_says_more_than_the_title`,
+`TorznabAdapterSearchTests.Search_masks_the_api_key_a_description_echoes` and
+`SearchReleasesListHttpTests.Releases_lists_each_releases_description_as_the_search_stored_it` pin
+it, against the recorded `prowlarr-toloka-latest-movies.xml`, `prowlarr-toloka-latest-tv.xml` and
+`prowlarr-toloka-movie-search-film-in-tv-category.xml`.

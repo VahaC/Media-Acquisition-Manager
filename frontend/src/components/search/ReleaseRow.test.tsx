@@ -49,6 +49,35 @@ describe('ReleaseRow', () => {
       .toEqual(['Toloka', '29.5 GiB', '12 seeders', '15 peers', 'Published 9/28/2026'])
   })
 
+  it('shows the listing\'s own description right under the title when it gives one', () => {
+    // Arrange
+    // MAM-33 — Toloka's topic title, where Prowlarr's title keeps the English part alone.
+    const release = releaseOf({
+      title: 'Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+      description: 'Чужі / Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+    })
+
+    // Act
+    renderRow(release)
+
+    // Assert
+    const description = screen.getByText(release.description!)
+    expect(description).toHaveClass('search-release-description')
+    expect(description.previousElementSibling).toBe(screen.getByRole('heading', { level: 3, name: release.title }))
+  })
+
+  it('shows no description line when the listing gives none', () => {
+    // Arrange
+    const release = tolokaRemux
+
+    // Act
+    const { row } = renderRow(release)
+
+    // Assert
+    expect(row.querySelector('.search-release-description')).toBeNull()
+    expect(screen.getByRole('heading', { level: 3 }).nextElementSibling).toHaveClass('library-file-facts')
+  })
+
   it('names every fact the listing left out as unknown', () => {
     // Arrange
     const release = otherUhd

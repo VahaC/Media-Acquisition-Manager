@@ -7,12 +7,13 @@ using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Search;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 
 // MAM-10 — the releases of a t=search, t=movie or t=tvsearch (MAM-32) answer, every field read by name (house rule 8) and
 // every number and address parsed, never trusted: an item this app can't use is skipped, never the
-// search.
+// search. MAM-33 — the newest releases (t=search with no q) are read alike.
 internal sealed partial class TorznabAdapter
 {
     /// <summary>What a release's title column holds (<c>ReleaseEntity.Title</c>).</summary>
@@ -117,7 +118,8 @@ internal sealed partial class TorznabAdapter
         var locatorValues = TorznabLinks.QueryValues(locator);
         var pageLink = TorznabLinks.PageLink((string?)item.Element("comments"), feed, locatorValues, secrets);
         var categoryIds = CategoryIds(item, attributes);
-        var kind = KindOf(categoryIds, kindAsked);
+        var description = Description((string?)item.Element("description"), title, secrets);
+        var kind = KindOf(categoryIds, kindAsked, title, description);
         var hit = new ReleaseSearchHit(
             TorznabLinks.ItemId((string?)item.Element("guid"), pageLink, secrets),
             title,
@@ -134,8 +136,22 @@ internal sealed partial class TorznabAdapter
             InfoHash(AttributeValues(attributes, "infohash").FirstOrDefault()),
             Identifiers(attributes, kind),
             new ReleasePayloadLocator(stored),
-            kind);
+            kind,
+            description);
         return (hit, webLink);
+    }
+
+    /// <summary>
+    /// MAM-33 — the item's <c>&lt;description&gt;</c>, cleaned and cut like the title; <c>null</c> when it is
+    /// blank or the title itself. Toloka puts its topic's own title there, Ukrainian title first
+    /// ("Ліхтарі (Сезон 1) / Lanterns (Season 1) (2026) …"), where Prowlarr's title keeps the English part
+    /// alone, and for a Ukrainian-only show nothing readable at all ("(2026) WEB-DL 1080p (S1E1-25 of ?)";
+    /// VendorSamples).
+    /// </summary>
+    private static string? Description(string? value, string title, string?[] secrets)
+    {
+        var description = RemoteText.Clean(value, TitleMaximumLength, secrets);
+        return description.Length == 0 || string.Equals(description, title, StringComparison.Ordinal) ? null : description;
     }
 
     /// <summary>The values of the item's <c>attr</c> elements named <paramref name="name"/>, in any
@@ -194,10 +210,25 @@ internal sealed partial class TorznabAdapter
     /// TV/Documentary …, where Prowlarr files Toloka's «Телесеріали» and «Мультсеріали»), and a movie
     /// otherwise; one that lists no category is what the search that found it asked for.
     /// </summary>
-    private static ReleaseKind KindOf(IReadOnlyList<string> categoryIds, ReleaseKind kindAsked)
+    /// <remarks>
+    /// MAM-33 — except TV/Anime and TV/Documentary (<see cref="HoldsFilmsAndSeries"/>), where Toloka files
+    /// films beside series: a release listing no other TV category is TV only when its title or
+    /// description names seasons or episodes (<see cref="ReleaseWorkClaims.ClaimsSeasonsOrEpisodes"/>), and a
+    /// film otherwise — "Akira (1988)" a film, "Death Note (E1-31 of 37) (2006)" a series (Vasyl's decision 6,
+    /// ADR 0020). The category still decides everything else.
+    /// </remarks>
+    private static ReleaseKind KindOf(IReadOnlyList<string> categoryIds, ReleaseKind kindAsked, string title, string? description)
     {
-        if (categoryIds.Any(HoldsTv))
+        if (categoryIds.Any(id => HoldsTv(id) && !HoldsFilmsAndSeries(id)))
             return ReleaseKind.Tv;
+        if (categoryIds.Any(HoldsFilmsAndSeries))
+        {
+            return ReleaseWorkClaims.ClaimsSeasonsOrEpisodes(title)
+                || description is not null && ReleaseWorkClaims.ClaimsSeasonsOrEpisodes(description)
+                ? ReleaseKind.Tv
+                : ReleaseKind.Movie;
+        }
+
         return categoryIds.Count == 0 ? kindAsked : ReleaseKind.Movie;
     }
 
@@ -211,12 +242,16 @@ internal sealed partial class TorznabAdapter
     /// The asked ids are tested with <see cref="HoldsTv"/>, the rule that marked them <c>HoldsTv</c> in the
     /// caps the planning picked them from, so the query alone tells it. Any other id asked beside them, a
     /// gateway's own section included (Toloka's 100xxx), may hold a movie, and the search is then not TV.
+    /// MAM-33 — TV/Anime and TV/Documentary still count as TV here: the query asked for TV, and nothing in a
+    /// listing in no category says otherwise; the marker rule is only for a listing that lists them
+    /// (<see cref="KindOf"/>). The newest releases are asked as a general search, and read alike.
     /// </remarks>
     private static ReleaseKind KindAsked(ReleaseSearchQuery query) =>
         query.Mode switch
         {
             ReleaseSearchMode.Tv => ReleaseKind.Tv,
-            ReleaseSearchMode.General when query.CategoryIds.Count > 0 && query.CategoryIds.All(HoldsTv) => ReleaseKind.Tv,
+            ReleaseSearchMode.General or ReleaseSearchMode.Latest
+                when query.CategoryIds.Count > 0 && query.CategoryIds.All(HoldsTv) => ReleaseKind.Tv,
             _ => ReleaseKind.Movie,
         };
 

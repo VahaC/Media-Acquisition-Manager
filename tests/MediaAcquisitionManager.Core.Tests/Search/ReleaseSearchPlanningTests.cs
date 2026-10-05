@@ -7,6 +7,7 @@ namespace MediaAcquisitionManager.Core.Tests.Search;
 
 // MAM-10 — which of a source's searches a release search goes to, and with what, decided once for every
 // source type: the adapter only translates the queries. MAM-32 — the TV queries beside the movie ones.
+// MAM-33 — the one query for a source's newest releases.
 public sealed class ReleaseSearchPlanningTests
 {
     private static readonly MediaIdentifier Imdb = new(MediaIdentifierScheme.Imdb, "tt0816692");
@@ -36,6 +37,18 @@ public sealed class ReleaseSearchPlanningTests
             new ReleaseCategory("100174", "|-Мультсеріали HD", null, HoldsMovies: false, IsSourceSpecific: true),
         ],
         new ReleaseTvSearchCapabilities(TakesText: true, IdentifierSchemes: [], TakesSeason: true));
+
+    // MAM-33 — and TV/Anime and TV/Documentary as the adapter now reads them: categories that hold films
+    // beside series (ADR 0020).
+    private static readonly ReleaseSearchCapabilities TolokaWithFilmsAndSeries = Toloka with
+    {
+        Categories =
+        [
+            .. Toloka.Categories,
+            new ReleaseCategory("5070", "TV/Anime", "5000", HoldsMovies: true, HoldsTv: true),
+            new ReleaseCategory("5080", "TV/Documentary", "5000", HoldsMovies: true, HoldsTv: true),
+        ],
+    };
 
     [Fact]
     public void For_toloka_searches_its_movie_search_by_title_and_year_in_the_text_then_by_title()
@@ -232,6 +245,94 @@ public sealed class ReleaseSearchPlanningTests
 
         //Assert
         Assert.Equal(["2000"], Assert.Single(queries).CategoryIds);
+    }
+
+    [Fact]
+    public void For_searches_movies_in_the_categories_that_hold_films_beside_series_too()
+    {
+        //Arrange
+
+        //Act
+        var queries = ReleaseSearchPlanning.For("Akira", null, [], TolokaWithFilmsAndSeries);
+        var tvQueries = ReleaseSearchPlanning.ForTv("Akira", null, [], TolokaWithFilmsAndSeries);
+
+        //Assert
+        // MAM-33 — Toloka files anime and documentary films in TV/Anime and TV/Documentary: the movie search
+        // asks them, and so does the TV search, for the series beside them.
+        Assert.Equal(["2000", "2040", "5070", "5080"], Assert.Single(queries).CategoryIds);
+        Assert.Equal(["5000", "5040", "5070", "5080"], Assert.Single(tvQueries).CategoryIds);
+    }
+
+    [Theory]
+    [InlineData(true, false, new[] { "2000", "2040", "5070", "5080" })]
+    [InlineData(false, true, new[] { "5000", "5040", "5070", "5080" })]
+    // Each category once, in the source's order.
+    [InlineData(true, true, new[] { "2000", "2040", "5000", "5040", "5070", "5080" })]
+    public void ForLatest_asks_the_general_search_with_no_text_in_the_categories_of_what_is_wanted(bool movies, bool tv, string[] expectedCategories)
+    {
+        //Arrange
+
+        //Act
+        var query = ReleaseSearchPlanning.ForLatest(movies, tv, TolokaWithFilmsAndSeries);
+
+        //Assert
+        // MAM-33 — no text, no year, no id: the source's newest releases, never a page more (VendorSamples:
+        // Toloka's gateway answers its latest 90, and an offset finds nothing).
+        Assert.NotNull(query);
+        Assert.Equal(
+            new ReleaseSearchQuery(ReleaseSearchMode.Latest, null, null, [], expectedCategories, 100),
+            query,
+            QueryComparer.Instance);
+    }
+
+    [Fact]
+    public void ForLatest_of_a_source_without_a_general_search_is_none()
+    {
+        //Arrange
+        // Its movie and TV searches need text or an id; only the general search lists what is new.
+        var capabilities = TolokaWithFilmsAndSeries with { HasTextSearch = false };
+
+        //Act
+        var query = ReleaseSearchPlanning.ForLatest(true, true, capabilities);
+
+        //Assert
+        Assert.Null(query);
+    }
+
+    [Theory]
+    // No TV category to ask: without one, the newest releases of every section — music and books too —
+    // would come back.
+    [InlineData(false, true)]
+    // Nothing wanted at all.
+    [InlineData(false, false)]
+    public void ForLatest_without_a_category_of_what_is_wanted_is_none(bool movies, bool tv)
+    {
+        //Arrange
+        var capabilities = Toloka with { Categories = [.. Toloka.Categories.Where(category => !category.HoldsTv)] };
+
+        //Act
+        var query = ReleaseSearchPlanning.ForLatest(movies, tv, capabilities);
+
+        //Assert
+        Assert.Null(query);
+    }
+
+    [Theory]
+    [InlineData(100, 100)]
+    [InlineData(50, 50)]
+    [InlineData(1000, ReleaseSearchPlanning.MaximumResults)]
+    [InlineData(null, ReleaseSearchPlanning.MaximumResults)]
+    [InlineData(0, ReleaseSearchPlanning.MaximumResults)]
+    public void ForLatest_asks_for_the_sources_limit_up_to_one_hundred(int? sourceLimit, int expected)
+    {
+        //Arrange
+        var capabilities = TolokaWithFilmsAndSeries with { ResultLimit = sourceLimit };
+
+        //Act
+        var query = ReleaseSearchPlanning.ForLatest(true, false, capabilities);
+
+        //Assert
+        Assert.Equal(expected, query!.Limit);
     }
 
     [Fact]

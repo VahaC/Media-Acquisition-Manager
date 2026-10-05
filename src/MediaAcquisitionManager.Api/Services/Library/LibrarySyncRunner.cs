@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Integrations;
+using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
@@ -23,6 +24,7 @@ public sealed class LibrarySyncRunner(
     IIntegrationSettingsFactory settingsFactory,
     ILibrarySnapshotStore snapshots,
     IFileInspectionService inspections,
+    IRecommendationRunService recommendations,
     TimeProvider time,
     ILogger<LibrarySyncRunner> logger) : ILibrarySyncRunner
 {
@@ -144,6 +146,7 @@ public sealed class LibrarySyncRunner(
                     snapshot.VersionsCount,
                     snapshot.FilesCount);
                 await QueueInspectionAsync(runId, cancellationToken);
+                await QueueRecommendationsAsync(runId, cancellationToken);
                 break;
             case LibrarySnapshotStatus.SourceRemoved:
                 await FailAsync(runId, integration.Id, "IntegrationRemoved", RemovedWhileSyncingError, settings);
@@ -282,6 +285,24 @@ public sealed class LibrarySyncRunner(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Library sync {RunId} succeeded, but no file inspection could be queued after it.", runId);
+        }
+    }
+
+    /// <summary>
+    /// MAM-33 — what the library holds may have changed, so a successful sync queues a computation of the
+    /// recommendations (or joins the one waiting); quietly nothing without a metadata catalog. After the inspection's,
+    /// on its own: the sync has succeeded and stays so, and a failure here is logged and costs the inspection nothing —
+    /// the next sync or the owner's Recompute now queues one again.
+    /// </summary>
+    private async Task QueueRecommendationsAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await recommendations.EnsureQueuedAsync(RecommendationRunTrigger.LibrarySynced, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Library sync {RunId} succeeded, but no recommendation run could be queued after it.", runId);
         }
     }
 

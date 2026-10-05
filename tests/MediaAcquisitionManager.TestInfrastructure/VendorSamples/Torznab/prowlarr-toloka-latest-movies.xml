@@ -1,0 +1,601 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="1.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <atom:link rel="self" type="application/rss+xml" />
+    <title>Prowlarr</title>
+    <item>
+      <title>Those Who Wish Me Dead (2021) BDRip 1080p 2xUkr/Eng | Sub Ukr/Eng</title>
+      <description>Ті, хто бажають моєї смерті / Those Who Wish Me Dead (2021) BDRip 1080p 2xUkr/Eng | Sub Ukr/Eng</description>
+      <guid>https://toloka.to/t700691?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700691?sid=REDACTED</comments>
+      <pubDate>Mon, 05 Oct 2026 00:00:00 +0300</pubDate>
+      <size>11102490460</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Those+Who+Wish+Me+Dead+(2021)+BDRip+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Those+Who+Wish+Me+Dead+(2021)+BDRip+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="11102490460" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Runner (2026) WEB-DL 720p Ukr/Eng | Sub Eng</title>
+      <description>Перевізник / Runner (2026) WEB-DL 720p Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700686?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700686?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3242700308</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Runner+(2026)+WEB-DL+720p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Runner+(2026)+WEB-DL+720p+Ukr%2FEng+%7C+Sub+Eng" length="3242700308" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="20" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="23" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Royal Hunt of the Sun (1969) DVDRip-AVC Eng | sub Ukr</title>
+      <description>Королівське полювання на Сонце / The Royal Hunt of the Sun (1969) DVDRip-AVC Eng | sub Ukr</description>
+      <guid>https://toloka.to/t700685?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700685?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1707249500</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Royal+Hunt+of+the+Sun+(1969)+DVDRip-AVC+Eng+%7C+sub+Ukr</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Royal+Hunt+of+the+Sun+(1969)+DVDRip-AVC+Eng+%7C+sub+Ukr" length="1707249500" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Superman (2025) BDRip-AVC 2xUkr/Eng | Sub Ukr/Eng</title>
+      <description>Супермен / Superman (2025) BDRip-AVC 2xUkr/Eng | Sub Ukr/Eng</description>
+      <guid>https://toloka.to/t700684?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700684?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3264175144</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Superman+(2025)+BDRip-AVC+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Superman+(2025)+BDRip-AVC+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="3264175144" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="11" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="13" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Royal Hunt of the Sun (1969) DVDRip Eng | sub Ukr</title>
+      <description>Королівське полювання на Сонце / The Royal Hunt of the Sun (1969) DVDRip Eng | sub Ukr</description>
+      <guid>https://toloka.to/t700683?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700683?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1954210119</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Royal+Hunt+of+the+Sun+(1969)+DVDRip+Eng+%7C+sub+Ukr</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Royal+Hunt+of+the+Sun+(1969)+DVDRip+Eng+%7C+sub+Ukr" length="1954210119" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Runner (2026) WEB-DL-AVC Ukr/Eng | Sub Eng</title>
+      <description>Перевізник / Runner (2026) WEB-DLRip-AVC Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700679?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700679?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1868310773</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Runner+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Runner+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+Eng" length="1868310773" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="74" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="82" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Runner (2026) WEB-DL 1080p Ukr/Eng | Sub Eng</title>
+      <description>Перевізник / Runner (2026) WEB-DL 1080p Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700678?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700678?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6936372183</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Runner+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Runner+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng" length="6936372183" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="111" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="126" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kariera Nikosia Dyzmy (2002) DVDRip Pol | Sub Ukr/Pol/Eng</title>
+      <description>Кар'єра Нікося Дизми / Kariera Nikosia Dyzmy (2002) DVDRip Pol | Sub Ukr/Pol/Eng</description>
+      <guid>https://toloka.to/t700672?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700672?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1675037245</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Kariera+Nikosia+Dyzmy+(2002)+DVDRip+Pol+%7C+Sub+Ukr%2FPol%2FEng</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Kariera+Nikosia+Dyzmy+(2002)+DVDRip+Pol+%7C+Sub+Ukr%2FPol%2FEng" length="1675037245" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tom and Jerry: Classic Collection (4 of 163) (1940-1967) BDRemux/WEB-DL 1080p Eng | sub Ukr/Eng</title>
+      <description>Том і Джеррі: Класична колекція (4 зі 163) / Tom and Jerry: Classic Collection (4 of 163) (1940-1967) BDRemux/WEB-DL 1080p Eng | sub Ukr/Eng</description>
+      <guid>https://toloka.to/t699912?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t699912?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4477503406</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Tom+and+Jerry%3A+Classic+Collection+(4+of+163)+(1940-1967)+BDRemux%2FWEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100197</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Tom+and+Jerry%3A+Classic+Collection+(4+of+163)+(1940-1967)+BDRemux%2FWEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng" length="4477503406" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100197" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Shi yue wei cheng (2009) BDRip-AVC Chi | sub Ukr</title>
+      <description>Охоронці та найманці  / Shi yue wei cheng (2009) BDRip-AVC Chi | sub Ukr</description>
+      <guid>https://toloka.to/t700546?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700546?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2040109465</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Shi+yue+wei+cheng+(2009)+BDRip-AVC+Chi+%7C+sub+Ukr</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Shi+yue+wei+cheng+(2009)+BDRip-AVC+Chi+%7C+sub+Ukr" length="2040109465" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>My Life (1993) WEB-DL-AVC Eng | sub Ukr</title>
+      <description>Моє життя / My Life (1993) WEBDLRip-AVC Eng | sub Ukr</description>
+      <guid>https://toloka.to/t700371?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700371?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1803886264</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=My+Life+(1993)+WEB-DL-AVC+Eng+%7C+sub+Ukr</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=My+Life+(1993)+WEB-DL-AVC+Eng+%7C+sub+Ukr" length="1803886264" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Eternity (2025) BDRip-AVC Ukr/Eng | Sub Ukr/Eng</title>
+      <description>Вічність / Eternity (2025) BDRip-AVC Ukr/Eng | Sub Ukr/Eng</description>
+      <guid>https://toloka.to/t700664?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700664?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2437393940</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Eternity+(2025)+BDRip-AVC+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Eternity+(2025)+BDRip-AVC+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="2437393940" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Schumacher '94 - Die Geburt einer Legende (2026) WEB-DL-AVC Ukr/Ger | Sub Ukr/Ger/Eng</title>
+      <description>Шумахер 1994: Народження легенди / Schumacher '94 - Die Geburt einer Legende (2026) WEB-DLRip-AVC Ukr/Ger | Sub Ukr/Ger/Eng</description>
+      <guid>https://toloka.to/t700663?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700663?sid=REDACTED</comments>
+      <pubDate>Sun, 04 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2394444267</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Schumacher+%2794+-+Die+Geburt+einer+Legende+(2026)+WEB-DL-AVC+Ukr%2FGer+%7C+Sub+Ukr%2FGer%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Schumacher+%2794+-+Die+Geburt+einer+Legende+(2026)+WEB-DL-AVC+Ukr%2FGer+%7C+Sub+Ukr%2FGer%2FEng" length="2394444267" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="31" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="33" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Uprising (2026) WEB-DL-AVC Ukr/Eng | Sub Eng/Ukr</title>
+      <description>Месник / Повстання / The Uprising (2026) WEB-DLRip-AVC Ukr/Eng | Sub Eng/Ukr</description>
+      <guid>https://toloka.to/t700650?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700650?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2652142305</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="2652142305" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="93" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="97" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Uprising (2026) WEB-DL 4K 2160p Dolby Vision TV P5 H.265 Ukr/Eng | Sub Eng/Ukr | MA</title>
+      <description>Месник / Повстання / The Uprising (2026) WEB-DL 4K 2160p Dolby Vision TV P5 H.265 Ukr/Eng | Sub Eng/Ukr | MA</description>
+      <guid>https://toloka.to/t700653?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700653?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>24352464568</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+4K+2160p+Dolby+Vision+TV+P5+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr+%7C+MA</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+4K+2160p+Dolby+Vision+TV+P5+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr+%7C+MA" length="24352464568" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Uprising (2026) WEB-DL 4K 2160p HDR10 Dolby Vision P8 H.265 Ukr/Eng | Sub Eng/Ukr | MA</title>
+      <description>Месник / Повстання / The Uprising (2026) WEB-DL 4K 2160p HDR10 Dolby Vision P8 H.265 Ukr/Eng | Sub Eng/Ukr | MA</description>
+      <guid>https://toloka.to/t700652?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700652?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>24470576168</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+4K+2160p+HDR10+Dolby+Vision+P8+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr+%7C+MA</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+4K+2160p+HDR10+Dolby+Vision+P8+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr+%7C+MA" length="24470576168" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="43" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="48" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Uprising (2026) WEB-DL 4K 2160p SDR H.265 Ukr/Eng | Sub Eng/Ukr | MA</title>
+      <description>Месник / Повстання / The Uprising (2026) WEB-DL 4K 2160p SDR H.265 Ukr/Eng | Sub Eng/Ukr | MA</description>
+      <guid>https://toloka.to/t700651?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700651?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>24588687769</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+4K+2160p+SDR+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr+%7C+MA</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+4K+2160p+SDR+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr+%7C+MA" length="24588687769" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="17" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Uprising (2026) WEB-DL 1080p Ukr/Eng | Sub Eng/Ukr</title>
+      <description>Месник / Повстання / The Uprising (2026) WEB-DL 1080p Ukr/Eng | Sub Eng/Ukr</description>
+      <guid>https://toloka.to/t700649?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700649?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10071698309</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Uprising+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="10071698309" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="93" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="105" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Good Girls Go to Paris (1939) WEB-DL</title>
+      <description>Пристойні дівчата їздять до Парижа / Good Girls Go to Paris (1939) WEB-DLRip</description>
+      <guid>https://toloka.to/t700648?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700648?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>943718400</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Good+Girls+Go+to+Paris+(1939)+WEB-DL</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Good+Girls+Go+to+Paris+(1939)+WEB-DL" length="943718400" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Scooby-Doo on Zombie Island (1998) BDRip 1080p Ukr/Eng | Sub Eng</title>
+      <description>Скубі-Ду на острові мерців / Scooby-Doo on Zombie Island (1998) BDRip 1080p Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700641?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700641?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10361608601</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Scooby-Doo+on+Zombie+Island+(1998)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100139</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Scooby-Doo+on+Zombie+Island+(1998)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng" length="10361608601" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100139" />
+      <torznab:attr name="tag" value="halfleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Gunche (군체) (2026) WEB-DL 4K 2160p H.265 SDR Ukr/Kor | Sub Ukr/Eng</title>
+      <description>Колонія / Gunche (군체) (2026) WEB-DL 4K 2160p H.265 SDR Ukr/Kor | Sub Ukr/Eng</description>
+      <guid>https://toloka.to/t700639?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700639?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>19144816721</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Gunche+(%EA%B5%B0%EC%B2%B4)+(2026)+WEB-DL+4K+2160p+H.265+SDR+Ukr%2FKor+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Gunche+(%EA%B5%B0%EC%B2%B4)+(2026)+WEB-DL+4K+2160p+H.265+SDR+Ukr%2FKor+%7C+Sub+Ukr%2FEng" length="19144816721" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="36" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="39" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Sound of Metal (2019) BDRip 1080p 3xUkr/Eng | Sub 2xUkr/Eng</title>
+      <description>Звук металу / Sound of Metal (2019) BDRip 1080p 3xUkr/Eng | Sub 2xUkr/Eng</description>
+      <guid>https://toloka.to/t700637?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700637?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>13443247636</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Sound+of+Metal+(2019)+BDRip+1080p+3xUkr%2FEng+%7C+Sub+2xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Sound+of+Metal+(2019)+BDRip+1080p+3xUkr%2FEng+%7C+Sub+2xUkr%2FEng" length="13443247636" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="11" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Da hong denglong gaogao gua / 大紅燈籠高高掛 (1991) BDRip 720p Chi | sub Ukr</title>
+      <description>Високо висять червоні ліхтарі / Da hong denglong gaogao gua / 大紅燈籠高高掛 (1991) BDRip 720p Chi | sub Ukr</description>
+      <guid>https://toloka.to/t700198?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700198?sid=REDACTED</comments>
+      <pubDate>Sat, 03 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6184752906</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Da+hong+denglong+gaogao+gua+%2F+%E5%A4%A7%E7%B4%85%E7%87%88%E7%B1%A0%E9%AB%98%E9%AB%98%E6%8E%9B+(1991)+BDRip+720p+Chi+%7C+sub+Ukr</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Da+hong+denglong+gaogao+gua+%2F+%E5%A4%A7%E7%B4%85%E7%87%88%E7%B1%A0%E9%AB%98%E9%AB%98%E6%8E%9B+(1991)+BDRip+720p+Chi+%7C+sub+Ukr" length="6184752906" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="tag" value="halfleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Isolate Thief (2026) WEB-DL 1080p Ukr/Eng | Sub Eng</title>
+      <description>Самотня злодійка / The Isolate Thief (2026) WEB-DL 1080p Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700624?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700624?sid=REDACTED</comments>
+      <pubDate>Fri, 02 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5615669739</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Isolate+Thief+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=The+Isolate+Thief+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng" length="5615669739" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="66" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="66" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Airplane! (1980) BDRemux 1080p Ukr/Eng | Sub Eng</title>
+      <description>Аероплан / Airplane! (1980) BDRemux 1080p Ukr/Eng | Sub Eng</description>
+      <guid>https://toloka.to/t700617?sid=REDACTED</guid>
+      <prowlarrindexer id="1" type="semi-private">Toloka.to</prowlarrindexer>
+      <comments>https://toloka.to/t700617?sid=REDACTED</comments>
+      <pubDate>Fri, 02 Oct 2026 00:00:00 +0300</pubDate>
+      <size>24416889077</size>
+      <link>http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Airplane!+(1980)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9696/1/download?apikey=REDACTED&amp;link=REDACTED&amp;file=Airplane!+(1980)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng" length="24416889077" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="tag" value="freeleech" />
+      <torznab:attr name="genre" value="" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="grabs" value="0" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+  </channel>
+</rss>

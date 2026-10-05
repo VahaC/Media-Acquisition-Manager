@@ -5,11 +5,16 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/AppLayout'
 import { useConnectionStore } from '@/lib/connection-store'
 import { healthApi } from '@/lib/health-api'
-import type { HealthReport } from '@/lib/types'
+import { profileApi } from '@/lib/profile-api'
+import { qk } from '@/lib/queries'
+import type { HealthReport, RecommendationSettings } from '@/lib/types'
+import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, signInAs } from '@/test/auth-session'
 import { resetConnectionStore } from '@/test/connection'
+import { allTabsOff, allTabsOn } from '@/test/recommendations'
 
 vi.mock('@/lib/health-api')
+vi.mock('@/lib/profile-api')
 
 function CrashingPage(): never {
   throw new Error('boom')
@@ -19,14 +24,16 @@ function CrashingPage(): never {
 const brandName = `Media Acquisition Manager v${__APP_VERSION__}`
 
 function renderAt(path: string) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<p>Home content</p>} />
             <Route path="search" element={<p>Search content</p>} />
             <Route path="library" element={<p>Library content</p>} />
+            <Route path="recommendations" element={<p>Recommendations content</p>} />
             <Route path="jobs" element={<p>Jobs content</p>} />
             <Route path="crash" element={<CrashingPage />} />
           </Route>
@@ -34,11 +41,13 @@ function renderAt(path: string) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  return client
 }
 
 describe('AppLayout', () => {
   beforeEach(() => {
     resetAuthStore()
+    vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOn)
     // React reports every caught render error to the console; the boundary adds its own line.
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -105,7 +114,7 @@ describe('AppLayout', () => {
   it.each([
     ['the installation owner', owner],
     ['any other user', member],
-  ])('links to the Library, then Jobs in the header for %s, and opens the Library from there', async (_, signedIn) => {
+  ])('links to the Library, Recommendations, then Jobs in the header for %s, and opens the Library from there', async (_, signedIn) => {
     // Arrange
     signInAs(signedIn)
     const user = userEvent.setup()
@@ -116,7 +125,7 @@ describe('AppLayout', () => {
     await user.click(within(nav).getByRole('link', { name: 'Library' }))
 
     // Assert
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Library', 'Jobs'])
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Library', 'Recommendations', 'Jobs'])
     expect(within(nav).getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library')
     expect(screen.getByText('Library content')).toBeInTheDocument()
   })
@@ -159,6 +168,79 @@ describe('AppLayout', () => {
     expect(screen.getByText('Jobs content')).toBeInTheDocument()
   })
 
+  it.each([
+    ['the installation owner', owner],
+    ['any other user', member],
+  ])('opens Recommendations from its header link for %s', async (_, signedIn) => {
+    // Arrange
+    signInAs(signedIn)
+    const user = userEvent.setup()
+    renderAt('/')
+    const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Main' })
+
+    // Act
+    await user.click(within(nav).getByRole('link', { name: 'Recommendations' }))
+
+    // Assert
+    expect(within(nav).getByRole('link', { name: 'Recommendations' })).toHaveAttribute('href', '/recommendations')
+    expect(screen.getByText('Recommendations content')).toBeInTheDocument()
+  })
+
+  it('takes Recommendations out of the header once the user\'s settings have every tab off', async () => {
+    // Arrange
+    vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOff)
+    signInAs(member)
+
+    // Act
+    renderAt('/')
+
+    // Assert
+    const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Main' })
+    await vi.waitFor(() => expect(within(nav).queryByRole('link', { name: 'Recommendations' })).not.toBeInTheDocument())
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Library', 'Jobs'])
+    expect(profileApi.recommendationSettings).toHaveBeenCalledOnce()
+  })
+
+  it('keeps Recommendations in the header while one tab is on', async () => {
+    // Arrange
+    vi.mocked(profileApi.recommendationSettings).mockResolvedValue({ ...allTabsOff, documentaries: true })
+    signInAs(member)
+
+    // Act
+    const client = renderAt('/')
+
+    // Assert
+    await vi.waitFor(() => expect(client.getQueryState(qk.profile.recommendations)?.status).toBe('success'))
+    expect(screen.getByRole('link', { name: 'Recommendations' })).toBeInTheDocument()
+  })
+
+  it.each<[string, () => void, 'pending' | 'error']>([
+    ['while the settings load', () => vi.mocked(profileApi.recommendationSettings).mockReturnValue(new Promise<RecommendationSettings>(() => {})), 'pending'],
+    ['when the settings cannot be read', () => vi.mocked(profileApi.recommendationSettings).mockRejectedValue(apiError(500, 'The database is unavailable.')), 'error'],
+  ])('keeps Recommendations in the header %s, as a failed read must not hide a feature', async (_, arrange, expected) => {
+    // Arrange
+    arrange()
+    signInAs(member)
+
+    // Act
+    const client = renderAt('/')
+
+    // Assert
+    await vi.waitFor(() => expect(client.getQueryState(qk.profile.recommendations)?.status).toBe(expected))
+    expect(screen.getByRole('link', { name: 'Recommendations' })).toBeInTheDocument()
+  })
+
+  it('asks for no settings before anyone is signed in', () => {
+    // Arrange
+    const path = '/'
+
+    // Act
+    renderAt(path)
+
+    // Assert
+    expect(profileApi.recommendationSettings).not.toHaveBeenCalled()
+  })
+
   it('gives every header link its label as a title, which names it once a phone shows the icon alone', () => {
     // Arrange
     signInAs(member)
@@ -168,7 +250,7 @@ describe('AppLayout', () => {
 
     // Assert
     const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Main' })
-    expect(within(nav).getAllByRole('link').map((link) => link.getAttribute('title'))).toEqual(['Library', 'Jobs'])
+    expect(within(nav).getAllByRole('link').map((link) => link.getAttribute('title'))).toEqual(['Library', 'Recommendations', 'Jobs'])
   })
 
   it('marks the header link of the page on screen', () => {

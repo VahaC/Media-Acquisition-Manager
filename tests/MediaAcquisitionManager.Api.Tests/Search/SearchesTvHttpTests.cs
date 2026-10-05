@@ -105,8 +105,13 @@ public sealed class SearchesTvHttpTests : IClassFixture<MediaAcquisitionManagerA
         await _factory.WithDbAsync(async db =>
         {
             Assert.Null(Assert.Single(await db.Searches.AsNoTracking().ToListAsync(cancellationToken)).Season);
-            Assert.Equal(TorznabSamples.TvItemCount, await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Tv, cancellationToken));
-            Assert.Equal(SampleMovieCount, await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Movie, cancellationToken));
+            // MAM-33 — the TV answer's films in TV/Documentary, naming no season, are movies (ADR 0020).
+            Assert.Equal(
+                TorznabSamples.TvItemCount - TorznabSamples.TvFilmItemCount,
+                await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Tv, cancellationToken));
+            Assert.Equal(
+                SampleMovieCount + TorznabSamples.TvFilmItemCount,
+                await db.Releases.CountAsync(release => release.Kind == ReleaseKind.Movie, cancellationToken));
         });
     }
 

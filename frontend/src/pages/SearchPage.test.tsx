@@ -231,6 +231,60 @@ describe('SearchPage', () => {
     expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'tt0816692' })
   })
 
+  it('makes the search in ?q= narrowed by the TMDb id beside it, as the Recommendations page links a film', async () => {
+    // Arrange
+    const path = '/search?q=Guardians%20of%20the%20Galaxy%20Vol.%203%20(2023)&tmdbId=447365'
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    await vi.waitFor(() => expect(addressSearch()).toBe(`?id=${searchId}`))
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Guardians of the Galaxy Vol. 3', year: '2023', tmdbId: '447365' })
+  })
+
+  it('shows the TMDb id of the address in its field while the search is made', () => {
+    // Arrange
+    vi.mocked(searchApi.create).mockReturnValue(new Promise<SearchResponse>(() => {}))
+    const path = '/search?q=Alien%20(1979)&tmdbId=348'
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    expect(screen.getByRole('textbox', { name: 'TMDb id (optional)' })).toHaveValue('348')
+    expect(screen.getByRole('textbox', { name: 'Year (optional)' })).toHaveValue('1979')
+  })
+
+  it.each([
+    ['letters', 'abc'],
+    ['an IMDb id', 'tt0090605'],
+    ['a negative number', '-5'],
+    ['nothing', ''],
+  ])('leaves out a ?tmdbId= of %s, which is no TMDb id, and searches the title alone', async (_, tmdbId) => {
+    // Arrange
+    const path = `/search?q=Aliens%20(1986)&tmdbId=${tmdbId}`
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    await vi.waitFor(() => expect(addressSearch()).toBe(`?id=${searchId}`))
+    expect(searchApi.create).toHaveBeenCalledExactlyOnceWith({ text: 'Aliens', year: '1986' })
+  })
+
+  it('ignores a ?tmdbId= without ?q=, and asks nothing', () => {
+    // Arrange
+    const path = '/search?tmdbId=447365'
+
+    // Act
+    renderPage({ path })
+
+    // Assert
+    expect(screen.getByText('Type a title in the search field at the top, then press Enter.')).toBeInTheDocument()
+    expect(searchApi.create).not.toHaveBeenCalled()
+  })
+
   it('ignores ?q= in an address that names a search, and shows that search', async () => {
     // Arrange
     const path = `/search?id=${searchId}&q=Interstellar`
