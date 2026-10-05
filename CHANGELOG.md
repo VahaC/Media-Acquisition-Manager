@@ -221,6 +221,48 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   library's too, now keeps the size and the modification time the disk said
   (`PhysicalFiles.ReadSizeBytes` and `ReadModifiedUtc`) with its identity: empty until the app has
   looked, and empty again when its last look found nothing there.
+- **The file inspection ends by hashing the files that could be byte-identical copies (MAM-19, ADR
+  0022, ADR 0009).** Once a run has looked at every name and read what the cache didn't hold, it
+  lists the files a copy could hide among: one per identity, size and modification time, named by
+  its first name in path order, whose size a file of another identity shares and whose media facts
+  don't tell the two apart — the duration, the number of tracks and, track by track, the kind,
+  codec, width, height, channels and language, a value either reading lacks, or a file ffprobe
+  couldn't read, ruling nothing out. A file whose size no other file shares is never read, nor are
+  two hardlink names of one file alone. Each candidate is read whole for its SHA-256, one at a time
+  (`FileInspectionRunner.MaximumConcurrentHashes`, Vasyl's decision 3), inside the allowed roots and
+  from the file the checks opened, and kept in the new `FileHashes` table under the file's device,
+  inode, size and modification time, the readings' key: a file is read whole once, and again only
+  when one of the four changes, while a renamed file, or another name of it, finds its hash without
+  a read. A file that changed while it was read ("“…” changed while the app was reading it for its
+  hash, so the hash can't be said to belong to either version."), and one gone, outside the roots or
+  unreadable, keeps nothing and is tried again by the next run, counted as a problem, never a
+  failure of the run; one that changed between the look and the hash keeps the hash of what was read
+  under its new key and counts "A file changed after this inspection looked at it, so its hash
+  counts from the next inspection." A hash goes once neither a name carries its key nor a kept
+  reading has it, so a mount that is away costs no hash of a file the app has a reading of, and a
+  changed file's old hash goes with its old reading. Hashing is the last step of every inspection —
+  after a sync, after a scan, at the start and on **Inspect files** (Vasyl's decision 1) —: a
+  restart fails the run as before ("The app restarted before this inspection finished. What it had
+  read is kept."), and the start's run answers the stored hashes from the cache and reads the rest.
+  A file a torrent seeds is hashed like any other, and no download client is asked (ADR 0018). The
+  hashes are kept, not shown yet: grouping the copies is MAM-20's.
+- **The Library page says how much room the files take, each file counted once (MAM-19, ADR 0018,
+  ADR 0022).** Under its files line and the warnings about it, every Jellyfin source's row and the
+  **Media folders** row say "Takes <size> on disk: N files.", then "M more names lead to files
+  counted once." when files have several names and "U files not measured yet." for the names the app
+  has no measure of; once a media folder is allowed, the file inspection's row says "All files take
+  <size> on disk: N files." for every stored name, so a file a library and the scan, or two
+  libraries, name counts in each row and once in the total. A file is its device and inode, and its
+  size the one the app's last look read, never the size a library reported; a row none of whose
+  files the app has measured shows no such line (Vasyl's decision 2). Every signed-in user reads the
+  same figures.
+- **The Library page follows the hashing (MAM-19).** While a run hashes, the file inspection's
+  status line reads "Hashing the files that could be copies… C of T"; once the run has succeeded, a
+  line under it says "Files that could be copies: H of T hashed, R read in full this time." or "No
+  file needed a hash: no two files of one size could be copies of each other.", and "N files
+  couldn't be hashed:" with the first one's sentence warns the owner, "N files couldn't be hashed.
+  The owner can see why." everyone else. The page asks again every 2 seconds while the run is under
+  way, as before.
 
 ### Changed
 
@@ -269,6 +311,26 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   Jellyfin connected, the card says how to connect one, then shows the Media folders row and the
   file inspection's row, as neither needs a library. Its description, and the Media folders page's,
   say what **Scan folders** does.
+- **`GET /api/library/sources` gains `space`, and every file inspection run gains `hashing` (MAM-19,
+  ADR 0022).** Each item, `inspection` and `scan` gain `space` `{ sizeBytes, fileCount, nameCount,
+  unmeasuredCount }`, counted when read — over the integration's file names, over every stored file
+  name, and over the scan's names no library reports now —, each file once by device and inode, with
+  the size the app read; `unmeasuredCount` is the names it has no identity or size for, left out of
+  `sizeBytes`. Every signed-in user gets the same. `GET /api/library/inspections/{runId}`, the 202 of
+  `POST /api/library/inspections` and the runs in `GET /api/library/sources` gain `hashing`
+  `{ candidates, checked, read, problemCount, problem }`: how many files need a hash (`null` until
+  the step has listed them), how many it has dealt with, how many it read in full in this run, how
+  many it couldn't hash, and the first one's sentence, for the owner only.
+- **`IFileInventory` hashes a file (MAM-19, ADR 0005).** The contract gains
+  `HashAsync(appPath, allowedRoots)`, answering a `FileContentHash` — the file's facts and the
+  SHA-256 of every byte in lowercase hex — after the checks of `DescribeAsync`, or
+  `ChangedWhileReading` when the facts asked again after the read differ or the read didn't end at
+  their size. The local inventory reads 1 MiB at a time from the file its platform reader opened,
+  which gains `ReadAsync`.
+- **The file inspection's log line counts the hashing (MAM-19).** A finished run logs "File
+  inspection {RunId} finished: {Checked} of {Total} files checked, {Probed} read by the media
+  inspector; {HashCandidates} files could be copies, {HashRead} read whole for their hash,
+  {HashProblems} not hashed." — counts only, never a path.
 
 ### Notes for upgraders
 
@@ -307,6 +369,20 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   folders** in the user menu, choose **Scan folders** on the **Media folders** row under **Sources**
   on the Library page; the inspection it queues then reads the files it found, which takes a while
   the first time. Scan again after you add files no library lists: the app doesn't watch the folders.
+- **Applying `AddFileHashes` rebuilds no table, so it logs no warning 20410 (MAM-19).** It adds the
+  `FileHashes` table with its unique index on `(DeviceId, Inode, SizeBytes, ModifiedUtc)`, and to
+  `FileInspectionRuns` the columns `HashCandidates`, `HashCandidatesChecked`, `HashCandidatesRead`,
+  `HashProblemCount` and `HashProblem`: a run from before the upgrade lists no file to hash, with
+  empty candidates and counts of 0.
+- **The first inspection after the upgrade reads whole the files that could be copies (MAM-19).**
+  With a media folder allowed, the inspection at the next start hashes every file whose size a file
+  of another identity shares and whose facts don't tell them apart: on a library where many files
+  share a size, that reads each of them in full once, one after the other, and keeps the disk busy
+  for as long as that takes; later runs read only what is new or changed, and a file a new file of
+  its size could be a copy of. On a library where no two
+  files share a size — the reference installation's, as MAM-17 measured — it reads no file whole.
+  The room the files take is counted from what the inspection read, so a file counts in it once an
+  inspection has looked at it. There is nothing to turn on.
 
 ## [0.1.0] — 2026-09-28
 

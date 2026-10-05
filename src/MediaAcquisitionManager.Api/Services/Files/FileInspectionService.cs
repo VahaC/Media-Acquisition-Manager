@@ -59,11 +59,18 @@ public sealed class FileInspectionService(
             .ThenByDescending(run => run.Id)
             .FirstOrDefaultAsync(cancellationToken);
         var hasQueuedRun = await db.FileInspectionRuns.AnyAsync(run => run.Status == FileInspectionRunStatus.Queued, cancellationToken);
+        // MAM-19 — every stored name, as a run looks at every one (ADR 0021): a file a library and the scan,
+        // or two libraries, both name counts once (ADR 0018).
+        var names = await db.PhysicalFiles
+            .AsNoTracking()
+            .Select(file => new { file.DeviceId, file.Inode, file.ReadSizeBytes })
+            .ToListAsync(cancellationToken);
         return new FileInspectionOverviewDto(
             hasAllowedRoots,
             active is null ? null : mapper.ToDto(active, forOwner),
             lastFinished is null ? null : mapper.ToDto(lastFinished, forOwner),
-            hasQueuedRun);
+            hasQueuedRun,
+            FileSpace.Of(names.Select(name => (name.DeviceId, name.Inode, name.ReadSizeBytes))));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

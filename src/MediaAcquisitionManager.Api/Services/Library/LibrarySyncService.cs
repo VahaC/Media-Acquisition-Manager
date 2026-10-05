@@ -122,13 +122,21 @@ public sealed class LibrarySyncService(
 
         // MAM-8 — counted now with the current mappings, not stored with the run, so the warning
         // always agrees with the paths the works list shows. One query for every listed library's paths,
-        // and what the app's last look at each found (MAM-9), so the counts move as a run writes them.
+        // and what the app's last look at each found (MAM-9), so the counts move as a run writes them —
+        // the identity and the size it read with them too (MAM-19), for the room the files take.
         var files = (await db.PhysicalFiles
                 .AsNoTracking()
                 .Where(file => file.SourceKind == ProvenanceSourceKind.MediaLibrary
                     && file.SourceConnectionId != null
                     && ids.Contains(file.SourceConnectionId.Value))
-                .Select(file => new SourceFile(file.SourceConnectionId!.Value, file.ServicePath, file.InspectionStatus, file.InspectionError))
+                .Select(file => new SourceFile(
+                    file.SourceConnectionId!.Value,
+                    file.ServicePath,
+                    file.InspectionStatus,
+                    file.InspectionError,
+                    file.DeviceId,
+                    file.Inode,
+                    file.ReadSizeBytes))
                 .ToListAsync(cancellationToken))
             .ToLookup(file => file.IntegrationId);
 
@@ -158,7 +166,9 @@ public sealed class LibrarySyncService(
                 // the scan's names by the same rule (MAM-18).
                 FileInspectionCounts.Of(
                     [.. sourceFiles.Select(file => (file.File.InspectionStatus, file.File.InspectionError, file.Path.HasAppPath))],
-                    isOwner));
+                    isOwner),
+                // MAM-19 — the room its files take, each once however many of its names lead to one (ADR 0018).
+                FileSpace.Of(sourceFiles.Select(file => (file.File.DeviceId, file.File.Inode, file.File.ReadSizeBytes))));
         });
 
         // MAM-18 — the scan before the inspection, as the syncs above come before it: a scan commits its outcome
@@ -194,7 +204,14 @@ public sealed class LibrarySyncService(
     }
 
     /// <summary>What the sources list reads of one file.</summary>
-    private sealed record SourceFile(Guid IntegrationId, string ServicePath, FileInspectionStatus? InspectionStatus, string? InspectionError);
+    private sealed record SourceFile(
+        Guid IntegrationId,
+        string ServicePath,
+        FileInspectionStatus? InspectionStatus,
+        string? InspectionError,
+        long? DeviceId,
+        long? Inode,
+        long? ReadSizeBytes);
 
     /// <summary>A file with where the current path mappings put it.</summary>
     private sealed record MappedSourceFile(SourceFile File, PathMapResult Path);

@@ -17,6 +17,7 @@ public sealed class FileInspectionRunSeeder(IServiceProvider services) : SeederB
         string? error = null,
         int? filesTotal = null,
         int filesChecked = 0,
-        int filesProbed = 0) =>
-        Runs.Create(status, trigger, requestedBy?.Id, requestedBy?.UserName, createdUtc, error, filesTotal, filesChecked, filesProbed);
+        int filesProbed = 0,
+        PlantedHashing? hashing = null) =>
+        Runs.Create(status, trigger, requestedBy?.Id, requestedBy?.UserName, createdUtc, error, filesTotal, filesChecked, filesProbed, hashing);
 }

@@ -15,6 +15,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="FilesChecked">How many it has looked at so far.</param>
 /// <param name="FilesProbed">How many the media inspector read in this run; the rest came from the
 /// cache or couldn't be read at all.</param>
+/// <param name="Hashing">Where its last step, the hashing of the files a byte-identical copy could hide
+/// among, stands (MAM-19).</param>
 /// <param name="Error">Why it failed. For the installation owner only: <c>null</c> for everyone
 /// else.</param>
 public sealed record FileInspectionRunDto(
@@ -28,4 +30,5 @@ public sealed record FileInspectionRunDto(
     int? FilesTotal,
     int FilesChecked,
     int FilesProbed,
+    FileHashingDto Hashing,
     string? Error);

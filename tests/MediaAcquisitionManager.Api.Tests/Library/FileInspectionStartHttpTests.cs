@@ -37,6 +37,9 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
     private const string AliensPath =
         "/media/movies/Alien. Collection/[02.1] Aliens (1986) [Theatrical Cut, Fundamental Collection] BDRip 1080p H.265 [2xUKR_ENG] [Hurtom].mkv";
 
+    /// <summary>MAM-19 — a run that never reached its hashing step: queued, failed before it, or planted.</summary>
+    private static readonly FileHashingDto NotHashed = new(null, 0, 0, 0, null);
+
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IAllowedRootSeeder _roots = null!;
     private IFileInspectionRunSeeder _runs = null!;
@@ -77,7 +80,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         var run = await ReadRunAsync(response, cancellationToken);
         Assert.Equal($"{BaseUrl}/{run.Id}", response.Headers.Location!.AbsolutePath);
         Assert.Equal(
-            new FileInspectionRunDto(run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Queued, "owner", now, null, null, null, 0, 0, null),
+            new FileInspectionRunDto(run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Queued, "owner", now, null, null, null, 0, 0, NotHashed, null),
             run);
         // Only queued: the worker takes it, and nothing has been looked at or read yet.
         Assert.Equal([run.Id], DrainQueue());
@@ -242,7 +245,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         Assert.Equal($"{BaseUrl}/{waiting.Id}", response.Headers.Location!.AbsolutePath);
         Assert.Equal(
-            new FileInspectionRunDto(waiting.Id, trigger, FileInspectionRunStatus.Queued, null, queuedAt, null, null, null, 0, 0, null),
+            new FileInspectionRunDto(waiting.Id, trigger, FileInspectionRunStatus.Queued, null, queuedAt, null, null, null, 0, 0, NotHashed, null),
             await ReadRunAsync(response, cancellationToken));
         // Whoever queued it queued its id; joining adds no second one.
         Assert.Empty(DrainQueue());
@@ -361,7 +364,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            new FileInspectionRunDto(failed.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, "owner", at, at, at, 870, 412, 37, RestartedError),
+            new FileInspectionRunDto(failed.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, "owner", at, at, at, 870, 412, 37, NotHashed, RestartedError),
             await ReadRunAsync(response, cancellationToken));
     }
 
@@ -385,7 +388,7 @@ public sealed class FileInspectionStartHttpTests : IClassFixture<MediaAcquisitio
         Assert.DoesNotContain("owner", body, StringComparison.Ordinal);
         Assert.DoesNotContain("restarted", body, StringComparison.Ordinal);
         Assert.Equal(
-            new FileInspectionRunDto(failed.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, null, at, at, at, 870, 412, 37, null),
+            new FileInspectionRunDto(failed.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, null, at, at, at, 870, 412, 37, NotHashed, null),
             await ReadRunAsync(response, cancellationToken));
     }
 

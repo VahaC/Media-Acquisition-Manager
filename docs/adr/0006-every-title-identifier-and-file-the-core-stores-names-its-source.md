@@ -325,3 +325,25 @@ avoided, accepted in its MAM-18 section.
 `FolderScanInspectionHttpTests.Inspect_writes_the_size_and_time_the_disk_said_on_a_librarys_name_too_and_clears_them_once_the_file_is_gone`
 and `FolderScanIsolationHttpTests.Scan_of_a_name_whose_path_holds_a_works_title_changes_nothing_the_library_shows_or_finds`
 pin it.
+
+## Implementation (added 0.2.0, MAM-19)
+
+**The hash cache, in its own migration.** As the Consequences planned, `AddFileHashes` adds Phase
+B's hash cache: `FileHashes`, one row per set of bytes the app read whole — the file's device, inode,
+size and modification time, unique together, the SHA-256 and when it was read — and the hashing
+counts of `FileInspectionRuns`. Like a reading, a hash is no `ProvenancedEntity`: every row is the
+app's own, so its table names its source, and no name points at it, as a name's hash is the row its
+own read identity, size and time name
+([ADR 0022](0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md)).
+The migration adds a table, an index and columns and rebuilds no table.
+
+**Space per identity, as the Consequences said.** The Library page counts the room the files take
+from the names' `(DeviceId, Inode)` and the size the app read, one file per identity, never per row
+(ADR 0018). The Anti-consequence holds with the hash: two rows are one file only by
+`(DeviceId, Inode)`; two files with one SHA-256 hold identical bytes in two places, a byte-identical
+copy that takes its space twice, not a hardlink.
+
+`FileHashPersistenceTests.A_second_hash_of_the_same_identity_size_and_modification_time_is_refused`,
+`FileHashPersistenceTests.An_unsigned_device_id_past_long_MaxValue_round_trips_bit_for_bit`,
+`FileHashPersistenceTests.A_names_hash_is_the_row_its_read_facts_name_to_the_tick` and
+`LibrarySpaceHttpTests.Sources_count_two_hardlink_names_of_one_file_in_a_library_once` pin it.

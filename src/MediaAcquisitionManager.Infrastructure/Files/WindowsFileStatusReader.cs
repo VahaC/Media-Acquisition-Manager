@@ -111,7 +111,8 @@ internal sealed class WindowsFileStatusReader : IFileStatusReader
         public uint FileIndexLow;
     }
 
-    /// <summary>The file held open while ffprobe opens it again by the path that can't change meanwhile.</summary>
+    /// <summary>The file held open while ffprobe opens it again by the path that can't change meanwhile, and
+    /// (MAM-19) which the hash reads directly.</summary>
     private sealed class OpenedFile(SafeFileHandle handle, FileFacts facts, string systemPath) : IOpenedFile
     {
         public FileFacts Facts => facts;
@@ -119,6 +120,10 @@ internal sealed class WindowsFileStatusReader : IFileStatusReader
         public string ProbePath => systemPath;
 
         public FileInventoryResult<FileFacts> ReadFactsAgain(string appPath) => Describe(handle, appPath);
+
+        // RandomAccess never takes the handle over, so it is still open for the facts asked again after the read.
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, long offset, CancellationToken cancellationToken) =>
+            RandomAccess.ReadAsync(handle, buffer, offset, cancellationToken);
 
         public void Dispose() => handle.Dispose();
     }

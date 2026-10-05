@@ -7,6 +7,7 @@ import type {
   LibraryLocationList,
   LibrarySource,
   LibrarySourceList,
+  LibrarySpace,
   LibrarySyncRun,
   LibraryWork,
   LibraryWorkList,
@@ -320,6 +321,15 @@ export function runOf(changes: Partial<LibrarySyncRun>): LibrarySyncRun {
   }
 }
 
+/**
+ * MAM-19 — the room Home Jellyfin's 870 files take, 6.5 TiB: one name each, as MAM-17 found no file
+ * on the media disk with a second name.
+ */
+const homeJellyfinSpace: LibrarySpace = { sizeBytes: 7_146_825_580_544, fileCount: 870, nameCount: 870, unmeasuredCount: 0 }
+
+/** MAM-19 — the room the twelve files in no library take, 45 GiB, one name each. */
+const scannedSpace: LibrarySpace = { sizeBytes: 48_318_382_080, fileCount: 12, nameCount: 12, unmeasuredCount: 0 }
+
 /** Home Jellyfin as the sources list shows it; `changes` sets the fields a test is about. */
 export function sourceOf(changes: Partial<LibrarySource>): LibrarySource {
   const lastRun = runOf({})
@@ -334,11 +344,16 @@ export function sourceOf(changes: Partial<LibrarySource>): LibrarySource {
     filesWithoutAppPathCount: 0,
     pathProblem: null,
     inspection: { inspectedCount: 870, problemCount: 0, notInspectedCount: 0, problem: null },
+    space: homeJellyfinSpace,
     ...changes,
   }
 }
 
-/** An inspection of the library's files that read them all; `changes` sets the fields a test is about. */
+/**
+ * An inspection of the library's files that read them all; `changes` sets the fields a test is about.
+ * MAM-19 — its hashing found no file to hash, as on the media host MAM-17 counted, where no two
+ * library files have one size; a run that hasn't listed the candidates yet needs `candidates: null`.
+ */
 export function inspectionRunOf(changes: Partial<FileInspectionRun>): FileInspectionRun {
   return {
     id: '1a000000-0000-4000-8000-000000000001',
@@ -351,6 +366,7 @@ export function inspectionRunOf(changes: Partial<FileInspectionRun>): FileInspec
     filesTotal: 870,
     filesChecked: 870,
     filesProbed: 870,
+    hashing: { candidates: 0, checked: 0, read: 0, problemCount: 0, problem: null },
     error: null,
     ...changes,
   }
@@ -358,10 +374,23 @@ export function inspectionRunOf(changes: Partial<FileInspectionRun>): FileInspec
 
 /**
  * Where the inspection stands; by default a media folder is allowed and the inspection after the
- * last sync has finished. `changes` sets the fields a test is about.
+ * last sync has finished. MAM-19 — the space is the total of `sourceOf({})` and `scanOf({})`, none
+ * of whose files has a name in the other. `changes` sets the fields a test is about.
  */
 export function inspectionOf(changes: Partial<FileInspectionOverview>): FileInspectionOverview {
-  return { hasAllowedRoots: true, activeRun: null, lastFinishedRun: inspectionRunOf({}), hasQueuedRun: false, ...changes }
+  return {
+    hasAllowedRoots: true,
+    activeRun: null,
+    lastFinishedRun: inspectionRunOf({}),
+    hasQueuedRun: false,
+    space: {
+      sizeBytes: homeJellyfinSpace.sizeBytes + scannedSpace.sizeBytes,
+      fileCount: homeJellyfinSpace.fileCount + scannedSpace.fileCount,
+      nameCount: homeJellyfinSpace.nameCount + scannedSpace.nameCount,
+      unmeasuredCount: 0,
+    },
+    ...changes,
+  }
 }
 
 /**
@@ -395,6 +424,7 @@ export function scanOf(changes: Partial<FolderScanOverview>): FolderScanOverview
     lastFinishedRun: scanRunOf({}),
     hasQueuedRun: false,
     files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 0, problem: null },
+    space: scannedSpace,
     ...changes,
   }
 }

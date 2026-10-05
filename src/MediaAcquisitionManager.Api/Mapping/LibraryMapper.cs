@@ -134,6 +134,14 @@ public sealed class LibraryMapper : ILibraryMapper
             run.FilesTotal,
             run.FilesChecked,
             run.FilesProbed,
+            new FileHashingDto(
+                run.HashCandidates,
+                run.HashCandidatesChecked,
+                run.HashCandidatesRead,
+                run.HashProblemCount,
+                // MAM-19 — the sentence may quote a path in the owner's media folders, as a file's inspection
+                // problem does.
+                forOwner ? run.HashProblem : null),
             forOwner ? run.Error : null);
 
     public FolderScanRunDto ToDto(FolderScanRunEntity run, bool forOwner) =>
@@ -160,7 +168,8 @@ public sealed class LibraryMapper : ILibraryMapper
         LibrarySyncRunDto? lastSucceededRun,
         int filesWithoutAppPathCount,
         string? pathProblem,
-        LibrarySourceInspectionDto inspection) =>
+        LibrarySourceInspectionDto inspection,
+        LibrarySpaceDto space) =>
         new(
             integration.Id,
             integration.Name,
@@ -171,7 +180,8 @@ public sealed class LibraryMapper : ILibraryMapper
             lastSucceededRun,
             filesWithoutAppPathCount,
             pathProblem,
-            inspection);
+            inspection,
+            space);
 
     // MAM-9 — null until the app has looked; the facts only for a file the inspector read, so a cached
     // failure or a file that has since gone never shows the facts of other bytes. A file the last run

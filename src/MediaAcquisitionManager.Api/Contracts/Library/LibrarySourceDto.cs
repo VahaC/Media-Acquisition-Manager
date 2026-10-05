@@ -24,6 +24,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <c>null</c> for everyone else and when every file has a path.</param>
 /// <param name="Inspection">Where the app's own look at its files stands (MAM-9), counted when
 /// asked.</param>
+/// <param name="Space">How much room its files take on disk (MAM-19), each file counted once however many
+/// of its names lead to it, counted when asked.</param>
 public sealed record LibrarySourceDto(
     Guid IntegrationId,
     string Name,
@@ -34,4 +36,5 @@ public sealed record LibrarySourceDto(
     LibrarySyncRunDto? LastSucceededRun,
     int FilesWithoutAppPathCount,
     string? PathProblem,
-    LibrarySourceInspectionDto Inspection);
+    LibrarySourceInspectionDto Inspection,
+    LibrarySpaceDto Space);

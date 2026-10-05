@@ -293,6 +293,40 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("DownloadJobFiles");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileHashEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Inode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ModifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "Inode", "SizeBytes", "ModifiedUtc")
+                        .IsUnique();
+
+                    b.ToTable("FileHashes");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileInspectionRunEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -317,6 +351,22 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<DateTime?>("FinishedUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("HashCandidates")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HashCandidatesChecked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HashCandidatesRead")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HashProblem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HashProblemCount")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("RequestedByUserId")
                         .HasColumnType("TEXT");

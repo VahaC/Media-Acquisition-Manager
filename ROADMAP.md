@@ -12,8 +12,9 @@ failure, and a Profile page where every user changes their own password) are bui
 checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
 access tokens) is still to do; no phase has shipped yet. Phase B, release 0.2.0, has started: MAM-17
 answered specification §7 questions 3 and 6 against the live installation on 2026-10-04, and MAM-32
-(series and episodes in the library, and searching, matching and sending their releases) and MAM-18
-(the scan of the media folders for the files no library reported) are built.
+(series and episodes in the library, and searching, matching and sending their releases), MAM-18
+(the scan of the media folders for the files no library reported) and MAM-19 (the room the files
+take, each file counted once, and the hashing of only the files that could be copies) are built.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -482,9 +483,24 @@ episode, and how much space could really be recovered — without the app guessi
   Checked on the reference installation on 2026-10-05, on a copy of its data beside production:
   1,395 media files in `/media`, the 1,378 Jellyfin lists each matched by path and 17 in no library,
   and a second scan read nothing new.
-- Account for hardlinks (same device and inode, which MAM-9 records on every file name with its link
-  count), and hash candidate files lazily, with the hash cache keyed by file identity, size and
-  modification time like MAM-9's inspection cache.
+- **MAM-19 Hardlinks counted once and lazy hashing** (built): the Library page says how much room
+  the files take on disk — in every Jellyfin source's row, in the Media folders row and, for every
+  stored file name, in the file inspection's row — counting a file once per device and inode however
+  many names lead to it, with the size the app read and never the library's, and the names it hasn't
+  measured apart (Vasyl's decision 2, [ADR
+  0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
+  Every file inspection ends by reading whole, for its SHA-256, each file whose size a file of
+  another identity shares and whose media facts — duration, tracks, codecs, picture size, channels,
+  languages — don't tell the two apart, one at a time (Vasyl's decisions 1 and 3), inside the
+  allowed folders and from the file the checks opened. The hash is kept under the file's identity,
+  size and modification time like MAM-9's readings, so the file is read again only when one of them
+  changes, and is forgotten with the last name and reading of its bytes; a file that changed while
+  it was read keeps nothing, and a file it can't read is a problem with its sentence, never a
+  failure. No run of its own: a restart's run answers the stored hashes from the cache and reads the
+  rest. The inspection's row follows the hashing, and no download client is read ([ADR
+  0022](docs/adr/0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md),
+  [ADR
+  0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
 - Separate the duplicate classes of specification §3.3: the same file or a hardlink,
   byte-identical copies, other versions of the same work — a registry id the files share, for an
   episode its own or its series' with its numbers (ADR 0017) — and possible matches. A seeding file
@@ -492,9 +508,10 @@ episode, and how much space could really be recovered — without the app guessi
 - A Duplicates page with a filter per class and the evidence behind each grouping; a recoverable
   space estimate only where the storage relationship is known.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
-  by rescanning, so they need no export of their own; the series, seasons and episodes come back
-  with the next sync, like the movies. The tracker sections mapped to destinations are rows of the
-  database beside the destinations, in the data directory's backup; a search's season and its
+  — the names by rescanning, the hashes by the next inspection, which reads the files that could be
+  copies whole again — so they need no export of their own; the series, seasons and episodes come
+  back with the next sync, like the movies. The tracker sections mapped to destinations are rows of
+  the database beside the destinations, in the data directory's backup; a search's season and its
   releases' kinds and categories live for a day, like the search.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
@@ -509,25 +526,34 @@ invalidates the cached hash; similar titles or years are not merged; different c
 versions; conflicting IDs require manual review; a series known by several library items is one
 series, and a movie and a series sharing a TMDb number stay apart; a seeding file is classed like
 any other. MAM-32: a series' seasons come from its episodes' own numbers, and a virtual episode is
-stored as nothing; a list of series or episodes that changes while it is read stores nothing; the
-TV queries go to the TV categories without the year, with the season where asked, and a failing one
-fails its source; a TV release matches series only, a movie release movies only, a season-1 pack
-by its first year exactly and a later seasons' pack by a series of that year or earlier, with the
+stored as nothing; a list of series or episodes that changes while it is read stores nothing; the TV
+queries go to the TV categories without the year, with the season where asked, and a failing one
+fails its source; a TV release matches series only, a movie release movies only, a season-1 pack by
+its first year exactly and a later seasons' pack by a series of that year or earlier, with the
 episodes held counted once each; the Download dialog's suggestion prefers the source's own section,
 and a tie suggests nothing. MAM-18: the walk lists media files by extension in any letter case,
 hidden folders included, follows a link inside the folders under its own name, refuses one leading
-out and a loop, and answers a missing or empty root, a dangling link, a folder it may not list and
-a folder swapped for a link after the check as places it couldn't list; a movie's and an episode's
+out and a loop, and answers a missing or empty root, a dangling link, a folder it may not list and a
+folder swapped for a link after the check as places it couldn't list; a movie's and an episode's
 file are reported by their mapped path alone, a file reached by two names is stored once, a name
 stored where the walk couldn't look stays and one it looked for and didn't find goes, and a walk
-past its limit, a failure or a stop stores nothing; the count of files in no library follows a
-sync or a fixed mapping at once; a scanned name never shows in the works list, a search or a match;
-and the inspection after a scan reads only what is new or changed.
+past its limit, a failure or a stop stores nothing; the count of files in no library follows a sync
+or a fixed mapping at once; a scanned name never shows in the works list, a search or a match; and
+the inspection after a scan reads only what is new or changed. MAM-19: two hardlink names count
+their space once, and a file a library and the scan, or two libraries, name counts once in the
+total, never with the size a library reported; a file whose size no file of another identity shares,
+two names of one file and two files of one size whose compared facts differ are never hashed, while
+a fact only one of them knows or a file ffprobe couldn't read rules nothing out; a changed size,
+modification time, inode or device hashes the file again and forgets the old hash, while a mount
+away for several runs costs no hash of a file the app has a reading of; a file that changes while it
+is hashed keeps nothing; one file is hashed at a time; and a restart's run hashes only what is left.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
 require manual review. The reference installation has no hardlinks and no two video files of one
-size (MAM-17), so there the first criterion and a byte-identical pair of videos rest on the tests.
+size (MAM-17), so there the first criterion and a byte-identical pair of videos rest on the tests,
+MAM-19's for the space and the hashing; the live check (MAM-22) can show the space adding up and an
+inspection that reads no file whole.
 For MAM-32: a sync of the reference installation lists each show once with its seasons; a search
 for a series through Toloka lists its TV releases matched to it with the episodes held; and a TV
 release sent from there lands in the destination its section is mapped to. For MAM-18: a scan of the

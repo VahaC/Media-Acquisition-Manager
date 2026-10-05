@@ -97,7 +97,18 @@
     "problems_one": "{{value}} couldn't be read",
     "problems_other": "{{value}} couldn't be read",
     "notInspected_one": "{{value}} not inspected yet",
-    "notInspected_other": "{{value}} not inspected yet"
+    "notInspected_other": "{{value}} not inspected yet",
+    "hashing": {
+      "running_one": "Hashing the files that could be copies… {{checked}} of {{total}}",
+      "running_other": "Hashing the files that could be copies… {{checked}} of {{total}}",
+      "none": "No file needed a hash: no two files of one size could be copies of each other.",
+      "succeeded_one": "Files that could be copies: {{hashed}} of {{total}} hashed, {{read}} read in full this time.",
+      "succeeded_other": "Files that could be copies: {{hashed}} of {{total}} hashed, {{read}} read in full this time.",
+      "problemsOwner_one": "{{value}} file couldn't be hashed: {{problem}}",
+      "problemsOwner_other": "{{value}} files couldn't be hashed: {{problem}}",
+      "problemsMember_one": "{{value}} file couldn't be hashed. The owner can see why.",
+      "problemsMember_other": "{{value}} files couldn't be hashed. The owner can see why."
+    }
   },
   "scan": {
     "name": "Media folders",
@@ -125,6 +136,16 @@
       "queued": "A scan is already waiting to start."
     },
     "files": "Files in no library: {{counts}}"
+  },
+  "space": {
+    "row_one": "Takes {{size}} on disk: {{value}} file.",
+    "row_other": "Takes {{size}} on disk: {{value}} files.",
+    "total_one": "All files take {{size}} on disk: {{value}} file.",
+    "total_other": "All files take {{size}} on disk: {{value}} files.",
+    "moreNames_one": "{{value}} more name leads to a file counted once.",
+    "moreNames_other": "{{value}} more names lead to files counted once.",
+    "unmeasured_one": "{{value}} file not measured yet.",
+    "unmeasured_other": "{{value}} files not measured yet."
   },
   "paths": {
     "ownerWarning_one": "{{value}} file has no path in this app.",

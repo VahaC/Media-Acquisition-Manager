@@ -104,11 +104,13 @@ public sealed class FolderScanService(
             .ThenByDescending(run => run.Id)
             .FirstOrDefaultAsync(cancellationToken);
         var hasQueuedRun = await db.FolderScanRuns.AnyAsync(run => run.Status == FolderScanStatus.Queued, cancellationToken);
+        var (files, space) = await FilesAsync(forOwner, cancellationToken);
         return new FolderScanOverviewDto(
             active is null ? null : mapper.ToDto(active, forOwner),
             lastFinished is null ? null : mapper.ToDto(lastFinished, forOwner),
             hasQueuedRun,
-            await FilesAsync(forOwner, cancellationToken));
+            files,
+            space);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -117,30 +119,32 @@ public sealed class FolderScanService(
     /// MAM-18, ADR 0021 — where the app's look at the names the scans stored stands, counted only over
     /// those no library name leads to now (<see cref="LibraryAppPaths"/>): a sync that starts reporting a
     /// path, or a fixed path mapping, takes it off the count at once, and the next scan deletes its row.
+    /// MAM-19 — and the room the files behind those same names take, by the same rule.
     /// </summary>
-    private async Task<LibrarySourceInspectionDto> FilesAsync(bool forOwner, CancellationToken cancellationToken)
+    private async Task<(LibrarySourceInspectionDto Files, LibrarySpaceDto Space)> FilesAsync(bool forOwner, CancellationToken cancellationToken)
     {
         var names = await db.PhysicalFiles
             .AsNoTracking()
             .Where(file => file.SourceKind == ProvenanceSourceKind.FileInspection && file.MediaVersionId == null)
-            .Select(file => new { file.ServicePath, file.InspectionStatus, file.InspectionError })
+            .Select(file => new { file.ServicePath, file.InspectionStatus, file.InspectionError, file.DeviceId, file.Inode, file.ReadSizeBytes })
             .ToListAsync(cancellationToken);
         // Before any scan stored a name, which is the default, the page's poll reads no library path.
         if (names.Count == 0)
-            return FileInspectionCounts.Of([], forOwner);
+            return (FileInspectionCounts.Of([], forOwner), FileSpace.Of([]));
 
         var libraryPaths = await LibraryAppPaths.LoadAsync(db, cancellationToken);
-        return FileInspectionCounts.Of(
-            [
-                .. names
-                    // In path order, so "the first problem" is the same one on every poll.
-                    .OrderBy(name => name.ServicePath, StringComparer.Ordinal)
-                    // The app's own path: no mapping applies to it, so it maps as it is.
-                    .Select(name => (Name: name, Path: PathMapper.Map(name.ServicePath, [])))
-                    .Where(name => !(NormalizedPath.TryParse(name.Path.AppPath, out var path, out _) && libraryPaths.Contains(path)))
-                    .Select(name => (name.Name.InspectionStatus, name.Name.InspectionError, name.Path.HasAppPath)),
-            ],
-            forOwner);
+        var unreported = names
+            // In path order, so "the first problem" is the same one on every poll.
+            .OrderBy(name => name.ServicePath, StringComparer.Ordinal)
+            // The app's own path: no mapping applies to it, so it maps as it is.
+            .Select(name => (Name: name, Path: PathMapper.Map(name.ServicePath, [])))
+            .Where(name => !(NormalizedPath.TryParse(name.Path.AppPath, out var path, out _) && libraryPaths.Contains(path)))
+            .ToList();
+        return (
+            FileInspectionCounts.Of(
+                [.. unreported.Select(name => (name.Name.InspectionStatus, name.Name.InspectionError, name.Path.HasAppPath))],
+                forOwner),
+            FileSpace.Of(unreported.Select(name => (name.Name.DeviceId, name.Name.Inode, name.Name.ReadSizeBytes))));
     }
 
     private Task<FolderScanRunEntity?> QueuedRunAsync(CancellationToken cancellationToken) =>

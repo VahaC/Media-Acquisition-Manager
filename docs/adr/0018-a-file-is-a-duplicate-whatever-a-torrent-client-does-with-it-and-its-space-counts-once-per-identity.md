@@ -84,3 +84,32 @@ replaces a copy, check 6 applies there.
 
 This doesn't make a download client's data irrelevant to the app: Phase A's download jobs read it
 (ADR 0014), and Phase C's check 6 will. It only keeps it out of what a duplicate is.
+
+## Implementation (added 0.2.0, MAM-19)
+
+**The count by identity is built, and shown.** The Library page says how much room the files take
+on disk in every Jellyfin source's row and in the Media folders row ("Takes 6.5 TiB on disk: 870
+files."), and for every stored file name in the file inspection's row ("All files take 6.54 TiB on
+disk: 882 files."), with "1 more name leads to a file counted once." when a file has several names.
+`FileSpace.Of` counts one file per device and inode, its size the one the app's last look at a name
+read (`ReadSizeBytes`), never the size a library reported: a hardlinked file counts once in its row,
+and a file a library and the scan, or two libraries, name counts in each row and once in the total.
+A name without an identity or a read size is counted apart, as not measured yet, and left out of the
+sum. `GET /api/library/sources` gives the figures as `space`, the same to every signed-in user
+(Vasyl's decision 2,
+[ADR 0022](0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md)).
+As the Decision expected, the rule rests on the tests: every file of the reference installation has
+one name.
+
+**The hashing reads no client either.** MAM-19 hashes the files that could be byte-identical copies
+as the last step of each file inspection, and a file a torrent seeds is a candidate like any other;
+no download client is asked, as the Consequences said of the scan, the hashing and the grouping.
+
+`LibrarySpaceHttpTests.Sources_count_two_hardlink_names_of_one_file_in_a_library_once` pins "two
+hardlink names count their space once";
+`LibrarySpaceHttpTests.Sources_count_a_file_two_libraries_name_in_each_row_and_once_in_total`,
+`LibrarySpaceHttpTests.Sources_count_two_files_of_one_size_twice` and
+`LibrarySpaceHttpTests.Sources_count_names_without_a_measured_file_apart_and_never_the_size_a_library_reported`
+the rest of the count, and
+`FileHashCandidatesHttpTests.Inspect_hashes_a_file_a_torrent_seeds_like_any_other_and_asks_no_download_client`
+the client left alone.

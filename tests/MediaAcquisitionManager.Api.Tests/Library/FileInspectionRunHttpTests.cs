@@ -67,6 +67,12 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
     private const string ChangedWhileReadingError =
         "“/media/movies/Taken (2008)/Taken (2008) BDRemux 1080p.mkv” changed while ffprobe was reading it.";
 
+    /// <summary>MAM-19 — a run that never reached its hashing step: queued, failed before it, or planted.</summary>
+    private static readonly FileHashingDto NotHashed = new(null, 0, 0, 0, null);
+
+    /// <summary>MAM-19 — a run whose hashing step found no two files that could be copies of each other.</summary>
+    private static readonly FileHashingDto NothingToHash = new(0, 0, 0, 0, null);
+
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IAllowedRootSeeder _roots = null!;
     private IMediaWorkDataFactory _works = null!;
@@ -115,7 +121,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         // Both names looked at, both read by the inspector, finished when the worker ran it.
         Assert.Equal(
             new FileInspectionRunDto(
-                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Succeeded, "owner", queuedUtc, ranUtc, ranUtc, 2, 2, 2, null),
+                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Succeeded, "owner", queuedUtc, ranUtc, ranUtc, 2, 2, 2, NothingToHash, null),
             run);
         Assert.Equal([TakenPath, ContinentalPath], _factory.Files.DescribedPaths.Order(StringComparer.Ordinal));
         Assert.Equal([TakenPath, ContinentalPath], _factory.Files.ReadPaths.Order(StringComparer.Ordinal));
@@ -156,7 +162,9 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         // Counts only: the app's log never names a path, which says how the owner's disks are laid out.
         var finished = Assert.Single(_factory.Logs.Entries, entry => entry.Category == typeof(FileInspectionRunner).FullName);
         Assert.Equal(LogLevel.Information, finished.Level);
-        Assert.Equal($"File inspection {run.Id} finished: 2 of 2 files checked, 2 read by the media inspector.", finished.Message);
+        Assert.Equal(
+            $"File inspection {run.Id} finished: 2 of 2 files checked, 2 read by the media inspector; 0 files could be copies, 0 read whole for their hash, 0 not hashed.",
+            finished.Message);
         Assert.DoesNotContain(
             _factory.Logs.Entries,
             entry => entry.Category.StartsWith("MediaAcquisitionManager.", StringComparison.Ordinal)
@@ -535,7 +543,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         // The roots are read when the run starts, not when it was queued: none then means nothing is read.
         Assert.Equal(
             new FileInspectionRunDto(
-                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, "owner", queuedUtc, ranUtc, ranUtc, null, 0, 0, NoAllowedRootsError),
+                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, "owner", queuedUtc, ranUtc, ranUtc, null, 0, 0, NotHashed, NoAllowedRootsError),
             run);
         Assert.Empty(_factory.Files.DescribedPaths);
         Assert.Empty(_factory.Files.ReadPaths);
@@ -567,7 +575,7 @@ public sealed class FileInspectionRunHttpTests : IClassFixture<MediaAcquisitionM
         // Failed with the app's sentence, never the exception's text; the progress written so far stays.
         Assert.Equal(
             new FileInspectionRunDto(
-                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, "owner", now, now, now, 2, 1, 0, AppErrorMessage),
+                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Failed, "owner", now, now, now, 2, 1, 0, NotHashed, AppErrorMessage),
             run);
         var files = await FileStatesAsync(cancellationToken);
         Assert.Equal(new FileState(FileInspectionStatus.NotFound, GoneNotFoundError, now, null, null, null, null), files[gone.Id]);

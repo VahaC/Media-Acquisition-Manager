@@ -44,6 +44,9 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
     private const string ChangedWhileReadingError =
         "“/media/movies/Taken (2008)/Taken (2008) BDRemux 1080p.mkv” changed while ffprobe was reading it.";
 
+    /// <summary>MAM-19 — a run whose hashing step found no two files that could be copies of each other.</summary>
+    private static readonly FileHashingDto NothingToHash = new(0, 0, 0, 0, null);
+
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IAllowedRootSeeder _roots = null!;
     private IMediaWorkDataFactory _works = null!;
@@ -93,7 +96,7 @@ public sealed class FileInspectionCacheHttpTests : IClassFixture<MediaAcquisitio
         // Both names looked at again, neither read: the cache answered for both.
         Assert.Equal(
             new FileInspectionRunDto(
-                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Succeeded, "owner", lookedUtc, lookedUtc, lookedUtc, 2, 2, 0, null),
+                run.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Succeeded, "owner", lookedUtc, lookedUtc, lookedUtc, 2, 2, 0, NothingToHash, null),
             await response.Content.ReadFromJsonAsync<FileInspectionRunDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken));
         Assert.Equal([TakenPath, ContinentalPath], _factory.Files.ReadPaths.Order(StringComparer.Ordinal));
         Assert.Equal(4, _factory.Files.DescribedPaths.Count);

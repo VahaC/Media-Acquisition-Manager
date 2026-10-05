@@ -10,7 +10,8 @@ public interface IFileInspectionRunDataFactory
     /// A saved run in <paramref name="status"/> for <paramref name="trigger"/>, queued at
     /// <paramref name="createdUtc"/> (the clock's now when <c>null</c>): started at that instant unless it
     /// is still queued, and finished at it when it succeeded or failed. Values are stored as given, so a
-    /// test can plant a row the app would never write.
+    /// test can plant a row the app would never write; <paramref name="hashing"/> (MAM-19) sets the hashing
+    /// step's columns, none listed when it is <c>null</c>.
     /// </summary>
     Task<FileInspectionRunEntity> Create(
         FileInspectionRunStatus status,
@@ -21,5 +22,6 @@ public interface IFileInspectionRunDataFactory
         string? error = null,
         int? filesTotal = null,
         int filesChecked = 0,
-        int filesProbed = 0);
+        int filesProbed = 0,
+        PlantedHashing? hashing = null);
 }

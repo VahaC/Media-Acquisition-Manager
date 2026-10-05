@@ -218,3 +218,37 @@ reading by the walk.
 `LinuxFileStatusReaderTests.OpenFolder_through_a_folder_swapped_for_a_link_since_the_check_is_refused`
 and `LocalFileInventoryListingTests.List_refuses_a_folder_link_leading_out_and_lists_nothing_behind_it`
 pin it.
+
+## Implementation (added 0.2.0, MAM-19)
+
+**A run gains a last step: the hash §3.3 keys like the readings.** After the readings no name points
+at are forgotten, a run reads whole, for its SHA-256, each file whose size a file of another
+identity shares and whose reading doesn't tell the two apart, one at a time
+(`FileInspectionRunner.MaximumConcurrentHashes`, beside the two reads at a time of
+`MaximumConcurrentReads`), and writes the step's counts on the run as each file is dealt with
+([ADR 0022](0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md)).
+Every trigger hashes. A run a stop interrupted is failed by the reconciler as before, and the
+start's run answers the hashes already stored from the cache and reads the rest.
+
+**The hash reads the file the checks opened.** `IFileInventory.HashAsync` makes a look's checks —
+inside the allowed roots, every link resolved, a regular file, opened without following a link —
+then reads the bytes of that open file: on Linux the very descriptor, at an offset, and on Windows
+the handle held open, never the path again, so a link or a file swapped in at the path meanwhile is
+not what is hashed. The open file is asked again after the read, as after ffprobe, and the read must
+end at the size it gave; a file that changed is `ChangedWhileReading`, and nothing is kept.
+
+**The hash cache is keyed like the readings, with no foreign key from a name.** `FileHashes` holds
+one row per `(DeviceId, Inode, SizeBytes, ModifiedUtc)`, unique, as §3.3 asks; a name's hash is the
+row its own read key names (`DeviceId`, `Inode`, `ReadSizeBytes`, `ReadModifiedUtc`), and only the
+run deletes one, so no foreign key guards it. A hash goes with the readings: a run deletes, among
+the hashes stored before it started, those whose key neither a name carries nor a kept reading has,
+so a mount that is away, or a sync that moves a file while a run goes, costs no read of a file that
+has a reading, and a changed file's old hash goes with its old reading.
+
+`LocalFileInventoryHashTests.Hash_through_a_folder_link_leading_outside_the_root_reads_nothing`,
+`LocalFileInventoryHashLinuxTests.Hash_reads_the_file_it_opened_after_its_path_was_swapped_for_a_link_leading_out`,
+`LocalFileInventoryHashTests.Hash_of_a_file_that_grows_while_it_is_read_is_changed_while_reading`,
+`FileHashCacheHttpTests.Inspect_after_a_change_of_one_key_part_hashes_the_file_again_and_forgets_the_old_hash`,
+`FileHashCacheHttpTests.Inspect_of_a_file_back_unchanged_after_runs_without_it_reads_nothing_whole`
+and `FileHashCacheHttpTests.Inspect_while_a_sync_replaces_a_name_keeps_its_hash_and_the_next_run_finds_it_without_reading`
+pin it.

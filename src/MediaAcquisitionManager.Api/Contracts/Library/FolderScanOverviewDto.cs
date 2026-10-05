@@ -11,8 +11,11 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Files">Where the app's look at the names the scans found stands, counted now: only the
 /// names no library reports under the current path mappings, so a sync that starts reporting one takes
 /// it off at once.</param>
+/// <param name="Space">How much room the files behind those same names take on disk (MAM-19), each file
+/// counted once.</param>
 public sealed record FolderScanOverviewDto(
     FolderScanRunDto? ActiveRun,
     FolderScanRunDto? LastFinishedRun,
     bool HasQueuedRun,
-    LibrarySourceInspectionDto Files);
+    LibrarySourceInspectionDto Files,
+    LibrarySpaceDto Space);

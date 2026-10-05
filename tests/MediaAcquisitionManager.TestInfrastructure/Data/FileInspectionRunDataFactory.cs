@@ -16,7 +16,8 @@ public sealed class FileInspectionRunDataFactory(ApplicationDbContext db, TimePr
         string? error = null,
         int? filesTotal = null,
         int filesChecked = 0,
-        int filesProbed = 0)
+        int filesProbed = 0,
+        PlantedHashing? hashing = null)
     {
         var queued = createdUtc ?? time.GetUtcNow().UtcDateTime;
         var run = new FileInspectionRunEntity
@@ -30,6 +31,11 @@ public sealed class FileInspectionRunDataFactory(ApplicationDbContext db, TimePr
             FilesTotal = filesTotal,
             FilesChecked = filesChecked,
             FilesProbed = filesProbed,
+            HashCandidates = hashing?.Candidates,
+            HashCandidatesChecked = hashing?.Checked ?? 0,
+            HashCandidatesRead = hashing?.Read ?? 0,
+            HashProblemCount = hashing?.ProblemCount ?? 0,
+            HashProblem = hashing?.Problem,
             Error = error,
             CreatedUtc = queued,
         };

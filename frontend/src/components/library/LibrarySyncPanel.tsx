@@ -9,10 +9,11 @@ import { ErrorState } from '@/components/shared/ErrorState'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
-import { formatDateTime, formatNumber } from '@/lib/format'
+import { formatDateTime, formatFileSize, formatNumber } from '@/lib/format'
 import { isSyncUnderWay } from '@/lib/library-runs'
 import { qk, useLibrarySources, useStartFileInspection, useStartFolderScan, useStartLibrarySync } from '@/lib/queries'
 import type {
+  FileHashing,
   FileInspectionOverview,
   FileInspectionRun,
   FolderScanOverview,
@@ -20,6 +21,7 @@ import type {
   LibrarySource,
   LibrarySourceInspection,
   LibrarySourceList,
+  LibrarySpace,
   LibrarySyncRun,
   LibrarySyncStatus,
 } from '@/lib/types'
@@ -57,6 +59,12 @@ interface StartError {
  * MAM-18 — a Media folders row closes the list of sources: the app's own scan of the allowed folders
  * for the files no library reported, with Scan folders for the owner, polled while a scan is under
  * way. It and the inspection row show without a media library too, as neither needs one.
+ *
+ * MAM-19 — an inspection ends by hashing the files a byte-identical copy could hide among, so the
+ * inspection row follows that step while it runs and tells how it went once the run has finished.
+ * Every source, the Media folders row and — for all the files — the inspection row say how much room
+ * their files take on disk, each file counted once however many names lead to it (ADR 0018). The
+ * polling needs nothing more: the hashing is part of the run under way.
  */
 export function LibrarySyncPanel() {
   const { t } = useTranslation(['library', 'common'])
@@ -266,6 +274,8 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
             <span>{source.inspection.problem}</span>
           </p>
         )}
+        {/* MAM-19 — after the warnings, which belong to the files line above them. */}
+        <SpaceLine space={source.space} />
         {startError && <StartErrorLine message={startError} />}
       </div>
       <div className="library-source-actions">
@@ -435,11 +445,17 @@ function InspectionRow({ overview, isOwner, starting, startError, onInspect }: I
         ? t('inspection.reasons.queued')
         : undefined
   const label = starting ? t('inspection.starting') : t('inspection.inspect')
+  // MAM-19 — the run the status line tells of; none while the line says the inspection is off.
+  const run = overview.hasAllowedRoots ? overview.activeRun ?? overview.lastFinishedRun : null
 
   return (
     <div className="library-source library-inspection">
       <div className="library-source-body">
         <InspectionLine overview={overview} isOwner={isOwner} />
+        {/* MAM-19 — the hashing's outcome is known once the run has succeeded. A failed run has none:
+            what it hashed before a restart stopped it is the next run's cache. */}
+        {run?.status === 'Succeeded' && <HashingOutcome hashing={run.hashing} />}
+        {overview.hasAllowedRoots && <SpaceLine space={overview.space} total />}
         {startError && <StartErrorLine message={startError} />}
       </div>
       <div className="library-source-actions">
@@ -495,6 +511,15 @@ function InspectionLine({ overview, isOwner }: { overview: FileInspectionOvervie
       case 'Queued':
         return t('inspection.queued')
       case 'Running':
+        // MAM-19 — hashing is the run's last step: once it has listed files to hash, the line
+        // follows them instead of the files checked, which are all done by then.
+        if (run.hashing.candidates !== null && run.hashing.candidates > 0) {
+          return t('inspection.hashing.running', {
+            count: run.hashing.candidates,
+            checked: formatNumber(run.hashing.checked),
+            total: formatNumber(run.hashing.candidates),
+          })
+        }
         return run.filesTotal === null
           ? t('inspection.running')
           : t('inspection.runningProgress', {
@@ -538,6 +563,73 @@ function InspectionIcon({ run }: { run: FileInspectionRun }) {
     case 'Failed':
       return <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
   }
+}
+
+/**
+ * MAM-19 — how the hashing at the end of a finished inspection went, under its status line: how many
+ * of the files that could be copies it hashed and how many it read in full rather than answered from the
+ * cache, or that no file needed a hash — as a run from before the hashing reads too. The files it
+ * couldn't hash follow as a warning, like the folders a scan didn't go into.
+ */
+function HashingOutcome({ hashing }: { hashing: FileHashing }) {
+  const { t } = useTranslation('library')
+  const candidates = hashing.candidates ?? 0
+  const problems = hashing.problemCount > 0
+    ? { count: hashing.problemCount, value: formatNumber(hashing.problemCount) }
+    : null
+
+  return (
+    <>
+      <p className="settings-muted">
+        {candidates === 0
+          ? t('inspection.hashing.none')
+          : t('inspection.hashing.succeeded', {
+            count: candidates,
+            // A file it couldn't hash is counted as checked all the same.
+            hashed: formatNumber(hashing.checked - hashing.problemCount),
+            total: formatNumber(candidates),
+            read: formatNumber(hashing.read),
+          })}
+      </p>
+      {problems !== null && (
+        <p className="library-source-warning">
+          <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+          {/* The first problem's sentence quotes the owner's paths: null for anyone else, who reads
+              how many there were. */}
+          <span>
+            {hashing.problem === null
+              ? t('inspection.hashing.problemsMember', problems)
+              : t('inspection.hashing.problemsOwner', { ...problems, problem: hashing.problem })}
+          </span>
+        </p>
+      )}
+    </>
+  )
+}
+
+// ── the room the files take ──
+
+/**
+ * MAM-19 — how much room a row's files take on disk, each file counted once however many names lead
+ * to it (ADR 0018), then the names past one per file and those the app hasn't measured yet, each a
+ * sentence of its own. Nothing until the app has measured a file. `total` makes it the sentence of
+ * every file, on the inspection row.
+ */
+function SpaceLine({ space, total = false }: { space: LibrarySpace; total?: boolean }) {
+  const { t } = useTranslation('library')
+  const { sizeBytes, fileCount, nameCount, unmeasuredCount } = space
+  if (fileCount === 0) return null
+  const files = { count: fileCount, size: formatFileSize(sizeBytes), value: formatNumber(fileCount) }
+  const moreNames = nameCount - fileCount
+
+  return (
+    <p className="settings-muted">
+      {total ? t('space.total', files) : t('space.row', files)}
+      {moreNames > 0 && <>{' '}{t('space.moreNames', { count: moreNames, value: formatNumber(moreNames) })}</>}
+      {unmeasuredCount > 0
+        && <>{' '}{t('space.unmeasured', { count: unmeasuredCount, value: formatNumber(unmeasuredCount) })}</>}
+    </p>
+  )
 }
 
 // ── the scan of the media folders ──
@@ -607,6 +699,8 @@ function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan 
             <span>{scan.files.problem}</span>
           </p>
         )}
+        {/* MAM-19 — after the warning, which belongs to the files line above it. */}
+        <SpaceLine space={scan.space} />
         {startError && <StartErrorLine message={startError} />}
       </div>
       <div className="library-source-actions">

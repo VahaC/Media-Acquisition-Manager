@@ -9,8 +9,12 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// first.</param>
 /// <param name="HasQueuedRun">Whether a run waits to start: the active one, or one queued behind the
 /// running one. Another Inspect files would only join it.</param>
+/// <param name="Space">How much room the files take on disk (MAM-19): every stored file name, the
+/// libraries' and the scan's — all a run looks at — each file counted once however many names lead to it,
+/// counted when asked.</param>
 public sealed record FileInspectionOverviewDto(
     bool HasAllowedRoots,
     FileInspectionRunDto? ActiveRun,
     FileInspectionRunDto? LastFinishedRun,
-    bool HasQueuedRun);
+    bool HasQueuedRun,
+    LibrarySpaceDto Space);

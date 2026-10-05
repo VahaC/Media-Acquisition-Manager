@@ -24,6 +24,9 @@ const BASE_URL = '/api/library'
  *
  * MAM-18 — and for the scan of the media folders: a scan's `error`, `problem` and
  * `requestedByUserName`, and the `problem` of the names it stored.
+ *
+ * MAM-19 — and for the hashing at the end of an inspection: a run's `hashing.problem`. The room the
+ * files take (`space`) is everyone's.
  */
 export const libraryApi = {
   /**

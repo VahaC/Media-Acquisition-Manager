@@ -26,7 +26,7 @@ public enum FileInventoryStatus
     /// host, not about the file.</summary>
     InspectorUnavailable = 7,
 
-    /// <summary>The file's identity, size or modification time changed while it was being read (MAM-9),
-    /// so what was read can't be said to belong to either version.</summary>
+    /// <summary>The file's identity, size or modification time changed while it was being read (MAM-9) or
+    /// hashed (MAM-19), so what was read can't be said to belong to either version.</summary>
     ChangedWhileReading = 8,
 }

@@ -60,6 +60,10 @@ internal static class FileInventoryMessages
     public static string ChangedWhileReading(string appPath) =>
         $"{Quote(appPath)} changed while ffprobe was reading it, so what was read can't be said to belong to either version.";
 
+    /// <summary>MAM-19 — the file changed while the app read it whole for its hash.</summary>
+    public static string ChangedWhileHashing(string appPath) =>
+        $"{Quote(appPath)} changed while the app was reading it for its hash, so the hash can't be said to belong to either version.";
+
     /// <param name="appPath">The file.</param>
     /// <param name="reason">A clause from <see cref="MediaProbeResult.Reason"/>: "it said “…”", "it didn't
     /// finish within 2 minutes".</param>

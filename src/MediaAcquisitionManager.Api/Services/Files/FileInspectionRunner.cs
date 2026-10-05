@@ -23,6 +23,12 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// them unread.
 /// </para>
 /// <para>
+/// MAM-19, ADR 0022 — and a last step: once every name carries what this run's look read, the files a
+/// byte-identical copy could hide among — a size a file of another identity shares, media facts that don't
+/// tell them apart — are read whole for their SHA-256, one at a time and through a cache keyed like the
+/// readings; a hash goes once neither a name nor a reading stands for its bytes.
+/// </para>
+/// <para>
 /// What each file showed is written as soon as it is known, so the Library page's counts move while the
 /// run goes and a run that stops keeps what it had read. The writes share this scope's one context, which
 /// serves one operation at a time, so they queue on <see cref="_writes"/>; the looks and reads around them
@@ -108,6 +114,8 @@ public sealed partial class FileInspectionRunner(
             .Where(reading => !db.PhysicalFiles.Any(file => file.MediaInspectionId == reading.Id))
             .Select(reading => reading.Id)
             .ToListAsync(cancellationToken);
+        // MAM-19 — the hashes stored before this run: only those are its to forget (step 6).
+        var hashesAtStart = await db.FileHashes.Select(hash => hash.Id).ToListAsync(cancellationToken);
         var files = await LoadFilesAsync(cancellationToken);
         _linkedAtStart = files
             .Where(file => file.ReadingId is not null)
@@ -176,7 +184,13 @@ public sealed partial class FileInspectionRunner(
             .Where(reading => forgettable.Contains(reading.Id) && !db.PhysicalFiles.Any(file => file.MediaInspectionId == reading.Id))
             .ExecuteDeleteAsync(cancellationToken);
 
+        // 6. MAM-19, ADR 0022 — hash the files a byte-identical copy could hide among, once every name carries
+        // what this run's look read, and forget the hashes of bytes neither a name nor a reading stands for now.
+        await HashAsync(progress, roots, files, hashesAtStart, cancellationToken);
+
         var finishedUtc = time.GetUtcNow().UtcDateTime;
+        var (hashCandidates, hashChecked, hashRead, hashProblems, hashProblem) =
+            (progress.HashCandidates, progress.HashChecked, progress.HashRead, progress.HashProblems, progress.HashProblem);
         // Never cancelled, the LibrarySyncRunUpdates rule: once the outcome is decided it is written.
         await db.FileInspectionRuns
             .Where(run => run.Id == runId && run.Status == FileInspectionRunStatus.Running)
@@ -185,12 +199,17 @@ public sealed partial class FileInspectionRunner(
                     .SetProperty(run => run.Status, FileInspectionRunStatus.Succeeded)
                     .SetProperty(run => run.FinishedUtc, finishedUtc)
                     .SetProperty(run => run.FilesChecked, progress.Checked)
-                    .SetProperty(run => run.FilesProbed, progress.Probed),
+                    .SetProperty(run => run.FilesProbed, progress.Probed)
+                    .SetProperty(run => run.HashCandidates, hashCandidates)
+                    .SetProperty(run => run.HashCandidatesChecked, hashChecked)
+                    .SetProperty(run => run.HashCandidatesRead, hashRead)
+                    .SetProperty(run => run.HashProblemCount, hashProblems)
+                    .SetProperty(run => run.HashProblem, hashProblem),
                 CancellationToken.None);
         // Information: counts only — never a path or a title.
         logger.LogInformation(
-            "File inspection {RunId} finished: {Checked} of {Total} files checked, {Probed} read by the media inspector.",
-            runId, progress.Checked, files.Count, progress.Probed);
+            "File inspection {RunId} finished: {Checked} of {Total} files checked, {Probed} read by the media inspector; {HashCandidates} files could be copies, {HashRead} read whole for their hash, {HashProblems} not hashed.",
+            runId, progress.Checked, files.Count, progress.Probed, hashCandidates, hashRead, hashProblems);
     }
 
     // ── reading what the cache doesn't hold ─────────────────────────────────────────────────────

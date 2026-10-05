@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Security.Cryptography;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
@@ -27,6 +29,10 @@ namespace MediaAcquisitionManager.Infrastructure.Files;
 /// (<see cref="FolderWalker"/>).
 /// </para>
 /// <para>
+/// MAM-19, ADR 0022 — the hash reads a file whole through the same checks and the same open file, its facts
+/// asked again after the read as after ffprobe.
+/// </para>
+/// <para>
 /// Every call reads the file system afresh and keeps nothing, so one instance serves every inspection at
 /// once.
 /// </para>
@@ -50,6 +56,25 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     /// <summary>The entries one walk gives at most: <see cref="FolderWalker.MaximumEntries"/>; a test sets a
     /// few.</summary>
     internal int MaximumListedEntries { get; init; } = FolderWalker.MaximumEntries;
+
+    /// <summary>
+    /// MAM-19 — how much of a file one read of the hash takes: <see cref="HashChunkBytes"/>; a test sets a few
+    /// bytes, so a small file is read in several.
+    /// </summary>
+    internal int HashChunkSize { get; init; } = HashChunkBytes;
+
+    /// <summary>
+    /// MAM-19 — called after each chunk the hash reads, with how many bytes it has read so far: where a test
+    /// writes to the file in the middle of the read. <c>null</c> in the app.
+    /// </summary>
+    internal Action<long>? AfterHashChunk { get; init; }
+
+    /// <summary>
+    /// MAM-19 — 1 MiB per read: the hash reads a file from its start to its end, so a large read is one long
+    /// sequential transfer from a spinning disk, eight times the Linux read-ahead window; more saves nothing
+    /// measurable and holds more memory per file read.
+    /// </summary>
+    private const int HashChunkBytes = 1 << 20;
 
     /// <inheritdoc/>
     public Task<FileInventoryResult<FileFacts>> DescribeAsync(
@@ -120,6 +145,57 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// MAM-19, ADR 0022 — the bytes come from the file the checks approved and the reader opened, held open while
+    /// they are read, never from the path again (where the platform holds one open). Nothing is cached here: the
+    /// caller keeps the hash under the facts it comes with.
+    /// </remarks>
+    public async Task<FileInventoryResult<FileContentHash>> HashAsync(
+        string appPath, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var located = Locate(appPath, allowedRoots);
+        if (located.Value is not { } path)
+            return FileSystemFailure.Relay<NormalizedPath, FileContentHash>(located);
+
+        var systemPath = SystemPath.For(path);
+        var opened = Reader.Open(systemPath, appPath);
+        if (opened.Value is not { } file)
+            return FileSystemFailure.Relay<IOpenedFile, FileContentHash>(opened);
+
+        using var _ = file;
+        var facts = file.Facts;
+        FileInventoryResult<FileContentHash>? failed = null;
+        (string Sha256, long Length)? read = null;
+        try
+        {
+            read = await ReadWholeAsync(file, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // On Windows .NET ends the message with the handle's \\?\ path, which isn't the path the owner knows.
+            failed = FileSystemFailure.For<FileContentHash>(exception, appPath, systemPath);
+        }
+
+        // Asked again before the read is judged, as after ffprobe: a file still being written can fail the read
+        // too, and then the change is the real story. The read must also have ended where the facts say the file
+        // does, or bytes came and went between the two looks. A hash is kept only under the facts it was read
+        // from — one stored under the other version's key would call two different files identical.
+        var after = file.ReadFactsAgain(appPath);
+        if (after.Value is not { } factsAfter
+            || !IsSameVersion(facts, factsAfter)
+            || (read is { } whole && whole.Length != facts.SizeBytes))
+        {
+            return FileSystemFailure.Refused<FileContentHash>(
+                FileInventoryStatus.ChangedWhileReading, FileInventoryMessages.ChangedWhileHashing(appPath));
+        }
+
+        return failed ?? new FileInventoryResult<FileContentHash>(
+            FileInventoryStatus.Found, new FileContentHash(facts, read!.Value.Sha256), null);
+    }
+
+    /// <inheritdoc/>
     /// <remarks>The roots are trusted as for a look at one file: only those that parse as this platform's paths
     /// are walked.</remarks>
     public IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
@@ -173,6 +249,32 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
             .OfType<NormalizedPath>()
             .Where(root => root.Style == AllowedRootRules.PlatformStyle),
     ];
+
+    /// <summary>
+    /// MAM-19 — every byte of <paramref name="file"/>, from the first, through SHA-256: the hash in lowercase hex
+    /// and how many bytes there were.
+    /// </summary>
+    private async Task<(string Sha256, long Length)> ReadWholeAsync(IOpenedFile file, CancellationToken cancellationToken)
+    {
+        using var sha256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(HashChunkSize);
+        try
+        {
+            long length = 0;
+            while (await file.ReadAsync(buffer.AsMemory(0, HashChunkSize), length, cancellationToken) is var count and > 0)
+            {
+                sha256.AppendData(buffer, 0, count);
+                length += count;
+                AfterHashChunk?.Invoke(length);
+            }
+
+            return (Convert.ToHexStringLower(sha256.GetHashAndReset()), length);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
 
     /// <summary>
     /// The same version of the file: same identity, size and modification time — the cache key. The link count

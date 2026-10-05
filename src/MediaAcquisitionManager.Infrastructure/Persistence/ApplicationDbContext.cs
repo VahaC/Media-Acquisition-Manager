@@ -55,6 +55,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<FolderScanRunEntity> FolderScanRuns => Set<FolderScanRunEntity>();
 
+    public DbSet<FileHashEntity> FileHashes => Set<FileHashEntity>();
+
     public DbSet<ReleaseEntity> Releases => Set<ReleaseEntity>();
 
     public DbSet<DownloadJobEntity> DownloadJobs => Set<DownloadJobEntity>();
@@ -359,6 +361,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.RequestedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<FileHashEntity>(e =>
+        {
+            // MAM-19, ADR 0022 — the hash cache key of specification §3.3, the readings' own: unique, so one
+            // set of bytes is read in full once however many names lead to it, and a change in any of the
+            // four is a new key, and so a new read. No foreign key from a name, for the reason
+            // MediaInspectionId has none: a name finds its hash by the key it carries.
+            e.HasIndex(x => new { x.DeviceId, x.Inode, x.SizeBytes, x.ModifiedUtc }).IsUnique();
         });
 
         modelBuilder.Entity<ReleaseEntity>(e =>

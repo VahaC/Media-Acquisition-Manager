@@ -276,6 +276,8 @@ export interface LibrarySource {
   pathProblem: string | null
   /** MAM-9: how far the app's look at its files has got, counted when asked. */
   inspection: LibrarySourceInspection
+  /** MAM-19: how much room its files take on disk, counted when asked. */
+  space: LibrarySpace
 }
 
 /** MAM-9 — one source's files by what the app's last look at each found. */
@@ -288,6 +290,22 @@ export interface LibrarySourceInspection {
   notInspectedCount: number
   /** Why the first problem file (by path) wasn't read. The installation owner only: null for everyone else. */
   problem: string | null
+}
+
+/**
+ * MAM-19 — how much room a set of file names takes on disk, each file counted once by its device and
+ * inode however many names lead to it, so two hardlinks of one file take its size once (ADR 0018).
+ * Only what the app's own look at each file read counts, never the size a library reported.
+ */
+export interface LibrarySpace {
+  /** The sizes of the files the names lead to, each file once. */
+  sizeBytes: number
+  /** How many files that is. */
+  fileCount: number
+  /** How many of the names lead to them: more than `fileCount` when a file has several names. */
+  nameCount: number
+  /** The names the app knows no file behind yet: not looked at, or the look found nothing or no identity. */
+  unmeasuredCount: number
 }
 
 /** `GET /api/library/sources`, ordered by name. */
@@ -318,6 +336,11 @@ export interface FileInspectionOverview {
   lastFinishedRun: FileInspectionRun | null
   /** Whether a run waits to start: the active one, or one queued behind the running one. */
   hasQueuedRun: boolean
+  /**
+   * MAM-19: how much room every stored file name takes on disk, each file once — a name a library
+   * reported and a name a scan stored that lead to one file count it once.
+   */
+  space: LibrarySpace
 }
 
 /** One inspection of the library's files, from the request to its outcome (MAM-9). */
@@ -337,8 +360,27 @@ export interface FileInspectionRun {
   filesChecked: number
   /** How many ffprobe read in this run; the rest came from the cache or couldn't be read. */
   filesProbed: number
+  /** MAM-19: its last step, the hashing of the files a byte-identical copy could hide among. */
+  hashing: FileHashing
   /** Why it failed. The installation owner only: null for everyone else. */
   error: string | null
+}
+
+/**
+ * MAM-19 — the last step of a file inspection (ADR 0022): a file is hashed only when a file of
+ * another identity has its size and its media facts don't tell the two apart.
+ */
+export interface FileHashing {
+  /** How many files need a hash, each counted once however many names lead to it; null until the step has listed them. */
+  candidates: number | null
+  /** How many of them it has dealt with so far. */
+  checked: number
+  /** How many of them it read in full in this run; the others came from the cache or couldn't be hashed. */
+  read: number
+  /** How many of them it couldn't hash; never a failure of the run. */
+  problemCount: number
+  /** Why the first of them wasn't hashed; it quotes paths. The installation owner only: null for everyone else. */
+  problem: string | null
 }
 
 /** MAM-18 — where a scan of the media folders is. Queued and Running are under way; the other two are final. */
@@ -360,6 +402,8 @@ export interface FolderScanOverview {
    * reports under the current path mappings, so a sync that starts reporting one takes it off at once.
    */
   files: LibrarySourceInspection
+  /** MAM-19: how much room the files behind those same names take on disk, each file once. */
+  space: LibrarySpace
 }
 
 /** MAM-18 — one scan of the media folders, from the request to its outcome. */

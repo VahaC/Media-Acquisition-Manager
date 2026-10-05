@@ -343,3 +343,22 @@ problem included, the way the API tests already replace the inventory.
 `LocalFileInventoryListingTests.List_walks_the_roots_in_the_owners_order`,
 `LinuxFileStatusReaderTests.OpenFolder_lists_the_folder_it_opened_even_after_its_path_leads_elsewhere`
 and `FolderScanRunHttpTests.Scan_gives_the_inventory_the_allowed_roots_in_the_owners_order` pin it.
+
+## Implementation (added 0.2.0, MAM-19)
+
+**The file inventory gains the hash, still outside the registry.**
+`IFileInventory.HashAsync(appPath, allowedRoots, cancellationToken)` reads every byte of a file
+inside the roots the caller read and answers a `FileContentHash` — the file's facts, the same before
+and after the read, and the SHA-256 in lowercase hex — or `ChangedWhileReading` when the file changed
+meanwhile; its other refusals are a look's, and `FileInventoryStatus` gains no member
+([ADR 0022](0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md)).
+Which files need a hash is the inspection's to decide, not the inventory's. `LocalFileInventory`
+reads through its platform reader's opened file, which gains `ReadAsync`: on Linux and Windows a
+read at an offset of the handle opened after the checks; elsewhere the path, opened on the first
+read, where no identity is read and so nothing is hashed. `FakeFileInventory` answers hashes too —
+by default a digest of the file's identity, size and time, so two names of one file hash alike — and
+records each path it hashed, the roots it was given and how many hashes ran at once.
+
+`LocalFileInventoryHashTests.Hash_reads_a_large_file_in_chunks_of_one_mebibyte`,
+`LocalFileInventoryHashTests.Hash_of_two_copies_is_one_digest_with_two_identities` and
+`FileInspectionHashHttpTests.Inspect_gives_the_hash_the_allowed_roots_in_the_owners_order` pin it.

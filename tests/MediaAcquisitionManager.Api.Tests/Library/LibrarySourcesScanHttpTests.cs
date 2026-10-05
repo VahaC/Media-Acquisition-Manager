@@ -39,6 +39,9 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
     /// <summary>The Media folders row before any scan stored a name.</summary>
     private static readonly LibrarySourceInspectionDto NoFiles = new(0, 0, 0, null);
 
+    /// <summary>MAM-19 — no file the app knows the room of.</summary>
+    private static readonly LibrarySpaceDto NoSpace = new(0, 0, 0, 0);
+
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IFolderScanRunSeeder _runs = null!;
     private AuthorizedUser _owner = null!;
@@ -72,13 +75,16 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var list = (await response.Content.ReadFromJsonAsync<LibrarySourceListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Empty(list.Items);
-        Assert.Equal(new FolderScanOverviewDto(null, null, false, NoFiles), list.Scan);
+        Assert.Equal(new FolderScanOverviewDto(null, null, false, NoFiles, NoSpace), list.Scan);
         // What the page reads, by these names.
         var scan = JsonNode.Parse(body)!["scan"]!.AsObject();
-        Assert.Equal(["activeRun", "lastFinishedRun", "hasQueuedRun", "files"], scan.Select(property => property.Key));
+        Assert.Equal(["activeRun", "lastFinishedRun", "hasQueuedRun", "files", "space"], scan.Select(property => property.Key));
         Assert.Equal(
             ["inspectedCount", "problemCount", "notInspectedCount", "problem"],
             scan["files"]!.AsObject().Select(property => property.Key));
+        Assert.Equal(
+            ["sizeBytes", "fileCount", "nameCount", "unmeasuredCount"],
+            scan["space"]!.AsObject().Select(property => property.Key));
         await _factory.WithDbAsync(async db =>
             Assert.Equal(0, await db.FolderScanRuns.CountAsync(cancellationToken)));
     }
@@ -101,10 +107,10 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
         Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
         var queued = new FolderScanRunDto(started.Id, FolderScanStatus.Queued, "owner", queuedAt, null, null, 0, null, 0, null, null);
-        Assert.Equal(new FolderScanOverviewDto(queued, null, true, NoFiles), (await ReadListAsync(owners, cancellationToken)).Scan);
+        Assert.Equal(new FolderScanOverviewDto(queued, null, true, NoFiles, NoSpace), (await ReadListAsync(owners, cancellationToken)).Scan);
         // Who asked is the owner's sign-in name, so the owner's only.
         Assert.Equal(
-            new FolderScanOverviewDto(queued with { RequestedByUserName = null }, null, true, NoFiles),
+            new FolderScanOverviewDto(queued with { RequestedByUserName = null }, null, true, NoFiles, NoSpace),
             (await ReadListAsync(members, cancellationToken)).Scan);
         await _factory.WithDbAsync(async db =>
             Assert.Equal((started.Id, FolderScanStatus.Queued), Assert.Single((await db.FolderScanRuns.AsNoTracking().ToListAsync(cancellationToken)).Select(run => (run.Id, run.Status)))));
@@ -145,7 +151,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
                 new FolderScanRunDto(running.Id, FolderScanStatus.Running, "owner", runningAt, runningAt, null, 350, null, 0, null, null),
                 null,
                 true,
-                NoFiles),
+                NoFiles, NoSpace),
             (await ReadListAsync(response, cancellationToken)).Scan);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
@@ -180,7 +186,7 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
                 new FolderScanRunDto(running.Id, FolderScanStatus.Running, "owner", now, now, null, 50, null, 0, null, null),
                 new FolderScanRunDto(latest.Id, latestStatus, "owner", latestAt, latestAt, latestAt, 1394, filesUnreported, 0, null, latestError),
                 false,
-                NoFiles),
+                NoFiles, NoSpace),
             (await ReadListAsync(response, cancellationToken)).Scan);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(4, await db.FolderScanRuns.CountAsync(cancellationToken)));
@@ -238,9 +244,9 @@ public sealed class LibrarySourcesScanHttpTests : IClassFixture<MediaAcquisition
         //Assert
         // The sentence quotes a place on the owner's disks; how many there were is everyone's.
         var run = new FolderScanRunDto(finished.Id, FolderScanStatus.Succeeded, "owner", at, at, at, 1394, 12, 3, LinkLeadsOutProblem, null);
-        Assert.Equal(new FolderScanOverviewDto(null, run, false, NoFiles), (await ReadListAsync(owners, cancellationToken)).Scan);
+        Assert.Equal(new FolderScanOverviewDto(null, run, false, NoFiles, NoSpace), (await ReadListAsync(owners, cancellationToken)).Scan);
         Assert.Equal(
-            new FolderScanOverviewDto(null, run with { RequestedByUserName = null, Problem = null }, false, NoFiles),
+            new FolderScanOverviewDto(null, run with { RequestedByUserName = null, Problem = null }, false, NoFiles, NoSpace),
             (await ReadListAsync(members, cancellationToken)).Scan);
         Assert.DoesNotContain("/media", await members.Content.ReadAsStringAsync(cancellationToken), StringComparison.Ordinal);
     }

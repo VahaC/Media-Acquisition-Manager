@@ -3,7 +3,7 @@ namespace MediaAcquisitionManager.Core.Abstractions.Files;
 /// <summary>
 /// The app's own read-only look at files on its mounts (MAM-9, Phase B) — local, so not an
 /// integration connection. MAM-9 reads a file's identity and its streams, MAM-18 walks the allowed roots
-/// for their media files; MAM-19 adds the hash, Phase C the quarantine.
+/// for their media files, MAM-19 hashes a file's bytes; Phase C adds the quarantine.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -46,6 +46,19 @@ public interface IFileInventory
     /// <param name="allowedRoots">The folders it may read inside, in canonical form.</param>
     /// <param name="cancellationToken">Cancels the read, stopping the inspector.</param>
     Task<FileInventoryResult<MediaInspection>> InspectMediaAsync(
+        string appPath, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads every byte of the file at <paramref name="appPath"/>, after the checks of
+    /// <see cref="DescribeAsync"/>, and gives their SHA-256 (MAM-19, ADR 0022). The file facts that come
+    /// with the hash were read before and after the read and agreed, and the read ended at the size they
+    /// give; a file that changed meanwhile is <see cref="FileInventoryStatus.ChangedWhileReading"/>, never
+    /// a hash of one version kept under the key of the other.
+    /// </summary>
+    /// <param name="appPath">The file's absolute path inside the app.</param>
+    /// <param name="allowedRoots">The folders it may read inside, in canonical form.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    Task<FileInventoryResult<FileContentHash>> HashAsync(
         string appPath, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
 
     /// <summary>

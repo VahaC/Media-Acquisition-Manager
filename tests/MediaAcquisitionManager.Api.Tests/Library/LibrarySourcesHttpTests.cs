@@ -38,6 +38,12 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
     /// <summary>MAM-9 — a source whose files the app hasn't looked at, or that has none.</summary>
     private static readonly LibrarySourceInspectionDto NoInspection = new(0, 0, 0, null);
 
+    /// <summary>MAM-19 — a run that never reached its hashing step: queued, failed before it, or planted.</summary>
+    private static readonly FileHashingDto NotHashed = new(null, 0, 0, 0, null);
+
+    /// <summary>MAM-19 — no file the app knows the room of.</summary>
+    private static readonly LibrarySpaceDto NoSpace = new(0, 0, 0, 0);
+
     private const string AliensTheatricalPath =
         "/media/movies/Alien. Collection/[02.1] Aliens (1986) [Theatrical Cut, Fundamental Collection] BDRip 1080p H.265 [2xUKR_ENG] [Hurtom].mkv";
 
@@ -117,10 +123,10 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
             [
-                new LibrarySourceDto(attic.Id, "Attic", FakeIntegrationAdapter.DisplayName, true, false, null, null, 0, null, NoInspection),
-                new LibrarySourceDto(basement.Id, "Basement", null, true, false, null, null, 0, null, NoInspection),
-                new LibrarySourceDto(cellar.Id, "Cellar", "Jellyfin", false, true, null, null, 0, null, NoInspection),
-                new LibrarySourceDto(livingRoom.Id, "living room", "Jellyfin", true, true, null, null, 0, null, NoInspection),
+                new LibrarySourceDto(attic.Id, "Attic", FakeIntegrationAdapter.DisplayName, true, false, null, null, 0, null, NoInspection, NoSpace),
+                new LibrarySourceDto(basement.Id, "Basement", null, true, false, null, null, 0, null, NoInspection, NoSpace),
+                new LibrarySourceDto(cellar.Id, "Cellar", "Jellyfin", false, true, null, null, 0, null, NoInspection, NoSpace),
+                new LibrarySourceDto(livingRoom.Id, "living room", "Jellyfin", true, true, null, null, 0, null, NoInspection, NoSpace),
             ],
             (await ReadListAsync(response, cancellationToken)).Items);
     }
@@ -402,12 +408,12 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         // None by default: the app reads nothing, and the page says so — to everyone, with the way to
         // the settings for the owner.
-        Assert.Equal(new FileInspectionOverviewDto(false, null, null, false), before.Inspection);
+        Assert.Equal(new FileInspectionOverviewDto(false, null, null, false, NoSpace), before.Inspection);
         Assert.Equal(HttpStatusCode.NoContent, saved.StatusCode);
         Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
         // Saving starts nothing: the owner inspects when ready.
-        Assert.Equal(new FileInspectionOverviewDto(true, null, null, false), (await ReadListAsync(owners, cancellationToken)).Inspection);
-        Assert.Equal(new FileInspectionOverviewDto(true, null, null, false), (await ReadListAsync(members, cancellationToken)).Inspection);
+        Assert.Equal(new FileInspectionOverviewDto(true, null, null, false, NoSpace), (await ReadListAsync(owners, cancellationToken)).Inspection);
+        Assert.Equal(new FileInspectionOverviewDto(true, null, null, false, NoSpace), (await ReadListAsync(members, cancellationToken)).Inspection);
         await _factory.WithDbAsync(async db =>
         {
             Assert.Equal(1, await db.AllowedRoots.CountAsync(cancellationToken));
@@ -433,11 +439,11 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
         var queued = new FileInspectionRunDto(
-            started!.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Queued, "owner", queuedAt, null, null, null, 0, 0, null);
-        Assert.Equal(new FileInspectionOverviewDto(true, queued, null, true), (await ReadListAsync(owners, cancellationToken)).Inspection);
+            started!.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Queued, "owner", queuedAt, null, null, null, 0, 0, NotHashed, null);
+        Assert.Equal(new FileInspectionOverviewDto(true, queued, null, true, NoSpace), (await ReadListAsync(owners, cancellationToken)).Inspection);
         // Who asked is the owner's sign-in name, so the owner's only.
         Assert.Equal(
-            new FileInspectionOverviewDto(true, queued with { RequestedByUserName = null }, null, true),
+            new FileInspectionOverviewDto(true, queued with { RequestedByUserName = null }, null, true, NoSpace),
             (await ReadListAsync(members, cancellationToken)).Inspection);
         await _factory.WithDbAsync(async db =>
         {
@@ -484,9 +490,9 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
             new FileInspectionOverviewDto(
                 true,
                 new FileInspectionRunDto(
-                    running.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Running, "owner", runningAt, runningAt, null, 4, 1, 0, null),
+                    running.Id, FileInspectionTrigger.Requested, FileInspectionRunStatus.Running, "owner", runningAt, runningAt, null, 4, 1, 0, NotHashed, null),
                 null,
-                true),
+                true, NoSpace),
             (await ReadListAsync(response, cancellationToken)).Inspection);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(
@@ -522,9 +528,9 @@ public sealed class LibrarySourcesHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(
             new FileInspectionOverviewDto(
                 true,
-                new FileInspectionRunDto(running.Id, FileInspectionTrigger.AppStarted, FileInspectionRunStatus.Running, null, now, now, null, 4, 1, 0, null),
-                new FileInspectionRunDto(latest.Id, FileInspectionTrigger.LibrarySynced, latestStatus, null, latestAt, latestAt, latestAt, 4, 4, 2, latestError),
-                false),
+                new FileInspectionRunDto(running.Id, FileInspectionTrigger.AppStarted, FileInspectionRunStatus.Running, null, now, now, null, 4, 1, 0, NotHashed, null),
+                new FileInspectionRunDto(latest.Id, FileInspectionTrigger.LibrarySynced, latestStatus, null, latestAt, latestAt, latestAt, 4, 4, 2, NotHashed, latestError),
+                false, NoSpace),
             (await ReadListAsync(response, cancellationToken)).Inspection);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(4, await db.FileInspectionRuns.CountAsync(cancellationToken)));

@@ -59,8 +59,9 @@ public interface ILibraryMapper
     /// sign-in name.</summary>
     LibrarySyncRunDto ToDto(LibrarySyncRunEntity run, bool forOwner);
 
-    /// <summary>A file inspection run (MAM-9); its error and who asked for it only when
-    /// <paramref name="forOwner"/>, the sync run's rule.</summary>
+    /// <summary>A file inspection run (MAM-9); its error, who asked for it and (MAM-19) its first hashing
+    /// problem only when <paramref name="forOwner"/>, the sync run's rule — the problem quotes the owner's
+    /// paths.</summary>
     FileInspectionRunDto ToDto(FileInspectionRunEntity run, bool forOwner);
 
     /// <summary>A scan of the media folders (MAM-18); who asked for it, its first problem and its error
@@ -81,5 +82,6 @@ public interface ILibraryMapper
         LibrarySyncRunDto? lastSucceededRun,
         int filesWithoutAppPathCount,
         string? pathProblem,
-        LibrarySourceInspectionDto inspection);
+        LibrarySourceInspectionDto inspection,
+        LibrarySpaceDto space);
 }

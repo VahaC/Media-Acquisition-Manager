@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using Microsoft.Win32.SafeHandles;
 
 namespace MediaAcquisitionManager.Infrastructure.Files;
 
@@ -59,14 +60,22 @@ internal sealed class PortableFileStatusReader : IFileStatusReader
     /// <summary>The checked path, asked again by its text.</summary>
     private sealed class OpenedFile(FileFacts facts, string systemPath) : IOpenedFile
     {
+        // MAM-19 — opened by the path on the first read, as nothing is held open here; sharing everything, like
+        // the readability check, so the hash never stands in the way of a download client.
+        private SafeFileHandle? _content;
+
         public FileFacts Facts => facts;
 
         public string ProbePath => systemPath;
 
         public FileInventoryResult<FileFacts> ReadFactsAgain(string appPath) => Describe(systemPath, appPath);
 
-        public void Dispose()
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, long offset, CancellationToken cancellationToken)
         {
+            _content ??= File.OpenHandle(systemPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return RandomAccess.ReadAsync(_content, buffer, offset, cancellationToken);
         }
+
+        public void Dispose() => _content?.Dispose();
     }
 }

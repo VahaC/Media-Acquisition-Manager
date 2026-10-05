@@ -6,9 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Files;
 
-// What a run writes — a file's outcome, a reading for the cache, the run's progress — and the small
-// records it carries them in. Every write takes _writes: the scope's one context serves one operation at
-// a time, while the looks and reads run concurrently.
+// What a run writes — a file's outcome, a reading or (MAM-19) a hash for the cache, the run's progress — and
+// the small records it carries them in. Every write takes _writes: the scope's one context serves one
+// operation at a time, while the looks and reads run concurrently.
 public sealed partial class FileInspectionRunner
 {
     /// <summary>
@@ -160,6 +160,87 @@ public sealed partial class FileInspectionRunner
         }
     }
 
+    /// <summary>
+    /// MAM-19 — stores the hash of the bytes <paramref name="key"/> names. A hash already stored under the key
+    /// stands: the unique index settles it, never a second row (two names that changed into the same bytes,
+    /// a file that changed into bytes already hashed).
+    /// </summary>
+    private async Task StoreHashAsync(CacheKey key, string sha256, CancellationToken cancellationToken)
+    {
+        await _writes.WaitAsync(cancellationToken);
+        try
+        {
+            db.FileHashes.Add(new FileHashEntity
+            {
+                DeviceId = key.DeviceId,
+                Inode = key.Inode,
+                SizeBytes = key.SizeBytes,
+                ModifiedUtc = key.ModifiedUtc,
+                Sha256 = sha256,
+                CreatedUtc = time.GetUtcNow().UtcDateTime,
+            });
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                // Hashed under this key already, which the same bytes would give again; anything else (a full
+                // disk) is no such conflict and stays a failure.
+                if (!await IsHashedAsync(key, cancellationToken))
+                    throw;
+            }
+            finally
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+        finally
+        {
+            _writes.Release();
+        }
+    }
+
+    private Task<bool> IsHashedAsync(CacheKey key, CancellationToken cancellationToken)
+    {
+        db.ChangeTracker.Clear();
+        return db.FileHashes.AnyAsync(
+            stored => stored.DeviceId == key.DeviceId
+                && stored.Inode == key.Inode
+                && stored.SizeBytes == key.SizeBytes
+                && stored.ModifiedUtc == key.ModifiedUtc,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// MAM-19 — counts one hash candidate dealt with: answered from the cache, read in full
+    /// (<paramref name="read"/>), or not hashed for <paramref name="problem"/>'s reason, the first of which the
+    /// run keeps for the owner.
+    /// </summary>
+    private async Task HashCheckedAsync(Progress progress, bool read, string? problem, CancellationToken cancellationToken)
+    {
+        await _writes.WaitAsync(cancellationToken);
+        try
+        {
+            progress.AddHashChecked(read, problem is null ? null : FileInspectionRunUpdates.Cut(problem, FileInspectionRunEntity.ErrorMaximumLength));
+            var (checkedCount, readCount, problemCount, firstProblem) = (progress.HashChecked, progress.HashRead, progress.HashProblems, progress.HashProblem);
+            await db.FileInspectionRuns
+                .Where(run => run.Id == progress.RunId && run.Status == FileInspectionRunStatus.Running)
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(run => run.HashCandidatesChecked, checkedCount)
+                        .SetProperty(run => run.HashCandidatesRead, readCount)
+                        .SetProperty(run => run.HashProblemCount, problemCount)
+                        .SetProperty(run => run.HashProblem, firstProblem),
+                    cancellationToken);
+        }
+        finally
+        {
+            _writes.Release();
+        }
+    }
+
     // The run's progress, absolute rather than added, so writes taken in any order still leave the
     // highest count. Called under _writes.
     private Task ReportAsync(Progress progress, CancellationToken cancellationToken)
@@ -223,6 +304,10 @@ public sealed partial class FileInspectionRunner
     {
         private int _checked;
         private int _probed;
+        private int _hashChecked;
+        private int _hashRead;
+        private int _hashProblems;
+        private string? _hashProblem;
 
         public Guid RunId => runId;
 
@@ -230,8 +315,34 @@ public sealed partial class FileInspectionRunner
 
         public int Probed => Volatile.Read(ref _probed);
 
+        /// <summary>MAM-19 — the hash candidates the last step listed; <c>null</c> until it has.</summary>
+        public int? HashCandidates { get; private set; }
+
+        public int HashChecked => Volatile.Read(ref _hashChecked);
+
+        public int HashRead => Volatile.Read(ref _hashRead);
+
+        public int HashProblems => Volatile.Read(ref _hashProblems);
+
+        /// <summary>The sentence of the first candidate that couldn't be hashed.</summary>
+        public string? HashProblem => Volatile.Read(ref _hashProblem);
+
         public void AddChecked(int count) => Interlocked.Add(ref _checked, count);
 
         public void AddProbed() => Interlocked.Increment(ref _probed);
+
+        public void StartHashing(int candidates) => HashCandidates = candidates;
+
+        public void AddHashChecked(bool read, string? problem)
+        {
+            Interlocked.Increment(ref _hashChecked);
+            if (read)
+                Interlocked.Increment(ref _hashRead);
+            if (problem is null)
+                return;
+
+            Interlocked.Increment(ref _hashProblems);
+            Interlocked.CompareExchange(ref _hashProblem, problem, null);
+        }
     }
 }

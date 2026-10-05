@@ -264,7 +264,8 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         [FieldOffset(140)] public uint DeviceMinor;
     }
 
-    /// <summary>The file opened for reading, which ffprobe inherits and opens again through <c>/proc/self</c>.</summary>
+    /// <summary>The file opened for reading, which ffprobe inherits and opens again through <c>/proc/self</c>, and
+    /// (MAM-19) which the hash reads directly.</summary>
     private sealed class OpenedFile(SafeFileHandle handle, FileFacts facts) : IOpenedFile
     {
         public FileFacts Facts => facts;
@@ -272,6 +273,11 @@ internal sealed class LinuxFileStatusReader : IFileStatusReader
         public string ProbePath => OwnDescriptorPath(handle);
 
         public FileInventoryResult<FileFacts> ReadFactsAgain(string appPath) => Describe(handle, appPath);
+
+        // pread on the descriptor itself: a read at an offset moves no shared position, and RandomAccess never
+        // takes the handle over, so it is still open for the facts asked again after the read.
+        public ValueTask<int> ReadAsync(Memory<byte> buffer, long offset, CancellationToken cancellationToken) =>
+            RandomAccess.ReadAsync(handle, buffer, offset, cancellationToken);
 
         public void Dispose() => handle.Dispose();
     }
