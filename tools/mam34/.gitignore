@@ -1,2 +1,0 @@
-# `import common` makes Python write bytecode here the first time a script runs.
-__pycache__/
