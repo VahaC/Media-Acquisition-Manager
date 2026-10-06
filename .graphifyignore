@@ -1,0 +1,17 @@
+# Keep the corpus code-only so a bare `graphify .` runs locally (AST only) and
+# needs no LLM API key. Docs, config and images would need semantic extraction.
+# To graph them too: delete the lines below and set a backend key
+# (e.g. ANTHROPIC_API_KEY) before running `graphify .`.
+*.md
+*.mdx
+*.txt
+*.rst
+*.html
+*.yml
+*.yaml
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
