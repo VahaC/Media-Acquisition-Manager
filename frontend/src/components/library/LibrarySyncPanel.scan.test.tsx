@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { libraryApi } from '@/lib/library-api'
 import type { CurrentUser, FileInspectionOverview, FolderScanOverview, FolderScanRun, LibrarySource } from '@/lib/types'
+import { openSourceDetails } from '@/test/sources-details'
 import { apiError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { inspectionOf, scanOf, scanRunOf, sourceOf, sourcesOf } from '@/test/library'
@@ -15,7 +16,7 @@ vi.mock('@/lib/library-api')
 // files no library reported stands, the folders it couldn't go into, the names it stored by what the
 // inspection found, and Scan folders.
 
-function renderPanel(signedIn: CurrentUser = owner) {
+async function renderPanel(signedIn: CurrentUser = owner, { details = true } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -25,7 +26,9 @@ function renderPanel(signedIn: CurrentUser = owner) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup() }
+  const user = userEvent.setup()
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 /**
@@ -69,7 +72,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({}, {}, sourceOf({}), sourceOf({ integrationId: 'cartoons', name: 'Cartoons' }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = await findScanRow()
@@ -86,13 +89,15 @@ describe('LibrarySyncPanel media folders scan', () => {
     vi.mocked(libraryApi.sources).mockResolvedValue(sourcesOf())
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = await findScanRow()
     const content = row.closest('.library-sources')!
     expect(Array.from(content.children, (child) => child.className))
-      .toEqual(['settings-empty', 'library-source-list', 'library-source library-inspection'])
+      .toEqual(['settings-empty', 'library-bar', 'library-details'])
+    expect(Array.from(row.closest('.library-details')!.children, (child) => child.className))
+      .toEqual(['library-source-list', 'library-source library-inspection'])
     expect(row.parentElement!.children).toHaveLength(1)
     expect(within(content.firstElementChild as HTMLElement).getByText(/^No media library is connected yet\./))
       .toBeInTheDocument()
@@ -122,7 +127,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan(changes)
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const line = within(await findScanRow()).getByRole('status')
@@ -137,7 +142,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ lastFinishedRun: { ...failed, error: null } })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     expect(within(await findScanRow()).getByRole('status')).toHaveTextContent(/^The last scan failed\. The owner can see why\.$/)
@@ -148,7 +153,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ activeRun: running, hasQueuedRun: true })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     // The running one is what happens now; the queued one only adds "and again after this".
@@ -165,7 +170,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ lastFinishedRun: scanRunOf({ problemCount: 2, problem: linkOut }) }, { hasAllowedRoots: false })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findScanRow())
@@ -181,7 +186,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({}, { hasAllowedRoots: false })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     const row = within(await findScanRow())
@@ -194,7 +199,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ lastFinishedRun: scanRunOf({ problemCount: 3, problem: linkOut }) })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const warning = within(await findScanRow()).getByText(/weren't scanned/).closest('p')!
@@ -207,7 +212,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ lastFinishedRun: scanRunOf({ problemCount: 1, problem: null }) })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     const warning = within(await findScanRow()).getByText(/wasn't scanned/).closest('p')!
@@ -220,7 +225,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({})
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findScanRow())
@@ -234,7 +239,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ files: { inspectedCount: 14, problemCount: 2, notInspectedCount: 1_203, problem } })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findScanRow())
@@ -251,7 +256,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ files })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     expect(within(await findScanRow()).getByText(line)).toBeInTheDocument()
@@ -262,7 +267,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ lastFinishedRun: null, files: { inspectedCount: 0, problemCount: 0, notInspectedCount: 0, problem: null } })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findScanRow()).queryByText(/^Files in no library:/)).not.toBeInTheDocument()
@@ -281,7 +286,7 @@ describe('LibrarySyncPanel media folders scan', () => {
   ])('keeps Scan folders disabled %s, and says why', async (_, signedIn, changes, inspection, reason) => {
     // Arrange
     serveScan(changes, inspection)
-    const { user } = renderPanel(signedIn)
+    const { user } = await renderPanel(signedIn)
     const button = within(await findScanRow()).getByRole('button', { name: 'Scan folders' })
 
     // Act
@@ -298,7 +303,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     serveScan({ activeRun: running })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const button = within(await findScanRow()).getByRole('button', { name: 'Scan folders' })
@@ -313,7 +318,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     vi.mocked(libraryApi.startScan).mockReturnValue(new Promise((resolve) => {
       answer = resolve
     }))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
     await user.click(within(await findScanRow()).getByRole('button', { name: 'Scan folders' }))
     const startingButton = screen.getByRole('button', { name: 'Starting…' })
     const disabledWhileStarting = (startingButton as HTMLButtonElement).disabled
@@ -337,7 +342,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     // Arrange
     serveScan({ activeRun: running })
     vi.mocked(libraryApi.startScan).mockResolvedValue(queued)
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
     const row = within(await findScanRow())
     // The next answer of the sources never comes, so what shows is what the start put in the cache.
     vi.mocked(libraryApi.sources).mockReturnValue(new Promise(() => {}))
@@ -358,7 +363,7 @@ describe('LibrarySyncPanel media folders scan', () => {
       serveScan({}, { hasAllowedRoots: false })
       throw apiError(409, sentence)
     })
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
 
     // Act
     await user.click(within(await findScanRow()).getByRole('button', { name: 'Scan folders' }))
@@ -377,7 +382,7 @@ describe('LibrarySyncPanel media folders scan', () => {
   it('names the failure when a refused start carries no sentence', async () => {
     // Arrange
     vi.mocked(libraryApi.startScan).mockRejectedValue(apiError(500))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
 
     // Act
     await user.click(within(await findScanRow()).getByRole('button', { name: 'Scan folders' }))

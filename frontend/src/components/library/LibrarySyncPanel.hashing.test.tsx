@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { libraryApi } from '@/lib/library-api'
 import type { CurrentUser, FileHashing, FileInspectionOverview, FileInspectionRun } from '@/lib/types'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { inspectionOf, inspectionRunOf, sourceOf, sourcesOf } from '@/test/library'
+import { openSourceDetails } from '@/test/sources-details'
 
 vi.mock('@/lib/library-api')
 
@@ -14,7 +16,7 @@ vi.mock('@/lib/library-api')
 // it hashed and the files it couldn't hash. LibrarySyncPanel.inspection.test.tsx covers the row's
 // other lines and Inspect files; LibrarySyncPanel.space.test.tsx the room the files take.
 
-function renderPanel(signedIn: CurrentUser = owner) {
+async function renderPanel(signedIn: CurrentUser = owner, { details = true } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -24,6 +26,7 @@ function renderPanel(signedIn: CurrentUser = owner) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  if (details) await openSourceDetails(userEvent.setup())
 }
 
 /** The sources answer every request with Home Jellyfin and the inspection as `changes` set it. */
@@ -76,7 +79,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ activeRun: run })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())
@@ -92,7 +95,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ activeRun: runningWith({ candidates: 10, checked: 3 }), hasQueuedRun: true })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findInspectionRow()).getByRole('status')).toHaveTextContent(
@@ -107,7 +110,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ lastFinishedRun: run })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     const row = within(await findInspectionRow())
@@ -126,7 +129,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ lastFinishedRun: finishedWith(hashing) })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())
@@ -139,7 +142,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ lastFinishedRun: finishedWith({ candidates: 4, checked: 4, read: 3, problemCount: 1, problem: changedWhileHashing }) })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())
@@ -156,7 +159,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ lastFinishedRun: finishedWith({ candidates: 6, checked: 6, read: 4, problemCount: 2, problem: changedWhileHashing }) })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findInspectionRow()).getByText(/couldn't be hashed/))
@@ -171,7 +174,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection({ lastFinishedRun: finishedWith({ candidates: 2_000, checked: 2_000, read: 900, problemCount, problem: null }) })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     const warning = within(await findInspectionRow()).getByText(/couldn't be hashed/).closest('p')!
@@ -207,7 +210,7 @@ describe('LibrarySyncPanel hashing', () => {
     serveInspection(changes)
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findInspectionRow()).queryByText(hashingOutcome)).not.toBeInTheDocument()
@@ -221,7 +224,7 @@ describe('LibrarySyncPanel hashing', () => {
     })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())

@@ -6,6 +6,7 @@ import { libraryApi } from '@/lib/library-api'
 import { qk } from '@/lib/queries'
 import type { CurrentUser, LibraryWork } from '@/lib/types'
 import { LibraryPage } from '@/pages/LibraryPage'
+import { openSourceDetails } from '@/test/sources-details'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { aliens, continental, locations, sourceOf, sourcesOf, unknownWork, worksPage } from '@/test/library'
@@ -21,7 +22,7 @@ const cardTitles = () =>
 
 const firstQuery = { search: undefined, locationId: undefined, identifiers: undefined, page: 1, pageSize: 25 }
 
-function renderPage(signedIn: CurrentUser = owner, path = '/library') {
+async function renderPage(signedIn: CurrentUser = owner, path = '/library', { details = true } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -31,7 +32,9 @@ function renderPage(signedIn: CurrentUser = owner, path = '/library') {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup() }
+  const user = userEvent.setup()
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 describe('LibraryPage', () => {
@@ -48,7 +51,7 @@ describe('LibraryPage', () => {
     const signedIn = member
 
     // Act
-    renderPage(signedIn)
+    await renderPage(signedIn)
 
     // Assert
     expect(screen.getByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
@@ -64,7 +67,7 @@ describe('LibraryPage', () => {
     vi.mocked(libraryApi.works).mockReturnValue(new Promise(() => {}))
 
     // Act
-    renderPage()
+    await renderPage()
 
     // Assert
     await screen.findByText('Home Jellyfin')
@@ -76,7 +79,7 @@ describe('LibraryPage', () => {
     // Arrange
     vi.mocked(libraryApi.works).mockImplementation(async (query) =>
       worksPage(query, query.search ? [aliens] : query.page === 1 ? [continental] : [unknownWork], 30))
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByText('1–25 of 30')
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('26–30 of 30')
@@ -101,7 +104,7 @@ describe('LibraryPage', () => {
     const path = '/library?search=Rambo%3A+First+Blood'
 
     // Act
-    renderPage(owner, path)
+    await renderPage(owner, path)
 
     // Assert
     expect(screen.getByRole('searchbox', { name: 'Search the library' })).toHaveValue('Rambo: First Blood')
@@ -115,7 +118,7 @@ describe('LibraryPage', () => {
     const films = locations.items[1]
     vi.mocked(libraryApi.works).mockImplementation(async (query) =>
       query.locationId ? worksPage(query, [aliens]) : worksPage(query, query.page === 1 ? [continental] : [unknownWork], 30))
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByText('1–25 of 30')
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('26–30 of 30')
@@ -135,7 +138,7 @@ describe('LibraryPage', () => {
     // Arrange — a sync emptied Мультфільми, so the libraries asked for again leave it out.
     vi.mocked(libraryApi.works).mockImplementation(async (query) =>
       worksPage(query, query.locationId ? [] : [aliens, continental, unknownWork]))
-    const { client, user } = renderPage()
+    const { client, user } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     await user.selectOptions(screen.getByRole('combobox', { name: 'Library' }), 'Мультфільми')
     await screen.findByText('Nothing in the library matches these filters.')
@@ -161,7 +164,7 @@ describe('LibraryPage', () => {
     vi.mocked(libraryApi.locations).mockRejectedValue(networkError())
 
     // Act
-    renderPage()
+    await renderPage()
 
     // Assert
     expect(await screen.findByRole('alert'))
@@ -174,7 +177,7 @@ describe('LibraryPage', () => {
   it('asks for the libraries again from Retry on that banner, and offers them once they come', async () => {
     // Arrange
     vi.mocked(libraryApi.locations).mockRejectedValueOnce(networkError())
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByRole('alert')
 
     // Act
@@ -196,7 +199,7 @@ describe('LibraryPage', () => {
     })
 
     // Act
-    renderPage()
+    await renderPage()
 
     // Assert
     const select = screen.getByRole('combobox', { name: 'Library' })
@@ -209,7 +212,7 @@ describe('LibraryPage', () => {
     // Arrange
     vi.mocked(libraryApi.works).mockImplementation(async (query) =>
       query.identifiers ? worksPage(query, [continental, unknownWork]) : worksPage(query, [aliens], 30))
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByText('1–25 of 30')
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('26–30 of 30')
@@ -226,7 +229,7 @@ describe('LibraryPage', () => {
   it('remembers the page size on this device', async () => {
     // Arrange
     vi.mocked(libraryApi.works).mockImplementation(async (query) => worksPage(query, [aliens], 120))
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByText('1–25 of 120')
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('26–50 of 120')
@@ -244,7 +247,7 @@ describe('LibraryPage', () => {
     // Arrange
     vi.mocked(libraryApi.works).mockImplementation(async (query) =>
       worksPage(query, query.search || query.locationId || query.identifiers ? [] : [aliens]))
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     await user.selectOptions(screen.getByRole('combobox', { name: 'Identifiers' }), 'Missing')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Library' }), 'Мультфільми')
@@ -268,7 +271,7 @@ describe('LibraryPage', () => {
     vi.mocked(libraryApi.works).mockImplementation(async (query) => worksPage(query, []))
 
     // Act
-    renderPage()
+    await renderPage()
 
     // Assert
     expect(await screen.findByText('Nothing here yet. Once a media library is synced, its movies and series are listed here.'))
@@ -284,7 +287,7 @@ describe('LibraryPage', () => {
     let total = 30
     vi.mocked(libraryApi.works).mockImplementation(async (query) =>
       worksPage(query, query.page === 1 ? [aliens, continental] : secondPage, total))
-    const { client, user } = renderPage()
+    const { client, user } = await renderPage()
     await screen.findByText('1–25 of 30')
     await user.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('26–30 of 30')
@@ -302,7 +305,7 @@ describe('LibraryPage', () => {
 
   it('keeps the cards on screen under a banner when a refresh fails', async () => {
     // Arrange
-    const { client } = renderPage()
+    const { client } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     vi.mocked(libraryApi.works).mockRejectedValue(networkError())
 
@@ -318,7 +321,7 @@ describe('LibraryPage', () => {
 
   it('asks again from Retry on the refresh banner, and drops the banner once the movies are back', async () => {
     // Arrange
-    const { client, user } = renderPage()
+    const { client, user } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     vi.mocked(libraryApi.works).mockRejectedValueOnce(networkError())
     await client.refetchQueries({ queryKey: qk.library.worksAll })
@@ -337,7 +340,7 @@ describe('LibraryPage', () => {
     vi.mocked(libraryApi.works).mockRejectedValue(apiError(400, '“x” is not a library.'))
 
     // Act
-    renderPage()
+    await renderPage()
 
     // Assert
     const state = await screen.findByRole('alert')
@@ -351,7 +354,7 @@ describe('LibraryPage', () => {
   it('names the failure when the first page fails without a sentence, and Try again loads the cards', async () => {
     // Arrange
     vi.mocked(libraryApi.works).mockRejectedValueOnce(apiError(500))
-    const { user } = renderPage()
+    const { user } = await renderPage()
     const state = await screen.findByRole('alert')
 
     // Act
@@ -368,7 +371,7 @@ describe('LibraryPage', () => {
     vi.mocked(libraryApi.sources).mockRejectedValue(networkError())
 
     // Act
-    renderPage()
+    await renderPage(owner, '/library', { details: false })
 
     // Assert
     expect(await screen.findByRole('heading', { level: 2, name: 'Чужі' })).toBeInTheDocument()

@@ -8,6 +8,7 @@ import type { LibrarySourceList, LibrarySyncRun } from '@/lib/types'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { owner, signInAs } from '@/test/auth-session'
 import { aliens, locations, runOf, sourceOf, sourcesOf, worksPage } from '@/test/library'
+import { openSourceDetails } from '@/test/sources-details'
 
 vi.mock('@/lib/library-api')
 
@@ -50,7 +51,7 @@ const syncStatus = () => within(screen.getByText('Home Jellyfin').closest('li')!
 /** Lets the polling interval pass once, with the answers it brings. */
 const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 
-function renderPage() {
+async function renderPage({ details = true } = {}) {
   signInAs(owner)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -60,7 +61,9 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 describe('LibraryPage while a sync runs', () => {
@@ -79,7 +82,7 @@ describe('LibraryPage while a sync runs', () => {
   it('follows a sync from queued through its progress to success, then asks for the works once more', async () => {
     // Arrange
     latestRunIs(queued)
-    renderPage()
+    await renderPage()
     await screen.findByText('Queued…')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     latestRunIs(running)
@@ -102,7 +105,7 @@ describe('LibraryPage while a sync runs', () => {
   it('drops the TMDb links\' queries when a sync succeeds, not while it runs', async () => {
     // Arrange — MAM-34: a sync moves and re-states links, so an open TMDb dialog is asked for again.
     latestRunIs(running)
-    const { client } = renderPage()
+    const { client } = await renderPage()
     await screen.findByText('Syncing… 50 of 120 items')
     client.setQueryData(qk.library.links.queue(0), { totalCount: 0, index: 0, current: null })
     await nextPoll()
@@ -120,7 +123,7 @@ describe('LibraryPage while a sync runs', () => {
   it('stops polling once the sync has ended', async () => {
     // Arrange
     latestRunIs(running)
-    renderPage()
+    await renderPage()
     await screen.findByText('Syncing… 50 of 120 items')
     latestRunIs(succeeded)
     await nextPoll()
@@ -140,7 +143,7 @@ describe('LibraryPage while a sync runs', () => {
   it('does not ask for the works again after a failed sync', async () => {
     // Arrange
     latestRunIs(running)
-    renderPage()
+    await renderPage()
     await screen.findByText('Syncing… 50 of 120 items')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     latestRunIs(failed)
@@ -160,7 +163,7 @@ describe('LibraryPage while a sync runs', () => {
   it('neither polls nor asks for the works again when the page opens on a finished sync', async () => {
     // Arrange
     latestRunIs(earlierRun)
-    renderPage()
+    await renderPage()
     await screen.findByText(/^Synced /)
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
 
@@ -180,7 +183,7 @@ describe('LibraryPage while a sync runs', () => {
       latestRunIs(succeeded)
       return queued
     })
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
 
     // Act
@@ -196,7 +199,7 @@ describe('LibraryPage while a sync runs', () => {
     // Arrange — Home Jellyfin's sync finished before the page opened and every poll repeats it:
     // only Office Jellyfin's run, seen under way, may bring the works again.
     vi.mocked(libraryApi.sources).mockResolvedValue(twoSources(queued))
-    renderPage()
+    await renderPage()
     await screen.findByText('Queued…')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     vi.mocked(libraryApi.sources).mockResolvedValue(twoSources(running))
@@ -226,7 +229,7 @@ describe('LibraryPage while a sync runs', () => {
     // first.
     vi.mocked(libraryApi.sources).mockResolvedValue(twoSources(running))
     vi.mocked(libraryApi.startSync).mockResolvedValue(queued)
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByText('Syncing… 50 of 120 items')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     let answerPoll: (list: LibrarySourceList) => void = () => {}

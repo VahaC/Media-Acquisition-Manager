@@ -536,6 +536,24 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   episodes a season lists keep their season and number order. `LibraryWorksSortHttpTests`,
   `LibraryPage.sort.test.tsx` and `SortSelect.test.tsx` pin it.
 
+- **Refresh all runs the three steps one after another (MAM-36, Vasyl's decision of 2026-10-06).** One
+  button in the Library page's Sources card, the owner's (anyone else sees it disabled with "Only the
+  owner can refresh the library."), starts a sync of every enabled library the app can read, then a
+  scan of the media folders, then an inspection of the files, and starts each only once the one before
+  it has ended; the inspection goes last because it reads the files the syncs and the scan stored. It
+  runs from the page, on the endpoints that start each step on its own, and waits on the sources the
+  page already polls. A sync refused because it is already under way is joined, not a failure; any
+  other refusal, or a run that ends Failed, stops the chain at that step with a red line under the bar
+  ("Refreshing stopped. The sync of Home Jellyfin failed.") and starts no step after it. Without an
+  allowed media folder only the syncs run, without a readable enabled library only the scan and the
+  inspection, and with neither the button is disabled ("Connect a media library or choose a media
+  folder first."). The button says the step it is on while it runs ("Syncing libraries…", "Scanning
+  folders…", "Inspecting files…"). Leaving the page stops the chain after the step under way — that
+  run goes on in the API, which queues an inspection after a sync and after a scan by itself — and
+  opening the page again doesn't resume it. A chain that survives a closed tab would need an endpoint
+  of its own, which is not built. No endpoint or table changed. `LibrarySyncPanel.refreshAll.test.tsx`
+  pins it.
+
 ### Changed
 
 - **A film filed in TV/Anime or TV/Documentary is a movie, and the movie search finds it (MAM-33, ADR
@@ -641,6 +659,23 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   gives up a little width so the filters, the **Review works without a TMDb id** button and the order
   meet on one line on a wide window. The Search page's label was "Sort". One shared `SortSelect` makes all three,
   and its select keeps its own accessible name, "Sort by".
+
+- **The Library page's Sources card is one status bar, and its rows are under Details (MAM-36, Vasyl's
+  pick of 2026-10-06).** The card was about 480 px of three rows, each of three or four sentences with
+  a button of its own, and the same numbers three times; the works started below the first screen. It
+  is now one bar: an item for each media library, for the media folders and for the file inspection,
+  each with an icon (done, running, failed, never run) and when it last ran — "syncing 600 of 1,365",
+  "scanning… 800 files", "inspecting 700 of 1,396" while it runs —, amber chips for what needs a look
+  (files without an app path, files in no library, folders not scanned, files that couldn't be read),
+  and at the end what all the files take ("1,396 files · 7.33 TiB"). **Details** opens the rows as
+  they were — the sentences and the buttons of each library, of Media folders and of the inspection —
+  under the card's description, in place of the bar, and **Hide details** brings the bar back; it is
+  closed to begin with, on every visit. What a state of its own says stays in view with the details
+  closed: loading, a failed load or refresh, the sentence about a missing media library, and a
+  stopped Refresh all. Without an allowed media folder the bar says so, with the way to Media folders
+  for the owner. On a phone the items stack and the buttons go under them, as icons. The heading
+  "Sources" stays, for the page's outline and a screen reader. No API changed.
+  `LibrarySyncPanel.bar.test.tsx` pins the bar; the other panel and page tests open Details first.
 
 ### Notes for upgraders
 

@@ -183,6 +183,16 @@ application.
   [ADR
   0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
   The hashes aren't shown yet: grouping the copies on a Duplicates page is still to come.
+- **The Sources card and Refresh all.** The card at the top of the Library page is one status bar: an
+  item for each media library, for the media folders and for the file inspection, with an icon, when it
+  last ran or how far it has got, amber chips for what needs a look — files without an app path, files in
+  no library, folders not scanned, files that couldn't be read —, and what all the files take.
+  **Details** opens the rows with their sentences and their own buttons, and **Hide details** closes
+  them; a failure or a missing library shows with them closed. **Refresh all**, the owner's, syncs every
+  enabled library the app can read, scans the media folders and inspects the files, each step started
+  once the one before has ended; a refused start or a failed run stops it at that step with a sentence.
+  It runs from the page, so leaving the page stops it after the step under way; the API queues an
+  inspection after a sync and after a scan by itself either way.
 - **Search: your library and the release sources side by side.** Every signed-in user types a title
   in the search field at the top of every page (`/` jumps to it) and presses Enter; the Search page
   looks for it in the library and in every enabled release source at once. A year in brackets at

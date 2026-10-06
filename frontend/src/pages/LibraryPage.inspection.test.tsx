@@ -8,6 +8,7 @@ import type { FileInspectionOverview, FileInspectionRun, LibraryWork } from '@/l
 import { LibraryPage } from '@/pages/LibraryPage'
 import { owner, signInAs } from '@/test/auth-session'
 import { aliens, aliensInspection, inspectionOf, inspectionRunOf, locations, sourceOf, sourcesOf, worksPage } from '@/test/library'
+import { openSourceDetails } from '@/test/sources-details'
 
 vi.mock('@/lib/library-api')
 
@@ -45,7 +46,7 @@ function worksAre(work: LibraryWork) {
 /** Lets the polling interval pass once, with the answers it brings. */
 const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 
-function renderPage() {
+async function renderPage({ details = true } = {}) {
   signInAs(owner)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -55,7 +56,9 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 describe('LibraryPage while the files are inspected', () => {
@@ -74,7 +77,7 @@ describe('LibraryPage while the files are inspected', () => {
   it('asks for the works again as the run checks more files, and once more when it has finished', async () => {
     // Arrange
     inspectionIs({ activeRun: { ...started, filesChecked: 100 } })
-    renderPage()
+    await renderPage()
     await screen.findByText('Inspecting files… 100 of 870 checked')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     await nextPoll()
@@ -101,7 +104,7 @@ describe('LibraryPage while the files are inspected', () => {
     // Arrange — MAM-34: the measured lengths feed the suggestions' runtime evidence, but asking for an
     // open dialog's suggestions on every poll of a run would be too often.
     inspectionIs({ activeRun: { ...started, filesChecked: 100 } })
-    const { client } = renderPage()
+    const { client } = await renderPage()
     await screen.findByText('Inspecting files… 100 of 870 checked')
     client.setQueryData(qk.library.links.queue(0), { totalCount: 0, index: 0, current: null })
     inspectionIs({ activeRun: { ...started, filesChecked: 400 } })
@@ -121,7 +124,7 @@ describe('LibraryPage while the files are inspected', () => {
   it('does not ask for the works again while a run only waits or has just started', async () => {
     // Arrange
     inspectionIs({ activeRun: queued })
-    renderPage()
+    await renderPage()
     await screen.findByText('Waiting to inspect files…')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     inspectionIs({ activeRun: { ...started, filesTotal: null } })
@@ -139,7 +142,7 @@ describe('LibraryPage while the files are inspected', () => {
   it('stops polling once the run has ended', async () => {
     // Arrange
     inspectionIs({ activeRun: { ...started, filesChecked: 100 } })
-    renderPage()
+    await renderPage()
     await screen.findByText('Inspecting files… 100 of 870 checked')
     inspectionIs({ lastFinishedRun: succeeded })
     await nextPoll()
@@ -163,7 +166,7 @@ describe('LibraryPage while the files are inspected', () => {
       inspectionIs({ lastFinishedRun: succeeded })
       return queued
     })
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     await screen.findByText(/^Files last inspected /)
 
@@ -184,7 +187,7 @@ describe('LibraryPage while the files are inspected', () => {
       ...sourcesOf(sourceOf({ latestRun: syncing })),
       inspection: inspectionOf({ activeRun: { ...started, filesChecked: 100 } }),
     })
-    renderPage()
+    await renderPage()
     await screen.findByText('Inspecting files… 100 of 870 checked')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     vi.mocked(libraryApi.sources).mockResolvedValue({

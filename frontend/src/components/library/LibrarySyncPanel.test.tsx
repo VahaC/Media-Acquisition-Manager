@@ -5,13 +5,14 @@ import { MemoryRouter } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { libraryApi } from '@/lib/library-api'
 import type { CurrentUser, LibrarySource } from '@/lib/types'
+import { openSourceDetails } from '@/test/sources-details'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { homeJellyfinId, runOf, sourceOf, sourcesOf } from '@/test/library'
 
 vi.mock('@/lib/library-api')
 
-function renderPanel(signedIn: CurrentUser = owner) {
+async function renderPanel(signedIn: CurrentUser = owner, { details = true } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -21,7 +22,9 @@ function renderPanel(signedIn: CurrentUser = owner) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup() }
+  const user = userEvent.setup()
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 /** The sources answer every request with `sources`. */
@@ -62,7 +65,7 @@ describe('LibrarySyncPanel', () => {
     serve(...sources)
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(await screen.findByRole('heading', { level: 2, name: 'Sources' })).toBeInTheDocument()
@@ -83,7 +86,7 @@ describe('LibrarySyncPanel', () => {
     serve(...sources)
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     await screen.findByText('Home Jellyfin')
@@ -97,7 +100,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf({ latestRun: null, lastSucceededRun: null }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(await findStatusOf('Home Jellyfin')).toHaveTextContent('Never synced.')
@@ -113,7 +116,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf({ latestRun: run }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(await findStatusOf('Home Jellyfin')).toHaveTextContent(line)
@@ -127,7 +130,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf({ latestRun: failedRun }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const status = await findStatusOf('Home Jellyfin')
@@ -143,7 +146,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf({ latestRun: { ...failedRun, error: null }, lastSucceededRun: null }))
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     expect(await findStatusOf('Home Jellyfin')).toHaveTextContent('The last sync failed. The owner can see why.')
@@ -159,7 +162,7 @@ describe('LibrarySyncPanel', () => {
     }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const warning = (await screen.findByText(/files have no path in this app/)).closest('p')!
@@ -174,7 +177,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf({ filesWithoutAppPathCount: 1, pathProblem: null }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const warning = (await screen.findByText(/has no path in this app/)).closest('p')!
@@ -186,7 +189,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf({ filesWithoutAppPathCount: 3, pathProblem: null }))
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     expect(await screen.findByText('Some files have no path in this app. Ask the owner to check the path mappings.'))
@@ -201,7 +204,7 @@ describe('LibrarySyncPanel', () => {
     vi.mocked(libraryApi.startSync).mockReturnValue(new Promise((resolve) => {
       answer = resolve
     }))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
     await user.click(await screen.findByRole('button', { name: 'Sync now' }))
     const startingButton = screen.getByRole('button', { name: 'Starting…' })
     const disabledWhileStarting = (startingButton as HTMLButtonElement).disabled
@@ -221,7 +224,7 @@ describe('LibrarySyncPanel', () => {
   it('shows a refused start as the API sentence under its source', async () => {
     // Arrange
     vi.mocked(libraryApi.startSync).mockRejectedValue(apiError(409, '“Home Jellyfin” is already being synced.'))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
 
     // Act
     await user.click(await screen.findByRole('button', { name: 'Sync now' }))
@@ -243,7 +246,7 @@ describe('LibrarySyncPanel', () => {
       serve(sourceOf({ latestRun: elsewhere }))
       throw apiError(409, '“Home Jellyfin” is already being synced.')
     })
-    const { client, user } = renderPanel()
+    const { client, user } = await renderPanel()
     await user.click(await screen.findByRole('button', { name: 'Sync now' }))
     await within(rowOf('Home Jellyfin')).findByRole('alert')
     await client.refetchQueries()
@@ -262,7 +265,7 @@ describe('LibrarySyncPanel', () => {
   it('names the failure when a refused start carries no sentence', async () => {
     // Arrange — a bare 404: the integration was removed meanwhile.
     vi.mocked(libraryApi.startSync).mockRejectedValue(apiError(404))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
 
     // Act
     await user.click(await screen.findByRole('button', { name: 'Sync now' }))
@@ -273,7 +276,7 @@ describe('LibrarySyncPanel', () => {
 
   it('keeps Sync now disabled for anyone but the owner, and says why', async () => {
     // Arrange
-    const { user } = renderPanel(member)
+    const { user } = await renderPanel(member)
     const button = await screen.findByRole('button', { name: 'Sync now' })
 
     // Act
@@ -293,7 +296,7 @@ describe('LibrarySyncPanel', () => {
     serve(sourceOf(changes))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const button = await screen.findByRole('button', { name: 'Sync now' })
@@ -307,7 +310,7 @@ describe('LibrarySyncPanel', () => {
     serve()
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(await screen.findByText('No media library is connected yet. Add Jellyfin under Integrations, then sync it here.'))
@@ -320,7 +323,7 @@ describe('LibrarySyncPanel', () => {
     serve()
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     expect(await screen.findByText('No media library is connected yet. The owner connects one under Integrations.'))
@@ -331,7 +334,7 @@ describe('LibrarySyncPanel', () => {
   it('shows why the sources could not be loaded in place of the list, and Try again loads them', async () => {
     // Arrange
     vi.mocked(libraryApi.sources).mockRejectedValueOnce(apiError(500, 'Database is locked.'))
-    const { user } = renderPanel()
+    const { user } = await renderPanel(owner, { details: false })
     const state = await screen.findByRole('alert')
 
     // Act
@@ -342,13 +345,14 @@ describe('LibrarySyncPanel', () => {
     expect(state).toHaveTextContent('Could not load the media libraries.')
     expect(state).toHaveTextContent('Database is locked.')
     expect(syncNowBeforeRetry).not.toBeInTheDocument()
+    await openSourceDetails(user)
     expect(await screen.findByRole('button', { name: 'Sync now' })).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps the sources on screen under a banner when a refresh fails', async () => {
     // Arrange
-    const { client } = renderPanel()
+    const { client } = await renderPanel()
     await screen.findByText('Home Jellyfin')
     vi.mocked(libraryApi.sources).mockRejectedValue(networkError())
 
@@ -364,7 +368,7 @@ describe('LibrarySyncPanel', () => {
 
   it('asks again from Retry on the refresh banner, and drops the banner once the sources are back', async () => {
     // Arrange
-    const { client, user } = renderPanel()
+    const { client, user } = await renderPanel()
     await screen.findByText('Home Jellyfin')
     vi.mocked(libraryApi.sources).mockRejectedValueOnce(networkError())
     await client.refetchQueries()
