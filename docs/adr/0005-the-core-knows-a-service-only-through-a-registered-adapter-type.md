@@ -497,3 +497,51 @@ catalog contract changes.
 `LibraryIdentifierWriterWritesIdsOnlyTests.No_identifier_writer_member_is_named_for_refreshing_identifying_images_titles_locks_or_deleting`
 and `TmdbAdapterWorksTests.GetWork_of_a_show_reads_the_planet_earth_sample_with_its_runtime_imdb_id_and_each_alternative_title_once`
 pin it.
+
+## A library looks an item up after its ids are written (added 0.2.1, MAM-34)
+
+**One more member of the optional capability (Vasyl's decision of 2026-10-06).**
+`IMediaLibraryIdentifierWriter.RequestMetadataLookupAsync(settings, sourceItemId, kind)` asks the
+library to look up an item's missing metadata with its own providers, by the ids it now holds, and
+answers a `LibraryMetadataLookup` — the library took the request; what the lookup finds is the
+library's to say. It is sent once and never again; a kind `WritableKinds` leaves out, or an item id the
+library never gives, is a caller's mistake that throws before anything is sent; `NotFound` is the item
+gone. The Jellyfin adapter sends one `POST /Items/{id}/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false`,
+exactly Jellyfin's own "Search for missing metadata", which fills what is missing and replaces nothing;
+204 is queued, 401 the key-refused sentence, 404 "Jellyfin no longer has this item; sync the library
+and link it again.", 403 `Refused` "Jellyfin refused to look the item up. Check that the API key belongs
+to an administrator.", 400 `Refused` "Jellyfin refused the request to look the item up; nothing was
+changed.", anything else the shared sentence. `LibraryIdentifierWriterWritesIdsOnlyTests` now allows
+exactly this one name beyond ids — the scan reads the members' parameters too, so no flag that could
+make it replace anything can join it — and still refuses any identify, image, delete or other refresh
+member ([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+
+**Jellyfin writes series too (Vasyl's final decision of 2026-10-06).** `WritableKinds` is
+`[Movie, Series]`: a series item takes the show's TMDb id (`TmdbTv`) under Jellyfin's `Tmdb` key and
+the IMDb id, a movie item the film's (`Tmdb`) and the IMDb id, and a change sending a film's id to a
+series item or a show's to a movie item is a caller's mistake. The lookup is asked for a series as for
+a film. Held back at first that day — the recorded save of the Penguins of Madagascar gave all 3
+seasons and 149 episodes the series' `TV-Y7`, which the lookup didn't change back —, it was decided on
+those facts: age ratings don't matter to Vasyl (ADR 0026). An episode item stays a caller's mistake,
+its sentence now "Jellyfin's ids are written on movie and series items only, so a link on an episode
+stays in the app."; the sentence for a series ("Jellyfin rewrites every season and episode of a series
+whenever it saves the series, so a series link stays in the app.") is gone.
+
+**The catalog names an episode's own IMDb id.** `IMetadataCatalog.GetEpisodeAsync(settings, showId,
+seasonNumber, episodeNumber)` answers a `CatalogEpisode` — its numbers, title, air date, runtime and IMDb
+id — or `NotFound` for an episode the source doesn't know; a malformed show id or a negative number
+throws before anything is sent. TMDb's adapter asks `GET /3/tv/{id}/season/{s}/episode/{e}?append_to_response=external_ids&language=uk-UA`
+and reads the IMDb id from `external_ids.imdb_id`, as a show's.
+
+`JellyfinAdapterMetadataLookupTests.RequestMetadataLookup_posts_search_for_missing_metadata_once_with_no_body_and_jellyfin_queues_it`,
+`JellyfinAdapterMetadataLookupTests.RequestMetadataLookup_of_a_series_posts_the_same_search_once_and_jellyfin_queues_it`,
+`JellyfinAdapterMetadataLookupTests.RequestMetadataLookup_refuses_a_callers_mistake_without_sending_anything`,
+`JellyfinAdapterIdentifiersTests.WritableKinds_are_films_and_series_and_an_episode_item_says_why_its_link_stays_in_the_app`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_of_a_series_posts_it_once_as_read_without_its_people_with_the_shows_id_under_tmdb_and_reads_it_again`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_refuses_a_callers_mistake_without_sending_anything`,
+`AdapterKindContractTests.Every_identifier_writer_writes_only_films_or_shows_and_says_why_it_keeps_the_rest_in_the_app`,
+`LibraryIdentifierWriterWritesIdsOnlyTests.The_one_name_beyond_ids_is_the_missing_metadata_lookup_and_it_takes_nothing_that_could_replace`
+and `TmdbAdapterEpisodesTests.GetEpisode_with_a_callers_mistake_throws_without_sending_anything` pin it.
+`JellyfinAdapterIdentifiersTests.WritableKinds_are_films_only_and_every_other_kind_says_why_its_link_stays_in_the_app`,
+named in the section above, is now
+`JellyfinAdapterIdentifiersTests.WritableKinds_are_films_and_series_and_an_episode_item_says_why_its_link_stays_in_the_app`.

@@ -18,8 +18,8 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 // works/{id}/tmdb/none-fits), the confident suggestions paged by title with each library's numbers (GET tmdb/confident,
 // "none fits" left out) and "Accept all confident" (POST tmdb/confident): every ticked work checked again on the server,
 // linked only while its suggestion is still the confident one — skipped with the reason otherwise —, and written into the
-// library in the background, only what was linked: a series' link stays in the app, as Jellyfin's save of a series
-// rewrites all its seasons and episodes.
+// library in the background, only what was linked, each written item looked up by Jellyfin after its write — a series'
+// link like a film's (Vasyl's final decision of 2026-10-06).
 public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -369,14 +369,17 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
         var polled = await ReadAsync<LibraryLinkBatchResponse>(
             await _factory.GetHttpRequest($"{BaseUrl}/tmdb/batches/{batch.BatchId}", _owner.AccessToken), cancellationToken);
         Assert.Equal(LibraryLinkWriteState.Written, Assert.Single(polled.Items[0].Links).WriteState);
-        // Jellyfin was written once, the linked item only.
-        var posted = Assert.Single(_factory.JellyfinHttp.Requests, request => request.Method == HttpMethod.Post);
+        // Jellyfin was written once, the linked item only, and asked to look that item up.
+        var posted = Assert.Single(
+            _factory.JellyfinHttp.Requests,
+            request => request.Method == HttpMethod.Post && !request.Uri.AbsolutePath.EndsWith("/Refresh", StringComparison.Ordinal));
         Assert.Contains(LandingId, posted.Uri.AbsolutePath, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(["223021", null, null, null], ((string[])[LandingId, CalypsoId, DickyId, TakenId]).Select(TmdbOf));
+        Assert.Equal([LandingId], _jellyfin.Lookups);
     }
 
     [Fact]
-    public async Task Accept_all_of_a_confident_show_links_its_series_kept_in_the_app_and_leaves_the_writer_nothing_to_send()
+    public async Task Accept_all_of_a_confident_show_links_its_series_and_the_writer_writes_it_into_jellyfin_and_asks_it_to_look_it_up()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -392,32 +395,33 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
         var confident = await ReadAsync<ConfidentSuggestionListResponse>(
             await _factory.GetHttpRequest($"{BaseUrl}/tmdb/confident?page=1&pageSize=50", _owner.AccessToken), cancellationToken);
         Assert.Contains(confident.Items, item => item.Work.Id == seriesWorkId && item.Candidate.CatalogId == JellyfinSamples.PenguinsTmdbTvId);
-        var asHeld = _jellyfin.Series.Single().DeepClone();
         var sent = _factory.JellyfinHttp.Requests.Count;
 
         //Act
         var response = await _factory.PostHttpRequest(
             $"{BaseUrl}/tmdb/confident", _owner.AccessToken, new LibraryLinkAcceptRequest([Accept(seriesWorkId, "Series", JellyfinSamples.PenguinsTmdbTvId)]));
         var woken = _factory.Resolve<LibraryLinkWriteQueue>().Reader.TryPeek(out _);
+        var sentByTheClick = _factory.JellyfinHttp.Requests.Count - sent;
         await _factory.Resolve<LibraryLinkWriteWorker>().RunQueuedAsync(cancellationToken);
 
         //Assert
-        // Linked, kept in the app (Jellyfin's save of a series rewrites all its seasons and episodes): nothing queued,
-        // nothing sent.
+        // Linked and queued like a film (Vasyl's final decision of 2026-10-06): the click sends nothing, the writer does.
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var batch = await ReadAsync<LibraryLinkBatchResponse>(response, cancellationToken);
         var linked = Assert.Single(batch.Items);
         Assert.Equal((seriesWorkId, LinkBatchOutcome.Linked), (linked.WorkId, linked.Outcome));
-        Assert.Equal(LibraryLinkWriteState.KeptInApp, Assert.Single(linked.Links).WriteState);
-        Assert.False(woken);
-        Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
-        Assert.True(JsonNode.DeepEquals(asHeld, _jellyfin.Series.Single()));
+        Assert.Equal(LibraryLinkWriteState.Queued, Assert.Single(linked.Links).WriteState);
+        Assert.True(woken);
+        Assert.Equal(0, sentByTheClick);
+        // The show's id under Jellyfin's Tmdb key — TMDb gave the fake show no IMDb id —, then the series looked up.
+        Assert.Equal("""{"Tmdb":"7869"}""", _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString());
+        Assert.Equal([PenguinsId], _jellyfin.Lookups);
         await _factory.WithDbAsync(async db =>
         {
             var link = await db.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
-                (PenguinsId, MediaWorkKind.Series, (Guid?)batch.BatchId, LibraryLinkWriteState.KeptInApp),
-                (link.SourceItemId, link.ItemKind, link.BatchId, link.WriteState));
+                (PenguinsId, MediaWorkKind.Series, (Guid?)batch.BatchId, LibraryLinkWriteState.Written, true),
+                (link.SourceItemId, link.ItemKind, link.BatchId, link.WriteState, link.LookupRequestedUtc is not null));
         });
     }
 

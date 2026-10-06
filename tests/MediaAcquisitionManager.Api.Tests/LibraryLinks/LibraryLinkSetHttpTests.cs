@@ -15,11 +15,14 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
 // MAM-34 — the dialog's Save (PUT /api/library/works/{id}/tmdb): the link and its audit row first, with the ids the
 // library held, then the write into Jellyfin — read, the item sent back once with only its ProviderIds changed, read
-// again — recorded when it left the app and settled on the link: written, refused, or not confirmed. A film's id goes
-// into a film item; a show's link to a series item stays in the app, as Jellyfin's save of a series rewrites all its
-// seasons and episodes; a show linked to a film item is an episode of it, kept in the app; a library type that can't
-// set ids, or one switched off (R12), keeps the link without calling it. Per item (R17), and a save that changes nothing records and sends nothing. Every refusal writes nothing. The
-// replace, the removal, Retry and the background writer have classes of their own.
+// again — recorded when it left the app and settled on the link: written, refused, or not confirmed; once written,
+// Jellyfin is asked to look the item's missing metadata up, recorded on the link and in an audit row (Vasyl's decision
+// of 2026-10-06). A film's id goes into a film item, and a show's into a series item the same way (Vasyl's final
+// decision of 2026-10-06); a show linked to a film item is an episode of it, whose own IMDb id from TMDb is written when
+// it names its season and episode (episode classes of its own: LibraryLinkEpisodeHttpTests); a library type that can't
+// set ids, or one switched off (R12), keeps the link without calling it. Per item (R17), and a save that changes nothing
+// records and sends nothing. Every refusal writes nothing. The replace, the removal, Retry, the background writer and
+// the lookup have classes of their own.
 public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -86,6 +89,7 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(
             (ShortId, LibraryLinkTarget.Work, (MediaWorkKind?)MediaWorkKind.Movie, FilmId, FilmTitle, FilmImdbId, (LibraryLinkWriteState?)LibraryLinkWriteState.Written, (string?)null, "owner", true),
             (item.SourceItemId, item.Target!.Value, item.CatalogKind, item.CatalogId, item.CatalogTitle, item.ImdbId, item.WriteState, item.WriteError, item.SetByUserName, item.CanWrite));
+        Assert.Equal(((DateTime?)now, (string?)null, (string?)null), (item.LookupRequestedUtc, item.LookupError, item.EpisodeImdbId));
         Assert.Equal(FilmId, dialog.Work.Link!.CatalogId);
 
         var link = await SingleLinkAsync(cancellationToken);
@@ -95,24 +99,33 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
         Assert.Equal(
             (FilmImdbId, "TMDb", (Guid?)_owner.User.Id, "owner", now, (Guid?)null, LibraryLinkWriteState.Written, (string?)null),
             (link.ImdbId, link.ImdbSourceName, link.SetByUserId, link.SetByUserName, link.SetUtc, link.BatchId, link.WriteState, link.WriteError));
+        Assert.Equal(((DateTime?)now, (string?)null, (string?)null), (link.LookupRequestedUtc, link.LookupError, link.EpisodeImdbId));
 
-        // The ticket's order: the link with the ids the library held (none) and its own, then what was written.
+        // The ticket's order: the link with the ids the library held (none) and its own, then what was written, then the
+        // lookup Jellyfin was asked for (no ids: it changes none).
         var audit = await AuditAsync(cancellationToken);
         Assert.Equal(
             [
                 (AuditAction.LibraryLinkSet, "Landing Stripling", "After Imdb tt0056164, After Tmdb 223021"),
                 (AuditAction.LibraryIdsWritten, "Landing Stripling", "After Imdb tt0056164, After Tmdb 223021"),
+                (AuditAction.LibraryMetadataLookupRequested, "Landing Stripling", ""),
             ],
             audit.Select(row => (row.Action, row.TargetName, row.Identifiers)));
         Assert.All(audit, row => Assert.Equal((AuditTargetKind.LibraryLink, (Guid?)link.Id, "owner"), (row.TargetKind, row.TargetId, row.ActorUserName)));
 
-        // The version gate, the administrator to read as, the item, the item sent back once, the item read again.
+        // The version gate, the administrator to read as, the item, the item sent back once, the item read again, and
+        // once it shows the ids, Jellyfin's "Search for missing metadata" on it — nothing replaced.
         var path = $"/Items/{ShortId}";
         Assert.Equal(
-            [("GET", "/System/Info"), ("GET", "/Users"), ("GET", path), ("POST", path), ("GET", path)],
-            _factory.JellyfinHttp.Requests.Skip(sent).Select(request => (request.Method.Method, request.Uri.AbsolutePath)));
+            [
+                ("GET", "/System/Info", ""), ("GET", "/Users", ""), ("GET", path, $"?userId={JellyfinSamples.AdministratorUserId}"), ("POST", path, ""),
+                ("GET", path, $"?userId={JellyfinSamples.AdministratorUserId}"),
+                ("POST", $"{path}/Refresh", "?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false"),
+            ],
+            _factory.JellyfinHttp.Requests.Skip(sent).Select(request => (request.Method.Method, request.Uri.AbsolutePath, request.Uri.Query)));
+        Assert.Equal([ShortId], _jellyfin.Lookups);
         // Every field went back as read but its people, which Jellyfin would rebuild (ADR 0026); only the ids changed.
-        var posted = JsonNode.Parse(_factory.JellyfinHttp.Requests.Single(request => request.Method == HttpMethod.Post).Body!)!.AsObject();
+        var posted = JsonNode.Parse(_factory.JellyfinHttp.Requests.Single(request => request.Method == HttpMethod.Post && request.Body is not null).Body!)!.AsObject();
         Assert.Equal(
             new Dictionary<string, string> { ["Imdb"] = FilmImdbId, ["Tmdb"] = FilmId },
             posted["ProviderIds"]!.AsObject().ToDictionary(pair => pair.Key, pair => (string)pair.Value!));
@@ -124,19 +137,20 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
     }
 
     [Fact]
-    public async Task Set_of_a_show_on_a_series_keeps_the_link_in_the_app_says_why_and_calls_nothing()
+    public async Task Set_of_a_show_on_a_series_writes_the_shows_ids_into_jellyfin_confirmed_asks_it_to_look_the_series_up_and_the_next_sync_finds_them()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var jellyfin = await CreateJellyfinAsync();
-        // Jellyfin gave the series a wrong show id: the link replaces it in the app (R6), and Jellyfin keeps its own.
+        // Jellyfin gave the series a wrong show id: the link replaces it, in the app (R6) and in Jellyfin.
         _jellyfin.Series.Add(JellyfinSamples.SeriesWith(PenguinsId, "The Penguins Of Madagascar", 2008, "/media/tv/Penguins", tmdbId: WrongTmdbId));
         _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith(PenguinsEpisodeId, "Gone in a Flash", PenguinsId, 1, 1, "/media/tv/Penguins/S01E01.mkv"));
         await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
         await ConnectTmdbAsync();
         var seriesWorkId = await WorkOfAsync(PenguinsId, cancellationToken);
-        var asHeld = _jellyfin.Series.Single().DeepClone();
+        var asRead = _jellyfin.Series.Single().DeepClone().AsObject();
         var sent = _factory.JellyfinHttp.Requests.Count;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
 
         //Act
         var response = await _factory.PutHttpRequest(LinkUrl(seriesWorkId), _owner.AccessToken, new LibraryLinkRequest("Series", ShowId));
@@ -144,18 +158,50 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
-        // Jellyfin's save of a series rewrites every season and episode of it (Vasyl, 2026-10-06): never sent.
+        // A series is written like a film (Vasyl's final decision of 2026-10-06): no warning, nothing held back.
         Assert.Equal(
-            ((MediaWorkKind?)MediaWorkKind.Series, ShowId, (LibraryLinkWriteState?)LibraryLinkWriteState.KeptInApp, (string?)null, false,
-                (string?)"Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app."),
+            ((MediaWorkKind?)MediaWorkKind.Series, ShowId, (LibraryLinkWriteState?)LibraryLinkWriteState.Written, (string?)null, true, (string?)null),
             (item.CatalogKind, item.CatalogId, item.WriteState, item.WriteError, item.CanWrite, item.CannotWriteReason));
+        Assert.Equal(((DateTime?)now, (string?)null), (item.LookupRequestedUtc, item.LookupError));
         var link = await SingleLinkAsync(cancellationToken);
         Assert.Equal(
-            (MediaWorkKind.Series, LibraryLinkTarget.Work, MediaIdentifierScheme.TmdbTv, ShowId, (string?)WrongTmdbId, ShowImdbId, LibraryLinkWriteState.KeptInApp),
+            (MediaWorkKind.Series, LibraryLinkTarget.Work, MediaIdentifierScheme.TmdbTv, ShowId, (string?)WrongTmdbId, ShowImdbId, LibraryLinkWriteState.Written),
             (link.ItemKind, link.Target, link.Scheme, link.Value, link.SupersededValue, link.ImdbId, link.WriteState));
-        Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
-        Assert.True(JsonNode.DeepEquals(asHeld, _jellyfin.Series.Single()));
-        Assert.Equal([AuditAction.LibraryLinkSet], (await AuditAsync(cancellationToken)).Select(row => row.Action));
+        Assert.Equal(((DateTime?)now, (string?)null), (link.LookupRequestedUtc, link.LookupError));
+
+        // The series item read, sent back once with the show's id under Jellyfin's Tmdb key and its IMDb id where it had
+        // none, read again, then Jellyfin's "Search for missing metadata" on it — nothing replaced.
+        var path = $"/Items/{PenguinsId}";
+        Assert.Equal(
+            [
+                ("GET", "/System/Info", ""), ("GET", "/Users", ""), ("GET", path, $"?userId={JellyfinSamples.AdministratorUserId}"), ("POST", path, ""),
+                ("GET", path, $"?userId={JellyfinSamples.AdministratorUserId}"),
+                ("POST", $"{path}/Refresh", "?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false"),
+            ],
+            _factory.JellyfinHttp.Requests.Skip(sent).Select(request => (request.Method.Method, request.Uri.AbsolutePath, request.Uri.Query)));
+        Assert.Equal([PenguinsId], _jellyfin.Lookups);
+        var posted = JsonNode.Parse(_factory.JellyfinHttp.Requests.Single(request => request.Method == HttpMethod.Post && request.Body is not null).Body!)!.AsObject();
+        Assert.Equal("""{"Tmdb":"7869","Imdb":"tt0892700"}""", posted["ProviderIds"]!.ToJsonString());
+        // Every other field went back as read but its people, which Jellyfin would rebuild (ADR 0026).
+        Assert.False(posted.ContainsKey("People"));
+        posted.Remove("ProviderIds");
+        asRead.Remove("ProviderIds");
+        asRead.Remove("People");
+        Assert.True(JsonNode.DeepEquals(asRead, posted));
+
+        Assert.Equal(
+            [
+                (AuditAction.LibraryLinkSet, "Before TmdbTv 100, After Imdb tt0892700, After TmdbTv 7869"),
+                (AuditAction.LibraryIdsWritten, "Before TmdbTv 100, After Imdb tt0892700, After TmdbTv 7869"),
+                (AuditAction.LibraryMetadataLookupRequested, ""),
+            ],
+            (await AuditAsync(cancellationToken)).Select(row => (row.Action, row.Identifiers)));
+
+        // The next sync reads the show's id as Jellyfin's own (R5): in Jellyfin, on the work it was on.
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        var synced = await SingleLinkAsync(cancellationToken);
+        Assert.Equal((LibraryLinkWriteState.InLibrary, (Guid?)seriesWorkId), (synced.WriteState, synced.MediaWorkId));
     }
 
     [Fact]
@@ -303,6 +349,7 @@ public sealed class LibraryLinkSetHttpTests : IClassFixture<MediaAcquisitionMana
             [
                 (AuditAction.LibraryLinkSet, "Before Imdb tt9999999, Before Tmdb 100, After Imdb tt0056164, After Tmdb 223021"),
                 (AuditAction.LibraryIdsWritten, "Before Imdb tt9999999, Before Tmdb 100, After Imdb tt9999999, After Tmdb 223021"),
+                (AuditAction.LibraryMetadataLookupRequested, ""),
             ],
             (await AuditAsync(cancellationToken)).Select(row => (row.Action, row.Identifiers)));
     }

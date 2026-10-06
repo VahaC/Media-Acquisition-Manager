@@ -19,7 +19,7 @@ import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
 import { downloadingJob, filesPage, jobsPage } from '@/test/downloads'
 import { sourcesOf } from '@/test/library'
-import { queueOf, suggestionRunOf } from '@/test/library-links'
+import { catchUpOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
 import { allTabsOn, guardians, listOf, runOf } from '@/test/recommendations'
 import { aliensSearch, releasesPage, searchId, tolokaRemux } from '@/test/search'
 
@@ -98,6 +98,8 @@ describe('App', () => {
     // Arrange
     vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
     vi.mocked(libraryLinksApi.queue).mockResolvedValue(queueOf(0, 0, null))
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
+    vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
 
     // Act
     renderAt('/library/tmdb')

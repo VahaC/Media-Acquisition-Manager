@@ -1079,6 +1079,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EpisodeImdbId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("EpisodeNumber")
                         .HasColumnType("INTEGER");
 
@@ -1106,6 +1110,13 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<string>("ItemTitle")
                         .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LookupError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LookupRequestedUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("MediaWorkId")

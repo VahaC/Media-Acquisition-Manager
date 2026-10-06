@@ -17,8 +17,11 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 // MAM-34, R6, R11 — replacing a work's link (the dialog's Save over a link): the same row, recorded as replaced; the
 // id it replaces is what Jellyfin holds — the old link's value once Jellyfin confirmed it, else the library's own; the
 // new TMDb id written over the old one; the IMDb id the app added swapped or cleared, one Jellyfin held left alone; a
-// film link the app wrote, replaced by an episode's link to its show (never written), first put back in Jellyfin; and a
-// series' link replaced in the app alone, as Jellyfin's save of a series rewrites all its seasons and episodes.
+// film link the app wrote, replaced by an episode's link to its show that writes nothing of its own (TMDb gives the
+// fake's Planet Earth episodes no IMDb id), first put back in Jellyfin; and a series' link replaced like a film's, the
+// new show's id written over the one the app wrote (Vasyl's final decision of 2026-10-06). Every write that leaves the
+// ids in is followed by Jellyfin's lookup, and a replaced link's lookup is not the new link's (LibraryLinkLookupHttpTests).
+// A film link replaced by an episode's link that writes the episode's IMDb id: LibraryLinkEpisodeHttpTests.
 public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -81,8 +84,12 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         // The IMDb id the app added is swapped for the new film's.
         Assert.Equal(new Dictionary<string, string> { ["Imdb"] = OtherFilmImdbId, ["Tmdb"] = OtherFilmId }, ProviderIdsOf(ShortId));
         Assert.Equal(
-            [AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten, AuditAction.LibraryLinkReplaced, AuditAction.LibraryIdsWritten],
+            [
+                AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested,
+                AuditAction.LibraryLinkReplaced, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested,
+            ],
             await AuditActionsAsync(cancellationToken));
+        Assert.Equal([ShortId, ShortId], _jellyfin.Lookups);
     }
 
     [Fact]
@@ -141,11 +148,15 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         // R11 — the film id Jellyfin held is back, and the IMDb id the app added is gone.
         Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = WrongTmdbId }, ProviderIdsOf(ShortId));
         var link = await SingleLinkAsync(cancellationToken);
+        // Kept in the app as TMDb gives the episode no IMDb id — said on the link, as only asking TMDb tells it.
         Assert.Equal(
-            (LibraryLinkTarget.ShowEpisode, MediaIdentifierScheme.TmdbTv, PlanetEarthId, LibraryLinkWriteState.KeptInApp, (string?)null),
+            (LibraryLinkTarget.ShowEpisode, MediaIdentifierScheme.TmdbTv, PlanetEarthId, LibraryLinkWriteState.KeptInApp, (string?)LibraryLinkWritability.NoEpisodeImdbReason),
             (link.Target, link.Scheme, link.Value, link.WriteState, link.WriteError));
         Assert.Equal(
-            [AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten, AuditAction.LibraryLinkReplaced, AuditAction.LibraryIdsRestored],
+            [
+                AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested,
+                AuditAction.LibraryLinkReplaced, AuditAction.LibraryIdsRestored,
+            ],
             await AuditActionsAsync(cancellationToken));
     }
 
@@ -171,7 +182,7 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Fact]
-    public async Task Replace_of_a_series_link_keeps_it_in_the_app_takes_the_id_it_replaces_from_the_library_and_calls_nothing()
+    public async Task Replace_of_a_written_series_link_writes_the_new_shows_id_over_the_one_the_app_wrote_and_swaps_the_imdb_id_it_added()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -189,8 +200,8 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
             .FirstAsync(cancellationToken));
         await SetAsync(workId, new LibraryLinkRequest("Series", PlanetEarthId));
         var first = await SingleLinkAsync(cancellationToken);
+        var written = _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString();
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
-        var sent = _factory.JellyfinHttp.Requests.Count;
 
         //Act
         var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", JellyfinSamples.PenguinsTmdbTvId));
@@ -198,13 +209,21 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var link = await SingleLinkAsync(cancellationToken);
-        // R6 — never written, so the id it replaces is still the library's own, which keeps giving way in the app.
+        // R6 — the id it replaces is the one Jellyfin confirmed, the first link's.
         Assert.Equal(
-            (first.Id, JellyfinSamples.PenguinsTmdbTvId, (string?)WrongTmdbId, LibraryLinkWriteState.KeptInApp, (string?)null),
+            (first.Id, JellyfinSamples.PenguinsTmdbTvId, (string?)PlanetEarthId, LibraryLinkWriteState.Written, (string?)null),
             (link.Id, link.Value, link.SupersededValue, link.WriteState, link.WriteError));
-        Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
-        Assert.Equal(WrongTmdbId, (string?)_jellyfin.Series.Single()["ProviderIds"]!["Tmdb"]);
-        Assert.Equal([AuditAction.LibraryLinkSet, AuditAction.LibraryLinkReplaced], await AuditActionsAsync(cancellationToken));
+        // The first write gave the series the wrong show and its IMDb id; the second put the right show over it and swapped
+        // the IMDb id the app had added.
+        Assert.Equal("""{"Tmdb":"1044","Imdb":"tt0795176"}""", written);
+        Assert.Equal("""{"Tmdb":"7869","Imdb":"tt0892700"}""", _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString());
+        Assert.Equal(
+            [
+                AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested,
+                AuditAction.LibraryLinkReplaced, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested,
+            ],
+            await AuditActionsAsync(cancellationToken));
+        Assert.Equal([PenguinsId, PenguinsId], _jellyfin.Lookups);
     }
 
     [Fact]
@@ -322,7 +341,9 @@ public sealed class LibraryLinkReplaceHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = WrongTmdbId }, ProviderIdsOf(ShortId));
         var link = await SingleLinkAsync(cancellationToken);
-        Assert.Equal((LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.KeptInApp, (string?)null), (link.Target, link.WriteState, link.WriteError));
+        Assert.Equal(
+            (LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.KeptInApp, (string?)LibraryLinkWritability.NoEpisodeImdbReason),
+            (link.Target, link.WriteState, link.WriteError));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

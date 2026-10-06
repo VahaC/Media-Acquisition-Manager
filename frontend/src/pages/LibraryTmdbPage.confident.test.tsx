@@ -14,8 +14,12 @@ import {
   batchOf,
   confidentCalypso,
   confidentPage,
+  catchUpOf,
   confidentStripling,
   filmsCount,
+  linksPage,
+  penguins,
+  penguinsShow,
   queueOf,
   suggestionRunOf,
 } from '@/test/library-links'
@@ -25,7 +29,11 @@ vi.mock('@/lib/recommendations-api')
 
 // MAM-34 — the TMDb page's Confident tab (R24): every confident suggestion a page at a time with each
 // library's counts, every row ticked, "Link N works" in one click, and then the rows as they were
-// clicked, each following its write every 2 s until none waits or is being written.
+// clicked, each following its write every 2 s until none waits or is being written. A ticked series is
+// linked in the same click as the films, with no question.
+
+/** The series and its confident show. */
+const confidentPenguins = { work: penguins, candidate: { ...penguinsShow, isConfident: true } }
 
 function renderPage() {
   signInAs(owner)
@@ -59,6 +67,8 @@ describe('LibraryTmdbPage Confident tab', () => {
     vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
     vi.mocked(libraryLinksApi.queue).mockResolvedValue(queueOf(0, 0, null))
     vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [confidentStripling, confidentCalypso]))
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
+    vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
   })
 
   afterEach(() => {
@@ -131,6 +141,29 @@ describe('LibraryTmdbPage Confident tab', () => {
     // The rows as they were clicked: the list wasn't asked for again under them.
     expect(libraryLinksApi.confident).toHaveBeenCalledOnce()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('links a ticked series in the same click as the films, with no question', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [confidentStripling, confidentPenguins]))
+    vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Queued'),
+      batchItemOf(penguins, 'Queued'),
+    ]))
+    vi.mocked(libraryLinksApi.batch).mockImplementation(() => new Promise(() => {}))
+    const { user } = renderPage()
+    await screen.findByRole('button', { name: 'Link 2 works' })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
+
+    // Assert
+    expect(libraryLinksApi.acceptConfident).toHaveBeenCalledExactlyOnceWith([
+      { workId: confidentStripling.work.id, catalogKind: 'Movie', catalogId: '223021' },
+      { workId: penguins.id, catalogKind: 'Series', catalogId: '7869' },
+    ])
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await screen.findAllByText('Waiting to be written')).toHaveLength(2)
   })
 
   it('says how far the writes are while they are under way', async () => {

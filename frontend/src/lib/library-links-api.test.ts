@@ -193,6 +193,34 @@ describe('libraryLinksApi', () => {
     expect(api.getUri(requests[0])).toBe(`/api/library/tmdb/links/${linkId}`)
   })
 
+  it('reads what Update Jellyfin would send', async () => {
+    // Arrange
+    const requests = respondWith(200, { toWrite: 3, toLookUp: 12 })
+
+    // Act
+    const counts = await libraryLinksApi.catchUp()
+
+    // Assert
+    expect(counts).toEqual({ toWrite: 3, toLookUp: 12 })
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe('/api/library/tmdb/catch-up')
+  })
+
+  it('posts Update Jellyfin with no body and hands back what it queued', async () => {
+    // Arrange
+    const requests = respondWith(202, { toWrite: 3, toLookUp: 12 })
+
+    // Act
+    const queued = await libraryLinksApi.startCatchUp()
+
+    // Assert
+    expect(queued).toEqual({ toWrite: 3, toLookUp: 12 })
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('post')
+    expect(api.getUri(requests[0])).toBe('/api/library/tmdb/catch-up')
+    expect(requests[0].data).toBeUndefined()
+  })
+
   it('reads no preparation before the first as nothing', async () => {
     // Arrange
     const requests = respondWith(204, '')

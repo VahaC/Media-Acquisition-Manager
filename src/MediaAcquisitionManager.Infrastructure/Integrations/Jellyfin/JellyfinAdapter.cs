@@ -16,9 +16,11 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 /// Jellyfin behind the core's contracts (Adapter, ADR 0005): the registration and the connection test
 /// (MAM-7), the media library contract (MAM-8): its movies, and since MAM-32 its series and episodes;
 /// and since MAM-34 the optional identifier writer (<c>JellyfinAdapter.Identifiers.cs</c>), which sets the
-/// owner's TMDb link into one item's <c>ProviderIds</c>. That write is the one call that changes anything in
-/// Jellyfin: it sends a movie item back with only its ids changed — never a series, whose save rewrites all its seasons
-/// and episodes; every other call is a GET, and a sync only reads.
+/// owner's TMDb link into one item's <c>ProviderIds</c>. That write, and the lookup of the item's missing metadata asked
+/// right after it, are the calls that change anything in Jellyfin: the write sends a movie or series item back with only
+/// its ids changed — a series' save also gives its seasons and episodes its name and ratings, which Vasyl accepted —, the
+/// lookup is Jellyfin's own "Search for missing metadata", which replaces nothing; every other call is a GET, and a sync
+/// only reads.
 /// </summary>
 /// <remarks>
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer

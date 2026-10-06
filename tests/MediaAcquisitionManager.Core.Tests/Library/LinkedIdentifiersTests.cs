@@ -145,14 +145,22 @@ public sealed class LinkedIdentifiersTests
         Assert.Null(conflicting);
     }
 
-    [Fact]
-    public void Effective_of_an_episode_link_adds_nothing_and_drops_the_wrong_film_id()
+    [Theory]
+    [InlineData(LibraryLinkWriteState.KeptInApp)]
+    [InlineData(LibraryLinkWriteState.Queued)]
+    [InlineData(LibraryLinkWriteState.Writing)]
+    [InlineData(LibraryLinkWriteState.NotWritten)]
+    [InlineData(LibraryLinkWriteState.Written)]
+    [InlineData(LibraryLinkWriteState.InLibrary)]
+    [InlineData(LibraryLinkWriteState.Lost)]
+    public void Effective_of_an_episode_link_adds_nothing_and_drops_the_wrong_film_id_in_every_state(LibraryLinkWriteState state)
     {
         //Arrange
         // R7 — Planet Earth's E08, a "movie" Jellyfin gave a film id: the show's ids aren't the item's, and the film id
-        // gives way to the link, which is never written, so always.
+        // gives way to the link always — what the app writes for an episode is its own IMDb id, never a TMDb one, so the
+        // link written or in Jellyfin says nothing of the film id.
         var wrongFilm = new MediaIdentifier(MediaIdentifierScheme.Tmdb, "12345");
-        var link = new ItemLinkFacts(LibraryLinkTarget.ShowEpisode, MediaIdentifierScheme.TmdbTv, "1044", "12345", "tt0795176", LibraryLinkWriteState.KeptInApp);
+        var link = new ItemLinkFacts(LibraryLinkTarget.ShowEpisode, MediaIdentifierScheme.TmdbTv, "1044", "12345", "tt0795176", state);
 
         //Act
         var effective = LinkedIdentifiers.Effective([LibraryImdb, wrongFilm], link);

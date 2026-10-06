@@ -1,0 +1,91 @@
+{
+  "air_date": "2019-07-12",
+  "crew": [
+    {
+      "job": "Director",
+      "department": "Directing",
+      "credit_id": "6986c6b0aea1d7cc672ce0f7",
+      "adult": false,
+      "gender": 2,
+      "id": 3932020,
+      "known_for_department": "Directing",
+      "name": "Nicky Bolster",
+      "original_name": "Nicky Bolster",
+      "popularity": 0.4157,
+      "profile_path": null
+    }
+  ],
+  "episode_number": 1,
+  "episode_type": "standard",
+  "guest_stars": [
+    {
+      "character": "Self (archive footage)",
+      "credit_id": "5e156dfa028f140016d0c224",
+      "order": 501,
+      "adult": false,
+      "gender": 2,
+      "id": 1135638,
+      "known_for_department": "Acting",
+      "name": "Neville Chamberlain",
+      "original_name": "Neville Chamberlain",
+      "popularity": 0.7269,
+      "profile_path": "/rEhv9JkZJJCfQZToRqx1jwhyigp.jpg"
+    },
+    {
+      "character": "Self (archive footage)",
+      "credit_id": "5e156f6b5907de0014e44389",
+      "order": 506,
+      "adult": false,
+      "gender": 2,
+      "id": 1095786,
+      "known_for_department": "Acting",
+      "name": "Беніто Муссоліні",
+      "original_name": "Benito Mussolini",
+      "popularity": 1.114,
+      "profile_path": "/rizo5Ct0esQP4gQmisdJ2FkkZhq.jpg"
+    },
+    {
+      "character": "Self (archive footage)",
+      "credit_id": "5e156f615907de0014e44377",
+      "order": 508,
+      "adult": false,
+      "gender": 2,
+      "id": 1116399,
+      "known_for_department": "Acting",
+      "name": "Winston Churchill",
+      "original_name": "Winston Churchill",
+      "popularity": 1.1355,
+      "profile_path": "/tpxNemRAcaRckG7kkPk5oRwKTim.jpg"
+    },
+    {
+      "character": "Self (archive footage)",
+      "credit_id": "5e156dd6028f140010d04735",
+      "order": 509,
+      "adult": false,
+      "gender": 2,
+      "id": 10279,
+      "known_for_department": "Acting",
+      "name": "Адольф Гітлер",
+      "original_name": "Adolf Hitler",
+      "popularity": 1.8708,
+      "profile_path": "/n6f81IUSes1a8jTzUIF7rJ5zZnP.jpg"
+    }
+  ],
+  "name": "Серія 1",
+  "overview": "",
+  "id": 1868157,
+  "production_code": "",
+  "runtime": 50,
+  "season_number": 1,
+  "still_path": "/jYbF65IU2lbVsv8dE0xkPxlZfPF.jpg",
+  "vote_average": 7.9,
+  "vote_count": 12,
+  "external_ids": {
+    "imdb_id": "tt9103946",
+    "freebase_mid": null,
+    "freebase_id": null,
+    "tvdb_id": 7209114,
+    "tvrage_id": null,
+    "wikidata_id": null
+  }
+}

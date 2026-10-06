@@ -13,12 +13,13 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
 // MAM-34 — the owner's TMDb link written into a Jellyfin item's ProviderIds (IMediaLibraryIdentifierWriter), against
 // the fake Jellyfin serving the items the live check read whole (VendorSamples/Jellyfin: item.json, series-item.json,
-// users.json and the recorded .txt answers): a movie item only — a series is refused before anything is sent, as saving
-// one rewrites all its seasons and episodes —, read as the first enabled administrator, sent back once as read but for
-// its ids and without its people — IMDb only where it holds none, a restore only over what still holds the app's value
-// — and read again to confirm; nothing posted when nothing changes; every refusal a status and a sentence; and a write
-// that may have landed (its answer lost, late or a server error, or a read after it that failed or disagreed) still a
-// success, sent and not confirmed (R10), never sent twice.
+// users.json and the recorded .txt answers): a movie or series item — a series with its show's TMDb id under the same
+// Tmdb key (Vasyl's final decision of 2026-10-06), an episode item refused before anything is sent —, read as the first
+// enabled administrator, sent back once as read but for its ids and without its people — IMDb only where it holds none,
+// a restore only over what still holds the app's value — and read again to confirm; nothing posted when nothing
+// changes; every refusal a status and a sentence; and a write that may have landed (its answer lost, late or a server
+// error, or a read after it that failed or disagreed) still a success, sent and not confirmed (R10), never sent twice. The lookup of the item's missing metadata asked after a write
+// has a class of its own (JellyfinAdapterMetadataLookupTests).
 public sealed class JellyfinAdapterIdentifiersTests : IDisposable
 {
     private const string BaseUrl = "http://jellyfin.test:8096";
@@ -36,9 +37,6 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
         "The change was sent to Jellyfin, but its answer never came, so the app can't tell whether Jellyfin saved it; the next sync shows what it holds.";
 
     private const string NotConfirmedProblem = "Jellyfin took the change, but the item read again holds other ids than the ones sent.";
-
-    private const string SeriesUnwritableReason =
-        "Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app.";
 
     private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, ApiKey);
 
@@ -140,27 +138,64 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
     }
 
     [Fact]
-    public async Task WriteIdentifiers_of_a_series_item_is_refused_with_its_reason_before_anything_is_sent()
+    public async Task WriteIdentifiers_of_a_series_posts_it_once_as_read_without_its_people_with_the_shows_id_under_tmdb_and_reads_it_again()
     {
         //Arrange
-        // The live check wrote the Penguins series' TMDb id; Jellyfin's update of a series rewrites and saves all its
-        // seasons and episodes, so the app never sends one (Vasyl, 2026-10-06).
-        var change = new LibraryIdentifierChange(
-            JellyfinSamples.PenguinsId,
-            MediaWorkKind.Series,
-            [new(MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId, LibraryIdentifierEditRule.Always)]);
+        // The Penguins series item the live check wrote, and its one edit: the show's TMDb id (Vasyl's final decision of
+        // 2026-10-06 — a series is written like a film).
+        var read = JellyfinSamples.SeriesItem();
+        var itemPath = $"/Items/{JellyfinSamples.PenguinsId}";
+        var change = SeriesChange(new LibraryIdentifierEdit(MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId, LibraryIdentifierEditRule.Always));
 
         //Act
-        var exception = await Record.ExceptionAsync(() => Writer.WriteIdentifiersAsync(Settings, change, TestContext.Current.CancellationToken));
+        var result = await Writer.WriteIdentifiersAsync(Settings, change, TestContext.Current.CancellationToken);
 
         //Assert
-        var refused = Assert.IsType<ArgumentException>(exception);
-        Assert.StartsWith(SeriesUnwritableReason, refused.Message, StringComparison.Ordinal);
-        Assert.Empty(_harness.JellyfinHttp.Requests);
+        var write = result.Value!;
+        Assert.Equal((IntegrationCallStatus.Succeeded, true, true, (string?)null), (result.Status, write.Sent, write.Confirmed, write.Problem));
+        Assert.Empty(write.Before);
+        Assert.Equal(["TmdbTv 7869"], Describe(write.After));
+        Assert.Equal([MediaIdentifierScheme.TmdbTv], write.Applied);
+        Assert.Equal(
+            [
+                "GET /Users",
+                $"GET {itemPath}?userId={JellyfinSamples.AdministratorUserId}",
+                $"POST {itemPath}",
+                $"GET {itemPath}?userId={JellyfinSamples.AdministratorUserId}",
+            ],
+            _harness.JellyfinHttp.Requests.Select(request => $"{request.Method} {request.Uri.PathAndQuery}"));
+        var posted = JsonNode.Parse(Assert.Single(_harness.JellyfinHttp.Requests, request => request.Method == HttpMethod.Post).Body!)!.AsObject();
+        // Every other field as read, in Jellyfin's order, and no People; the id under Jellyfin's Tmdb key, exactly as the
+        // live check wrote it (series-item-after-update.json).
+        Assert.Equal(read.Select(property => property.Key).Where(key => key != "People"), posted.Select(property => property.Key));
+        Assert.True(JsonNode.DeepEquals(WithoutPeople(WithoutProviderIds(read)), WithoutProviderIds(posted)));
+        Assert.Equal(JellyfinSamples.SeriesItemAfterUpdate()["ProviderIds"]!.ToJsonString(), posted["ProviderIds"]!.ToJsonString());
     }
 
     [Fact]
-    public void WritableKinds_are_films_only_and_every_other_kind_says_why_its_link_stays_in_the_app()
+    public async Task WriteIdentifiers_of_a_series_sets_its_imdb_id_only_where_it_holds_none_and_keeps_its_other_ids()
+    {
+        //Arrange
+        // A series Jellyfin matched without its show's TMDb id, holding another IMDb id and ids of other registries.
+        StoredSeries()["ProviderIds"] = new JsonObject { ["Imdb"] = "tt0000001", ["Tvdb"] = "85075", ["TvMaze"] = "4037" };
+        var change = SeriesChange(
+            new LibraryIdentifierEdit(MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId, LibraryIdentifierEditRule.Always),
+            new LibraryIdentifierEdit(MediaIdentifierScheme.Imdb, "tt0892700", LibraryIdentifierEditRule.OnlyWhereAbsent));
+
+        //Act
+        var result = await Writer.WriteIdentifiersAsync(Settings, change, TestContext.Current.CancellationToken);
+
+        //Assert
+        var write = result.Value!;
+        Assert.Equal((true, true), (write.Sent, write.Confirmed));
+        Assert.Equal([MediaIdentifierScheme.TmdbTv], write.Applied);
+        Assert.Equal(["TmdbTv 7869", "Imdb tt0000001"], Describe(write.After));
+        var posted = JsonNode.Parse(Assert.Single(_harness.JellyfinHttp.Requests, request => request.Method == HttpMethod.Post).Body!)!.AsObject();
+        Assert.Equal("""{"Imdb":"tt0000001","Tvdb":"85075","TvMaze":"4037","Tmdb":"7869"}""", posted["ProviderIds"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void WritableKinds_are_films_and_series_and_an_episode_item_says_why_its_link_stays_in_the_app()
     {
         //Arrange
 
@@ -168,10 +203,9 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
         var kinds = Writer.WritableKinds;
 
         //Assert
-        Assert.Equal([MediaWorkKind.Movie], kinds);
-        Assert.Equal(SeriesUnwritableReason, Writer.UnwritableKindReason(MediaWorkKind.Series));
+        Assert.Equal([MediaWorkKind.Movie, MediaWorkKind.Series], kinds);
         Assert.Equal(
-            "Jellyfin's ids are written on movie items only, so a link on an episode stays in the app.",
+            "Jellyfin's ids are written on movie and series items only, so a link on an episode stays in the app.",
             Writer.UnwritableKindReason(MediaWorkKind.Episode));
     }
 
@@ -457,7 +491,7 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
     {
         //Arrange
         // A film's id onto the Penguins series item the live check read: its ids would mean something else — a show's
-        // TMDb number is not a film's (ADR 0017) —, and a series is never written anyway.
+        // TMDb number is not a film's (ADR 0017).
         var change = new LibraryIdentifierChange(
             JellyfinSamples.PenguinsId, MediaWorkKind.Movie, [new(MediaIdentifierScheme.Tmdb, "7869", LibraryIdentifierEditRule.Always)]);
 
@@ -751,8 +785,8 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
     [InlineData("a blank item id")]
     [InlineData("an item id Jellyfin never gives")]
     [InlineData("an episode item")]
-    [InlineData("a series item")]
     [InlineData("a show's id on a movie item")]
+    [InlineData("a film's id on a series item")]
     [InlineData("a TVDB id")]
     [InlineData("no edit")]
     [InlineData("an empty edit")]
@@ -842,6 +876,10 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
     private static LibraryIdentifierChange FilmChange(params LibraryIdentifierEdit[] edits) =>
         new(JellyfinSamples.LandingStriplingId, MediaWorkKind.Movie, edits);
 
+    /// <summary>A change of the Penguins series item the live check wrote.</summary>
+    private static LibraryIdentifierChange SeriesChange(params LibraryIdentifierEdit[] edits) =>
+        new(JellyfinSamples.PenguinsId, MediaWorkKind.Series, edits);
+
     /// <summary>The change each caller's mistake names.</summary>
     private static LibraryIdentifierChange? Mistake(string name) => name switch
     {
@@ -849,9 +887,8 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
         "a blank item id" => new("  ", MediaWorkKind.Movie, FilmLinkEdits),
         "an item id Jellyfin never gives" => new("../Users", MediaWorkKind.Movie, FilmLinkEdits),
         "an episode item" => new(JellyfinSamples.LandingStriplingId, MediaWorkKind.Episode, [new(MediaIdentifierScheme.Imdb, "tt0056164", LibraryIdentifierEditRule.Always)]),
-        // Saving a series rewrites all its seasons and episodes: never sent (WritableKinds).
-        "a series item" => new(JellyfinSamples.PenguinsId, MediaWorkKind.Series, [new(MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId, LibraryIdentifierEditRule.Always)]),
         "a show's id on a movie item" => FilmChange(new LibraryIdentifierEdit(MediaIdentifierScheme.TmdbTv, "1044", LibraryIdentifierEditRule.Always)),
+        "a film's id on a series item" => SeriesChange(new LibraryIdentifierEdit(MediaIdentifierScheme.Tmdb, "223021", LibraryIdentifierEditRule.Always)),
         "a TVDB id" => FilmChange(new LibraryIdentifierEdit(MediaIdentifierScheme.Tvdb, "79257", LibraryIdentifierEditRule.Always)),
         "no edit" => FilmChange(),
         "an empty edit" => FilmChange(null!),
@@ -873,6 +910,10 @@ public sealed class JellyfinAdapterIdentifiersTests : IDisposable
         _server.Movies.Single(movie => string.Equals((string?)movie["Id"], JellyfinSamples.LandingStriplingId, StringComparison.Ordinal));
 
     private JsonObject StoredProviderIds() => Stored()["ProviderIds"]!.AsObject();
+
+    /// <summary>The Penguins series item as the fake server holds it.</summary>
+    private JsonObject StoredSeries() =>
+        _server.Series.Single(series => string.Equals((string?)series["Id"], JellyfinSamples.PenguinsId, StringComparison.Ordinal));
 
     /// <summary>The stored item's TMDb and IMDb ids, as the sync would read them.</summary>
     private List<MediaIdentifier> StoredIds()

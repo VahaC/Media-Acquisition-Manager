@@ -16,7 +16,9 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 // MAM-34, R11, decision 13 — removing links (DELETE /api/library/works/{id}/tmdb, and DELETE /api/library/tmdb/links/{id}
 // for one link): the library item put back first, the link deleted after with its audit rows. Jellyfin's own ids come back
 // and the IMDb id the app added goes, but only where Jellyfin still holds what the app wrote — an id someone changed since
-// stays; a link never sent, kept in the app (an episode's, a series'), or whose item is gone sends nothing; a restore
+// stays —, a series' show id as a film's; an episode's link takes back only the episode's IMDb id it wrote
+// (LibraryLinkEpisodeHttpTests); a link never sent, kept in the app (an episode's without its numbers, a series' set
+// before series were written), or whose item is gone sends nothing; a restore
 // Jellyfin refuses keeps the link (502) — as does one whose item the administrator Jellyfin reads it as can no longer see
 // — and one switched off can't be changed back (409). R10 — a write a restart cut is put back from the row the reconciler recorded for it, whatever a
 // sync or a Retry made of the link since. A removal queues a recommendation run; one that keeps the link doesn't.
@@ -30,6 +32,7 @@ public sealed class LibraryLinkRemoveHttpTests : IClassFixture<MediaAcquisitionM
     private const string PlanetEarthId = "1044";
     private const string WrongTmdbId = "100";
     private const string RestartedError = "The app restarted while writing the ids into the library. Retry.";
+    private const string PenguinsId = "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -85,8 +88,10 @@ public sealed class LibraryLinkRemoveHttpTests : IClassFixture<MediaAcquisitionM
                 (AuditAction.LibraryLinkRemoved, "Before Imdb tt0056164, Before Tmdb 223021"),
                 (AuditAction.LibraryIdsRestored, "Before Imdb tt0056164, Before Tmdb 223021, After Tmdb 100"),
             ],
-            audit.Skip(2).Select(row => (row.Action, row.Identifiers)));
-        Assert.All(audit.Skip(2), row => Assert.Equal(((Guid?)link.Id, "owner"), (row.TargetId, row.ActorUserName)));
+            audit.Skip(3).Select(row => (row.Action, row.Identifiers)));
+        Assert.All(audit.Skip(3), row => Assert.Equal(((Guid?)link.Id, "owner"), (row.TargetId, row.ActorUserName)));
+        // A removal asks Jellyfin for no lookup: the one the write asked for is all.
+        Assert.Equal([ShortId], _jellyfin.Lookups);
     }
 
     [Fact]
@@ -176,23 +181,44 @@ public sealed class LibraryLinkRemoveHttpTests : IClassFixture<MediaAcquisitionM
     }
 
     [Fact]
-    public async Task Remove_of_a_series_link_sends_nothing_even_while_jellyfin_is_switched_off_as_it_was_never_written()
+    public async Task Remove_of_a_written_series_link_puts_back_the_show_id_jellyfin_held_and_takes_back_the_imdb_id_the_app_added()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        const string PenguinsId = "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4";
-        _jellyfinIntegration = await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
-        _jellyfin.Series.Add(JellyfinSamples.SeriesWith(PenguinsId, "The Penguins Of Madagascar", 2008, "/media/tv/Penguins", tmdbId: WrongTmdbId));
-        _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith("e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5", "Gone in a Flash", PenguinsId, 1, 1, "/media/tv/Penguins/S01E01.mkv"));
-        await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
-        await _integrations.Create("tmdb", "TMDb", FakeTmdbServer.BaseUrl, apiKey: FakeTmdbServer.Token);
-        var workId = Guid.Empty;
-        await _factory.WithDbAsync(async db => workId = await db.MediaWorkTitles
-            .Where(title => title.SourceItemId == PenguinsId)
-            .Select(title => title.MediaWorkId)
-            .FirstAsync(cancellationToken));
-        // Kept in the app: Jellyfin's save of a series rewrites all its seasons and episodes, so nothing was ever sent.
+        var workId = await SyncPenguinsAsync(cancellationToken);
+        // Written like a film's (Vasyl's final decision of 2026-10-06): the show's id over Jellyfin's wrong one, and its
+        // IMDb id where the series had none.
         await SetAsync(workId, new LibraryLinkRequest("Series", JellyfinSamples.PenguinsTmdbTvId));
+        var link = await SingleLinkAsync(cancellationToken);
+        var written = _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString();
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        var response = await _factory.DeleteHttpRequest(LinkUrl(workId), _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("""{"Tmdb":"7869","Imdb":"tt0892700"}""", written);
+        Assert.Equal("""{"Tmdb":"100"}""", _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString());
+        await _factory.WithDbAsync(async db => Assert.False(await db.LibraryItemLinks.AnyAsync(cancellationToken)));
+        var audit = await AuditAsync(cancellationToken);
+        Assert.Equal(
+            [
+                (AuditAction.LibraryLinkRemoved, "Before Imdb tt0892700, Before TmdbTv 7869"),
+                (AuditAction.LibraryIdsRestored, "Before Imdb tt0892700, Before TmdbTv 7869, After TmdbTv 100"),
+            ],
+            audit.Skip(3).Select(row => (row.Action, row.Identifiers)));
+        Assert.All(audit.Skip(3), row => Assert.Equal((Guid?)link.Id, row.TargetId));
+    }
+
+    [Fact]
+    public async Task Remove_of_a_series_link_set_before_series_were_written_sends_nothing_even_while_jellyfin_is_switched_off()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var workId = await SyncPenguinsAsync(cancellationToken);
+        // Kept in the app by the first rules, so nothing of it was ever sent.
+        await _links.Create(_jellyfinIntegration, PenguinsId, workId, MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId);
         await _factory.WithDbAsync(db => db.IntegrationConnections
             .Where(integration => integration.Id == _jellyfinIntegration.Id)
             .ExecuteUpdateAsync(setters => setters.SetProperty(integration => integration.IsEnabled, false), cancellationToken));
@@ -207,7 +233,7 @@ public sealed class LibraryLinkRemoveHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
         Assert.Equal(WrongTmdbId, (string?)_jellyfin.Series.Single()["ProviderIds"]!["Tmdb"]);
         await _factory.WithDbAsync(async db => Assert.False(await db.LibraryItemLinks.AnyAsync(cancellationToken)));
-        Assert.Equal([AuditAction.LibraryLinkSet, AuditAction.LibraryLinkRemoved], (await AuditAsync(cancellationToken)).Select(row => row.Action));
+        Assert.Equal([AuditAction.LibraryLinkRemoved], (await AuditAsync(cancellationToken)).Select(row => row.Action));
     }
 
     [Fact]
@@ -472,6 +498,22 @@ public sealed class LibraryLinkRemoveHttpTests : IClassFixture<MediaAcquisitionM
         var workId = Guid.Empty;
         await _factory.WithDbAsync(async db => workId = await db.MediaWorkTitles
             .Where(title => title.SourceItemId == ShortId)
+            .Select(title => title.MediaWorkId)
+            .FirstAsync(cancellationToken));
+        return workId;
+    }
+
+    // The Penguins series with one episode, given a wrong show id by Jellyfin, synced, with TMDb connected.
+    private async Task<Guid> SyncPenguinsAsync(CancellationToken cancellationToken)
+    {
+        _jellyfinIntegration = await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        _jellyfin.Series.Add(JellyfinSamples.SeriesWith(PenguinsId, "The Penguins Of Madagascar", 2008, "/media/tv/Penguins", tmdbId: WrongTmdbId));
+        _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith("e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5", "Gone in a Flash", PenguinsId, 1, 1, "/media/tv/Penguins/S01E01.mkv"));
+        await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
+        await _integrations.Create("tmdb", "TMDb", FakeTmdbServer.BaseUrl, apiKey: FakeTmdbServer.Token);
+        var workId = Guid.Empty;
+        await _factory.WithDbAsync(async db => workId = await db.MediaWorkTitles
+            .Where(title => title.SourceItemId == PenguinsId)
             .Select(title => title.MediaWorkId)
             .FirstAsync(cancellationToken));
         return workId;

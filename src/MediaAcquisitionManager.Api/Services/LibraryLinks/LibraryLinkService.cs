@@ -39,12 +39,6 @@ public sealed partial class LibraryLinkService(
 
     internal const string NoItemsError = "No library reports this work, so there is nothing to link.";
 
-    internal const string EpisodeKeptInAppReason =
-        "An episode's link to its show stays in the app: only a film's own TMDb id is written into the library.";
-
-    /// <summary>A library type without the capability (ADR 0005) keeps its links in the app only.</summary>
-    internal static string NoWriterReason(string name) => $"“{name}” can't set ids, so a link stays in the app.";
-
     /// <summary>The longest part of a request echoed back in a sentence.</summary>
     private const int EchoLength = 64;
 
@@ -79,6 +73,7 @@ public sealed partial class LibraryLinkService(
         var itemDtos = shown
             .Select(item =>
             {
+                var link = links.FirstOrDefault(item.Holds);
                 var (canWrite, reason) = WriteAbility(item.Connection, work.Kind);
                 return linkMapper.ToItemDto(
                     item.SourceItemId,
@@ -86,8 +81,9 @@ public sealed partial class LibraryLinkService(
                     item.Title,
                     work.Kind,
                     canWrite,
-                    reason,
-                    links.FirstOrDefault(item.Holds),
+                    // An item that takes ids may still hold a link that writes none: an episode's link says why.
+                    reason ?? (link is null ? null : EpisodeKeptReason(link)),
+                    link,
                     [.. rows[(item.Connection.Id, item.SourceItemId)]]);
             })
             .ToList();
@@ -175,22 +171,22 @@ public sealed partial class LibraryLinkService(
                 .ToDictionaryAsync(connection => connection.Id, cancellationToken);
 
     /// <summary>
-    /// Whether a link of an item of <paramref name="workKind"/> to the work itself would be written into the item's
-    /// library, and why not: an episode's link is only ever to its show; a library type without the capability keeps
-    /// its links in the app (ADR 0005), and so does one for a kind of item it doesn't write — the library's own
-    /// sentence (Jellyfin: a series, as saving one rewrites all its seasons and episodes); a library switched off is
-    /// never written (R12).
+    /// Whether ids would be written into an item of <paramref name="workKind"/> in its library, and why not: a library
+    /// type without the capability keeps its links in the app (ADR 0005), and so does one for a kind of item it doesn't
+    /// write — the library's own sentence (Jellyfin: an episode item); a library switched off is never written (R12).
     /// </summary>
     private (bool CanWrite, string? Reason) WriteAbility(IntegrationConnectionEntity connection, MediaWorkKind workKind)
     {
-        if (workKind == MediaWorkKind.Episode)
-            return (false, EpisodeKeptInAppReason);
-        if (adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType) is not { } writer)
-            return (false, NoWriterReason(connection.Name));
-        if (!writer.WritableKinds.Contains(workKind))
-            return (false, writer.UnwritableKindReason(workKind));
+        if (LibraryLinkWritability.ItemReason(adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType), connection.Name, workKind) is { } reason)
+            return (false, reason);
         return connection.IsEnabled ? (true, null) : (false, LibraryLinkWriter.SwitchedOffError(connection.Name));
     }
+
+    /// <summary>MAM-34 — why an episode's link on an item that takes ids writes none: without its numbers, or with an
+    /// episode TMDb gives no IMDb id; <c>null</c> for any other link.</summary>
+    private static string? EpisodeKeptReason(LibraryItemLinkEntity link) =>
+        LibraryLinkWritability.LinkReason(link.Target, link.SeasonNumber, link.EpisodeNumber)
+        ?? (LibraryLinkWritability.KnowsNoEpisodeImdb(link) ? LibraryLinkWritability.NoEpisodeImdbReason : null);
 
     /// <summary>The work's display title as its card shows it — an audit row's name of its links.</summary>
     private async Task<string?> WorkTitleAsync(Guid workId, CancellationToken cancellationToken) =>

@@ -81,8 +81,8 @@ public sealed partial class LibraryLinkService
     /// <summary>
     /// The links whose item's library holds a TMDb id of the link's number space that is neither the link's nor — while
     /// the link isn't confirmed (R6) — the one it replaces: neither wins. For an episode-to-show link, a film id other than
-    /// the one it replaced (R7) — one the library gave the item after it was set. <c>LinkedIdentifiers.ConflictingValue</c>'s
-    /// rule spelled out as SQL, as the lists page and count in the database.
+    /// the one it replaced, whatever its state (R7) — one the library gave the item after it was set.
+    /// <c>LinkedIdentifiers.ConflictingValue</c>'s rule spelled out as SQL, as the lists page and count in the database.
     /// </summary>
     private IQueryable<LibraryItemLinkEntity> Conflicting() =>
         db.LibraryItemLinks.Where(link => link.MediaWorkId != null
@@ -94,7 +94,8 @@ public sealed partial class LibraryLinkService
                         && row.Value.Trim().ToUpper() != link.Value.Trim().ToUpper())
                     || (link.Target == LibraryLinkTarget.ShowEpisode && row.Scheme == MediaIdentifierScheme.Tmdb))
                 && !(link.SupersededValue != null
-                    && (link.WriteState == LibraryLinkWriteState.KeptInApp
+                    && (link.Target == LibraryLinkTarget.ShowEpisode
+                        || link.WriteState == LibraryLinkWriteState.KeptInApp
                         || link.WriteState == LibraryLinkWriteState.Queued
                         || link.WriteState == LibraryLinkWriteState.Writing
                         || link.WriteState == LibraryLinkWriteState.NotWritten)

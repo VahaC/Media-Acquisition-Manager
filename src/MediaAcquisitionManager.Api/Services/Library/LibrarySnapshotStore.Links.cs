@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -136,19 +137,23 @@ public sealed partial class LibrarySnapshotStore
         }
 
         /// <summary>
-        /// R5 — what this sync's read says of each link to the work whose item it read: the library holding the link's
-        /// id is <see cref="LibraryLinkWriteState.InLibrary"/>; a link the library held (written, or read there before)
-        /// that it now reports without — no id, the replaced one, or a third — is
-        /// <see cref="LibraryLinkWriteState.Lost"/> ("Write again"); anything else stays as it is.
+        /// R5 — what this sync's read says of each link whose item it read, by the link's written key
+        /// (<see cref="LibraryLinkEdits.WrittenKey"/>: a link to the work, its TMDb id; MAM-34 — an episode's link, the
+        /// episode's own IMDb id): the library holding it is <see cref="LibraryLinkWriteState.InLibrary"/>; a link the
+        /// library held (written, or read there before) that it now reports without — no id, the replaced one, or a
+        /// third — is <see cref="LibraryLinkWriteState.Lost"/> ("Write again"); anything else stays as it is.
         /// </summary>
         /// <remarks>
         /// <para>
         /// R4 — a link whose state changed at or after the moment this run started reading is left alone: its write may
         /// have reached the library after the item was read, and the read can't say what the library holds now. The next
-        /// sync judges it. An episode-to-show link is never written into the library, so there is nothing to judge; nor is
-        /// a link kept in the app (<see cref="LibraryLinkWriteState.KeptInApp"/>: a series' in Jellyfin, whose save
-        /// rewrites all its seasons and episodes, or any of a library type that can't set ids), which stays so whatever
-        /// the library reports — the id it replaced keeps giving way (R6), and nothing offers to write it again.
+        /// sync judges it. A link that writes nothing of its own — an episode's without its IMDb id — has nothing to
+        /// judge; nor has a link kept in the app (<see cref="LibraryLinkWriteState.KeptInApp"/>: an episode item's in
+        /// Jellyfin, any of a library type that can't set ids, a series' or an episode's set before the app wrote them),
+        /// which stays so whatever the library reports — the id it replaced keeps giving way (R6) — until it is written. Nor
+        /// has a link waiting for the background writer (<see cref="LibraryLinkWriteState.Queued"/>): its write, and the
+        /// lookup that follows it, are still to come — taken out of the queue as "in the library", the link would never
+        /// get the lookup the owner queued it for (the catch-up). The writer settles it; the next sync judges it.
         /// </para>
         /// <para>
         /// R9 — a link being written or put back (<see cref="LibraryLinkWriteState.Writing"/>) is its claimer's to settle,
@@ -163,17 +168,17 @@ public sealed partial class LibrarySnapshotStore
             var items = ItemsById(resolved);
             foreach (var link in links)
             {
-                if (link.Target != LibraryLinkTarget.Work
-                    || link.WriteState is LibraryLinkWriteState.Writing or LibraryLinkWriteState.KeptInApp
+                if (link.WriteState is LibraryLinkWriteState.Writing or LibraryLinkWriteState.KeptInApp or LibraryLinkWriteState.Queued
+                    || LibraryLinkEdits.WrittenKey(link) is not { } key
                     || !items.TryGetValue(link.SourceItemId, out var item)
                     || !MaySeeWriteOf(link))
                     continue;
 
                 // The first value of the scheme, as the snapshot stores it (SnapshotUpserts: the first fact of a key wins).
                 var libraryValue = item.Identifiers
-                    .FirstOrDefault(identifier => identifier.Scheme == link.Scheme && !string.IsNullOrWhiteSpace(identifier.Value))
+                    .FirstOrDefault(identifier => identifier.Scheme == key.Scheme && !string.IsNullOrWhiteSpace(identifier.Value))
                     ?.Value;
-                if (libraryValue is not null && SameValue(libraryValue, link.Value))
+                if (libraryValue is not null && SameValue(libraryValue, key.Value))
                 {
                     if (link.WriteState != LibraryLinkWriteState.InLibrary || link.WriteError is not null)
                         SetState(link, LibraryLinkWriteState.InLibrary, error: null);

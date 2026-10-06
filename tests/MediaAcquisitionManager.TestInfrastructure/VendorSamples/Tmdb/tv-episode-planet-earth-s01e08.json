@@ -1,0 +1,51 @@
+{
+  "air_date": "2006-11-19",
+  "crew": [
+    {
+      "job": "Director",
+      "department": "Directing",
+      "credit_id": "586287539251414e3a01b0e0",
+      "adult": false,
+      "gender": 2,
+      "id": 67589,
+      "known_for_department": "Directing",
+      "name": "Alastair Fothergill",
+      "original_name": "Alastair Fothergill",
+      "popularity": 0.9791,
+      "profile_path": "/l2fqoPIjMxVLRgb8BU9AwCrDJJA.jpg"
+    },
+    {
+      "job": "Editor",
+      "department": "Editing",
+      "credit_id": "5b991e73925141726c00da64",
+      "adult": false,
+      "gender": 2,
+      "id": 1115281,
+      "known_for_department": "Editing",
+      "name": "Dave Pearce",
+      "original_name": "Dave Pearce",
+      "popularity": 0.3987,
+      "profile_path": null
+    }
+  ],
+  "episode_number": 8,
+  "episode_type": "standard",
+  "guest_stars": [],
+  "name": "Джунглі",
+  "overview": "Це  оранжерея нашої планети. Вологі тропічні ліси займають лише 3% поверхні  суші, проте в них мешкає більше половини біологічних видів планети.",
+  "id": 1012122,
+  "production_code": "108",
+  "runtime": 51,
+  "season_number": 1,
+  "still_path": "/7iMa0muGgCZSX9aC56Sg8lJt8y1.jpg",
+  "vote_average": 8.303,
+  "vote_count": 33,
+  "external_ids": {
+    "imdb_id": "tt0905877",
+    "freebase_mid": "/m/05dllxs",
+    "freebase_id": null,
+    "tvdb_id": 312778,
+    "tvrage_id": null,
+    "wikidata_id": null
+  }
+}

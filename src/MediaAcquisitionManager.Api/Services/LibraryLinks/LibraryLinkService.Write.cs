@@ -5,20 +5,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
-// MAM-34 — Retry and Write again: a link to a film written into its library again, after a failed or unconfirmed
-// write, or after the library lost it; a link the library doesn't write (an episode's, Jellyfin's series') has nothing
-// to write. Only the owner's click sends it again; nothing retries by itself (house rule 8).
+// MAM-34 — Retry and Write again: a link written into its library again, after a failed or unconfirmed write, after
+// the library lost it, or — with its ids in place — to ask the library to look the item up again (a write that changes
+// nothing still asks); a link kept in the app (an episode's without its numbers, an episode item's in Jellyfin, one of a
+// library type that can't set ids) has nothing to write. Only the owner's click sends it again; nothing retries by itself
+// (house rule 8).
 public sealed partial class LibraryLinkService
 {
     private const string NothingLinkedError = "There is nothing to write: no item of this work is linked.";
-    private const string NothingToWriteForEpisodeError = "There is nothing to write: an episode's link to its show stays in the app.";
     private const string NothingToWriteUnattachedError = "There is nothing to write: the library no longer reports this item.";
 
-    private static string NothingToWriteWithoutWriterError(string name) =>
-        $"There is nothing to write: “{name}” can't set ids, so the link stays in the app.";
-
-    // {reason} is the library's own sentence (IMediaLibraryIdentifierWriter.UnwritableKindReason).
-    private static string NothingToWriteForKindError(string reason) => $"There is nothing to write: {reason}";
+    // {reason} is why the link stays in the app (LibraryLinkWritability), the library's own sentence among them.
+    private static string NothingToWriteError(string reason) => $"There is nothing to write: {reason}";
 
     public async Task<LibraryLinkResult> WriteAgainAsync(Guid workId, Guid ownerUserId, CancellationToken cancellationToken = default)
     {
@@ -33,19 +31,16 @@ public sealed partial class LibraryLinkService
             return LibraryLinkResult.Conflict(NothingLinkedError);
         if (links.Any(link => link.WriteState == LibraryLinkWriteState.Writing))
             return LibraryLinkResult.Conflict(UnderWayError);
-        var toWork = links.Where(link => link.Target == LibraryLinkTarget.Work).ToList();
-        if (toWork.Count == 0)
-            return LibraryLinkResult.Conflict(NothingToWriteForEpisodeError);
 
-        var connections = await ConnectionsAsync([.. toWork.Select(link => link.IntegrationConnectionId).Distinct()], cancellationToken);
+        var connections = await ConnectionsAsync([.. links.Select(link => link.IntegrationConnectionId).Distinct()], cancellationToken);
         // Read before the first claim: from a claim on, nothing may take the request's token (R9), or a cancel would leave
         // the claimed links Writing — refusing every change of the work — until the next restart.
         var actor = await ActorAsync(ownerUserId, cancellationToken);
         var claims = new List<(Guid LinkId, Guid AttemptId)>();
         string? refusal = null;
-        foreach (var link in toWork)
+        foreach (var link in links)
         {
-            if (WriteRefusal(connections.GetValueOrDefault(link.IntegrationConnectionId), link.ItemKind) is { } error)
+            if (WriteRefusal(connections.GetValueOrDefault(link.IntegrationConnectionId), link) is { } error)
                 refusal ??= error;
             else if (await ClaimAsync(link) is { } attemptId)
                 claims.Add((link.Id, attemptId));
@@ -71,11 +66,9 @@ public sealed partial class LibraryLinkService
             return LibraryLinkResult.Conflict(NothingToWriteUnattachedError);
         if (link.WriteState == LibraryLinkWriteState.Writing)
             return LibraryLinkResult.Conflict(UnderWayError);
-        if (link.Target != LibraryLinkTarget.Work)
-            return LibraryLinkResult.Conflict(NothingToWriteForEpisodeError);
 
         var connections = await ConnectionsAsync([link.IntegrationConnectionId], cancellationToken);
-        if (WriteRefusal(connections.GetValueOrDefault(link.IntegrationConnectionId), link.ItemKind) is { } refusal)
+        if (WriteRefusal(connections.GetValueOrDefault(link.IntegrationConnectionId), link) is { } refusal)
             return LibraryLinkResult.Conflict(refusal);
         // Read before the claim, as above.
         var actor = await ActorAsync(ownerUserId, cancellationToken);
@@ -86,18 +79,17 @@ public sealed partial class LibraryLinkService
         return await DialogAsync(workId, CancellationToken.None) is { } dialog ? LibraryLinkResult.Succeeded(dialog) : LibraryLinkResult.NotFound;
     }
 
-    /// <summary>Why a link to the work itself on an item of <paramref name="itemKind"/> can't be written now: its library
-    /// type can't set ids, or doesn't write that kind of item (Jellyfin: a series) — its links stay in the app, so there is
-    /// nothing to write —, or, R12, the integration is switched off; <c>null</c> when it can.</summary>
-    private string? WriteRefusal(IntegrationConnectionEntity? connection, MediaWorkKind itemKind)
+    /// <summary>Why <paramref name="link"/> can't be written now: it stays in the app — its library type can't set ids,
+    /// doesn't write that kind of item (Jellyfin: an episode item), or it is an episode's link that writes no id of its
+    /// own (<see cref="LibraryLinkWritability"/>) —, so there is nothing to write; or, R12, the integration is switched
+    /// off; <c>null</c> when it can.</summary>
+    private string? WriteRefusal(IntegrationConnectionEntity? connection, LibraryItemLinkEntity link)
     {
         // Removed with its links (decision 12); a link read a moment before is gone with it.
         if (connection is null)
             return UnderWayError;
-        if (adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType) is not { } libraryWriter)
-            return NothingToWriteWithoutWriterError(connection.Name);
-        if (!libraryWriter.WritableKinds.Contains(itemKind))
-            return NothingToWriteForKindError(libraryWriter.UnwritableKindReason(itemKind));
+        if (LibraryLinkWritability.KeptReason(link, adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType), connection.Name) is { } reason)
+            return NothingToWriteError(reason);
         return connection.IsEnabled ? null : LibraryLinkWriter.SwitchedOffError(connection.Name);
     }
 }

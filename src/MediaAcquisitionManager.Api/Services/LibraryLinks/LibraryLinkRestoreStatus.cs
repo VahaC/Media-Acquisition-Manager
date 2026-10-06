@@ -5,8 +5,8 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 public enum LibraryLinkRestoreStatus
 {
     /// <summary>Nothing to put back, and nothing was sent: the link was never sent to its library, its item is gone from
-    /// the library's list, the library type can't set ids or doesn't write the item's kind (Jellyfin: a series), or the
-    /// item no longer holds what the app wrote.</summary>
+    /// the library's list, the library type can't set ids or doesn't write the item's kind (Jellyfin: an episode item), or
+    /// the item no longer holds what the app wrote.</summary>
     NotNeeded = 1,
 
     /// <summary>The item's ids were sent back as the app found them (decision 13); the write says what was read and

@@ -248,5 +248,9 @@ public sealed class IntegrationAdapterRegistryTests
         public Task<IntegrationCallResult<LibraryIdentifierWrite>> WriteIdentifiersAsync(
             IntegrationConnectionSettings settings, LibraryIdentifierChange change, CancellationToken cancellationToken = default) =>
             Task.FromResult(IntegrationCallResult<LibraryIdentifierWrite>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+
+        public Task<IntegrationCallResult<LibraryMetadataLookup>> RequestMetadataLookupAsync(
+            IntegrationConnectionSettings settings, string sourceItemId, MediaWorkKind kind, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<LibraryMetadataLookup>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
     }
 }

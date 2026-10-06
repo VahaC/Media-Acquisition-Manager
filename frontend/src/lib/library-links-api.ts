@@ -4,6 +4,7 @@ import type {
   ConfidentSuggestionsQuery,
   LibraryLinkAcceptItem,
   LibraryLinkBatch,
+  LibraryLinkCatchUp,
   LibraryLinkDialog,
   LibraryLinkList,
   LibraryLinkLookupQuery,
@@ -19,9 +20,12 @@ import type {
 const BASE_URL = '/api/library'
 
 /**
- * MAM-34 — a library work linked to its TMDb film or show by hand, and a film's ids written into the
- * library's ProviderIds (ids only: no refresh, no images, no titles, the cast left as it is — ADR
- * 0026); a series' or an episode's link is kept in the app. Apart from the Library page's own works,
+ * MAM-34 — a library work linked to its TMDb film or show by hand, and its ids written into the
+ * library's ProviderIds — a film's, a series', or an episode's own IMDb id for an episode Jellyfin lists
+ * as a film (no images, no titles, the cast left as it is — ADR 0026) —, after which Jellyfin is asked
+ * to look up the item's missing metadata, as its own "Search for missing metadata" does (Vasyl's
+ * decision of 2026-10-06). An episode's link the app has no id to write for is kept in the app, as the
+ * server says per item. Apart from the Library page's own works,
  * whose cards show a linked id to everyone, every call here is the installation owner's: 403
  * `{ error }` for anyone else, reads included, as the suggestions name the owner's files.
  *
@@ -40,10 +44,11 @@ export const libraryLinksApi = {
 
   /**
    * `PUT /api/library/works/{id}/tmdb`. Links the work's items (`sourceItemIds`, or all of them) to a
-   * TMDb film or show, or replaces their link, then writes a film's ids into the library at once, item
-   * by item (a series' or an episode's link is kept in the app). 200 with the dialog as it now stands —
-   * each item's write state says how the write went (a failed write is a state with its sentence, not a
-   * failure of the call). 400 `{ error }` for a kind, id, season or episode the rules refuse, an item
+   * TMDb film or show, or replaces their link, then writes their ids into the library at once, item by
+   * item, and asks the library to look up each written item's missing metadata (an episode's link
+   * without an id to write is kept in the app). 200 with the dialog as it now stands — each item's write
+   * state says how the write went, its lookup fields how the request for the lookup went (a failed write
+   * or lookup is a state with its sentence, not a failure of the call). 400 `{ error }` for a kind, id, season or episode the rules refuse, an item
    * that isn't the work's, or a film for a series; a bare 404 when the work is gone, and 404
    * `{ error }` when TMDb has no such film or show; 409
    * `{ error }` when no catalog is connected, no library reports the work, or a write is under way;
@@ -54,8 +59,8 @@ export const libraryLinksApi = {
 
   /**
    * `DELETE /api/library/works/{id}/tmdb`. Changes back in the library the ids the app wrote, where it
-   * still holds them, then forgets the work's links; a link never written (a series' or an episode's)
-   * has nothing to change back. 200 with the dialog as the removal left it; 204 (null here) when the
+   * still holds them, then forgets the work's links; a link never written (kept in the app) has nothing
+   * to change back. 200 with the dialog as the removal left it; 204 (null here) when the
    * work had no link. A bare 404 when the work is gone; 409 `{ error }` when the library integration
    * holding ids the app wrote is switched off, or a write is under way; 502 `{ error }` when the
    * library couldn't be changed back — the link then stays, and Remove can be tried again.
@@ -66,9 +71,10 @@ export const libraryLinksApi = {
   },
 
   /**
-   * `POST /api/library/tmdb/links/{linkId}/write`. Retry, or Write again, for one item's link. The
-   * answer's body isn't read: the caller asks for the dialog again, which shows how the write went. 409
-   * `{ error }` when the link can't be written (a series' or an episode's link, a switched-off
+   * `POST /api/library/tmdb/links/{linkId}/write`. Retry, or Write again, for one item's link: writes
+   * its ids again (nothing changes where they are in place) and asks the library for the metadata
+   * lookup again. The answer's body isn't read: the caller asks for the dialog again, which shows how
+   * the write went. 409 `{ error }` when the link can't be written (one kept in the app, a switched-off
    * integration, a write under way, an item the library no longer reports); a bare 404 when the link is
    * gone.
    */
@@ -159,6 +165,22 @@ export const libraryLinksApi = {
    */
   links: async (query: LibraryLinksQuery): Promise<LibraryLinkList> =>
     (await api.get<LibraryLinkList>(`${BASE_URL}/tmdb/links`, { params: query })).data,
+
+  /**
+   * `GET /api/library/tmdb/catch-up`. What the links set before the app wrote series' and episodes'
+   * links, and asked Jellyfin for the metadata lookup, still lack: the links kept in the app that can be
+   * written now, and the written ones whose item Jellyfin wasn't asked to look up.
+   */
+  catchUp: async (): Promise<LibraryLinkCatchUp> =>
+    (await api.get<LibraryLinkCatchUp>(`${BASE_URL}/tmdb/catch-up`)).data,
+
+  /**
+   * `POST /api/library/tmdb/catch-up`. "Update Jellyfin": queues those links for the background writer,
+   * which writes them one at a time (nothing changes where the ids are in place) and asks the library to
+   * look up each one's metadata. 202 with what it queued; the Pending list of `links` follows the writes.
+   */
+  startCatchUp: async (): Promise<LibraryLinkCatchUp> =>
+    (await api.post<LibraryLinkCatchUp>(`${BASE_URL}/tmdb/catch-up`)).data,
 
   /**
    * `GET /api/library/tmdb/runs/latest`. The latest preparation of the suggestions; 204 (null here)

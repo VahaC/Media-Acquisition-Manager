@@ -64,6 +64,8 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
                 "POST api/library/works/{id:guid}/tmdb/write",
                 "POST api/library/tmdb/links/{linkId:guid}/write",
                 "DELETE api/library/tmdb/links/{linkId:guid}",
+                // MAM-34 follow-up — the catch-up of the links set under MAM-34's first rules.
+                "POST api/library/tmdb/catch-up",
             },
             writes);
     }

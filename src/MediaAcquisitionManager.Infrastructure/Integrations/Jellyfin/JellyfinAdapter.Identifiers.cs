@@ -12,30 +12,43 @@ using MediaAcquisitionManager.Core.Media;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
-// MAM-34 — the library contract's one write (IMediaLibraryIdentifierWriter): the owner's TMDb link of a film set into
-// its movie item's ProviderIds and nothing else (Vasyl, 2026-10-05: ids only — no identify, no refresh, no images,
-// titles or locks). What it stands on was recorded live on Jellyfin 12.1.0 (VendorSamples/Jellyfin: users.json,
-// item*.json and the .txt answers): Jellyfin reads one item only as a user — GET /Items/{id} with the API key and no
-// user is 400 — so the item is read as the first enabled administrator GET /Users lists; POST /Items/{id} replaces the
-// item with the body it is sent, so the body is the item as just read with only ProviderIds changed, and it answers
-// 204; read again, the item shows the new ids, and besides them only what Jellyfin derives from them (Etag,
-// ExternalUrls, UserData.Key) has changed. 10.9 to 11 are taken on trust from the same endpoints in their source, as the
-// reads are (MAM-8); the caller's connection test is the version gate.
+// MAM-34 — the library contract's one write (IMediaLibraryIdentifierWriter): the owner's TMDb link of a film or a show
+// set into its movie or series item's ProviderIds and nothing else, then one request for Jellyfin's own lookup of the
+// item's missing metadata (Vasyl, 2026-10-05: ids only — no identify, no images, titles or locks; amended 2026-10-06:
+// the ids alone changed nothing visible, as Jellyfin fetches an existing item's metadata only when it refreshes it).
+// What it stands on was recorded live on Jellyfin 12.1.0 (VendorSamples/Jellyfin: users.json, item*.json,
+// series-item*.json and the .txt answers): Jellyfin reads one item only as a user — GET /Items/{id} with the API key and
+// no user is 400 — so the item is read as the first enabled administrator GET /Users lists; POST /Items/{id} replaces the
+// item with the body it is sent, so the body is the item as just read with only ProviderIds changed, and it answers 204;
+// read again, the item shows the new ids, and besides them only what Jellyfin derives from them (Etag, ExternalUrls,
+// UserData.Key) has changed. 10.9 to 11 are taken on trust from the same endpoints in their source, as the reads are
+// (MAM-8); the caller's connection test is the version gate.
 //
 // What the same handler does beyond that, read in Jellyfin's source at tag v12.1 and the same on master
-// (Jellyfin.Api/Controllers/ItemUpdateController.cs, UpdateItem), not seen live:
-// - A series is never written (Vasyl, 2026-10-06): every POST of a series rewrites and saves each of its seasons and
-//   episodes — their SeriesName and CustomRating always, their OfficialRating unless the child locked it — and each
-//   save moves the child's DateLastSaved (and would rewrite its NFO file, were there one). That is far more than ids,
-//   recorded nowhere and beyond any removal's reach, so WritableKinds holds films only and a series link stays in the
-//   app. The live check of 2026-10-05 had written and removed the Penguins series' TMDb id twice (series-item*.json)
-//   before this was read.
+// (Jellyfin.Api/Controllers/ItemUpdateController.cs, UpdateItem L315-356) — the first seen live since, the others not:
+// - A series is written like a film (Vasyl's final decision of 2026-10-06): the show's TMDb id under the same Tmdb key —
+//   on a series item it names a show (ADR 0017) —, its IMDb id only where the item holds none, then the same lookup.
+//   Every POST of a series makes Jellyfin rewrite and save each of its seasons and episodes — their SeriesName and
+//   CustomRating always, their OfficialRating unless the child locked it —, each save moving the child's DateLastSaved
+//   (and rewriting its NFO file, were there one). Recorded on The Penguins of Madagascar on 2026-10-06: the save answered
+//   after 9.5 seconds (series-item-update-2026-10-06-response.txt), and afterwards all 3 seasons and 149 episodes carried
+//   the series' TV-Y7 — 88 episodes had a rating before, their values not recorded —, which the lookup asked right after
+//   didn't change back. Vasyl accepted that: age ratings don't matter to him (ADR 0026).
 // - People is left out of the body: sent, it makes Jellyfin rebuild the item's people from their names, roles and types
 //   alone (UpdateItem → LibraryManager.UpdatePeople), dropping what else it keeps of them; left out, the cast stays as it
 //   is. Every other field goes back as read.
 // - ProviderIds replace the item's ids as a whole (ProviderIdsExtensions.SetProviderIds), so Jellyfin itself drops any
 //   id it held that fails its own format check: sent back as read, such an id is gone after the write — Jellyfin's
 //   doing, not the app's.
+//
+// The lookup (RequestMetadataLookupAsync) is one POST /Items/{id}/Refresh with exactly what Jellyfin's own "Search for
+// missing metadata" sends — metadataRefreshMode=FullRefresh, imageRefreshMode=FullRefresh, replaceAllMetadata=false,
+// replaceAllImages=false (ItemRefreshController.RefreshItem, read at v12.1) — and never "Replace all metadata", which was
+// never tried live. Jellyfin queues it and answers 204. Live on 2026-10-06 that lookup kept every id and the Name and
+// filled only what was missing: "120. Landing Stripling" got its overview, genres, people, studios, tags, rating and
+// premiere date (2026-10-05); the World War II documentary file Jellyfin lists as a movie, given its episode's IMDb id
+// tt9103946, got an overview, a year, genres and a poster through The Open Movie Database, which finds an episode by its
+// IMDb id, its "TheMovieDb Movie Id" left empty.
 internal sealed partial class JellyfinAdapter
 {
     /// <summary>The name Jellyfin gives an item's registry ids, in every item it sends and takes.</summary>
@@ -44,11 +57,15 @@ internal sealed partial class JellyfinAdapter
     /// <summary>The name of an item's cast and crew, left out of what is sent back (see the top of this file).</summary>
     private const string PeopleProperty = "People";
 
-    private const string SeriesUnwritableReason =
-        "Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app.";
+    /// <summary>
+    /// The query of the lookup: exactly what Jellyfin's own "Search for missing metadata" sends — fetch what is missing,
+    /// images included, and replace nothing (see the top of this file). Never <c>replaceAll…=true</c>.
+    /// </summary>
+    private const string MissingMetadataLookupQuery =
+        "metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false";
 
     // {0} is the kind as a sentence names it ("an episode").
-    private const string KindUnwritableReason = "Jellyfin's ids are written on movie items only, so a link on {0} stays in the app.";
+    private const string KindUnwritableReason = "Jellyfin's ids are written on movie and series items only, so a link on {0} stays in the app.";
 
     private const string NoAdministratorError = "Jellyfin has no enabled administrator account to read the item as.";
 
@@ -58,6 +75,11 @@ internal sealed partial class JellyfinAdapter
         "Jellyfin refused to change the item's ids. Check that the API key belongs to an administrator.";
 
     private const string WriteRefusedError = "Jellyfin refused the item it was sent back; nothing was changed.";
+
+    private const string LookupForbiddenError =
+        "Jellyfin refused to look the item up. Check that the API key belongs to an administrator.";
+
+    private const string LookupRefusedError = "Jellyfin refused the request to look the item up; nothing was changed.";
 
     // R10 — the change left the app, and what became of it is unknown: the write is still a success, sent and not
     // confirmed, so the caller records it as one that may have landed. Never sent again (house rule 8): the owner's
@@ -88,23 +110,23 @@ internal sealed partial class JellyfinAdapter
     private static readonly JsonWriterOptions ItemWriterOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <inheritdoc/>
-    /// <remarks>Films only: saving a series rewrites all its seasons and episodes (see the top of this file).</remarks>
-    public IReadOnlyList<MediaWorkKind> WritableKinds { get; } = [MediaWorkKind.Movie];
+    /// <remarks>Films and series (Vasyl's final decision of 2026-10-06); an episode item is never written. Saving a
+    /// series gives its seasons and episodes its name and ratings, which Vasyl accepted (see the top of this file).</remarks>
+    public IReadOnlyList<MediaWorkKind> WritableKinds { get; } = [MediaWorkKind.Movie, MediaWorkKind.Series];
 
     /// <inheritdoc/>
-    public string UnwritableKindReason(MediaWorkKind kind) =>
-        kind == MediaWorkKind.Series ? SeriesUnwritableReason : Sentence(KindUnwritableReason, kind);
+    public string UnwritableKindReason(MediaWorkKind kind) => Sentence(KindUnwritableReason, kind);
 
     /// <inheritdoc/>
     /// <remarks>
     /// <para>
-    /// A movie item only (<see cref="WritableKinds"/>): <c>GET /Users</c>, then <c>GET /Items/{id}?userId=</c> as the
-    /// first enabled administrator, then — only when an edit changes something — one <c>POST /Items/{id}</c> with the
+    /// A movie or series item (<see cref="WritableKinds"/>): <c>GET /Users</c>, then <c>GET /Items/{id}?userId=</c> as
+    /// the first enabled administrator, then — only when an edit changes something — one <c>POST /Items/{id}</c> with the
     /// item as read but for its <c>ProviderIds</c>, and without its <c>People</c>, then the same read again to confirm.
     /// An item the administrator can't see answers 404 like one that is gone; a user-less <c>GET /Items?ids=</c> tells
     /// the two apart. Every request carries the key the reads do, in the <c>Authorization</c> header only. Each id goes
-    /// under Jellyfin's own key — <c>Tmdb</c>, <c>Imdb</c> — in the spelling the item already uses; a removed id loses
-    /// its key; every other id (<c>TmdbCollection</c>, <c>Tvdb</c>, …) stays as read.
+    /// under Jellyfin's own key — <c>Tmdb</c> for a film's or a show's TMDb id, <c>Imdb</c> — in the spelling the item
+    /// already uses; a removed id loses its key; every other id (<c>TmdbCollection</c>, <c>Tvdb</c>, …) stays as read.
     /// </para>
     /// <para>
     /// The POST is sent once, whatever becomes of it (house rule 8). A refusal (400, 401, 403, 404) changed nothing and
@@ -119,6 +141,47 @@ internal sealed partial class JellyfinAdapter
     {
         var itemId = ValidateChange(change);
         return WriteAsync(settings, itemId, change, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// One <c>POST /Items/{id}/Refresh</c> with the query of Jellyfin's own "Search for missing metadata"
+    /// (<see cref="MissingMetadataLookupQuery"/>), no body, the key in the <c>Authorization</c> header only; Jellyfin queues
+    /// the lookup and answers 204. Sent once, whatever becomes of it (house rule 8): a lookup the app asked twice is one
+    /// Jellyfin does twice, and the owner's Retry asks again. A 401 is the key-refused sentence, a 404 the item gone
+    /// (<see cref="IntegrationCallStatus.NotFound"/>), a 403 or a 400 <see cref="IntegrationCallStatus.Refused"/> with
+    /// its own sentence — the item's write answers the same —, anything else the shared sentence.
+    /// </remarks>
+    public Task<IntegrationCallResult<LibraryMetadataLookup>> RequestMetadataLookupAsync(
+        IntegrationConnectionSettings settings, string sourceItemId, MediaWorkKind kind, CancellationToken cancellationToken = default)
+    {
+        // A caller's mistake, thrown before anything is sent: the id goes into the path, so only one Jellyfin gives
+        // (MAM-8's rule), and only an item of a kind the app writes is ever asked for.
+        if (!Guid.TryParse(sourceItemId, out var itemId))
+            throw new ArgumentException("The item id is not one Jellyfin gives.", nameof(sourceItemId));
+        if (!WritableKinds.Contains(kind))
+            throw new ArgumentException(UnwritableKindReason(kind), nameof(kind));
+
+        return CallAsync<LibraryMetadataLookup>(
+            settings, (client, sessionSecrets, token) => LookUpAsync(client, settings, itemId, sourceItemId, sessionSecrets, token), cancellationToken);
+    }
+
+    private async Task<IntegrationCallResult<LibraryMetadataLookup>> LookUpAsync(
+        HttpClient client, IntegrationConnectionSettings settings, Guid itemId, string sourceItemId, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
+    {
+        using var request = CreateRequest(settings, string.Create(CultureInfo.InvariantCulture, $"{ItemPath(itemId)}/Refresh?{MissingMetadataLookupQuery}"));
+        // The same key and Accept as every read; only the method differs. The query says it all: no body.
+        request.Method = HttpMethod.Post;
+        using var response = await client.SendAsync(request, cancellationToken);
+        return (int)response.StatusCode switch
+        {
+            >= 200 and < 300 => IntegrationCallResult<LibraryMetadataLookup>.Succeeded(new LibraryMetadataLookup(sourceItemId)),
+            400 => IntegrationCallResult<LibraryMetadataLookup>.Failed(IntegrationCallStatus.Refused, LookupRefusedError),
+            401 => IntegrationCallResult<LibraryMetadataLookup>.Failed(IntegrationCallStatus.AuthenticationFailed, KeyRefusedError),
+            403 => IntegrationCallResult<LibraryMetadataLookup>.Failed(IntegrationCallStatus.Refused, LookupForbiddenError),
+            404 => IntegrationCallResult<LibraryMetadataLookup>.Failed(IntegrationCallStatus.NotFound, ItemGoneError),
+            _ => DescribeUnexpectedStatus<LibraryMetadataLookup>(response, settings, sessionSecrets),
+        };
     }
 
     /// <summary>
@@ -197,9 +260,10 @@ internal sealed partial class JellyfinAdapter
         catch (OperationCanceledException exception)
             when (!cancellationToken.IsCancellationRequested && exception.InnerException is not TimeoutException { InnerException: null })
         {
-            // The client's timeout ran out after the connection was made: the change may be in Jellyfin already (a
-            // series write the live check made took 4.5 seconds). The handler's connect timeout, a TimeoutException with
-            // nothing inside (see HttpIntegrationAdapter), sent nothing, and is left to the shared sentence.
+            // The client's timeout ran out after the connection was made: the change may be in Jellyfin already (the
+            // live checks' series writes took 4.5 and 9.5 seconds, as Jellyfin saves every season and episode with it).
+            // The handler's connect timeout, a TimeoutException with nothing inside (see HttpIntegrationAdapter), sent
+            // nothing, and is left to the shared sentence.
             var problem = string.Format(CultureInfo.InvariantCulture, AnswerTimedOutProblem, client.Timeout.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture));
             return IntegrationCallResult<SentChange>.Succeeded(new SentChange(write with { Problem = problem }, userId));
         }
@@ -292,8 +356,8 @@ internal sealed partial class JellyfinAdapter
 
     /// <summary>
     /// <c>GET /Items/{id}?userId=</c>: the whole item, as a document the caller disposes, once it is the kind the link
-    /// needs — a movie item for a film — with its <c>ProviderIds</c> an object or absent. An item of another type is
-    /// never written: its ids would mean something else.
+    /// needs — a movie item for a film, a series item for a show — with its <c>ProviderIds</c> an object or absent. An
+    /// item of another type is never written: its ids would mean something else.
     /// </summary>
     private async Task<IntegrationCallResult<JsonDocument>> ReadItemAsync(
         HttpClient client, IntegrationConnectionSettings settings, Guid itemId, string userId, MediaWorkKind kind, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
@@ -489,8 +553,8 @@ internal sealed partial class JellyfinAdapter
             .OfType<MediaIdentifier>(),
     ];
 
-    /// <summary>Jellyfin's key for a scheme a movie item takes: <c>Imdb</c>, and <c>Tmdb</c> for the film's TMDb
-    /// id.</summary>
+    /// <summary>Jellyfin's key for a scheme a movie or series item takes: <c>Imdb</c>, and <c>Tmdb</c> for the film's or
+    /// the show's TMDb id — one key, whose numbering the item's type says (ADR 0017).</summary>
     private static string ProviderIdKey(MediaIdentifierScheme scheme) => scheme == MediaIdentifierScheme.Imdb ? "Imdb" : "Tmdb";
 
     /// <summary>Two values as the same id: both none, or equal once trimmed, in any letter case.</summary>
@@ -506,10 +570,10 @@ internal sealed partial class JellyfinAdapter
 
     /// <summary>
     /// A caller's mistake, thrown before anything is sent: an item id Jellyfin never gives (it goes into the path, so
-    /// only a Guid is sent, MAM-8's rule), a kind <see cref="WritableKinds"/> leaves out — a series above all (see the
-    /// top of this file) —, no edit, an edit of a scheme a movie item can't take — a show's TMDb id never goes onto it
-    /// (ADR 0017) — or of one scheme twice, a malformed value, an "only where absent" that sets nothing, or an expected
-    /// value without its rule.
+    /// only a Guid is sent, MAM-8's rule), a kind <see cref="WritableKinds"/> leaves out, no edit, an edit of a scheme
+    /// the item can't take — a show's TMDb id never goes onto a movie item, nor a film's onto a series item (ADR 0017) —
+    /// or of one scheme twice, a malformed value, an "only where absent" that sets nothing, or an expected value without
+    /// its rule.
     /// </summary>
     private Guid ValidateChange(LibraryIdentifierChange change)
     {
@@ -526,7 +590,7 @@ internal sealed partial class JellyfinAdapter
         {
             if (edit is null)
                 throw new ArgumentException("The change has an empty edit.", nameof(change));
-            if (edit.Scheme is not (MediaIdentifierScheme.Tmdb or MediaIdentifierScheme.Imdb))
+            if (edit.Scheme != MediaIdentifierScheme.Imdb && edit.Scheme != TmdbScheme(change.Kind))
                 throw new ArgumentException($"A {change.Kind} item takes no {edit.Scheme} id.", nameof(change));
             if (!schemes.Add(edit.Scheme))
                 throw new ArgumentException($"The change edits {edit.Scheme} twice.", nameof(change));
@@ -554,6 +618,11 @@ internal sealed partial class JellyfinAdapter
             or HttpRequestError.ConnectionError
             or HttpRequestError.SecureConnectionError
             or HttpRequestError.ProxyTunnelError);
+
+    /// <summary>The TMDb numbering an item of <paramref name="kind"/> takes: a show's on a series item, a film's on a movie
+    /// item (ADR 0017).</summary>
+    private static MediaIdentifierScheme TmdbScheme(MediaWorkKind kind) =>
+        kind == MediaWorkKind.Series ? MediaIdentifierScheme.TmdbTv : MediaIdentifierScheme.Tmdb;
 
     /// <summary>The item's path, in Jellyfin's own 32-hex-digit form.</summary>
     private static string ItemPath(Guid itemId) => string.Create(CultureInfo.InvariantCulture, $"Items/{itemId:N}");

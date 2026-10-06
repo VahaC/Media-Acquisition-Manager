@@ -9,7 +9,7 @@ import type { CurrentUser } from '@/lib/types'
 import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
 import { apiError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
-import { confidentPage, confidentStripling, dialogOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
+import { catchUpOf, confidentPage, confidentStripling, dialogOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
@@ -59,6 +59,7 @@ describe('LibraryTmdbPage', () => {
     vi.mocked(libraryLinksApi.queue).mockImplementation(async (index) => queueOf(index, 1, dialogOf()))
     vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [confidentStripling]))
     vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
   })
 
   afterEach(() => {

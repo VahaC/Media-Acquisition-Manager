@@ -105,6 +105,8 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("LibraryLinkReviewController.AcceptConfident", actions);
         Assert.Contains("LibraryLinkReviewController.LatestRun", actions);
         Assert.Contains("LibraryLinkReviewController.StartRun", actions);
+        Assert.Contains("LibraryLinkCatchUpController.Read", actions);
+        Assert.Contains("LibraryLinkCatchUpController.Start", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

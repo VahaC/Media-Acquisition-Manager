@@ -14,7 +14,8 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 /// <summary>
 /// TMDb behind the core's contracts (Adapter, ADR 0005), MAM-33: the registration and the connection
 /// test here, with what every call shares — the request, the pacing, the answer to a failure and the
-/// reading of a listed work; the catalog's works, collections and people in <c>TmdbAdapter.Works.cs</c>,
+/// reading of a listed work; the catalog's works, collections and people — MAM-34, and a show's episode — in
+/// <c>TmdbAdapter.Works.cs</c>,
 /// its searches, discovery and genres in <c>TmdbAdapter.Lists.cs</c>, the lookup a match runs
 /// (<see cref="IMetadataResolver"/>) in <c>TmdbAdapter.Lookup.cs</c>, and the posters in
 /// <c>TmdbAdapter.Posters.cs</c>. Read-only: every call is a GET.

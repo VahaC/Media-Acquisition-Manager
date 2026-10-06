@@ -86,6 +86,8 @@ export const qk = {
       list: (query: LibraryLinksQuery) => ['library', 'links', 'list', query] as const,
       /** The latest preparation of the suggestions. */
       latestRun: ['library', 'links', 'runs', 'latest'] as const,
+      /** What "Update Jellyfin" would still send: the links set before series and lookups were written. */
+      catchUp: ['library', 'links', 'catch-up'] as const,
     },
   },
   downloads: {

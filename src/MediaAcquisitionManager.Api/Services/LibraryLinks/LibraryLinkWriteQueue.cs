@@ -4,7 +4,7 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
 /// <summary>
 /// MAM-34 — wakes <see cref="LibraryLinkWriteWorker"/> when links are waiting to be written into their libraries
-/// ("Accept all confident"). A signal, not a list (R13): the links in <c>Queued</c> are the queue, so nothing is ever
+/// ("Accept all confident", the catch-up). A signal, not a list (R13): the links in <c>Queued</c> are the queue, so nothing is ever
 /// dropped, refused or left behind by a restart, however many links one click queues.
 /// </summary>
 public sealed class LibraryLinkWriteQueue

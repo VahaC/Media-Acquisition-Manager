@@ -21,10 +21,11 @@ namespace MediaAcquisitionManager.Core.Library;
 /// </para>
 /// <para>
 /// An episode-to-show link (<see cref="LibraryLinkTarget.ShowEpisode"/>) adds nothing — the show's ids are not the
-/// item's — but drops the film id the library wrongly gave the item (R7): the link replaces it in the app, and is never
-/// written into the library, so it never stops giving way. A film id the library gives the item after the link was set
-/// — a refresh, an Identify — is neither dropped nor taken: it stays, and conflicts with the link
-/// (<see cref="ConflictingValue"/>), as the owner said the item is an episode.
+/// item's — but drops the film id the library wrongly gave the item (R7): the link replaces it in the app, and what the
+/// app writes for it is the episode's own IMDb id, never a TMDb one, so it never stops giving way, whatever the link's
+/// state. Once the library holds that IMDb id, the item reports it as its own, like any library id. A film id the
+/// library gives the item after the link was set — a refresh, an Identify — is neither dropped nor taken: it stays, and
+/// conflicts with the link (<see cref="ConflictingValue"/>), as the owner said the item is an episode.
 /// </para>
 /// <para>
 /// Values compare trimmed and in any letter case, as the library's own ids are grouped (ADR 0008).
@@ -75,12 +76,14 @@ public static class LinkedIdentifiers
                 ?.Value;
     }
 
-    // The library id the link replaces, while it gives way: of the link's scheme for a link to the work, the film id for
-    // an episode-to-show link (R7).
+    // The library id the link replaces, while it gives way: of the link's scheme for a link to the work while the link
+    // isn't confirmed (R6); the film id for an episode-to-show link always (R7) — the link's write is the episode's IMDb
+    // id, so the film id is never what its state is about.
     private static bool GivesWay(MediaIdentifier identifier, ItemLinkFacts link) =>
         link.SupersededValue is { } superseded
-        && Unconfirmed.Contains(link.WriteState)
-        && identifier.Scheme == (link.Target == LibraryLinkTarget.Work ? link.Scheme : MediaIdentifierScheme.Tmdb)
+        && (link.Target == LibraryLinkTarget.Work
+            ? Unconfirmed.Contains(link.WriteState) && identifier.Scheme == link.Scheme
+            : identifier.Scheme == MediaIdentifierScheme.Tmdb)
         && SameValue(identifier.Value, superseded);
 
     private static bool SameValue(string first, string second) =>

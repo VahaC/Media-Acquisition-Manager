@@ -186,3 +186,11 @@ are queries for the suggestions and prefill the numbers of a show suggested to a
 `LibraryLinkSyncHttpTests.Resync_keeps_items_linked_to_other_episodes_of_one_show_apart_and_drops_the_film_id_jellyfin_gave_them`,
 `LibraryLinkSuggestionsHttpTests.Dialog_of_a_film_never_has_a_show_confident_and_prefills_its_episode`
 and `EpisodeMarkerTests.Read_of_a_text_with_no_marker_of_its_own_is_nothing` pin it.
+
+**Amended 2026-10-06 (ADR 0026's section added in 0.2.1).** A series item's link is written into
+Jellyfin like a film's — the show's TMDb id under the series' `Tmdb` key, which Jellyfin keeps as a
+show's —, Vasyl having accepted that a series' save gives its seasons and episodes the series' age
+ratings; and a movie item's link to an episode of a show, naming its season and episode, writes the
+episode's own IMDb id there, never a TMDb id. The library still says what every item is. The series
+test named above is now
+`LibraryLinkSetHttpTests.Set_of_a_show_on_a_series_writes_the_shows_ids_into_jellyfin_confirmed_asks_it_to_look_the_series_up_and_the_next_sync_finds_them`.

@@ -13,10 +13,11 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
 // MAM-34 — Retry and Write again (POST /api/library/works/{id}/tmdb/write for a work, POST
 // /api/library/tmdb/links/{id}/write for one link): only the owner's click sends a link into Jellyfin again — after a
-// refused write, an unconfirmed one, or Jellyfin losing it — read first, sent once, recorded, settled. Nothing to write
-// (an episode's link, a series' — Jellyfin's save of a series rewrites all its seasons and episodes —, a library type
-// that can't set ids, an item gone), a library switched off (R12) or a write under way (R9) is a 409 that sends
-// nothing.
+// refused write, an unconfirmed one, or Jellyfin losing it — read first, sent once, recorded, settled, and Jellyfin asked
+// to look the item up again (LibraryLinkLookupHttpTests); a series' link the first rules kept in the app is written like
+// a film's (Vasyl's final decision of 2026-10-06). Nothing to write (an episode's link without its numbers, an episode
+// item's, a library type that can't set ids, an item gone), a library switched off (R12) or a write under way (R9) is a
+// 409 that sends nothing.
 public sealed class LibraryLinkWriteAgainHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -71,7 +72,11 @@ public sealed class LibraryLinkWriteAgainHttpTests : IClassFixture<MediaAcquisit
         var link = await SingleLinkAsync(cancellationToken);
         Assert.Equal((LibraryLinkWriteState.Written, (string?)null, _factory.Time.GetUtcNow().UtcDateTime), (link.WriteState, link.WriteError, link.WriteStateUtc!.Value));
         Assert.Equal(FilmId, (string?)Movie(ShortId)["ProviderIds"]!["Tmdb"]);
-        Assert.Equal([AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten], await AuditActionsAsync(cancellationToken));
+        // The refused write sent nothing and asked for no lookup; the one that landed did both.
+        Assert.Equal(
+            [AuditAction.LibraryLinkSet, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested],
+            await AuditActionsAsync(cancellationToken));
+        Assert.Equal([ShortId], _jellyfin.Lookups);
     }
 
     [Fact]
@@ -130,13 +135,15 @@ public sealed class LibraryLinkWriteAgainHttpTests : IClassFixture<MediaAcquisit
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("There is nothing to write: an episode's link to its show stays in the app.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal(
+            "There is nothing to write: Without a season and an episode the app has no id of this episode to write.",
+            await response.ReadErrorAsync(cancellationToken));
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Write_of_a_series_link_is_409_as_jellyfin_rewrites_every_season_and_episode_of_a_series_it_saves(bool oneLink)
+    public async Task Write_of_a_series_link_the_first_rules_kept_in_the_app_writes_it_into_jellyfin_and_asks_it_to_look_the_series_up(bool oneLink)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -150,7 +157,49 @@ public sealed class LibraryLinkWriteAgainHttpTests : IClassFixture<MediaAcquisit
             .Where(title => title.SourceItemId == PenguinsId)
             .Select(title => title.MediaWorkId)
             .FirstAsync(cancellationToken));
-        var link = await _links.Create(_jellyfinIntegration, PenguinsId, workId, MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId);
+        // Kept in the app when series weren't written; written like a film's now (Vasyl's final decision of 2026-10-06).
+        var link = await _links.Create(
+            _jellyfinIntegration, PenguinsId, workId, MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId, configure: row => row.ImdbId = "tt0892700");
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        var response = await _factory.PostHttpRequest(oneLink ? $"{BaseUrl}/tmdb/links/{link.Id}/write" : $"{WorkUrl(workId)}/write", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dialog = await response.Content.ReadFromJsonAsync<LibraryLinkDialogResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        var item = Assert.Single(dialog!.Items);
+        Assert.Equal(((LibraryLinkWriteState?)LibraryLinkWriteState.Written, true, (string?)null), (item.WriteState, item.CanWrite, item.CannotWriteReason));
+        var stored = await SingleLinkAsync(cancellationToken);
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        Assert.Equal(
+            (LibraryLinkWriteState.Written, (string?)null, (DateTime?)now, (DateTime?)now),
+            (stored.WriteState, stored.WriteError, stored.WriteStateUtc, stored.LookupRequestedUtc));
+        Assert.Equal("""{"Tmdb":"7869","Imdb":"tt0892700"}""", _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString());
+        Assert.Equal([PenguinsId], _jellyfin.Lookups);
+        Assert.Equal([AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested], await AuditActionsAsync(cancellationToken));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Write_of_a_link_on_an_episode_item_is_409_with_jellyfins_sentence_and_sends_nothing(bool oneLink)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string KidsId = "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3";
+        _jellyfinIntegration = await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
+        // An episode no series holds (Tom & Jerry Kids): its link names the show, whose ids no item of it holds.
+        _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith(KidsId, "Tom & Jerry Kids 01", null, null, null, "/media/cartoons/Tom & Jerry Kids/01.mkv"));
+        await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
+        var workId = Guid.Empty;
+        await _factory.WithDbAsync(async db => workId = await db.MediaWorkTitles
+            .Where(title => title.SourceItemId == KidsId)
+            .Select(title => title.MediaWorkId)
+            .FirstAsync(cancellationToken));
+        var link = await _links.Create(
+            _jellyfinIntegration, KidsId, workId, MediaIdentifierScheme.TmdbTv, "1044", target: LibraryLinkTarget.ShowEpisode,
+            configure: row => (row.ItemKind, row.SeasonNumber, row.EpisodeNumber) = (MediaWorkKind.Episode, 1, 1));
         var sent = _factory.JellyfinHttp.Requests.Count;
 
         //Act
@@ -159,7 +208,7 @@ public sealed class LibraryLinkWriteAgainHttpTests : IClassFixture<MediaAcquisit
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(
-            "There is nothing to write: Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app.",
+            "There is nothing to write: Jellyfin's ids are written on movie and series items only, so a link on an episode stays in the app.",
             await response.ReadErrorAsync(cancellationToken));
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
         var stored = await SingleLinkAsync(cancellationToken);
@@ -195,7 +244,7 @@ public sealed class LibraryLinkWriteAgainHttpTests : IClassFixture<MediaAcquisit
 
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("There is nothing to write: “Old library” can't set ids, so the link stays in the app.", await response.ReadErrorAsync(cancellationToken));
+        Assert.Equal("There is nothing to write: “Old library” can't set ids, so a link stays in the app.", await response.ReadErrorAsync(cancellationToken));
         Assert.Empty(_factory.FakeAdapter.Calls);
     }
 

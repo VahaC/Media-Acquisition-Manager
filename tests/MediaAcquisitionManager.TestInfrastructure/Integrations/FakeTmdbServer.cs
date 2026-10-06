@@ -13,14 +13,16 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <summary>
 /// MAM-33 — TMDb behind a <see cref="RecordingHttpHandler"/>: its API at <see cref="BaseUrl"/> and its image
 /// host, answering every request the TMDb adapter makes from a catalog a test builds — works
-/// (<see cref="AddWork"/>), collections, people, searches, IMDb ids and discovery pages — in the shape TMDb
-/// really answers (<c>VendorSamples/Tmdb</c>, whose field names it copies).
+/// (<see cref="AddWork"/>), collections, people, searches, IMDb ids and discovery pages, and MAM-34's episodes
+/// (<see cref="AddEpisode"/>) — in the shape TMDb really answers (<c>VendorSamples/Tmdb</c>, whose field names it
+/// copies).
 /// </summary>
 /// <remarks>
 /// <para>
 /// As TMDb does: a request to the API without <c>Authorization: Bearer {Token}</c> answers the recorded
 /// 401 (<see cref="TmdbSamples.WrongKeyResponseFile"/>); a work, collection or person the catalog doesn't
-/// have answers TMDb's 404 (<see cref="NotFoundBody"/>), as does any path TMDb doesn't serve; a search, an
+/// have answers TMDb's 404 (<see cref="NotFoundBody"/>), as does an episode nobody added and any path TMDb doesn't
+/// serve; a search, an
 /// IMDb id or a discovery page nobody added answers an empty list. The genre lists are the recorded ones
 /// (<see cref="TmdbSamples.GenresMovieFile"/>, <see cref="TmdbSamples.GenresTvFile"/>). A poster at
 /// <c>https://image.tmdb.org/t/p/{size}/{file}</c> answers a small JPEG (<see cref="PosterJpeg"/>), whatever
@@ -84,6 +86,7 @@ public sealed class FakeTmdbServer
     private readonly Dictionary<(MediaWorkKind Kind, string Query, int? Year), int[]> _searches = [];
     private readonly Dictionary<string, List<(MediaWorkKind Kind, int Id)>> _finds = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<(MediaWorkKind Kind, int Page), int[]> _discoveries = [];
+    private readonly Dictionary<(int ShowId, int Season, int Episode), FakeTmdbEpisode> _episodes = [];
 
     private FakeTmdbServer()
     {
@@ -157,6 +160,15 @@ public sealed class FakeTmdbServer
         }
     }
 
+    /// <summary>MAM-34 — adds an episode of a show; adding one of the same show, season and number again replaces it.
+    /// The show itself needn't be added: TMDb answers an episode by its path alone.</summary>
+    public void AddEpisode(FakeTmdbEpisode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        lock (_gate)
+            _episodes[(episode.ShowId, episode.SeasonNumber, episode.EpisodeNumber)] = episode;
+    }
+
     /// <summary>What page <paramref name="page"/> of a discovery of <paramref name="kind"/> answers,
     /// whatever genres it asks for: the works <paramref name="ids"/>, in that order.</summary>
     public void AddDiscover(MediaWorkKind kind, int page, params int[] ids)
@@ -191,6 +203,7 @@ public sealed class FakeTmdbServer
                 ["authentication"] => JsonAnswer(new JsonObject { ["success"] = true }),
                 ["movie", var id] => Details(MediaWorkKind.Movie, id, query),
                 ["tv", var id] => Details(MediaWorkKind.Series, id, query),
+                ["tv", var id, "season", var season, "episode", var episode] => Episode(id, season, episode, query),
                 ["collection", var id] => Collection(id),
                 ["person", var id, "combined_credits"] => CombinedCredits(id),
                 ["search", var type] when KindOf(type) is { } kind => Search(kind, query),
@@ -222,6 +235,48 @@ public sealed class FakeTmdbServer
             details["alternative_titles"] = new JsonObject { [kind == MediaWorkKind.Series ? "results" : "titles"] = AlternativeTitles(work) };
         if (appended.Contains("external_ids"))
             details["external_ids"] = ExternalIds(work);
+        return JsonAnswer(details);
+    }
+
+    // MAM-34 — in the shape of TMDb's episode details (VendorSamples/Tmdb/tv-episode-wwii-s01e01.json).
+    private HttpResponseMessage Episode(string id, string season, string episode, Dictionary<string, string> query)
+    {
+        if (!int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var showId)
+            || !int.TryParse(season, NumberStyles.None, CultureInfo.InvariantCulture, out var seasonNumber)
+            || !int.TryParse(episode, NumberStyles.None, CultureInfo.InvariantCulture, out var episodeNumber)
+            || !_episodes.TryGetValue((showId, seasonNumber, episodeNumber), out var found))
+            return NotFound();
+
+        var details = new JsonObject
+        {
+            ["air_date"] = found.AirDate,
+            ["crew"] = new JsonArray(),
+            ["episode_number"] = found.EpisodeNumber,
+            ["episode_type"] = "standard",
+            ["guest_stars"] = new JsonArray(),
+            ["name"] = found.Title,
+            ["overview"] = "",
+            ["id"] = showId * 1000 + seasonNumber * 100 + episodeNumber,
+            ["production_code"] = "",
+            ["runtime"] = found.RuntimeMinutes,
+            ["season_number"] = found.SeasonNumber,
+            ["still_path"] = null,
+            ["vote_average"] = 0.0,
+            ["vote_count"] = 0,
+        };
+        if (query.TryGetValue("append_to_response", out var append) && append.Split(',').Contains("external_ids"))
+        {
+            details["external_ids"] = new JsonObject
+            {
+                ["imdb_id"] = found.ImdbId,
+                ["freebase_mid"] = null,
+                ["freebase_id"] = null,
+                ["tvdb_id"] = null,
+                ["tvrage_id"] = null,
+                ["wikidata_id"] = null,
+            };
+        }
+
         return JsonAnswer(details);
     }
 

@@ -14,7 +14,7 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Conventions;
 // ReleaseSearch (MAM-10), DownloadClient (MAM-11) and Metadata (MAM-33), whose kind takes two contracts.
 // MAM-34 — a library's identifier writer is optional: a library type without it keeps the owner's links in the
 // app, so no library is required to have one; but one is only ever a further contract of a media library, and it names
-// the kinds of item it writes — films and shows at most, Jellyfin's films only — with a sentence for the rest.
+// the kinds of item it writes — films and shows at most, Jellyfin's both — with a sentence for the rest.
 public sealed class AdapterKindContractTests
 {
     [Fact]
@@ -137,7 +137,8 @@ public sealed class AdapterKindContractTests
             .ToList();
 
         //Assert
-        // A link to the work itself exists only for a film or a show; an episode's link is to its show, never written.
+        // A link to the work itself exists only for a film or a show; an episode item's link is to its show, never
+        // written (an episode Jellyfin lists as a film is a movie item: its link writes the episode's IMDb id there).
         Assert.All(writers, found =>
         {
             Assert.NotEmpty(found.Writer!.WritableKinds);
@@ -146,7 +147,7 @@ public sealed class AdapterKindContractTests
                 Enum.GetValues<MediaWorkKind>().Except(found.Writer.WritableKinds),
                 kind => Assert.False(string.IsNullOrWhiteSpace(found.Writer.UnwritableKindReason(kind))));
         });
-        // Jellyfin's save of a series rewrites all its seasons and episodes (ADR 0026): films only.
-        Assert.Equal([MediaWorkKind.Movie], writers.Single(found => found.TypeId == "jellyfin").Writer!.WritableKinds);
+        // Jellyfin writes a series like a film (Vasyl's final decision of 2026-10-06, ADR 0026).
+        Assert.Equal([MediaWorkKind.Movie, MediaWorkKind.Series], writers.Single(found => found.TypeId == "jellyfin").Writer!.WritableKinds);
     }
 }

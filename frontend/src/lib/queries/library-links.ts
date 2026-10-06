@@ -6,6 +6,7 @@ import type {
   LibraryLinkAcceptItem,
   LibraryLinkBatch,
   LibraryLinkDialog,
+  LibraryLinkList,
   LibraryLinkLookupQuery,
   LibraryLinkRequest,
   LibraryLinkSearchQuery,
@@ -17,8 +18,8 @@ import { qk } from './keys'
 /**
  * MAM-34 — how often an open dialog is asked for again while one of its items is being written (or
  * waits for the background writer) or its suggestions are being prepared. A write takes a few seconds
- * (the one save the live check of 2026-10-05 timed took Jellyfin 4.5 s — a series', which the app no
- * longer writes), so the 2 s of a sync's progress line rather than the 10 s of other live views.
+ * (the one save the live check of 2026-10-05 timed took Jellyfin 4.5 s — a series'), so the 2 s of a
+ * sync's progress line rather than the 10 s of other live views.
  */
 const LINK_POLL_MS = 2_000
 
@@ -312,4 +313,68 @@ function suggestionsMayHaveChanged(
   // The status, not isSuggestionRunUnderWay: its type guard would leave `next` as never below.
   if (previous === undefined || next === null || next.status === 'Queued' || next.status === 'Running') return false
   return previous === null || previous.id !== next.id || previous.status !== next.status
+}
+
+// ── Update Jellyfin ──
+
+/** The Pending list one link at a time: its count is how many links wait for the writer or are being written. */
+const PENDING_LINKS: LibraryLinksQuery = { filter: 'Pending', page: 1, pageSize: 1 }
+
+/**
+ * MAM-34 — what "Update Jellyfin" would still send (owner-only, Vasyl's decision of 2026-10-06): the
+ * links kept in the app that can be written now (series', episodes' with a season and an episode), and
+ * the written ones whose item Jellyfin wasn't asked to look up. `enabled` is false for a member, whom
+ * the API refuses.
+ */
+export const useLibraryLinkCatchUp = (enabled: boolean) =>
+  useQuery({
+    queryKey: qk.library.links.catchUp,
+    queryFn: () => libraryLinksApi.catchUp(),
+    enabled,
+    // A 403 for anyone but the owner won't change on a second try.
+    retry: false,
+  })
+
+/**
+ * MAM-34 — how many links wait for the background writer or are being written (owner-only), read from
+ * the Pending list a link at a time and asked for every 2 s while there are any: "Update Jellyfin"
+ * follows its writes by it, and a reload in the middle of them finds them still under way. The answer
+ * that brings the last write's end asks for the counts and the works again.
+ */
+export const usePendingLibraryLinks = (enabled: boolean) => {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: qk.library.links.list(PENDING_LINKS),
+    enabled,
+    queryFn: async () => {
+      const next = await libraryLinksApi.links(PENDING_LINKS)
+      const previous = queryClient.getQueryData<LibraryLinkList>(qk.library.links.list(PENDING_LINKS))
+      if (previous !== undefined && previous.totalCount > 0 && next.totalCount === 0) {
+        void queryClient.invalidateQueries({ queryKey: qk.library.links.catchUp })
+        void queryClient.invalidateQueries({ queryKey: qk.library.worksAll })
+      }
+      return next
+    },
+    refetchInterval: (query) => ((query.state.data?.totalCount ?? 0) > 0 ? LINK_POLL_MS : false),
+    // A 403 for anyone but the owner won't change on a second try.
+    retry: false,
+  })
+}
+
+/**
+ * MAM-34 — "Update Jellyfin" (owner-only): queues the links the counts name for the background writer.
+ * Its answer, what it queued, isn't kept: every link query is asked for again — the counts, now
+ * without the queued links, and the Pending list, whose poll then follows the writes — and so are the
+ * works, whose cards show their links waiting. The click ends once the link queries have answered, so
+ * the button doesn't come back on between the start and the first count of the writes.
+ */
+export const useStartLibraryLinkCatchUp = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => libraryLinksApi.startCatchUp(),
+    onSuccess: async () => {
+      void queryClient.invalidateQueries({ queryKey: qk.library.worksAll })
+      await queryClient.invalidateQueries({ queryKey: qk.library.links.all })
+    },
+  })
 }

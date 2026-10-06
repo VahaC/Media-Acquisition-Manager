@@ -49,7 +49,8 @@ interface Accepted {
  * MAM-34 — the TMDb page's Confident tab: every work whose suggestion is confident (decision 8 — the
  * one candidate whose kind, title, year and runtime all agree), a page at a time, with each library's
  * counts above them. Every row starts ticked; "Link N works" links the ticked rows of the page shown
- * in one click, each to its suggestion, and the library writes happen in the background.
+ * in one click, each to its suggestion — a series' like a film's —, and the library writes happen in
+ * the background.
  *
  * After the click the rows stay as they were clicked — a local snapshot, not the list, which would
  * drop the linked works under the pointer (R24) — and each shows how its write went, asked for every

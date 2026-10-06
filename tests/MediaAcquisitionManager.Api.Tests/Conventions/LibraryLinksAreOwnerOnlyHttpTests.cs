@@ -69,6 +69,8 @@ public sealed class LibraryLinksAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
                 "POST api/library/tmdb/confident",
                 "GET api/library/tmdb/runs/latest",
                 "POST api/library/tmdb/runs",
+                "GET api/library/tmdb/catch-up",
+                "POST api/library/tmdb/catch-up",
             },
             endpoints);
     }

@@ -14,9 +14,11 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 // work the item lands on, and stays (unattached) when the item is gone; a linked id groups items like the library's own
 // ids, the id a link replaces giving way only while the link isn't confirmed (R6), a third value keeping the item alone;
 // a link to an episode of a show groups by the show and its numbers and drops the film id the library wrongly gave
-// (R7); what Jellyfin reported decides whether it holds the link (R5), never for a write the read couldn't have seen
-// (R4), nor for a link kept in the app — a series', never written —, whose replaced id keeps giving way; the link's ids
-// are never stored as Jellyfin's, a failed sync changes no link, and the sync stays GET-only.
+// (R7); what Jellyfin reported decides whether it holds the link (R5) — a series' by its show's id —, never for a write
+// the read couldn't have seen (R4), nor for a link kept in the app — a series' the first rules never wrote —, whose
+// replaced id keeps giving way, nor for one waiting for the background writer (LibraryLinkCatchUpHttpTests); an
+// episode's link is judged by its IMDb id (LibraryLinkEpisodeHttpTests); the link's ids are never stored as Jellyfin's,
+// a failed sync changes no link, and the sync stays GET-only.
 // Each sync is the owner's over HTTP; the links are planted as the owner's Save would leave them.
 public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
@@ -268,7 +270,8 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
     [InlineData(JellyfinSamples.PenguinsTmdbTvId)]
     [InlineData(WrongTmdbId)]
     [InlineData(null)]
-    public async Task Resync_keeps_a_series_link_in_the_app_whatever_jellyfin_reports_and_lets_the_id_it_replaced_give_way(string? reportedTmdbId)
+    public async Task Resync_leaves_a_series_link_the_first_rules_kept_in_the_app_to_the_catch_up_whatever_jellyfin_reports_and_lets_the_id_it_replaced_give_way(
+        string? reportedTmdbId)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -297,7 +300,7 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
         var run = await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
 
         //Assert
-        // Never written, so nothing to judge (R5): kept in the app — no "in Jellyfin", no "lost", no Write again.
+        // Never written, so nothing to judge (R5): kept in the app until the catch-up or Write again writes it.
         Assert.Equal(LibrarySyncStatus.Succeeded, run.Status);
         var row = await LinkAsync(link.Id, cancellationToken);
         Assert.Equal((LibraryLinkWriteState.KeptInApp, link.WriteStateUtc), (row.WriteState, row.WriteStateUtc));
@@ -305,6 +308,58 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
         var identifiedWorkId = await WorkOfAsync(IdentifiedId, cancellationToken);
         Assert.Equal(identifiedWorkId, await WorkOfAsync(LinkedSeriesId, cancellationToken));
         Assert.Equal((Guid?)identifiedWorkId, row.MediaWorkId);
+    }
+
+    [Theory]
+    [InlineData(JellyfinSamples.PenguinsTmdbTvId, LibraryLinkWriteState.InLibrary)]
+    [InlineData(WrongTmdbId, LibraryLinkWriteState.Lost)]
+    [InlineData(null, LibraryLinkWriteState.Lost)]
+    public async Task Resync_judges_a_written_series_link_by_the_shows_id_jellyfin_reports_for_its_series(string? reportedTmdbId, LibraryLinkWriteState judged)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync();
+        const string SeriesId = "f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0";
+        _jellyfin.Series.Add(JellyfinSamples.SeriesWith(SeriesId, "The Penguins Of Madagascar", 2008, "/media/cartoons/Penguins", tmdbId: JellyfinSamples.PenguinsTmdbTvId));
+        _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith("e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0", "Gone in a Flash", SeriesId, 1, 1, "/media/cartoons/Penguins/S01E01.mkv"));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        // Written like a film's (Vasyl's final decision of 2026-10-06); Jellyfin's Tmdb key of a series is the show's id.
+        var link = await _links.Create(
+            jellyfin, SeriesId, await WorkOfAsync(SeriesId, cancellationToken), MediaIdentifierScheme.TmdbTv, JellyfinSamples.PenguinsTmdbTvId,
+            writeState: LibraryLinkWriteState.Written);
+        _jellyfin.Series.Single()["ProviderIds"] = reportedTmdbId is null ? new JsonObject() : new JsonObject { ["Tmdb"] = reportedTmdbId };
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+        var now = Now();
+
+        //Act
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        var row = await LinkAsync(link.Id, cancellationToken);
+        Assert.Equal((judged, (DateTime?)now), (row.WriteState, row.WriteStateUtc));
+    }
+
+    [Fact]
+    public async Task Resync_leaves_a_link_waiting_for_the_writer_queued_even_when_jellyfin_reports_its_id()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync();
+        _jellyfin.Movies.Add(Cartoon(LinkedItemId, tmdbId: LandingStriplingTmdbId));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        // Queued before this sync started reading — "Accept all confident" or the catch-up —, its write and lookup to come.
+        var link = await _links.Create(
+            jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, LandingStriplingTmdbId,
+            writeState: LibraryLinkWriteState.Queued);
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        // Taken out of the queue as "in Jellyfin", it would never get the lookup it was queued for: the writer settles it.
+        var row = await LinkAsync(link.Id, cancellationToken);
+        Assert.Equal((LibraryLinkWriteState.Queued, link.WriteStateUtc), (row.WriteState, row.WriteStateUtc));
     }
 
     [Fact]

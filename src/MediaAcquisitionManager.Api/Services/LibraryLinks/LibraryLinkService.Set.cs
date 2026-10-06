@@ -78,9 +78,14 @@ public sealed partial class LibraryLinkService
         var (catalogWork, catalogFailure) = await CatalogWorkAsync(catalog, pick, cancellationToken);
         if (catalogWork is null)
             return catalogFailure!;
+        // MAM-34 — an episode's link writes the episode's own IMDb id: asked of TMDb now, so the save knows whether the
+        // link is written or stays in the app, and why.
+        var episode = await EpisodeImdbOfPickAsync(work, pick, target.Value, items, catalog, cancellationToken);
+        if (episode?.Error is { } episodeError)
+            return LibraryLinkResult.BadGateway(episodeError);
 
         var actor = await ActorAsync(ownerUserId, cancellationToken);
-        var saved = await SaveLinksAsync(work, pick, target.Value, catalog, catalogWork, actor, batchId: null, cancellationToken);
+        var saved = await SaveLinksAsync(work, pick, target.Value, catalog, catalogWork, episode, actor, batchId: null, cancellationToken);
         if (saved.Failure is { } failure)
             return failure;
 
@@ -169,7 +174,8 @@ public sealed partial class LibraryLinkService
         if (catalogWork is null)
             return (null, catalogFailure!.Error);
 
-        var saved = await SaveLinksAsync(work, pick, target.Value, catalog, catalogWork, actor, batchId, cancellationToken);
+        // A click's picks name no season or episode, so no episode's IMDb id is asked.
+        var saved = await SaveLinksAsync(work, pick, target.Value, catalog, catalogWork, episode: null, actor, batchId, cancellationToken);
         return saved.Failure switch
         {
             null => (saved, null),
@@ -271,6 +277,24 @@ public sealed partial class LibraryLinkService
             : (null, LibraryLinkResult.BadGateway(SecretRedaction.Redact(read.Error!, catalog.Settings.Secrets)!));
     }
 
+    /// <summary>
+    /// MAM-34 — what TMDb says of the IMDb id of the episode an episode's link names, when the link writes one: its season
+    /// and episode named, on a film item whose library takes ids (Vasyl's decision of 2026-10-06). <c>null</c> when no
+    /// item of the pick would write it, so TMDb isn't asked.
+    /// </summary>
+    private async Task<LibraryLinkEpisodeImdb?> EpisodeImdbOfPickAsync(
+        MediaWorkEntity work, LinkPick pick, LibraryLinkTarget target, IReadOnlyList<WorkItem> items, CatalogConnection catalog, CancellationToken cancellationToken)
+    {
+        if (target != LibraryLinkTarget.ShowEpisode || LibraryLinkWritability.LinkReason(target, pick.SeasonNumber, pick.EpisodeNumber) is not null)
+            return null;
+        var writes = items
+            .Where(item => pick.SourceItemIds?.Contains(item.SourceItemId) ?? true)
+            .Any(item => LibraryLinkWritability.ItemReason(adapters.Find<IMediaLibraryIdentifierWriter>(item.Connection.AdapterType), item.Connection.Name, work.Kind) is null);
+        return writes
+            ? await LibraryLinkEpisodeImdb.AskAsync(catalog, pick.CatalogId, pick.SeasonNumber!.Value, pick.EpisodeNumber!.Value, cancellationToken)
+            : null;
+    }
+
     // ── saving ───────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -279,12 +303,15 @@ public sealed partial class LibraryLinkService
     /// have changed under the save: a work gone meanwhile is a bare 404, a link being written (or a double click's twin)
     /// a 409. Gives back the claims the caller writes — the links saved <c>Writing</c> under their new attempt ids.
     /// </summary>
+    /// <param name="episode">MAM-34 — what TMDb said of the IMDb id of the episode an episode's link names; <c>null</c>
+    /// when it wasn't asked (no item would write it).</param>
     private async Task<SaveOutcome> SaveLinksAsync(
         MediaWorkEntity work,
         LinkPick pick,
         LibraryLinkTarget target,
         CatalogConnection catalog,
         CatalogWork catalogWork,
+        LibraryLinkEpisodeImdb? episode,
         AuditActor actor,
         Guid? batchId,
         CancellationToken cancellationToken)
@@ -330,31 +357,44 @@ public sealed partial class LibraryLinkService
                     && existing.Scheme == scheme
                     && string.Equals(existing.Value, value, StringComparison.OrdinalIgnoreCase)
                     && existing.SeasonNumber == pick.SeasonNumber
-                    && existing.EpisodeNumber == pick.EpisodeNumber)
+                    && existing.EpisodeNumber == pick.EpisodeNumber
+                    // MAM-34 — unless TMDb now gives the episode the IMDb id it gave none of when the link was saved: only
+                    // asking TMDb tells it, and nothing else asks again (Retry and the catch-up leave such a link alone),
+                    // so the same pick saved again writes it.
+                    && !(LibraryLinkWritability.KnowsNoEpisodeImdb(existing) && episode?.ImdbId is not null))
                     continue;
 
                 var library = rows[(item.Connection.Id, item.SourceItemId)].Select(row => new MediaIdentifier(row.Scheme, row.Value)).ToList();
-                // Only an item of a kind its library writes is ever written (Jellyfin: a film — never a series, whose save
-                // rewrites all its seasons and episodes): a link on any other stays in the app, with nothing to put back.
-                var writesKind = adapters.Find<IMediaLibraryIdentifierWriter>(item.Connection.AdapterType) is { } libraryWriter
-                    && libraryWriter.WritableKinds.Contains(work.Kind);
-                var writable = target == LibraryLinkTarget.Work && writesKind && item.Connection.IsEnabled;
-                // R11 — a link the app wrote, replaced by one that isn't written, is put back first.
-                var history = !writable && target != LibraryLinkTarget.Work && writesKind && existing is not null
+                // Only an item of a kind its library writes is ever written (Jellyfin: a film or a series, never an
+                // episode item): a link on any other stays in the app, with nothing to put back.
+                var writesKind = LibraryLinkWritability.ItemReason(
+                    adapters.Find<IMediaLibraryIdentifierWriter>(item.Connection.AdapterType), item.Connection.Name, work.Kind) is null;
+                // The link's own ids: a link to the work, or an episode's link with its numbers whose episode TMDb gives an
+                // IMDb id (Vasyl's decision of 2026-10-06); any other is kept in the app.
+                var keptReason = !writesKind
+                    ? null
+                    : LibraryLinkWritability.LinkReason(target, pick.SeasonNumber, pick.EpisodeNumber)
+                        ?? (target == LibraryLinkTarget.ShowEpisode && episode?.ImdbId is null ? LibraryLinkWritability.NoEpisodeImdbReason : null);
+                var writesIds = writesKind && keptReason is null;
+                // R11 — what the app wrote for a link replaced by an episode's link is put back first: by the episode's
+                // write when it writes its IMDb id, else on its own.
+                var history = target != LibraryLinkTarget.Work && writesKind && existing is not null
                     ? await LibraryLinkWriteHistory.ReadAsync(db, existing, cancellationToken)
                     : null;
                 var restore = history is not null;
                 if (restore && !item.Connection.IsEnabled)
                     return SaveOutcome.Failed(LibraryLinkResult.Conflict(SwitchedOffToChangeError(item.Connection.Name)));
 
-                var (state, error) = writable
-                    ? (batchId is null ? LibraryLinkWriteState.Writing : LibraryLinkWriteState.Queued, (string?)null)
-                    : restore
-                        ? (LibraryLinkWriteState.Writing, null)
+                var (state, error) = writesIds
+                    ? item.Connection.IsEnabled
+                        ? (batchId is null ? LibraryLinkWriteState.Writing : LibraryLinkWriteState.Queued, (string?)null)
                         // R12 — a library switched off is never written: the link waits for it.
-                        : target == LibraryLinkTarget.Work && writesKind
-                            ? (LibraryLinkWriteState.NotWritten, LibraryLinkWriter.SwitchedOffError(item.Connection.Name))
-                            : (LibraryLinkWriteState.KeptInApp, null);
+                        : (LibraryLinkWriteState.NotWritten, LibraryLinkWriter.SwitchedOffError(item.Connection.Name))
+                    // Kept in the app — after the item is put back, when the app wrote something for it before. TMDb's
+                    // "no IMDb id of this episode" is the link's error, as only asking TMDb tells it: the writer and the
+                    // catch-up don't ask again.
+                    : (restore ? LibraryLinkWriteState.Writing : LibraryLinkWriteState.KeptInApp,
+                        keptReason == LibraryLinkWritability.NoEpisodeImdbReason ? keptReason : null);
 
                 var link = existing ?? new LibraryItemLinkEntity
                 {
@@ -373,6 +413,7 @@ public sealed partial class LibraryLinkService
                 link.CatalogTitle = Cut(catalogWork.Summary.Title, LibraryItemLinkEntity.TitleMaximumLength);
                 link.ItemTitle = item.Title is { } itemTitle ? Cut(itemTitle, LibraryItemLinkEntity.TitleMaximumLength) : link.ItemTitle;
                 link.ImdbId = imdbId;
+                link.EpisodeImdbId = target == LibraryLinkTarget.ShowEpisode ? episode?.ImdbId : null;
                 link.ImdbSourceConnectionId = imdbId is null ? null : catalog.IntegrationId;
                 link.ImdbSourceName = imdbId is null ? null : catalog.Name;
                 link.ImdbObservedUtc = imdbId is null ? null : now;
@@ -384,6 +425,11 @@ public sealed partial class LibraryLinkService
                 link.WriteAttemptId = Guid.NewGuid();
                 link.WriteError = error;
                 link.WriteStateUtc = now;
+                // MAM-34 — a lookup asked for the link this one replaces is not this link's: the item was looked up by
+                // other ids, or a kept link would show one it never gets. The new link's own write asks again; until it
+                // does, the catch-up counts it.
+                link.LookupRequestedUtc = null;
+                link.LookupError = null;
                 if (existing is null)
                     db.LibraryItemLinks.Add(link);
 

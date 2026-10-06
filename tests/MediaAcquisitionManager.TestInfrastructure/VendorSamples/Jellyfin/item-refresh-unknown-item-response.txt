@@ -1,0 +1,11 @@
+HTTP/1.1 404 Not Found
+Connection: close
+Content-Type: application/json; charset=utf-8
+Date: Tue, 06 Oct 2026 02:14:37 GMT
+Server: Kestrel
+Content-Language: en-US
+Transfer-Encoding: chunked
+Vary: Accept-Encoding
+X-Response-Time-ms: 2.3457
+
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.5","title":"Not Found","status":404,"traceId":"00-12dd54b63be8dcdc90db5f61f0e45543-84a978ce7ca6768f-00"}

@@ -5,6 +5,7 @@ import type {
   LibraryIdentifier,
   LibraryLinkBatch,
   LibraryLinkBatchItem,
+  LibraryLinkCatchUp,
   LibraryLinkDialog,
   LibraryLinkItem,
   LibraryLinkList,
@@ -22,7 +23,9 @@ import type {
 // MAM-34 — the TMDb dialog as GET /api/library/works/{id}/tmdb describes it, after the live checks of
 // 2026-10-05: the Tom & Jerry short "120. Landing Stripling (1962)" (6.2 min in Jellyfin, TMDb film
 // 223021 with a runtime of 6 and IMDb tt0056164) in «Мультфільми», and "Planet_Earth_E08 - Jungles",
-// a film item of an episode of TMDb show 1044 ("Планета Земля").
+// a film item of an episode of TMDb show 1044 ("Планета Земля"); and of 2026-10-06: the documentary
+// file "Greatest Events of World War II in Colour.S01E01.Blitzkrieg" Jellyfin lists as a movie, the
+// episode S1 E1 of TMDb show 91724, whose own IMDb id is tt9103946.
 
 export const homeJellyfinItemId = 'b81c6f3a2d9e4f0aa1c2d3e4f5a6b7c8'
 export const linkId = '11c00000-0000-4000-8000-000000000001'
@@ -160,9 +163,12 @@ export function itemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem 
     seasonNumber: null,
     episodeNumber: null,
     imdbId: null,
+    episodeImdbId: null,
     writeState: null,
     writeError: null,
     writeStateUtc: null,
+    lookupRequestedUtc: null,
+    lookupError: null,
     setUtc: null,
     setByUserName: null,
     libraryIdentifiers: [],
@@ -171,7 +177,10 @@ export function itemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem 
   }
 }
 
-/** The same item once linked to film 223021 and written; `changes` sets the fields a test is about. */
+/**
+ * The same item once linked to film 223021 and written, Jellyfin then asked to look up its metadata;
+ * `changes` sets the fields a test is about.
+ */
 export function linkedItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
   return itemOf({
     linkId,
@@ -182,6 +191,7 @@ export function linkedItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLin
     imdbId: 'tt0056164',
     writeState: 'Written',
     writeStateUtc: '2026-10-05T18:40:05Z',
+    lookupRequestedUtc: '2026-10-05T18:40:05Z',
     setUtc: '2026-10-05T18:40:00Z',
     setByUserName: 'vasyl',
     ...changes,
@@ -243,14 +253,10 @@ export function linkedDialogOf(changes: Partial<LibraryLinkDialog> = {}): Librar
   })
 }
 
-// ── a series, whose link stays in the app ──
+// ── a series, whose TMDb id is written too (Vasyl's decision of 2026-10-06) ──
 
-/**
- * The API's sentence for a series item (the Jellyfin adapter's, Vasyl's decision of 2026-10-06):
- * saving a series makes Jellyfin save each of its seasons and episodes again, so a series' link is
- * never written.
- */
-export const seriesKeptInAppReason = 'Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app.'
+/** The API's sentence for an item whose Jellyfin integration is switched off: its link isn't written. */
+export const switchedOffReason = '“Home Jellyfin” is switched off. Switch it on under Integrations, then retry.'
 
 export const penguinsItemId = 'e7c4a91d3b6f4e2a9c8d7b6a5f4e3d21'
 export const penguinsLinkId = '11c00000-0000-4000-8000-000000000064'
@@ -291,19 +297,17 @@ export const penguinsShow = candidateOf({
   }),
 })
 
-/** The series' one library item, which the API says can't be written; `changes` sets the fields a test is about. */
+/** The series' one library item, not linked; `changes` sets the fields a test is about. */
 export function penguinsItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
   return itemOf({
     sourceItemId: penguinsItemId,
     itemTitle: penguins.title,
     itemKind: 'Series',
-    canWrite: false,
-    cannotWriteReason: seriesKeptInAppReason,
     ...changes,
   })
 }
 
-/** The series as the Library page lists it once linked to show 7869: kept in the app, never missing an id. */
+/** The series as the Library page lists it once linked to show 7869 and written, never missing an id. */
 export const linkedPenguins: LibraryWork = {
   ...penguins,
   identifiers: [linkedIdentifierOf('TmdbTv', '7869', { setUtc: '2026-10-06T09:00:00Z' })],
@@ -314,7 +318,7 @@ export const linkedPenguins: LibraryWork = {
     catalogTitle: 'Пінгвіни з Мадагаскару',
     imdbId: null,
     setUtc: '2026-10-06T09:00:00Z',
-    writeState: 'KeptInApp',
+    writeState: 'Written',
   }),
 }
 
@@ -330,23 +334,103 @@ export function penguinsDialogOf(changes: Partial<LibraryLinkDialog> = {}): Libr
   })
 }
 
-/** The series' dialog once linked to show 7869: its item's link kept in the app. */
+/** The series' item once linked to show 7869, written, and Jellyfin asked to look up its metadata. */
+export function linkedPenguinsItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
+  return penguinsItemOf({
+    linkId: penguinsLinkId,
+    target: 'Work',
+    catalogKind: 'Series',
+    catalogId: '7869',
+    catalogTitle: 'Пінгвіни з Мадагаскару',
+    writeState: 'Written',
+    writeStateUtc: '2026-10-06T09:00:04Z',
+    lookupRequestedUtc: '2026-10-06T09:00:05Z',
+    setUtc: '2026-10-06T09:00:00Z',
+    setByUserName: 'vasyl',
+    ...changes,
+  })
+}
+
+/** The series' dialog once linked to show 7869: its item's link written. */
 export function linkedPenguinsDialogOf(changes: Partial<LibraryLinkDialog> = {}): LibraryLinkDialog {
   return penguinsDialogOf({
     work: linkedPenguins,
-    items: [penguinsItemOf({
-      linkId: penguinsLinkId,
-      target: 'Work',
-      catalogKind: 'Series',
-      catalogId: '7869',
-      catalogTitle: 'Пінгвіни з Мадагаскару',
-      writeState: 'KeptInApp',
-      writeStateUtc: '2026-10-06T09:00:00Z',
-      setUtc: '2026-10-06T09:00:00Z',
-      setByUserName: 'vasyl',
-    })],
+    items: [linkedPenguinsItemOf()],
     search: { searchedUtc: '2026-10-05T08:01:00Z', noneFitsUtc: null, pending: false, inPopulation: false },
     ...changes,
+  })
+}
+
+// ── an episode Jellyfin lists as a film ──
+
+/** The API's sentence for an episode link without a season and an episode: kept in the app. */
+export const noEpisodeNumbersReason = 'Without a season and an episode the app has no id of this episode to write.'
+
+/** The API's sentence for an episode link whose episode TMDb knows no IMDb id of: kept in the app. */
+export const noEpisodeImdbReason = 'TMDb knows no IMDb id of this episode, so its link stays in the app.'
+
+export const blitzkriegItemId = 'd0c0d0c0d0c0d0c0d0c0d0c0d0c09101'
+export const blitzkriegLinkId = '11c00000-0000-4000-8000-000000000091'
+
+/** "…S01E01.Blitzkrieg", a documentary file Jellyfin lists as a movie, with no id at all. */
+export const blitzkrieg: LibraryWork = {
+  ...landingStripling,
+  id: '7a1e0000-0000-4000-8000-000000000091',
+  title: 'Greatest Events of World War II in Colour.S01E01.Blitzkrieg',
+  year: null,
+  versions: [{ ...landingStripling.versions[0], id: '7a1e0000-0000-4000-8000-000000000092', sourceItemId: blitzkriegItemId }],
+}
+
+/**
+ * The film item linked to S1 E1 of show 91724, its episode's own IMDb id written and Jellyfin asked to
+ * look the item up — the one edit on a film item, as a TMDb id there would name a film. The show's own
+ * IMDb id is the fixture's, not TMDb's. `changes` sets the fields a test is about.
+ */
+export function blitzkriegItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
+  return itemOf({
+    linkId: blitzkriegLinkId,
+    sourceItemId: blitzkriegItemId,
+    itemTitle: blitzkrieg.title,
+    target: 'ShowEpisode',
+    catalogKind: 'Series',
+    catalogId: '91724',
+    catalogTitle: 'Greatest Events of WWII in Colour',
+    seasonNumber: 1,
+    episodeNumber: 1,
+    imdbId: 'tt9100000',
+    episodeImdbId: 'tt9103946',
+    writeState: 'Written',
+    writeStateUtc: '2026-10-06T10:00:02Z',
+    lookupRequestedUtc: '2026-10-06T10:00:03Z',
+    setUtc: '2026-10-06T10:00:00Z',
+    setByUserName: 'vasyl',
+    ...changes,
+  })
+}
+
+/** The documentary's dialog with its one item as `item` gives it; the work's link names the same episode. */
+export function blitzkriegDialogOf(item: LibraryLinkItem = blitzkriegItemOf()): LibraryLinkDialog {
+  return dialogOf({
+    work: {
+      ...blitzkrieg,
+      missingIdentifiers: [],
+      link: workLinkOf({
+        target: 'ShowEpisode',
+        catalogKind: 'Series',
+        catalogId: '91724',
+        catalogTitle: 'Greatest Events of WWII in Colour',
+        seasonNumber: item.seasonNumber,
+        episodeNumber: item.episodeNumber,
+        imdbId: item.imdbId,
+        setUtc: '2026-10-06T10:00:00Z',
+        writeState: item.writeState ?? 'KeptInApp',
+      }),
+    },
+    items: [item],
+    suggestions: [],
+    search: { searchedUtc: '2026-10-06T08:01:00Z', noneFitsUtc: null, pending: false, inPopulation: false },
+    searchTitle: 'Greatest Events of World War II in Colour',
+    searchYear: null,
   })
 }
 
@@ -443,6 +527,11 @@ export function linkRowOf(changes: Partial<LibraryLinkRow> = {}): LibraryLinkRow
     conflictingValue: null,
     ...changes,
   }
+}
+
+/** What "Update Jellyfin" would send; `changes` sets the counts a test is about. */
+export function catchUpOf(changes: Partial<LibraryLinkCatchUp> = {}): LibraryLinkCatchUp {
+  return { toWrite: 3, toLookUp: 12, ...changes }
 }
 
 /** One page of links answering `query`. */

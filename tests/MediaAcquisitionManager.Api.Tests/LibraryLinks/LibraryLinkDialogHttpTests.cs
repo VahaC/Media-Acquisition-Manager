@@ -13,10 +13,10 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
 // MAM-34 — a work's TMDb dialog (GET /api/library/works/{id}/tmdb): the work as its card shows it, each library item it
 // holds with the ids the last sync read for it, its link and where the link stands, whether a link to the work itself
-// would be written into the item's library and why not (an episode's link, a series — whose save in Jellyfin rewrites
-// all its seasons and episodes —, a library type that can't set ids, one switched off), the third TMDb id Jellyfin holds
-// beside a link, whether a catalog is connected, and the title and year the free search starts from. Reading calls
-// nothing outside the app.
+// would be written into the item's library and why not (an episode item, a library type that can't set ids, one
+// switched off — a series is written like a film, with no warning of any kind; an episode's link of its own in
+// LibraryLinkEpisodeHttpTests), the third TMDb id Jellyfin holds beside a link, whether a catalog is connected, and the
+// title and year the free search starts from. Reading calls nothing outside the app.
 public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -134,12 +134,12 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
         Assert.Equal(
-            (MediaWorkKind.Episode, false, (string?)"An episode's link to its show stays in the app: only a film's own TMDb id is written into the library."),
+            (MediaWorkKind.Episode, false, (string?)"Jellyfin's ids are written on movie and series items only, so a link on an episode stays in the app."),
             (item.ItemKind, item.CanWrite, item.CannotWriteReason));
     }
 
     [Fact]
-    public async Task Dialog_says_a_series_is_never_written_as_jellyfin_rewrites_its_seasons_and_episodes_when_it_saves_it()
+    public async Task Dialog_says_a_series_is_written_into_jellyfin_like_a_film_with_no_reason_against_it()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -156,10 +156,10 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
-        // The library's own sentence (IMediaLibraryIdentifierWriter.UnwritableKindReason), not a check of its product.
+        // Jellyfin writes a series (Vasyl's final decision of 2026-10-06): the age ratings its save gives the seasons and
+        // episodes are no reason the owner is shown.
         Assert.Equal(
-            (PenguinsId, MediaWorkKind.Series, false,
-                (string?)"Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app."),
+            (PenguinsId, MediaWorkKind.Series, true, (string?)null),
             (item.SourceItemId, item.ItemKind, item.CanWrite, item.CannotWriteReason));
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
     }

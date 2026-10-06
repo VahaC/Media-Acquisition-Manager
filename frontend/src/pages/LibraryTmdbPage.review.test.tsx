@@ -10,6 +10,7 @@ import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
 import { apiError } from '@/test/api-error'
 import { owner, signInAs } from '@/test/auth-session'
 import {
+  catchUpOf,
   confidentPage,
   dialogOf,
   itemOf,
@@ -18,6 +19,7 @@ import {
   libraryIdentifierOf,
   linkedDialogOf,
   linkedItemOf,
+  linksPage,
   queueOf,
   suggestionRunOf,
 } from '@/test/library-links'
@@ -80,6 +82,8 @@ describe('LibraryTmdbPage Review tab', () => {
     localStorage.clear()
     vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
     vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, []))
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
+    vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
     serveQueue(dialogOf(), junglesDialogOf())
     vi.mocked(libraryLinksApi.link).mockImplementation(async (workId) => {
       leave(workId)

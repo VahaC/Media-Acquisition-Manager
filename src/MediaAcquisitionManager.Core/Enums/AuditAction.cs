@@ -98,4 +98,12 @@ public enum AuditAction
     /// link removed or replaced: only the keys that still held what the app wrote.
     /// </summary>
     LibraryIdsRestored = 21,
+
+    /// <summary>
+    /// MAM-34 — the app asked the library to look up a linked item's missing metadata with its own providers, right
+    /// after writing the link's ids into it (or finding them there): one row per request the app made, whatever came of
+    /// it — the link's <c>LookupError</c> says why the library didn't take it. The library fills what the item lacks and
+    /// replaces nothing; the row carries no ids, as the request changes none.
+    /// </summary>
+    LibraryMetadataLookupRequested = 22,
 }

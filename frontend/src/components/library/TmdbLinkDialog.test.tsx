@@ -264,7 +264,7 @@ describe('TmdbLinkDialog', () => {
     await user.click(saveButton())
 
     // Assert
-    expect(screen.queryByText(/kept in the app; nothing is written into Jellyfin/)).not.toBeNull()
+    expect(screen.queryByText(/With a season and an episode, the episode's IMDb id is written into Jellyfin when TMDb knows it/)).not.toBeNull()
     expect(libraryLinksApi.link).toHaveBeenCalledWith(planetEarthJungles.id, {
       catalogKind: 'Series',
       catalogId: '1044',
@@ -272,6 +272,35 @@ describe('TmdbLinkDialog', () => {
       episodeNumber: '9',
       sourceItemIds: null,
     })
+  })
+
+  it('says a show picked for an episode of no series links it in the app, as its item does, and promises no write', async () => {
+    // Arrange
+    // The jungles file as Jellyfin would list it under no series: an episode item, which it never writes.
+    const reason = 'Jellyfin\'s ids are written on movie and series items only, so a link on an episode stays in the app.'
+    const episode: LibraryWork = { ...planetEarthJungles, kind: 'Episode' }
+    vi.mocked(libraryLinksApi.dialog).mockResolvedValue(dialogOf({
+      work: episode,
+      suggestions: [planetEarthShow],
+      items: [itemOf({
+        sourceItemId: planetEarthJungles.versions[0].sourceItemId!,
+        itemTitle: planetEarthJungles.title,
+        itemKind: 'Episode',
+        canWrite: false,
+        cannotWriteReason: reason,
+      })],
+    }))
+    const { user } = renderDialog(episode)
+    const dialog = await loaded('Link “Planet_Earth_E08 - Jungles” to TMDb')
+
+    // Act
+    await user.click(screen.getByRole('radio', { name: 'Pick Планета Земля (2006)' }))
+
+    // Assert
+    expect(screen.getByRole('textbox', { name: 'Season (optional)' })).toHaveValue('1')
+    expect(within(dialog).getByText('The work links as an episode of this show. The link is kept in the app: its item says why.')).toHaveClass('ui-hint')
+    expect(within(dialog).getByText(reason)).toBeInTheDocument()
+    expect(dialog).not.toHaveTextContent(/written into Jellyfin when TMDb knows it/)
   })
 
   it('offers the items as checkboxes when the work holds several, and links only the ticked ones', async () => {

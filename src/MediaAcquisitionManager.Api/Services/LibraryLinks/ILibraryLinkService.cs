@@ -4,7 +4,8 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
 /// <summary>
 /// MAM-34 — the owner's TMDb links of a library work: its dialog, setting or replacing a link, removing one, writing
-/// one into the library again, the TMDb page's lists, and the links "Accept all confident" sets.
+/// one into the library again, the TMDb page's lists, the links "Accept all confident" sets, and the catch-up of the
+/// links set before the app wrote series and episodes and asked for the library's lookup.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -48,13 +49,29 @@ public interface ILibraryLinkService
     /// have no item left to put back. Succeeds with no dialog.</summary>
     Task<LibraryLinkResult> RemoveLinkAsync(Guid linkId, Guid ownerUserId, CancellationToken cancellationToken = default);
 
-    /// <summary>Writes every link of the work to the work itself into its library again (Retry, Write again): a link of
-    /// a kind of item its library doesn't write (Jellyfin: a series) has nothing to write.</summary>
+    /// <summary>Writes every link of the work into its library again (Retry, Write again), and asks the library to look
+    /// each item up again — a write that finds the ids in place still asks: a link kept in the app (an episode item's in
+    /// Jellyfin, an episode's link that writes no id of its own) has nothing to write.</summary>
     Task<LibraryLinkResult> WriteAgainAsync(Guid workId, Guid ownerUserId, CancellationToken cancellationToken = default);
 
-    /// <summary>Writes the one link <paramref name="linkId"/> into its library again — Retry or Write again for one item;
-    /// the dialog of its work.</summary>
+    /// <summary>Writes the one link <paramref name="linkId"/> into its library again — Retry or Write again for one item,
+    /// the library's lookup asked again with it; the dialog of its work.</summary>
     Task<LibraryLinkResult> WriteLinkAsync(Guid linkId, Guid ownerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-34 — what the catch-up would send (Vasyl's decision of 2026-10-06): the links that write ids of their own and
+    /// Jellyfin doesn't hold yet — kept in the app under the first rules (a series', an episode's with its numbers on a
+    /// film item), or not written —, and the written links whose item the library was never asked to look up. Attached links in
+    /// libraries switched on only; an episode's whose IMDb id is still to be asked only while a catalog is connected.
+    /// </summary>
+    Task<LibraryLinkCatchUpResponse> ReadCatchUpAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-34 — the catch-up: queues those links for the background writer (R13), which writes each — a write that finds
+    /// the ids in place sends nothing — and asks the library to look its item up, one at a time, each with its own audit
+    /// rows. What it queued; nothing is sent before the writer takes them.
+    /// </summary>
+    Task<LibraryLinkCatchUpResponse> StartCatchUpAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// One page of the links of <paramref name="filter"/> — <c>Unattached</c> (the library no longer reports the item),

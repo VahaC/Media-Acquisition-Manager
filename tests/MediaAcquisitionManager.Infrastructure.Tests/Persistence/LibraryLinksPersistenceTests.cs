@@ -460,6 +460,42 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
         Assert.Equal(["Planet Earth II"], await db.CatalogWorkAlternativeTitles.Select(title => title.Title).ToListAsync(cancellationToken));
     }
 
+    [Fact]
+    public async Task A_links_episode_imdb_id_and_lookup_are_kept_whole_and_the_lookup_audit_action_by_name()
+    {
+        //Arrange
+        // MAM-34 follow-up — the episode's own IMDb id a link writes, when the library was asked to look its item up and
+        // why it refused, at the columns' full lengths (a sentence is cut to 1000 before it is stored), to the tick.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var jellyfin = await CreateLibraryAsync(db, "Living room");
+        var requestedUtc = new DateTime(2026, 10, 6, 2, 30, 45, DateTimeKind.Utc).AddTicks(1_234_567);
+        var episodeImdbId = "tt" + new string('9', LibraryItemLinkEntity.ValueMaximumLength - 2);
+        var lookupError = new string('x', LibraryItemLinkEntity.ErrorMaximumLength);
+        var link = await Links(db).Create(
+            jellyfin.Id, LandingStriplingItemId, null, MediaIdentifierScheme.TmdbTv, "91724", LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.Written,
+            configure: row =>
+            {
+                row.SeasonNumber = 1;
+                row.EpisodeNumber = 1;
+                row.EpisodeImdbId = episodeImdbId;
+                row.LookupRequestedUtc = requestedUtc;
+                row.LookupError = lookupError;
+            });
+        await AuditEvents(db).CreateForLink(AuditAction.LibraryMetadataLookupRequested, link.Id, "Blitzkrieg", []);
+
+        //Act
+        await using var check = CreateContext();
+        var stored = await check.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken);
+        var action = await Value(check, "SELECT \"Action\" AS \"Value\" FROM \"AuditEvents\"", cancellationToken);
+
+        //Assert
+        Assert.Equal(
+            (episodeImdbId, (DateTime?)requestedUtc, lookupError),
+            (stored.EpisodeImdbId, stored.LookupRequestedUtc, stored.LookupError));
+        Assert.Equal("LibraryMetadataLookupRequested", action);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     private static Task<UserEntity> CreateUserAsync(ApplicationDbContext db, string userName) =>

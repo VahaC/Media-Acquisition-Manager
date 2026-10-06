@@ -25,7 +25,7 @@
   },
   "dialog": {
     "title": "Link “{{title}}” to TMDb",
-    "description": "Pick the TMDb film or show this work is. A film's id is written into its item's ids in Jellyfin, and nothing else there changes; a series' or an episode's link is kept in the app.",
+    "description": "Pick the TMDb film or show this work is. Its ids are written into its items in Jellyfin: a film's, a series', or an episode's own IMDb id (by its season and episode) for an episode Jellyfin lists as a film. Jellyfin then fills in only what they are missing, as its Search for missing metadata does: their titles stay. An item says why when its link stays in the app.",
     "loadFailed": "The work's TMDb link couldn't be loaded.",
     "refreshFailed": "Refresh failed, showing the link as it was last loaded.",
     "noCatalog": "Connect a metadata catalog under Integrations first.",
@@ -56,7 +56,14 @@
     "retry": "Retry",
     "writeAgain": "Write again",
     "writing": "Writing…",
+    "writeNow": "Write to Jellyfin",
+    "writableNow": "Set while the app kept such links to itself: it can be written into Jellyfin now.",
+    "askLookup": "Ask Jellyfin to look it up",
     "writeFailed": "The ids couldn't be written.",
+    "episodeImdb": "The episode's IMDb id: {{id}}",
+    "lookupAsked": "Jellyfin was asked to look up its missing metadata on {{time}}.",
+    "lookupNotTaken": "Jellyfin didn't take the request to look up its missing metadata: {{error}}",
+    "lookupNever": "Jellyfin hasn't been asked to look up its missing metadata.",
     "suggestions": "Suggestions",
     "preparing": "The suggestions are being prepared…",
     "noSuggestions": "No suggestions yet. Paste a link or search TMDb below.",
@@ -67,7 +74,8 @@
     "itemsLegend": "Link these items",
     "season": "Season (optional)",
     "episodeNumber": "Episode (optional)",
-    "episodeHint": "The work links as an episode of this show. That link is kept in the app; nothing is written into Jellyfin for it.",
+    "episodeHint": "The work links as an episode of this show. With a season and an episode, the episode's IMDb id is written into Jellyfin when TMDb knows it; otherwise the link is kept in the app.",
+    "episodeHintKept": "The work links as an episode of this show. The link is kept in the app: its item says why.",
     "paste": "Paste a link",
     "pasteLabel": "TMDb or IMDb link",
     "pasteHint": "A TMDb or IMDb link, an IMDb id like tt0056164, or a TMDb number.",
@@ -161,7 +169,7 @@
   },
   "page": {
     "title": "TMDb links",
-    "lead": "Link the works without a TMDb id to their TMDb film or show: one at a time, or every confident suggestion at once. A film's id is written into Jellyfin, and nothing else there changes; a series' or an episode's link is kept in the app.",
+    "lead": "Link the works without a TMDb id to their TMDb film or show: one at a time, or every confident suggestion at once. The ids are written into Jellyfin, which then fills in only what the items are missing, as its Search for missing metadata does: their titles stay.",
     "back": "Library"
   },
   "tabs": {
@@ -188,6 +196,22 @@
     "underWay": "The suggestions are already being prepared.",
     "starting": "Starting…",
     "startFailed": "The suggestions couldn't be prepared again."
+  },
+  "catchUp": {
+    "title": "Update Jellyfin",
+    "description": "Links set before the app wrote series' and episodes' links into Jellyfin, and asked it to look up each item's missing metadata, are counted below. Update Jellyfin writes their ids now, one link at a time, and asks Jellyfin to look each item up, as its own Search for missing metadata does. A lookup Jellyfin didn't take isn't counted again: Retry in the work's TMDb dialog asks again.",
+    "loadFailed": "What Jellyfin is missing couldn't be loaded.",
+    "refreshFailed": "Refresh failed, showing the last known counts.",
+    "toWrite": "Links to write into Jellyfin: {{value}}",
+    "toLookUp": "Links Jellyfin wasn't asked to look up: {{value}}",
+    "pending_one": "Writing into Jellyfin: {{value}} link left…",
+    "pending_other": "Writing into Jellyfin: {{value}} links left…",
+    "update": "Update Jellyfin",
+    "starting": "Starting…",
+    "nothingToDo": "Nothing to update: Jellyfin holds every link the app can write, and was asked to look up each one.",
+    "underWay": "Links are being written into Jellyfin.",
+    "notOwner": "Only the owner can update Jellyfin.",
+    "startFailed": "Jellyfin couldn't be updated."
   },
   "review": {
     "loadFailed": "The works to review couldn't be loaded.",

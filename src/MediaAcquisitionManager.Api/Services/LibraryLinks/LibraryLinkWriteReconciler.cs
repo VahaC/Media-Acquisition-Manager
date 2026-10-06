@@ -13,20 +13,22 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A write cut by a stop may have landed, or not (R10). A link to the work itself, on a kind of item its library writes,
-/// becomes <c>NotWritten</c> with <see cref="RestartedError"/> — Retry reads the item again first — and a removal's
-/// restore that was cut leaves its link in place to be removed again. Its write is recorded first, as a
-/// <c>LibraryIdsWritten</c> row of what it meant to leave (<see cref="LibraryLinkWriteHistory.CutWriteAsync"/>), unless
-/// one already stands for it: a removal or a replace later starts from that row, whatever a sync or a Retry makes of the
-/// link meanwhile. Recording a write that never landed costs nothing — a restore only takes back what the item still
-/// holds of what the app wrote (decision 13).
+/// A write cut by a stop may have landed, or not (R10). A link that writes ids of its own (<see cref="LibraryLinkWritability"/>:
+/// a link to the work on a kind of item its library writes, an episode's link with its numbers on a film item) becomes
+/// <c>NotWritten</c> with <see cref="RestartedError"/> — Retry reads the item again first — and a removal's restore that
+/// was cut leaves its link in place to be removed again. Its write is recorded first, as a <c>LibraryIdsWritten</c> row
+/// of what it meant to leave (<see cref="LibraryLinkWriteHistory.CutWriteAsync"/>), unless one already stands for it: a
+/// removal or a replace later starts from that row, whatever a sync or a Retry makes of the link meanwhile. Recording a
+/// write that never landed costs nothing — a restore only takes back what the item still holds of what the app wrote
+/// (decision 13). An episode's link whose IMDb id TMDb hadn't given yet sent nothing of its own — the id is kept on the
+/// link before anything is sent —, so no write is recorded for it.
 /// </para>
 /// <para>
-/// An episode's link to its show, only ever <c>Writing</c> while what the app wrote for the item is put back, becomes
-/// <c>KeptInApp</c> with <see cref="RestartedRestoreError"/>: Retry has nothing to write for it, and removing it puts the
-/// item back. A link to the work its library never writes — a series in Jellyfin, any link of a library type that can't
-/// set ids — is <c>Writing</c> only while a removal holds it, which sends nothing: it goes back to <c>KeptInApp</c> as it
-/// was, with no write recorded for it.
+/// An episode's link that writes no id of its own, only ever <c>Writing</c> while what the app wrote for the item is put
+/// back, becomes <c>KeptInApp</c> with <see cref="RestartedRestoreError"/>: Retry has nothing to write for it, and
+/// removing it puts the item back. A link to the work its library never writes — an episode item's in Jellyfin, any link
+/// of a library type that can't set ids — is <c>Writing</c> only while a removal holds it, which sends nothing: it goes
+/// back to <c>KeptInApp</c> as it was, with no write recorded for it.
 /// </para>
 /// <para>
 /// Before the worker starts (<c>HostedServiceCollectionExtensions</c>), and only at startup, when nothing can be writing:
@@ -59,26 +61,26 @@ public sealed class LibraryLinkWriteReconciler(
 
         // One transaction: a cut write's row and its link's new state go together, or neither does.
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        var cutToWork = await db.LibraryItemLinks
+        var cut = await db.LibraryItemLinks
             .AsNoTracking()
-            .Where(link => link.WriteState == LibraryLinkWriteState.Writing && link.Target == LibraryLinkTarget.Work)
+            .Where(link => link.WriteState == LibraryLinkWriteState.Writing)
             .OrderBy(link => link.Id)
             .ToListAsync(cancellationToken);
-        List<Guid> connectionIds = [.. cutToWork.Select(link => link.IntegrationConnectionId).Distinct()];
-        var adapterTypes = await db.IntegrationConnections
+        List<Guid> connectionIds = [.. cut.Select(link => link.IntegrationConnectionId).Distinct()];
+        var connections = await db.IntegrationConnections
             .AsNoTracking()
             .Where(connection => connectionIds.Contains(connection.Id))
-            .ToDictionaryAsync(connection => connection.Id, connection => connection.AdapterType, cancellationToken);
-        // The writer's own rule (LibraryLinkWriter): only a kind of item its library writes was ever sent.
-        var cutWrites = cutToWork
-            .Where(link => adapterTypes.TryGetValue(link.IntegrationConnectionId, out var adapterType)
-                && adapters.Find<IMediaLibraryIdentifierWriter>(adapterType) is { } writer
-                && writer.WritableKinds.Contains(link.ItemKind))
+            .ToDictionaryAsync(connection => connection.Id, cancellationToken);
+        // The writer's own rule (LibraryLinkWritability): only a link that writes ids of its own was ever sent as a write.
+        var cutWrites = cut
+            .Where(link => connections.TryGetValue(link.IntegrationConnectionId, out var connection)
+                && LibraryLinkWritability.KeptReason(link, adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType), connection.Name) is null)
             .ToList();
-        List<Guid> neverWrittenIds = [.. cutToWork.Except(cutWrites).Select(link => link.Id)];
+        List<Guid> neverWrittenIds = [.. cut.Except(cutWrites).Where(link => link.Target == LibraryLinkTarget.Work).Select(link => link.Id)];
         List<Guid> cutWriteIds = [.. cutWrites.Select(link => link.Id)];
         var recorded = 0;
-        foreach (var link in cutWrites)
+        // An episode's link whose IMDb id TMDb hadn't given yet sent nothing of its own: nothing to record.
+        foreach (var link in cutWrites.Where(link => LibraryLinkEdits.WrittenKey(link) is not null))
         {
             if (await LibraryLinkWriteHistory.CutWriteAsync(db, link, cancellationToken) is not { } identifiers)
                 continue;

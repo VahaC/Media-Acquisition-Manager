@@ -11,13 +11,14 @@ namespace MediaAcquisitionManager.Core.Enums;
 public enum LibraryLinkWriteState
 {
     /// <summary>
-    /// Never written: an episode-to-show link, a link on a kind of item the library doesn't write (Jellyfin: a series,
-    /// whose save rewrites all its seasons and episodes), or one of a library type that can't set ids. A sync leaves it
-    /// so, whatever the library reports.
+    /// Never written: an episode-to-show link that writes no id of its own (without its season and episode, or with an
+    /// episode TMDb gives no IMDb id), a link on a kind of item the library doesn't write (Jellyfin: an episode item), or
+    /// one of a library type that can't set ids. A sync leaves it so, whatever the library reports. A series' link and a
+    /// numbered episode's that MAM-34 first kept here are written by the catch-up (Vasyl, 2026-10-06).
     /// </summary>
     KeptInApp = 1,
 
-    /// <summary>Waiting for the background writer ("Accept all confident").</summary>
+    /// <summary>Waiting for the background writer ("Accept all confident", the catch-up). A sync leaves it so.</summary>
     Queued = 2,
 
     /// <summary>

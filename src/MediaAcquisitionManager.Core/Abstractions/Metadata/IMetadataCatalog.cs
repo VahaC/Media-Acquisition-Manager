@@ -32,6 +32,15 @@ public interface IMetadataCatalog
     /// </summary>
     Task<IntegrationCallResult<CatalogWork>> GetWorkAsync(IntegrationConnectionSettings settings, MediaWorkKind kind, string id, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// MAM-34 — the episode <paramref name="episodeNumber"/> of season <paramref name="seasonNumber"/> of the show
+    /// <paramref name="showId"/>, with its own IMDb id. <see cref="IntegrationCallStatus.NotFound"/> when the source knows
+    /// no such episode — of no such season, or of no such show. A malformed show id or a negative number is a caller's
+    /// mistake and throws before anything is sent.
+    /// </summary>
+    Task<IntegrationCallResult<CatalogEpisode>> GetEpisodeAsync(
+        IntegrationConnectionSettings settings, string showId, int seasonNumber, int episodeNumber, CancellationToken cancellationToken = default);
+
     /// <summary>A collection of films and every part of it. <see cref="IntegrationCallStatus.NotFound"/> when
     /// the source knows no such collection.</summary>
     Task<IntegrationCallResult<CatalogCollection>> GetCollectionAsync(IntegrationConnectionSettings settings, string id, CancellationToken cancellationToken = default);

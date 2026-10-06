@@ -11,8 +11,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <summary>
 /// A Jellyfin server behind a <see cref="RecordingHttpHandler"/> (MAM-8): it answers the requests the
 /// adapter makes — <c>/System/Info</c>, <c>/Library/VirtualFolders</c>, pages of <c>/Items</c> and
-/// <c>/Videos/{id}/AdditionalParts</c>, and MAM-34's <c>GET /Users</c>, <c>GET /Items/{id}</c> and
-/// <c>POST /Items/{id}</c> — from the real samples (<see cref="JellyfinSamples"/>) unless a test changes them.
+/// <c>/Videos/{id}/AdditionalParts</c>, and MAM-34's <c>GET /Users</c>, <c>GET /Items/{id}</c>, <c>POST /Items/{id}</c>
+/// and <c>POST /Items/{id}/Refresh</c> — from the real samples (<see cref="JellyfinSamples"/>) unless a test changes
+/// them.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -34,14 +35,18 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// itself otherwise; <c>POST /Items/{id}</c> applies the posted <c>ProviderIds</c> to the stored item — a key left out or
 /// blank is removed — so a later read or sync sees them, and answers the recorded 204. <see cref="WriteRefusal"/>,
 /// <see cref="IgnoresWrites"/> and <see cref="AfterWrite"/> make a write refused, taken but not applied, or its answer
-/// lost. The posted body stays readable in <see cref="RecordingHttpHandler.Requests"/>.
+/// lost. The posted body stays readable in <see cref="RecordingHttpHandler.Requests"/>. MAM-34 follow-up —
+/// <c>POST /Items/{id}/Refresh</c>, the metadata lookup, answers the recorded 204 of its kind for an item of any list
+/// and records its id in <see cref="Lookups"/>, Jellyfin's recorded 404 for any other; it changes nothing of the item —
+/// what Jellyfin's lookup fills is Jellyfin's, read by no test. <see cref="LookupRefusal"/> refuses it.
 /// </para>
 /// <para>
 /// MAM-34 — what Jellyfin's source says of the same calls, beyond what the live check saw: <c>/Items?ids=</c> lists the
 /// items of those ids, user-less, whoever may see them, while an item in <see cref="HiddenFromAdministrator"/> answers the
 /// administrator's read with Jellyfin's 404, as one a parental limit hides. A write applies the posted ids and nothing
-/// else: what Jellyfin's update does to a series' seasons and episodes, or to the people it is sent, isn't modelled, as
-/// the app sends neither a series nor people (ADR 0026).
+/// else: the people it is sent aren't modelled, as the app sends none, nor is what Jellyfin's update of a series does to
+/// its seasons and episodes — their name and ratings copied from it, which Vasyl accepted and the app neither reads nor
+/// changes (ADR 0026).
 /// </para>
 /// <para>
 /// One server per address: <see cref="Arm(RecordingHttpHandler, FakeJellyfinServer[])"/> gives one
@@ -116,6 +121,13 @@ public sealed class FakeJellyfinServer
     /// </summary>
     public Func<string, HttpResponseMessage?>? AfterWrite { get; set; }
 
+    /// <summary>MAM-34 — when set, <c>POST /Items/{id}/Refresh</c> answers this status with no body and looks nothing up:
+    /// a refused lookup (403 for a key that isn't an administrator's, 500 for a failed one).</summary>
+    public HttpStatusCode? LookupRefusal { get; set; }
+
+    /// <summary>MAM-34 — the ids of the items whose metadata lookup Jellyfin took, as posted, in order.</summary>
+    public List<string> Lookups { get; } = [];
+
     /// <summary>When set, a request without <c>Authorization: MediaBrowser Token="{ApiKey}"</c> answers
     /// 401, as Jellyfin does for a key it doesn't know.</summary>
     public string? ApiKey { get; set; }
@@ -175,6 +187,7 @@ public sealed class FakeJellyfinServer
             "Users" when request.Method == HttpMethod.Get => JsonAnswer(Users),
             _ when segments is ["Items", var itemId] && request.Method == HttpMethod.Get => ItemOf(uri, itemId),
             _ when segments is ["Items", var itemId] && request.Method == HttpMethod.Post => Write(itemId, body),
+            _ when segments is ["Items", var itemId, "Refresh"] && request.Method == HttpMethod.Post => LookUp(itemId),
             _ when segments is ["Videos", var itemId, "AdditionalParts"] => PartsOf(itemId),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
@@ -260,9 +273,22 @@ public sealed class FakeJellyfinServer
                     .Select(pair => KeyValuePair.Create<string, JsonNode?>(pair.Key, pair.Value!.DeepClone())));
         }
 
-        // The recorded 204 of each kind (the live check's series write answered after 4.5 s).
+        // The recorded 204 of each kind (the live checks' series writes answered after 4.5 and 9.5 s).
         return AfterWrite?.Invoke(itemId)
             ?? VendorResponses.Recorded((string?)item["Type"] == "Series" ? JellyfinSamples.SeriesItemUpdateResponseFile : JellyfinSamples.ItemUpdateResponseFile);
+    }
+
+    // MAM-34 — the metadata lookup Jellyfin queues: nothing of the item changes here.
+    private HttpResponseMessage LookUp(string itemId)
+    {
+        if (Stored(itemId) is not { } item)
+            return VendorResponses.Recorded(JellyfinSamples.ItemRefreshUnknownItemResponseFile);
+        if (LookupRefusal is { } refusal)
+            return new HttpResponseMessage(refusal);
+
+        Lookups.Add(itemId);
+        // The recorded 204 of each kind.
+        return VendorResponses.Recorded((string?)item["Type"] == "Series" ? JellyfinSamples.SeriesRefreshResponseFile : JellyfinSamples.ItemRefreshResponseFile);
     }
 
     // The item of any list, by its id in any form Jellyfin takes ("N" or with dashes, any letter case).

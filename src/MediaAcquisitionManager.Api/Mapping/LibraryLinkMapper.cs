@@ -39,7 +39,10 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
             link?.SetUtc,
             link?.SetByUserName,
             libraryMapper.ToDtos(libraryRows),
-            link is null ? null : ConflictingValue(link, libraryRows));
+            link is null ? null : ConflictingValue(link, libraryRows),
+            link?.EpisodeImdbId,
+            link?.LookupRequestedUtc,
+            link?.LookupError);
 
     public LibraryLinkRowDto ToRowDto(
         LibraryItemLinkEntity link,

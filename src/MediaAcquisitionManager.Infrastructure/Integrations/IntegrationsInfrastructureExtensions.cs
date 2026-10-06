@@ -95,7 +95,8 @@ internal static class IntegrationsInfrastructureExtensions
     // repeated counts towards its ban, and — MAM-13 — a torrents/add whose answer was lost may have added the
     // release already. MAM-33 — the TMDb adapter sends a GET again itself, only after a 429 and after the
     // wait TMDb asked for: a read, and an answer that says it was not served. MAM-34 — a Jellyfin POST of an
-    // item whose answer was lost may have changed its ids already.
+    // item whose answer was lost may have changed its ids already, and a metadata lookup asked twice is one
+    // Jellyfin runs twice.
     private static void AddIntegrationClient(IServiceCollection services, string name) =>
         services.AddHttpClient(name, client =>
             {

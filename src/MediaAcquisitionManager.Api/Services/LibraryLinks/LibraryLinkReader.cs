@@ -12,8 +12,9 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 /// <remarks>
 /// <para>
 /// In memory, each linked item's library rows go through <see cref="LinkedIdentifiers"/> itself. The SQL methods can't
-/// call it, so they spell its rule out once each — the id a link replaces gives way while the link isn't confirmed, the
-/// link's TMDb id counts, TMDb's IMDb id counts where the item's library holds none — and <c>LibraryWorksLinksHttpTests</c>
+/// call it, so they spell its rule out once each — the id a link to the work replaces gives way while the link isn't
+/// confirmed, the film id an episode's link replaces always, the link's TMDb id counts, TMDb's IMDb id counts where the
+/// item's library holds none — and <c>LibraryWorksLinksHttpTests</c>
 /// asks a card, the search and the missing-ids filter the same questions, so the two can't drift apart.
 /// </para>
 /// <para>
@@ -169,8 +170,9 @@ public sealed class LibraryLinkReader(ApplicationDbContext db) : ILibraryLinkRea
 
     /// <summary>
     /// <see cref="LinkedIdentifiers"/>'s first step in SQL: the library rows, less each linked item's row of the id its
-    /// link replaces while the link isn't confirmed in the library (kept in the app, queued, being written, not written —
-    /// R6) — of the link's scheme for a link to the work, the film id for an episode-to-show link (R7).
+    /// link replaces — of the link's scheme for a link to the work while the link isn't confirmed in the library (kept in
+    /// the app, queued, being written, not written — R6); the film id for an episode-to-show link always (R7), as what
+    /// its write sends is the episode's IMDb id.
     /// </summary>
     private IQueryable<MediaWorkIdentifierEntity> CountedLibraryRows() =>
         db.MediaWorkIdentifiers.Where(row => !db.LibraryItemLinks.Any(link =>
@@ -179,11 +181,12 @@ public sealed class LibraryLinkReader(ApplicationDbContext db) : ILibraryLinkRea
             && row.SourceConnectionId == link.IntegrationConnectionId
             && row.SourceItemId == link.SourceItemId
             && link.SupersededValue != null
-            && (link.WriteState == LibraryLinkWriteState.KeptInApp
-                || link.WriteState == LibraryLinkWriteState.Queued
-                || link.WriteState == LibraryLinkWriteState.Writing
-                || link.WriteState == LibraryLinkWriteState.NotWritten)
-            && ((link.Target == LibraryLinkTarget.Work && row.Scheme == link.Scheme)
+            && ((link.Target == LibraryLinkTarget.Work
+                    && row.Scheme == link.Scheme
+                    && (link.WriteState == LibraryLinkWriteState.KeptInApp
+                        || link.WriteState == LibraryLinkWriteState.Queued
+                        || link.WriteState == LibraryLinkWriteState.Writing
+                        || link.WriteState == LibraryLinkWriteState.NotWritten))
                 || (link.Target == LibraryLinkTarget.ShowEpisode && row.Scheme == MediaIdentifierScheme.Tmdb))
             && row.Value.Trim().ToUpper() == link.SupersededValue.Trim().ToUpper()));
 

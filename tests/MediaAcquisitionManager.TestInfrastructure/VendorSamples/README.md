@@ -8,9 +8,12 @@ on the same day. MAM-33 added TMDb's answers, read with Vasyl's own token, and P
 releases on 2026-10-05. MAM-34 added, the same day, Jellyfin's users, a movie and a series item read
 whole, written back with new ids and read again, the refusals of a read and a write, and the movie
 after two refreshes — the only samples of a write to Jellyfin, made on the reference installation by
-a live check Vasyl ran; the app writes no series since (Vasyl, 2026-10-06), so the series' write
-samples stay as that check's record only —, and TMDb's details of a short and of Planet Earth with
-their runtimes, IMDb ids and other titles. `RepositoryPaths.VendorSamples` points here.
+a live check Vasyl ran —, and TMDb's details of a short and of Planet Earth with their runtimes, IMDb
+ids and other titles. The MAM-34 follow-up adds, from a second live check Vasyl ran on 2026-10-06,
+Jellyfin's answers to a metadata lookup of a movie and of a series item (`POST /Items/{id}/Refresh`),
+the answer to one more write of the series, and TMDb's details of two episodes with their own IMDb
+ids — every one of them recorded, none made by hand.
+`RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
 | --- | --- |
@@ -63,8 +66,13 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Jellyfin/item-read-unknown-item-response.txt` | `GET /Items/{id}?userId=…` of an item that doesn't exist | The same `404` |
 | `Jellyfin/item-read-without-user-response.txt` | `GET /Items/{id}` with the key and no user | `400 Bad Request`, `text/plain`, "Error processing request." |
 | `Jellyfin/series-item.json` | `GET /Items/{id}?userId={administrator}` of a series | The Penguins of Madagascar's series item whole, 41 fields — `AirDays`, `ChildCount`, `RecursiveItemCount`, `DateLastMediaAdded` among them —, named after its folder, "The Penguins Of Madagascar (Season 1-3) (2008-2015) WEBDL 1080p [Ukr,Eng] Sub [Eng] [ Hurtom ] by Jatx 11", with no ids |
-| `Jellyfin/series-item-update-response.txt` | `POST /Items/{id}` with it, only `ProviderIds.Tmdb` set to 7869 | `204 No Content`, after 4.5 seconds. The fake Jellyfin's answer to a series' update; the app never sends one |
-| `Jellyfin/series-item-after-update.json` | The same read again | `ProviderIds` `{ "Tmdb": "7869" }`; besides it only `Etag` and `ExternalUrls` changed on the series item. Kept as the check's record; no test reads it |
+| `Jellyfin/series-item-update-response.txt` | `POST /Items/{id}` with it, only `ProviderIds.Tmdb` set to 7869 | `204 No Content`, after 4.5 seconds. The fake Jellyfin's answer to a series' update. Read by `VendorResponses.Recorded` |
+| `Jellyfin/series-item-after-update.json` | The same read again | `ProviderIds` `{ "Tmdb": "7869" }`; besides it only `Etag` and `ExternalUrls` changed on the series item. Its `ProviderIds` are what the app's write of the series sends (`JellyfinSamples.SeriesItemAfterUpdate`) |
+| `Jellyfin/series-item-update-2026-10-06-response.txt` | The same `POST /Items/{id}` of the series, by then holding `Tmdb` 7869 and five other ids and rated `TV-Y7`, sent back as read without its `People` (2026-10-06, MAM-34 follow-up) | `204 No Content` after 9.5 seconds (`X-Response-Time-ms` 9484.99): the save that gave all 3 seasons and 149 episodes the series' rating (below). Kept as the check's record; no test reads it |
+| `Jellyfin/item-refresh-response.txt` | `POST /Items/{id}/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false` — Jellyfin's own "Search for missing metadata" — of the movie item "Greatest Events of World War II in Colour.S01E01.Blitzkrieg" (2026-10-06, MAM-34) | `204 No Content`, no body, in 0.6 ms: queued, not done. Read by `VendorResponses.Recorded` |
+| `Jellyfin/item-refresh-unknown-item-response.txt` | The same of an item that doesn't exist | `404 Not Found` with JSON problem details, as an update of one answers |
+| `Jellyfin/item-refresh-wrong-key-response.txt` | The same with a wrong key | `401 Unauthorized` with no body |
+| `Jellyfin/series-refresh-response.txt` | The same of the Penguins of Madagascar's series item, right after its update | `204 No Content` in 0.8 ms. The fake Jellyfin's answer to a series' lookup. Read by `VendorResponses.Recorded` |
 | `Jellyfin/series-item-after-removal.json` | The read after posting it back without the `Tmdb` key | The key gone; only `Etag` differs from `series-item.json`. Kept as the check's record; no test reads it |
 | `QBittorrent/app-version.txt`, `webapi-version.txt`, `build-info.json` | `GET /api/v2/app/...` | Versions |
 | `QBittorrent/categories.json` | `GET /api/v2/torrents/categories` | Four categories, each saving to the folder of one Jellyfin library, under qBittorrent's `/downloads` |
@@ -99,6 +107,9 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Tmdb/search-movie-without-year.json` | `GET /3/search/movie` for "Landing Stripling" with no year | The one film, 223021 |
 | `Tmdb/search-tv-planet-earth.json` | `GET /3/search/tv` for "Planet Earth" | The first 20 of 41 shows: Planet Earth (1044, 2006) first, then Planet Earth II and III |
 | `Tmdb/tv-details-planet-earth.json` | `GET /3/tv/1044?append_to_response=credits,recommendations,alternative_titles,external_ids` | Planet Earth: `episode_run_time` `[]` and `last_episode_to_air.runtime` 53, `external_ids.imdb_id` `tt0795176`, seasons 0 (24 episodes) and 1 (11), genre 99, and 16 alternative titles under `alternative_titles.results`, "Planet Earth" three times among them |
+| `Tmdb/tv-episode-wwii-s01e01.json` | `GET /3/tv/91724/season/1/episode/1?append_to_response=external_ids&language=uk-UA` (2026-10-06, MAM-34) | The first episode of Greatest Events of World War II in Colour: "Серія 1" — TMDb's fallback, as it has no Ukrainian title —, aired 2019-07-12, 50 minutes, a director and four archive-footage guests, and `external_ids.imdb_id` `tt9103946`, the id Vasyl set by hand in Jellyfin |
+| `Tmdb/tv-episode-planet-earth-s01e08.json` | `GET /3/tv/1044/season/1/episode/8` the same way | Planet Earth's "Джунглі", aired 2006-11-19, 51 minutes, with a Ukrainian overview and `external_ids.imdb_id` `tt0905877` |
+| `Tmdb/tv-episode-not-found-response.txt` | The same of an episode TMDb doesn't have (`tv/91724/season/9/episode/99`) | `404` with TMDb's JSON, `status_code` 34, as for any resource it doesn't have. Read by `VendorResponses.Recorded` |
 | `Ffprobe/the-continental-s01e01.json` | `ffprobe -show_format -show_streams -show_chapters` | HEVC Main 10, four audio and four subtitle tracks, eight chapters |
 | `Ffprobe/taken-2008-bdremux.json` | the same | H.264 remux, DTS and AC-3 tracks, text and PGS subtitles, 24 chapters |
 
@@ -261,12 +272,17 @@ The four movies in `movies-page.json`:
   master). Every update of a series rewrites and saves each of its seasons and episodes — their
   `SeriesName` and `CustomRating` always, their `OfficialRating` unless the child locked it —, each
   save moving its `DateLastSaved` and rewriting its NFO file were there one (the reference
-  installation's media folders hold none) — the likely reason for the 4.5 seconds —, so the app writes
-  no series (Vasyl, 2026-10-06). By that source,
+  installation's media folders hold none) — the likely reason for the 4.5 seconds. For that Vasyl first
+  had the app write no series (2026-10-06); later that day, on the follow-up's recording (below), he
+  decided that a series is written like a film all the same: age ratings don't matter to him. By that
+  source,
   each of the recorded series' two writes copied its ratings — it has none — onto its 3 seasons and
   149 episodes, but for an official rating a child locked. Nobody read their ratings before; the check's
-  read-only listing of 2026-10-06 counted 152 seasons and episodes, none of them rated, so whether any
-  had a rating before is unknown. An update sent `People` rebuilds the item's people from their
+  read-only listing of 2026-10-06, made early that day, counted 152 seasons and episodes, none of them
+  rated, so whether any had a rating before is unknown. By the follow-up's write later that day the
+  series was rated `TV-Y7` and 88 of its 149 episodes were rated (its seasons still none): what
+  changed in between wasn't recorded — most likely a metadata refresh, after the 2026-10-05 writes had
+  copied the series' missing rating over the children's. An update sent `People` rebuilds the item's people from their
   names, roles and types alone (`LibraryManager.UpdatePeople`), and one without it leaves them as they
   are, so the app leaves them out. `ProviderIds` replace the item's ids as a whole
   (`ProviderIdsExtensions.SetProviderIds`): an id Jellyfin holds that fails its own format check is
@@ -276,6 +292,35 @@ The four movies in `movies-page.json`:
   missing metadata" kept `Tmdb` and `Imdb`, added `Tvdb` and `TvdbSlug`, and filled the overview,
   genres, people, studios and tags — Jellyfin's own doing, asked for in the check. "Replace all
   metadata" was not run.
+- **Written alone, the ids change nothing anyone sees; the lookup does** (MAM-34 follow-up, Vasyl's
+  live checks of 2026-10-06 on Jellyfin 12.1.0, not recorded as samples). Jellyfin fetches an existing
+  item's metadata only when it refreshes it: a Tom & Jerry film the app linked held IMDb `tt0035226`
+  and TheMovieDb `40163` in Jellyfin, and nothing more. The documentary file "Greatest Events of
+  World War II in Colour.S01E01.Blitzkrieg", a movie in «Документалки» (whose movie metadata fetchers
+  are TheMovieDb and The Open Movie Database), had its IMDb Id set by hand to its episode's own,
+  `tt9103946` (TMDb `tv/91724` season 1 episode 1); "Search for missing metadata" then gave it an
+  overview, a year, genres and a poster — The Open Movie Database finds an episode by its IMDb id —,
+  its Name kept and its "TheMovieDb Movie Id" left empty. The recorded lookup of that item an hour later
+  answered 204 at once and changed only its `Etag`: what it could find, it had found.
+- **A series' save gives every season and episode the series' rating, and the lookup leaves it**
+  (MAM-34, Vasyl's second live check of 2026-10-06). The Penguins of
+  Madagascar's series item — by
+  then holding `Tmdb` 7869, `Imdb`, `Tvdb`, `TvRage`, `TvMaze` and `TvdbSlug`, and rated `TV-Y7` —,
+  posted back as read without its `People`, answered 204 after 9.5 seconds
+  (`series-item-update-2026-10-06-response.txt`) and changed only its `Etag`.
+  Its 3 seasons, none rated before, and its 149 episodes, 88 rated before, all carried the series'
+  `TV-Y7` afterwards, as `UpdateItem` copies the series' official rating onto every child it hasn't
+  locked; their names
+  and overviews (146 of 149) stayed. The "Search for missing metadata" asked right after changed
+  nothing on the series in 180 seconds and gave no rating back: it fills only what is missing, and a
+  rating copied from the series isn't. Whether any of the 88 had another rating before is unknown —
+  the check counted them —, and nothing the app or Jellyfin keeps can put them back. Vasyl accepted it:
+  the app writes a series like a film (2026-10-06,
+  [ADR 0026](../../../docs/adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+- **TMDb gives an episode its own IMDb id under `external_ids`** (MAM-34). Asked with
+  `append_to_response=external_ids`, an episode's details carry `external_ids.imdb_id` (and TheTVDB's
+  id), no `imdb_id` of their own; its `name` is TMDb's fallback "Серія 1" where it has no Ukrainian
+  title. An episode it doesn't have answers its 404 with `status_code` 34.
 - **TMDb gives a short's runtime, and a show's only through its episodes** (MAM-34). Landing
   Stripling's `runtime` is 6 minutes, against 6.2 for the file Jellyfin lists; Planet Earth's
   `episode_run_time` is `[]`, so its runtime is its latest episode's, 53 (its season 1 episode 8,

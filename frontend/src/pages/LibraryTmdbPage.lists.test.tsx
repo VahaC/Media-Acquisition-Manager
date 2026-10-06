@@ -4,10 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { libraryLinksApi } from '@/lib/library-links-api'
+import type { LibraryLinkList, LibraryLinksQuery } from '@/lib/types'
 import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
 import { apiError } from '@/test/api-error'
 import { owner, signInAs } from '@/test/auth-session'
-import { dialogOf, landingStripling, linkId, linkRowOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
+import { catchUpOf, dialogOf, landingStripling, linkId, linkRowOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
@@ -39,13 +40,22 @@ const cardOf = async (title: string) => (await screen.findByText(title, { select
 /** A link whose item Jellyfin no longer reports: its work went with it, its title stays. */
 const goneRow = linkRowOf({ workId: null, workTitle: null, itemTitle: '120. Landing Stripling (1962) [old cut]', writeState: 'InLibrary' })
 
+/** Answers the tab's list with `answer`, and the Update Jellyfin panel's count of pending links with none. */
+function serveLists(answer: (query: LibraryLinksQuery) => Promise<LibraryLinkList>) {
+  vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => (query.filter === 'Pending' ? linksPage(query, []) : answer(query)))
+}
+
+/** The tab's own asks for its list, without the Update Jellyfin panel's. */
+const listAsks = () => vi.mocked(libraryLinksApi.links).mock.calls.map(([query]) => query).filter((query) => query.filter !== 'Pending')
+
 describe('LibraryTmdbPage lists of links', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     localStorage.clear()
     vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
     vi.mocked(libraryLinksApi.queue).mockResolvedValue(queueOf(0, 0, null))
-    vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, query.filter === 'Conflict'
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
+    serveLists(async (query) => linksPage(query, query.filter === 'Conflict'
       ? [linkRowOf({ conflictingValue: '999', writeState: 'Lost' })]
       : [goneRow]))
   })
@@ -59,7 +69,7 @@ describe('LibraryTmdbPage lists of links', () => {
       const card = await cardOf('120. Landing Stripling')
 
       // Assert
-      expect(libraryLinksApi.links).toHaveBeenCalledExactlyOnceWith({ filter: 'Conflict', page: 1, pageSize: 25 })
+      expect(listAsks()).toEqual([{ filter: 'Conflict', page: 1, pageSize: 25 }])
       expect(within(card).getByText('Home Jellyfin · 120. Landing Stripling')).toBeInTheDocument()
       expect(within(card).getByText('Linked to Посадка Стріплінга (Film, TMDb 223021)')).toBeInTheDocument()
       expect(within(card).getByText('TMDb ids disagree: 999 in Jellyfin, 223021 linked')).toBeInTheDocument()
@@ -84,7 +94,7 @@ describe('LibraryTmdbPage lists of links', () => {
 
     it('says when no link disagrees with Jellyfin', async () => {
       // Arrange
-      vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
+      serveLists(async (query) => linksPage(query, []))
 
       // Act
       renderPage('Conflicts')
@@ -95,7 +105,9 @@ describe('LibraryTmdbPage lists of links', () => {
 
     it('shows why the list couldn\'t load, with Try again', async () => {
       // Arrange
-      vi.mocked(libraryLinksApi.links).mockRejectedValue(apiError(502, 'The server is restarting.'))
+      serveLists(async () => {
+        throw apiError(502, 'The server is restarting.')
+      })
 
       // Act
       renderPage('Conflicts')
@@ -116,7 +128,7 @@ describe('LibraryTmdbPage lists of links', () => {
       const card = await cardOf('120. Landing Stripling (1962) [old cut]')
 
       // Assert
-      expect(libraryLinksApi.links).toHaveBeenCalledExactlyOnceWith({ filter: 'Unattached', page: 1, pageSize: 25 })
+      expect(listAsks()).toEqual([{ filter: 'Unattached', page: 1, pageSize: 25 }])
       expect(within(card).getByText('In Jellyfin')).toBeInTheDocument()
       expect(within(card).getByRole('button', { name: 'Remove' })).toHaveClass('ui-button-danger')
       expect(within(card).queryByRole('button', { name: 'TMDb…' })).not.toBeInTheDocument()
@@ -127,7 +139,7 @@ describe('LibraryTmdbPage lists of links', () => {
       vi.mocked(libraryLinksApi.removeLink).mockResolvedValue()
       const { user } = renderPage('Unattached')
       const card = await cardOf('120. Landing Stripling (1962) [old cut]')
-      vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
+      serveLists(async (query) => linksPage(query, []))
 
       // Act
       await user.click(within(card).getByRole('button', { name: 'Remove' }))
@@ -139,7 +151,7 @@ describe('LibraryTmdbPage lists of links', () => {
       expect(message).toContain('The app forgets the link of “120. Landing Stripling (1962) [old cut]”.')
       expect(libraryLinksApi.removeLink).toHaveBeenCalledExactlyOnceWith(linkId)
       expect(await screen.findByText('Every link\'s item is still in the library.')).toBeInTheDocument()
-      expect(libraryLinksApi.links).toHaveBeenCalledTimes(2)
+      expect(listAsks()).toHaveLength(2)
     })
 
     it('sends nothing when the removal isn\'t confirmed', async () => {
@@ -173,7 +185,7 @@ describe('LibraryTmdbPage lists of links', () => {
 
     it('asks the server for the next page', async () => {
       // Arrange
-      vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, [goneRow], 40))
+      serveLists(async (query) => linksPage(query, [goneRow], 40))
       const { user } = renderPage('Unattached')
       await cardOf('120. Landing Stripling (1962) [old cut]')
 
@@ -181,12 +193,12 @@ describe('LibraryTmdbPage lists of links', () => {
       await user.click(screen.getByRole('button', { name: 'Next page' }))
 
       // Assert
-      expect(libraryLinksApi.links).toHaveBeenLastCalledWith({ filter: 'Unattached', page: 2, pageSize: 25 })
+      expect(listAsks().at(-1)).toEqual({ filter: 'Unattached', page: 2, pageSize: 25 })
     })
 
     it('says when every link\'s item is still in the library', async () => {
       // Arrange
-      vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
+      serveLists(async (query) => linksPage(query, []))
 
       // Act
       renderPage('Unattached')

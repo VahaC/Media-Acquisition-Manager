@@ -8,8 +8,9 @@ using Microsoft.EntityFrameworkCore;
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
 /// <summary>
-/// MAM-34 — writes the links "Accept all confident" queued into their libraries in the background (Queue/Worker,
-/// decision 6), one at a time, each with its own audit row and its own result on the link, which the page polls.
+/// MAM-34 — writes the links "Accept all confident" and the catch-up queued into their libraries in the background
+/// (Queue/Worker, decision 6), one at a time, each with its own audit rows — the write, and the library's lookup asked
+/// after it — and its own result on the link, which the page polls.
 /// </summary>
 /// <remarks>
 /// <para>

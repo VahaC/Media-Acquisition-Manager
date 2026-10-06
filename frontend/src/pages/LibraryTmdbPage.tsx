@@ -2,6 +2,7 @@ import { useId } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
+import { TmdbCatchUpPanel } from '@/components/library/TmdbCatchUpPanel'
 import { TmdbConfidentList } from '@/components/library/TmdbConfidentList'
 import { TmdbLinkRows } from '@/components/library/TmdbLinkRows'
 import { TmdbLinkTabs, type TmdbLinkTab } from '@/components/library/TmdbLinkTabs'
@@ -25,13 +26,17 @@ const LIBRARY_MISSING = '/library?identifiers=Missing'
 /**
  * MAM-34 — the TMDb page (`/library/tmdb`, reached from the Library's "Missing an id" filter): the
  * works without a TMDb id linked to their film or show by hand, the owner's (decision 5). Above the
- * tabs, how the suggestions were last prepared, with Prepare again. The tabs (R24): **Review** — one
- * work at a time with the TMDb dialog's content inline, and keys for every step; **Confident** — every
- * confident suggestion, linked a page at a time in one click; **Conflicts** — the links Jellyfin holds
- * another TMDb id against; **Unattached** — the links whose item the library no longer reports.
+ * tabs, "Update Jellyfin" for the links set before the app wrote series' and episodes' links and asked
+ * Jellyfin to look up an item's metadata (Vasyl's decision of 2026-10-06), then how the suggestions
+ * were last prepared, with Prepare again, right above the tabs that show them. The tabs (R24):
+ * **Review** — one work at a time with the TMDb dialog's content inline, and keys for every step;
+ * **Confident** — every confident suggestion, linked a page at a time in one click; **Conflicts** — the
+ * links Jellyfin holds another TMDb id against; **Unattached** — the links whose item the library no
+ * longer reports.
  *
  * The tab is in the address (`?tab=Confident`, left out for Review), so F5 and Back keep it. A member
- * reads why the page isn't theirs, and nothing is asked for: every route behind it is the owner's.
+ * reads why the page isn't theirs, with Update Jellyfin off for the same reason, and nothing is asked
+ * for: every route behind it is the owner's.
  * The header's Library link stays highlighted here (its NavLink matches `/library/*`).
  */
 export function LibraryTmdbPage() {
@@ -67,11 +72,15 @@ export function LibraryTmdbPage() {
       </div>
 
       {!isOwner ? (
-        <div className="settings-empty">
-          <p>{t('card.notOwner')}</p>
-        </div>
+        <>
+          <div className="settings-empty">
+            <p>{t('card.notOwner')}</p>
+          </div>
+          <TmdbCatchUpPanel isOwner={false} />
+        </>
       ) : (
         <>
+          <TmdbCatchUpPanel isOwner />
           <TmdbSuggestionRunPanel />
 
           <TmdbLinkTabs tabs={TABS} current={tab} panelId={panelId} tabId={tabId} onSelect={selectTab} />

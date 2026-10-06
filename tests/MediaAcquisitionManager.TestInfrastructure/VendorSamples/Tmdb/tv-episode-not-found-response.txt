@@ -1,0 +1,18 @@
+HTTP/1.1 404 Not Found
+Content-Type: application/json;charset=utf-8
+Transfer-Encoding: chunked
+Connection: close
+Date: Tue, 06 Oct 2026 02:13:54 GMT
+x-az: us-east-1b
+x-task-id: a32aebfa238a4258bb22020bf9f5ed69
+Server: openresty
+X-Gateway-Cache-Status: MISS
+Vary: Accept-Encoding,accept-encoding
+X-Cache: Error from cloudfront
+Via: 1.1 1a77be77b0d4f395c20654f9f7d676c4.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: WAW51-P1
+Alt-Svc: h3=":443"; ma=86400
+X-Amz-Cf-Id: M8Qig14h5brXZ2o_rGRPq0ncTFvZqVILKSThaXLZo2jFR_FBlAtCEQ==
+Vary: Origin
+
+{"success":false,"status_code":34,"status_message":"The resource you requested could not be found."}

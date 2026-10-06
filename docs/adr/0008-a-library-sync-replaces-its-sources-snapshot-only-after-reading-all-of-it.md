@@ -210,3 +210,10 @@ stays so whatever the library reports, and the id it replaced keeps giving way i
 `LibraryLinkReattachHttpTests.Inspection_leaves_a_link_unattached_when_its_inode_came_back_with_another_size`
 and `LinkReattachmentTests.Moves_takes_no_link_to_an_item_another_link_leads_to_whichever_comes_first`
 pin it.
+
+**Amended 2026-10-06 (ADR 0026's section added in 0.2.1).** A series' link is written like a film's
+now, so a sync judges a written one by the show's id Jellyfin reports for the series
+(`LibraryLinkSyncHttpTests.Resync_judges_a_written_series_link_by_the_shows_id_jellyfin_reports_for_its_series`);
+one the first rules kept in the app stays `KeptInApp`, never judged, until the catch-up or **Write
+again** writes it — the test named above for a series is now
+`LibraryLinkSyncHttpTests.Resync_leaves_a_series_link_the_first_rules_kept_in_the_app_to_the_catch_up_whatever_jellyfin_reports_and_lets_the_id_it_replaced_give_way`.

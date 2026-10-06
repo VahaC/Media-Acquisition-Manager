@@ -81,6 +81,30 @@ public static class TmdbSamples
     /// <c>external_ids</c>, 16 alternative titles ("Planet Earth" three times), Documentary.</summary>
     public const string TvDetailsPlanetEarthFile = "Tmdb/tv-details-planet-earth.json";
 
+    /// <summary>
+    /// MAM-34 — <c>GET /3/tv/91724/season/1/episode/1?append_to_response=external_ids&amp;language=uk-UA</c> (recorded
+    /// live on 2026-10-06): the first episode of "Greatest Events of World War II in
+    /// Colour" — "Серія 1", aired 2019-07-12, 50 minutes —, its own IMDb id tt9103946 in <c>external_ids</c>.
+    /// </summary>
+    public const string TvEpisodeWwiiFile = "Tmdb/tv-episode-wwii-s01e01.json";
+
+    /// <summary>MAM-34 — <c>GET /3/tv/1044/season/1/episode/8</c>, the same way: Planet Earth's "Джунглі", aired
+    /// 2006-11-19, 51 minutes, IMDb id tt0905877.</summary>
+    public const string TvEpisodePlanetEarthFile = "Tmdb/tv-episode-planet-earth-s01e08.json";
+
+    /// <summary>MAM-34 — what TMDb answered an episode it doesn't have (<c>tv/91724/season/9/episode/99</c>): 404 with its
+    /// JSON error, <c>status_code</c> 34.</summary>
+    public const string TvEpisodeNotFoundResponseFile = "Tmdb/tv-episode-not-found-response.txt";
+
+    /// <summary>The show of <see cref="TvEpisodeWwiiFile"/>.</summary>
+    public const string TvEpisodeWwiiShowId = "91724";
+
+    /// <summary>The episode's own IMDb id, from <c>external_ids</c> — the id Vasyl set by hand in Jellyfin on 2026-10-06.</summary>
+    public const string TvEpisodeWwiiImdbId = "tt9103946";
+
+    /// <summary>The episode of <see cref="TvEpisodePlanetEarthFile"/>'s own IMDb id.</summary>
+    public const string TvEpisodePlanetEarthImdbId = "tt0905877";
+
     /// <summary>The film of <see cref="MovieDetailsShortFile"/>.</summary>
     public const string MovieDetailsShortId = "223021";
 
@@ -138,6 +162,7 @@ public static class TmdbSamples
     private static readonly Lazy<string> SearchMovieWithoutYearText = new(() => Read(SearchMovieWithoutYearFile));
     private static readonly Lazy<string> SearchTvPlanetEarthText = new(() => Read(SearchTvPlanetEarthFile));
     private static readonly Lazy<string> TvDetailsPlanetEarthText = new(() => Read(TvDetailsPlanetEarthFile));
+    private static readonly Lazy<string> TvEpisodeWwiiText = new(() => Read(TvEpisodeWwiiFile));
 
     /// <summary>The <see cref="MovieDetailsFile"/> sample, as TMDb sent it.</summary>
     public static string MovieDetails() => MovieDetailsText.Value;
@@ -183,6 +208,9 @@ public static class TmdbSamples
 
     /// <summary>The <see cref="TvDetailsPlanetEarthFile"/> sample, as TMDb sent it.</summary>
     public static string TvDetailsPlanetEarth() => TvDetailsPlanetEarthText.Value;
+
+    /// <summary>The <see cref="TvEpisodeWwiiFile"/> sample, as TMDb sent it.</summary>
+    public static string TvEpisodeWwii() => TvEpisodeWwiiText.Value;
 
     private static string Read(string relativePath) => File.ReadAllText(Path.Combine(RepositoryPaths.VendorSamples, relativePath));
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
@@ -9,7 +10,8 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 
 // MAM-33 — the catalog's single resources: a work's details with its credits and recommendations in one
 // call, a collection with its parts, a person with the works they directed or created. MAM-34 — the same call
-// also brings a work's other titles and its external ids, for the owner linking a library work to it.
+// also brings a work's other titles and its external ids, for the owner linking a library work to it; and one
+// episode of a show with its own IMDb id, for the owner linking a film item to that episode.
 internal sealed partial class TmdbAdapter
 {
     /// <summary>
@@ -43,6 +45,37 @@ internal sealed partial class TmdbAdapter
                 $"{segment}/{id}?append_to_response=credits,recommendations,alternative_titles,external_ids&language={CatalogLanguage}",
                 WorkNotFoundError(kind, id),
                 (root, secrets) => ReadWork(root, kind, secrets),
+                token),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// MAM-34 — <c>GET /3/tv/{id}/season/{season}/episode/{episode}</c> with <c>append_to_response=external_ids</c>: one
+    /// episode of a show and its own IMDb id (<c>external_ids.imdb_id</c>), the one id of the episode a film item can
+    /// be given — Jellyfin lists a documentary's episodes as movies, whose <c>Tmdb</c> key names a film. Its title,
+    /// air date and runtime come along; its crew, guests and stills are not read. TMDb's own 404 is a show, a season or
+    /// an episode it doesn't know.
+    /// </summary>
+    public Task<IntegrationCallResult<CatalogEpisode>> GetEpisodeAsync(
+        IntegrationConnectionSettings settings, string showId, int seasonNumber, int episodeNumber, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        // Caller's mistakes, not TMDb's answer: nothing is sent.
+        RequireTmdbId(showId, nameof(showId));
+        ArgumentOutOfRangeException.ThrowIfNegative(seasonNumber);
+        ArgumentOutOfRangeException.ThrowIfNegative(episodeNumber);
+
+        return CallAsync<CatalogEpisode>(
+            settings,
+            (client, sessionSecrets, token) => GetJsonAsync(
+                client,
+                settings,
+                sessionSecrets,
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"tv/{showId}/season/{seasonNumber}/episode/{episodeNumber}?append_to_response=external_ids&language={CatalogLanguage}"),
+                string.Create(CultureInfo.InvariantCulture, $"TMDb has no episode {episodeNumber} of season {seasonNumber} of the show {showId}."),
+                ReadEpisode,
                 token),
             cancellationToken);
     }
@@ -127,6 +160,35 @@ internal sealed partial class TmdbAdapter
             AlternativeTitles(root, isShow, secrets));
     }
 
+    /// <summary>
+    /// MAM-34 — an episode as TMDb answers it: its numbers — an answer without them isn't TMDb's —, its title (TMDb's
+    /// own fallback when it has none in Ukrainian), air date and runtime, and its IMDb id from <c>external_ids</c>, as a
+    /// show's is read (an episode's details have no <c>imdb_id</c> of their own).
+    /// </summary>
+    private static CatalogEpisode? ReadEpisode(JsonElement root, string?[] secrets)
+    {
+        if (WholeNumber(root, "season_number") is not { } season || WholeNumber(root, "episode_number") is not { } episode)
+            return null;
+
+        var title = TextProperty(root, "name", TitleMaximumLength, secrets);
+        return new CatalogEpisode(
+            season,
+            episode,
+            title.Length > 0 ? title : null,
+            DateProperty(root, "air_date"),
+            MinutesProperty(root, "runtime"),
+            ExternalImdbIdOf(root));
+    }
+
+    /// <summary>MAM-34 — a whole number of zero or more; <c>null</c> when absent or anything else.</summary>
+    private static int? WholeNumber(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var numberElement)
+        && numberElement.ValueKind == JsonValueKind.Number
+        && numberElement.TryGetInt32(out var number)
+        && number >= 0
+            ? number
+            : null;
+
     /// <summary>A film's <c>imdb_id</c> when it is one (<see cref="MediaIdentifierRules.IsImdbId"/>);
     /// TMDb sends <c>null</c> or <c>""</c> for a film without.</summary>
     private static string? ImdbIdOf(JsonElement root) =>
@@ -138,9 +200,9 @@ internal sealed partial class TmdbAdapter
             : null;
 
     /// <summary>
-    /// MAM-34 — a show's IMDb id: <c>external_ids.imdb_id</c> when it is one (tv-details-planet-earth.json's
-    /// tt0795176); a show's details have no <c>imdb_id</c> of their own. The other registries' ids beside it
-    /// (TheTVDB's, Wikidata's …) are not read.
+    /// MAM-34 — a show's IMDb id, or an episode's: <c>external_ids.imdb_id</c> when it is one
+    /// (tv-details-planet-earth.json's tt0795176); neither's details have an <c>imdb_id</c> of their own. The other
+    /// registries' ids beside it (TheTVDB's, Wikidata's …) are not read.
     /// </summary>
     private static string? ExternalImdbIdOf(JsonElement root) =>
         root.TryGetProperty("external_ids", out var externalIds) && externalIds.ValueKind == JsonValueKind.Object

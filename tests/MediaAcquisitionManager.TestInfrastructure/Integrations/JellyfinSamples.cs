@@ -138,6 +138,23 @@ public static class JellyfinSamples
     /// seconds.</summary>
     public const string SeriesItemUpdateResponseFile = "Jellyfin/series-item-update-response.txt";
 
+    /// <summary>
+    /// MAM-34 — what <c>POST /Items/{id}/Refresh</c> with "Search for missing metadata"'s query answered a movie item
+    /// (recorded live on 2026-10-06): 204, no body, in 0.6 ms — queued, not done.
+    /// </summary>
+    public const string ItemRefreshResponseFile = "Jellyfin/item-refresh-response.txt";
+
+    /// <summary>MAM-34 — what the same lookup answered the Penguins series item right after its write (recorded live on
+    /// 2026-10-06): 204, no body, in 0.8 ms.</summary>
+    public const string SeriesRefreshResponseFile = "Jellyfin/series-refresh-response.txt";
+
+    /// <summary>MAM-34 — what <c>POST /Items/{id}/Refresh</c> answered an item that doesn't exist: 404 problem
+    /// details.</summary>
+    public const string ItemRefreshUnknownItemResponseFile = "Jellyfin/item-refresh-unknown-item-response.txt";
+
+    /// <summary>MAM-34 — what <c>POST /Items/{id}/Refresh</c> answered a wrong key: 401, no body.</summary>
+    public const string ItemRefreshWrongKeyResponseFile = "Jellyfin/item-refresh-wrong-key-response.txt";
+
     private static readonly Lazy<string> MoviesPageText = new(() => Read("movies-page.json"));
     private static readonly Lazy<string> SeriesPageText = new(() => Read("series-page.json"));
     private static readonly Lazy<string> SeasonsPageText = new(() => Read("seasons-page.json"));
@@ -150,6 +167,7 @@ public static class JellyfinSamples
     private static readonly Lazy<string> ItemAfterDefaultRefreshText = new(() => Read("item-after-default-refresh.json"));
     private static readonly Lazy<string> ItemAfterMissingRefreshText = new(() => Read("item-after-missing-refresh.json"));
     private static readonly Lazy<string> SeriesItemText = new(() => Read("series-item.json"));
+    private static readonly Lazy<string> SeriesItemAfterUpdateText = new(() => Read("series-item-after-update.json"));
 
     /// <summary>The answer of <c>GET /System/Info</c>: Jellyfin 12.1.0, "VahaC media".</summary>
     public static JsonObject SystemInfo() => JsonNode.Parse(SystemInfoText.Value)!.AsObject();
@@ -177,9 +195,13 @@ public static class JellyfinSamples
     public static JsonObject ItemAfterMissingRefresh() => JsonNode.Parse(ItemAfterMissingRefreshText.Value)!.AsObject();
 
     /// <summary>MAM-34 — the Penguins series item (<see cref="PenguinsId"/>) as <c>GET /Items/{id}?userId=</c> answered
-    /// it: 41 fields, no ids, named after its folder. The app never writes a series (ADR 0026); the live check's write and
-    /// removal of its TMDb id stay recorded beside it (<c>series-item-after-*.json</c>).</summary>
+    /// it: 41 fields, no ids, named after its folder. The live check's write and removal of its TMDb id are recorded
+    /// beside it (<c>series-item-after-*.json</c>).</summary>
     public static JsonObject SeriesItem() => JsonNode.Parse(SeriesItemText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — the same series item read again after it was sent back with <c>Tmdb</c> set to
+    /// <see cref="PenguinsTmdbTvId"/>: besides the id only <c>Etag</c> and <c>ExternalUrls</c> changed.</summary>
+    public static JsonObject SeriesItemAfterUpdate() => JsonNode.Parse(SeriesItemAfterUpdateText.Value)!.AsObject();
 
     /// <summary>The four movies of <c>movies-page.json</c>, in its order: The Continental, 13-й район,
     /// then the two "Чужі".</summary>

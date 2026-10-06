@@ -11,9 +11,13 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Ids only (Vasyl, 2026-10-05): no identify, no metadata refresh, no images, titles or locks — the contract has no
-/// member for any of them. Every other field of the item goes back exactly as it was read, but for one the library
-/// would rebuild from less than it holds, which is left out so the library keeps its own (Jellyfin's <c>People</c>).
+/// Ids, then one request (Vasyl, 2026-10-05, amended 2026-10-06): the ids are written, and the library is then asked to
+/// look up the item's missing metadata with its own providers (<see cref="RequestMetadataLookupAsync"/>) — what
+/// Jellyfin calls "Search for missing metadata", which replaces nothing it holds. Written alone, the ids changed nothing
+/// anyone could see: a library fetches an existing item's metadata only when it refreshes it. No identify, no images,
+/// titles or locks, no metadata replaced — the contract has no member for any of them. Every other field of the item
+/// goes back exactly as it was read, but for one the library would rebuild from less than it holds, which is left out
+/// so the library keeps its own (Jellyfin's <c>People</c>).
 /// </para>
 /// <para>
 /// All methods return result types and never throw on expected failures (unreachable, refused, the item gone); only a
@@ -25,8 +29,9 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// </para>
 /// <para>
 /// A library says which kinds of item it writes (<see cref="WritableKinds"/>), so the caller — not a check of which
-/// product it is — keeps every other link in the app: Jellyfin writes films only, as saving a series rewrites each of
-/// its seasons and episodes (Vasyl, 2026-10-06).
+/// product it is — keeps every other link in the app: Jellyfin writes films and series (Vasyl's final decision of
+/// 2026-10-06), never an episode item. Saving a series makes Jellyfin save each of its seasons and episodes with the
+/// series' name and ratings, which the lookup asked after it doesn't change back; Vasyl accepted that.
 /// </para>
 /// </remarks>
 public interface IMediaLibraryIdentifierWriter
@@ -57,4 +62,18 @@ public interface IMediaLibraryIdentifierWriter
     /// </remarks>
     Task<IntegrationCallResult<LibraryIdentifierWrite>> WriteIdentifiersAsync(
         IntegrationConnectionSettings settings, LibraryIdentifierChange change, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Asks the library to look up the item <paramref name="sourceItemId"/>'s missing metadata with its own providers,
+    /// by the ids it now holds: the library fills what the item lacks and replaces nothing it has — never its ids, its
+    /// title or its images. Sent <b>once</b>, never again (house rule 8); the library does the lookup in its own time, so
+    /// a success says it took the request, not what the lookup found.
+    /// </summary>
+    /// <remarks>
+    /// MAM-34 — asked after a write the read again confirmed, or that found every id in place already. A kind
+    /// <see cref="WritableKinds"/> leaves out, or a blank item id, is a caller's mistake and throws before anything is
+    /// sent. <see cref="IntegrationCallStatus.NotFound"/> when the library no longer has the item.
+    /// </remarks>
+    Task<IntegrationCallResult<LibraryMetadataLookup>> RequestMetadataLookupAsync(
+        IntegrationConnectionSettings settings, string sourceItemId, MediaWorkKind kind, CancellationToken cancellationToken = default);
 }

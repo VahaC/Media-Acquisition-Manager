@@ -89,6 +89,14 @@ public class LibraryItemLinkEntity : AuditableEntity
     [MaxLength(ValueMaximumLength)]
     public string? ImdbId { get; set; }
 
+    /// <summary>
+    /// MAM-34 — for an episode-to-show link with its season and episode, the episode's own IMDb id as TMDb gave it: the
+    /// one id of the episode a film item can be given — its <c>Tmdb</c> key names a film —, so what the app writes into
+    /// the item. <c>null</c> while TMDb wasn't asked, when it gives none, and for any other link.
+    /// </summary>
+    [MaxLength(ValueMaximumLength)]
+    public string? EpisodeImdbId { get; set; }
+
     /// <summary>The catalog integration that gave <see cref="ImdbId"/>; <c>null</c> once it is removed (its name stays).</summary>
     public Guid? ImdbSourceConnectionId { get; set; }
 
@@ -133,10 +141,28 @@ public class LibraryItemLinkEntity : AuditableEntity
     public Guid WriteAttemptId { get; set; }
 
     /// <summary>A readable sentence saying why the library doesn't hold it, the library's secrets masked; shown to the
-    /// owner only. <c>null</c> unless <see cref="WriteState"/> says something went wrong.</summary>
+    /// owner only. <c>null</c> unless <see cref="WriteState"/> says something went wrong — or, for an episode's link kept
+    /// in the app because TMDb gives its episode no IMDb id, that sentence, as only asking TMDb tells it.</summary>
     [MaxLength(ErrorMaximumLength)]
     public string? WriteError { get; set; }
 
     /// <summary>When <see cref="WriteState"/> last changed; <c>null</c> before it ever did.</summary>
     public DateTime? WriteStateUtc { get; set; }
+
+    /// <summary>
+    /// MAM-34 — when the app last asked the library to look up the item's missing metadata, right after a write that
+    /// left the link's ids in it; <c>null</c> while it never did — a link written before the app asked
+    /// (<c>GET api/library/tmdb/catch-up</c> counts those), one not written, or one kept in the app.
+    /// </summary>
+    public DateTime? LookupRequestedUtc { get; set; }
+
+    /// <summary>
+    /// MAM-34 — why the library didn't take that request, as a readable sentence with the library's secrets masked;
+    /// shown to the owner only, who asks again with Retry. <c>null</c> when it took it. A failed lookup never changes
+    /// <see cref="WriteState"/>: the ids are in. Also why it couldn't be asked, when a write whose ids the last sync read
+    /// in the item reached nothing (the library unreachable or refusing): the link stays in the library, its lookup
+    /// missed.
+    /// </summary>
+    [MaxLength(ErrorMaximumLength)]
+    public string? LookupError { get; set; }
 }
