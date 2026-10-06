@@ -403,8 +403,11 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   "Type a title to search for." or "“x” is not a year.". Both: 409 without a catalog, 502 with the
   catalog's masked sentence, a bare 404 for an unknown work; every film or show they show is stored
   as a catalog work, so its poster is served.
-- **The TMDb page reviews the works without an id (MAM-34, ADR 0026).** "Review works without a TMDb
-  id", beside the Library page's **Missing an id** filter, opens `/library/tmdb` with five tabs.
+- **The TMDb page reviews the works without an id (MAM-34, ADR 0026).** **TMDb** in the header, right
+  after **Library**, opens it for the installation owner — a member isn't offered the link, as every
+  route behind the page answers them with a 403 — and the Library's link is marked only on
+  `/library`, the TMDb one on `/library/tmdb`. "Review works without a TMDb id", beside the Library
+  page's **Missing an id** filter, opens `/library/tmdb` too, with five tabs.
   **Review** walks the works one at a time with the dialog inline: 1–5 pick a suggestion, Enter
   saves, 0 marks that none fits, → skips, / goes to the search field — `GET
   /api/library/tmdb/queue?index=` answers `{ totalCount, index, current }`, the works without an id,
@@ -519,6 +522,19 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   overview or image is recorded. `LibraryIdsWritten`, `LibraryIdsRestored` and
   `LibraryMetadataLookupRequested` are history: the first builds of this version wrote them, nothing
   writes them now, and the values stay so old rows read.
+- **The Library sorts its works, and its sort says "Sort by" (MAM-8, Vasyl's request).** A **Sort by**
+  select ends the Library page's filter row, at its right end, with **Title A–Z** (as before),
+  **Title Z–A**, **Year, newest first**, **Year, oldest first**, **Largest on disk** and **Recently
+  added**. `GET /api/library/works?sort=` takes `Title` (when blank), `TitleDescending`, `Newest`,
+  `Oldest`, `Largest` or `Added`, by name in any letter case; `Newest` and `Oldest` go by the year the
+  card shows, a work with none last either way; `Largest` by the sizes its files report added up, a
+  series by every episode's, a work with no file or no size last; `Added` by when the app first saw the
+  work, a series by its latest episode, so a new season brings the show up. Every order falls back to
+  the title order, then the id, so pages never repeat or drop a work. 400 `{ error }` "“x” is not a
+  sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added." for another value, a number
+  included. The sort is no filter: **Clear filters** leaves it, a new one starts at page 1, and the
+  episodes a season lists keep their season and number order. `LibraryWorksSortHttpTests`,
+  `LibraryPage.sort.test.tsx` and `SortSelect.test.tsx` pin it.
 
 ### Changed
 
@@ -615,6 +631,12 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   and a show's `external_ids.imdb_id`. `CatalogWorks` keeps them, and details stored before this
   version are read again when next needed (`DetailsVersion`). The poster endpoint serves the
   candidates the TMDb dialog shows, as each is stored as a catalog work.
+- **The order of the Search and Recommendations lists sits at the right end of the filter row, under
+  "Sort by" (MAM-8, Vasyl's request).** The order was a select with no label, left among the filters,
+  that read like one more filter. It is now the row's last control, at its right end (wrapping onto
+  its own line on a phone, still at the right), after a sort icon and **Sort by**, as the Library's
+  is; the Search page's label was "Sort". One shared `SortSelect` makes all three, and its select
+  keeps its own accessible name, "Sort by".
 
 ### Notes for upgraders
 

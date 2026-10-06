@@ -33,6 +33,7 @@ function renderAt(path: string) {
             <Route index element={<p>Home content</p>} />
             <Route path="search" element={<p>Search content</p>} />
             <Route path="library" element={<p>Library content</p>} />
+            <Route path="library/tmdb" element={<p>TMDb content</p>} />
             <Route path="recommendations" element={<p>Recommendations content</p>} />
             <Route path="jobs" element={<p>Jobs content</p>} />
             <Route path="crash" element={<CrashingPage />} />
@@ -112,9 +113,9 @@ describe('AppLayout', () => {
   })
 
   it.each([
-    ['the installation owner', owner],
-    ['any other user', member],
-  ])('links to the Library, Recommendations, then Jobs in the header for %s, and opens the Library from there', async (_, signedIn) => {
+    ['the installation owner', owner, ['Library', 'TMDb', 'Recommendations', 'Jobs']],
+    ['any other user', member, ['Library', 'Recommendations', 'Jobs']],
+  ])('links to the Library, Recommendations, then Jobs in the header for %s, with the TMDb page after the Library for the owner only, and opens the Library from there', async (_, signedIn, labels) => {
     // Arrange
     signInAs(signedIn)
     const user = userEvent.setup()
@@ -125,9 +126,26 @@ describe('AppLayout', () => {
     await user.click(within(nav).getByRole('link', { name: 'Library' }))
 
     // Assert
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Library', 'Recommendations', 'Jobs'])
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(labels)
     expect(within(nav).getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library')
     expect(screen.getByText('Library content')).toBeInTheDocument()
+  })
+
+  it('opens the TMDb page from its header link for the installation owner, and marks it, not the Library, as the page on screen', async () => {
+    // Arrange
+    signInAs(owner)
+    const user = userEvent.setup()
+    renderAt('/')
+    const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Main' })
+
+    // Act
+    await user.click(within(nav).getByRole('link', { name: 'TMDb' }))
+
+    // Assert
+    expect(within(nav).getByRole('link', { name: 'TMDb' })).toHaveAttribute('href', '/library/tmdb')
+    expect(within(nav).getByRole('link', { name: 'TMDb' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByText('TMDb content')).toBeInTheDocument()
   })
 
   it.each([

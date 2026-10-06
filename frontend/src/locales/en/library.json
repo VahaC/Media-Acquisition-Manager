@@ -16,6 +16,15 @@
     "all": "Any identifiers",
     "missing": "Missing an id"
   },
+  "sort": {
+    "label": "Sort by",
+    "Title": "Title A–Z",
+    "TitleDescending": "Title Z–A",
+    "Newest": "Year, newest first",
+    "Oldest": "Year, oldest first",
+    "Largest": "Largest on disk",
+    "Added": "Recently added"
+  },
   "kindFilter": {
     "label": "Kind",
     "all": "Movies and series",

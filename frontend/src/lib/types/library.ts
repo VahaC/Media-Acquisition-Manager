@@ -31,6 +31,12 @@ export type LibraryIdentifierFilter = 'Missing'
 export type LibraryKindFilter = 'Movie' | 'Series'
 
 /**
+ * The order of the works list, by name. `Title` is the default and the tie-break of every other order;
+ * a work lacking what an order is by (a year, a size) goes last in it.
+ */
+export type LibrarySort = 'Title' | 'TitleDescending' | 'Newest' | 'Oldest' | 'Largest' | 'Added'
+
+/**
  * What kind of source claimed a fact (ADR 0008). MAM-34 — `Person` is the owner's TMDb link, set by
  * hand; `Metadata` the catalog, for the IMDb id TMDb gave for a linked work.
  */
@@ -213,6 +219,8 @@ export interface LibraryWorksQuery {
   identifiers?: LibraryIdentifierFilter
   /** MAM-32 */
   kind?: LibraryKindFilter
+  /** Left out for `Title`, the default. */
+  sort?: LibrarySort
   page: number
   pageSize: number
 }

@@ -1,6 +1,6 @@
 namespace MediaAcquisitionManager.Api.Contracts;
 
-/// <summary>The query string of the Library page's works: a search, three filters and a page, all
+/// <summary>The query string of the Library page's works: a search, three filters, an order and a page, all
 /// applied by the server. MAM-32 — the list holds movies, series and the episodes of no series; a series
 /// is listed when one of its episodes passes the search and filters.</summary>
 /// <remarks>
@@ -16,6 +16,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// kind (<see cref="LibraryWorkDto.MissingIdentifiers"/>); blank for every work.</param>
 /// <param name="Kind"><c>Movie</c> or <c>Series</c>, in any letter case (MAM-32): only movies, or only
 /// series and the episodes of no series; blank for both.</param>
+/// <param name="Sort">The order, by name and in any letter case: <c>Title</c> (when blank), <c>TitleDescending</c>,
+/// <c>Newest</c>, <c>Oldest</c>, <c>Largest</c> or <c>Added</c> (<see cref="Core.Enums.LibrarySort"/>).</param>
 /// <param name="Page">Which page, counted from 1.</param>
 /// <param name="PageSize">Works per page, 1 to 100; 25 unless asked otherwise.</param>
 public sealed record LibraryWorkListRequest(
@@ -23,5 +25,6 @@ public sealed record LibraryWorkListRequest(
     string? LocationId = null,
     string? Identifiers = null,
     string? Kind = null,
+    string? Sort = null,
     int Page = 1,
     int PageSize = 25);

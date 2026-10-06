@@ -62,6 +62,18 @@
   min-width: 0;
 }
 
+/* The order of the list, at the right end of the filter row: "Sort by", with a sort icon, before its
+   select. The auto margin takes the row's free space, so it stays right when the row wraps too. */
+.settings-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+  max-width: 100%;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
 .settings-muted {
   color: var(--muted-foreground);
 }

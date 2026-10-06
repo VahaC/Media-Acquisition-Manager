@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Seeders;
 
@@ -38,7 +39,8 @@ public sealed class MediaWorkSeeder(IServiceProvider services) : SeederBase(serv
         int? year,
         string? tmdbId = null,
         string? imdbId = null,
-        string? originalTitle = null)
+        string? originalTitle = null,
+        IReadOnlyList<long>? fileSizes = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         var itemId = Guid.NewGuid().ToString("N");
@@ -50,6 +52,8 @@ public sealed class MediaWorkSeeder(IServiceProvider services) : SeederBase(serv
             await Works.AddIdentifier(work.Id, MediaIdentifierScheme.Tmdb, tmdbId, source.Id, source.Name, itemId);
         if (imdbId is not null)
             await Works.AddIdentifier(work.Id, MediaIdentifierScheme.Imdb, imdbId, source.Id, source.Name, itemId);
+        foreach (var (size, index) in (fileSizes ?? []).Select((size, index) => (size, index)))
+            await AddFile(source, work, itemId, $"{itemId}-{index}", size);
         return work;
     }
 
@@ -59,7 +63,8 @@ public sealed class MediaWorkSeeder(IServiceProvider services) : SeederBase(serv
         int? year,
         string? tmdbTvId = null,
         string? imdbId = null,
-        IReadOnlyList<int>? seasons = null)
+        IReadOnlyList<int>? seasons = null,
+        long? episodeSizeBytes = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         var itemId = Guid.NewGuid().ToString("N");
@@ -71,13 +76,50 @@ public sealed class MediaWorkSeeder(IServiceProvider services) : SeederBase(serv
             await Works.AddIdentifier(series.Id, MediaIdentifierScheme.Imdb, imdbId, source.Id, source.Name, itemId);
 
         foreach (var season in seasons ?? [1])
-        {
-            var episodeItemId = Guid.NewGuid().ToString("N");
-            var episode = await Works.Create(MediaWorkKind.Episode);
-            await Works.AddTitle(episode.Id, $"{title} {season}x01", MediaTitleKind.Display, null, source.Id, source.Name, episodeItemId);
-            await Works.AddEpisodePosition(episode.Id, series.Id, season, 1, source.Id, source.Name, episodeItemId);
-        }
+            await CreateEpisode(source, series, title, season, episodeSizeBytes);
 
         return series;
+    }
+
+    public async Task<MediaWorkEntity> AddEpisode(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity series,
+        int season,
+        long? sizeBytes = null)
+    {
+        ArgumentNullException.ThrowIfNull(series);
+        var seriesTitle = await Db.MediaWorkTitles.AsNoTracking()
+            .Where(title => title.MediaWorkId == series.Id)
+            .Select(title => title.Text)
+            .FirstAsync();
+        return await CreateEpisode(source, series, seriesTitle, season, sizeBytes);
+    }
+
+    private async Task<MediaWorkEntity> CreateEpisode(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity series,
+        string seriesTitle,
+        int season,
+        long? sizeBytes)
+    {
+        var episodeItemId = Guid.NewGuid().ToString("N");
+        var episode = await Works.Create(MediaWorkKind.Episode);
+        await Works.AddTitle(episode.Id, $"{seriesTitle} {season}x01", MediaTitleKind.Display, null, source.Id, source.Name, episodeItemId);
+        await Works.AddEpisodePosition(episode.Id, series.Id, season, 1, source.Id, source.Name, episodeItemId);
+        if (sizeBytes is { } size)
+            await AddFile(source, episode, episodeItemId, episodeItemId, size);
+        return episode;
+    }
+
+    /// <summary>A version of <paramref name="work"/> with one file of <paramref name="sizeBytes"/>.</summary>
+    private async Task AddFile(IntegrationConnectionEntity source, MediaWorkEntity work, string itemId, string versionId, long sizeBytes)
+    {
+        var version = await Versions.Create(work.Id, itemId, versionId, sourceConnectionId: source.Id, sourceName: source.Name);
+        await Files.Create(
+            version.Id,
+            $"/media/{versionId}.mkv",
+            sizeBytes,
+            sourceConnectionId: source.Id,
+            sourceName: source.Name);
     }
 }

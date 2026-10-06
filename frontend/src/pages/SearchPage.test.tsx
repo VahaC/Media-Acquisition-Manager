@@ -847,7 +847,7 @@ describe('SearchPage', () => {
     ['unknown audio language', 'Audio language', 'Unknown', { language: 'unknown' }],
     ['quality', 'Quality', '2160p', { quality: '2160' }],
     ['unknown quality', 'Quality', 'Unknown', { quality: 'unknown' }],
-    ['order', 'Sort', 'Newest', { sort: 'newest' as const }],
+    ['order', 'Sort by', 'Newest', { sort: 'newest' as const }],
   ])('sends the %s to the server and starts again at page 1', async (_, name, option, changes) => {
     // Arrange
     vi.mocked(searchApi.releases).mockImplementation(async (_, query) =>
@@ -927,7 +927,7 @@ describe('SearchPage', () => {
       releasesPage(query, query.source ? [] : [tolokaRemux, otherUhd]))
     const { user } = openStored()
     await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort' }), 'Largest')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Largest')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Source' }), 'Toloka')
     await screen.findByText('No release matches these filters.')
 
@@ -938,7 +938,7 @@ describe('SearchPage', () => {
     expect(await screen.findByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
     expect(lastQuery()).toEqual({ ...firstQuery, sort: 'largest' })
     expect(screen.getByRole('combobox', { name: 'Source' })).toHaveValue('')
-    expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveValue('largest')
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('largest')
     expect(screen.queryByText('No release matches these filters.')).not.toBeInTheDocument()
   })
 

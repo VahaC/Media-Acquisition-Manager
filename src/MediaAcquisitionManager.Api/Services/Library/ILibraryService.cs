@@ -16,7 +16,8 @@ namespace MediaAcquisitionManager.Api.Services.Library;
 public interface ILibraryService
 {
     /// <summary>
-    /// One page of works, ordered by title in Ukrainian alphabetical order (letter case ignored), then by
+    /// One page of works, ordered by <paramref name="sort"/> (<see cref="Core.Enums.LibrarySort"/> by name; title
+    /// in Ukrainian alphabetical order, letter case ignored, when blank), then by that title, then by
     /// id, with how many match in all. <paramref name="search"/> matches, in any letter case, a title, a
     /// registry id or a file path containing it, or — when it is a year — a title given with that year;
     /// <paramref name="locationId"/> keeps the works with a file in that library;
@@ -25,13 +26,14 @@ public interface ILibraryService
     /// no series. A file's path problem only when <paramref name="callerUserId"/> is the installation
     /// owner: it quotes the owner's path mappings (MAM-8), as the sources list's does.
     /// <see cref="LibraryWorkListStatus.Invalid"/> for a page below 1, a page size outside 1 to 100, a
-    /// library that isn't an id, another identifiers filter, or another kind.
+    /// library that isn't an id, another identifiers filter, another kind, or an order that isn't one.
     /// </summary>
     Task<LibraryWorkListResult> ListWorksAsync(
         string? search,
         string? locationId,
         string? identifiers,
         string? kind,
+        string? sort,
         int page,
         int pageSize,
         Guid callerUserId,

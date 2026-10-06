@@ -123,7 +123,7 @@
     "maxSize": "Largest size in GiB",
     "maxSizePlaceholder": "To",
     "sizeInvalid": "Enter a size in GiB, such as 4.5.",
-    "sort": "Sort",
+    "sort": "Sort by",
     "sorts": {
       "seeders": "Most seeders",
       "largest": "Largest",

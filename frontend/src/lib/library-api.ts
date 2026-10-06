@@ -30,11 +30,13 @@ const BASE_URL = '/api/library'
  */
 export const libraryApi = {
   /**
-   * `GET /api/library/works?search=&locationId=&identifiers=&kind=&page=&pageSize=`. One page of
+   * `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=&pageSize=`. One page of
    * works, searched (titles, registry ids, year, file paths; any letter case), filtered by library,
-   * by missing identifiers and — MAM-32 — by kind, and ordered by title on the server. 400 `{ error }`
-   * for a page below 1, a page size outside 1–100, a location that isn't an id, an identifiers filter
-   * other than `Missing` or a kind other than `Movie` or `Series`.
+   * by missing identifiers and — MAM-32 — by kind, and ordered on the server: by title unless `sort`
+   * says `TitleDescending`, `Newest`, `Oldest` (by year), `Largest` (by the room the files take) or
+   * `Added`, each falling back to the title order. 400 `{ error }` for a page below 1, a page size
+   * outside 1–100, a location that isn't an id, an identifiers filter other than `Missing`, a kind
+   * other than `Movie` or `Series` or a sort that isn't one.
    *
    * MAM-32 — a series is one work, listed when one of its episodes passes the search and filters,
    * with its seasons counted by them; an episode of no series is a work of its own.

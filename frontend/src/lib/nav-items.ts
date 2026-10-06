@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next'
-import { CircleUser, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, Plug, Search, Sparkles, Users, type LucideIcon } from 'lucide-react'
+import { CircleUser, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, ListChecks, Plug, Search, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import type { CurrentUser } from './types'
 
 /** Where an entry is offered: the header bar, or the signed-in user's menu. */
@@ -15,6 +15,8 @@ export interface NavItem {
   /** Offered to the installation owner only: the page answers everyone else with a 403. */
   ownerOnly: boolean
   placement: NavPlacement
+  /** Marks the link of the page on screen only at exactly this address, not under it too. */
+  end?: boolean
 }
 
 /**
@@ -27,7 +29,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // MAM-12 — first in the header: searching the library and the release sources side by side is what the app is for.
   // MAM-16 — the header shows its search field in this link's place (AppLayout, HeaderSearch).
   { path: '/search', labelKey: 'nav.search', icon: Search, ownerOnly: false, placement: 'header' },
-  { path: '/library', labelKey: 'nav.library', icon: LibraryBig, ownerOnly: false, placement: 'header' },
+  // MAM-34 — `end`, so on the TMDb page below it only that link is marked, not the Library's too.
+  { path: '/library', labelKey: 'nav.library', icon: LibraryBig, ownerOnly: false, placement: 'header', end: true },
+  // MAM-34 — right after the Library, whose works it links to their film or show. The owner's page:
+  // every route behind it answers a member with a 403, so a member isn't offered the link.
+  { path: '/library/tmdb', labelKey: 'nav.libraryTmdb', icon: ListChecks, ownerOnly: true, placement: 'header' },
   // MAM-33 — after the Library, whose gaps it fills, and before Jobs, which stays last. Every signed-in
   // user reads their own lists; AppLayout hides the link while all four of the user's tabs are off.
   { path: '/recommendations', labelKey: 'nav.recommendations', icon: Sparkles, ownerOnly: false, placement: 'header' },

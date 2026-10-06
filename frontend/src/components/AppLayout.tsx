@@ -15,7 +15,8 @@ import '@/styles/app-layout.css' // .app-* — the header, its nav links and the
 /**
  * The shell every page renders in: a header that stays at the top of the window, with the app name
  * and the running version and — once signed in — the search field, the header links of the shared
- * nav list (MAM-8: Library, then MAM-14: Jobs) and the user menu, and the page itself in `<main>`.
+ * nav list (MAM-8: Library, MAM-34: the owner's TMDb page after it, then MAM-14: Jobs) and the user
+ * menu, and the page itself in `<main>`.
  * Pages are lazy, so the Suspense boundary sits here, around the outlet only — the header stays put
  * while a page's code loads. MAM-16 — while the server can't be reached, a strip under the header
  * says so, and stays at the top with it.
@@ -59,9 +60,9 @@ export function AppLayout() {
                       the page's entry. */}
                   {navItemsFor('header', user)
                     .filter(({ path }) => path !== '/search' && !(recommendationsOff && path === '/recommendations'))
-                    .map(({ path, labelKey, icon: Icon }) => (
+                    .map(({ path, labelKey, icon: Icon, end }) => (
                       // The title names the link once a narrow screen hides its label.
-                      <NavLink key={path} to={path} className="app-nav-link" title={t(labelKey)}>
+                      <NavLink key={path} to={path} end={end} className="app-nav-link" title={t(labelKey)}>
                         <Icon className="h-4 w-4" aria-hidden="true" />
                         <span className="label-text">{t(labelKey)}</span>
                       </NavLink>

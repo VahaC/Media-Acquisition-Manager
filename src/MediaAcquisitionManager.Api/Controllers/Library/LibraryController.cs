@@ -25,7 +25,7 @@ public class LibraryController(ILibraryService library) : ControllerBase
     public async Task<ActionResult<LibraryWorkListResponse>> Works([FromQuery] LibraryWorkListRequest request, CancellationToken cancellationToken)
     {
         var result = await library.ListWorksAsync(
-            request.Search, request.LocationId, request.Identifiers, request.Kind, request.Page, request.PageSize, UserId, cancellationToken);
+            request.Search, request.LocationId, request.Identifiers, request.Kind, request.Sort, request.Page, request.PageSize, UserId, cancellationToken);
         return result.Status switch
         {
             LibraryWorkListStatus.Listed => Ok(result.List),

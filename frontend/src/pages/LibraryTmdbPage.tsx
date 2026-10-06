@@ -24,7 +24,8 @@ const TABS: readonly TmdbLinkTab[] = ['Review', 'Confident', 'NotIdentified', 'C
 const LIBRARY_MISSING = '/library?identifiers=Missing'
 
 /**
- * MAM-34 — the TMDb page (`/library/tmdb`, reached from the Library's "Missing an id" filter): the
+ * MAM-34 — the TMDb page (`/library/tmdb`, reached from the header's TMDb link, the owner's, or the
+ * Library's "Missing an id" filter): the
  * works without a TMDb id linked to their film or show by hand, the owner's (decision 5). A link makes
  * Jellyfin identify the item as that film or show (ADR 0026), in the background. Above the tabs,
  * "Update Jellyfin" repairs the links set under the first rules, which only put TMDb's ids on the items
@@ -39,7 +40,7 @@ const LIBRARY_MISSING = '/library?identifiers=Missing'
  * The tab is in the address (`?tab=Confident`, `?tab=NotIdentified`, left out for Review), so F5 and
  * Back keep it. A member reads why the page isn't theirs, with Update Jellyfin off for the same
  * reason, and nothing is asked for: every route behind it is the owner's.
- * The header's Library link stays highlighted here (its NavLink matches `/library/*`).
+ * The header's TMDb link is the one marked here; the Library's NavLink is `end`, so it isn't.
  */
 export function LibraryTmdbPage() {
   const { t } = useTranslation(['libraryLinks', 'recommendations'])

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { SortSelect } from '@/components/shared/SortSelect'
 import { formatNumber } from '@/lib/format'
 import { RECOMMENDATION_SORTS } from '@/lib/recommendations'
 import type { CatalogWorkKind, RecommendationFacets, RecommendationReasonKind, RecommendationSort } from '@/lib/types'
@@ -31,7 +32,7 @@ interface RecommendationFiltersProps {
 
 /**
  * MAM-33 — the filters of one tab: the reason, the genre, the decade, films or series (Cartoons and
- * Documentaries), and Available only; then the order of the works. Each change goes to the server as a
+ * Documentaries), and Available only; then, at the row's right end, "Sort by" the order of the works. Each change goes to the server as a
  * query param (the page sends it); nothing is filtered or sorted here. The filter selects offer only
  * what the tab's works have, each with how many.
  */
@@ -97,16 +98,12 @@ export function RecommendationFilters({ facets, showKind, values, onChange, sort
         {t('filters.availableOnly')}
       </label>
       {/* Last, after the filters: it orders what they keep. */}
-      <select
-        className="ui-input settings-filter"
+      <SortSelect
+        label={t('filters.sort')}
         value={sort}
-        aria-label={t('filters.sort')}
-        onChange={(event) => onSort(event.target.value as RecommendationSort)}
-      >
-        {RECOMMENDATION_SORTS.map((option) => (
-          <option key={option} value={option}>{t(`filters.sorts.${option}`)}</option>
-        ))}
-      </select>
+        options={RECOMMENDATION_SORTS.map((option) => ({ value: option, label: t(`filters.sorts.${option}`) }))}
+        onChange={onSort}
+      />
     </div>
   )
 }

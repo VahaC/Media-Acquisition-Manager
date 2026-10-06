@@ -89,8 +89,21 @@ describe('ReleaseFilters', () => {
     renderFilters(facets)
 
     // Assert
-    expect(optionsOf('Sort')).toEqual(['Most seeders', 'Largest', 'Smallest', 'Newest', 'Best quality'])
-    expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveValue('seeders')
+    expect(optionsOf('Sort by')).toEqual(['Most seeders', 'Largest', 'Smallest', 'Newest', 'Best quality'])
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('seeders')
+  })
+
+  it('says "Sort by" beside the order, in the label that wraps it, so the name stays the label alone', () => {
+    // Arrange
+    const facets = aliensSearch.facets
+
+    // Act
+    renderFilters(facets)
+
+    // Assert
+    const sort = screen.getByRole('combobox', { name: 'Sort by' })
+    expect(sort.closest('label')).toHaveTextContent('Sort by')
+    expect(sort.closest('label')).toHaveClass('settings-sort')
   })
 
   it('reports each choice with the value the server filters by', async () => {
@@ -101,7 +114,7 @@ describe('ReleaseFilters', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Source' }), 'Toloka')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Audio language' }), 'Unknown')
     await user.selectOptions(screen.getByRole('combobox', { name: 'Quality' }), '1080p')
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort' }), 'Largest')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Largest')
 
     // Assert
     expect(changes.at(-1)).toEqual({ ...noFilters, source: toloka.id, language: 'unknown', quality: '1080', sort: 'largest' })

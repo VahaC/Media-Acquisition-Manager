@@ -76,6 +76,19 @@ describe('RecommendationsPage sort', () => {
     expect(lastQuery()?.sort).toBeUndefined()
   })
 
+  it('says "Sort by" beside the order, in the label that wraps it, so the name stays the label alone', async () => {
+    // Arrange
+    const path = '/recommendations'
+
+    // Act
+    renderPage(path)
+
+    // Assert
+    await screen.findByRole('heading', { level: 2, name: guardians.title })
+    expect(sortSelect().closest('label')).toHaveTextContent('Sort by')
+    expect(sortSelect().closest('label')).toHaveClass('settings-sort')
+  })
+
   it('asks the server for the order picked, starts again at page 1 and puts the order in the address', async () => {
     // Arrange
     const { user } = renderPage()

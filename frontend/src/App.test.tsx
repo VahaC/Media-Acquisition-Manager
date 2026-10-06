@@ -88,13 +88,15 @@ describe('App', () => {
     await user.click(await screen.findByRole('link', { name: 'Library' }))
 
     // Assert
-    expect(await screen.findByRole('heading', { level: 1, name: 'Library' })).toBeInTheDocument()
+    // The page's code loads on its first visit, which on a busy machine takes past the 1 s a find
+    // waits by default.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Library' }, { timeout: 5_000 })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/library')
     // The heading renders before the works query starts, so its first call is awaited, not assumed.
     await waitFor(() => expect(libraryApi.works).toHaveBeenCalledOnce())
   })
 
-  it('opens the TMDb page at its address, with Library highlighted in the header', async () => {
+  it('opens the TMDb page at its address, with only its own link marked in the header', async () => {
     // Arrange
     vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
     vi.mocked(libraryLinksApi.queue).mockResolvedValue(queueOf(0, 0, null))
@@ -108,9 +110,26 @@ describe('App', () => {
     // The page's code loads on its first visit: in a cold, fully parallel run its transform alone
     // can take past the 1 s a find waits by default.
     expect(await screen.findByRole('heading', { level: 1, name: 'TMDb links' }, { timeout: 5_000 })).toBeInTheDocument()
-    expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Library' }))
-      .toHaveAttribute('aria-current', 'page')
+    const nav = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(nav).getByRole('link', { name: 'TMDb' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
     expect(await screen.findByText(/No work is left to review/)).toBeInTheDocument()
+  })
+
+  it('opens the TMDb page from the header link', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
+    vi.mocked(libraryLinksApi.queue).mockResolvedValue(queueOf(0, 0, null))
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
+    vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(query, []))
+    const { user } = renderAt('/')
+
+    // Act
+    await user.click(await screen.findByRole('link', { name: 'TMDb' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'TMDb links' }, { timeout: 5_000 })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/library/tmdb')
   })
 
   it('opens Recommendations from the header link, at its first tab', async () => {

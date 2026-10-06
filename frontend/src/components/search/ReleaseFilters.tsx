@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
+import { SortSelect } from '@/components/shared/SortSelect'
 import { Input } from '@/components/ui/input'
 import { languageName } from '@/lib/media-labels'
 import { bytesFromGibibytes } from '@/lib/size-input'
@@ -129,14 +130,12 @@ export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFil
             onChange={(event) => change({ maxSize: event.target.value })}
           />
         </div>
-        <select
-          className="ui-input settings-filter"
+        <SortSelect
+          label={t('filters.sort')}
           value={values.sort}
-          aria-label={t('filters.sort')}
-          onChange={(event) => change({ sort: event.target.value as SearchReleaseSort })}
-        >
-          {SORTS.map((sort) => <option key={sort} value={sort}>{t(`filters.sorts.${sort}`)}</option>)}
-        </select>
+          options={SORTS.map((sort) => ({ value: sort, label: t(`filters.sorts.${sort}`) }))}
+          onChange={(sort) => change({ sort })}
+        />
       </div>
       {/* MAM-16 — the line under a form's field that broke a rule; the bound it is about has a red
           border. */}

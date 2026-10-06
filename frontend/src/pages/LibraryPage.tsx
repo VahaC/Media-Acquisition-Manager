@@ -10,11 +10,12 @@ import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
 import { RetryButton } from '@/components/shared/RetryButton'
+import { SortSelect } from '@/components/shared/SortSelect'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
 import { useLibraryLocations, useLibraryWorks } from '@/lib/queries'
-import type { LibraryIdentifierFilter, LibraryKindFilter, LibraryLocation, LibraryWork } from '@/lib/types'
+import type { LibraryIdentifierFilter, LibraryKindFilter, LibraryLocation, LibrarySort, LibraryWork } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
@@ -25,6 +26,9 @@ import '@/styles/library.css' // .library-works — the column of work cards
 /** Per device: a phone and a desktop want different page lengths. */
 const PAGE_SIZE_STORAGE_KEY = 'mam:library:pageSize'
 const SEARCH_DEBOUNCE_MS = 300
+
+/** The orders the server sorts by, in the order the select offers them; Title is the default. */
+const SORTS: readonly LibrarySort[] = ['Title', 'TitleDescending', 'Newest', 'Oldest', 'Largest', 'Added']
 
 /**
  * MAM-8 — the Library: every movie the media libraries reported at their last sync, searched,
@@ -37,6 +41,10 @@ const SEARCH_DEBOUNCE_MS = 300
  * a season lists, are the ones they keep.
  *
  * Every signed-in user reads it. A finished sync refreshes the list by itself (useLibrarySources).
+ *
+ * The order is the last control of the filter row, at its right end: by title either way, by year,
+ * by the room the files take or by when a work was added. A new order starts again at page 1, and the
+ * order is the page's alone: the episodes a season lists keep their season and number order.
  *
  * MAM-34 — each card has a "TMDb…" action that opens the work's TMDb dialog, where the owner links it
  * to its film or show by hand. A member sees it disabled with the reason, as every owner-only action
@@ -64,10 +72,11 @@ export function LibraryPage() {
     () => (searchParams.get('identifiers') === 'Missing' ? 'Missing' : ''),
   )
   const [kind, setKind] = useState<LibraryKindFilter | ''>('')
+  const [sort, setSort] = useState<LibrarySort>('Title')
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)
   // The page remembers the filters it belongs to, so different filters start again at page 1
   // without an effect — the idiom of IntegrationsPage.
-  const [paging, setPaging] = useState({ search: '', locationId: '', identifiers: '', kind: '', page: 1 })
+  const [paging, setPaging] = useState({ search: '', locationId: '', identifiers: '', kind: '', sort: 'Title', page: 1 })
 
   // Typing waits for a pause; emptying the box shows every work at once.
   const debouncedSearch = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS)
@@ -84,7 +93,8 @@ export function LibraryPage() {
     && paging.locationId === appliedLocationId
     && paging.identifiers === identifiers
     && paging.kind === kind
-  if (!onFilters) setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, page: 1 })
+    && paging.sort === sort
+  if (!onFilters) setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, sort, page: 1 })
   const page = onFilters ? paging.page : 1
   const filtered = appliedSearch !== '' || appliedLocationId !== '' || identifiers !== '' || kind !== ''
   // MAM-32 — what a series card's seasons were counted by, so an opened season lists those episodes.
@@ -94,7 +104,7 @@ export function LibraryPage() {
     locationId: appliedLocationId || undefined,
     identifiers: identifiers || undefined,
   }
-  const works = useLibraryWorks({ ...episodeFilters, kind: kind || undefined, page, pageSize })
+  const works = useLibraryWorks({ ...episodeFilters, kind: kind || undefined, sort: sort === 'Title' ? undefined : sort, page, pageSize })
   const { data, error, isLoading, isPlaceholderData } = works
   const load = useLoadRetry(works)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
@@ -102,11 +112,11 @@ export function LibraryPage() {
   // move to the last one there is. Only on this page's own answer, not the one kept on screen while
   // it loads.
   if (onFilters && data && !isPlaceholderData && page > pages) {
-    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, page: pages })
+    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, sort, page: pages })
   }
 
   const goToPage = (next: number) =>
-    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, page: next })
+    setPaging({ search: appliedSearch, locationId: appliedLocationId, identifiers, kind, sort, page: next })
 
   const changePageSize = (next: number) => {
     setPageSize(next)
@@ -191,6 +201,12 @@ export function LibraryPage() {
           <option value="Missing">{t('identifierFilter.missing')}</option>
         </select>
         {identifiers === 'Missing' && <ReviewEntry isOwner={isOwner} onOpen={keepFiltersForBack} />}
+        <SortSelect
+          label={t('sort.label')}
+          value={sort}
+          options={SORTS.map((option) => ({ value: option, label: t(`sort.${option}`) }))}
+          onChange={setSort}
+        />
       </div>
 
       {/* MAM-8 — without the libraries the filter offers All libraries alone, which looks like there

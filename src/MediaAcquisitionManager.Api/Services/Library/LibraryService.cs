@@ -49,6 +49,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
         string? locationId,
         string? identifiers,
         string? kind,
+        string? sort,
         int page,
         int pageSize,
         Guid callerUserId,
@@ -58,6 +59,16 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
             return LibraryWorkListResult.Invalid(pagingError);
         if (ReadFilters(search, locationId, identifiers) is not { } filters)
             return LibraryWorkListResult.Invalid(FilterError(locationId, identifiers)!);
+        var order = LibrarySort.Title;
+        if (!string.IsNullOrWhiteSpace(sort))
+        {
+            // By name, never by number: Enum.TryParse would take "5" for Largest.
+            var name = Enum.GetNames<LibrarySort>().FirstOrDefault(candidate => candidate.Equals(sort.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (name is null)
+                return LibraryWorkListResult.Invalid($"“{Echo(sort.Trim(), FilterEchoLength)}” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added.");
+            order = Enum.Parse<LibrarySort>(name);
+        }
+
         MediaWorkKind? kindFilter = null;
         if (!string.IsNullOrWhiteSpace(kind))
         {
@@ -99,7 +110,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
         if (offset >= totalCount)
             return LibraryWorkListResult.Listed(new LibraryWorkListResponse([], totalCount, page, pageSize));
 
-        var pageWorks = await OrderByTitle(works)
+        var pageWorks = await OrderWorks(works, order)
             .Skip((int)offset)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
@@ -316,6 +327,60 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     /// <summary>MAM-32 — <see cref="OrderByTitle"/>'s order after an order of the caller's.</summary>
     private IOrderedQueryable<MediaWorkEntity> ThenByTitle(IOrderedQueryable<MediaWorkEntity> works) =>
         works.ThenBy(TitleOrderKey()).ThenBy(work => work.Id);
+
+    /// <summary>
+    /// The works in <paramref name="sort"/>'s order (<see cref="LibrarySort"/>). Every order but the title's own falls
+    /// back to the title's, so a run of equal keys — a first sync stamps every work with one instant, and a library
+    /// has many films of one year — still reads in the order the page started with.
+    /// </summary>
+    private IOrderedQueryable<MediaWorkEntity> OrderWorks(IQueryable<MediaWorkEntity> works, LibrarySort sort) => sort switch
+    {
+        LibrarySort.TitleDescending => works.OrderByDescending(TitleOrderKey()).ThenBy(work => work.Id),
+        // A missing year is put last by the number it stands for: 0 is last when the years fall, int.MaxValue when they rise.
+        LibrarySort.Newest => ThenByTitle(works.OrderByDescending(YearOrderKey(missing: 0))),
+        LibrarySort.Oldest => ThenByTitle(works.OrderBy(YearOrderKey(missing: int.MaxValue))),
+        LibrarySort.Largest => ThenByTitle(works.OrderByDescending(SizeOrderKey())),
+        LibrarySort.Added => ThenByTitle(works.OrderByDescending(AddedOrderKey())),
+        _ => OrderByTitle(works),
+    };
+
+    // The year the card shows — its mapper's pick: the first displayed title's, else the first original one's — with
+    // `missing` for a work that has none. Spelled out as TitleOrderKey is, for the same reason: an expression EF Core
+    // translates wherever it is used.
+    private Expression<Func<MediaWorkEntity, int>> YearOrderKey(int missing) =>
+        work =>
+            db.MediaWorkTitles
+                .Where(title => title.MediaWorkId == work.Id && title.Kind == MediaTitleKind.Display)
+                .OrderBy(title => EF.Functions.Collate(title.Text, LibraryTitleOrder.CollationName))
+                .ThenBy(title => title.Text)
+                .ThenBy(title => title.Id)
+                .Select(title => title.Year)
+                .FirstOrDefault()
+            ?? db.MediaWorkTitles
+                .Where(title => title.MediaWorkId == work.Id && title.Kind == MediaTitleKind.Original)
+                .OrderBy(title => EF.Functions.Collate(title.Text, LibraryTitleOrder.CollationName))
+                .ThenBy(title => title.Text)
+                .ThenBy(title => title.Id)
+                .Select(title => title.Year)
+                .FirstOrDefault()
+            ?? missing;
+
+    // The sizes its files report, added up: those of its own versions, and for a series (which has none of its own) of
+    // every episode's. A hard link is a name of its own here, as on the card; a work with no file, or none that reports
+    // a size, is 0.
+    private Expression<Func<MediaWorkEntity, long>> SizeOrderKey() =>
+        work => db.PhysicalFiles
+            .Where(file => db.MediaVersions.Any(version => version.Id == file.MediaVersionId
+                && (version.MediaWorkId == work.Id
+                    || db.MediaEpisodePositions.Any(position => position.SeriesWorkId == work.Id && position.MediaWorkId == version.MediaWorkId))))
+            .Sum(file => file.SizeBytes ?? 0);
+
+    // When the app first saw the work; a series by its latest episode, which is how a new season brings a show up.
+    // The series' own row is made with its first episode, so the latest episode is never earlier than it.
+    private Expression<Func<MediaWorkEntity, DateTime>> AddedOrderKey() =>
+        work => db.MediaWorks
+            .Where(episode => db.MediaEpisodePositions.Any(position => position.SeriesWorkId == work.Id && position.MediaWorkId == episode.Id))
+            .Max(episode => (DateTime?)episode.CreatedUtc) ?? work.CreatedUtc;
 
     // The title a card shows, as SQL in the list's collation: the first displayed title in title order,
     // else the first original one, else none. An expression rather than a method, so EF Core translates it
