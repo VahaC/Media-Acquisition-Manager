@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { libraryApi } from '@/lib/library-api'
 import type { CurrentUser, FileInspectionOverview, FolderScanOverview, LibrarySource, LibrarySpace } from '@/lib/types'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { inspectionOf, scanOf, sourceOf } from '@/test/library'
+import { openSourceDetails } from '@/test/sources-details'
 
 vi.mock('@/lib/library-api')
 
@@ -13,7 +15,7 @@ vi.mock('@/lib/library-api')
 // it (ADR 0018): a line in every source row and in the Media folders row, and the total of every
 // file on the inspection row. LibrarySyncPanel.hashing.test.tsx covers the hashing on that row.
 
-function renderPanel(signedIn: CurrentUser = owner) {
+async function renderPanel(signedIn: CurrentUser = owner, { details = true } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -23,6 +25,7 @@ function renderPanel(signedIn: CurrentUser = owner) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  if (details) await openSourceDetails(userEvent.setup())
 }
 
 /** The sources answer every request with `sources`, the scan and the inspection as the changes set them. */
@@ -60,7 +63,7 @@ describe('LibrarySyncPanel space', () => {
     serve({ sources: [sourceOf({ space: { sizeBytes: 1_610_612_736, fileCount: 1, nameCount: 2, unmeasuredCount: 0 } })] })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findRowOf('Home Jellyfin'))
@@ -84,7 +87,7 @@ describe('LibrarySyncPanel space', () => {
     serve({ sources: [sourceOf({ space })] })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findRowOf('Home Jellyfin')).getByText(text)).toHaveClass('settings-muted')
@@ -100,7 +103,7 @@ describe('LibrarySyncPanel space', () => {
     })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findRowOf('Home Jellyfin')).getByText('Takes 6.5 TiB on disk: 870 files.')).toBeInTheDocument()
@@ -116,7 +119,7 @@ describe('LibrarySyncPanel space', () => {
     })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findRowOf('Home Jellyfin')).getByText(/^Files: 870 not inspected yet$/)).toBeInTheDocument()
@@ -128,7 +131,7 @@ describe('LibrarySyncPanel space', () => {
     serve({ scan: { space: { sizeBytes: 48_318_382_080, fileCount: 12, nameCount: 14, unmeasuredCount: 0 } } })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const line = within(await findScanRow()).getByText('Takes 45 GiB on disk: 12 files. 2 more names lead to files counted once.')
@@ -147,7 +150,7 @@ describe('LibrarySyncPanel space', () => {
     })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const source = within(await findRowOf('Home Jellyfin')).getByText('Takes 6.5 TiB on disk: 870 files.')
@@ -161,7 +164,7 @@ describe('LibrarySyncPanel space', () => {
     serve({ inspection: { space: { sizeBytes: 7_195_143_962_624, fileCount: 882, nameCount: 883, unmeasuredCount: 5 } } })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())
@@ -176,7 +179,7 @@ describe('LibrarySyncPanel space', () => {
     serve({ inspection: { space: { sizeBytes: 3_891_719_630, fileCount: 1, nameCount: 1, unmeasuredCount: 0 } } })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(within(await findInspectionRow()).getByText('All files take 3.62 GiB on disk: 1 file.')).toBeInTheDocument()
@@ -187,7 +190,7 @@ describe('LibrarySyncPanel space', () => {
     serve({ inspection: { hasAllowedRoots: false } })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())
@@ -209,7 +212,7 @@ describe('LibrarySyncPanel space', () => {
     })
 
     // Act
-    renderPanel(signedIn)
+    await renderPanel(signedIn)
 
     // Assert
     expect(within(await findRowOf('Home Jellyfin')).getByText('Takes 1.5 GiB on disk: 1 file. 1 more name leads to a file counted once.'))

@@ -1,8 +1,10 @@
 import { useId, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, CircleCheck, FolderSearch, Loader2, RefreshCw, ScanSearch, TriangleAlert } from 'lucide-react'
+import type { TFunction } from 'i18next'
+import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, FolderSearch, Loader2, RefreshCw, ScanSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import { LibrarySourcesBar } from '@/components/library/LibrarySourcesBar'
 import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -26,6 +28,7 @@ import type {
   LibrarySyncStatus,
 } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
+import { useRefreshAll, type RefreshStep } from '@/lib/use-refresh-all'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-empty, -muted, -name-text — the states every list page shares
 import '@/styles/library.css' // .library-source*, .library-inspection, .library-link — the rows, their status lines and actions
@@ -65,6 +68,11 @@ interface StartError {
  * Every source, the Media folders row and — for all the files — the inspection row say how much room
  * their files take on disk, each file counted once however many names lead to it (ADR 0018). The
  * polling needs nothing more: the hashing is part of the run under way.
+ *
+ * MAM-36 — the card is one status bar (LibrarySourcesBar) with Refresh all beside it, and everything
+ * above is the Details it opens: closed to begin with, on every visit. What a state of its own says —
+ * loading, a failed load or refresh, no media library connected, a stopped Refresh all — stays in
+ * view with the details closed.
  */
 export function LibrarySyncPanel() {
   const { t } = useTranslation(['library', 'common'])
@@ -77,6 +85,9 @@ export function LibrarySyncPanel() {
   const start = useStartLibrarySync()
   const inspect = useStartFileInspection()
   const scanFolders = useStartFolderScan()
+  const refresh = useRefreshAll()
+  const detailsId = useId()
+  const [open, setOpen] = useState(false)
   const [startError, setStartError] = useState<StartError | null>(null)
   const [inspectError, setInspectError] = useState<string | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -131,12 +142,10 @@ export function LibrarySyncPanel() {
       : null
 
   return (
-    <section className="ui-card" aria-labelledby={titleId}>
-      <div className="ui-card-header">
-        <h2 id={titleId} className="ui-card-title">{t('sources.title')}</h2>
-        <p className="ui-card-description">{t('sources.description')}</p>
-      </div>
-      <div className="ui-card-content library-sources">
+    <section className="ui-card library-sources-card" aria-labelledby={titleId}>
+      {/* The bar is the card's title; the heading stays for the page's outline and the card's name. */}
+      <h2 id={titleId} className="sr-only">{t('sources.title')}</h2>
+      <div className="library-sources">
         {/* Outside the ternary below, so a failed poll adds a line above the last known status
             instead of replacing it. */}
         {error && data && (
@@ -165,40 +174,118 @@ export function LibrarySyncPanel() {
                 )}
               </div>
             )}
-            <ul className="library-source-list">
-              {data.items.map((source) => (
-                <SourceRow
-                  key={source.integrationId}
-                  source={source}
-                  isOwner={isOwner}
-                  starting={start.isPending && start.variables === source.integrationId}
-                  startError={startErrorOf(source)}
-                  onSync={() => void startSync(source)}
+            <div className="library-bar">
+              {open
+                ? <p className="settings-muted library-bar-note">{t('sources.description')}</p>
+                : <LibrarySourcesBar data={data} isOwner={isOwner} />}
+              <div className="library-bar-actions">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={open}
+                  aria-controls={open ? detailsId : undefined}
+                  onClick={() => setOpen(!open)}
+                >
+                  {open
+                    ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                    : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+                  {open ? t('bar.hideDetails') : t('bar.details')}
+                </Button>
+                <RefreshAllButton
+                  step={refresh.step}
+                  reason={refreshReason(data, isOwner, t)}
+                  onRefresh={refresh.start}
                 />
-              ))}
-              {/* MAM-18 — the app's own source of file names, after the libraries: a row of the same
-                  list, parted from them by its line. */}
-              <ScanRow
-                scan={data.scan}
-                hasAllowedRoots={data.inspection.hasAllowedRoots}
-                isOwner={isOwner}
-                starting={scanFolders.isPending}
-                startError={scanError}
-                onScan={() => void startScan()}
-              />
-            </ul>
-            {/* Under the sources and the Media folders row, as one run reads the files of them all. */}
-            <InspectionRow
-              overview={data.inspection}
-              isOwner={isOwner}
-              starting={inspect.isPending}
-              startError={inspectError}
-              onInspect={() => void startInspection()}
-            />
+              </div>
+            </div>
+            {refresh.error && <StartErrorLine message={refresh.error} />}
+            {open && (
+              <div id={detailsId} className="library-details">
+                <ul className="library-source-list">
+                  {data.items.map((source) => (
+                    <SourceRow
+                      key={source.integrationId}
+                      source={source}
+                      isOwner={isOwner}
+                      starting={start.isPending && start.variables === source.integrationId}
+                      startError={startErrorOf(source)}
+                      onSync={() => void startSync(source)}
+                    />
+                  ))}
+                  {/* MAM-18 — the app's own source of file names, after the libraries: a row of the same
+                      list, parted from them by its line. */}
+                  <ScanRow
+                    scan={data.scan}
+                    hasAllowedRoots={data.inspection.hasAllowedRoots}
+                    isOwner={isOwner}
+                    starting={scanFolders.isPending}
+                    startError={scanError}
+                    onScan={() => void startScan()}
+                  />
+                </ul>
+                {/* Under the sources and the Media folders row, as one run reads the files of them all. */}
+                <InspectionRow
+                  overview={data.inspection}
+                  isOwner={isOwner}
+                  starting={inspect.isPending}
+                  startError={inspectError}
+                  onInspect={() => void startInspection()}
+                />
+              </div>
+            )}
           </>
         ) : null}
       </div>
     </section>
+  )
+}
+
+// ── Refresh all ──
+
+/**
+ * MAM-36 — why Refresh all can't start, the first reason that applies: only the owner starts runs,
+ * and with no library the app can read and no media folder there is nothing for it to do.
+ */
+function refreshReason(data: LibrarySourceList, isOwner: boolean, t: TFunction<['library', 'common']>) {
+  if (!isOwner) return t('refreshAll.reasons.notOwner')
+  const hasLibrary = data.items.some((source) => source.isEnabled && source.canReadLibrary)
+  return hasLibrary || data.inspection.hasAllowedRoots ? undefined : t('refreshAll.reasons.nothing')
+}
+
+interface RefreshAllButtonProps {
+  /** The step the chain is on; null while it is not running. */
+  step: RefreshStep | null
+  reason: string | undefined
+  onRefresh: () => void
+}
+
+/**
+ * MAM-36 — Refresh all, which says the step it is on while it runs. `role="status"` on a line only a
+ * screen reader gets: the button's own label changing isn't read out.
+ */
+function RefreshAllButton({ step, reason, onRefresh }: RefreshAllButtonProps) {
+  const { t } = useTranslation('library')
+  const label = step === null ? t('refreshAll.label') : t(`refreshAll.steps.${step}`)
+
+  return (
+    <>
+      <DisabledReason reason={reason}>
+        <Button
+          type="button"
+          size="sm"
+          title={step === null ? t('refreshAll.title') : label}
+          disabled={reason !== undefined || step !== null}
+          onClick={onRefresh}
+        >
+          {step === null
+            ? <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            : <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+          <span className="label-text">{label}</span>
+        </Button>
+      </DisabledReason>
+      <span className="sr-only" role="status">{step === null ? '' : label}</span>
+    </>
   )
 }
 

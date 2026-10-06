@@ -17,14 +17,15 @@ their releases), MAM-18 (the scan of the media folders for the files no library 
 MAM-19 (the room the files take, each file counted once, and the hashing of only the files that
 could be copies) are built. MAM-33 (recommendations of the works the library doesn't have yet, from
 TMDb, with what Toloka carries of them) and MAM-34 (linking a library work to its TMDb film or show
-by hand, Jellyfin then identifying the item as it) are built and ship as release 0.2.1.
+by hand, Jellyfin then identifying the item as it) are built and ship as release 0.2.1, with
+MAM-36 (the Library page's Sources card as a status bar, and Refresh all).
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-34.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-34 and MAM-36.
 Releases for phases C and D are not decided yet.
 
 ## Phases
@@ -429,8 +430,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33 and MAM-34 (Vasyl's decisions). **Tickets:** MAM-17 to
-MAM-22 and MAM-32 to MAM-34.
+**Release:** 0.2.0, and 0.2.1 for MAM-33, MAM-34 and MAM-36 (Vasyl's decisions). **Tickets:** MAM-17 to
+MAM-22, MAM-32 to MAM-34 and MAM-36.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -619,6 +620,16 @@ episode, and how much space could really be recovered — without the app guessi
   are in its backup; the suggestions and their searches rebuild themselves after the next sync.
   Identify changes Jellyfin's own data and can't be undone, so Jellyfin's data folder is worth a
   backup before **Update Jellyfin**.
+- **MAM-36 The Library's Sources card as a status bar, and Refresh all** (built, release 0.2.1): the
+  card that took about 480 px at the top of the Library page is one bar — an item for each media
+  library, for the media folders and for the file inspection, with an icon, when it last ran or how far
+  it has got, amber chips for what needs a look and the total of the files and the room they take —,
+  and **Details** opens the rows as they were. Vasyl picked it, layout "A", from four mockups on
+  2026-10-06. **Refresh all**, the owner's, syncs every enabled library, scans the media folders and
+  inspects the files from the page, each step once the one before has ended, stopping with a sentence at
+  a refused start or a failed run (Vasyl's decision of the same day: from the browser, not an endpoint).
+  A chain that survives a closed tab would need an endpoint that queues the three steps; it is not
+  planned. No API changed.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans

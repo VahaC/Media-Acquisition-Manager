@@ -269,5 +269,55 @@
       "IdentityUnknown": "This system can't tell files apart, so the app keeps nothing it read.",
       "InspectorUnavailable": "ffprobe isn't available to the app."
     }
+  },
+  "bar": {
+    "label": "Status of the sources",
+    "details": "Details",
+    "hideDetails": "Hide details",
+    "folders": "Folders",
+    "inspection": "Inspection",
+    "disabled": "disabled",
+    "cannotRead": "can't be read",
+    "neverSynced": "never synced",
+    "queued": "queued",
+    "syncing": "syncing…",
+    "syncingProgress": "syncing {{read}} of {{total}}",
+    "syncFailed": "sync failed",
+    "neverScanned": "never scanned",
+    "scanning_one": "scanning… {{found}} file",
+    "scanning_other": "scanning… {{found}} files",
+    "scanFailed": "scan failed",
+    "neverInspected": "never inspected",
+    "inspecting": "inspecting…",
+    "inspectingProgress": "inspecting {{checked}} of {{total}}",
+    "hashing": "hashing {{checked}} of {{total}}",
+    "inspectionFailed": "inspection failed",
+    "withoutPath_one": "{{value}} file without an app path",
+    "withoutPath_other": "{{value}} files without an app path",
+    "noLibrary_one": "{{value}} in no library",
+    "noLibrary_other": "{{value}} in no library",
+    "skipped_one": "{{value}} folder not scanned",
+    "skipped_other": "{{value}} folders not scanned",
+    "total_one": "{{value}} file · {{size}}",
+    "total_other": "{{value}} files · {{size}}",
+    "noFolders": "No media folder is allowed yet."
+  },
+  "refreshAll": {
+    "label": "Refresh all",
+    "title": "Syncs every library, scans the media folders, then inspects the files.",
+    "steps": {
+      "sync": "Syncing libraries…",
+      "scan": "Scanning folders…",
+      "inspect": "Inspecting files…"
+    },
+    "reasons": {
+      "notOwner": "Only the owner can refresh the library.",
+      "nothing": "Connect a media library or choose a media folder first."
+    },
+    "stopped": "Refreshing stopped. {{reason}}",
+    "syncFailed": "The sync of {{name}} failed.",
+    "scanFailed": "The scan of the media folders failed.",
+    "inspectFailed": "The file inspection failed.",
+    "failed": "Something went wrong."
   }
 }

@@ -8,6 +8,7 @@ import type { FileInspectionOverview, FileInspectionRun, FolderScanOverview, Fol
 import { LibraryPage } from '@/pages/LibraryPage'
 import { owner, signInAs } from '@/test/auth-session'
 import { aliens, inspectionOf, inspectionRunOf, locations, scanOf, scanRunOf, sourceOf, sourcesOf, worksPage } from '@/test/library'
+import { openSourceDetails } from '@/test/sources-details'
 
 vi.mock('@/lib/library-api')
 
@@ -49,7 +50,7 @@ const inspectionStatus = () => within(document.querySelector<HTMLElement>('.libr
 /** Lets the polling interval pass once, with the answers it brings. */
 const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 
-function renderPage() {
+async function renderPage({ details = true } = {}) {
   signInAs(owner)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -59,7 +60,9 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 describe('LibraryPage while the media folders are scanned', () => {
@@ -78,7 +81,7 @@ describe('LibraryPage while the media folders are scanned', () => {
   it('asks for the sources every 2 s while a scan is under way, and shows how many files it found', async () => {
     // Arrange
     scanIs({ activeRun: queued, hasQueuedRun: true })
-    renderPage()
+    await renderPage()
     await screen.findByText('Waiting to scan the media folders…')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     scanIs({ activeRun: running })
@@ -99,7 +102,7 @@ describe('LibraryPage while the media folders are scanned', () => {
   it('stops polling once the scan has ended and the one more ask shows no inspection, and leaves the works as they were', async () => {
     // Arrange
     scanIs({ activeRun: running })
-    renderPage()
+    await renderPage()
     await screen.findByText('Scanning the media folders… 400 files found')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     scanIs({ lastFinishedRun: succeeded })
@@ -124,7 +127,7 @@ describe('LibraryPage while the media folders are scanned', () => {
   it('asks for the sources once more 2 s after a scan ends with no inspection under way, and shows the inspection it queued', async () => {
     // Arrange — the scan ends between two answers, and the inspection it queues shows only in the next.
     scanIs({ activeRun: running })
-    renderPage()
+    await renderPage()
     await screen.findByText('Scanning the media folders… 400 files found')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     scannedAndInspectionIs({})
@@ -150,7 +153,7 @@ describe('LibraryPage while the media folders are scanned', () => {
   it('asks for nothing beyond its polling when the answer that shows the scan ended already shows its inspection', async () => {
     // Arrange
     scanIs({ activeRun: running })
-    const { client } = renderPage()
+    const { client } = await renderPage()
     await screen.findByText('Scanning the media folders… 400 files found')
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     const invalidate = vi.spyOn(client, 'invalidateQueries')
@@ -180,7 +183,7 @@ describe('LibraryPage while the media folders are scanned', () => {
       scanIs({ activeRun: queued, hasQueuedRun: true })
       return queued
     })
-    const { user } = renderPage()
+    const { user } = await renderPage()
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     await nextPoll()
     const pollsBeforeStart = vi.mocked(libraryApi.sources).mock.calls.length

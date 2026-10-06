@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { libraryApi } from '@/lib/library-api'
 import type { CurrentUser, FileInspectionOverview, FileInspectionRun, LibrarySource } from '@/lib/types'
+import { openSourceDetails } from '@/test/sources-details'
 import { apiError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { inspectionOf, inspectionRunOf, sourceOf, sourcesOf } from '@/test/library'
@@ -14,7 +15,7 @@ vi.mock('@/lib/library-api')
 // MAM-9 — the file inspection on the sources panel: each source's counts, the panel's inspection row
 // and Inspect files.
 
-function renderPanel(signedIn: CurrentUser = owner) {
+async function renderPanel(signedIn: CurrentUser = owner, { details = true } = {}) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -24,7 +25,9 @@ function renderPanel(signedIn: CurrentUser = owner) {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { client, user: userEvent.setup() }
+  const user = userEvent.setup()
+  if (details) await openSourceDetails(user)
+  return { client, user }
 }
 
 /** The sources answer every request with Home Jellyfin and the inspection as `changes` set it. */
@@ -79,7 +82,7 @@ describe('LibrarySyncPanel file inspection', () => {
     )
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     await screen.findByText('Home Jellyfin')
@@ -95,7 +98,7 @@ describe('LibrarySyncPanel file inspection', () => {
     serveInspection({}, sourceOf({ inspection: { inspectedCount: 869, problemCount: 1, notInspectedCount: 0, problem } }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const line = (await screen.findByText(problem)).closest('p')!
@@ -113,7 +116,7 @@ describe('LibrarySyncPanel file inspection', () => {
     }))
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(await screen.findByText(/1 file has no path in this app/)).toBeInTheDocument()
@@ -133,7 +136,7 @@ describe('LibrarySyncPanel file inspection', () => {
     serveInspection(changes)
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const line = within(await findInspectionRow()).getByRole('status')
@@ -147,7 +150,7 @@ describe('LibrarySyncPanel file inspection', () => {
     serveInspection({ lastFinishedRun: { ...failed, error: null } })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     expect(within(await findInspectionRow()).getByRole('status'))
@@ -159,7 +162,7 @@ describe('LibrarySyncPanel file inspection', () => {
     serveInspection({ hasAllowedRoots: false, lastFinishedRun: null })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     const row = within(await findInspectionRow())
@@ -176,7 +179,7 @@ describe('LibrarySyncPanel file inspection', () => {
     serveInspection({ hasAllowedRoots: false })
 
     // Act
-    renderPanel(member)
+    await renderPanel(member)
 
     // Assert
     const row = within(await findInspectionRow())
@@ -186,7 +189,7 @@ describe('LibrarySyncPanel file inspection', () => {
 
   it('keeps Inspect files disabled for anyone but the owner, and says why', async () => {
     // Arrange
-    const { user } = renderPanel(member)
+    const { user } = await renderPanel(member)
     const button = within(await findInspectionRow()).getByRole('button', { name: 'Inspect files' })
 
     // Act
@@ -201,7 +204,7 @@ describe('LibrarySyncPanel file inspection', () => {
   it('keeps Inspect files disabled while a run waits to start, and enabled while one runs', async () => {
     // Arrange
     serveInspection({ activeRun: queued, hasQueuedRun: true })
-    const { client } = renderPanel()
+    const { client } = await renderPanel()
     const whileQueued = within(await findInspectionRow()).getByRole('button', { name: 'Inspect files' })
     const queuedReason = whileQueued.parentElement?.getAttribute('title')
     const disabledWhileQueued = (whileQueued as HTMLButtonElement).disabled
@@ -222,7 +225,7 @@ describe('LibrarySyncPanel file inspection', () => {
     serveInspection({ activeRun: running, hasQueuedRun: true })
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     // The running one is what happens now; the queued one only adds "and again after this".
@@ -239,7 +242,7 @@ describe('LibrarySyncPanel file inspection', () => {
     // Arrange
     serveInspection({ activeRun: running })
     vi.mocked(libraryApi.startInspection).mockResolvedValue(queued)
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
     const row = await findInspectionRow()
     // The next answer of the sources never comes, so what shows is what the start put in the cache.
     vi.mocked(libraryApi.sources).mockReturnValue(new Promise(() => {}))
@@ -260,7 +263,7 @@ describe('LibrarySyncPanel file inspection', () => {
     vi.mocked(libraryApi.startInspection).mockReturnValue(new Promise((resolve) => {
       answer = resolve
     }))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
     await user.click(within(await findInspectionRow()).getByRole('button', { name: 'Inspect files' }))
     const startingButton = screen.getByRole('button', { name: 'Starting…' })
     const disabledWhileStarting = (startingButton as HTMLButtonElement).disabled
@@ -285,7 +288,7 @@ describe('LibrarySyncPanel file inspection', () => {
       serveInspection({ hasAllowedRoots: false })
       throw apiError(409, sentence)
     })
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
 
     // Act
     await user.click(within(await findInspectionRow()).getByRole('button', { name: 'Inspect files' }))
@@ -302,7 +305,7 @@ describe('LibrarySyncPanel file inspection', () => {
   it('names the failure when a refused start carries no sentence', async () => {
     // Arrange
     vi.mocked(libraryApi.startInspection).mockRejectedValue(apiError(500))
-    const { user } = renderPanel()
+    const { user } = await renderPanel()
 
     // Act
     await user.click(within(await findInspectionRow()).getByRole('button', { name: 'Inspect files' }))
@@ -317,7 +320,7 @@ describe('LibrarySyncPanel file inspection', () => {
     vi.mocked(libraryApi.sources).mockResolvedValue(sourcesOf())
 
     // Act
-    renderPanel()
+    await renderPanel()
 
     // Assert
     expect(await screen.findByText(/^No media library is connected yet\./)).toBeInTheDocument()
