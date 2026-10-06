@@ -13,10 +13,11 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 /// <param name="Titles">Every title any source gave the work, in title order — what a release's claimed
 /// titles are matched against.</param>
 /// <param name="Identifiers">Every id any source gave the work — what a release listing's ids are matched
-/// against.</param>
+/// against. MAM-34 — its items' TMDb links applied, as the Library page counts them.</param>
 /// <param name="MatchedIdentifiers">The work's identifier rows whose ids matched, every source's claim of
-/// them included; empty unless the match is by an identifier. MAM-32 — for a series its episode's, when
-/// the episode's evidence is the one shown.</param>
+/// them included — MAM-34: a link's rows too, made up for reading and never saved; empty unless the match
+/// is by an identifier. MAM-32 — for a series its episode's, when the episode's evidence is the one
+/// shown.</param>
 /// <param name="MatchedTitle">The title row that matched, or that holds the words, with the source that
 /// reported it; <c>null</c> when only an id matched, or only a file path holds the words. MAM-32 — for a
 /// series its episode's, when the episode's evidence is the one shown.</param>

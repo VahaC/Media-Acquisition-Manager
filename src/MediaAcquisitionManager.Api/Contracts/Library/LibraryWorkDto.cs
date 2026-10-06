@@ -24,6 +24,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Seasons">A series' seasons with the count of their episodes the list keeps, regular
 /// seasons first, then the specials, then the episodes without a season (MAM-32); <c>null</c> for anything
 /// but a series.</param>
+/// <param name="Link">MAM-34 — the TMDb link of the work's items; <c>null</c> when none of them has one. Appended with a
+/// default, so every construction of before still compiles.</param>
 public sealed record LibraryWorkDto(
     Guid Id,
     MediaWorkKind Kind,
@@ -34,4 +36,5 @@ public sealed record LibraryWorkDto(
     IReadOnlyList<MediaIdentifierScheme> MissingIdentifiers,
     IReadOnlyList<LibraryVersionDto> Versions,
     LibraryEpisodeDto? Episode,
-    IReadOnlyList<LibrarySeasonDto>? Seasons);
+    IReadOnlyList<LibrarySeasonDto>? Seasons,
+    LibraryWorkLinkDto? Link = null);

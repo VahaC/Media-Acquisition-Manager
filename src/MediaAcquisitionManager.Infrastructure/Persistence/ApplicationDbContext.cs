@@ -105,6 +105,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<UserRecommendationSettingsEntity> UserRecommendationSettings => Set<UserRecommendationSettingsEntity>();
 
+    public DbSet<AuditEventIdentifierEntity> AuditEventIdentifiers => Set<AuditEventIdentifierEntity>();
+
+    public DbSet<CatalogWorkAlternativeTitleEntity> CatalogWorkAlternativeTitles => Set<CatalogWorkAlternativeTitleEntity>();
+
+    public DbSet<LibraryItemLinkEntity> LibraryItemLinks => Set<LibraryItemLinkEntity>();
+
+    public DbSet<LibraryItemLinkFileEntity> LibraryItemLinkFiles => Set<LibraryItemLinkFileEntity>();
+
+    public DbSet<LibraryLinkSuggestionRunEntity> LibraryLinkSuggestionRuns => Set<LibraryLinkSuggestionRunEntity>();
+
+    public DbSet<LibraryLinkSearchEntity> LibraryLinkSearches => Set<LibraryLinkSearchEntity>();
+
+    public DbSet<LibraryLinkCandidateEntity> LibraryLinkCandidates => Set<LibraryLinkCandidateEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -152,6 +166,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.ActorUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AuditEventIdentifierEntity>(e =>
+        {
+            e.Property(x => x.Role).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
+            // MAM-34 — one id per place on its audit row; leading with the row, so it also serves the foreign key and
+            // "the ids of this row", which a restore reads.
+            e.HasIndex(x => new { x.AuditEventId, x.Position }).IsUnique();
+            // Cascade: the ids are part of the row that records them, never a row of their own.
+            e.HasOne<AuditEventEntity>().WithMany()
+                .HasForeignKey(x => x.AuditEventId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Every enum below is stored by name (the AuditAction reason): a member added or reordered
@@ -575,6 +602,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<CatalogWorkAlternativeTitleEntity>(e =>
+        {
+            // MAM-34 — one title per place in the details' list; leading with the work, for the foreign key.
+            e.HasIndex(x => new { x.CatalogWorkId, x.Position }).IsUnique();
+            // Cascade: part of the work's details.
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<CatalogGenreEntity>(e =>
         {
             ConfigureProvenance(e);
@@ -733,6 +770,106 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Cascade: the settings are the user's alone.
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MAM-34 — the owner's TMDb links of library items and what prepares them. A link is the owner's word, not a
+        // library fact: no provenance columns (a person set it), and a sync's purge and empty-work delete never see it.
+        // It points at the work its item sits on with SetNull, so nothing a sync deletes takes a link with it.
+
+        modelBuilder.Entity<LibraryItemLinkEntity>(e =>
+        {
+            e.Property(x => x.ItemKind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Target).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.WriteState).HasConversion<string>().HasMaxLength(32);
+            // One link per library item: the item is the link's target, so a second would be two words on one item. The
+            // set path checks first; this settles a double click. Leading with the connection, so it also serves the
+            // cascade below.
+            e.HasIndex(x => new { x.IntegrationConnectionId, x.SourceItemId }, "IX_LibraryItemLinks_OneLinkPerItem").IsUnique();
+            // "The links of these works": every reader of the library joins links by work.
+            e.HasIndex(x => x.MediaWorkId);
+            // "The links waiting to be written, oldest first" (the background writer) and the TMDb page's filters.
+            e.HasIndex(x => x.WriteState);
+            // Polling one "Accept all confident" click's results.
+            e.HasIndex(x => x.BatchId);
+            // Cascade (decision 12): a removed library takes its links along — a re-added one gets a new id, so they
+            // could never find their items again. The audit rows of what was linked stay.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.IntegrationConnectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // SetNull, never Cascade: a sync deletes the works no item holds any more, and the link of an item gone for
+            // now must stay to be re-attached ("unattached"). Never Restrict either: that would make the sync's
+            // ExecuteDelete of an empty work throw and roll the whole sync back.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // SetNull: the IMDb id stays what TMDb gave after the catalog is removed; ImdbSourceName keeps who.
+            e.HasOne<IntegrationConnectionEntity>().WithMany()
+                .HasForeignKey(x => x.ImdbSourceConnectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // SetNull: the link outlives the user who set it; SetByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.SetByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LibraryItemLinkFileEntity>(e =>
+        {
+            // An identity once per link; leading with the link, so it also serves the foreign key.
+            e.HasIndex(x => new { x.LibraryItemLinkId, x.DeviceId, x.Inode, x.SizeBytes }).IsUnique();
+            // "Which links hold this file": a re-attach looks the library's files up by identity, as PhysicalFiles' own
+            // (DeviceId, Inode) index does.
+            e.HasIndex(x => new { x.DeviceId, x.Inode });
+            // Cascade: the identities are part of their link. No key into PhysicalFiles: its rows are replaced by
+            // syncs, and a key there would rebuild that table (ADR 0009).
+            e.HasOne<LibraryItemLinkEntity>().WithMany()
+                .HasForeignKey(x => x.LibraryItemLinkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LibraryLinkSuggestionRunEntity>(e =>
+        {
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Trigger).HasConversion<string>().HasMaxLength(32);
+            // MAM-34 — at most one queued and one running preparation, the recommendations' rule: a trigger that finds
+            // one queued joins it (the service checks first; this settles two triggers racing — a sync finishing as the
+            // owner clicks), and a finished run never blocks the next one.
+            e.HasIndex(x => x.Status, "IX_LibraryLinkSuggestionRuns_OneRunPerActiveStatus")
+                .IsUnique()
+                .HasFilter("\"Status\" IN ('Queued', 'Running')");
+            // "The latest run", which the TMDb page asks for on every poll.
+            e.HasIndex(x => x.CreatedUtc);
+            // SetNull: the run outlives the user who asked for it; RequestedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LibraryLinkSearchEntity>(e =>
+        {
+            // One cached search per work, which a run replaces in place and the dialog reads by work.
+            e.HasIndex(x => x.MediaWorkId).IsUnique();
+            // Cascade: a cache goes with the work it was made for; a work a sync deletes needs no suggestions.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // SetNull: "none fits" stays said after the user who said it is deleted.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.NoneFitsByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<LibraryLinkCandidateEntity>(e =>
+        {
+            e.Property(x => x.CatalogKind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Source).HasConversion<string>().HasMaxLength(32);
+            // A catalog work once per search, whichever queries found it; leading with the search, for the foreign key.
+            e.HasIndex(x => new { x.LibraryLinkSearchId, x.CatalogKind, x.CatalogId }).IsUnique();
+            // Cascade: the candidates are the search's answer, replaced with it. No key into CatalogWorks (the entity
+            // says why).
+            e.HasOne<LibraryLinkSearchEntity>().WithMany()
+                .HasForeignKey(x => x.LibraryLinkSearchId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

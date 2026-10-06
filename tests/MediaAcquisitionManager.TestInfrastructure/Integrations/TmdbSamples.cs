@@ -64,6 +64,35 @@ public static class TmdbSamples
     /// <c>status_code</c> 7.</summary>
     public const string WrongKeyResponseFile = "Tmdb/wrong-key-response.txt";
 
+    /// <summary>MAM-34 — <c>GET /3/movie/223021?append_to_response=credits,recommendations,alternative_titles,external_ids</c>:
+    /// "Landing Stripling" (1962), a Tom &amp; Jerry short — runtime 6, IMDb tt0056164 (also in <c>external_ids</c>), no
+    /// collection, no alternative titles, Animation and Comedy.</summary>
+    public const string MovieDetailsShortFile = "Tmdb/movie-details-short.json";
+
+    /// <summary>MAM-34 — <c>GET /3/search/movie</c> "Landing Stripling" without a year: the one film, 223021.</summary>
+    public const string SearchMovieWithoutYearFile = "Tmdb/search-movie-without-year.json";
+
+    /// <summary>MAM-34 — <c>GET /3/search/tv</c> "Planet Earth": 20 of 41 shows, 1044 "Планета Земля" (2006) first,
+    /// then II and III.</summary>
+    public const string SearchTvPlanetEarthFile = "Tmdb/search-tv-planet-earth.json";
+
+    /// <summary>MAM-34 — <c>GET /3/tv/1044?append_to_response=credits,recommendations,alternative_titles,external_ids</c>:
+    /// Planet Earth (2006) — <c>episode_run_time</c> empty, <c>last_episode_to_air.runtime</c> 53, IMDb tt0795176 in
+    /// <c>external_ids</c>, 16 alternative titles ("Planet Earth" three times), Documentary.</summary>
+    public const string TvDetailsPlanetEarthFile = "Tmdb/tv-details-planet-earth.json";
+
+    /// <summary>The film of <see cref="MovieDetailsShortFile"/>.</summary>
+    public const string MovieDetailsShortId = "223021";
+
+    /// <summary>Its IMDb id.</summary>
+    public const string MovieDetailsShortImdbId = "tt0056164";
+
+    /// <summary>The show of <see cref="TvDetailsPlanetEarthFile"/>.</summary>
+    public const string TvDetailsPlanetEarthId = "1044";
+
+    /// <summary>Its IMDb id, from <c>external_ids</c>.</summary>
+    public const string TvDetailsPlanetEarthImdbId = "tt0795176";
+
     /// <summary>The film of <see cref="MovieDetailsFile"/>.</summary>
     public const string MovieDetailsId = "118340";
 
@@ -105,6 +134,10 @@ public static class TmdbSamples
     private static readonly Lazy<string> DiscoverTvAnimationText = new(() => Read(DiscoverTvAnimationFile));
     private static readonly Lazy<string> GenresMovieText = new(() => Read(GenresMovieFile));
     private static readonly Lazy<string> GenresTvText = new(() => Read(GenresTvFile));
+    private static readonly Lazy<string> MovieDetailsShortText = new(() => Read(MovieDetailsShortFile));
+    private static readonly Lazy<string> SearchMovieWithoutYearText = new(() => Read(SearchMovieWithoutYearFile));
+    private static readonly Lazy<string> SearchTvPlanetEarthText = new(() => Read(SearchTvPlanetEarthFile));
+    private static readonly Lazy<string> TvDetailsPlanetEarthText = new(() => Read(TvDetailsPlanetEarthFile));
 
     /// <summary>The <see cref="MovieDetailsFile"/> sample, as TMDb sent it.</summary>
     public static string MovieDetails() => MovieDetailsText.Value;
@@ -138,6 +171,18 @@ public static class TmdbSamples
 
     /// <summary>The <see cref="GenresTvFile"/> sample, as TMDb sent it.</summary>
     public static string GenresTv() => GenresTvText.Value;
+
+    /// <summary>The <see cref="MovieDetailsShortFile"/> sample, as TMDb sent it.</summary>
+    public static string MovieDetailsShort() => MovieDetailsShortText.Value;
+
+    /// <summary>The <see cref="SearchMovieWithoutYearFile"/> sample, as TMDb sent it.</summary>
+    public static string SearchMovieWithoutYear() => SearchMovieWithoutYearText.Value;
+
+    /// <summary>The <see cref="SearchTvPlanetEarthFile"/> sample, as TMDb sent it.</summary>
+    public static string SearchTvPlanetEarth() => SearchTvPlanetEarthText.Value;
+
+    /// <summary>The <see cref="TvDetailsPlanetEarthFile"/> sample, as TMDb sent it.</summary>
+    public static string TvDetailsPlanetEarth() => TvDetailsPlanetEarthText.Value;
 
     private static string Read(string relativePath) => File.ReadAllText(Path.Combine(RepositoryPaths.VendorSamples, relativePath));
 }

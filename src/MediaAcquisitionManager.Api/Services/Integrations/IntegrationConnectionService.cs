@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -28,6 +29,7 @@ public sealed partial class IntegrationConnectionService(
     IIntegrationSettingsFactory settingsFactory,
     ILibrarySnapshotStore librarySnapshots,
     IRecommendationRunService recommendations,
+    ILibraryLinkSuggestionRunService linkSuggestions,
     IAuditTrail auditTrail,
     IIntegrationMapper mapper,
     TimeProvider time,
@@ -171,7 +173,10 @@ public sealed partial class IntegrationConnectionService(
         logger.LogInformation(
             "{ActorUserName} added the integration {IntegrationName} ({AdapterType}).", actor.UserName, integration.Name, integration.AdapterType);
         if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled)
+        {
             await QueueRecommendationsAsync(integration.Id, cancellationToken);
+            await QueueLinkSuggestionsAsync(integration.Id, cancellationToken);
+        }
         return IntegrationChangeResult.Succeeded(mapper.ToDto(integration, descriptor));
     }
 
@@ -253,7 +258,10 @@ public sealed partial class IntegrationConnectionService(
 
         logger.LogInformation("{ActorUserName} changed the integration {IntegrationName}.", actor.UserName, integration.Name);
         if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled && !wasEnabled)
+        {
             await QueueRecommendationsAsync(integration.Id, cancellationToken);
+            await QueueLinkSuggestionsAsync(integration.Id, cancellationToken);
+        }
         return IntegrationChangeResult.Succeeded();
     }
 
@@ -318,6 +326,24 @@ public sealed partial class IntegrationConnectionService(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Metadata integration {IntegrationId} was saved, but no recommendation run could be queued after it.", integrationId);
+        }
+    }
+
+    /// <summary>
+    /// MAM-34 — with a metadata catalog just connected, or switched back on, the library works without a TMDb id can get
+    /// their TMDb suggestions without waiting for the next library sync: a preparation is queued (or the waiting one
+    /// joined), as the recommendations' run is. The save has happened and stands: a failure here is logged, never the
+    /// save's answer.
+    /// </summary>
+    private async Task QueueLinkSuggestionsAsync(Guid integrationId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await linkSuggestions.EnsureQueuedAsync(LibraryLinkSuggestionRunTrigger.CatalogConnected, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Metadata integration {IntegrationId} was saved, but no TMDb suggestion run could be queued after it.", integrationId);
         }
     }
 

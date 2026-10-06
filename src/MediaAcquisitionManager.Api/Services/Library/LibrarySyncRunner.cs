@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Integrations;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -25,6 +26,7 @@ public sealed class LibrarySyncRunner(
     ILibrarySnapshotStore snapshots,
     IFileInspectionService inspections,
     IRecommendationRunService recommendations,
+    ILibraryLinkSuggestionRunService linkSuggestions,
     TimeProvider time,
     ILogger<LibrarySyncRunner> logger) : ILibrarySyncRunner
 {
@@ -147,6 +149,7 @@ public sealed class LibrarySyncRunner(
                     snapshot.FilesCount);
                 await QueueInspectionAsync(runId, cancellationToken);
                 await QueueRecommendationsAsync(runId, cancellationToken);
+                await QueueLinkSuggestionsAsync(runId, cancellationToken);
                 break;
             case LibrarySnapshotStatus.SourceRemoved:
                 await FailAsync(runId, integration.Id, "IntegrationRemoved", RemovedWhileSyncingError, settings);
@@ -303,6 +306,24 @@ public sealed class LibrarySyncRunner(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Library sync {RunId} succeeded, but no recommendation run could be queued after it.", runId);
+        }
+    }
+
+    /// <summary>
+    /// MAM-34 — works without a TMDb id may have come or changed, so a successful sync queues a preparation of their TMDb
+    /// suggestions (or joins the one waiting); quietly nothing without a metadata catalog. Last and on its own, like the
+    /// recommendations': the sync has succeeded and stays so, and a failure here is logged and costs the others nothing —
+    /// the next sync or the owner's "Prepare again" queues one again.
+    /// </summary>
+    private async Task QueueLinkSuggestionsAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await linkSuggestions.EnsureQueuedAsync(LibraryLinkSuggestionRunTrigger.LibrarySynced, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Library sync {RunId} succeeded, but no TMDb suggestion run could be queued after it.", runId);
         }
     }
 

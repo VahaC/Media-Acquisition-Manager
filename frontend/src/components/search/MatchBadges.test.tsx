@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import { MatchBadges } from '@/components/search/MatchBadges'
+import { formatDateTime } from '@/lib/format'
 import { aliens } from '@/test/library'
+import { libraryIdentifierOf, linkedIdentifierOf } from '@/test/library-links'
 
 /** The badges, in order, as their text. */
 const badgeTexts = (name = 'Why it matched') =>
@@ -18,6 +20,20 @@ describe('MatchBadges', () => {
     expect(badgeTexts()).toEqual(['Matched by IMDb id', 'Matched by TMDb id'])
     expect(screen.getByText('Matched by IMDb id')).toHaveAttribute('title', 'IMDb tt0090605, reported by Home Jellyfin')
     expect(screen.getByText('Matched by TMDb id')).toHaveAttribute('title', 'TMDb 679, reported by Home Jellyfin')
+  })
+
+  it('says a matched id was set by hand, by whom and when, and names every source of it once', () => {
+    // Arrange — MAM-34: the linked id Jellyfin now reports too, and one only linked.
+    const setOn = formatDateTime('2026-10-05T18:40:00Z', { dateStyle: 'medium', timeStyle: 'short' })
+    const matched = [libraryIdentifierOf('Tmdb', '223021'), linkedIdentifierOf('Tmdb', '223021'), linkedIdentifierOf('Imdb', 'tt0056164', { sourceName: null })]
+
+    // Act
+    render(<MatchBadges evidence="Identifier" conflictingSchemes={[]} matchedIdentifiers={matched} />)
+
+    // Assert
+    expect(badgeTexts()).toEqual(['Matched by TMDb id', 'Matched by IMDb id'])
+    expect(screen.getByText('Matched by TMDb id')).toHaveAttribute('title', `TMDb 223021, reported by Home Jellyfin · set by vasyl on ${setOn}`)
+    expect(screen.getByText('Matched by IMDb id')).toHaveAttribute('title', `IMDb tt0056164, set by hand on ${setOn}`)
   })
 
   it('names an id match without its scheme when the matched ids are not given', () => {

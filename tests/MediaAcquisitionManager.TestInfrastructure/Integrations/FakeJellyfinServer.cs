@@ -11,8 +11,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <summary>
 /// A Jellyfin server behind a <see cref="RecordingHttpHandler"/> (MAM-8): it answers the requests the
 /// adapter makes — <c>/System/Info</c>, <c>/Library/VirtualFolders</c>, pages of <c>/Items</c> and
-/// <c>/Videos/{id}/AdditionalParts</c> — from the real samples (<see cref="JellyfinSamples"/>) unless a
-/// test changes them.
+/// <c>/Videos/{id}/AdditionalParts</c>, and MAM-34's <c>GET /Users</c>, <c>GET /Items/{id}</c> and
+/// <c>POST /Items/{id}</c> — from the real samples (<see cref="JellyfinSamples"/>) unless a test changes them.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -27,6 +27,21 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <see cref="Episodes"/>. The series and episodes are empty until a test fills them, so a test about
 /// movies reads the library it always did; <see cref="BeforeTypedItemsPage"/> and
 /// <see cref="TotalRecordCountOf"/> change any list while it is read.
+/// </para>
+/// <para>
+/// MAM-34 — one item is read and written as the live check recorded it: <c>GET /Items/{id}</c> answers 400 without a
+/// <c>userId</c> (Jellyfin reads an item only as a user), 404 for an id none of the lists holds, and the stored item
+/// itself otherwise; <c>POST /Items/{id}</c> applies the posted <c>ProviderIds</c> to the stored item — a key left out or
+/// blank is removed — so a later read or sync sees them, and answers the recorded 204. <see cref="WriteRefusal"/>,
+/// <see cref="IgnoresWrites"/> and <see cref="AfterWrite"/> make a write refused, taken but not applied, or its answer
+/// lost. The posted body stays readable in <see cref="RecordingHttpHandler.Requests"/>.
+/// </para>
+/// <para>
+/// MAM-34 — what Jellyfin's source says of the same calls, beyond what the live check saw: <c>/Items?ids=</c> lists the
+/// items of those ids, user-less, whoever may see them, while an item in <see cref="HiddenFromAdministrator"/> answers the
+/// administrator's read with Jellyfin's 404, as one a parental limit hides. A write applies the posted ids and nothing
+/// else: what Jellyfin's update does to a series' seasons and episodes, or to the people it is sent, isn't modelled, as
+/// the app sends neither a series nor people (ADR 0026).
 /// </para>
 /// <para>
 /// One server per address: <see cref="Arm(RecordingHttpHandler, FakeJellyfinServer[])"/> gives one
@@ -74,9 +89,32 @@ public sealed class FakeJellyfinServer
     /// <summary>The library's episodes (MAM-32): none until a test adds them.</summary>
     public List<JsonObject> Episodes { get; } = [];
 
+    /// <summary>MAM-34 — the ids of the items the administrator may not see (a parental limit, a blocked tag): its read of
+    /// one answers 404, while the user-less lists still hold it.</summary>
+    public HashSet<string> HiddenFromAdministrator { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>The further parts of each stacked movie by its id, for
     /// <c>/Videos/{id}/AdditionalParts</c> (<see cref="JellyfinSamples.Part"/>); another id answers 404.</summary>
     public Dictionary<string, List<JsonObject>> AdditionalParts { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>MAM-34 — what <c>GET /Users</c> answers: the sample's member, then its enabled administrator. A test
+    /// changes a user's <c>Policy</c> (<c>IsAdministrator</c>, <c>IsDisabled</c>) or the list.</summary>
+    public JsonArray Users { get; } = JellyfinSamples.Users();
+
+    /// <summary>MAM-34 — when set, <c>POST /Items/{id}</c> answers this status with no body and applies nothing: a
+    /// refused write (403 for a key that isn't an administrator's, 400 for a body Jellyfin won't take).</summary>
+    public HttpStatusCode? WriteRefusal { get; set; }
+
+    /// <summary>MAM-34 — when set, <c>POST /Items/{id}</c> answers its 204 and applies nothing: a write Jellyfin took
+    /// that the read after it won't confirm.</summary>
+    public bool IgnoresWrites { get; set; }
+
+    /// <summary>
+    /// MAM-34 — runs once a <c>POST /Items/{id}</c> was applied, given the item's id as posted: it throws to lose the
+    /// answer of a write that landed (as a transport failure would), or returns an answer of its own — a stalled one —
+    /// instead of the 204; <c>null</c> lets the server answer.
+    /// </summary>
+    public Func<string, HttpResponseMessage?>? AfterWrite { get; set; }
 
     /// <summary>When set, a request without <c>Authorization: MediaBrowser Token="{ApiKey}"</c> answers
     /// 401, as Jellyfin does for a key it doesn't know.</summary>
@@ -110,14 +148,15 @@ public sealed class FakeJellyfinServer
     public static void Arm(RecordingHttpHandler handler, params FakeJellyfinServer[] servers)
     {
         ArgumentNullException.ThrowIfNull(handler);
-        handler.Handler = (request, _) =>
+        handler.Handler = (request, body) =>
             Array.Find(servers, server => server.Serves(request.RequestUri!)) is { } server
-                ? server.Answer(request)
+                ? server.Answer(request, body)
                 : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
     }
 
-    /// <summary>What this server answers <paramref name="request"/>.</summary>
-    public HttpResponseMessage Answer(HttpRequestMessage request)
+    /// <summary>What this server answers <paramref name="request"/>, whose body, read as text, is
+    /// <paramref name="body"/>.</summary>
+    public HttpResponseMessage Answer(HttpRequestMessage request, string? body = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (Intercept?.Invoke(request) is { } intercepted)
@@ -133,6 +172,9 @@ public sealed class FakeJellyfinServer
             "System/Info" => JsonAnswer(SystemInfo),
             "Library/VirtualFolders" => JsonAnswer(VirtualFolders),
             "Items" => ItemsPage(uri),
+            "Users" when request.Method == HttpMethod.Get => JsonAnswer(Users),
+            _ when segments is ["Items", var itemId] && request.Method == HttpMethod.Get => ItemOf(uri, itemId),
+            _ when segments is ["Items", var itemId] && request.Method == HttpMethod.Post => Write(itemId, body),
             _ when segments is ["Videos", var itemId, "AdditionalParts"] => PartsOf(itemId),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
@@ -148,6 +190,8 @@ public sealed class FakeJellyfinServer
         var startIndex = query.TryGetValue("startIndex", out var start) ? int.Parse(start, CultureInfo.InvariantCulture) : 0;
         var limit = query.TryGetValue("limit", out var size) ? int.Parse(size, CultureInfo.InvariantCulture) : int.MaxValue;
         var type = query.TryGetValue("includeItemTypes", out var types) ? types : "Movie";
+        if (query.TryGetValue("ids", out var ids))
+            return Listed([.. Movies.Concat(Series).Concat(Episodes).Where(item => ids.Split(',').Any(id => SameId((string?)item["Id"], id)))], startIndex, limit);
 
         BeforeTypedItemsPage?.Invoke(type, startIndex);
         List<JsonObject> list;
@@ -176,6 +220,71 @@ public sealed class FakeJellyfinServer
             ["TotalRecordCount"] = total ?? list.Count,
             ["StartIndex"] = startIndex,
         });
+    }
+
+    // MAM-34 — a page of a user-less list other than the sync's.
+    private static HttpResponseMessage Listed(List<JsonObject> list, int startIndex, int limit) =>
+        JsonAnswer(new JsonObject
+        {
+            ["Items"] = new JsonArray([.. list.Skip(startIndex).Take(limit).Select(item => item.DeepClone())]),
+            ["TotalRecordCount"] = list.Count,
+            ["StartIndex"] = startIndex,
+        });
+
+    // ── MAM-34: one item read and written ────────────────────────────────────
+
+    private HttpResponseMessage ItemOf(Uri uri, string itemId)
+    {
+        if (!Query(uri).TryGetValue("userId", out var userId) || userId.Length == 0)
+            return VendorResponses.Recorded(JellyfinSamples.ItemReadWithoutUserResponseFile);
+        return Stored(itemId) is { } item && !HiddenFromAdministrator.Any(hidden => SameId((string?)item["Id"], hidden))
+            ? JsonAnswer(item.DeepClone())
+            : VendorResponses.Recorded(JellyfinSamples.ItemReadUnknownItemResponseFile);
+    }
+
+    private HttpResponseMessage Write(string itemId, string? body)
+    {
+        if (Stored(itemId) is not { } item)
+            return VendorResponses.Recorded(JellyfinSamples.ItemUpdateUnknownItemResponseFile);
+        if (WriteRefusal is { } refusal)
+            return new HttpResponseMessage(refusal);
+        if (Posted(body) is not { } posted)
+            return VendorResponses.Text("Error processing request.", HttpStatusCode.BadRequest);
+
+        if (!IgnoresWrites && posted["ProviderIds"] is JsonObject providerIds)
+        {
+            // The posted ids as they are; a key left out, or sent blank, is gone (the live check's removal, R23).
+            item["ProviderIds"] = new JsonObject(
+                providerIds
+                    .Where(pair => pair.Value is JsonValue value && value.TryGetValue<string>(out var text) && !string.IsNullOrWhiteSpace(text))
+                    .Select(pair => KeyValuePair.Create<string, JsonNode?>(pair.Key, pair.Value!.DeepClone())));
+        }
+
+        // The recorded 204 of each kind (the live check's series write answered after 4.5 s).
+        return AfterWrite?.Invoke(itemId)
+            ?? VendorResponses.Recorded((string?)item["Type"] == "Series" ? JellyfinSamples.SeriesItemUpdateResponseFile : JellyfinSamples.ItemUpdateResponseFile);
+    }
+
+    // The item of any list, by its id in any form Jellyfin takes ("N" or with dashes, any letter case).
+    private JsonObject? Stored(string itemId) =>
+        Movies.Concat(Series).Concat(Episodes).FirstOrDefault(item => SameId((string?)item["Id"], itemId));
+
+    private static bool SameId(string? stored, string requested) =>
+        stored is not null
+        && (Guid.TryParse(stored, out var storedGuid) && Guid.TryParse(requested, out var requestedGuid)
+            ? storedGuid == requestedGuid
+            : string.Equals(stored, requested, StringComparison.OrdinalIgnoreCase));
+
+    private static JsonObject? Posted(string? body)
+    {
+        try
+        {
+            return body is null ? null : JsonNode.Parse(body) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private HttpResponseMessage PartsOf(string itemId)

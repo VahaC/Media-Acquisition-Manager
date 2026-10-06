@@ -9,6 +9,7 @@
   "retrying": "Retrying…",
   "tryAgain": "Try again",
   "dismiss": "Dismiss",
+  "posterAlt": "Poster of {{title}}",
   "nav": {
     "label": "Main",
     "profile": "Profile",

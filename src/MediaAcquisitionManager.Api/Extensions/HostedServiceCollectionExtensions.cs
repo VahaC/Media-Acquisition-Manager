@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Services.Downloads;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 
 namespace MediaAcquisitionManager.Api.Extensions;
@@ -59,6 +60,23 @@ public static class HostedServiceCollectionExtensions
         services.AddHostedService(provider => provider.GetRequiredService<RecommendationAvailabilityChecker>());
         services.AddSingleton<RecommendationFeedReader>();
         services.AddHostedService(provider => provider.GetRequiredService<RecommendationFeedReader>());
+        // MAM-34 — the same order for the links' background writer: the reconciler turns a link a stop left Writing into
+        // NotWritten and signals the queued ones before the worker starts, so the worker never finds a link the stop cut
+        // still claimed, and takes the queued ones at once. Independent of the runs above: a write reads its link and
+        // its library from the rows. Before the download tracker, which stays last.
+        services.AddSingleton<LibraryLinkWriteReconciler>();
+        services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkWriteReconciler>());
+        services.AddSingleton<LibraryLinkWriteWorker>();
+        services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkWriteWorker>());
+        // MAM-34 — the same order for the TMDb suggestions' runs: the reconciler fails the run a stop interrupted and queues
+        // the queued one again before the worker takes any, so the worker never claims a run while a dead one still holds
+        // the running slot (IX_LibraryLinkSuggestionRuns_OneRunPerActiveStatus). After the links' writer: nothing either
+        // settles at the start depends on the other — a run reads the links as it finds them. Before the download
+        // tracker, which stays last.
+        services.AddSingleton<LibraryLinkSuggestionRunReconciler>();
+        services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkSuggestionRunReconciler>());
+        services.AddSingleton<LibraryLinkSuggestionRunWorker>();
+        services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkSuggestionRunWorker>());
         // MAM-14 — the download jobs' tracker, last: it needs nothing settled before it, as every pass reads the
         // followed jobs from the rows (a restart resumes where they are), and a start that only enters its loop
         // holds up nothing after it. No reconciler: a send a stop interrupted is the tracker's own to settle,

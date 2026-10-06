@@ -48,7 +48,9 @@ public sealed class TmdbAdapterRateLimitTests : IDisposable
         Assert.Equal("Чужі", result.Value!.Summary.Title);
         Assert.Collection(
             _harness.TmdbHttp.Requests,
-            first => Assert.Equal($"{FakeTmdbServer.BaseUrl}/3/movie/679?append_to_response=credits,recommendations&language=uk-UA", first.Uri.AbsoluteUri),
+            first => Assert.Equal(
+                $"{FakeTmdbServer.BaseUrl}/3/movie/679?append_to_response=credits,recommendations,alternative_titles,external_ids&language=uk-UA",
+                first.Uri.AbsoluteUri),
             second =>
             {
                 // The same request again, the token in its header.

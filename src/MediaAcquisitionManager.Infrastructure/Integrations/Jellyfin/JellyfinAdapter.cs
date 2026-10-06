@@ -14,16 +14,20 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 
 /// <summary>
 /// Jellyfin behind the core's contracts (Adapter, ADR 0005): the registration and the connection test
-/// (MAM-7), and the media library contract (MAM-8): its movies, and since MAM-32 its series and
-/// episodes. Read-only: every call is a GET, and the app never changes anything in Jellyfin.
+/// (MAM-7), the media library contract (MAM-8): its movies, and since MAM-32 its series and episodes;
+/// and since MAM-34 the optional identifier writer (<c>JellyfinAdapter.Identifiers.cs</c>), which sets the
+/// owner's TMDb link into one item's <c>ProviderIds</c>. That write is the one call that changes anything in
+/// Jellyfin: it sends a movie item back with only its ids changed — never a series, whose save rewrites all its seasons
+/// and episodes; every other call is a GET, and a sync only reads.
 /// </summary>
 /// <remarks>
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer
 /// also carries its streams, people, images and the server's paths, none of which goes further than
-/// this class.
+/// this class. MAM-34 — the write sends the item back as it was read, but for its people, which goes no further than
+/// this class either: Jellyfin's update replaces the item with what it is sent.
 /// </remarks>
 internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
-    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider
+    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider, IMediaLibraryIdentifierWriter
 {
     /// <summary>The stored type id — part of the on-disk contract (ADR 0005).</summary>
     public const string TypeId = "jellyfin";

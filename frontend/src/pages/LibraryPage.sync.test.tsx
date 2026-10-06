@@ -3,6 +3,7 @@ import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { libraryApi } from '@/lib/library-api'
+import { qk } from '@/lib/queries'
 import type { LibrarySourceList, LibrarySyncRun } from '@/lib/types'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { owner, signInAs } from '@/test/auth-session'
@@ -59,7 +60,7 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
+  return { client, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
 }
 
 describe('LibraryPage while a sync runs', () => {
@@ -96,6 +97,24 @@ describe('LibraryPage while a sync runs', () => {
     expect(worksWhileRunning).toBe(1)
     await vi.waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(2))
     expect(libraryApi.locations).toHaveBeenCalledTimes(2)
+  })
+
+  it('drops the TMDb links\' queries when a sync succeeds, not while it runs', async () => {
+    // Arrange — MAM-34: a sync moves and re-states links, so an open TMDb dialog is asked for again.
+    latestRunIs(running)
+    const { client } = renderPage()
+    await screen.findByText('Syncing… 50 of 120 items')
+    client.setQueryData(qk.library.links.queue(0), { totalCount: 0, index: 0, current: null })
+    await nextPoll()
+    const whileRunning = client.getQueryState(qk.library.links.queue(0))?.isInvalidated
+    latestRunIs(succeeded)
+
+    // Act
+    await nextPoll()
+
+    // Assert
+    expect(whileRunning).toBe(false)
+    await vi.waitFor(() => expect(client.getQueryState(qk.library.links.queue(0))?.isInvalidated).toBe(true))
   })
 
   it('stops polling once the sync has ended', async () => {

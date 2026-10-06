@@ -395,3 +395,45 @@ entries. That an entry goes with its source is the database's cascade, which
 `RecommendationPersistenceTests.Deleting_a_release_source_deletes_its_feed_entries_and_keeps_another_sources`
 pins; `RecommendationFeedHttpTests.Read_skips_a_source_removed_during_the_read_and_keeps_what_the_others_listed`
 pins that a source removed in the middle of a read gets no entry stored.
+
+## The owner's word (added 0.2.1, MAM-34)
+
+**A sixth source kind, named in columns of its own.** `ProvenanceSourceKind` gains `Person` (6): an
+id a person set by hand in the app, the owner's TMDb link of a library item
+([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+Its source is no integration, so a link is not a `ProvenancedEntity`: its `SourceConnectionId` and
+`SourceItemId` would name the library item it points at, not who said it. A `LibraryItemLinks` row
+names its target — the media library integration and its item id — and its source apart: who set it
+(`SetByUserId`, set to null when the user is deleted), their sign-in name copied like the names of an
+audit row (`SetByUserName`, as `DownloadJobs.RequestedByUserName`), and when (`SetUtc`, again at each
+replace). The IMDb id TMDb gives for the linked film or show keeps TMDb as its source beside it: the
+integration (set to null when it is removed), its name copied and when TMDb said it. A reader shows a
+link's ids as identifier rows of kind `Person` — the setter's name as their source to the owner alone,
+`null` to everyone else — and the IMDb id as one of kind `Metadata`, rows made up for reading and
+never saved; the API's identifiers gain `sourceKind` and `setUtc`.
+
+**The Decision holds for the library.** No link writes a title or an identifier onto `MediaWorks`,
+`MediaWorkTitles` or `MediaWorkIdentifiers`: a sync still stores what Jellyfin reported, and two
+sources that disagree are still two claims — Jellyfin's id on the work, the owner's on the link —
+shown side by side as a conflict.
+
+**Removing an integration.** The Decision's "Removing an integration keeps what it reported" is
+about facts a source reported; a link is no such fact but the owner's word about one of a library's
+items, so removing a Jellyfin integration removes its links and their file identities with it (Vasyl's
+decision 12), its audit rows staying with their names. Removing TMDb keeps the links' IMDb ids with
+its name; deleting a user keeps their links with theirs; a work a sync deletes leaves its links
+unattached, never deleted.
+
+**An audit row names the ids it changed.** `AuditEventIdentifiers` holds, per audit row, the ids
+before and after a link's change, write or restore (role, scheme, value, place), and goes with its
+row.
+
+`LibraryLinksPersistenceTests.Deleting_a_library_deletes_its_links_and_their_files_and_keeps_another_librarys_and_the_audit_rows`,
+`LibraryLinksPersistenceTests.Deleting_the_catalog_keeps_the_links_imdb_id_with_its_sources_name`,
+`LibraryLinksPersistenceTests.Deleting_a_user_keeps_their_links_runs_and_none_fits_marks_with_their_names`,
+`LibraryLinksPersistenceTests.Deleting_a_work_leaves_its_links_unattached_with_their_files`,
+`LibraryLinksPersistenceTests.Deleting_an_audit_row_deletes_its_identifiers_and_keeps_another_rows`,
+`LibraryWorksLinksHttpTests.Works_lists_a_linked_id_with_who_set_it_and_the_imdb_id_tmdb_gave_for_the_owner`,
+`LibraryWorksLinksHttpTests.Works_lists_a_linked_id_without_the_name_of_who_set_it_or_the_write_error_for_a_member`
+and `LibraryLinkSyncHttpTests.Resync_keeps_a_link_on_its_item_and_its_work_and_stores_none_of_its_ids_as_jellyfins`
+pin it.

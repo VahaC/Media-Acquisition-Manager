@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
@@ -36,8 +37,15 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 /// its series instead: listed once, on the strongest evidence of its own and of its episodes found, and
 /// never the episodes themselves. A series holding no episode is not listed, as on the Library page.
 /// </para>
+/// <para>
+/// MAM-34 — a work's ids are those the Library page counts (<see cref="ILibraryLinkReader"/>): a linked id finds its work
+/// and matches like the library's, with the person who set it as its source (the name for the owner only); a linked id
+/// beside a different library id of its scheme is two values, which <see cref="WorkMatching"/> flags as a conflict — and
+/// the releases matched against <see cref="LibraryWorkMatch.Identifiers"/> follow. An episode-to-show link counts none
+/// of the show's ids as the item's, so it never matches a search or a release by them (ADR 0020's kinds).
+/// </para>
 /// </remarks>
-public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader reader) : ILibraryMatcher
+public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader reader, ILibraryLinkReader links) : ILibraryMatcher
 {
     /// <summary>
     /// MAM-12 — the most works a search lists by their words alone (<see cref="MatchEvidence.Words"/>,
@@ -86,17 +94,14 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
         if (works.Count == 0)
             return LibrarySearchResult.None;
 
-        // Batched, no N+1: one query each for the titles, the ids and the files' paths of the works found and
-        // of the series listed for them, however many.
+        // Batched, no N+1: one query each for the titles, the ids (the link reader's few) and the files' paths of the
+        // works found and of the series listed for them, however many.
         var workIds = found.Select(work => work.Id).Union(series.Select(work => work.Id)).ToList();
         var titles = (await db.MediaWorkTitles.AsNoTracking()
                 .Where(title => workIds.Contains(title.MediaWorkId))
                 .ToListAsync(cancellationToken))
             .ToLookup(title => title.MediaWorkId);
-        var identifiers = (await db.MediaWorkIdentifiers.AsNoTracking()
-                .Where(identifier => workIds.Contains(identifier.MediaWorkId))
-                .ToListAsync(cancellationToken))
-            .ToLookup(identifier => identifier.MediaWorkId);
+        var linked = await links.ReadAsync(workIds, forOwner, cancellationToken);
         var filePaths = (await (
                     from file in db.PhysicalFiles.AsNoTracking()
                     join version in db.MediaVersions.AsNoTracking() on file.MediaVersionId equals version.Id
@@ -106,7 +111,7 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
             .ToLookup(file => file.MediaWorkId, file => file.ServicePath);
         var evidence = workIds.ToDictionary(
             workId => workId,
-            workId => EvidenceOf(query, titles[workId], identifiers[workId], filePaths[workId]));
+            workId => EvidenceOf(query, titles[workId], linked[workId].Identifiers, filePaths[workId]));
 
         var listed = new List<Candidate>();
         foreach (var work in works)
@@ -222,7 +227,8 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
     /// <para>
     /// A work holding an id asked for, compared the way <see cref="WorkMatching"/> compares (trimmed, any
     /// letter case): ids are ASCII (<c>MediaIdentifierRules</c>), so SQLite's <c>upper()</c>, which folds
-    /// only ASCII letters, is enough.
+    /// only ASCII letters, is enough. MAM-34 — held as the cards count it, a linked id included
+    /// (<see cref="ILibraryLinkReader.WorksHolding"/>), so the narrowing leaves out no work the rule would match by it.
     /// </para>
     /// <para>
     /// Or a work with a title holding the longest word of a title asked for. A title whose key equals the
@@ -254,9 +260,7 @@ public sealed class LibraryMatcher(ApplicationDbContext db, ILibraryWorkReader r
             if (Key(identifier) is not { } key)
                 continue;
             var (scheme, value) = key;
-            candidates = Either(candidates, db.MediaWorkIdentifiers
-                .Where(row => row.Scheme == scheme && row.Value.Trim().ToUpper() == value)
-                .Select(row => row.MediaWorkId));
+            candidates = Either(candidates, links.WorksHolding(scheme, value));
         }
 
         // Every text a work can be found by, with its work: each title's normalised copy, and each path of

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
 import { allowedRootsApi } from '@/lib/allowed-roots-api'
@@ -7,6 +7,7 @@ import { destinationsApi } from '@/lib/destinations-api'
 import { downloadsApi } from '@/lib/downloads-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
+import { libraryLinksApi } from '@/lib/library-links-api'
 import { profileApi } from '@/lib/profile-api'
 import { queryClient } from '@/lib/query-client'
 import { recommendationsApi } from '@/lib/recommendations-api'
@@ -18,6 +19,7 @@ import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
 import { downloadingJob, filesPage, jobsPage } from '@/test/downloads'
 import { sourcesOf } from '@/test/library'
+import { queueOf, suggestionRunOf } from '@/test/library-links'
 import { allTabsOn, guardians, listOf, runOf } from '@/test/recommendations'
 import { aliensSearch, releasesPage, searchId, tolokaRemux } from '@/test/search'
 
@@ -27,6 +29,7 @@ vi.mock('@/lib/destinations-api')
 vi.mock('@/lib/downloads-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
+vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/profile-api')
 vi.mock('@/lib/recommendations-api')
 vi.mock('@/lib/search-api')
@@ -89,6 +92,23 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/library')
     // The heading renders before the works query starts, so its first call is awaited, not assumed.
     await waitFor(() => expect(libraryApi.works).toHaveBeenCalledOnce())
+  })
+
+  it('opens the TMDb page at its address, with Library highlighted in the header', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf())
+    vi.mocked(libraryLinksApi.queue).mockResolvedValue(queueOf(0, 0, null))
+
+    // Act
+    renderAt('/library/tmdb')
+
+    // Assert
+    // The page's code loads on its first visit: in a cold, fully parallel run its transform alone
+    // can take past the 1 s a find waits by default.
+    expect(await screen.findByRole('heading', { level: 1, name: 'TMDb links' }, { timeout: 5_000 })).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Library' }))
+      .toHaveAttribute('aria-current', 'page')
+    expect(await screen.findByText(/No work is left to review/)).toBeInTheDocument()
   })
 
   it('opens Recommendations from the header link, at its first tab', async () => {

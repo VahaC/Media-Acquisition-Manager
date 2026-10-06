@@ -156,3 +156,57 @@ takes them too. A series work that goes leaves its episodes' positions without a
 and `LibrarySnapshotTvHttpTests.Sync_puts_an_item_the_library_now_calls_an_episode_on_a_new_work`
 pin it, and `IntegrationsDeleteHttpTests.Delete_of_a_media_library_purges_its_series_episodes_and_their_positions`
 the purge.
+
+## The owner's links (added 0.2.1, MAM-34)
+
+**A link counts in the grouping and is never stored as the library's.** The owner's TMDb link of a
+library item ([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md))
+joins the Decision's grouping: a linked item is grouped with the ids it counts as holding — the
+library's, less the id the link replaces while the link isn't in Jellyfin yet, plus the linked id,
+and the IMDb id TMDb gave only where the library gives none — while the upserts store the item as
+Jellyfin reported it. A third value of the scheme makes two values, so the item stays alone, as the
+Decision says. An episode-to-show link with a season and an episode adds a key of the show and the
+numbers, so the episodes of one show linked from film items stay apart. "A sync only uses works that
+hold no fact of another source" holds: a link is no fact on a work.
+
+**Inside the transaction.** The links of the integration's items are read in the sync's transaction
+with their file identities, moved, judged and attached, and saved by its one `SaveChangesAsync`: a
+sync that fails changes no link. The sync stays GET-only towards Jellyfin.
+
+**A link follows its item.** A link is keyed by the integration and the item id and no sync deletes
+it: its work is the one its item lands on, and none — unattached — when the item is gone. The
+Decision's "Ids are stable" keys a file by its version and path, and Jellyfin gives a re-created item
+a new id, so a link also records the device, inode and size the inspection read of its item's files
+([ADR 0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)),
+and an unattached link moves to the one item of its kind whose stored files hold one of them — a
+series through its episodes' files —, decided for every link at once: an item two links lead to, or
+one that holds a link, takes none. The same move runs after each file inspection; what is stored
+there names an episode's series work, not its series item, so a series item sharing its work with
+another series item of the library is given no episode's files then — only a sync, which reads each
+episode's series item, gives a series link its own.
+
+**The sync says whether the library holds the link.** A linked item read with the linked id marks
+the link `InLibrary`; one written or in the library before and read without it now — no value, the
+replaced one or a third — marks it `Lost`; anything else stays. A link whose state changed at or
+after the moment the run started reading is left to the next sync, as its write may have landed after
+the item was read, and a link being written or put back (`Writing`) to whoever claimed it, whenever
+that was: its write may still be on its way, and only the claimer records what it sent. A link kept
+in the app (`KeptInApp` — a series', never written as Jellyfin's save of a series rewrites all its
+seasons and episodes, an episode's, or one of a library type that can't set ids) is never judged: it
+stays so whatever the library reports, and the id it replaced keeps giving way in the grouping.
+
+`LibraryLinkSyncHttpTests.Resync_puts_an_item_linked_to_a_tmdb_id_on_the_work_of_the_item_jellyfin_gave_that_id`,
+`LibraryLinkSyncHttpTests.Resync_lets_the_id_a_link_replaced_give_way_while_the_link_is_not_in_jellyfin`,
+`LibraryLinkSyncHttpTests.Resync_keeps_an_item_jellyfin_gives_a_third_tmdb_id_on_a_work_of_its_own`,
+`LibraryLinkSyncHttpTests.Resync_keeps_items_linked_to_other_episodes_of_one_show_apart_and_drops_the_film_id_jellyfin_gave_them`,
+`LibraryLinkSyncHttpTests.Resync_without_the_linked_item_keeps_its_link_unattached_with_its_files`,
+`LibraryLinkSyncHttpTests.Resync_leaves_a_write_that_landed_after_jellyfin_was_read_as_written`,
+`LibraryLinkSyncHttpTests.Resync_leaves_a_link_being_written_to_its_claimer_even_when_jellyfin_reports_its_id`,
+`LibraryLinkSyncHttpTests.Resync_keeps_a_series_link_in_the_app_whatever_jellyfin_reports_and_lets_the_id_it_replaced_give_way`,
+`LibraryLinkSyncHttpTests.Sync_that_another_hand_finished_first_changes_no_link`,
+`LibraryLinkReattachHttpTests.Inspection_gives_a_series_link_none_of_another_series_items_episodes_so_it_never_moves_onto_that_item`,
+`LibraryLinkReattachHttpTests.Sync_moves_a_link_to_the_item_whose_files_an_earlier_inspection_found_holding_its_identity`,
+`LibraryLinkReattachHttpTests.Inspection_after_jellyfin_recreated_a_linked_series_moves_the_link_through_its_episodes_files`,
+`LibraryLinkReattachHttpTests.Inspection_leaves_a_link_unattached_when_its_inode_came_back_with_another_size`
+and `LinkReattachmentTests.Moves_takes_no_link_to_an_item_another_link_leads_to_whichever_comes_first`
+pin it.

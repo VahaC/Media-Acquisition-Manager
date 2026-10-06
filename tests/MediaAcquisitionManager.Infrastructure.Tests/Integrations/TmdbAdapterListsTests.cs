@@ -9,7 +9,8 @@ using MediaAcquisitionManager.TestInfrastructure.Integrations;
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
 // MAM-33 — the catalog's lists: a search, a find by IMDb id, a discovery page and the genres, from TMDb's
-// real answers (VendorSamples/Tmdb), with the exact request each sends.
+// real answers (VendorSamples/Tmdb), with the exact request each sends. MAM-34 — the searches without a year the
+// owner's suggestions run, from the answers the live check recorded (Planet Earth, Landing Stripling).
 public sealed class TmdbAdapterListsTests : IDisposable
 {
     private const string BaseUrl = "https://api.themoviedb.test";
@@ -119,6 +120,60 @@ public sealed class TmdbAdapterListsTests : IDisposable
         //Assert
         Assert.Equal(["679", "348"], found.Value!.Select(work => work.Id));
         Assert.Empty(otherYear.Value!);
+    }
+
+    [Fact]
+    public async Task Search_of_shows_without_a_year_reads_the_planet_earth_sample_in_tmdbs_order()
+    {
+        //Arrange
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Sample(TmdbSamples.SearchTvPlanetEarthFile, TmdbSamples.MediaType);
+
+        //Act
+        var result = await Catalog.SearchAsync(Settings, MediaWorkKind.Series, "Planet Earth", null, TestContext.Current.CancellationToken);
+
+        //Assert
+        var request = Assert.Single(_harness.TmdbHttp.Requests);
+        Assert.Equal($"{BaseUrl}/3/search/tv?query=Planet%20Earth&language=uk-UA", request.Uri.AbsoluteUri);
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        // The first page: 20 of the 41 shows, the 2006 series first, then its sequels, as TMDb ranks them.
+        var found = result.Value!;
+        Assert.Equal(20, found.Count);
+        Assert.All(found, work => Assert.Equal(MediaWorkKind.Series, work.Kind));
+        Assert.Equal(["1044", "68595", "116156"], found.Take(3).Select(work => work.Id));
+        Assert.Equal(
+            new CatalogWorkSummary(
+                MediaWorkKind.Series, TmdbSamples.TvDetailsPlanetEarthId, "Планета Земля", "Planet Earth", "en", new DateOnly(2006, 3, 5),
+                found[0].GenreIds, 8.639, 1294, "/ajNcvf2fvOmus8rxPdpoGrdL4OI.jpg"),
+            found[0]);
+        Assert.Equal([99], found[0].GenreIds);
+        // TMDb's fallback to the original title, a show it has no poster of, one with no air date and no votes.
+        Assert.Contains(found, work => work is { Id: "15723", Title: "Hard Time on Planet Earth" });
+        Assert.Null(Assert.Single(found, work => work.Id == "99101").PosterPath);
+        var undated = Assert.Single(found, work => work.Id == "36896");
+        Assert.Equal(((DateOnly?)null, (double?)null, 0), (undated.ReleaseDate, undated.Rating, undated.VoteCount));
+    }
+
+    [Fact]
+    public async Task Search_of_movies_without_a_year_reads_the_one_film_of_the_sample()
+    {
+        //Arrange
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Sample(TmdbSamples.SearchMovieWithoutYearFile, TmdbSamples.MediaType);
+
+        //Act
+        var result = await Catalog.SearchAsync(Settings, MediaWorkKind.Movie, "Landing Stripling", null, TestContext.Current.CancellationToken);
+
+        //Assert
+        var request = Assert.Single(_harness.TmdbHttp.Requests);
+        Assert.Equal($"{BaseUrl}/3/search/movie?query=Landing%20Stripling&language=uk-UA", request.Uri.AbsoluteUri);
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        // The same film the search with its year finds: a year left out narrows nothing here.
+        var found = Assert.Single(result.Value!);
+        Assert.Equal(
+            new CatalogWorkSummary(
+                MediaWorkKind.Movie, TmdbSamples.MovieDetailsShortId, "Landing Stripling", "Landing Stripling", "en", new DateOnly(1962, 5, 18),
+                found.GenreIds, 4.579, 19, "/ooZQbu20BBYxInF542jHonKz4Pl.jpg"),
+            found);
+        Assert.Equal([16, 35], found.GenreIds);
     }
 
     [Fact]

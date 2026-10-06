@@ -99,7 +99,8 @@ public sealed partial class CatalogStore
     }
 
     /// <summary>Stages a work's details: its summary and the recommended works' as rows, then its details-only
-    /// columns and its people, seasons and recommendations, which replace the ones read before.</summary>
+    /// columns and its people, seasons, recommendations and — MAM-34 — alternative titles, which replace the ones
+    /// read before; the row is marked as read by today's reading (<see cref="CurrentDetailsVersion"/>).</summary>
     private async Task StageDetailsAsync(CatalogConnection catalog, CatalogWork work, CancellationToken cancellationToken)
     {
         var rows = await StageSummariesAsync(catalog, [work.Summary, .. work.Recommendations], cancellationToken);
@@ -107,7 +108,19 @@ public sealed partial class CatalogStore
         row.ImdbId = work.ImdbId;
         row.CollectionId = work.Collection?.Id;
         row.CollectionName = work.Collection?.Name;
+        row.RuntimeMinutes = work.RuntimeMinutes;
+        row.Overview = work.Overview;
         row.DetailsUtc = time.GetUtcNow().UtcDateTime;
+        row.DetailsVersion = CurrentDetailsVersion;
+
+        db.CatalogWorkAlternativeTitles.RemoveRange(
+            await db.CatalogWorkAlternativeTitles.AsTracking().Where(title => title.CatalogWorkId == row.Id).ToListAsync(cancellationToken));
+        db.CatalogWorkAlternativeTitles.AddRange((work.AlternativeTitles ?? []).Select((title, position) => new CatalogWorkAlternativeTitleEntity
+        {
+            CatalogWorkId = row.Id,
+            Position = position,
+            Title = title,
+        }));
 
         db.CatalogWorkPeople.RemoveRange(
             await db.CatalogWorkPeople.AsTracking().Where(person => person.CatalogWorkId == row.Id).ToListAsync(cancellationToken));

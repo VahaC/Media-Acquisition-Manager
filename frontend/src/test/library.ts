@@ -72,12 +72,13 @@ export const aliens: LibraryWork = {
   originalTitle: 'Aliens',
   year: 1986,
   identifiers: [
-    { scheme: 'Imdb', value: 'tt0090605', sourceName: 'Home Jellyfin' },
-    { scheme: 'Tmdb', value: '679', sourceName: 'Home Jellyfin' },
+    { scheme: 'Imdb', value: 'tt0090605', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null },
+    { scheme: 'Tmdb', value: '679', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null },
   ],
   missingIdentifiers: [],
   episode: null,
   seasons: null,
+  link: null,
   // Not in edition label order, as a later sync may send them, so the card's own order shows.
   versions: [
     {
@@ -124,10 +125,11 @@ export const continental: LibraryWork = {
   title: 'The Continental',
   originalTitle: null,
   year: 2023,
-  identifiers: [{ scheme: 'Imdb', value: 'tt29669983', sourceName: 'Home Jellyfin' }],
+  identifiers: [{ scheme: 'Imdb', value: 'tt29669983', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null }],
   missingIdentifiers: ['Tmdb'],
   episode: null,
   seasons: null,
+  link: null,
   versions: [{
     id: '7a1e0000-0000-4000-8000-000000000013',
     sourceName: 'Home Jellyfin',
@@ -159,6 +161,7 @@ export const unknownWork: LibraryWork = {
   missingIdentifiers: ['Imdb', 'Tmdb'],
   episode: null,
   seasons: null,
+  link: null,
   versions: [
     {
       id: '7a1e0000-0000-4000-8000-000000000014',
@@ -206,8 +209,8 @@ export const yellowstone: LibraryWork = {
   originalTitle: 'Yellowstone',
   year: 2018,
   identifiers: [
-    { scheme: 'Imdb', value: 'tt4236770', sourceName: 'Home Jellyfin' },
-    { scheme: 'Tvdb', value: '341164', sourceName: 'Home Jellyfin' },
+    { scheme: 'Imdb', value: 'tt4236770', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null },
+    { scheme: 'Tvdb', value: '341164', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null },
   ],
   missingIdentifiers: ['TmdbTv'],
   versions: [],
@@ -218,6 +221,7 @@ export const yellowstone: LibraryWork = {
     { number: 0, episodeCount: 1 },
     { number: null, episodeCount: 2 },
   ],
+  link: null,
 }
 
 /** MAM-32 — an episode of Yellowstone's first season as the episodes endpoint lists it; `changes` sets the fields a test is about. */
@@ -228,7 +232,7 @@ export function yellowstoneEpisodeOf(changes: Partial<LibraryWork>): LibraryWork
     title: 'Daybreak',
     originalTitle: null,
     year: 2018,
-    identifiers: [{ scheme: 'Imdb', value: 'tt7608156', sourceName: 'Home Jellyfin' }],
+    identifiers: [{ scheme: 'Imdb', value: 'tt7608156', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null }],
     missingIdentifiers: ['Tvdb'],
     versions: [{
       id: '7a1e0000-0000-4000-8000-000000000121',
@@ -249,6 +253,7 @@ export function yellowstoneEpisodeOf(changes: Partial<LibraryWork>): LibraryWork
     }],
     episode: { seriesId: yellowstone.id, seasonNumber: 1, episodeNumber: 1 },
     seasons: null,
+    link: null,
     ...changes,
   }
 }
@@ -284,6 +289,7 @@ export const tomAndJerryKids: LibraryWork = {
   })),
   episode: { seriesId: null, seasonNumber: 1, episodeNumber: 4 },
   seasons: null,
+  link: null,
 }
 
 /** The page the server answers `query` with, out of `total` works. */

@@ -7,7 +7,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// The real Jellyfin answers of <c>VendorSamples/Jellyfin</c> (MAM-6) as editable JSON, and variants
 /// synthesized from them for what the reference library doesn't show (MAM-8): merged versions, a
 /// library of any size, a movie without metadata, a stacked movie's parts. MAM-32 adds the series,
-/// seasons and episodes MAM-17 sampled, and series and episodes of any facts.
+/// seasons and episodes MAM-17 sampled, and series and episodes of any facts. MAM-34 adds a movie and a series item
+/// read whole, as they were read again after their ids were written, the update's recorded answers, and the users.
 /// </summary>
 /// <remarks>
 /// Every call returns fresh nodes, parsed anew, so a test can change what it got (a path, a media
@@ -95,18 +96,90 @@ public static class JellyfinSamples
     /// <inheritdoc cref="SampleSeriesTotalRecordCount"/>
     public const int SampleEpisodesTotalRecordCount = 471;
 
+    /// <summary>MAM-34 — "120. Landing Stripling" (1962), a Tom &amp; Jerry short in the cartoon library, read whole by
+    /// <c>GET /Items/{id}?userId=</c> (<c>item.json</c>): no ids before the write.</summary>
+    public const string LandingStriplingId = "750eaa45b0836d08e4ae4b35750b93ca";
+
+    /// <summary>MAM-34 — the TMDb film the live check wrote into <see cref="LandingStriplingId"/>.</summary>
+    public const string LandingStriplingTmdbId = "223021";
+
+    /// <summary>MAM-34 — the IMDb id TMDb gives for it, written with it.</summary>
+    public const string LandingStriplingImdbId = "tt0056164";
+
+    /// <summary>MAM-34 — the TMDb show the live check wrote into the Penguins series item (<see cref="PenguinsId"/>,
+    /// <c>series-item.json</c>), under Jellyfin's <c>Tmdb</c> key.</summary>
+    public const string PenguinsTmdbTvId = "7869";
+
+    /// <summary>MAM-34 — the enabled administrator of <c>users.json</c>, whom an item is read as.</summary>
+    public const string AdministratorUserId = "06119359f9364accb7fb3ea32e531f1d";
+
+    /// <summary>MAM-34 — the other user of <c>users.json</c>, enabled and no administrator.</summary>
+    public const string MemberUserId = "692951d9e4c24fc0a9691ca9e02c6324";
+
+    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered the item sent back with only its ids changed: 204, no
+    /// body.</summary>
+    public const string ItemUpdateResponseFile = "Jellyfin/item-update-response.txt";
+
+    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered a wrong key: 401, no body.</summary>
+    public const string ItemUpdateWrongKeyResponseFile = "Jellyfin/item-update-wrong-key-response.txt";
+
+    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered an item that doesn't exist: 404 problem details.</summary>
+    public const string ItemUpdateUnknownItemResponseFile = "Jellyfin/item-update-unknown-item-response.txt";
+
+    /// <summary>MAM-34 — what <c>GET /Items/{id}?userId=</c> answered an item that doesn't exist: 404 problem
+    /// details.</summary>
+    public const string ItemReadUnknownItemResponseFile = "Jellyfin/item-read-unknown-item-response.txt";
+
+    /// <summary>MAM-34 — what <c>GET /Items/{id}</c> answered the API key without a user: 400, "Error processing
+    /// request."</summary>
+    public const string ItemReadWithoutUserResponseFile = "Jellyfin/item-read-without-user-response.txt";
+
+    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered the series item sent back with its TMDb id: 204 after 4.5
+    /// seconds.</summary>
+    public const string SeriesItemUpdateResponseFile = "Jellyfin/series-item-update-response.txt";
+
     private static readonly Lazy<string> MoviesPageText = new(() => Read("movies-page.json"));
     private static readonly Lazy<string> SeriesPageText = new(() => Read("series-page.json"));
     private static readonly Lazy<string> SeasonsPageText = new(() => Read("seasons-page.json"));
     private static readonly Lazy<string> EpisodesPageText = new(() => Read("episodes-page.json"));
     private static readonly Lazy<string> SystemInfoText = new(() => Read("system-info.json"));
     private static readonly Lazy<string> VirtualFoldersText = new(() => Read("virtual-folders.json"));
+    private static readonly Lazy<string> UsersText = new(() => Read("users.json"));
+    private static readonly Lazy<string> ItemText = new(() => Read("item.json"));
+    private static readonly Lazy<string> ItemAfterUpdateText = new(() => Read("item-after-update.json"));
+    private static readonly Lazy<string> ItemAfterDefaultRefreshText = new(() => Read("item-after-default-refresh.json"));
+    private static readonly Lazy<string> ItemAfterMissingRefreshText = new(() => Read("item-after-missing-refresh.json"));
+    private static readonly Lazy<string> SeriesItemText = new(() => Read("series-item.json"));
 
     /// <summary>The answer of <c>GET /System/Info</c>: Jellyfin 12.1.0, "VahaC media".</summary>
     public static JsonObject SystemInfo() => JsonNode.Parse(SystemInfoText.Value)!.AsObject();
 
     /// <summary>The answer of <c>GET /Library/VirtualFolders</c>: five libraries.</summary>
     public static JsonArray VirtualFolders() => JsonNode.Parse(VirtualFoldersText.Value)!.AsArray();
+
+    /// <summary>MAM-34 — the answer of <c>GET /Users</c>, cut to the fields the app reads (name, id, whether
+    /// administrator, whether disabled): a member first, then the administrator.</summary>
+    public static JsonArray Users() => JsonNode.Parse(UsersText.Value)!.AsArray();
+
+    /// <summary>MAM-34 — <see cref="LandingStriplingId"/> as <c>GET /Items/{id}?userId=</c> answered it: the whole
+    /// item, 47 fields, no ids.</summary>
+    public static JsonObject Item() => JsonNode.Parse(ItemText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — the same item read again after it was sent back with <c>Tmdb</c> and <c>Imdb</c> set: only the
+    /// ids and what Jellyfin derives from them (<c>Etag</c>, <c>ExternalUrls</c>, <c>UserData.Key</c>) changed.</summary>
+    public static JsonObject ItemAfterUpdate() => JsonNode.Parse(ItemAfterUpdateText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — the written item after Jellyfin's default refresh: the ids kept, nothing else changed.</summary>
+    public static JsonObject ItemAfterDefaultRefresh() => JsonNode.Parse(ItemAfterDefaultRefreshText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — the written item after "Search for missing metadata": the ids kept, Jellyfin's own metadata
+    /// filled in.</summary>
+    public static JsonObject ItemAfterMissingRefresh() => JsonNode.Parse(ItemAfterMissingRefreshText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — the Penguins series item (<see cref="PenguinsId"/>) as <c>GET /Items/{id}?userId=</c> answered
+    /// it: 41 fields, no ids, named after its folder. The app never writes a series (ADR 0026); the live check's write and
+    /// removal of its TMDb id stay recorded beside it (<c>series-item-after-*.json</c>).</summary>
+    public static JsonObject SeriesItem() => JsonNode.Parse(SeriesItemText.Value)!.AsObject();
 
     /// <summary>The four movies of <c>movies-page.json</c>, in its order: The Continental, 13-й район,
     /// then the two "Чужі".</summary>

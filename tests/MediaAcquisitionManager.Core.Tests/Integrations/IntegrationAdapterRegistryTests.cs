@@ -83,6 +83,27 @@ public sealed class IntegrationAdapterRegistryTests
     }
 
     [Fact]
+    public void Find_of_the_optional_identifier_writer_returns_only_a_library_that_implements_it()
+    {
+        //Arrange
+        // MAM-34 — a further interface of the library's class (ADR 0005); a library without it keeps its links in the
+        // app, so the registry answers null rather than a stub.
+        var writing = new WritingLibraryAdapter(Descriptor("writing", "Writing library", IntegrationKind.MediaLibrary));
+        var reading = new LibraryAdapter(Descriptor("reading", "Reading library", IntegrationKind.MediaLibrary));
+        var registry = new IntegrationAdapterRegistry([writing, reading]);
+
+        //Act
+        var writingAsWriter = registry.Find<IMediaLibraryIdentifierWriter>("writing");
+        var writingAsLibrary = registry.Find<IMediaLibraryProvider>("writing");
+        var readingAsWriter = registry.Find<IMediaLibraryIdentifierWriter>("reading");
+
+        //Assert
+        Assert.Same(writing, writingAsWriter);
+        Assert.Same(writing, writingAsLibrary);
+        Assert.Null(readingAsWriter);
+    }
+
+    [Fact]
     public void Construction_with_a_duplicate_type_id_throws_naming_it()
     {
         //Arrange
@@ -201,5 +222,31 @@ public sealed class IntegrationAdapterRegistryTests
 
         public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
             Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+    }
+
+    /// <summary>A library type that also sets its items' ids, as JellyfinAdapter does since MAM-34.</summary>
+    private sealed class WritingLibraryAdapter(IntegrationAdapterDescriptor descriptor)
+        : IIntegrationAdapter, IMediaLibraryProvider, IMediaLibraryIdentifierWriter
+    {
+        public IntegrationAdapterDescriptor Descriptor => descriptor;
+
+        public MediaLibraryCapabilities Capabilities { get; } = new(GroupsVersionsUnderOneItem: false);
+
+        public Task<ConnectionTestResult> TestConnectionAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
+            Task.FromResult(ConnectionTestResult.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+
+        public Task<IntegrationCallResult<LibraryItemPage>> ListItemsAsync(IntegrationConnectionSettings settings, LibraryPageRequest page, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<LibraryItemPage>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+
+        public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+
+        public IReadOnlyList<MediaWorkKind> WritableKinds { get; } = [MediaWorkKind.Movie];
+
+        public string UnwritableKindReason(MediaWorkKind kind) => "The test adapter writes films only.";
+
+        public Task<IntegrationCallResult<LibraryIdentifierWrite>> WriteIdentifiersAsync(
+            IntegrationConnectionSettings settings, LibraryIdentifierChange change, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<LibraryIdentifierWrite>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
     }
 }

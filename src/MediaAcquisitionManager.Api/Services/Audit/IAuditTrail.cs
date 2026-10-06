@@ -11,4 +11,11 @@ public interface IAuditTrail
     /// is never an audit row for a change that rolled back, and never a change without its row.
     /// </summary>
     void Record(AuditAction action, AuditActor? actor, AuditTarget? target);
+
+    /// <summary>
+    /// MAM-34 — <see cref="Record(AuditAction, AuditActor?, AuditTarget?)"/> with the ids the change found and left
+    /// (<paramref name="identifiers"/>, in their order), added to the same unsaved row: they commit with it, or not at
+    /// all.
+    /// </summary>
+    void Record(AuditAction action, AuditActor? actor, AuditTarget? target, IReadOnlyList<AuditIdentifier> identifiers);
 }

@@ -87,6 +87,24 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         // The signed-in user's own preferences, by the token: outside Controllers/Settings, every user's.
         Assert.Contains("ProfileController.GetRecommendationSettings", actions);
         Assert.Contains("ProfileController.UpdateRecommendationSettings", actions);
+        // MAM-34 — under Controllers/Library/Links: the owner's alone, every action, by the namespace's convention (R19).
+        Assert.Contains("LibraryLinksController.Dialog", actions);
+        Assert.Contains("LibraryLinksController.Set", actions);
+        Assert.Contains("LibraryLinksController.Remove", actions);
+        Assert.Contains("LibraryLinksController.Write", actions);
+        Assert.Contains("LibraryLinkListsController.List", actions);
+        Assert.Contains("LibraryLinkListsController.WriteLink", actions);
+        Assert.Contains("LibraryLinkListsController.RemoveLink", actions);
+        Assert.Contains("LibraryLinkListsController.Batch", actions);
+        Assert.Contains("LibraryLinkSuggestionsController.Search", actions);
+        Assert.Contains("LibraryLinkSuggestionsController.Lookup", actions);
+        Assert.Contains("LibraryLinkSuggestionsController.MarkNoneFits", actions);
+        Assert.Contains("LibraryLinkSuggestionsController.ClearNoneFits", actions);
+        Assert.Contains("LibraryLinkReviewController.Queue", actions);
+        Assert.Contains("LibraryLinkReviewController.Confident", actions);
+        Assert.Contains("LibraryLinkReviewController.AcceptConfident", actions);
+        Assert.Contains("LibraryLinkReviewController.LatestRun", actions);
+        Assert.Contains("LibraryLinkReviewController.StartRun", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

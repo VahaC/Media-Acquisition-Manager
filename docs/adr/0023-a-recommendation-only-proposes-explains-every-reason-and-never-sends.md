@@ -241,3 +241,32 @@ A recommendation is no match (ADR 0012): it says the catalog and the library sug
 that the library lacks it for sure or that a release is it. It authorises nothing — no download,
 no replacement, no write to the library ([ADR 0025](0025-the-catalog-is-kept-apart-from-the-library.md))
 — and asks the release sources only within the budget of ADR 0024.
+
+## Linked works (added 0.2.1, MAM-34)
+
+**A link is the seed's own id.** The Decision's seeds now start from the owner's TMDb links
+([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)):
+a work with a link to its film or show counts the linked id as its own TMDb or TMDb TV id, so it seeds
+by it and holds it, and no possible match is looked up for any work with a link, whatever the link.
+The IMDb id TMDb gave counts only where the library holds none, and the id a link replaces doesn't
+count while the library hasn't taken the link. A work whose link and library give two ids of its
+catalog scheme seeds nothing — neither wins — and holds both; so does a work the owner linked as an
+episode of a show while the library gives its item a film id it didn't hold when the link was set. An episode-to-show link holds its show
+and the show's IMDb id, and seeds the show, whose held seasons are the links' season numbers; a link
+naming no season holds none, so it alone never makes a season missing.
+
+**A changed link recomputes.** `RecommendationRunTrigger` gains `LinkChanged` (6): setting,
+replacing or removing a link queues a computation, or joins the one waiting, best effort, and one
+"Accept all confident" click queues one.
+
+**The Known limits change.** The Planet Earth episodes the first computation found nothing for are
+held, and Planet Earth no longer recommended, once the owner links them to the show (1044); the Tom
+& Jerry shorts seed by their links rather than by a title search.
+
+`RecommendationLinksHttpTests.Recompute_seeds_a_linked_work_by_its_link_holds_it_and_never_looks_it_up`,
+`RecommendationLinksHttpTests.Recompute_holds_both_ids_of_a_work_whose_link_and_library_disagree_and_seeds_by_neither`,
+`RecommendationLinksHttpTests.Recompute_holds_and_seeds_the_show_an_episode_link_names_and_drops_the_film_id_it_replaces`,
+`RecommendationLinksHttpTests.Recompute_holds_a_film_id_jellyfin_gave_an_episode_linked_item_after_its_link_and_seeds_by_it_never`,
+`RecommendationLinksHttpTests.Recompute_recommends_the_seasons_of_a_linked_show_its_links_do_not_name_and_none_for_a_link_naming_none`,
+`RecommendationLinksHttpTests.Recompute_seeds_the_show_an_episode_of_no_series_is_linked_to`
+and `LibraryLinkSetHttpTests.Set_queues_a_recommendation_run_for_the_changed_link` pin it.

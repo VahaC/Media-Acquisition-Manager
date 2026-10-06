@@ -18,7 +18,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// </para>
 /// <para>
 /// The summary columns are refreshed whenever a list or the details report the work; the details-only ones
-/// — <see cref="ImdbId"/>, the collection, and the child rows of people, seasons and recommendations — only
+/// — <see cref="ImdbId"/>, the collection, MAM-34's runtime and overview, and the child rows of people, seasons,
+/// recommendations and alternative titles — only
 /// by its details, which <see cref="DetailsUtc"/> dates. A work known from lists alone has
 /// <see cref="DetailsUtc"/> <c>null</c>.
 /// </para>
@@ -64,10 +65,24 @@ public class CatalogWorkEntity : ProvenancedEntity
     [MaxLength(200)]
     public string? PosterPath { get; set; }
 
-    /// <summary>A film's IMDb id, from its details; <c>null</c> for a show, a film known from lists only,
-    /// or one the catalog gives none.</summary>
+    /// <summary>The longest <see cref="Overview"/> kept; a longer one is cut to it.</summary>
+    public const int OverviewMaximumLength = 2000;
+
+    /// <summary>A film's or — MAM-34 — a show's IMDb id, from its details; <c>null</c> for a work known from lists
+    /// only, or one the catalog gives none.</summary>
     [MaxLength(64)]
     public string? ImdbId { get; set; }
+
+    /// <summary>
+    /// MAM-34 — a film's runtime, or a show's episodes', in minutes, from its details: what a library work's measured
+    /// duration is compared with; <c>null</c> when not known.
+    /// </summary>
+    public int? RuntimeMinutes { get; set; }
+
+    /// <summary>MAM-34 — what the work is about, from its details, for the owner choosing a TMDb link; <c>null</c>
+    /// when the catalog gives none.</summary>
+    [MaxLength(OverviewMaximumLength)]
+    public string? Overview { get; set; }
 
     /// <summary>The catalog's id of the collection a film belongs to, from its details; <c>null</c> otherwise.</summary>
     [MaxLength(CatalogIdMaximumLength)]
@@ -80,4 +95,12 @@ public class CatalogWorkEntity : ProvenancedEntity
     /// <summary>When its details — people, seasons, recommendations — were last read; <c>null</c> for a work
     /// known from lists only.</summary>
     public DateTime? DetailsUtc { get; set; }
+
+    /// <summary>
+    /// MAM-34 — which reading of the details the row holds: 0 for the ones read before runtime, overview, alternative
+    /// titles and a show's IMDb id were kept. The catalog store counts details as fresh only from its current version
+    /// on (<c>CatalogStore.CurrentDetailsVersion</c>), so every row cached before is read again on its next use — with
+    /// no hand-written migration statement to clear them (R22).
+    /// </summary>
+    public int DetailsVersion { get; set; }
 }

@@ -66,4 +66,36 @@ public enum AuditAction
     /// <see cref="UserPasswordReset"/>.
     /// </summary>
     UserPasswordChanged = 16,
+
+    /// <summary>
+    /// MAM-34 — the owner linked a library item to a TMDb film or show where it had no link. Written with the link,
+    /// before anything is sent to the library; its identifiers record the ids the library reported for the item
+    /// (Before) and the link's (After).
+    /// </summary>
+    LibraryLinkSet = 17,
+
+    /// <summary>
+    /// MAM-34 — the owner replaced a library item's TMDb link with another film or show, or changed its season and
+    /// episode. Written with the change, before anything is sent to the library.
+    /// </summary>
+    LibraryLinkReplaced = 18,
+
+    /// <summary>
+    /// MAM-34 — the owner removed a library item's TMDb link. Written with the delete, after the library was changed
+    /// back where the app had written into it.
+    /// </summary>
+    LibraryLinkRemoved = 19,
+
+    /// <summary>
+    /// MAM-34 — the app sent a link's ids into the library for one item: written whenever the change left the app,
+    /// confirmed or not. Before is what the item held then; After what it held again afterwards (or what was sent,
+    /// when that read never came). Restoring the item later starts from these rows.
+    /// </summary>
+    LibraryIdsWritten = 20,
+
+    /// <summary>
+    /// MAM-34 — the app changed an item's ids in the library back to what it held before the app wrote them, for a
+    /// link removed or replaced: only the keys that still held what the app wrote.
+    /// </summary>
+    LibraryIdsRestored = 21,
 }

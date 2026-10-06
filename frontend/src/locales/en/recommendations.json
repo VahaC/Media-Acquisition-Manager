@@ -88,7 +88,6 @@
     }
   },
   "card": {
-    "posterAlt": "Poster of {{title}}",
     "originalTitle": "Original title: {{title}}",
     "genreSeparator": ", ",
     "rating_one": "{{rating}} ({{votes}} vote)",

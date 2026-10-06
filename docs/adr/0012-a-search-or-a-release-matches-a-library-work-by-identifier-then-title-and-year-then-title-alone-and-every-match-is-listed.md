@@ -412,3 +412,39 @@ authorises nothing.
 `RecommendationAvailabilityHttpTests.Check_counts_only_releases_of_the_work_by_its_kind_and_an_id_or_its_title_and_year`
 and `RecommendationFeedResolutionHttpTests.Read_resolves_a_show_by_its_seasons_listing_as_a_show`
 pin it.
+
+## Linked ids, and an order that is no match (added 0.2.1, MAM-34)
+
+**A linked id is an identifier.** A search and its releases read a work's ids as the Library page
+counts them: with the owner's TMDb links applied
+([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+A linked id finds its work, and a release that gives it, as `Identifier` evidence; `matchedIdentifiers`
+lists it with `sourceKind` `Person` and, for the owner, the name of who set it, and the IMDb id TMDb
+gave for the link with TMDb's name as its source — that one only where the library holds no IMDb id.
+The id a link replaces matches nothing while the library hasn't taken the link — a series' link,
+never written into Jellyfin, never. A linked id beside
+another library id of its scheme is two values of it, which the Decision flags as a conflict; neither
+wins. An episode-to-show link gives the item none of the show's ids, so it matches nothing by them.
+
+**A link replaces the guess.** The MAM-33 section's possible match is looked up only for a work with
+no link: a linked work seeds the recommendations by its link
+([ADR 0023](0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)).
+
+**An order is no match.** The suggestions of ADR 0026 order TMDb's candidates for a work partly by
+how alike the titles are (`TitleSimilarity`, the Dice coefficient over the letter pairs of the two
+title keys) and how many years apart they are — the "distance between titles, or a year ± 1" this
+Decision rejects. That order is what the owner reads first; it matches nothing, links nothing, and no
+search or release sees it, so the rejected option holds. A suggestion is **confident** by this
+Decision's own rule and a measurement: the one candidate of the work's kind whose title key is one of
+the work's and whose year is the work's, the only such candidate, with a runtime that agrees with a
+duration ffprobe measured; even then, only the owner's click links it.
+
+`SearchesLinkedWorksHttpTests.Create_finds_a_work_by_its_linked_tmdb_id_with_the_owner_who_set_it_as_its_source`,
+`SearchesLinkedWorksHttpTests.Create_as_a_member_shows_a_linked_ids_source_without_the_name_of_who_set_it`,
+`SearchesLinkedWorksHttpTests.Create_finds_a_work_by_the_imdb_id_tmdb_gave_its_link_with_the_catalog_as_its_source`,
+`SearchesLinkedWorksHttpTests.Create_flags_a_linked_id_beside_another_library_id_of_its_scheme_as_a_conflict`,
+`SearchesLinkedWorksHttpTests.Create_never_finds_a_work_by_the_id_its_link_replaces_while_the_library_has_not_taken_the_link`,
+`SearchReleasesLinkedWorksHttpTests.Releases_match_a_work_by_its_linked_tmdb_id_or_the_imdb_id_tmdb_gave_its_link`,
+`TitleSimilarityTests.Of_counts_the_pairs_both_titles_have_by_dice`,
+`LinkSuggestionRankingTests.Rank_makes_nothing_confident_a_year_off` and
+`LinkSuggestionRankingTests.Rank_makes_nothing_confident_when_two_exact_titles_share_the_year` pin it.

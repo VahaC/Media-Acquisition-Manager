@@ -3,6 +3,7 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { libraryApi } from '@/lib/library-api'
+import { qk } from '@/lib/queries'
 import type { FileInspectionOverview, FileInspectionRun, LibraryWork } from '@/lib/types'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { owner, signInAs } from '@/test/auth-session'
@@ -54,7 +55,7 @@ function renderPage() {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
+  return { client, user: userEvent.setup({ advanceTimers: vi.advanceTimersByTime }) }
 }
 
 describe('LibraryPage while the files are inspected', () => {
@@ -94,6 +95,27 @@ describe('LibraryPage while the files are inspected', () => {
     await vi.waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(3))
     await vi.waitFor(() => expect(screen.queryByText('Not inspected yet')).not.toBeInTheDocument())
     expect(libraryApi.locations).toHaveBeenCalledOnce()
+  })
+
+  it('drops the TMDb links\' queries once a run has finished, not as it checks more files', async () => {
+    // Arrange — MAM-34: the measured lengths feed the suggestions' runtime evidence, but asking for an
+    // open dialog's suggestions on every poll of a run would be too often.
+    inspectionIs({ activeRun: { ...started, filesChecked: 100 } })
+    const { client } = renderPage()
+    await screen.findByText('Inspecting files… 100 of 870 checked')
+    client.setQueryData(qk.library.links.queue(0), { totalCount: 0, index: 0, current: null })
+    inspectionIs({ activeRun: { ...started, filesChecked: 400 } })
+    await nextPoll()
+    await screen.findByText('Inspecting files… 400 of 870 checked')
+    const whileChecking = client.getQueryState(qk.library.links.queue(0))?.isInvalidated
+    inspectionIs({ lastFinishedRun: succeeded })
+
+    // Act
+    await nextPoll()
+
+    // Assert
+    expect(whileChecking).toBe(false)
+    await vi.waitFor(() => expect(client.getQueryState(qk.library.links.queue(0))?.isInvalidated).toBe(true))
   })
 
   it('does not ask for the works again while a run only waits or has just started', async () => {

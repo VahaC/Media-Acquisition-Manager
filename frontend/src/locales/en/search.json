@@ -48,7 +48,12 @@
       "TitleAndYear": "In your library: {{work}} — matched by title and year",
       "TitleOnly": "Possible match in your library: {{work}}"
     },
-    "identifierSource": "{{scheme}} {{value}}, reported by {{source}}",
+    "identifierSource": "{{scheme}} {{value}}, {{sources}}",
+    "reportedBy": "reported by {{source}}",
+    "setBy": "set by {{user}} on {{time}}",
+    "setByUser": "set by {{user}}",
+    "setByHand": "set by hand on {{time}}",
+    "setByHandUndated": "set by hand",
     "identifierValue": "{{scheme}} {{value}}",
     "matchedTitle": "“{{title}}”, {{year}}",
     "matchedTitleNoYear": "“{{title}}”",

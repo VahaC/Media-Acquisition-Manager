@@ -229,10 +229,12 @@ html:has(.app-offline) {
   scroll-padding-top: 8rem;
 }
 
+/* At most 80rem (1280px) wide, its padding included: Vasyl's choice of 2026-10-05, widened from
+   64rem. */
 .app-main {
   flex: 1;
   width: 100%;
-  max-width: 64rem;
+  max-width: 80rem;
   margin: 0 auto;
   padding: 1.5rem;
 }

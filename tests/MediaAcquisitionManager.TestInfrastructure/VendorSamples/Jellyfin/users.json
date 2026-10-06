@@ -1,0 +1,18 @@
+[
+  {
+    "Name": "Nadiia",
+    "Id": "692951d9e4c24fc0a9691ca9e02c6324",
+    "Policy": {
+      "IsAdministrator": false,
+      "IsDisabled": false
+    }
+  },
+  {
+    "Name": "VahaC",
+    "Id": "06119359f9364accb7fb3ea32e531f1d",
+    "Policy": {
+      "IsAdministrator": true,
+      "IsDisabled": false
+    }
+  }
+]

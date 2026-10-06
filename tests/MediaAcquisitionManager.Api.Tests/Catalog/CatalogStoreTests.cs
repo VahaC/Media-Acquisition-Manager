@@ -1,0 +1,278 @@
+using System.Net;
+using MediaAcquisitionManager.Api.Services.Catalog;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
+using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.TestInfrastructure.Auth;
+using MediaAcquisitionManager.TestInfrastructure.Http;
+using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace MediaAcquisitionManager.Api.Tests.Catalog;
+
+// MAM-34 — the catalog store's part in linking a library work to TMDb: a work's details keep its runtime, overview,
+// alternative titles and a show's IMDb id, and come back from the rows as they came from the catalog; details an older
+// reading stored (DetailsVersion below CatalogStore.CurrentDetailsVersion) are read again however young (R22); and a
+// search or a find by IMDb id stores every work it lists — so a suggestion is a row whose poster is served — answers in
+// the catalog's order, and asks the catalog every time. The store is resolved from the app's own container, one scope a
+// call, as the suggestions use it, against TMDb faked at the network; the poster is asked over HTTP.
+public sealed class CatalogStoreTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
+{
+    private const string PostersUrl = "/api/recommendations/posters";
+    private const string PlanetEarthPoster = "ajNcvf2fvOmus8rxPdpoGrdL4OI.jpg";
+    private const string PlanetEarthOverview = "Документальний серіал BBC про природу Землі.";
+
+    private readonly MediaAcquisitionManagerApiFactory _factory;
+    private AuthorizedUser _owner = null!;
+    private IntegrationConnectionEntity _catalog = null!;
+    private FakeTmdbServer _tmdb = null!;
+
+    public CatalogStoreTests(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
+
+    public async ValueTask InitializeAsync()
+    {
+        await _factory.ResetAsync();
+        _owner = await new UserSeeder(_factory.Scope).CreateAuthorizedOwner("owner");
+        _catalog = await new IntegrationConnectionSeeder(_factory.Scope).Create("tmdb", "TMDb", FakeTmdbServer.BaseUrl, apiKey: FakeTmdbServer.Token);
+        _tmdb = FakeTmdbServer.Arm(_factory.TmdbHttp);
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    [Fact]
+    public async Task GetWork_stores_a_shows_runtime_overview_alternative_titles_and_imdb_id_and_serves_them_back_from_the_rows()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth", "Planet Erde", "Planeta Tierra"]));
+        var fresh = await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Act
+        var cached = await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Assert
+        Assert.Equal(1, Count("/3/tv/1044"));
+        // The answer rebuilt from the rows is the catalog's: a caller can't tell them apart.
+        foreach (var work in new[] { fresh, cached })
+        {
+            Assert.Equal((53, "tt0795176", PlanetEarthOverview), (work.RuntimeMinutes!.Value, work.ImdbId, work.Overview));
+            Assert.Equal(["Planet Earth", "Planet Erde", "Planeta Tierra"], work.AlternativeTitles);
+        }
+
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.CatalogWorks.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(
+                (53, "tt0795176", PlanetEarthOverview, CatalogStore.CurrentDetailsVersion),
+                (row.RuntimeMinutes!.Value, row.ImdbId, row.Overview, row.DetailsVersion));
+            Assert.Equal(
+                [(0, "Planet Earth"), (1, "Planet Erde"), (2, "Planeta Tierra")],
+                (await db.CatalogWorkAlternativeTitles.AsNoTracking()
+                    .Where(title => title.CatalogWorkId == row.Id)
+                    .OrderBy(title => title.Position)
+                    .ToListAsync(cancellationToken))
+                .Select(title => (title.Position, title.Title)));
+        });
+    }
+
+    [Theory]
+    [InlineData(0, 1, 53, "tt0795176")]
+    [InlineData(CatalogStore.CurrentDetailsVersion, 0, null, null)]
+    public async Task GetWork_reads_again_within_30_days_only_the_details_an_older_reading_stored(
+        int detailsVersion, int reads, int? runtimeMinutes, string? imdbId)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth"]));
+        // Details read a day ago: by a reading before MAM-34 — no runtime, overview, titles or show's IMDb id, the
+        // migration's DetailsVersion 0 — or by today's.
+        await new CatalogWorkSeeder(_factory.Scope).Create(
+            MediaWorkKind.Series, "1044", "Планета Земля", new DateOnly(2006, 3, 5), [99],
+            detailsUtc: _factory.Time.GetUtcNow().UtcDateTime.AddDays(-1), catalog: _catalog);
+        await _factory.WithDbAsync(db => db.CatalogWorks.ExecuteUpdateAsync(
+            setters => setters.SetProperty(work => work.DetailsVersion, detailsVersion), cancellationToken));
+
+        //Act
+        var work = await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Assert
+        // R22: no migration statement clears the cache; the older reading is simply not fresh.
+        Assert.Equal(reads, Count("/3/tv/1044"));
+        Assert.Equal((runtimeMinutes, imdbId), (work.RuntimeMinutes, work.ImdbId));
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.CatalogWorks.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal((CatalogStore.CurrentDetailsVersion, runtimeMinutes), (row.DetailsVersion, row.RuntimeMinutes));
+        });
+    }
+
+    [Fact]
+    public async Task GetWork_read_again_after_30_days_replaces_the_runtime_overview_and_alternative_titles()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth", "Planet Erde", "Planeta Tierra"]));
+        await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+        _tmdb.AddWork(PlanetEarth(50, ["Planeta Tierra", "BBC Planet Earth"]) with { Overview = null });
+        _factory.Time.Advance(TimeSpan.FromDays(31));
+
+        //Act
+        var work = await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Assert
+        Assert.Equal(2, Count("/3/tv/1044"));
+        Assert.Equal((50, (string?)null), (work.RuntimeMinutes!.Value, work.Overview));
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.CatalogWorks.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal((50, (string?)null), (row.RuntimeMinutes!.Value, row.Overview));
+            // The titles the details gave now, in their order; the ones they no longer give are gone.
+            Assert.Equal(
+                [(0, "Planeta Tierra"), (1, "BBC Planet Earth")],
+                (await db.CatalogWorkAlternativeTitles.AsNoTracking().OrderBy(title => title.Position).ToListAsync(cancellationToken))
+                .Select(title => (title.Position, title.Title)));
+        });
+    }
+
+    [Fact]
+    public async Task Search_stores_every_work_it_lists_so_their_posters_are_served_and_answers_in_the_catalogs_order()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth"]));
+        _tmdb.AddWork(new FakeTmdbWork(
+            MediaWorkKind.Series, 68595, "Планета Земля II", "Planet Earth II", "2016-11-06", [99, 10751], PosterPath: "/m4TMauOurlkXuWP2XWN3P6kM13f.jpg"));
+        _tmdb.AddSearch(MediaWorkKind.Series, "Planet Earth", null, 1044, 68595);
+        using var posterBefore = await _factory.GetHttpRequest($"{PostersUrl}/{PlanetEarthPoster}", _owner.AccessToken);
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+
+        //Act
+        var found = await SearchAsync(MediaWorkKind.Series, "Planet Earth", null, cancellationToken);
+
+        //Assert
+        Assert.Equal([(MediaWorkKind.Series, "1044"), (MediaWorkKind.Series, "68595")], found.Select(work => (work.Kind, work.Id)));
+        await _factory.WithDbAsync(async db =>
+        {
+            var rows = await db.CatalogWorks.AsNoTracking().OrderBy(work => work.CatalogId).ToListAsync(cancellationToken);
+            Assert.Equal(
+                [
+                    ("1044", "Планета Земля", "/" + PlanetEarthPoster, "tv/1044"),
+                    ("68595", "Планета Земля II", "/m4TMauOurlkXuWP2XWN3P6kM13f.jpg", "tv/68595"),
+                ],
+                rows.Select(row => (row.CatalogId, row.Title, row.PosterPath!, row.SourceItemId)));
+            // Summaries, with their provenance: a list says nothing of the details.
+            Assert.All(rows, row => Assert.Equal(
+                (MediaWorkKind.Series, ProvenanceSourceKind.Metadata, _catalog.Id, (DateTime?)null, now),
+                (row.Kind, row.SourceKind, row.SourceConnectionId!.Value, row.DetailsUtc, row.ObservedUtc)));
+            Assert.Equal(
+                [99, 99, 10751],
+                await db.CatalogWorkGenres.OrderBy(genre => genre.GenreId).Select(genre => genre.GenreId).ToListAsync(cancellationToken));
+        });
+        // A poster is served only for a stored work's poster path: none before the search, now this one.
+        Assert.Equal(HttpStatusCode.NotFound, posterBefore.StatusCode);
+        using var posterAfter = await _factory.GetHttpRequest($"{PostersUrl}/{PlanetEarthPoster}", _owner.AccessToken);
+        Assert.Equal((HttpStatusCode.OK, "image/jpeg"), (posterAfter.StatusCode, posterAfter.Content.Headers.ContentType?.MediaType));
+    }
+
+    [Fact]
+    public async Task Search_asks_the_catalog_every_time_and_leaves_a_listed_works_details_as_they_were()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth", "Planet Erde"]));
+        _tmdb.AddSearch(MediaWorkKind.Series, "Planet Earth", 2006, 1044);
+        await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Act
+        var first = await SearchAsync(MediaWorkKind.Series, "Planet Earth", 2006, cancellationToken);
+        var second = await SearchAsync(MediaWorkKind.Series, "Planet Earth", 2006, cancellationToken);
+
+        //Assert
+        // Never cached itself: the suggestions keep what they searched, and the owner's search wants the answer of now.
+        Assert.Equal(2, Count("/3/search/tv"));
+        Assert.Equal(["1044"], first.Select(work => work.Id));
+        Assert.Equal(["1044"], second.Select(work => work.Id));
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.CatalogWorks.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.NotNull(row.DetailsUtc);
+            Assert.Equal((53, "tt0795176", CatalogStore.CurrentDetailsVersion), (row.RuntimeMinutes!.Value, row.ImdbId, row.DetailsVersion));
+            Assert.Equal(2, await db.CatalogWorkAlternativeTitles.CountAsync(cancellationToken));
+        });
+    }
+
+    [Fact]
+    public async Task Search_the_catalog_fails_passes_the_masked_failure_on_and_stores_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth"]));
+        _tmdb.AddSearch(MediaWorkKind.Series, "Planet Earth", null, 1044);
+        _tmdb.Intercept = request => request.RequestUri!.AbsolutePath == "/3/search/tv" ? new HttpResponseMessage(HttpStatusCode.InternalServerError) : null;
+
+        //Act
+        var result = await WithStoreAsync((store, catalog) => store.SearchAsync(catalog, MediaWorkKind.Series, "Planet Earth", null, cancellationToken));
+
+        //Assert
+        Assert.False(result.IsSuccess);
+        Assert.StartsWith("TMDb", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(FakeTmdbServer.Token, result.Error, StringComparison.Ordinal);
+        await _factory.WithDbAsync(async db => Assert.Equal(0, await db.CatalogWorks.CountAsync(cancellationToken)));
+    }
+
+    [Fact]
+    public async Task FindByImdbId_stores_the_films_and_shows_filed_under_the_id_the_films_first()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth"]));
+        _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Movie, 1044, "Фільм 1044", ReleaseDate: "2007-01-01", PosterPath: "/film1044.jpg"));
+        _tmdb.AddFind("tt0795176", MediaWorkKind.Series, 1044);
+        _tmdb.AddFind("tt0795176", MediaWorkKind.Movie, 1044);
+
+        //Act
+        var found = await WithStoreAsync(async (store, catalog) =>
+            (await store.FindByImdbIdAsync(catalog, "tt0795176", cancellationToken)).Value!);
+        var second = await WithStoreAsync(async (store, catalog) =>
+            (await store.FindByImdbIdAsync(catalog, "tt0795176", cancellationToken)).Value!);
+
+        //Assert
+        // A film and a show of one number are two works (ADR 0017), each a row of its own.
+        Assert.Equal([(MediaWorkKind.Movie, "1044"), (MediaWorkKind.Series, "1044")], found.Select(work => (work.Kind, work.Id)));
+        Assert.Equal(found.Select(work => (work.Kind, work.Id)), second.Select(work => (work.Kind, work.Id)));
+        Assert.Equal(2, Count("/3/find/tt0795176"));
+        await _factory.WithDbAsync(async db => Assert.Equal(
+            [(MediaWorkKind.Movie, "Фільм 1044", "/film1044.jpg"), (MediaWorkKind.Series, "Планета Земля", "/" + PlanetEarthPoster)],
+            (await db.CatalogWorks.AsNoTracking().OrderBy(work => work.SourceItemId).ToListAsync(cancellationToken))
+            .Select(work => (work.Kind, work.Title, work.PosterPath!))));
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>Planet Earth (2006) as TMDb lists it: its latest episode of <paramref name="runtimeMinutes"/>, its IMDb id
+    /// in its external ids, and <paramref name="alternativeTitles"/>.</summary>
+    private static FakeTmdbWork PlanetEarth(int runtimeMinutes, string[] alternativeTitles) =>
+        new(
+            MediaWorkKind.Series, 1044, "Планета Земля", "Planet Earth", "2006-03-05", [99], PosterPath: "/" + PlanetEarthPoster,
+            ImdbId: "tt0795176", Seasons: [new FakeTmdbSeason(1, "2006-03-05", 11)], RuntimeMinutes: runtimeMinutes,
+            Overview: PlanetEarthOverview, AlternativeTitles: alternativeTitles);
+
+    private async Task<CatalogWork> GetWorkAsync(MediaWorkKind kind, string catalogId, CancellationToken cancellationToken) =>
+        await WithStoreAsync(async (store, catalog) => (await store.GetWorkAsync(catalog, kind, catalogId, cancellationToken)).Value!);
+
+    private async Task<IReadOnlyList<CatalogWorkSummary>> SearchAsync(MediaWorkKind kind, string title, int? year, CancellationToken cancellationToken) =>
+        await WithStoreAsync(async (store, catalog) => (await store.SearchAsync(catalog, kind, title, year, cancellationToken)).Value!);
+
+    /// <summary>Runs <paramref name="action"/> with the app's catalog store and the connected catalog, in a scope of their
+    /// own, as a request or a run has them.</summary>
+    private async Task<T> WithStoreAsync<T>(Func<ICatalogStore, CatalogConnection, Task<T>> action)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var connected = await scope.ServiceProvider.GetRequiredService<ICatalogConnector>().ConnectAsync();
+        return await action(scope.ServiceProvider.GetRequiredService<ICatalogStore>(), connected.Connection!);
+    }
+
+    private int Count(string path) => _factory.TmdbHttp.Requests.Count(request => request.Uri.AbsolutePath == path);
+}

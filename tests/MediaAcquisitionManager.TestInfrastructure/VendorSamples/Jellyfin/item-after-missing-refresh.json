@@ -1,0 +1,291 @@
+{
+  "Name": "120. Landing Stripling",
+  "OriginalTitle": "Landing Stripling",
+  "ServerId": "7e510bf027b0470988c018aa322da282",
+  "Id": "750eaa45b0836d08e4ae4b35750b93ca",
+  "Etag": "fde40b69754e24fde0e7b2a0240d20c2",
+  "DateCreated": "2026-06-30T12:51:04.5401118Z",
+  "CanDelete": true,
+  "CanDownload": true,
+  "Container": "mkv",
+  "SortName": "0000000120  landing stripling",
+  "PremiereDate": "1962-05-18T00:00:00.0000000Z",
+  "ExternalUrls": [
+    {
+      "Name": "IMDb",
+      "Url": "https://www.imdb.com/title/tt0056164"
+    },
+    {
+      "Name": "TheTVDB",
+      "Url": "https://www.thetvdb.com/movies/landing-stripling"
+    },
+    {
+      "Name": "TMDB",
+      "Url": "https://www.themoviedb.org/movie/223021"
+    },
+    {
+      "Name": "Trakt",
+      "Url": "https://trakt.tv/movies/tt0056164"
+    }
+  ],
+  "MediaSources": [
+    {
+      "Protocol": "File",
+      "Id": "750eaa45b0836d08e4ae4b35750b93ca",
+      "Path": "/media/cartoons/Tom & Jerry e001-e161 (1940-1967)/120. Landing Stripling (1962).mkv",
+      "Type": "Default",
+      "Container": "mkv",
+      "Size": 97243924,
+      "Name": "120. Landing Stripling (1962)",
+      "IsRemote": false,
+      "ETag": "fd16dfca8e624165244c64540acf0da0",
+      "RunTimeTicks": 3730210000,
+      "ReadAtNativeFramerate": false,
+      "IgnoreDts": false,
+      "IgnoreIndex": false,
+      "GenPtsInput": false,
+      "SupportsTranscoding": true,
+      "SupportsDirectStream": true,
+      "SupportsDirectPlay": true,
+      "IsInfiniteStream": false,
+      "UseMostCompatibleTranscodingProfile": false,
+      "RequiresOpening": false,
+      "RequiresClosing": false,
+      "RequiresLooping": false,
+      "SupportsProbing": true,
+      "VideoType": "VideoFile",
+      "MediaStreams": [
+        {
+          "Codec": "h264",
+          "TimeBase": "1/1000",
+          "VideoRange": "SDR",
+          "VideoRangeType": "SDR",
+          "AudioSpatialFormat": "None",
+          "DisplayTitle": "576p H264 SDR",
+          "NalLengthSize": "4",
+          "IsInterlaced": false,
+          "IsAVC": true,
+          "BitRate": 1893543,
+          "BitDepth": 8,
+          "RefFrames": 1,
+          "IsDefault": true,
+          "IsForced": false,
+          "IsHearingImpaired": false,
+          "IsOriginal": false,
+          "Height": 576,
+          "Width": 720,
+          "AverageFrameRate": 25,
+          "RealFrameRate": 25,
+          "ReferenceFrameRate": 25,
+          "Profile": "Constrained Baseline",
+          "Type": "Video",
+          "AspectRatio": "4:3",
+          "Index": 0,
+          "IsExternal": false,
+          "IsTextSubtitleStream": false,
+          "SupportsExternalStream": false,
+          "PixelFormat": "yuv420p",
+          "Level": 30,
+          "IsAnamorphic": true
+        },
+        {
+          "Codec": "aac",
+          "TimeBase": "1/1000",
+          "VideoRange": "Unknown",
+          "VideoRangeType": "Unknown",
+          "AudioSpatialFormat": "None",
+          "LocalizedDefault": "Default",
+          "LocalizedExternal": "External",
+          "LocalizedOriginal": "Original",
+          "DisplayTitle": "AAC - Stereo - Default",
+          "IsInterlaced": false,
+          "ChannelLayout": "stereo",
+          "BitRate": 192000,
+          "Channels": 2,
+          "SampleRate": 48000,
+          "IsDefault": true,
+          "IsForced": false,
+          "IsHearingImpaired": false,
+          "IsOriginal": false,
+          "Profile": "LC",
+          "Type": "Audio",
+          "Index": 1,
+          "IsExternal": false,
+          "IsTextSubtitleStream": false,
+          "SupportsExternalStream": false
+        }
+      ],
+      "MediaAttachments": [],
+      "Formats": [],
+      "Bitrate": 2085543,
+      "RequiredHttpHeaders": {},
+      "TranscodingSubProtocol": "http",
+      "DefaultAudioStreamIndex": 1,
+      "HasSegments": false
+    }
+  ],
+  "ProductionLocations": [
+    "United States of America"
+  ],
+  "Path": "/media/cartoons/Tom & Jerry e001-e161 (1940-1967)/120. Landing Stripling (1962).mkv",
+  "EnableMediaSourceDisplay": true,
+  "OfficialRating": "TV-G",
+  "ChannelId": null,
+  "Overview": "Tom and Jerry are sleeping outside during the day when a yellow bird wearing a red helmet lands on Tom, waking him up. Although the bird brushes Tom's torso off and reacts politely like \"pardon me\", Tom goes after the bird, catches it, and proceeds to beat it up.",
+  "Taglines": [],
+  "Genres": [
+    "Animation",
+    "Comedy"
+  ],
+  "CommunityRating": 4.579,
+  "RunTimeTicks": 3730210000,
+  "PlayAccess": "Full",
+  "ProductionYear": 1962,
+  "RemoteTrailers": [],
+  "ProviderIds": {
+    "Tmdb": "223021",
+    "Imdb": "tt0056164",
+    "Tvdb": "48181",
+    "TvdbSlug": "landing-stripling"
+  },
+  "IsFolder": false,
+  "ParentId": "b2dd057a80d7f0032dc413a388477f8a",
+  "Type": "Movie",
+  "People": [
+    {
+      "Name": "Gene Deitch",
+      "Id": "d90b66f0d5dc4bc08325fc8b045bf70a",
+      "Role": "Director",
+      "Type": "Director",
+      "PrimaryImageTag": "a31f08d2798e0019f304b04af258559e",
+      "ImageBlurHashes": {
+        "Primary": {
+          "a31f08d2798e0019f304b04af258559e": "dyLXVz%M%M-;~qxuxuofRjofRjRjxuj[fQt7%MWBj[of"
+        }
+      }
+    },
+    {
+      "Name": "William L. Snyder",
+      "Id": "2b9c7a0b5ab3c81e3ef2da3ed490534b",
+      "Role": "Producer",
+      "Type": "Producer",
+      "ImageBlurHashes": {
+        "Primary": {}
+      }
+    }
+  ],
+  "Studios": [
+    {
+      "Name": "Metro-Goldwyn-Mayer",
+      "Id": "f215ff226e8168c664177fa955593aac"
+    }
+  ],
+  "GenreItems": [
+    {
+      "Name": "Animation",
+      "Id": "074229225b7254292f131f9f49f8dcd6"
+    },
+    {
+      "Name": "Comedy",
+      "Id": "08d31605d366d63a7a924f944b4417f1"
+    }
+  ],
+  "LocalTrailerCount": 0,
+  "UserData": {
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "IsFavorite": false,
+    "Played": false,
+    "Key": "223021",
+    "ItemId": "750eaa45b0836d08e4ae4b35750b93ca"
+  },
+  "SpecialFeatureCount": 0,
+  "DisplayPreferencesId": "dbf7709c41faaa746463d67978eb863d",
+  "Tags": [
+    "airplane",
+    "cat",
+    "mouse",
+    "anthropomorphic"
+  ],
+  "PrimaryImageAspectRatio": 1.3333333333333333,
+  "MediaStreams": [
+    {
+      "Codec": "h264",
+      "TimeBase": "1/1000",
+      "VideoRange": "SDR",
+      "VideoRangeType": "SDR",
+      "AudioSpatialFormat": "None",
+      "DisplayTitle": "576p H264 SDR",
+      "NalLengthSize": "4",
+      "IsInterlaced": false,
+      "IsAVC": true,
+      "BitRate": 1893543,
+      "BitDepth": 8,
+      "RefFrames": 1,
+      "IsDefault": true,
+      "IsForced": false,
+      "IsHearingImpaired": false,
+      "IsOriginal": false,
+      "Height": 576,
+      "Width": 720,
+      "AverageFrameRate": 25,
+      "RealFrameRate": 25,
+      "ReferenceFrameRate": 25,
+      "Profile": "Constrained Baseline",
+      "Type": "Video",
+      "AspectRatio": "4:3",
+      "Index": 0,
+      "IsExternal": false,
+      "IsTextSubtitleStream": false,
+      "SupportsExternalStream": false,
+      "PixelFormat": "yuv420p",
+      "Level": 30,
+      "IsAnamorphic": true
+    },
+    {
+      "Codec": "aac",
+      "TimeBase": "1/1000",
+      "VideoRange": "Unknown",
+      "VideoRangeType": "Unknown",
+      "AudioSpatialFormat": "None",
+      "LocalizedDefault": "Default",
+      "LocalizedExternal": "External",
+      "LocalizedOriginal": "Original",
+      "DisplayTitle": "AAC - Stereo - Default",
+      "IsInterlaced": false,
+      "ChannelLayout": "stereo",
+      "BitRate": 192000,
+      "Channels": 2,
+      "SampleRate": 48000,
+      "IsDefault": true,
+      "IsForced": false,
+      "IsHearingImpaired": false,
+      "IsOriginal": false,
+      "Profile": "LC",
+      "Type": "Audio",
+      "Index": 1,
+      "IsExternal": false,
+      "IsTextSubtitleStream": false,
+      "SupportsExternalStream": false
+    }
+  ],
+  "VideoType": "VideoFile",
+  "ImageTags": {
+    "Primary": "e153236c337b97a15f9a8027d46419b2"
+  },
+  "BackdropImageTags": [],
+  "ImageBlurHashes": {
+    "Primary": {
+      "e153236c337b97a15f9a8027d46419b2": "ViIX]Fb[NEobNG~WR*RiWBR%-pWXM|axWU%LoMRjt5j["
+    }
+  },
+  "Chapters": [],
+  "Trickplay": {},
+  "LocationType": "FileSystem",
+  "MediaType": "Video",
+  "LockedFields": [],
+  "LockData": false,
+  "Width": 720,
+  "Height": 576,
+  "OriginalLanguage": "en"
+}

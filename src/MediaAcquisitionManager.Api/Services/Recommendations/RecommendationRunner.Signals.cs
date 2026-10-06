@@ -103,7 +103,12 @@ public sealed partial class RecommendationRunner
     {
         foreach (var seed in run.Seeds.Values.Where(seed => seed.Summary.Kind == MediaWorkKind.Series && run.IsReleased(seed.Summary)))
         {
-            var held = seed.Works.SelectMany(work => work.HeldSeasons).ToHashSet();
+            // MAM-34 — a show seeded by an episode-to-show link that names no season: which of its seasons the library
+            // holds is unknown, so none is called missing — every one would be, the held one among them.
+            if (seed.LinkedSeasons.Any(season => season is null))
+                continue;
+            // MAM-34 — a season an episode-to-show link names is held, as a season one episode of is.
+            var held = seed.Works.SelectMany(work => work.HeldSeasons).Concat(seed.LinkedSeasons.OfType<int>()).ToHashSet();
             var missing = seed.Details.Seasons
                 .Where(season => season.Number > 0 && season.AirDate is { } aired && aired <= run.Today && !held.Contains(season.Number))
                 .Select(season => season.Number)

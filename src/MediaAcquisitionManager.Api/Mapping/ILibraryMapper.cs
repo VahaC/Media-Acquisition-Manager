@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Paths;
@@ -19,18 +20,26 @@ public interface ILibraryMapper
     /// then none), then number; a series with its
     /// <paramref name="seasons"/>.
     /// </summary>
+    /// <remarks>
+    /// MAM-34 — its ids are <paramref name="linked"/>'s, its items' TMDb links applied (<c>ILibraryLinkReader</c>), with
+    /// the links as one line: what they link to, the worst of their states, a conflicting library id, and — only
+    /// <paramref name="forOwner"/> — who set them and why the library doesn't hold them. A work that counts as linked
+    /// lacks no id (decision 9, R16): the one rule the missing-ids filter applies too.
+    /// </remarks>
     LibraryWorkDto ToDto(
         MediaWorkEntity work,
         IReadOnlyList<MediaWorkTitleEntity> titles,
-        IReadOnlyList<MediaWorkIdentifierEntity> identifiers,
+        LinkedWork linked,
         IReadOnlyList<MediaVersionEntity> versions,
         Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf,
         IReadOnlyList<MediaEpisodePositionEntity> positions,
-        IReadOnlyList<LibrarySeasonDto>? seasons);
+        IReadOnlyList<LibrarySeasonDto>? seasons,
+        bool forOwner);
 
     /// <summary>
     /// Identifier claims the way a work lists them: by scheme, then value, then source name, each claim
-    /// (scheme, value, source) once. MAM-12 — also the matched ids of a search's library match.
+    /// (scheme, value, source) once. MAM-12 — also the matched ids of a search's library match. MAM-34 — with the kind of
+    /// source that claimed it, and when a person set it.
     /// </summary>
     IReadOnlyList<LibraryIdentifierDto> ToDtos(IReadOnlyList<MediaWorkIdentifierEntity> identifiers);
 

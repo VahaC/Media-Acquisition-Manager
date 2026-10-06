@@ -156,3 +156,33 @@ episode; how it becomes a possible match stays MAM-20's, as the Anti-consequence
 `FolderScanRunHttpTests.Scan_matches_by_the_librarys_current_mappings_and_by_path_alone` and
 `FolderScanIsolationHttpTests.Scan_of_a_name_whose_path_holds_a_works_title_changes_nothing_the_library_shows_or_finds`
 pin it.
+
+## A link to TMDb (added 0.2.1, MAM-34)
+
+**The library still says what an item is.** The owner may link a library work to its TMDb film or
+show ([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)),
+and a movie item linked to a show stays a movie: its link is an episode-to-show link, the show's TMDb
+TV id with a season and an episode when the owner gives them — the key the Decision names for an
+episode, its series' id with its numbers. Such a link is kept in the app and never written into
+Jellyfin, where a movie item's `Tmdb` names a film. An episode of no series (the Tom & Jerry Kids
+item) takes such a link only; an episode of a series is linked through its series ("Link its series
+instead: an episode is known by its series' ids."); a series item takes its show's id, kept in the
+app: Jellyfin keeps a show's id under the same `Tmdb` key on a series, but every save of a series
+rewrites all its seasons and episodes, so the app never writes one (Vasyl, 2026-10-06). The 25 Planet Earth films stay 25 movie items,
+each linkable to its show and episode, and two linked to different episodes stay two works.
+
+**A name is a hint, never a decision.** A file name's `_E08` or `S01E08` and a file's folder name
+are queries for the suggestions and prefill the numbers of a show suggested to a film item
+(`EpisodeMarker`, `FolderHint`); they decide no link, no kind and no match. The rejected option
+"Read `SxxEyy` from a file name to make an item an episode" holds.
+
+**A linked id is a registry id.** "Another copy of the same work needs a registry id the files share
+(MAM-20)": a linked id is one, inside the library whose items it links.
+
+`LibraryLinkSetHttpTests.Set_of_a_show_on_a_film_item_is_an_episode_link_kept_in_the_app_that_replaces_the_wrong_film_id_and_calls_nothing`,
+`LibraryLinkSetHttpTests.Set_of_a_show_on_an_episode_no_series_holds_is_an_episode_link_kept_in_the_app`,
+`LibraryLinkSetHttpTests.Set_on_an_episode_of_a_series_is_400_saying_to_link_its_series`,
+`LibraryLinkSetHttpTests.Set_of_a_show_on_a_series_keeps_the_link_in_the_app_says_why_and_calls_nothing`,
+`LibraryLinkSyncHttpTests.Resync_keeps_items_linked_to_other_episodes_of_one_show_apart_and_drops_the_film_id_jellyfin_gave_them`,
+`LibraryLinkSuggestionsHttpTests.Dialog_of_a_film_never_has_a_show_confident_and_prefills_its_episode`
+and `EpisodeMarkerTests.Read_of_a_text_with_no_marker_of_its_own_is_nothing` pin it.

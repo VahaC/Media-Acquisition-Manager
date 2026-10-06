@@ -1,16 +1,20 @@
 import { useState } from 'react'
+import { Link2, ListChecks } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
 import { LibraryWorkCard } from '@/components/library/LibraryWorkCard'
+import { TmdbLinkDialog } from '@/components/library/TmdbLinkDialog'
 import { Banner } from '@/components/shared/Banner'
+import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useAuthStore } from '@/lib/auth-store'
 import { useLibraryLocations, useLibraryWorks } from '@/lib/queries'
-import type { LibraryIdentifierFilter, LibraryKindFilter, LibraryLocation } from '@/lib/types'
+import type { LibraryIdentifierFilter, LibraryKindFilter, LibraryLocation, LibraryWork } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
@@ -33,17 +37,32 @@ const SEARCH_DEBOUNCE_MS = 300
  * a season lists, are the ones they keep.
  *
  * Every signed-in user reads it. A finished sync refreshes the list by itself (useLibrarySources).
+ *
+ * MAM-34 — each card has a "TMDb…" action that opens the work's TMDb dialog, where the owner links it
+ * to its film or show by hand. A member sees it disabled with the reason, as every owner-only action
+ * here; the dialog's routes are the owner's. Nothing is asked for it until the dialog opens.
+ *
+ * MAM-34 — and with "Missing an id" on, "Review works without a TMDb id" opens the TMDb page (the
+ * owner's; a member sees it disabled with the reason). The filters live in the page, not the address,
+ * so before it opens the address takes the ones the page reads back — the search and `?identifiers=` —
+ * and Back from the TMDb page finds the list as it was.
  */
 export function LibraryPage() {
   const { t } = useTranslation(['library', 'common'])
+  const isOwner = useAuthStore((state) => state.user?.isOwner === true)
+  // The parent mounts the dialog only while it is open, so every opening starts fresh.
+  const [linking, setLinking] = useState<LibraryWork | null>(null)
   const locations = useLibraryLocations()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   // MAM-12 — the Search page links here with its title in `?search=` when more movies hold its
   // words than it lists, so the page opens already searched for it. Read once, as the box's first
   // value: what the person types after that is theirs.
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const [locationId, setLocationId] = useState('')
-  const [identifiers, setIdentifiers] = useState<LibraryIdentifierFilter | ''>('')
+  // MAM-34 — read once like `?search=`: the TMDb page's way back to this list (and Back) carries it.
+  const [identifiers, setIdentifiers] = useState<LibraryIdentifierFilter | ''>(
+    () => (searchParams.get('identifiers') === 'Missing' ? 'Missing' : ''),
+  )
   const [kind, setKind] = useState<LibraryKindFilter | ''>('')
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)
   // The page remembers the filters it belongs to, so different filters start again at page 1
@@ -92,6 +111,15 @@ export function LibraryPage() {
   const changePageSize = (next: number) => {
     setPageSize(next)
     goToPage(1)
+  }
+
+  // MAM-34 — the address takes the filters the page reads back before the TMDb page opens on top of
+  // it (replacing this entry, so Back lands on it), as the page keeps them in its state alone.
+  const keepFiltersForBack = () => {
+    const next = new URLSearchParams()
+    if (search.trim() !== '') next.set('search', search.trim())
+    next.set('identifiers', 'Missing')
+    setSearchParams(next, { replace: true })
   }
 
   const clearFilters = () => {
@@ -162,6 +190,7 @@ export function LibraryPage() {
           <option value="">{t('identifierFilter.all')}</option>
           <option value="Missing">{t('identifierFilter.missing')}</option>
         </select>
+        {identifiers === 'Missing' && <ReviewEntry isOwner={isOwner} onOpen={keepFiltersForBack} />}
       </div>
 
       {/* MAM-8 — without the libraries the filter offers All libraries alone, which looks like there
@@ -212,7 +241,11 @@ export function LibraryPage() {
           <ul className="library-works">
             {data.items.map((work) => (
               <li key={work.id}>
-                <LibraryWorkCard work={work} episodeFilters={episodeFilters} />
+                <LibraryWorkCard
+                  work={work}
+                  episodeFilters={episodeFilters}
+                  actions={<TmdbAction isOwner={isOwner} onOpen={() => setLinking(work)} />}
+                />
               </li>
             ))}
           </ul>
@@ -228,6 +261,55 @@ export function LibraryPage() {
           />
         </>
       ) : null}
+
+      {linking && <TmdbLinkDialog work={linking} onClose={() => setLinking(null)} />}
     </div>
+  )
+}
+
+// ── a card's action ──
+
+/**
+ * MAM-34 — "TMDb…" on a card: opens the work's TMDb dialog. Disabled with the reason for anyone but the
+ * owner — the API would refuse the dialog with the same one.
+ */
+function TmdbAction({ isOwner, onOpen }: { isOwner: boolean; onOpen: () => void }) {
+  const { t } = useTranslation('libraryLinks')
+  const reason = isOwner ? undefined : t('card.notOwner')
+
+  return (
+    <DisabledReason reason={reason}>
+      <Button type="button" variant="outline" size="sm" title={t('card.actionTitle')} disabled={reason !== undefined} onClick={onOpen}>
+        <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="label-text">{t('card.action')}</span>
+      </Button>
+    </DisabledReason>
+  )
+}
+
+/**
+ * MAM-34 — "Review works without a TMDb id", beside the "Missing an id" filter: opens the TMDb page.
+ * Disabled with the reason for anyone but the owner — the page's routes would refuse them with it.
+ */
+function ReviewEntry({ isOwner, onOpen }: { isOwner: boolean; onOpen: () => void }) {
+  const { t } = useTranslation('libraryLinks')
+
+  if (!isOwner) {
+    return (
+      <DisabledReason reason={t('card.notOwner')}>
+        <Button type="button" variant="outline" size="sm" disabled>
+          <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+          {t('entry.review')}
+        </Button>
+      </DisabledReason>
+    )
+  }
+  return (
+    <Button asChild variant="outline" size="sm">
+      <Link to="/library/tmdb" onClick={onOpen}>
+        <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+        {t('entry.review')}
+      </Link>
+    </Button>
   )
 }

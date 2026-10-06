@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -16,7 +17,9 @@ namespace MediaAcquisitionManager.Api.Tests.Recommendations;
 // provenance, served for 30 days and read again after; the lookups of library works without a TMDb id (by an IMDb id,
 // else by a cleaned title and its year, used only when one work matches) cached the same way, "nothing" included; a
 // seed TMDb no longer has skipped. A catalog failure fails the run and keeps the previous candidates; nothing is ever
-// written to the library's works, titles or identifiers.
+// written to the library's works, titles or identifiers. MAM-34 — the details a run reads keep a work's runtime,
+// overview and alternative titles, and the details a reading before MAM-34 stored are read again on the next run,
+// however young (R22).
 public sealed class RecommendationCatalogCacheHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string JellyfinApiKey = "0123456789abcdef0123456789abcdef";
@@ -107,6 +110,73 @@ public sealed class RecommendationCatalogCacheHttpTests : IClassFixture<MediaAcq
                 (CatalogGenreRole.Animation, CatalogGenreRole.Documentary),
                 ((await db.CatalogGenres.SingleAsync(genre => genre.Kind == MediaWorkKind.Movie && genre.GenreId == 16, cancellationToken)).Role,
                     (await db.CatalogGenres.SingleAsync(genre => genre.Kind == MediaWorkKind.Movie && genre.GenreId == 99, cancellationToken)).Role));
+        });
+    }
+
+    [Fact]
+    public async Task Recompute_stores_the_runtime_overview_and_alternative_titles_the_details_give()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantAlienAsync();
+        _tmdb.AddWork(Film(348, "Чужий", "1979-05-25", collectionId: 8091, recommendations: [218]) with
+        {
+            RuntimeMinutes = 117,
+            Overview = "Екіпаж буксира «Ностромо» отримує сигнал лиха.",
+            AlternativeTitles = ["Alien", "Чужий (1979)", "ALIEN"],
+        });
+
+        //Act
+        await _factory.RecomputeRecommendationsAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        await _factory.WithDbAsync(async db =>
+        {
+            var alien = await db.CatalogWorks.AsNoTracking().SingleAsync(work => work.CatalogId == "348", cancellationToken);
+            Assert.Equal(
+                (117, "Екіпаж буксира «Ностромо» отримує сигнал лиха.", CatalogStore.CurrentDetailsVersion),
+                (alien.RuntimeMinutes!.Value, alien.Overview, alien.DetailsVersion));
+            // Each title once, whatever its letter case, in TMDb's order.
+            Assert.Equal(
+                ["Alien", "Чужий (1979)"],
+                await db.CatalogWorkAlternativeTitles.Where(title => title.CatalogWorkId == alien.Id)
+                    .OrderBy(title => title.Position).Select(title => title.Title).ToListAsync(cancellationToken));
+            // Known from lists only: no details, so none of theirs.
+            var terminator = await db.CatalogWorks.AsNoTracking().SingleAsync(work => work.CatalogId == "218", cancellationToken);
+            Assert.Equal(((int?)null, (string?)null, 0), (terminator.RuntimeMinutes, terminator.Overview, terminator.DetailsVersion));
+        });
+    }
+
+    [Fact]
+    public async Task Recompute_reads_again_within_30_days_the_details_a_reading_before_mam_34_stored()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantAlienAsync();
+        _tmdb.AddWork(Film(348, "Чужий", "1979-05-25", collectionId: 8091, recommendations: [218]) with { RuntimeMinutes = 117 });
+        await _factory.RecomputeRecommendationsAsync(_owner.AccessToken, cancellationToken);
+        // The row as the AddLibraryLinks migration leaves a cached one: its details dated, read without a runtime, and
+        // DetailsVersion 0.
+        await _factory.WithDbAsync(db => db.CatalogWorks.ExecuteUpdateAsync(
+            setters => setters.SetProperty(work => work.DetailsVersion, 0).SetProperty(work => work.RuntimeMinutes, (int?)null),
+            cancellationToken));
+        _factory.Time.Advance(TimeSpan.FromDays(1));
+        _owner = await new UserSeeder(_factory.Scope).CreateSession(_owner.User);
+
+        //Act
+        await _factory.RecomputeRecommendationsAsync(_owner.AccessToken, cancellationToken);
+        await _factory.RecomputeRecommendationsAsync(_owner.AccessToken, cancellationToken);
+
+        //Assert
+        // Read again once, a day after the last reading — then fresh for 30 days like any other — with no migration
+        // statement clearing the cache (R22). The collection and the genres were read by today's rules: kept.
+        Assert.Equal(2, Count("/3/movie/348"));
+        Assert.Equal(1, Count("/3/collection/8091"));
+        Assert.Equal(1, Count("/3/genre/movie/list"));
+        await _factory.WithDbAsync(async db =>
+        {
+            var alien = await db.CatalogWorks.AsNoTracking().SingleAsync(work => work.CatalogId == "348", cancellationToken);
+            Assert.Equal((117, CatalogStore.CurrentDetailsVersion), (alien.RuntimeMinutes!.Value, alien.DetailsVersion));
         });
     }
 
@@ -265,6 +335,8 @@ public sealed class RecommendationCatalogCacheHttpTests : IClassFixture<MediaAcq
         //Assert
         Assert.Equal(3, run.SeedCount);
         await _factory.WithDbAsync(async db => Assert.Equal(before, (await StoredLibrarySnapshot.ReadAsync(db, cancellationToken)).Rows()));
+        // MAM-34 — nor a link: a possible match is the run's guess, never the owner's word (ADR 0025).
+        await _factory.WithDbAsync(async db => Assert.False(await db.LibraryItemLinks.AnyAsync(cancellationToken)));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

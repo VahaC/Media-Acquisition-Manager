@@ -435,3 +435,65 @@ episodes; a movie category says it holds movies for 5070 and 5080 too, so the mo
 `TmdbAdapterRateLimitTests.A_429_four_times_is_refused_after_three_retries` and
 `RecommendationRunWorkerHttpTests.RunQueued_with_the_key_refused_fails_with_the_catalogs_sentence_after_the_connection_test_alone`
 pin it.
+
+## A library that sets an item's ids (added 0.2.1, MAM-34)
+
+**An optional capability, found like a kind contract.** A media library may implement
+`IMediaLibraryIdentifierWriter` (`Core/Abstractions/Library`), a further interface of the same
+adapter class. `WriteIdentifiersAsync` takes a `LibraryIdentifierChange` — an item id, its kind and
+edits of its registry ids, each a scheme, a value (`null` removes the id) and a rule, `Always`,
+`OnlyWhereAbsent` (only where the item holds no value of the scheme) or `OnlyWhereExpected` (only
+where it still holds the value the app wrote) — and answers a `LibraryIdentifierWrite`: the ids before
+and after, the edits applied, whether anything was sent, whether the read afterwards confirmed it, and
+why not. `WritableKinds` names the kinds of item the library is written on — a film (`Movie`), a show
+(`Series`) at most — and `UnwritableKindReason` gives the library's own sentence for any other, so
+the caller keeps such a link in the app because the library says so, never because of which product
+it is (Vasyl's decision of 2026-10-06: Jellyfin writes films only). `Find<IMediaLibraryIdentifierWriter>(typeId)`
+finds it as the Decision finds every kind contract; a type without it keeps the owner's links in the
+app ([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+It is no kind contract: `AdapterKindContractTests.Every_media_library_adapter_implements_the_media_library_contract`
+still asks only for `IMediaLibraryProvider`. `JellyfinAdapter` implements it; the word
+`ProviderIds` stays in Infrastructure, and no Core name names the product.
+
+**The library contract's one write, sent once and read again.** Like qBittorrent's `torrents/add`,
+the change is sent once and never again; only reads are. The Jellyfin adapter reads `GET /Users`
+for the first enabled administrator, reads the item as that user (`GET /Items/{id}?userId=`; with the
+key alone Jellyfin answers 400), posts it back as read with only `ProviderIds` changed — a key in the
+spelling the item already uses, every other id kept — and without its `People`, which Jellyfin would
+rebuild from their names, roles and types alone, and reads it again; nothing is posted when no edit
+changes anything. A movie item only: every save of a series rewrites and saves all its seasons and
+episodes, as Jellyfin's source shows, so `WritableKinds` is `[Movie]`, the sentence for a series
+"Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series
+link stays in the app.", and a series change a caller's mistake. The Decision's one outcome holds: a 404 is `NotFound` "Jellyfin
+no longer has this item; sync the library and link it again.", a 401 the key-refused sentence, a 403
+`Refused` "Jellyfin refused to change the item's ids. Check that the API key belongs to an
+administrator.", a 400 to the change `Refused` "Jellyfin refused the item it was sent back; nothing
+was changed.", no administrator `Refused` "Jellyfin has no enabled administrator account to read the
+item as.", and an item of another type `UnexpectedResponse`, nothing written. One refusal comes from
+what Jellyfin's source says, not from the live check: a 404 to the administrator's read of an item the
+user-less `GET /Items?ids=` still lists is `Refused` — the item is hidden from that user, not gone.
+Once the change has left — a 2xx, a 5xx, an answer lost or late — the call succeeds as sent, confirmed only when the read
+again shows every applied edit, and otherwise with the sentence why; a caller's mistake throws before
+anything is sent. The version gate (MAM-8) covers the write: the caller passes the connection test
+first. `LibraryIdentifierWriterWritesIdsOnlyTests` keeps the contract free of any member that
+refreshes, identifies, sets images, titles or locks, or deletes, as `DownloadClientNeverRemovesTests`
+keeps the download client's. The MAM-33 section's "the adapter writes nothing" holds for TMDb's.
+
+**The catalog says a little more.** `CatalogWork` gains a runtime in minutes (a film's `runtime`, a
+show's first `episode_run_time`, else its latest episode's), an overview and the other titles TMDb
+knows it by, and a show's IMDb id is read too: a work's details now ask
+`append_to_response=credits,recommendations,alternative_titles,external_ids`. Nothing else in the
+catalog contract changes.
+
+`IntegrationAdapterRegistryTests.Find_of_the_optional_identifier_writer_returns_only_a_library_that_implements_it`,
+`AdapterKindContractTests.Jellyfin_writes_identifiers_and_every_identifier_writer_is_a_media_library`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_reads_the_users_then_the_item_as_the_administrator_posts_it_once_and_reads_it_again`,
+`AdapterKindContractTests.Every_identifier_writer_writes_only_films_or_shows_and_says_why_it_keeps_the_rest_in_the_app`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_posts_the_movie_as_read_without_its_people_and_with_only_its_provider_ids_changed`,
+`JellyfinAdapterIdentifiersTests.WritableKinds_are_films_only_and_every_other_kind_says_why_its_link_stays_in_the_app`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_answers_the_refusals_jellyfin_recorded_with_their_status_and_sentence`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_whose_answer_is_lost_is_sent_and_not_confirmed_and_never_sent_again`,
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_refuses_a_callers_mistake_without_sending_anything`,
+`LibraryIdentifierWriterWritesIdsOnlyTests.No_identifier_writer_member_is_named_for_refreshing_identifying_images_titles_locks_or_deleting`
+and `TmdbAdapterWorksTests.GetWork_of_a_show_reads_the_planet_earth_sample_with_its_runtime_imdb_id_and_each_alternative_title_once`
+pin it.

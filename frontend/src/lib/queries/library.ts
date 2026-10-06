@@ -66,6 +66,9 @@ export const useLibraryLocations = () =>
  * inspection it queues to read them is followed as above. That inspection is queued a moment after
  * the scan ends, so an answer that shows the scan just ended and no inspection under way asks once
  * more a poll later; otherwise the polling would stop with the inspection unseen.
+ *
+ * MAM-34 — a finished sync or a finished inspection also drops the TMDb links' queries (dialogs,
+ * queue, lists): the sync moves and re-states links, the inspection's durations feed the evidence.
  */
 export const useLibrarySources = () => {
   const queryClient = useQueryClient()
@@ -87,6 +90,13 @@ export const useLibrarySources = () => {
         void queryClient.invalidateQueries({ queryKey: qk.library.worksAll })
       }
       if (synced) void queryClient.invalidateQueries({ queryKey: qk.library.locations })
+      // MAM-34 — a sync re-attaches and re-states the links and queues new suggestions, and an
+      // inspection's durations change the suggestions' runtime evidence: the TMDb dialogs and lists
+      // are asked for again when either has finished. Not on an inspection's progress, which would ask
+      // for an open dialog's suggestions every 2 s.
+      if (synced || inspectionFinished(previous, next)) {
+        void queryClient.invalidateQueries({ queryKey: qk.library.links.all })
+      }
       if (scanEndedBeforeItsInspection(previous, next)) {
         setTimeout(() => void queryClient.invalidateQueries({ queryKey: qk.library.sources }), SYNC_POLL_MS)
       }
@@ -194,6 +204,11 @@ function finishedSyncing(previous: LibrarySourceList | undefined, next: LibraryS
 function scanEndedBeforeItsInspection(previous: LibrarySourceList | undefined, next: LibrarySourceList): boolean {
   return previous !== undefined && previous.scan.activeRun !== null
     && next.scan.activeRun === null && next.inspection.activeRun === null
+}
+
+/** MAM-34 — whether an inspection has finished between `previous` and `next`. */
+function inspectionFinished(previous: LibrarySourceList | undefined, next: LibrarySourceList): boolean {
+  return previous !== undefined && previous.inspection.lastFinishedRun?.id !== next.inspection.lastFinishedRun?.id
 }
 
 /**

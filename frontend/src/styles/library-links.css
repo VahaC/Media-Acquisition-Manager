@@ -1,0 +1,379 @@
+/* MAM-34 — a library work's TMDb link: what the shared sheets don't have for the TMDb dialog. The
+   dialog itself takes the Release details dialog's classes (search.css: 60rem, two columns on a wide
+   screen, the facts and headings), so the two read as one family; this sheet adds the items, the
+   picked-from candidates and the paste and search forms. Imported by each component that uses it.
+   Tokens only, so dark mode needs nothing of its own. */
+
+/* A banner over both columns of the dialog's body. */
+.tmdb-link-wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* The pick and the paste and search forms: their parts one under the other. */
+.tmdb-link-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* ── the work's items ── */
+
+/* One library item per row, parted by a line, none above the first. */
+.tmdb-link-items {
+  display: grid;
+  min-width: 0;
+}
+
+.tmdb-link-item {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.75rem 0;
+}
+
+.tmdb-link-item:first-child {
+  padding-top: 0;
+}
+
+.tmdb-link-items > .tmdb-link-item + .tmdb-link-item {
+  border-top: 1px solid var(--border);
+}
+
+/* A Jellyfin folder name can be a long scene name without spaces; it breaks rather than widening
+   the dialog past a phone's screen. */
+.tmdb-link-item-name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* The state badge, a conflict and Retry on one line that wraps. */
+.tmdb-link-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.tmdb-link-state .ui-badge {
+  gap: 0.25rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* An action row: Remove link, Retry, Look up. Wraps, and keeps a button's height. */
+.tmdb-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* ── the candidates ── */
+
+.tmdb-link-candidates {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* One film or show to pick: the radio, a small poster, the facts. The whole card is the radio's
+   label, so a tap anywhere picks it. */
+.tmdb-link-candidate {
+  display: grid;
+  grid-template-columns: auto 4rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.tmdb-link-candidate:hover {
+  background: var(--muted);
+}
+
+/* The picked one: the selected tint and the primary border, as a picked row elsewhere. */
+.tmdb-link-candidate[data-checked] {
+  border-color: var(--primary);
+  background: var(--tint-selected);
+}
+
+/* The radio is visible and focusable; its ring goes round the whole card, which is what it picks. */
+.tmdb-link-candidate:has(.tmdb-link-candidate-radio:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.tmdb-link-candidate-radio {
+  margin-top: 0.25rem;
+  accent-color: var(--primary);
+}
+
+/* Beside a candidate the poster takes 4rem rather than a recommendation card's 6rem: five of them
+   stack in a dialog column. */
+.tmdb-link-candidate .catalog-poster {
+  width: 4rem;
+}
+
+.tmdb-link-candidate-body {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.tmdb-link-candidate-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* At most three lines of what it is about: enough to tell two films of one title apart. */
+.tmdb-link-candidate-overview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  color: var(--muted-foreground);
+}
+
+.tmdb-link-confident {
+  justify-self: start;
+  gap: 0.25rem;
+}
+
+/* A search's or a lookup's pick, named above the items and numbers it goes with. */
+.tmdb-link-picked {
+  overflow-wrap: anywhere;
+}
+
+/* ── the pick's details ── */
+
+.tmdb-link-fieldset {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* The season and the episode side by side, the hint under both. */
+.tmdb-link-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+}
+
+/* The title, the year and Search on one line while they fit. */
+.tmdb-link-search-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5rem auto;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  /* The icons only on a phone; each button keeps its label in title=, which also names it. */
+  .tmdb-link-actions .label-text,
+  .tmdb-link-search-fields .label-text {
+    display: none;
+  }
+
+  /* The title over the year and Search. */
+  .tmdb-link-search-fields {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .tmdb-link-search-fields > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── the TMDb page (/library/tmdb) ── */
+
+/* The current tab's lines, card or rows, and pager, spaced like the page around them. */
+.tmdb-page-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* A key that does the thing beside it in the Review tab, drawn like the header search's "/". Phones
+   have no keys, so the hints go from 48rem down (aria-keyshortcuts keeps telling a screen reader). */
+.tmdb-link-key {
+  display: inline-block;
+  padding: 0 0.375rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1rem;
+  vertical-align: middle;
+}
+
+/* The Review tab's Save, None fits and Skip: primary first, a row that wraps at the card's right edge. */
+.tmdb-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* The work under review: its card's body takes the dialog's two columns, without the dialog's height. */
+.tmdb-review-work .ui-card-content {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* What the last save, or "none fits", did — with Undo beside the sentence. */
+.tmdb-review-last {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+}
+
+/* ── the Confident tab ── */
+
+/* The per-library counts, one line each, wrapping as chips on a narrow screen. */
+.tmdb-confident-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.tmdb-confident-counts .ui-badge {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* The library filter on the left, "Link N works" on the right (alone, too); they wrap on a phone. */
+.tmdb-confident-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.tmdb-confident-toolbar > .settings-filter {
+  margin-right: auto;
+}
+
+/* One work and its confident film or show per row, parted by a line. */
+.tmdb-confident-rows {
+  display: grid;
+  min-width: 0;
+}
+
+.tmdb-confident-rows > li + li {
+  border-top: 1px solid var(--border);
+}
+
+/* The work (its box and title) beside its suggestion, an arrow between them. */
+.tmdb-confident-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) auto minmax(0, 3fr);
+  align-items: start;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem 0;
+}
+
+.tmdb-confident-work {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* A scene folder name can be long without spaces; it breaks rather than widening the page. */
+.tmdb-confident-work .settings-check span {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.tmdb-confident-arrow {
+  margin-top: 0.125rem;
+  color: var(--muted-foreground);
+}
+
+/* The suggestion: a small poster beside its facts and evidence, as in the TMDb dialog. */
+.tmdb-confident-candidate {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.tmdb-confident-candidate .catalog-poster {
+  width: 3rem;
+}
+
+/* ── the Conflicts and Unattached tabs ── */
+
+/* One link per card: what it is, its badges, its action at the right edge. */
+.ui-card.tmdb-link-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.tmdb-link-row-body {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.tmdb-link-row-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  .tmdb-link-key {
+    display: none;
+  }
+
+  /* The work over its suggestion, without the arrow. */
+  .tmdb-confident-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tmdb-confident-arrow {
+    display: none;
+  }
+
+  .tmdb-confident-candidate {
+    padding-left: 1.5rem;
+  }
+
+  /* The action under the facts. */
+  .ui-card.tmdb-link-row {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  /* Icons only on a phone; each button keeps its label in title=, which also names it. */
+  .tmdb-review-actions .label-text {
+    display: none;
+  }
+
+  .ui-card.tmdb-link-row {
+    padding: 1rem;
+  }
+}

@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
@@ -20,7 +21,7 @@ namespace MediaAcquisitionManager.Api.Services.Library;
 /// episodes is — the series' own membership standing in for its episodes' where a search or a missing-ids
 /// filter is about the series itself. A library holds files, so only the episodes' files answer it.
 /// </remarks>
-public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mapper, ILibraryWorkReader reader) : ILibraryService
+public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mapper, ILibraryWorkReader reader, ILibraryLinkReader links) : ILibraryService
 {
     /// <summary>How much of a location id that isn't one a sentence repeats: a Guid is 36 characters, and
     /// a pasted page of text shouldn't come back whole.</summary>
@@ -241,10 +242,16 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     /// case — or, when the term is a year, a title given with that year.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// MAM-8 — compared in their normalised copies (<see cref="LibrarySearchText"/>), as SQLite folds only
     /// ASCII letters; "чужі" finds "Чужі". An identifier is ASCII, so SQLite's own <c>upper()</c> is
     /// enough for it. Contains becomes <c>instr()</c>, which reads '%' and '_' as themselves: a search is
     /// text, not a <c>LIKE</c> pattern.
+    /// </para>
+    /// <para>
+    /// MAM-34 — the identifiers as the cards count them (<see cref="ILibraryLinkReader"/>): a linked id finds its work,
+    /// and the id a link replaces doesn't while the card hides it.
+    /// </para>
     /// </remarks>
     private IQueryable<Guid> SearchHits(string term)
     {
@@ -258,9 +265,7 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
         return db.MediaWorkTitles
             .Where(title => title.NormalizedText.Contains(normalized) || (year != null && title.Year == year))
             .Select(title => title.MediaWorkId)
-            .Union(db.MediaWorkIdentifiers
-                .Where(identifier => identifier.Value.ToUpper().Contains(normalized))
-                .Select(identifier => identifier.MediaWorkId))
+            .Union(links.WorksWithAnIdContaining(normalized))
             .Union(db.MediaVersions
                 .Where(version => db.PhysicalFiles.Any(file => file.MediaVersionId == version.Id && file.NormalizedServicePath.Contains(normalized)))
                 .Select(version => version.MediaWorkId));
@@ -270,9 +275,16 @@ public sealed class LibraryService(ApplicationDbContext db, ILibraryMapper mappe
     /// The works lacking an id of their kind (<see cref="LibraryReliableSchemes"/>): specification §3.1
     /// matches on them, and a work lacking one can't be matched reliably by a release naming it.
     /// </summary>
+    /// <remarks>
+    /// MAM-34 — never a work that counts as linked (decision 9), nor an episode of a linked series (R16): the mapper
+    /// gives their cards no missing id, and a work the owner linked has nothing left to fix. The ids of the rest are their
+    /// library's alone, so the library's rows answer for them.
+    /// </remarks>
     private IQueryable<Guid> MissingHits()
     {
+        var linked = links.LinkedWorkIds();
         return db.MediaWorks
+            .Where(work => !linked.Contains(work.Id))
             .Where(work =>
                 (work.Kind == MediaWorkKind.Movie
                     && (!db.MediaWorkIdentifiers.Any(identifier => identifier.MediaWorkId == work.Id && identifier.Scheme == MediaIdentifierScheme.Imdb)

@@ -16,8 +16,8 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 // MAM-33, ADR 0025 — the metadata catalog's promises, pinned on the migrated schema: every enum is stored by name; one
 // row per work of a kind and catalog id, a film and a show of one id being two (ADR 0017); removing the catalog's
 // integration keeps every row it reported, with its name and no longer its id (ADR 0006); and a work's details go
-// with it. Deletes go through ExecuteDelete, so what happens to the dependent rows is the database's own doing, not
-// EF's tracking.
+// with it — MAM-34: its alternative titles too, one per place in their list. Deletes go through ExecuteDelete, so
+// what happens to the dependent rows is the database's own doing, not EF's tracking.
 public sealed class CatalogPersistenceTests : DatabaseTestBase
 {
     private static readonly IEncryptionService Encryption = new AesGcmEncryptionService(
@@ -163,6 +163,54 @@ public sealed class CatalogPersistenceTests : DatabaseTestBase
         Assert.Equal([kept.Id], await db.CatalogWorkPeople.Select(person => person.CatalogWorkId).ToListAsync(cancellationToken));
         Assert.Equal([kept.Id], await db.CatalogWorkSeasons.Select(season => season.CatalogWorkId).ToListAsync(cancellationToken));
         Assert.Equal([kept.Id], await db.CatalogWorkRecommendations.Select(recommendation => recommendation.CatalogWorkId).ToListAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task Deleting_a_catalog_work_deletes_its_alternative_titles()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var gone = await Works(db).Create(MediaWorkKind.Series, "1044", "Планета Земля");
+        var kept = await Works(db).Create(MediaWorkKind.Movie, "223021", "Landing Stripling");
+        db.CatalogWorkAlternativeTitles.AddRange(
+            new CatalogWorkAlternativeTitleEntity { CatalogWorkId = gone.Id, Position = 0, Title = "Planet Earth" },
+            new CatalogWorkAlternativeTitleEntity { CatalogWorkId = gone.Id, Position = 1, Title = "Planet Erde" },
+            new CatalogWorkAlternativeTitleEntity { CatalogWorkId = kept.Id, Position = 0, Title = "Посадка" });
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+
+        //Act
+        await db.CatalogWorks.Where(work => work.Id == gone.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // MAM-34 — Cascade: a work's other titles are part of its details, and name nothing without it.
+        Assert.Equal(["Посадка"], await db.CatalogWorkAlternativeTitles.Select(title => title.Title).ToListAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task A_second_alternative_title_at_one_place_of_a_works_list_is_refused()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var work = await Works(db).Create(MediaWorkKind.Series, "1044", "Планета Земля");
+        db.CatalogWorkAlternativeTitles.Add(new CatalogWorkAlternativeTitleEntity { CatalogWorkId = work.Id, Position = 0, Title = "Planet Earth" });
+        await db.SaveChangesAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+        db.CatalogWorkAlternativeTitles.Add(new CatalogWorkAlternativeTitleEntity { CatalogWorkId = work.Id, Position = 0, Title = "Planet Erde" });
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => db.SaveChangesAsync(cancellationToken));
+
+        //Assert
+        // MAM-34 — one title per place in the details' list: the store replaces the list whole, never adds beside it.
+        var sqlite = Assert.IsType<SqliteException>(Assert.IsType<DbUpdateException>(exception).InnerException);
+        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Contains(
+            "UNIQUE constraint failed: CatalogWorkAlternativeTitles.CatalogWorkId, CatalogWorkAlternativeTitles.Position",
+            sqlite.Message,
+            StringComparison.Ordinal);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

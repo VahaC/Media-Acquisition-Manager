@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
@@ -13,7 +14,7 @@ namespace MediaAcquisitionManager.Api.Services.Library;
 /// MAM-12 — moved out of <see cref="LibraryService"/> unchanged, so the search page shows a work through
 /// the same loader as the Library page.
 /// </remarks>
-public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper mapper) : ILibraryWorkReader
+public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper mapper, ILibraryLinkReader links) : ILibraryWorkReader
 {
     public async Task<List<LibraryWorkDto>> ReadAsync(
         IReadOnlyList<MediaWorkEntity> works,
@@ -35,10 +36,8 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
                 .Where(title => workIds.Contains(title.MediaWorkId))
                 .ToListAsync(cancellationToken))
             .ToLookup(title => title.MediaWorkId);
-        var identifiers = (await db.MediaWorkIdentifiers.AsNoTracking()
-                .Where(identifier => workIds.Contains(identifier.MediaWorkId))
-                .ToListAsync(cancellationToken))
-            .ToLookup(identifier => identifier.MediaWorkId);
+        // MAM-34 — the ids with the items' TMDb links applied, as every reader counts them.
+        var linked = await links.ReadAsync(workIds, forOwner, cancellationToken);
         var versions = await db.MediaVersions.AsNoTracking()
             .Where(version => workIds.Contains(version.MediaWorkId))
             .ToListAsync(cancellationToken);
@@ -84,7 +83,7 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
             .. works.Select(work => mapper.ToDto(
                 work,
                 [.. titles[work.Id]],
-                [.. identifiers[work.Id]],
+                linked[work.Id],
                 [.. versionsByWork[work.Id]],
                 version => [.. filesByVersion[version.Id].Select(file => mapper.ToDto(
                     file,
@@ -94,7 +93,8 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
                     file.MediaInspectionId is { } trackReadingId ? [.. tracks[trackReadingId]] : [],
                     forOwner))],
                 [.. positions[work.Id]],
-                seasons.GetValueOrDefault(work.Id))),
+                seasons.GetValueOrDefault(work.Id),
+                forOwner)),
         ];
     }
 }

@@ -60,6 +60,7 @@ public class Program
         builder.Services.AddAccountFeatures();
         builder.Services.AddIntegrationFeatures();
         builder.Services.AddLibraryFeatures();
+        builder.Services.AddLibraryLinkFeatures();
         builder.Services.AddFileFeatures();
         builder.Services.AddReleaseSearchFeatures();
         builder.Services.AddSearchFeatures();

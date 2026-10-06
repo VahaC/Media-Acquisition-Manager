@@ -16,9 +16,13 @@ public sealed partial class RecommendationRunner
     /// catalog doesn't have (its details answer NotFound) is skipped, and a lookup that named it is cached as
     /// nothing; any other failure ends the run.
     /// </summary>
+    /// <remarks>
+    /// MAM-34 — a show an episode-to-show link names is a seed too, when the series tab is wanted (R15): the linked works
+    /// are its episodes, the seasons the links name are held, and a link naming none leaves its seasons unknown.
+    /// </remarks>
     private async Task<Failure?> ResolveSeedsAsync(Computation run, CancellationToken cancellationToken)
     {
-        var found = new Dictionary<(MediaWorkKind Kind, string CatalogId), (List<LibraryWork> Works, List<CatalogLookupQuery> Lookups)>();
+        var found = new Dictionary<(MediaWorkKind Kind, string CatalogId), (List<LibraryWork> Works, List<CatalogLookupQuery> Lookups, List<int?> LinkedSeasons)>();
         // In a fixed order — by kind, then as the Library page orders titles — so a run's calls and its reasons'
         // titles come out the same every time.
         var works = run.Library.Works
@@ -28,10 +32,10 @@ public sealed partial class RecommendationRunner
             .ThenBy(work => work.Id)
             .ToList();
         // Counted in the works the catalog is asked about: a work with a catalog id of its own costs no call.
-        await BeginStageAsync(run, RecommendationRunStage.FindingLibraryWorks, works.Count(work => OwnCatalogId(work) is null), cancellationToken);
+        await BeginStageAsync(run, RecommendationRunStage.FindingLibraryWorks, works.Count(LooksUp), cancellationToken);
         foreach (var work in works)
         {
-            var looksUp = OwnCatalogId(work) is null;
+            var looksUp = LooksUp(work);
             var (key, lookup, failure) = await CatalogWorkOfAsync(run, work, cancellationToken);
             if (looksUp)
                 await AdvanceStageAsync(run, cancellationToken);
@@ -41,14 +45,33 @@ public sealed partial class RecommendationRunner
                 continue;
 
             if (!found.TryGetValue(catalogKey, out var seed))
-                found[catalogKey] = seed = ([], []);
+                found[catalogKey] = seed = ([], [], []);
             seed.Works.Add(work);
             if (lookup is not null)
                 seed.Lookups.Add(lookup);
         }
 
+        if (run.Wants(MediaWorkKind.Series))
+        {
+            // In the works' order, as above; a link's show id is the app's own, checked as the library's would be.
+            foreach (var link in run.Library.ShowLinks
+                         .Where(link => MediaIdentifierRules.IsTmdbId(link.ShowId))
+                         .OrderBy(link => link.Work.Kind)
+                         .ThenBy(link => link.Work.DisplayTitle, LibraryTitleOrder.Comparer)
+                         .ThenBy(link => link.Work.Id)
+                         .ThenBy(link => link.SeasonNumber))
+            {
+                (MediaWorkKind Kind, string CatalogId) key = (MediaWorkKind.Series, link.ShowId);
+                if (!found.TryGetValue(key, out var seed))
+                    found[key] = seed = ([], [], []);
+                if (!seed.Works.Contains(link.Work))
+                    seed.Works.Add(link.Work);
+                seed.LinkedSeasons.Add(link.SeasonNumber);
+            }
+        }
+
         await BeginStageAsync(run, RecommendationRunStage.ReadingWorks, found.Count, cancellationToken);
-        foreach (var (key, (seedWorks, lookups)) in found)
+        foreach (var (key, (seedWorks, lookups, linkedSeasons)) in found)
         {
             var details = await store.GetWorkAsync(run.Catalog, key.Kind, key.CatalogId, cancellationToken);
             await AdvanceStageAsync(run, cancellationToken);
@@ -66,6 +89,7 @@ public sealed partial class RecommendationRunner
 
             var seed = new Seed(details.Value!);
             seed.Works.AddRange(seedWorks);
+            seed.LinkedSeasons.AddRange(linkedSeasons);
             run.Seeds[key] = seed;
             // A possible match counts as held from here on, as a work's own id does (Vasyl's ticket): it is the
             // library's best guess at what it has, used for recommendations only.
@@ -81,11 +105,23 @@ public sealed partial class RecommendationRunner
     /// what a file name adds (<see cref="SeedTitleCleaning"/>). <c>null</c> when none; the lookup that found it,
     /// to forget should the work turn out not to exist.
     /// </summary>
+    /// <remarks>
+    /// MAM-34 — a work holding two catalog ids of its own (a link beside a different library id) is none of them:
+    /// neither wins, both are held, and it seeds nothing; so is a work whose episode-to-show link the library contradicts
+    /// with a film id it gave the item later — the owner said it is an episode, the library says a film. A linked work is
+    /// never guessed at (R15), whatever its link names — an episode-to-show link seeds its show instead — and whether or
+    /// not it disagrees with the library.
+    /// </remarks>
     private async Task<((MediaWorkKind Kind, string CatalogId)? Key, CatalogLookupQuery? Lookup, Failure? Failure)> CatalogWorkOfAsync(
         Computation run, LibraryWork work, CancellationToken cancellationToken)
     {
-        if (OwnCatalogId(work) is { } own)
-            return ((work.Kind, own), null, null);
+        if (work.HasConflict)
+            return (null, null, null);
+        var own = OwnCatalogIds(work);
+        if (own.Count == 1)
+            return ((work.Kind, own[0]), null, null);
+        if (own.Count > 1 || work.IsLinked)
+            return (null, null, null);
 
         var lookups = new List<CatalogLookupQuery>();
         lookups.AddRange(work.Identifiers
@@ -116,15 +152,21 @@ public sealed partial class RecommendationRunner
     }
 
     /// <summary>
-    /// The catalog id <paramref name="work"/> carries of its own, the least by ordinal order when a library gave it
-    /// several; <c>null</c> for none. A malformed id is the library's data, not the catalog's to be asked about: the
+    /// The catalog ids <paramref name="work"/> carries of its own, each once, in ordinal order — MAM-34: its link's
+    /// included; none for a work without. A malformed id is the library's data, not the catalog's to be asked about: the
     /// adapter would refuse it.
     /// </summary>
-    private static string? OwnCatalogId(LibraryWork work) =>
-        work.Identifiers
-            .Where(identifier => identifier.Scheme == CatalogScheme(work.Kind))
-            .Select(identifier => identifier.Value.Trim())
-            .Where(MediaIdentifierRules.IsTmdbId)
-            .Order(StringComparer.Ordinal)
-            .FirstOrDefault();
+    private static IReadOnlyList<string> OwnCatalogIds(LibraryWork work) =>
+        [
+            .. work.Identifiers
+                .Where(identifier => identifier.Scheme == CatalogScheme(work.Kind))
+                .Select(identifier => identifier.Value.Trim())
+                .Where(MediaIdentifierRules.IsTmdbId)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal),
+        ];
+
+    /// <summary>Whether <paramref name="work"/> costs a catalog lookup: it carries no catalog id of its own and —
+    /// MAM-34 — no item of it is linked.</summary>
+    private static bool LooksUp(LibraryWork work) => OwnCatalogIds(work).Count == 0 && !work.IsLinked;
 }

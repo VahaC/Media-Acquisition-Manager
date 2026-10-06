@@ -26,6 +26,15 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
     /// </summary>
     public static readonly TimeSpan RefreshAge = TimeSpan.FromDays(30);
 
+    /// <summary>
+    /// MAM-34 (R22) — which reading of a work's details the rows hold today (<see cref="CatalogWorkEntity.DetailsVersion"/>):
+    /// 1 since the details keep a work's runtime, overview, alternative titles and a show's IMDb id. Details stored by an
+    /// older reading are not fresh, however young: a row cached before MAM-34 would otherwise be served for up to
+    /// <see cref="RefreshAge"/> without what the owner's suggestions are ranked by. Raised by one whenever the details
+    /// keep something more, so no migration has to clear the cache by hand.
+    /// </summary>
+    public const int CurrentDetailsVersion = 1;
+
     public async Task<IntegrationCallResult<IReadOnlyList<CatalogGenre>>> GetGenresAsync(
         CatalogConnection catalog, MediaWorkKind kind, CancellationToken cancellationToken = default)
     {
@@ -50,7 +59,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         ArgumentNullException.ThrowIfNull(catalogId);
         var row = await db.CatalogWorks.AsNoTracking()
             .SingleOrDefaultAsync(work => work.Kind == kind && work.CatalogId == catalogId, cancellationToken);
-        if (row?.DetailsUtc is { } detailsUtc && detailsUtc >= Cutoff())
+        if (row?.DetailsUtc is { } detailsUtc && detailsUtc >= Cutoff() && row.DetailsVersion >= CurrentDetailsVersion)
             return Succeeded(await ReadDetailsAsync(row, cancellationToken));
 
         var answer = await catalog.Catalog.GetWorkAsync(catalog.Settings, kind, catalogId, cancellationToken);
@@ -174,6 +183,26 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         return answer;
     }
 
+    public async Task<IntegrationCallResult<IReadOnlyList<CatalogWorkSummary>>> SearchAsync(
+        CatalogConnection catalog, MediaWorkKind kind, string title, int? year, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        var answer = await catalog.Catalog.SearchAsync(catalog.Settings, kind, title, year, cancellationToken);
+        if (answer.IsSuccess)
+            await SaveSummariesAsync(catalog, answer.Value!, cancellationToken);
+        return answer;
+    }
+
+    public async Task<IntegrationCallResult<IReadOnlyList<CatalogWorkSummary>>> FindByImdbIdAsync(
+        CatalogConnection catalog, string imdbId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+        var answer = await catalog.Catalog.FindByImdbIdAsync(catalog.Settings, imdbId, cancellationToken);
+        if (answer.IsSuccess)
+            await SaveSummariesAsync(catalog, answer.Value!, cancellationToken);
+        return answer;
+    }
+
     public Task SaveSummariesAsync(CatalogConnection catalog, IReadOnlyList<CatalogWorkSummary> works, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -186,7 +215,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
     // ── reading the rows back ───────────────────────────────────────────────────────────────────
 
     /// <summary>A work's stored details in the contract's shape: the recommended works' summaries from their own
-    /// rows, one that has none left out.</summary>
+    /// rows, one that has none left out; MAM-34 — its runtime, overview and alternative titles in the details' order.</summary>
     private async Task<CatalogWork> ReadDetailsAsync(CatalogWorkEntity row, CancellationToken cancellationToken)
     {
         var genres = await db.CatalogWorkGenres.AsNoTracking()
@@ -206,6 +235,11 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
             .OrderBy(recommendation => recommendation.Position)
             .Select(recommendation => new { recommendation.Kind, recommendation.CatalogId })
             .ToListAsync(cancellationToken);
+        var alternativeTitles = await db.CatalogWorkAlternativeTitles.AsNoTracking()
+            .Where(title => title.CatalogWorkId == row.Id)
+            .OrderBy(title => title.Position)
+            .Select(title => title.Title)
+            .ToListAsync(cancellationToken);
 
         return new CatalogWork(
             ToSummary(row, genres),
@@ -213,7 +247,10 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
             row.CollectionId is { } collectionId ? new CatalogReference(collectionId, row.CollectionName ?? "") : null,
             [.. people.Select(person => new CatalogReference(person.PersonCatalogId, person.Name))],
             [.. seasons.Select(season => new CatalogSeason(season.Number, season.AirDate, season.EpisodeCount))],
-            await ReadSummariesAsync([.. recommended.Select(work => (work.Kind, work.CatalogId))], cancellationToken));
+            await ReadSummariesAsync([.. recommended.Select(work => (work.Kind, work.CatalogId))], cancellationToken),
+            row.RuntimeMinutes,
+            row.Overview,
+            alternativeTitles);
     }
 
     /// <summary>

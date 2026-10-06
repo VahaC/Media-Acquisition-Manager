@@ -12,12 +12,15 @@
   min-width: 0;
 }
 
-/* Two cards a row on a desktop, one from 48rem down (below). `min()` keeps a card no wider than the
-   page on a screen narrower than the track. Each item stretches, so the cards of a row are equally
-   tall. */
+/* Tracks of at least 30rem: Vasyl's choice of 2026-10-05, widened from 24rem. In .app-main's 80rem
+   column, which leaves the grid 77rem inside its padding, that is two cards a row and never three
+   (three need 3 × 30rem + 2 gaps = 91.5rem). Two need 60.75rem, so a window narrower than 63.75rem
+   (1020px) plus its scrollbar shows one a row — the 48rem rule below changes nothing anymore.
+   `min()` keeps a card no wider than the page on a screen narrower than the track. Each item
+   stretches, so the cards of a row are equally tall. */
 .recommendation-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
   gap: 0.75rem;
 }
 
@@ -34,25 +37,6 @@
   align-items: start;
   gap: 0.75rem 1rem;
   padding: 1rem;
-}
-
-/* 2:3, the shape of every catalog poster; the placeholder icon sits in the middle of the same box
-   while the poster loads and when there is none. */
-.recommendation-poster {
-  display: grid;
-  place-items: center;
-  width: 6rem;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--radius-md);
-  background: var(--muted);
-  color: var(--muted-foreground);
-  overflow: hidden;
-}
-
-.recommendation-poster img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .recommendation-body {

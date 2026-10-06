@@ -14,7 +14,10 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // MAM-8 — every write of the Library's controllers is the installation owner's. They live outside
 // Controllers/Settings, so no convention gates them: each write declares [RequireInstallationOwner]
 // itself, and this sweep — over the running app's endpoints, not a hand-kept list — fails the day a write
-// is added without it. Reads are for every signed-in user and aren't swept.
+// is added without it. Reads are for every signed-in user and aren't swept. MAM-34 — the TMDb links'
+// controllers below, in Controllers/Library/Links, are owner-only by their namespace's convention, reads
+// included (R19, LibraryLinksAreOwnerOnlyHttpTests); their writes are swept here too, and none of them may
+// leave a link, an audit row or a request to Jellyfin behind.
 public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     // Spelled out rather than read from a type: this pins where the Library's controllers live.
@@ -55,6 +58,12 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
                 "POST api/library/inspections",
                 // MAM-18 — the owner's Scan folders.
                 "POST api/library/scans",
+                // MAM-34 — a work's TMDb link set, removed and written again, and one link written again or removed.
+                "PUT api/library/works/{id:guid}/tmdb",
+                "DELETE api/library/works/{id:guid}/tmdb",
+                "POST api/library/works/{id:guid}/tmdb/write",
+                "POST api/library/tmdb/links/{linkId:guid}/write",
+                "DELETE api/library/tmdb/links/{linkId:guid}",
             },
             writes);
     }
@@ -93,7 +102,10 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
             Assert.Equal(0, await db.LibrarySyncRuns.CountAsync(cancellationToken));
             Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken));
             Assert.Equal(0, await db.FolderScanRuns.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.LibraryItemLinks.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
         });
+        Assert.Empty(_factory.JellyfinHttp.Requests);
     }
 
     // Every write of a Library controller as the running app routes it: each method an endpoint answers

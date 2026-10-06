@@ -24,6 +24,15 @@ proposes only: the user still chooses every release on the search page and sends
 Download dialog, and nothing is ever sent, queued or downloaded because of a recommendation
 ([ADR 0023](adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)).
 
+**Note (2026-10-05, MAM-34):** the owner can now tell the library which catalog film or show a work
+is, picking from ranked suggestions, a pasted link or a catalog search. The app writes a film's
+link into the media server as the item's registry ids alone — its TMDb id, and its IMDb id where the
+server holds none — and nothing else: no identify, no refresh, no title, image, lock or people, and
+files and folders are never touched, so the library still needs no reorganizing. A series' link stays
+in the app (Vasyl, 2026-10-06): Jellyfin rewrites every season and episode of a series whenever it
+saves the series
+([ADR 0026](adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+
 ## 2. First-version scope and default decisions
 
 | Question | Working decision | Status |
@@ -61,6 +70,7 @@ to a download client
 - Show every matching release even when the movie is already present; allow filtering by source, language, size, and quality. A failure in one source does not hide results from other sources.
 - Matching priority: reliable identifier first; then original/localized title plus year; then a candidate requiring manual review. A title or year match alone never authorizes replacement.
 - Preserve the provenance of every identifier and title. Conflicting IDs or different editions/versions prevent automatic matching for removal.
+- *Added 2026-10-05 (MAM-34):* an id the owner links by hand counts as a reliable identifier of the library work, keeps its own provenance (who set it and when) beside the media server's, and conflicts with a different id the server reports rather than replacing it. A TMDb or IMDb link or id can be pasted in the owner's link dialog; the search field doesn't read links yet.
 
 ### 3.2 “Download” action
 
@@ -114,6 +124,7 @@ Do not indiscriminately call Jellyfin's `DELETE /Items/{id}`: one item may repre
 - Never download automatically: a suggestion opens the search page for its work, and the user sends a release through the Download dialog (§3.2).
 - Keep the catalog's data apart from the library: never written into the library's works, titles or identifiers, never shown on the Library page, refreshed after about 30 days. A work without a catalog id is looked up by its IMDb id or title and year, as a possible match used for recommendations only. Posters are served by the app; the browser never contacts the catalog.
 - Each user switches the four lists on or off and sets the daily limit in their profile; every list is on until they change it.
+- *Added 2026-10-05 (MAM-34):* a work the owner linked to a catalog film or show by hand is known by that link, seeds suggestions by it and is held by it, and is never looked up as a possible match. The catalog's data shows on the Library page only in the owner's link dialog.
 
 See [ADR 0023](adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md), [ADR 0024](adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md) and [ADR 0025](adr/0025-the-catalog-is-kept-apart-from-the-library.md).
 
@@ -133,12 +144,12 @@ Application-level contracts (interfaces/ports) with explicit capabilities:
 
 | Contract | Responsibility | First implementation |
 | --- | --- | --- |
-| `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; request a scan; optional version capabilities | Jellyfin |
+| `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; request a scan; optional version capabilities; optionally set an item's registry ids and nothing else, on the kinds of item it names (`IMediaLibraryIdentifierWriter`, MAM-34; Jellyfin: films only) | Jellyfin |
 | `IReleaseSearchProvider` | Search and normalize results; retrieve a payload separately for client submission | Torznab (Jackett) |
 | `IDownloadClient` | Supported payload types, destination validation, submission, status, file list/status, job correlation | qBittorrent |
 | `IFileInventory` | Scan only allowed roots; file identity, size/hash, ffprobe, quarantine | Local/container mount |
 | `IMetadataResolver` | Authoritative IDs/titles and matching without silent guesses | TMDb (MAM-33), for recommendations only; a search matches against the library snapshot instead |
-| `IMetadataCatalog` | Details, collections, people, genres, search, discovery and posters of works the library may not have | TMDb (MAM-33) |
+| `IMetadataCatalog` | Details, collections, people, genres, search, discovery and posters of works the library may not have | TMDb (MAM-33); also the suggestions, searches and pasted ids of the owner's links (MAM-34) |
 
 **Entity boundaries:** `MediaWork` (a movie or episode as a work), `MediaVersion` (edition/quality), `PhysicalFile` (file or filesystem link), `Release` (source listing), `DownloadJob` (client operation), `ReplacementJob` (intent concerning specific old files), `DestinationMapping`, `AuditEvent`. Do not assume `MediaWork == Jellyfin ItemId`, `Release == one file`, or `PhysicalFile == one physical copy of the bytes`.
 
@@ -155,6 +166,10 @@ Minimum `ReplacementJob` fields: internal ID, source/release reference or snapsh
 **Download dialog:** release → client → logical destination → `Keep both` or a list of specific old copies to replace → final submission confirmation. If the match is not reliable, scheduling removal is disabled; downloading without replacement remains possible.
 
 **Library:** search existing works, versions, and paths; indicate missing IDs. Allow manual linking once that workflow is implemented.
+
+**Library (MAM-34):** the owner's `TMDb…` action on a work opens a dialog with the ids the media server reports for each of its items, up to five ranked catalog suggestions with their evidence (title, year, runtime against the measured duration, the library's genre, a linked neighbour) and the one confident suggestion marked, a field for a pasted TMDb or IMDb link or id, and a catalog search; Save links the picked film or show, Remove link puts back what the app wrote. A film item linked to a show is an episode of it, with optional season and episode numbers, kept in the app. Each linked item shows whether the server holds the id: "In Jellyfin", "Not in Jellyfin yet" with Retry, "Jellyfin lost it" with Write again, or "Kept in the app". A series' link is always kept in the app, as the server's update of a series rewrites every season and episode of it; the dialog says so. A film id the server gives an item after the owner linked it as an episode of a show is shown as a conflict, neither winning. A TMDb links page, opened from the missing-ID filter, reviews the works without an id one at a time by the keyboard, links every confident suggestion at once and lists the conflicting and unattached links. Linked ids show on the cards as "set by" the owner; members see them, without the owner's name, and can't link.
+
+**Search (MAM-34):** a linked id matches like the server's own and is shown as "set by" the owner; a linked id beside a different server id of its scheme is flagged as a conflict.
 
 **Duplicates:** filters for `byte-identical`, `same work / other versions`, and `possible`; show the evidence behind each grouping. Display a numeric “potentially recoverable space” estimate only when the storage relationship is known well enough to calculate it.
 

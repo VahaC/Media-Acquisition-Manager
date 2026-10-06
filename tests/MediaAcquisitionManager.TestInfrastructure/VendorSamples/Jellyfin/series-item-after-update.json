@@ -1,0 +1,59 @@
+{
+  "Name": "The Penguins Of Madagascar (Season 1-3) (2008-2015) WEBDL 1080p [Ukr,Eng] Sub [Eng] [ Hurtom ] by Jatx 11",
+  "ServerId": "7e510bf027b0470988c018aa322da282",
+  "Id": "9ac821b3ddea72fd14ba1835b4153e50",
+  "Etag": "b92327eed4e5c9153d4a817379d11b2e",
+  "DateCreated": "2026-07-15T10:52:25.4604764Z",
+  "DateLastMediaAdded": "2026-07-15T11:49:48.4652753Z",
+  "CanDelete": true,
+  "CanDownload": false,
+  "SortName": "penguins of madagascar (season 0000000013) (0020082015) webdl 0000001080p [ukreng] sub [eng] [ hurtom ] by jatx 0000000011",
+  "ExternalUrls": [
+    {
+      "Name": "TMDB",
+      "Url": "https://www.themoviedb.org/tv/7869"
+    }
+  ],
+  "Path": "/media/cartoons/The Penguins Of Madagascar (Season 1-3) (2008-2015) WEBDL 1080p [Ukr,Eng] Sub [Eng] [ Hurtom ] by Jatx_11",
+  "EnableMediaSourceDisplay": true,
+  "ChannelId": null,
+  "Taglines": [],
+  "Genres": [],
+  "PlayAccess": "Full",
+  "ProductionYear": 2015,
+  "RemoteTrailers": [],
+  "ProviderIds": {
+    "Tmdb": "7869"
+  },
+  "IsFolder": true,
+  "ParentId": "4caf2087accca130221e50418e04e846",
+  "Type": "Series",
+  "People": [],
+  "Studios": [],
+  "GenreItems": [],
+  "LocalTrailerCount": 0,
+  "UserData": {
+    "PlayedPercentage": 15.436241610738255,
+    "UnplayedItemCount": 126,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "IsFavorite": false,
+    "Played": false,
+    "Key": "9ac821b3-ddea-72fd-14ba-1835b4153e50",
+    "ItemId": "9ac821b3ddea72fd14ba1835b4153e50"
+  },
+  "RecursiveItemCount": 149,
+  "ChildCount": 3,
+  "SpecialFeatureCount": 0,
+  "DisplayPreferencesId": "f63033ff6886ecc7083a696cbeced1b0",
+  "AirDays": [],
+  "Tags": [],
+  "ImageTags": {},
+  "BackdropImageTags": [],
+  "ImageBlurHashes": {},
+  "Chapters": [],
+  "LocationType": "FileSystem",
+  "MediaType": "Unknown",
+  "LockedFields": [],
+  "LockData": false
+}

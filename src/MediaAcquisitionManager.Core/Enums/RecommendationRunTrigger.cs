@@ -17,4 +17,10 @@ public enum RecommendationRunTrigger
 
     /// <summary>The reader of a release source's newest releases resolved new ones to catalog works.</summary>
     FeedRead = 5,
+
+    /// <summary>
+    /// MAM-34 — the owner set, replaced or removed a library work's TMDb link: which catalog work the library holds
+    /// may have changed.
+    /// </summary>
+    LinkChanged = 6,
 }

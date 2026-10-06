@@ -22,9 +22,11 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 /// <remarks>
 /// <para>
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a film's details
-/// also carry its cast, budget, companies and overview, none of which goes further than this class. A
-/// list entry that can't be read — no id, no title — is left out, never the whole answer: one odd
-/// recommendation must not cost a work its details.
+/// also carry its cast, budget and companies, none of which goes further than this class. MAM-34 — a work's
+/// overview, runtime and alternative titles, and a show's IMDb id from its external ids, are read too, for the
+/// owner linking a library work to it; the other registries' ids, the titles' countries and every other field
+/// still stay here. A list entry that can't be read — no id, no title — is left out, never the whole answer:
+/// one odd recommendation must not cost a work its details.
 /// </para>
 /// <para>
 /// The key is TMDb's v4 "API Read Access Token" and travels only as <c>Authorization: Bearer</c>, never

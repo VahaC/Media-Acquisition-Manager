@@ -60,7 +60,8 @@ public sealed class LibraryAcceptanceHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
         Assert.Equal($"{BaseUrl}/syncs/{queued!.Id}", start.Headers.Location.AbsolutePath);
         Assert.Equal(LibrarySyncStatus.Queued, queued.Status);
-        // The start only queues: nothing reaches Jellyfin before the worker runs, and the sync only reads.
+        // The start only queues: nothing reaches Jellyfin before the worker runs, and the sync only reads —
+        // MAM-34's link writes included, which only a link's save, Retry or Write again sends.
         Assert.Equal(0, requestsBeforeTheWorker);
         Assert.All(_factory.JellyfinHttp.Requests, request => Assert.Equal(HttpMethod.Get, request.Method));
 

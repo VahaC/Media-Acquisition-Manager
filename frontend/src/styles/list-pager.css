@@ -93,7 +93,7 @@
 }
 
 /* The design switches to two rows when the pager is narrower than 640px, as a container query. The
-   house rule is a real @media query, and every pager sits in .app-main, a 64rem column with 1.5rem
+   house rule is a real @media query, and every pager sits in .app-main, an 80rem column with 1.5rem
    padding on each side: the pager is 640px wide when the window is 640 + 2 × 24 = 688px = 43rem.
    A pager placed in a narrower box than .app-main's would need this width revisited. */
 @media (max-width: 43rem) {

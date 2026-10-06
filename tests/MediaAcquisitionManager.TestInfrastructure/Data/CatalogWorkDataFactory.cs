@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Persistence;
@@ -38,6 +39,8 @@ public sealed class CatalogWorkDataFactory(ApplicationDbContext db, TimeProvider
             PosterPath = posterPath,
             ImdbId = imdbId,
             DetailsUtc = detailsUtc,
+            // MAM-34 — details planted as read are today's reading of them, as a read now leaves them (R22).
+            DetailsVersion = detailsUtc is null ? 0 : CatalogStore.CurrentDetailsVersion,
             SourceKind = ProvenanceSourceKind.Metadata,
             SourceConnectionId = sourceConnectionId,
             SourceName = sourceName,

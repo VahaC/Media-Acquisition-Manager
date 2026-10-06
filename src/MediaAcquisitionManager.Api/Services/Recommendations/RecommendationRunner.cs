@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Services.Catalog;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
@@ -32,6 +33,7 @@ public sealed partial class RecommendationRunner(
     ICatalogConnector catalogs,
     ICatalogStore store,
     IRecommendationSettingsReader settingsReader,
+    ILibraryLinkReader links,
     TimeProvider time,
     ILogger<RecommendationRunner> logger) : IRecommendationRunner
 {

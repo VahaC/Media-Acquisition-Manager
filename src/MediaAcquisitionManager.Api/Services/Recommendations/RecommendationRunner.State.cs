@@ -62,28 +62,48 @@ public sealed partial class RecommendationRunner
         }
     }
 
-    /// <summary>A library work as the run reads it: a film, or a series holding at least one episode.</summary>
+    /// <summary>A library work as the run reads it: a film, or a series holding at least one episode — MAM-34: or an
+    /// episode an episode-to-show link names, which only seeds its show.</summary>
     /// <param name="Id">The library work.</param>
-    /// <param name="Kind">Movie or Series.</param>
+    /// <param name="Kind">Movie or Series; Episode for an episode only a link names.</param>
     /// <param name="Titles">Every title any source gave it, with its year.</param>
-    /// <param name="Identifiers">Every registry id any source gave it.</param>
+    /// <param name="Identifiers">Every registry id any source gave it — MAM-34: with its items' TMDb links applied, as
+    /// the Library page counts them.</param>
     /// <param name="DisplayTitle">The title its Library card shows, which a "Recommended" reason names.</param>
     /// <param name="HeldSeasons">A series' regular seasons with at least one episode in the library.</param>
+    /// <param name="IsLinked">MAM-34 — one of its items has a TMDb link: the owner said what it is, so the run never
+    /// guesses (R15).</param>
+    /// <param name="HasConflict">MAM-34 — one of its linked items holds a library id that disagrees with its link (a
+    /// third TMDb id beside a film link, a film id beside an episode's link to its show): neither wins, so it seeds
+    /// nothing, while its ids still count as held.</param>
     private sealed record LibraryWork(
         Guid Id,
         MediaWorkKind Kind,
         IReadOnlyList<ReportedTitle> Titles,
         IReadOnlyList<MediaIdentifier> Identifiers,
         string DisplayTitle,
-        IReadOnlySet<int> HeldSeasons);
+        IReadOnlySet<int> HeldSeasons,
+        bool IsLinked,
+        bool HasConflict);
+
+    /// <summary>MAM-34 — an episode-to-show link: the library work it sits on is an episode of the show.</summary>
+    /// <param name="Work">The library work: a film item the library lists as a film, or an episode of no series.</param>
+    /// <param name="ShowId">The show's TMDb id.</param>
+    /// <param name="ImdbId">The show's IMDb id TMDb gave; <c>null</c> when it gave none.</param>
+    /// <param name="SeasonNumber">The season it names; <c>null</c> when it names none.</param>
+    private sealed record ShowLink(LibraryWork Work, string ShowId, string? ImdbId, int? SeasonNumber);
 
     /// <summary>The library in memory, indexed for "does it hold this work".</summary>
-    private sealed class LibraryContents(IReadOnlyList<LibraryWork> works, IReadOnlyList<WorkClaim> fileClaims)
+    private sealed class LibraryContents(IReadOnlyList<LibraryWork> works, IReadOnlyList<ShowLink> showLinks, IReadOnlyList<WorkClaim> fileClaims)
     {
         public IReadOnlyList<LibraryWork> Works { get; } = works;
 
-        /// <summary>The catalog works the library holds by id: its works' own TMDb ids, then every seed's — a possible
-        /// match's included (Vasyl's ticket).</summary>
+        /// <summary>MAM-34 — the episode-to-show links: their shows are held, and seed.</summary>
+        public IReadOnlyList<ShowLink> ShowLinks { get; } = showLinks;
+
+        /// <summary>The catalog works the library holds by id: its works' own TMDb ids (MAM-34: their links' included, and
+        /// the shows the episode-to-show links name), then every seed's — a possible match's included (Vasyl's
+        /// ticket).</summary>
         public HashSet<(MediaWorkKind Kind, string CatalogId)> CatalogIds { get; } = [];
 
         /// <summary>Its works' IMDb ids by kind, upper-cased.</summary>
@@ -121,6 +141,10 @@ public sealed partial class RecommendationRunner
         public CatalogWorkSummary Summary => Details.Summary;
 
         public List<LibraryWork> Works { get; } = [];
+
+        /// <summary>MAM-34 — the seasons the episode-to-show links among its works name, a link naming none as
+        /// <c>null</c>.</summary>
+        public List<int?> LinkedSeasons { get; } = [];
     }
 
     /// <summary>A work some signal named, with what it collected.</summary>

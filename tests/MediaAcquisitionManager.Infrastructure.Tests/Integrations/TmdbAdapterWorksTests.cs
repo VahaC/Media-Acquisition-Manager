@@ -11,7 +11,8 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
 // MAM-33 — the catalog's single resources: a film's and a show's details, a collection and a person, from
 // TMDb's real answers (VendorSamples/Tmdb) read field by field, edited copies of them for what they don't
-// show, and a resource TMDb doesn't have.
+// show, and a resource TMDb doesn't have. MAM-34 — the details' runtime, overview, alternative titles and a show's
+// IMDb id, from the answers the live check recorded with them appended (Landing Stripling, Planet Earth).
 public sealed class TmdbAdapterWorksTests : IDisposable
 {
     private const string BaseUrl = "https://api.themoviedb.test";
@@ -38,9 +39,13 @@ public sealed class TmdbAdapterWorksTests : IDisposable
         await Catalog.GetWorkAsync(Settings, MediaWorkKind.Movie, TmdbSamples.MovieDetailsId, TestContext.Current.CancellationToken);
 
         //Assert
+        // One request for all five — MAM-34 appended the alternative titles and the external ids — as the live check
+        // sent it (VendorSamples/Tmdb/movie-details-short.json).
         var request = Assert.Single(_harness.TmdbHttp.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal($"{BaseUrl}/3/movie/118340?append_to_response=credits,recommendations&language=uk-UA", request.Uri.AbsoluteUri);
+        Assert.Equal(
+            $"{BaseUrl}/3/movie/118340?append_to_response=credits,recommendations,alternative_titles,external_ids&language=uk-UA",
+            request.Uri.AbsoluteUri);
         Assert.Equal([$"Bearer {Token}"], request.HeaderValues("Authorization"));
         Assert.DoesNotContain(Token, request.Uri.OriginalString, StringComparison.Ordinal);
     }
@@ -78,6 +83,10 @@ public sealed class TmdbAdapterWorksTests : IDisposable
             work.Recommendations[0]);
         Assert.Equal([878, 12, 28], work.Recommendations[0].GenreIds);
         Assert.Equal("1061474", work.Recommendations[^1].Id);
+        // MAM-34 — its runtime and overview; recorded before the alternative titles were asked for, so none.
+        Assert.Equal(121, work.RuntimeMinutes);
+        Assert.StartsWith("Пітер Квіл стає жертвою мисливців за головами", work.Overview, StringComparison.Ordinal);
+        Assert.Empty(work.AlternativeTitles!);
     }
 
     [Fact]
@@ -92,7 +101,9 @@ public sealed class TmdbAdapterWorksTests : IDisposable
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
         var request = Assert.Single(_harness.TmdbHttp.Requests);
-        Assert.Equal($"{BaseUrl}/3/tv/73586?append_to_response=credits,recommendations&language=uk-UA", request.Uri.AbsoluteUri);
+        Assert.Equal(
+            $"{BaseUrl}/3/tv/73586?append_to_response=credits,recommendations,alternative_titles,external_ids&language=uk-UA",
+            request.Uri.AbsoluteUri);
         var work = result.Value!;
         Assert.Equal(
             new CatalogWorkSummary(
@@ -100,8 +111,13 @@ public sealed class TmdbAdapterWorksTests : IDisposable
                 work.Summary.GenreIds, 8.274, 3360, "/b5SrNjmklwnXN2xXwb0coWu2tna.jpg"),
             work.Summary);
         Assert.Equal([37, 18], work.Summary.GenreIds);
-        // TMDb's show details carry no IMDb id without external_ids, and a show is in no collection.
+        // TMDb's show details carry no IMDb id without external_ids — this sample was recorded before MAM-34 appended
+        // them — and a show is in no collection.
         Assert.Null(work.ImdbId);
+        // MAM-34 — episode_run_time is empty: the runtime is the latest episode's.
+        Assert.Equal(88, work.RuntimeMinutes);
+        Assert.StartsWith("Єллоустон — перший в світі національний парк", work.Overview, StringComparison.Ordinal);
+        Assert.Empty(work.AlternativeTitles!);
         Assert.Null(work.Collection);
         Assert.Equal(
             [new CatalogReference("1215399", "Тейлор Шерідан"), new CatalogReference("69414", "Джон Лінсон")],
@@ -120,6 +136,217 @@ public sealed class TmdbAdapterWorksTests : IDisposable
         Assert.Equal(("299167", "Ранчо Даттонів"), (work.Recommendations[0].Id, work.Recommendations[0].Title));
         // A show without a Ukrainian title: TMDb's own fallback, the original.
         Assert.Contains(work.Recommendations, recommendation => recommendation is { Id: "122235", Title: "Joe Pickett" });
+    }
+
+    [Fact]
+    public async Task GetWork_of_a_short_reads_its_runtime_and_imdb_id_and_no_overview_or_alternative_titles()
+    {
+        //Arrange
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Sample(TmdbSamples.MovieDetailsShortFile, TmdbSamples.MediaType);
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Movie, TmdbSamples.MovieDetailsShortId, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        var request = Assert.Single(_harness.TmdbHttp.Requests);
+        Assert.Equal(
+            $"{BaseUrl}/3/movie/223021?append_to_response=credits,recommendations,alternative_titles,external_ids&language=uk-UA",
+            request.Uri.AbsoluteUri);
+        var work = result.Value!;
+        Assert.Equal(
+            new CatalogWorkSummary(
+                MediaWorkKind.Movie, "223021", "Landing Stripling", "Landing Stripling", "en", new DateOnly(1962, 5, 18),
+                work.Summary.GenreIds, 4.579, 19, "/ooZQbu20BBYxInF542jHonKz4Pl.jpg"),
+            work.Summary);
+        Assert.Equal([16, 35], work.Summary.GenreIds);
+        // A Tom & Jerry short: 6 minutes, the runtime a library file's measured duration is compared with.
+        Assert.Equal(6, work.RuntimeMinutes);
+        Assert.Equal(TmdbSamples.MovieDetailsShortImdbId, work.ImdbId);
+        Assert.Null(work.Collection);
+        Assert.Equal([new CatalogReference("1058682", "Джин Діч")], work.Directors);
+        // TMDb's "" — no Ukrainian overview — is none, and its alternative titles are an empty list.
+        Assert.Null(work.Overview);
+        Assert.Empty(work.AlternativeTitles!);
+        Assert.Equal(20, work.Recommendations.Count);
+        Assert.Equal(("73632", "The Million Dollar Cat"), (work.Recommendations[0].Id, work.Recommendations[0].Title));
+    }
+
+    [Fact]
+    public async Task GetWork_of_a_show_reads_the_planet_earth_sample_with_its_runtime_imdb_id_and_each_alternative_title_once()
+    {
+        //Arrange
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Sample(TmdbSamples.TvDetailsPlanetEarthFile, TmdbSamples.MediaType);
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Series, TmdbSamples.TvDetailsPlanetEarthId, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        var request = Assert.Single(_harness.TmdbHttp.Requests);
+        Assert.Equal(
+            $"{BaseUrl}/3/tv/1044?append_to_response=credits,recommendations,alternative_titles,external_ids&language=uk-UA",
+            request.Uri.AbsoluteUri);
+        var work = result.Value!;
+        Assert.Equal(
+            new CatalogWorkSummary(
+                MediaWorkKind.Series, "1044", "Планета Земля", "Planet Earth", "en", new DateOnly(2006, 3, 5),
+                work.Summary.GenreIds, 8.639, 1294, "/ajNcvf2fvOmus8rxPdpoGrdL4OI.jpg"),
+            work.Summary);
+        Assert.Equal([99], work.Summary.GenreIds);
+        // episode_run_time is [], so the latest episode's 53 minutes; the IMDb id only external_ids gives a show.
+        Assert.Equal(53, work.RuntimeMinutes);
+        Assert.Equal(TmdbSamples.TvDetailsPlanetEarthImdbId, work.ImdbId);
+        Assert.Equal([new CatalogSeason(0, new DateOnly(2006, 3, 5), 24), new CatalogSeason(1, new DateOnly(2006, 3, 5), 11)], work.Seasons);
+        Assert.Empty(work.Directors);
+        // 16 recorded, "Planet Earth" three times (BA, HR, US): each once, in TMDb's order.
+        Assert.Equal(
+            [
+                "Planet Earth", "Planeta Terra: A Terra como Você Nunca Viu", "地球脉动 第 1 季", "Zázračná planeta", "Planet Erde",
+                "Planeta Tierra", "Planète Terre 2", "BBC Planet Earth", "Πλανήτης Γη", "살아있는 지구", "플래닛 어스", "Przyszłość Ziemi",
+                "Zázračná planéta", "Planet Earth: The Complete Collection",
+            ],
+            work.AlternativeTitles);
+        // The overview cleaned: TMDb's double spaces are one.
+        Assert.StartsWith(
+            "Творці серіалу «Блакитна планета» зняли новий документальний серіал, що показує Землю такою",
+            work.Overview,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("  ", work.Overview, StringComparison.Ordinal);
+        Assert.Equal(20, work.Recommendations.Count);
+        Assert.Equal(("21145", "Світ природи"), (work.Recommendations[0].Id, work.Recommendations[0].Title));
+    }
+
+    [Theory]
+    [InlineData("[50, 60]", 53, 50)]
+    [InlineData("[0, 47]", 53, 47)]
+    [InlineData("[]", 0, null)]
+    [InlineData("[]", null, null)]
+    [InlineData("\"53\"", null, null)]
+    public async Task GetWork_of_a_show_takes_its_first_episode_run_time_else_its_latest_episodes_runtime(
+        string episodeRunTime, int? latestEpisodeRuntime, int? expected)
+    {
+        //Arrange
+        var details = JsonNode.Parse(TmdbSamples.TvDetailsPlanetEarth())!.AsObject();
+        details["episode_run_time"] = JsonNode.Parse(episodeRunTime);
+        if (latestEpisodeRuntime is { } runtime)
+            details["last_episode_to_air"]!["runtime"] = runtime;
+        else
+            details["last_episode_to_air"] = null;
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Text(details.ToJsonString(), HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Series, TmdbSamples.TvDetailsPlanetEarthId, TestContext.Current.CancellationToken);
+
+        //Assert
+        // TMDb's 0 is a runtime it doesn't know, never a zero-minute show.
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Equal(expected, result.Value!.RuntimeMinutes);
+    }
+
+    [Fact]
+    public async Task GetWork_of_a_film_tmdb_knows_no_runtime_or_imdb_id_of_has_none()
+    {
+        //Arrange
+        var details = JsonNode.Parse(TmdbSamples.MovieDetailsShort())!.AsObject();
+        details["runtime"] = 0;
+        details["imdb_id"] = null;
+        details.Remove("external_ids");
+        details["overview"] = null;
+        details.Remove("alternative_titles");
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Text(details.ToJsonString(), HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Movie, TmdbSamples.MovieDetailsShortId, TestContext.Current.CancellationToken);
+
+        //Assert
+        var work = result.Value!;
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Equal(((int?)null, (string?)null, (string?)null), (work.RuntimeMinutes, work.ImdbId, work.Overview));
+        Assert.Empty(work.AlternativeTitles!);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("nm0001234")]
+    [InlineData("tt12")]
+    public async Task GetWork_of_a_show_whose_external_ids_name_no_imdb_id_has_none(string? imdbId)
+    {
+        //Arrange
+        var details = JsonNode.Parse(TmdbSamples.TvDetailsPlanetEarth())!.AsObject();
+        details["external_ids"]!["imdb_id"] = imdbId;
+        // A show's own imdb_id, were TMDb to send one, is not where a show's id is read from.
+        details["imdb_id"] = TmdbSamples.TvDetailsPlanetEarthImdbId;
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Text(details.ToJsonString(), HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Series, TmdbSamples.TvDetailsPlanetEarthId, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Null(result.Value!.ImdbId);
+    }
+
+    [Fact]
+    public async Task GetWork_cleans_the_overview_and_alternative_titles_cuts_them_and_keeps_at_most_fifty_titles()
+    {
+        //Arrange
+        var details = JsonNode.Parse(TmdbSamples.MovieDetailsShort())!.AsObject();
+        details["overview"] = $"Том‮\r\n  і Джеррі {Token} " + new string('я', 3000);
+        JsonNode?[] titles =
+        [
+            Title($"Посадка​ {Token}"),
+            Title("   "),
+            Title("LANDING STRIPLING"),
+            Title("Landing Stripling"),
+            JsonValue.Create("not a title"),
+            new JsonObject { ["iso_3166_1"] = "US" },
+            Title(new string('x', 600)),
+            .. Enumerable.Range(1, 60).Select(number => Title($"Title {number}")),
+        ];
+        details["alternative_titles"] = new JsonObject { ["titles"] = new JsonArray(titles) };
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Text(details.ToJsonString(), HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Movie, TmdbSamples.MovieDetailsShortId, TestContext.Current.CancellationToken);
+
+        //Assert
+        var work = result.Value!;
+        // Masked, without control and format characters, one space for each run, cut to the column with "…".
+        Assert.StartsWith("Том і Джеррі *** яя", work.Overview, StringComparison.Ordinal);
+        Assert.Equal((2000, '…'), (work.Overview!.Length, work.Overview[^1]));
+        // A blank title or an entry without one is no title; a title met before in another letter case is not
+        // another; the rest are cut to a title's column and kept to 50, in TMDb's order.
+        var alternativeTitles = work.AlternativeTitles!;
+        Assert.Equal(TmdbAdapter.AlternativeTitleMaximumCount, alternativeTitles.Count);
+        Assert.Equal(["Посадка ***", "LANDING STRIPLING"], alternativeTitles.Take(2));
+        Assert.Equal((500, '…'), (alternativeTitles[2].Length, alternativeTitles[2][^1]));
+        Assert.Equal(["Title 1", "Title 47"], new[] { alternativeTitles[3], alternativeTitles[^1] });
+    }
+
+    [Fact]
+    public async Task GetWork_of_a_film_reads_no_alternative_titles_under_a_shows_name_for_them()
+    {
+        //Arrange
+        var details = JsonNode.Parse(TmdbSamples.MovieDetailsShort())!.AsObject();
+        // The two shapes differ (VendorSamples): a film's titles are under "titles", a show's under "results".
+        details["alternative_titles"] = new JsonObject { ["results"] = new JsonArray(Title("Посадка")) };
+        _harness.TmdbHttp.Handler = (_, _) => VendorResponses.Text(details.ToJsonString(), HttpStatusCode.OK, "application/json");
+
+        //Act
+        var result = await Catalog.GetWorkAsync(
+            Settings, MediaWorkKind.Movie, TmdbSamples.MovieDetailsShortId, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        Assert.Empty(result.Value!.AlternativeTitles!);
     }
 
     [Fact]
@@ -499,4 +726,36 @@ public sealed class TmdbAdapterWorksTests : IDisposable
         Assert.Equal([new CatalogReference("15218", "James Gunn")], show.Value.Directors);
         Assert.Equal([new CatalogSeason(0, null, 2), new CatalogSeason(1, new DateOnly(2020, 1, 1), 8)], show.Value.Seasons);
     }
+
+    [Fact]
+    public async Task GetWork_against_the_fake_reads_the_runtime_overview_alternative_titles_and_a_shows_imdb_id()
+    {
+        //Arrange
+        var tmdb = FakeTmdbServer.Arm(_harness.TmdbHttp);
+        tmdb.AddWork(new FakeTmdbWork(
+            MediaWorkKind.Movie, 223021, "Landing Stripling", ReleaseDate: "1962-05-18", ImdbId: "tt0056164", RuntimeMinutes: 6,
+            Overview: "Том полює на пташеня.", AlternativeTitles: ["Посадка", "Посадка"]));
+        tmdb.AddWork(new FakeTmdbWork(
+            MediaWorkKind.Series, 1044, "Планета Земля", "Planet Earth", "2006-03-05", ImdbId: "tt0795176",
+            Seasons: [new FakeTmdbSeason(1, "2006-03-05", 11)], RuntimeMinutes: 53, AlternativeTitles: ["Planet Earth", "Planet Erde"]));
+        var settings = new IntegrationConnectionSettings(null, FakeTmdbServer.BaseUrl, null, null, FakeTmdbServer.Token);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var film = await Catalog.GetWorkAsync(settings, MediaWorkKind.Movie, "223021", cancellationToken);
+        var show = await Catalog.GetWorkAsync(settings, MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Assert
+        Assert.Equal(
+            (6, "tt0056164", "Том полює на пташеня."),
+            (film.Value!.RuntimeMinutes!.Value, film.Value.ImdbId, film.Value.Overview));
+        Assert.Equal(["Посадка"], film.Value.AlternativeTitles);
+        Assert.Equal((53, "tt0795176", (string?)null), (show.Value!.RuntimeMinutes!.Value, show.Value.ImdbId, show.Value.Overview));
+        Assert.Equal(["Planet Earth", "Planet Erde"], show.Value.AlternativeTitles);
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>An entry of <c>alternative_titles</c> as TMDb lists one (VendorSamples).</summary>
+    private static JsonObject Title(string title) => new() { ["iso_3166_1"] = "US", ["title"] = title, ["type"] = "" };
 }

@@ -5,7 +5,12 @@ tests of MAM-7 and the adapters of MAM-8 to MAM-11 are tested against what the s
 rather than against their documentation. MAM-17 added Jellyfin's series, seasons and episodes on
 2026-10-04, from the same Jellyfin, for the import of MAM-32; MAM-32 added Prowlarr's Toloka TV searches
 on the same day. MAM-33 added TMDb's answers, read with Vasyl's own token, and Prowlarr's newest Toloka
-releases on 2026-10-05. `RepositoryPaths.VendorSamples` points here.
+releases on 2026-10-05. MAM-34 added, the same day, Jellyfin's users, a movie and a series item read
+whole, written back with new ids and read again, the refusals of a read and a write, and the movie
+after two refreshes — the only samples of a write to Jellyfin, made on the reference installation by
+a live check Vasyl ran; the app writes no series since (Vasyl, 2026-10-06), so the series' write
+samples stay as that check's record only —, and TMDb's details of a short and of Planet Earth with
+their runtimes, IMDb ids and other titles. `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
 | --- | --- |
@@ -47,6 +52,20 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Jellyfin/series-page.json` | `GET /Items?recursive=true&includeItemTypes=Series&collapseBoxSetItems=false&fields=Path,MediaSources,ProviderIds,OriginalTitle,DateCreated,ParentId&sortBy=SortName&sortOrder=Ascending&startIndex=…&limit=200&enableImages=false&enableUserData=false&enableTotalRecordCount=true` (five picked from the 10, 2026-10-04, MAM-17) | Yellowstone and Clarkson's Farm in the TV library, How the Universe Works and Mickey Mouse Clubhouse in the mixed libraries, and The Penguins of Madagascar, which Jellyfin named after its folder and gave no ids. The envelope is rebuilt like `movies-page.json`'s, around the real total |
 | `Jellyfin/seasons-page.json` | The same with `includeItemTypes=Season` (four picked from the 25) | The seasons of the picked episodes, Mickey Mouse Clubhouse's virtual "Specials", without a path, among them |
 | `Jellyfin/episodes-page.json` | The same with `includeItemTypes=Episode` (six picked from the 471) | An ordinary episode (Yellowstone S01E01); the Tom & Jerry Kids item, one episode with 65 media sources and no series; a documentary episode in a mixed library; the two halves of Mickey Mouse Clubhouse S03E09, with the same numbers and ids; and a virtual special whose one media source is a `Placeholder` without a path |
+| `Jellyfin/users.json` | `GET /Users` (allowlisted: `Name`, `Id`, `Policy.IsAdministrator`, `Policy.IsDisabled`; 2026-10-05, MAM-34) | Two users, one an enabled administrator: the one the app reads an item as |
+| `Jellyfin/item.json` | `GET /Items/{id}?userId={administrator}` | The movie item "120. Landing Stripling" whole, 47 fields — `Etag`, `MediaSources`, `People`, `LockedFields`, `LockData`, `UserData` among them —, with empty `ProviderIds` and `RunTimeTicks` 3,730,210,000 (6.2 minutes): the body a write sends back, less its `People` |
+| `Jellyfin/item-update-response.txt` | `POST /Items/{id}` with `item.json`, only its `ProviderIds` set to `Tmdb` 223021 and `Imdb` tt0056164 | `204 No Content`, no body. Read by `VendorResponses.Recorded` |
+| `Jellyfin/item-after-update.json` | The same read again | The new ids; besides them only `Etag`, `ExternalUrls` and `UserData.Key` (now "223021") changed |
+| `Jellyfin/item-after-default-refresh.json` | The read after `POST /Items/{id}/Refresh` with `metadataRefreshMode=Default` | Nothing changed: the ids kept |
+| `Jellyfin/item-after-missing-refresh.json` | The read after "Search for missing metadata" (`metadataRefreshMode=FullRefresh`, `replaceAllMetadata=false`) | The ids kept, `Tvdb` and `TvdbSlug` added, and the overview, genres, people, studios, tags and ratings Jellyfin filled in: 53 fields. Its two people (Gene Deitch, William L. Snyder) are what a write leaves out of the body |
+| `Jellyfin/item-update-wrong-key-response.txt` | `POST /Items/{id}` with a wrong key | `401 Unauthorized` with no body. Read by `VendorResponses.Recorded` |
+| `Jellyfin/item-update-unknown-item-response.txt` | `POST /Items/{id}` of an item that doesn't exist | `404 Not Found` with JSON problem details |
+| `Jellyfin/item-read-unknown-item-response.txt` | `GET /Items/{id}?userId=…` of an item that doesn't exist | The same `404` |
+| `Jellyfin/item-read-without-user-response.txt` | `GET /Items/{id}` with the key and no user | `400 Bad Request`, `text/plain`, "Error processing request." |
+| `Jellyfin/series-item.json` | `GET /Items/{id}?userId={administrator}` of a series | The Penguins of Madagascar's series item whole, 41 fields — `AirDays`, `ChildCount`, `RecursiveItemCount`, `DateLastMediaAdded` among them —, named after its folder, "The Penguins Of Madagascar (Season 1-3) (2008-2015) WEBDL 1080p [Ukr,Eng] Sub [Eng] [ Hurtom ] by Jatx 11", with no ids |
+| `Jellyfin/series-item-update-response.txt` | `POST /Items/{id}` with it, only `ProviderIds.Tmdb` set to 7869 | `204 No Content`, after 4.5 seconds. The fake Jellyfin's answer to a series' update; the app never sends one |
+| `Jellyfin/series-item-after-update.json` | The same read again | `ProviderIds` `{ "Tmdb": "7869" }`; besides it only `Etag` and `ExternalUrls` changed on the series item. Kept as the check's record; no test reads it |
+| `Jellyfin/series-item-after-removal.json` | The read after posting it back without the `Tmdb` key | The key gone; only `Etag` differs from `series-item.json`. Kept as the check's record; no test reads it |
 | `QBittorrent/app-version.txt`, `webapi-version.txt`, `build-info.json` | `GET /api/v2/app/...` | Versions |
 | `QBittorrent/categories.json` | `GET /api/v2/torrents/categories` | Four categories, each saving to the folder of one Jellyfin library, under qBittorrent's `/downloads` |
 | `QBittorrent/preferences.json` | `GET /api/v2/app/preferences` (allowlisted) | Automatic torrent management on, no separate folder for incomplete downloads, content layout `Original` |
@@ -76,6 +95,10 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Tmdb/discover-tv-animation.json` | `GET /3/discover/tv` of Animation (`with_genres=16`), by rating, `vote_count.gte=300` | The first page of 20 animated shows, the best-rated first |
 | `Tmdb/genres-movie.json`, `Tmdb/genres-tv.json` | `GET /3/genre/movie/list`, `GET /3/genre/tv/list` | TMDb's 19 movie genres and 16 TV genres, in Ukrainian; Animation is 16 and Documentary 99 in both |
 | `Tmdb/wrong-key-response.txt` | A request with a wrong token (2026-10-05) | The status line, headers and body of TMDb's answer: `401 Unauthorized` with `{"status_code":7,"status_message":"Invalid API key: You must be granted a valid key.","success":false}`. Read by `VendorResponses.Recorded` |
+| `Tmdb/movie-details-short.json` | `GET /3/movie/223021?append_to_response=credits,recommendations,alternative_titles,external_ids` (2026-10-05, MAM-34) | Landing Stripling (1962): `runtime` 6, IMDb id `tt0056164` at the top and under `external_ids`, no collection, directed by Джин Діч, genres 16 and 35, and no alternative titles |
+| `Tmdb/search-movie-without-year.json` | `GET /3/search/movie` for "Landing Stripling" with no year | The one film, 223021 |
+| `Tmdb/search-tv-planet-earth.json` | `GET /3/search/tv` for "Planet Earth" | The first 20 of 41 shows: Planet Earth (1044, 2006) first, then Planet Earth II and III |
+| `Tmdb/tv-details-planet-earth.json` | `GET /3/tv/1044?append_to_response=credits,recommendations,alternative_titles,external_ids` | Planet Earth: `episode_run_time` `[]` and `last_episode_to_air.runtime` 53, `external_ids.imdb_id` `tt0795176`, seasons 0 (24 episodes) and 1 (11), genre 99, and 16 alternative titles under `alternative_titles.results`, "Planet Earth" three times among them |
 | `Ffprobe/the-continental-s01e01.json` | `ffprobe -show_format -show_streams -show_chapters` | HEVC Main 10, four audio and four subtitle tracks, eight chapters |
 | `Ffprobe/taken-2008-bdremux.json` | the same | H.264 remux, DTS and AC-3 tracks, text and PGS subtitles, 24 chapters |
 
@@ -219,6 +242,47 @@ The four movies in `movies-page.json`:
 - **The posters come from TMDb's image host without a key** (MAM-33). `image.tmdb.org/t/p/w342/<file>`
   answered `image/jpeg`, 48 KB for one poster, and a bare path 404; the reference installation's
   container reached it, and `api.themoviedb.org`, directly, with no proxy.
+- **Jellyfin reads one item only as a user, and its API keys are an administrator's** (MAM-34,
+  [ADR 0026](../../../docs/adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+  `GET /Items/{id}` with the key and no user answers 400 "Error processing request."; with the
+  `userId` of an administrator, or as `/Users/{user}/Items/{id}`, it answers the whole item. `GET
+  /Users` with the key lists every user with `Policy.IsAdministrator` and `Policy.IsDisabled`, so the
+  app reads an item as the first enabled administrator.
+- **Jellyfin's item update replaces the item with what it is sent** (MAM-34). `POST /Items/{id}` with
+  the item as read and only `ProviderIds` changed answered 204 with no body, and the item read again
+  held the new ids. The only other fields that changed are those Jellyfin derives from the ids:
+  `Etag`, `ExternalUrls` (the IMDb, TMDB and Trakt links) and, on the movie, `UserData.Key`, which
+  went from the item's id to "223021" — Jellyfin keys a user's watch data by the item's ids; this
+  item had no watch history, and one with it was not tried. The series took its show's id under the
+  same `Tmdb` key, in 4.5 seconds, and posting it back without the key removed it. A wrong key is 401
+  with no body and an unknown item 404 with problem details, on the read and the write alike.
+- **What the update does beyond the item, read in Jellyfin's source, not in the samples** (MAM-34;
+  `Jellyfin.Api/Controllers/ItemUpdateController.cs`, `UpdateItem`, at tag v12.1 and the same on
+  master). Every update of a series rewrites and saves each of its seasons and episodes — their
+  `SeriesName` and `CustomRating` always, their `OfficialRating` unless the child locked it —, each
+  save moving its `DateLastSaved` and rewriting its NFO file were there one (the reference
+  installation's media folders hold none) — the likely reason for the 4.5 seconds —, so the app writes
+  no series (Vasyl, 2026-10-06). By that source,
+  each of the recorded series' two writes copied its ratings — it has none — onto its 3 seasons and
+  149 episodes, but for an official rating a child locked. Nobody read their ratings before; the check's
+  read-only listing of 2026-10-06 counted 152 seasons and episodes, none of them rated, so whether any
+  had a rating before is unknown. An update sent `People` rebuilds the item's people from their
+  names, roles and types alone (`LibraryManager.UpdatePeople`), and one without it leaves them as they
+  are, so the app leaves them out. `ProviderIds` replace the item's ids as a whole
+  (`ProviderIdsExtensions.SetProviderIds`): an id Jellyfin holds that fails its own format check is
+  dropped by the write, though the app sends it back as read. And an item a user may not see answers
+  that user's read 404, as one that is gone does.
+- **A refresh keeps an id set by hand** (MAM-34). A default refresh changed nothing; "Search for
+  missing metadata" kept `Tmdb` and `Imdb`, added `Tvdb` and `TvdbSlug`, and filled the overview,
+  genres, people, studios and tags — Jellyfin's own doing, asked for in the check. "Replace all
+  metadata" was not run.
+- **TMDb gives a short's runtime, and a show's only through its episodes** (MAM-34). Landing
+  Stripling's `runtime` is 6 minutes, against 6.2 for the file Jellyfin lists; Planet Earth's
+  `episode_run_time` is `[]`, so its runtime is its latest episode's, 53 (its season 1 episode 8,
+  "Джунглі", runs 51). A film's other titles are under `alternative_titles.titles`, a show's under
+  `alternative_titles.results`, and a show's IMDb id only under `external_ids`. A search for "Planet
+  Earth" — the cleaned title of "Planet_Earth_E08 - Jungles" — names 1044 first, before Planet Earth
+  II and III.
 - **ffprobe reports cover art as a video stream** (`mjpeg` with `disposition.attached_pic: 1`),
   after the real video stream; it is not a second video track.
 - **A 10-bit stream need not say whether it is HDR** (MAM-9). The Continental's HEVC Main 10 video

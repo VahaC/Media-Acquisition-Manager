@@ -90,7 +90,9 @@ public sealed class LibrarySyncRunHttpTests : IClassFixture<MediaAcquisitionMana
 
         //Assert
         // The version gate (the connection test), the libraries, then one page of movies, of series and
-        // of episodes (MAM-32) — and nothing that writes: MAM-8 never changes anything in Jellyfin.
+        // of episodes (MAM-32) — and nothing that writes: a sync never changes anything in Jellyfin (MAM-8).
+        // MAM-34 — the owner's links are written into Jellyfin only by the link's own save, Retry or Write
+        // again; a sync re-applies them in the app alone.
         var requests = _factory.JellyfinHttp.Requests;
         Assert.Equal(
             ["/System/Info", "/Library/VirtualFolders", "/Items", "/Items", "/Items"],

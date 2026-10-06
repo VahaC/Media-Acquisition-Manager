@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { RecommendationPoster } from '@/components/recommendations/RecommendationPoster'
+import { CatalogPoster } from '@/components/shared/CatalogPoster'
 import { qk } from '@/lib/queries'
 import { recommendationsApi } from '@/lib/recommendations-api'
 import type { CatalogWorkKind } from '@/lib/types'
@@ -17,7 +17,7 @@ const client = () => new QueryClient({ defaultOptions: { queries: { retry: false
 function renderPoster(url: string | null = posterUrl, kind: CatalogWorkKind = 'Movie', queryClient = client()) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <RecommendationPoster url={url} title="Вартові Галактики 3" kind={kind} />
+      <CatalogPoster url={url} title="Вартові Галактики 3" kind={kind} />
     </QueryClientProvider>,
   )
 }
@@ -28,7 +28,7 @@ const posterFailed = (queryClient: QueryClient) =>
 
 // Unless a test stubs one, there is no IntersectionObserver here (jsdom has none), and every poster
 // is asked for at once, as in a browser without one.
-describe('RecommendationPoster', () => {
+describe('CatalogPoster', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.stubGlobal('IntersectionObserver', undefined)
@@ -126,7 +126,7 @@ describe('RecommendationPoster', () => {
       const { container } = renderPoster()
 
       // Assert
-      const box = container.querySelector('.recommendation-poster')
+      const box = container.querySelector('.catalog-poster')
       expect(recommendationsApi.poster).not.toHaveBeenCalled()
       expect(screen.queryByRole('img')).not.toBeInTheDocument()
       expect(container.querySelector('.lucide-film')).toBeInTheDocument()
@@ -141,7 +141,7 @@ describe('RecommendationPoster', () => {
       const { container } = renderPoster()
 
       // Act
-      observer.scrollNear(container.querySelector('.recommendation-poster')!)
+      observer.scrollNear(container.querySelector('.catalog-poster')!)
 
       // Assert
       const image = await screen.findByRole('img', { name: 'Poster of Вартові Галактики 3' })

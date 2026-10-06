@@ -343,6 +343,35 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     }
 
     [Fact]
+    public async Task A_library_write_logs_nothing_from_the_http_client()
+    {
+        //Arrange
+        // MAM-34 — every level recorded; Jellyfin answers, so the write goes all the way: the users, the item, the
+        // one POST and the read again.
+        using var harness = new IntegrationAdapterHarness();
+        var server = new FakeJellyfinServer("http://service.test:8096") { ApiKey = AnyApiKey };
+        server.Movies.Add(JellyfinSamples.Item());
+        server.Arm(harness.JellyfinHttp);
+        var writer = harness.Adapter<IMediaLibraryIdentifierWriter>("jellyfin");
+        var settings = new IntegrationConnectionSettings(null, server.BaseUrl, null, null, AnyApiKey);
+        var change = new LibraryIdentifierChange(
+            JellyfinSamples.LandingStriplingId,
+            MediaWorkKind.Movie,
+            [new(MediaIdentifierScheme.Tmdb, JellyfinSamples.LandingStriplingTmdbId, LibraryIdentifierEditRule.Always)]);
+
+        //Act
+        var result = await writer.WriteIdentifiersAsync(settings, change, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.True(result.Value!.Confirmed);
+        Assert.Equal(4, harness.JellyfinHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(AnyApiKey, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_metadata_call_and_a_poster_fetch_log_nothing_from_the_http_client()
     {
         //Arrange

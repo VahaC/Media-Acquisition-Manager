@@ -14,4 +14,7 @@ public enum AuditTargetKind
 
     /// <summary>A download job: a release sent to a download client (MAM-13).</summary>
     DownloadJob = 4,
+
+    /// <summary>MAM-34 — the owner's TMDb link of a library item, named by its work's title.</summary>
+    LibraryLink = 5,
 }

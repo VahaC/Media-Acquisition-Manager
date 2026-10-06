@@ -31,6 +31,12 @@ public interface ILibrarySnapshotStore
     /// <see cref="LibrarySnapshotStatus.RunNoLongerRunning"/> when something else has finished the run;
     /// nothing is written in either case.
     /// </returns>
+    /// <remarks>
+    /// MAM-34 — the owner's TMDb links of the library's items are re-applied in the same transaction: each follows
+    /// its item to the work it lands on (or stays, unattached, while the item is gone), counts in the grouping like
+    /// the library's own ids, and is judged against what was read. None is ever stored as the library's fact, and
+    /// nothing is written into the library.
+    /// </remarks>
     Task<LibrarySnapshotResult> ApplyAsync(
         Guid runId,
         Guid integrationId,

@@ -31,7 +31,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// season pack of hundreds is a few dozen KB, and only a torrent of over 12,000 files would not fit.
     /// MAM-33 — TMDb's heaviest answers are a film's details with its credits and recommendations (about
     /// 170 KB for Guardians of the Galaxy, VendorSamples) and a person's combined credits (about 160 KB for
-    /// Robert Zemeckis); a poster at w342 is tens of kilobytes. All far under 4 MiB.
+    /// Robert Zemeckis); a poster at w342 is tens of kilobytes. All far under 4 MiB. MAM-34 — one Jellyfin item read
+    /// whole, streams and people included, is about 6 KB (VendorSamples' <c>item.json</c>), and the write sends that
+    /// item back once.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 
@@ -54,6 +56,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// category for a job they no longer find), plus one <c>torrents/files</c> of a torrent, each answered
     /// from qBittorrent's memory. MAM-33 — TMDb answers over the internet rather than the LAN, in well under
     /// a second; each request is bounded on its own, a 429's wait (at most 10 s) included in none of them.
+    /// MAM-34 — a write of an item's ids is a read of the users and of the item, one <c>POST /Items/{id}</c> and the
+    /// item read again, each bounded on its own; the POST of a series took 4.5 s live (VendorSamples), and one whose
+    /// answer doesn't come in time is reported as sent and not confirmed, never sent again.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
@@ -89,7 +94,8 @@ internal static class IntegrationsInfrastructureExtensions
     // No retry or resilience handler (house rule 8): a test is one attempt, a failed qBittorrent sign-in
     // repeated counts towards its ban, and — MAM-13 — a torrents/add whose answer was lost may have added the
     // release already. MAM-33 — the TMDb adapter sends a GET again itself, only after a 429 and after the
-    // wait TMDb asked for: a read, and an answer that says it was not served.
+    // wait TMDb asked for: a read, and an answer that says it was not served. MAM-34 — a Jellyfin POST of an
+    // item whose answer was lost may have changed its ids already.
     private static void AddIntegrationClient(IServiceCollection services, string name) =>
         services.AddHttpClient(name, client =>
             {

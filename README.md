@@ -18,7 +18,10 @@ and the release sources together on the Search page, for movies and TV, sends a 
 to qBittorrent, and sees its download on the Jobs page until it finishes. Once the owner connects
 TMDb, every signed-in user also gets recommendations of the films, series, cartoons and documentaries
 the library doesn't have yet, each with why it is there and what the release sources carry of it,
-and downloads one through the Search page like any other; see [ROADMAP.md](ROADMAP.md).
+and downloads one through the Search page like any other; and the owner links a library work without
+a TMDb id to its TMDb film or show, picked from the app's suggestions, which the app writes into a
+film item's ids in Jellyfin and nothing else (a series' link stays in the app); see
+[ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -79,7 +82,8 @@ application.
   a sentence that says what the service did. Services that report file paths take path mappings onto the app's own mounts
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)).
   Credentials are stored encrypted and never shown again. Jellyfin feeds the library, and a
-  switched-off one can't be synced; a Torznab feed is searched for releases, and a switched-off one
+  switched-off one can't be synced or have a TMDb link written into it; a Torznab feed is searched
+  for releases, and a switched-off one
   is left alone; qBittorrent's categories are what download destinations name, and a switched-off
   one isn't asked for them or sent a release; TMDb, with the owner's own API Read Access Token, is
   the metadata catalog the recommendations come from, and a switched-off one isn't asked. The
@@ -106,6 +110,28 @@ application.
   nothing in the library or in Jellyfin is moved, renamed or changed
   ([ADR 0008](docs/adr/0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)).
   Removing a Jellyfin integration removes the library it imported from the app, never the files.
+- **Linking a work to TMDb.** The owner's **TMDb…** on a Library card (disabled, with the reason, for
+  everyone else) opens a dialog with the ids Jellyfin reports for each of the work's items, up to five
+  TMDb films and shows the app suggests — each with its poster, year, runtime and overview and why it
+  is suggested: the title, the year, the runtime against the length ffprobe measured, the library's
+  genre, a linked neighbour's collection, director or show —, a field for a pasted TMDb or IMDb link
+  or id, and a TMDb search. **Save** links the work, one link per library item, kept by the app as
+  the owner's word and re-applied at every sync: the work then counts the id as its own — no longer
+  "missing an id", found and matched by it, grouped with the library's other items of it, and seeded
+  by it in the recommendations — and the app writes a film's link into its item in Jellyfin: the TMDb
+  id, and the IMDb id TMDb gives only where Jellyfin has none, in one write read back afterwards, and
+  nothing else, no title, image, lock or refresh; the item's people are left out of what is sent, so
+  Jellyfin keeps its cast as it is. A series is never written: Jellyfin rewrites every season and
+  episode of a series whenever it saves the series, so a series' link stays in the app, and the
+  dialog says why. Each item says "In Jellyfin", "Not in Jellyfin yet" with **Retry**, "Jellyfin lost
+  it" with **Write again**, or "Kept in the app" for a series and for a film item linked to a show's
+  episode, which are never written. **Remove link** puts back only the ids the app wrote, where
+  Jellyfin still holds them. The suggestions are prepared in the background after every sync; the
+  **TMDb links** page, opened from the **Missing an id** filter, reviews the works without an id one
+  at a time by the keyboard (1–5, Enter, 0 for none fits, →, /), links every confident suggestion —
+  the one exact title-and-year match whose runtime agrees — with one click, written one at a time in
+  the background, and lists the links in conflict with Jellyfin's id and those whose item is gone
+  ([ADR 0026](docs/adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
 - **Verified file facts.** Each file shows what it really holds, read by `ffprobe` from the file
   itself: duration, resolution, video codec and profile, dynamic range (SDR, HDR10, HLG, Dolby
   Vision), overall bit rate, and every audio track (language, codec, channels) and subtitle
@@ -153,8 +179,9 @@ application.
   (owner's choice), and by a season; a film's TMDb id also comes in its address (`?tmdbId=`), as a
   recommendation's **Releases** opens it. **In your library** shows each matching movie or series
   as the Library page does, versions and verified file facts included, with how it matched — by
-  IMDb or TMDb id, by title and year, or by title alone as a possible match to check — and a
-  warning when ids conflict; every match is listed, strongest first, and nothing is picked or merged. Below the
+  IMDb or TMDb id, an id the owner linked included and shown as set by them, by title and year, or
+  by title alone as a possible match to check — and a warning when ids conflict; every match is
+  listed, strongest first, and nothing is picked or merged. Below the
   matches come up to 20 works that don't match but one of whose titles or file paths holds every
   word searched for, each whole, marked as no match, with how many more there are and a link to the
   Library page searched for the same text
@@ -347,6 +374,23 @@ acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed 
   to carry them. It recommends How the Universe Works for seasons 3 to 11, The Grand Tour for seasons 5
   and 6 and MobLand for season 2, and Planet Earth too, as the library holds its episodes as movie
   items with no id (MAM-34 links them).
+- **Linking works to TMDb (MAM-34, 2026-10-05):** a live check Vasyl ran against Jellyfin 12.1.0 and
+  TMDb, outside the app, recorded what the write stands on. Jellyfin answered `GET /Items/{id}` with
+  the API key and no user with 400; `GET /Users` listed its two users, one an enabled administrator,
+  and the item read as that user — "120. Landing Stripling", 47 fields, no ids, 6.2 minutes long —
+  posted back with only `Tmdb` 223021 and `Imdb` tt0056164 in its `ProviderIds` answered 204 and read
+  again held them, only `Etag`, `ExternalUrls` and `UserData.Key` changed besides; that item keeps
+  the two ids in Jellyfin, so the next sync imports them as the library's own. The Penguins of
+  Madagascar's series item took `Tmdb` 7869 the same way, in 4.5 seconds, and lost it again when
+  posted back without the key — twice, on 2026-10-05, before Jellyfin's source was read: saving a
+  series rewrites each of its seasons and episodes, so its 152 seasons and episodes may have lost
+  their age ratings then. Nobody read their ratings before; the check's read-only listing of
+  2026-10-06 found none of them rated, as the series isn't — what such a save leaves —, so whether
+  any lost one is unknown, and the app never writes a series (Vasyl, 2026-10-06). A wrong key was 401 and an unknown item 404, for the
+  read and the write. A default refresh kept the ids, and "Search for missing metadata" kept them and added
+  Jellyfin's own `Tvdb` id and details. TMDb gives Landing Stripling a runtime of 6 minutes and its
+  IMDb id, and Planet Earth (1044) no runtime of its own but its latest episode's 53 minutes, its IMDb
+  id and 16 other titles, and names it first for "Planet Earth".
 
 Not tried live yet:
 
@@ -370,6 +414,18 @@ Not tried live yet:
   Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
   the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
   films in TV/Anime and TV/Documentary were checked live, the rest rests on the tests.
+- The app's own TMDb links against the reference installation (MAM-34): the dialog, the TMDb links
+  page, a write from the app, **Accept all confident** and a sync afterwards wait for Vasyl's check,
+  as does how many works of each library get a confident suggestion. Jellyfin's "Replace all
+  metadata" was not run, and no item with watch history was written: Jellyfin keys a user's watch
+  data by the item's ids. A 403 for a key that isn't an administrator's was never met, as Jellyfin's
+  API keys are. What Jellyfin's update does beyond the ids was read in its source (12.1), not seen
+  live: saving a series rewrites its seasons' and episodes' series name and custom rating, and their
+  official rating unless locked, and saves each — so the app writes no series —; sent an item's
+  people, it rebuilds them from their names, roles and types alone — so the app leaves them out —;
+  and it replaces an item's ids as a whole, so an id it holds that fails Jellyfin's own check is gone
+  after a write, by Jellyfin's doing. Nor was an item a parental limit hides from the administrator
+  met: Jellyfin answers its read 404, and the app asks the user-less list whether it is still there.
 
 ### What it will do
 
@@ -440,7 +496,8 @@ The core works with media works, versions, physical files, releases, and persist
 title, identifier, version, file and release it stores names the source that reported it
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 Adapter contracts keep it independent of any one media server, indexer, download client or
-catalog. The first four adapters exist: Jellyfin's reads the library, the Torznab adapter searches
+catalog. The first four adapters exist: Jellyfin's reads the library and sets an item's TMDb and
+IMDb ids when the owner links a work, the Torznab adapter searches
 releases, reads a source's newest releases and fetches a release's download, qBittorrent's lists its
 categories with the folders they save to, adds a release, finds its torrents by info hash or by
 category, and reads their state and their files, and TMDb's reads the film and TV catalog the
@@ -517,6 +574,15 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   and expects 403. A failed sync's reason can name the service's address, a path problem quotes the
   owner's path mappings, and who started a sync is the owner's sign-in name, so only the owner gets
   them; everyone else gets `null`.
+- **Linking works to TMDb is the owner's alone, reads included.** The link endpoints live in
+  `Controllers/Library/Links`, and every action there is owner-only because of where it lives
+  (`LibraryLinksAreOwnerOnlyConvention`), GETs too: they spend the owner's TMDb token, and say why the
+  owner's Jellyfin refused a write. `LibraryLinksAreOwnerOnlyHttpTests` sends each of them as a
+  non-owner and expects 403, and without a token 401. Members see a linked id on its card, without the
+  name of who set it. A write into Jellyfin sends a film's item back as Jellyfin gave it with only its
+  ids changed and without its people, which Jellyfin would otherwise rebuild — never a series, whose
+  save rewrites all its seasons and episodes —, a new one only once TMDb has confirmed the film; the
+  log names links and works by id, with counts, never a title or an address.
 - **Release search is everyone's, and each search its creator's; why a source failed is the
   owner's.** Every signed-in user may search (owner's choice), which sends the stored Torznab key to
   the owner's gateway and, through it, searches the tracker with the owner's account. A search the
@@ -608,17 +674,24 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   every user's change of their own password (`UserPasswordChanged`), every change to an integration
   (add, edit, remove), every save of the media folders, every change
   to a destination (add, edit, remove), every download sent (`DownloadRequested`, written with its
-  job before anything is fetched or sent) and every job cancelled (`DownloadCancelled`) write an
-  audit row in the same transaction as the change:
+  job before anything is fetched or sent), every job cancelled (`DownloadCancelled`), and every TMDb
+  link set, replaced or removed (`LibraryLinkSet`, `LibraryLinkReplaced`, `LibraryLinkRemoved`, one
+  row per library item) write an audit row in the same transaction as the change:
   what happened, when, who did it and to whom or what, with both names copied so the row outlives
-  them. A save that changes nothing and a connection test write none, and neither does a retry of a
-  download already sent, a cancel of a job that already ended, a library sync, a file inspection —
+  them. A link's rows carry the ids before and after, and every write of its ids into Jellyfin, or
+  their restore, writes `LibraryIdsWritten` or `LibraryIdsRestored` with the ids Jellyfin held
+  before and after — whenever the change left the app, confirmed or not —, in the name of the owner
+  who asked for it, or, for a write in the background, of whoever queued the link. A write a restart
+  cut is recorded at the next start as what it meant to leave, in the name of whoever set the link,
+  as it may have reached Jellyfin. A save that
+  changes nothing and a connection test write none, and neither does a retry of a download already
+  sent, a cancel of a job that already ended, a library sync, a file inspection —
   its hashing included — or a scan of the media folders, whose run rows record who started them;
   nor does a pass that follows the downloads, which no one started. A computation of the
   recommendations writes none either, its run row recording who asked for it, and neither does a
   user's "Not interested", its undo or a save of their Profile's recommendation settings, which are
-  that user's own preferences, nor a check of the release sources for a recommended work. There is no
-  screen for it yet.
+  that user's own preferences, nor a check of the release sources for a recommended work, nor a
+  preparation of the TMDb suggestions or the owner's "none fits". There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys, TMDb's API Read Access Token and
   the qBittorrent password are stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed
   to its integration and
@@ -637,7 +710,12 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   masked like the password and never logged; when qBittorrent has forgotten it, the adapter signs in
   once more and sends that one read again, and never a write. The one write, a submission's
   `torrents/add`, follows a read that renews such a session and is never sent again, a 403 to it
-  included. No call repeats a failed sign-in, and a sign-in qBittorrent refused — the credentials,
+  included. Jellyfin's one write, an owner's TMDb link of a film, is the same: one `POST /Items/{id}`
+  after the connection test and a read of the item, with the key in the `Authorization` header alone,
+  never sent
+  again — an answer lost or late leaves the link "Not in Jellyfin yet" for the owner's **Retry**,
+  which reads the item first —, then a read to confirm it. No call repeats a failed sign-in, and a
+  sign-in qBittorrent refused — the credentials,
   or the app's address banned — is remembered in memory the same way, so no later call sends it while
   the address and credentials stay the same, since each refused one counts towards qBittorrent's ban
   of the address: the page says so until the owner corrects them or a connection test with them
@@ -719,7 +797,9 @@ answers and its database is open and fully migrated. When it isn't,
 **Data and backups.** Everything the installation keeps is in `/data` inside the container, on the
 `mam-data` volume: `mam.db` and the generated secrets in `.secrets/`, and the recommendations'
 posters in `posters/`, a cache never pruned that needs no backup, as a missing poster is fetched
-again while TMDb is connected. Back up
+again while TMDb is connected. The owner's TMDb links live in `mam.db` alone until Jellyfin holds
+them — an episode's link to its show, a series' link, and a link not in Jellyfin yet, nowhere
+else —, while the suggestions are a cache the next run rebuilds. Back up
 `mam.db` and `.secrets/` together, with the container stopped:
 
 ```bash
@@ -736,8 +816,11 @@ with `/data` (the database files inside are otherwise readable by every user on 
 sudo install -d -o 10001 -g 10001 -m 700 <directory>
 ```
 
-**Media folders.** Mount them read-only (`:ro`) — the app writes nothing to the library; a release
-you send is written by qBittorrent, through its own mount, into its category's folder — at the path
+**Media folders.** Mount them read-only (`:ro`) — the app writes no file into them; a release you
+send is written by qBittorrent, through its own mount, into its category's folder, and the only thing
+the app writes into the library is a film item's ids in Jellyfin, through its API, when the owner
+links a work to TMDb (never a series': Jellyfin's save of a series rewrites all its seasons and
+episodes, and the app keeps those links to itself) — at the path
 Jellyfin sees them at, so a library path means the same file to the app. A download client
 often sees the same folders under another path (qBittorrent under `/downloads`, say); don't mount
 them a second time for it: map its paths onto yours under **Integrations** → the client →
@@ -858,11 +941,11 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/settings/integrations?search=&kind=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, adapterType, adapterDisplayName, kind, isEnabled, baseUrl, userName, hasPassword, hasApiKey, pathMappings: [{ servicePrefix, appPrefix }], createdUtc }`, ordered by name; `adapterDisplayName` is `null` when this version no longer connects to the type. `search` matches part of the name in any letter case; `kind` is `MediaLibrary`, `ReleaseSearch`, `DownloadClient` or `Metadata`. 400 for a page below 1, a page size outside 1–100 or an unknown kind ("“x” is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata."). |
 | `GET /api/settings/integrations/adapter-types` | Owner only. 200 `{ items }`, each `{ typeId, displayName, kind, userName, password, apiKey, reportsFilePaths }`, a credential being `NotUsed`, `Optional` or `Required`; the types are `jellyfin`, `torznab`, `qbittorrent` and `tmdb` (kind `Metadata`: an API key required, which is TMDb's API Read Access Token, no user name or password, and `reportsFilePaths` `false`). |
 | `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
-| `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. A TMDb integration added switched on queues a computation of the recommendations, or joins the one waiting (ADR 0023); a full queue or a failure there leaves the answer as it is. |
-| `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. Switching a TMDb integration back on queues a computation of the recommendations. |
+| `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. A TMDb integration added switched on queues a computation of the recommendations, or joins the one waiting (ADR 0023), and a preparation of the TMDb suggestions (MAM-34); a full queue or a failure there leaves the answer as it is. |
+| `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. Switching a TMDb integration back on queues a computation of the recommendations, or joins the one waiting, and a preparation of the TMDb suggestions (MAM-34); a full queue or a failure there leaves the answer as it is. |
 | `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths }`: the media folders the app may read files in, as the owner entered them, in canonical form; `[]` until the owner adds one. |
 | `PUT /api/settings/allowed-roots` with `{ paths }` | Owner only. 204; replaces the whole list, `[]` or `null` allowing nothing, and writes an audit row. 400 with the broken rule's sentence (more than 20, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another). Starts no inspection. |
-| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings and, for a release source, the tracker sections mapped to destinations; a media library's imported library goes with it (its titles, identifiers, episode positions, versions, files and libraries, and the works left empty), and a release source's newest releases read for the recommendations go with it, while its sync runs, the download jobs sent to it and what any other kind of integration reported — a metadata catalog's cached works included — keep its name. 404. |
+| `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings and, for a release source, the tracker sections mapped to destinations; a media library's imported library goes with it (its titles, identifiers, episode positions, versions, files and libraries, and the works left empty), and so do the owner's TMDb links of its items, nothing being put back in the library, and a release source's newest releases read for the recommendations go with it, while its sync runs, the download jobs sent to it and what any other kind of integration reported — a metadata catalog's cached works included — keep its name. 404. |
 | `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9 or a qBittorrent older than 4.4.1); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
 | `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
 | `GET /api/settings/destinations?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, isDefault, downloadClientId, downloadClientName, clientDestinationKey, check, createdUtc }`, ordered by name, then by the client's name; `search` matches part of the name in any letter case. `check` is `{ status, servicePath, appPath, libraryNames, problem }`, worked out when the list is read by asking each download client on the page once: `status` is `InLibrary`, `OutsideLibraries`, `PathUnknown`, `LibrariesUnknown`, `CategoryMissing`, `ClientDisabled` or `ClientUnavailable`; `servicePath` is the folder the client says the category saves to and `appPath` the same folder through its path mappings, each `null` when unknown; `libraryNames` the media libraries one of whose folders holds it; `problem` the sentence why, for every status but `InLibrary`. 200 whatever the clients answered. 400 for a page below 1 or a page size outside 1–100. |
@@ -872,7 +955,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `DELETE /api/settings/destinations/{id}` | Owner only. 204 and an audit row; nothing changes in the client, a removed default leaves none, and the download jobs sent to it keep its name and category. 404. |
 | `GET /api/settings/destinations/client-destinations/{downloadClientId}` | Owner only. What the download client offers right now: 200 `{ items, error }`, each item `{ key, displayName, check }` in the client's order, `check` as above. When the client couldn't be asked — switched off, a type this version can't send downloads to, a stored secret it can't read, or its call failed — `items` is empty and `error` says why. 404 when the id is not a download client. |
 | `GET /api/settings/destinations/sections` | Owner only. The tracker sections of every release source, for the destination dialog (ADR 0020): 200 `{ sources }` whatever the sources answered, each release-search integration by name `{ id, name, sections, error }`, each section `{ name, categoryIds, isSourceSpecific, destinationId, destinationName }`. An enabled source is asked for its categories each time, all of them at once; the categories of one cleaned name (Prowlarr's leading `\|-` dropped), rank and destination are one section, in the source's order, and a mapped category the source no longer lists comes last under its stored name. A switched-off source, one of a type this version can't search and one whose key can't be read are not asked, and `error` says why, as it does with the masked sentence of one whose call failed; each still lists the sections mapped to a destination. Not paged: an update replaces a destination's sections, so the dialog needs every mapped one. |
-| `GET /api/library/works?search=&locationId=&identifiers=&kind=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode. `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, or "“x” is not a kind filter. Use Movie or Series." |
+| `GET /api/library/works?search=&locationId=&identifiers=&kind=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link }`, ordered by title in Ukrainian alphabetical order (Latin titles after Cyrillic ones); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only. `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, or "“x” is not a kind filter. Use Movie or Series." |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
 | `GET /api/library/sources` | 200 `{ items, inspection, scan }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem }, space }`, by name, `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun, hasQueuedRun, space }` for the whole library, each run as `GET /api/library/inspections/{runId}` gives it, and `scan` `{ activeRun, lastFinishedRun, hasQueuedRun, files, space }` for the media folders (ADR 0021), each run as `GET /api/library/scans/{runId}` gives it; an active run is the running one, else the queued one. `files` counts the names the scans stored that no file a library reported maps to now, as each library's `inspection` counts its files, so a sync that starts reporting a path, or a fixed path mapping, takes a name off at once; a scanned name never counts in a library's row. `space` `{ sizeBytes, fileCount, nameCount, unmeasuredCount }` is the room the files take on disk (ADR 0018, ADR 0022), counted when read over the integration's file names, over every stored file name for `inspection`, and over the names `files` counts for `scan`: each file once by its device and inode, with the size the app's last look read, never the size a library reported; `nameCount` is the names that lead to those files, and `unmeasuredCount` the names with no identity or size read, left out of `sizeBytes`. `pathProblem`, `problem` and each run's `requestedByUserName`, `problem`, `hashing.problem` and `error` only for the owner, `null` for everyone else; `space` is everyone's. |
@@ -882,8 +965,24 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/library/scans` | Owner only. 202 with the queued scan of the media folders and its `Location`, or with the one already waiting, which the request joins; one asked for while a scan runs is queued behind it. The scan walks every allowed folder in the background, follows a link only when it ends inside them, opens no file, stores one name with no version for each media file no library reported, then queues a file inspection (ADR 0021). 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then scan again." }`; 503 `{ "error": "Too many folder scans are waiting. Try again in a minute." }`, the run kept as failed with it. |
 | `GET /api/library/scans/{runId}` | 200 `{ id, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesFound, filesUnreported, problemCount, problem, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`: `filesFound` is how many media files the walk has reached so far, each once however many links lead to it, `filesUnreported` how many of them no library reported (`null` until the scan stored them), `problemCount` how many folders, links and names it didn't go into or through, and `problem` the first one's sentence; `requestedByUserName`, `problem` and `error` only for the owner, `null` for everyone else. A bare 404 for an unknown run. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, seriesCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; the items are the library's movies, series and episodes, the works its movies and episodes, and `seriesCount` `null` for a run that didn't succeed or ran before 0.2.0; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
+| `GET /api/library/works/{id}/tmdb` | Owner only, as every TMDb link endpoint below, GETs included (MAM-34, ADR 0026). The work's TMDb dialog: 200 `{ work, items, catalogConnected, suggestions, search, searchTitle, searchYear }`. `work` is as the works list gives it. `items` are the work's library items, each `{ linkId, sourceItemId, sourceName, itemTitle, itemKind, canWrite, cannotWriteReason, target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, writeState, writeError, writeStateUtc, setUtc, setByUserName, libraryIdentifiers, conflictingValue }`, the link's fields `null` for an item with none: `target` `Work` or `ShowEpisode`; `writeState` `KeptInApp`, `Queued`, `Writing`, `NotWritten`, `Written`, `InLibrary` or `Lost`; `libraryIdentifiers` the ids the last sync read for the item; `conflictingValue` a TMDb id Jellyfin gives beside the link; `canWrite`, with `cannotWriteReason`, whether its library would be written — never for a series: "Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app." `suggestions` are up to five candidates, the likeliest first and a confident one always among them, each `{ catalogKind, catalogId, title, originalTitle, year, overview, runtimeMinutes, posterUrl, imdbId, isConfident, evidence, seasonNumber, episodeNumber }`, with `evidence` `{ title: { similarity, exact, matchedKind, matchedTitle }, year: { libraryYear, catalogYear, difference }, runtime: { libraryMinutes, catalogMinutes, agrees }, kindAgrees, genre: { libraryRole, agreement }, sibling: { reason, siblingTitle } }` and, for a show suggested to a film item, the season and episode its name gives. `search` is `{ searchedUtc, noneFitsUtc, pending, inPopulation }`. `searchTitle` and `searchYear` are what the dialog's free search starts from: the work's title cleaned the way the suggestions' searches clean it ("Landing Stripling" of "120. Landing Stripling", "Planet Earth" of "Planet_Earth_E08 - Jungles", "The Penguins Of Madagascar" of a series named after its release's folder), `null` when nothing of a title is left, and the year that title names in brackets — the first of a span, 2008 of "(2008-2015)" — else the work's, `null` when none says. A bare 404 for an unknown work. |
+| `PUT /api/library/works/{id}/tmdb` with `{ catalogKind, catalogId, seasonNumber, episodeNumber, sourceItemIds }` | Links the work's items — those `sourceItemIds` names, or every one — to the TMDb film (`Movie`) or show (`Series`) `catalogId`, or replaces their link, saves each link with its audit row, then writes it into its library (ADR 0026): 200 with the dialog as it then stands, whatever Jellyfin did — the items say. Every field is a string. A film item with a film is a `Work` link, written; a series with a show is a `Work` link kept in the app, as Jellyfin's save of a series rewrites all its seasons and episodes; a film item or an episode of no series with a show is a `ShowEpisode` link, with an optional season (0–999) and episode (1–9999), kept in the app. 400 "Choose a TMDb film (Movie) or show (Series).", "“x” is not a TMDb kind. Use Movie or Series.", "Give the TMDb id to link.", "“x” is not a TMDb id.", "“x” is not a season number. Use 0 to 999.", "“x” is not an episode number. Use 1 to 9999.", "An episode number needs a season number.", "Season and episode numbers go only with a show linked to a film or to an episode.", "A show or an episode can be linked only to a TMDb show.", "Link its series instead: an episode is known by its series' ids." or "“x” is not an item of this work."; 404 "TMDb has no film 223021." (or "show"); 409 "Connect a metadata catalog under Integrations first.", "No library reports this work, so there is nothing to link.", "A write to the library is under way for this work; try again in a moment." or, when a written link would have to be put back, "“Jellyfin” is switched off. Switch it on under Integrations to change the link."; 502 with TMDb's sentence, masked of the token. A save that changes nothing records and writes nothing. Queues a computation of the recommendations. |
+| `DELETE /api/library/works/{id}/tmdb` | Removes the work's links, each after putting back in its library the ids the app wrote, only where the library still holds them: 200 `{ dialog }`, 204 when the work has none. 502 "“Jellyfin” couldn't be changed back, so the link stays: …", the link kept — an item the administrator Jellyfin reads it as can no longer see included; 409 "“Jellyfin” is switched off. Switch it on under Integrations to remove the link." or the write-under-way sentence; a bare 404 for an unknown work. |
+| `POST /api/library/works/{id}/tmdb/write` | Writes every link of the work to its film into its library once more, from a fresh read (the dialog's **Retry** and **Write again** write one item's link, below): 200 with the dialog. 409 "There is nothing to write: no item of this work is linked.", "There is nothing to write: an episode's link to its show stays in the app.", "There is nothing to write: Jellyfin rewrites every season and episode of a series whenever it saves the series, so a series link stays in the app.", "There is nothing to write: “x” can't set ids, so the link stays in the app.", "“Jellyfin” is switched off. Switch it on under Integrations, then retry." or the write-under-way sentence; a bare 404. |
+| `GET /api/library/works/{id}/tmdb/search?title=&year=` | TMDb's first page of films and shows of the title — of the year, when given — of the kinds the work could be, ranked for it with their evidence: 200 `{ items }`, each as a suggestion. 400 "Type a title to search for." or "“x” is not a year."; 409 "Connect a metadata catalog under Integrations first."; 502 with the catalog's masked sentence; a bare 404 for an unknown work. |
+| `GET /api/library/works/{id}/tmdb/lookup?text=&kind=` | The film or show a pasted TMDb link (`themoviedb.org/movie/223021-landing-stripling`, `themoviedb.org/tv/1044/season/1/episode/8` with its numbers), IMDb link or id (`tt0056164`), or bare TMDb number with `kind` `Movie` or `Series` names, ranked for the work: 200 `{ items }`, two when an IMDb id names a film and a show. 400 "Paste a TMDb or IMDb link, an IMDb id like tt0056164, or a TMDb number.", "Choose film or show for a bare number." or "“x” is not a TMDb kind. Use Movie or Series."; 404 "TMDb has no film 223021." (or "show") or "TMDb has no film or show with that IMDb id. If it is an episode's, paste the show's link instead."; 409, 502 and the bare 404 as for the search. |
+| `PUT /api/library/works/{id}/tmdb/none-fits`, `DELETE` the same | The owner's "none fits": the work leaves the review queue and the confident list, or comes back. 204; a bare 404 for an unknown work. |
+| `GET /api/library/tmdb/queue?index=` | The review queue — the works without a TMDb id of their own, a link or "none fits", by title: 200 `{ totalCount, index, current }`, `current` the dialog of the work at `index` (0 when blank), `null` past the end. 400 "“x” is not a place in the queue. Use 0 or more." |
+| `GET /api/library/tmdb/confident?locationId=&page=1&pageSize=25` | The works whose suggestion is confident, by title, of one library or all: 200 `{ items: [{ work, candidate }], totalCount, page, pageSize, locations: [{ locationId, locationName, populationCount, confidentCount }] }`, `locations` each library that holds a file — those the works list's library filter offers (`GET /api/library/locations`), so not Jellyfin's box sets library — with its works without an id and how many of them are confident; works marked "none fits" left out. 400 "“x” is not a library id." or a page's sentence. |
+| `POST /api/library/tmdb/confident` with `{ items: [{ workId, catalogKind, catalogId }] }` | **Link N works**: links each of 1 to 100 works only while that film or show is still its confident suggestion, computed again now, and queues the writes for a background writer that writes one link at a time: 202 `{ batchId, items: [{ workId, outcome, reason, links }] }`, `outcome` `Linked` or `Skipped` with the reason — "It is no longer the work's confident suggestion.", "You marked that none fits.", "It was linked meanwhile.", "Its library reports a TMDb id for it now.", "The work is no longer in the library." or the catalog's or the save's own sentence —, `links` as the links list's rows. Each work's links are saved as it is done, and the writer woken: a request cancelled halfway leaves the works saved before it linked and written. 400 "Tick at least one work to link.", "At most 100 works can be linked at once.", "Each ticked work needs its work, its kind and its TMDb id.", "Give the work to link.", "“x” is not a work id.", "“x” is ticked twice." or the kind and id sentences of `PUT`; 409 "Connect a metadata catalog under Integrations first.". |
+| `GET /api/library/tmdb/batches/{batchId}` | The links of one **Link N works** click with their write states now, in the shape `POST` answered: 200 with the linked works only, each link under the work its item sits on now — a skipped work isn't stored, so the page keeps `POST`'s answer for it, and a link whose item is gone is left out; a bare 404 for a click no link has, which the page never asks for. |
+| `GET /api/library/tmdb/links?filter=&page=1&pageSize=25` | The links that need the owner, newest first: 200 `{ items, totalCount, page, pageSize }`, each `{ linkId, workId, workTitle, sourceName, sourceItemId, itemTitle, target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, writeState, writeError, setUtc, setByUserName, conflictingValue }`. `filter` is required: `Unattached` (the library no longer reports the item), `Pending` (queued or writing), `Conflict` (a TMDb id Jellyfin gives beside a link to the work, or a film id it gave an item after the owner linked it as an episode of a show), `NotWritten` or `Lost`. 400 "Choose which links to list: Unattached, Pending, Conflict, NotWritten or Lost.", "“x” is not a link filter. Use Unattached, Pending, Conflict, NotWritten or Lost." or a page's sentence. |
+| `POST /api/library/tmdb/links/{linkId}/write` | **Retry** or **Write again** of one link: 200 with its work's dialog; 409 as for the work's, or "There is nothing to write: the library no longer reports this item."; a bare 404. |
+| `DELETE /api/library/tmdb/links/{linkId}` | Removes one link, an unattached one included, putting back what the app wrote as the work's removal does: 204; 502 and 409 as there; a bare 404. |
+| `GET /api/library/tmdb/runs/latest` | The preparation of the TMDb suggestions under way, else the latest: 200 `{ id, status, trigger, requestedByUserName, createdUtc, startedUtc, finishedUtc, worksTotal, worksDone, error }`, `status` `Queued`, `Running`, `Succeeded` or `Failed`, `trigger` `LibrarySynced`, `CatalogConnected` or `Requested`; 204 before the first. A run is queued after every successful library sync, when a TMDb integration is added switched on or switched back on, and by `POST`. |
+| `POST /api/library/tmdb/runs` | **Prepare again**: 202 with a queued run that searches every work again, or with the one waiting; 409 "Connect a metadata catalog under Integrations first."; 503 "Too many TMDb suggestion runs are waiting. Try again in a minute.", the run kept as failed with it. |
 | `POST /api/releases/search` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Searches every enabled release source at once, each for movies and then for TV (ADR 0020), and stores each release found. 200 `{ sources }` whatever the sources answered, by name, each `{ integrationId, name, status, notSearchedReason, error, releases }`: `status` is the call's outcome (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, …) or `null` when the app didn't ask the source, `notSearchedReason` (`SecretUnreadable`, `TypeUnavailable`, `NoUsableSearch`) says why, `error` the sentence for the owner only; each release `{ id, title, description, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, categories: [{ id, name }], payloadKind, claimed: { resolution, medium, videoCodec, dynamicRanges, audioLanguages, subtitleLanguages } }` in the source's order, the movie releases then the TV ones, at most 100 of each per source, `description` the listing's own description when it says more than the title (Toloka's topic title, Ukrainian first; `null` otherwise), `kind` `Movie` or `Tv` (TV when the source lists it in a TV category — in TV/Anime or TV/Documentary alone only when its title or description names seasons or episodes —, or in none to a TV query), `payloadKind` `Magnet` or `null`, the release's download link never included. With a `season` (0 to 9999, 0 for the specials), only the TV search runs. 400 with the broken rule's sentence: no title, one longer than 200 characters, a year that isn't one, an id that isn't an IMDb (`tt0816692`) or a TMDb (`157336`) id, a season that isn't one; every field is a string. |
-| `POST /api/searches` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Asks the library — the snapshot the last sync imported — and every enabled release source at once, the sources the way `POST /api/releases/search` does, and stores the search, how each source answered and every release found, for a day. 201 with the search and its `Location` whatever the sources answered: `{ id, text, year, imdbId, tmdbId, season, createdUtc, library, libraryUnlistedCount, sources, facets }`, the search as asked and trimmed. `library` is every matching work, strongest first, then at most 20 works that match in no way but one of whose titles or file paths holds every word of the title, each whole (ADR 0012), each `{ work, evidence, matchedIdentifiers: [{ scheme, value, sourceName }], matchedTitle: { text, kind, year, sourceName }, conflictingSchemes }`: `work` exactly as `GET /api/library/works` gives it, a movie, a series or an episode of no series — an episode of a series that the search finds lists its series once, with the episode's `matchedTitle` and `matchedIdentifiers` (ADR 0012) —, its owner-only fields `null` for everyone else; `evidence` `Identifier`, `TitleAndYear`, `TitleOnly` or `Words`, which is no match; `matchedIdentifiers` every source's row of a matched id; `matchedTitle` the title that matched, or for `Words` the title holding the words, `null` when none did or only a file path holds them; `conflictingSchemes` (`Imdb`, `Tmdb`, `Tvdb`, `TmdbTv`) the schemes the search and the work, or the work's own sources, disagree on. `libraryUnlistedCount` is how many more works hold every word of the title than `library` lists, `0` when none were left out. `sources` by name, each `{ id, integrationId, name, status, notSearchedReason, error, releaseCount }` as for the release search, `id` being what the releases' `source` filter takes and `integrationId` `null` once the integration is removed. `facets` `{ audioLanguages, hasUnknownAudioLanguage, resolutions, hasUnknownResolution, kinds }`: what the search's releases claim, and their kinds, `Movie` before `Tv`, for the filters. 400 with the broken rule's sentence, nothing stored and no source asked: "Enter the title to search for.", "The search text can be at most 200 characters long.", "The search text can't contain line breaks or other control characters.", "“twenty” is not a year.", "“816692” is not an IMDb id, which looks like tt0816692.", "“tt157336” is not a TMDb id, which is a number such as 157336.", "“first” is not a season. Use a season number, such as 1, or 0 for the specials." (a value is repeated trimmed, cut at 32 characters with "…"). |
+| `POST /api/searches` with `{ text, year, imdbId, tmdbId, season }` | Every signed-in user. Asks the library — the snapshot the last sync imported — and every enabled release source at once, the sources the way `POST /api/releases/search` does, and stores the search, how each source answered and every release found, for a day. 201 with the search and its `Location` whatever the sources answered: `{ id, text, year, imdbId, tmdbId, season, createdUtc, library, libraryUnlistedCount, sources, facets }`, the search as asked and trimmed. `library` is every matching work, strongest first, then at most 20 works that match in no way but one of whose titles or file paths holds every word of the title, each whole (ADR 0012), each `{ work, evidence, matchedIdentifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], matchedTitle: { text, kind, year, sourceName }, conflictingSchemes }`: `work` exactly as `GET /api/library/works` gives it, a movie, a series or an episode of no series — an episode of a series that the search finds lists its series once, with the episode's `matchedTitle` and `matchedIdentifiers` (ADR 0012) —, its owner-only fields `null` for everyone else; `evidence` `Identifier`, `TitleAndYear`, `TitleOnly` or `Words`, which is no match; `matchedIdentifiers` every source's row of a matched id, an id the owner linked to TMDb included as the works list shows it (MAM-34); `matchedTitle` the title that matched, or for `Words` the title holding the words, `null` when none did or only a file path holds them; `conflictingSchemes` (`Imdb`, `Tmdb`, `Tvdb`, `TmdbTv`) the schemes the search and the work, or the work's own sources, disagree on. `libraryUnlistedCount` is how many more works hold every word of the title than `library` lists, `0` when none were left out. `sources` by name, each `{ id, integrationId, name, status, notSearchedReason, error, releaseCount }` as for the release search, `id` being what the releases' `source` filter takes and `integrationId` `null` once the integration is removed. `facets` `{ audioLanguages, hasUnknownAudioLanguage, resolutions, hasUnknownResolution, kinds }`: what the search's releases claim, and their kinds, `Movie` before `Tv`, for the filters. 400 with the broken rule's sentence, nothing stored and no source asked: "Enter the title to search for.", "The search text can be at most 200 characters long.", "The search text can't contain line breaks or other control characters.", "“twenty” is not a year.", "“816692” is not an IMDb id, which looks like tt0816692.", "“tt157336” is not a TMDb id, which is a number such as 157336.", "“first” is not a season. Use a season number, such as 1, or 0 for the specials." (a value is repeated trimmed, cut at 32 characters with "…"). |
 | `GET /api/searches/{id}` | Every signed-in user, for their own searches. 200 as for `POST`: the sources as stored, never asked again, and the library matched again as it is now. A bare 404 for a search that doesn't exist, is someone else's (asked for by the owner too) or is more than a day old, whether or not it has been removed yet. |
 | `GET /api/searches/{id}/releases?source=&kind=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, description, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year, lastYear, episodes }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes, heldEpisodeCount }] }`: `description` and `kind` as for the release search, `description` `null` on a release stored before 0.2.1; `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (no title when nothing says where it ends: no year, and for TV no season marker either), a TV title's span ending in `lastYear` and its seasons in `episodes` `{ firstSeason, lastSeason, firstEpisode, lastEpisode }`, `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words` — a series for a TV release, a movie for a movie release (ADR 0020) —, with `heldEpisodeCount` on a TV match: how many of the series' episodes are in the seasons or episodes claimed, `null` when none are claimed; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `kind` `Movie` or `Tv` in any letter case; `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“Show” is not a kind filter. Use Movie or Tv.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
 | `GET /api/downloads/options?releaseId=` | Every signed-in user, for a release of their own searches. The Download dialog's choices, read from the database without asking any client: 200 `{ clients, suggestedDestinationId }`, by name, each `{ id, name, typeName, destinations: [{ id, name, clientDestinationKey, isDefault }] }` with its destinations by name — every switched-on download client of a type this version can send to that can take the release's payload (one whose kind the listing didn't state needs a client that takes a .torrent file or a magnet link) and has a destination; `typeName` is what it is ("qBittorrent"). `suggestedDestinationId` is the destination the dialog picks first (ADR 0020): among those offered, the one the release's stored categories are mapped to, its source's own section before a standard category; `null` when two different destinations tie at that rank; else the default when it is offered, else `null`. No address, folder or path mapping. 400 `{ "error": "Pick the release to send." }` without a well-formed `releaseId`; 404 `{ "error": "This release isn't available any more: a search keeps what it found for a day. Search again." }` for a release that isn't one of the caller's searches' from the last day. |
@@ -1191,9 +1290,50 @@ their own in `RecommendationScoringTests`, `RecommendationRatingFloorTests`,
 `RecommendationQueryTitleTests`, `RecommendationPosterNamesTests` and `SeedTitleCleaningTests`. In the
 web app, `RecommendationsPage.test.tsx`, `RecommendationsPage.cards.test.tsx`,
 `RecommendationsPage.filters.test.tsx`, `RecommendationsPage.sort.test.tsx`, `RecommendationsPage.run.test.tsx`,
-`RecommendationPoster.test.tsx`, `RecommendationReasons.test.tsx`,
+`CatalogPoster.test.tsx` (the poster component, shared with the TMDb links since MAM-34),
+`RecommendationReasons.test.tsx`,
 `RecommendationSettingsCard.test.tsx`, `recommendations.test.ts`, `recommendations-api.test.ts` and
 `profile-api.test.ts` cover the new pieces.
+
+Linking works to TMDb (MAM-34) is tested against Jellyfin's and TMDb's real answers recorded live.
+`JellyfinSamples` loads the recorded users and whole items — the movie as read, after the write and
+after the refreshes, and the series as read —, which `JellyfinAdapterIdentifiersTests` reads with the
+recorded refusals: the item read as the first enabled administrator, posted once as read but for its
+`ProviderIds` and without its `People`, read again, an IMDb id written only where none is, a value
+someone changed left alone, nothing posted to an item a refresh left holding the ids, a series refused
+before anything is sent (`WritableKinds` holds films only), an item hidden from the administrator told
+apart from one that is gone, every refusal, a lost or late answer never sent again, and the key in the
+header alone; `LibraryIdentifierWriterWritesIdsOnlyTests` keeps the writer contract to ids,
+`AdapterKindContractTests` the kinds a writer names, and
+`TmdbAdapterWorksTests` and `TmdbAdapterListsTests` read the short's and Planet Earth's details and
+searches. Over HTTP `FakeJellyfinServer` answers `GET /Users`, the item read and the update, storing
+the ids it is sent so a later sync sees them, and the user-less list of one id, with switches for a
+refused, an ignored or a lost write and an item hidden from the administrator, and `FakeTmdbServer`
+the details with their runtime, other titles and external ids:
+`LibraryLinkSetHttpTests` (each kind of link, the write confirmed, refused, not confirmed, switched
+off or without the capability, a series kept in the app, the audit rows, every 400, 404, 409 and 502,
+a race),
+`LibraryLinkReplaceHttpTests`, `LibraryLinkRemoveHttpTests` (what is put back, a value someone changed, a refusal keeping the link, a write a restart cut, the recommendations queued),
+`LibraryLinkWriteAgainHttpTests`, `LibraryLinkDialogHttpTests`, `LibraryLinkSyncHttpTests` (the
+grouping, the states a sync gives, an unattached link, GETs only), `LibraryLinkReattachHttpTests`,
+`LibraryLinkSuggestionRunHttpTests` and `LibraryLinkSuggestionRunnerHttpTests` (the triggers, the
+searches and their cache, a failure, the reconciler), `LibraryLinkSuggestionsHttpTests` (the
+evidence, the confident rule and the order), `LibraryLinkFindHttpTests` (every paste and the search),
+`LibraryLinkReviewHttpTests` (the queue, "none fits", the confident list and Accept all),
+`LibraryLinkWriteWorkerHttpTests` (the background writer, a database failing under it, and its reconciler),
+`LibraryLinkListHttpTests` and `LibraryLinksAreOwnerOnlyHttpTests` (every endpoint as a member and
+without a token); the readers in `LibraryWorksLinksHttpTests`, `SearchesLinkedWorksHttpTests`,
+`SearchReleasesLinkedWorksHttpTests` and `RecommendationLinksHttpTests`; the tables in
+`LibraryLinksPersistenceTests` and the upgrade in `AddLibraryLinksMigrationTests`; the cache in
+`CatalogStoreTests` and the audit identifiers in `AuditTrailTests`. The core's rules are tested in
+`LinkedIdentifiersTests`, `LinkSuggestionRankingTests`, `TitleSimilarityTests`,
+`LibraryGenreProfileTests`, `LinkReattachmentTests`, `IdentifierReferenceParserTests`,
+`EpisodeMarkerTests` and `FolderHintTests`. In the web app, `TmdbLinkDialog.test.tsx`,
+`TmdbLinkDialog.find.test.tsx`, `LibraryWorkCard.links.test.tsx`, `LinkEvidenceBadges.test.tsx`,
+`LibraryPage.tmdb.test.tsx`, `LibraryTmdbPage.test.tsx`, `LibraryTmdbPage.review.test.tsx`,
+`LibraryTmdbPage.confident.test.tsx`, `LibraryTmdbPage.lists.test.tsx`, `MatchBadges.test.tsx`,
+`keyboard.test.ts`, `library-identifiers.test.ts`, `library-links.test.ts` and
+`library-links-api.test.ts` cover it.
 
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
@@ -1226,6 +1366,8 @@ src/
                                                downloads sent to a client and their following,
                                                the recommendations with their runs, the metadata
                                                catalog's cache and each user's profile settings,
+                                               the owner's TMDb links with their suggestions,
+                                               review and background writes,
                                                audit trail, health checks, security headers,
                                                EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
@@ -1242,7 +1384,10 @@ src/
                                                states mean for a followed download, and the
                                                recommendations' tabs, score, rating floor,
                                                settings rules and the cleaning of a title for a
-                                               catalog lookup; no package references
+                                               catalog lookup, and the TMDb links' rules: a
+                                               linked id against the library's, the suggestions'
+                                               evidence and order, re-attaching by files, and
+                                               reading a pasted link; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab, qBittorrent and TMDb
@@ -1283,8 +1428,8 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22, MAM-32 and
-MAM-33).
+of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32 to
+MAM-34).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -1295,8 +1440,9 @@ MAM-33).
    (built), scan the allowed folders for files no library reported (built), count hardlinks once and
    hash only the files that could be copies (built), and recommend the films, series, cartoons and
    documentaries the library doesn't have yet, from TMDb, with what the release sources carry of
-   them (built, 0.2.1). Label exact, same-work, and possible matches separately, for movies and
-   episodes alike.
+   them (built, 0.2.1), and let the owner link a work without an id to its TMDb film or show, written
+   into Jellyfin's ids (built, 0.2.1). Label exact, same-work, and possible matches separately, for
+   movies and episodes alike.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different

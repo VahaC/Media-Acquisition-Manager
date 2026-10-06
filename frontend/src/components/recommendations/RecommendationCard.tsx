@@ -3,8 +3,8 @@ import { Download, EyeOff, Loader2, Search, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { RecommendationAvailabilityLine } from '@/components/recommendations/RecommendationAvailabilityLine'
-import { RecommendationPoster } from '@/components/recommendations/RecommendationPoster'
 import { RecommendationReasons } from '@/components/recommendations/RecommendationReasons'
+import { CatalogPoster } from '@/components/shared/CatalogPoster'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { Button } from '@/components/ui/button'
 import { formatNumber } from '@/lib/format'
@@ -100,7 +100,7 @@ export function RecommendationCard({ item, hidden, onHidden, onRestored }: Recom
 
   return (
     <article className="ui-card recommendation-card" aria-labelledby={titleId}>
-      <RecommendationPoster url={item.posterUrl} title={item.title} kind={item.kind} />
+      <CatalogPoster url={item.posterUrl} title={item.title} kind={item.kind} />
       <div className="recommendation-body">
         <div className="recommendation-head">
           <h2 id={titleId} className="recommendation-title">{item.title}</h2>

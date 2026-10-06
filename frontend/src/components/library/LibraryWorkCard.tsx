@@ -4,10 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { SeriesSeasons } from '@/components/library/SeriesSeasons'
 import { VersionRows } from '@/components/library/VersionRows'
 import { VersionTable } from '@/components/library/VersionTable'
+import { LinkStateBadge } from '@/components/library/LinkStateBadge'
 import { SegmentedControl } from '@/components/shared/SegmentedControl'
+import { formatDateTime } from '@/lib/format'
+import { i18n } from '@/lib/i18n'
 import { episodePlace } from '@/lib/library-episodes'
+import { groupedIdentifierKey, groupIdentifiers } from '@/lib/library-identifiers'
 import { compareVersions } from '@/lib/library-versions'
-import type { LibraryEpisodeFilters, LibraryWork } from '@/lib/types'
+import type { LibraryEpisodeFilters, LibraryIdentifier, LibraryWork, LibraryWorkLink } from '@/lib/types'
 import { useNarrowScreen } from '@/lib/use-narrow-screen'
 import { useVersionsView } from '@/lib/use-versions-view'
 import '@/styles/settings-list.css' // .settings-muted — the "nothing reported" line
@@ -27,7 +31,14 @@ interface LibraryWorkCardProps {
    * opened seasons list their episodes by; none on the Search page, whose series show every season.
    */
   episodeFilters?: LibraryEpisodeFilters
+  /**
+   * MAM-34 — the card's actions, under its badges: the Library page's "TMDb…". None on the Search
+   * page, which shows the same cards to read.
+   */
+  actions?: ReactNode
 }
+
+const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
 
 /**
  * MAM-32 — the most versions the table compares. A column each leaves a few characters a column past
@@ -57,9 +68,15 @@ const MAX_TABLE_VERSIONS = 6
  * MAM-32 — a series is a card too, with the same head (its ids are a show's: IMDb, TMDb TV, TVDB),
  * and its seasons in place of the versions (SeriesSeasons). An episode of no series is a card of its
  * own that says where it sits ("Season 1 · Episode 4"). The table compares two to six versions.
+ *
+ * MAM-34 — an id the owner linked by hand is one of the work's ids, with "Set by … on …" on hover;
+ * one badge per id whatever claims it (a linked id Jellyfin reports too is still one id). Beside them,
+ * where the link stands against Jellyfin ("In Jellyfin", "Not in Jellyfin yet", "Jellyfin lost it"),
+ * and a warning when Jellyfin holds a third TMDb id; a work linked as an episode of a show says so
+ * under its title. The Library page puts its "TMDb…" action under the badges.
  */
-export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilters }: LibraryWorkCardProps) {
-  const { t } = useTranslation('library')
+export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilters, actions }: LibraryWorkCardProps) {
+  const { t } = useTranslation(['library', 'libraryLinks', 'common'])
   const titleId = useId()
   const [view, setView] = useVersionsView()
   // Owner's choice: on a phone the versions are always rows, as a table of several leaves a few
@@ -68,19 +85,37 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
   // for a wider screen.
   const narrow = useNarrowScreen()
   // ADR 0008 — a work holds the facts of one source only, so the first fact that names a source
-  // names it; shown once on the card instead of on every version.
+  // names it; shown once on the card instead of on every version. MAM-34 — a library's fact only: a
+  // series has no versions, and a linked id names the user who set it, or TMDb for its IMDb id.
   const source = work.versions.find((version) => version.sourceName)?.sourceName
-    ?? work.identifiers.find((identifier) => identifier.sourceName)?.sourceName
+    ?? work.identifiers.find((identifier) => identifier.sourceKind === 'MediaLibrary' && identifier.sourceName)?.sourceName
     ?? null
   const versions = work.versions.toSorted(compareVersions)
   const showOriginalTitle = work.originalTitle !== null && work.originalTitle !== work.title
-  const hasBadges = work.identifiers.length > 0 || work.missingIdentifiers.length > 0
+  const identifiers = groupIdentifiers(work.identifiers)
+  const link = work.link
+  const hasBadges = work.identifiers.length > 0 || work.missingIdentifiers.length > 0 || link !== null
   // One version has nothing to compare it with, so no table and no switch; nor have more than a
   // table can show.
   const comparable = versions.length > 1 && versions.length <= MAX_TABLE_VERSIONS
   const isSeries = work.kind === 'Series'
   const place = work.episode === null ? null : episodePlace(work.episode)
   const Heading = headingLevel === 3 ? 'h3' : 'h2'
+
+  /** Who claims an id, for its tooltip: "Reported by Home Jellyfin · Set by vasyl on 5 Oct 2026, 21:40". */
+  const sourceText = (identifier: LibraryIdentifier) => {
+    if (identifier.sourceKind === 'Person') {
+      // The setter's name is the owner's to see (MAM-8's rule for who did what); a member reads "by hand".
+      const time = identifier.setUtc === null ? null : formatDateTime(identifier.setUtc, INSTANT_FORMAT)
+      if (identifier.sourceName !== null) {
+        return time === null
+          ? t('libraryLinks:card.setByUser', { user: identifier.sourceName })
+          : t('libraryLinks:card.setBy', { user: identifier.sourceName, time })
+      }
+      return time === null ? t('libraryLinks:card.setByHandUndated') : t('libraryLinks:card.setByHand', { time })
+    }
+    return identifier.sourceName ? t('work.identifierSource', { source: identifier.sourceName }) : null
+  }
 
   return (
     <article className="ui-card library-work" aria-labelledby={titleId}>
@@ -94,22 +129,39 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
             <span>{work.year ?? t('work.unknownYear')}</span>
             {source && <span>{t('work.from', { source })}</span>}
           </p>
+          {link !== null && link.target === 'ShowEpisode' && <p className="library-work-meta">{episodeLinkLine(link)}</p>}
           {evidence}
         </div>
-        {(hasBadges || comparable) && (
+        {(hasBadges || comparable || actions !== undefined) && (
           <div className="library-work-side">
             {hasBadges && (
               <ul className="library-work-ids" aria-label={t('work.identifiers')}>
-                {work.identifiers.map((identifier) => (
-                  <li key={`${identifier.scheme}:${identifier.value}`}>
-                    <span
-                      className="ui-badge ui-badge-outline"
-                      title={identifier.sourceName ? t('work.identifierSource', { source: identifier.sourceName }) : undefined}
-                    >
-                      {t('work.identifier', { scheme: t(`schemes.${identifier.scheme}`), value: identifier.value })}
+                {identifiers.map((identifier) => {
+                  const sources = identifier.sources.flatMap((claim) => sourceText(claim) ?? [])
+                  return (
+                    <li key={groupedIdentifierKey(identifier)}>
+                      <span
+                        className="ui-badge ui-badge-outline"
+                        title={sources.length > 0 ? sources.join(t('common:separator')) : undefined}
+                      >
+                        {t('work.identifier', { scheme: t(`schemes.${identifier.scheme}`), value: identifier.value })}
+                      </span>
+                    </li>
+                  )
+                })}
+                {link !== null && (
+                  <li>
+                    <LinkStateBadge state={link.writeState} error={link.writeError} />
+                  </li>
+                )}
+                {link !== null && link.conflictingValue !== null && (
+                  <li>
+                    <span className="ui-badge library-badge-warning" title={t('libraryLinks:card.conflictHint')}>
+                      <TriangleAlert className="h-3 w-3" aria-hidden="true" />
+                      {t('libraryLinks:card.conflict', { library: link.conflictingValue, link: link.catalogId })}
                     </span>
                   </li>
-                ))}
+                )}
                 {work.missingIdentifiers.map((scheme) => (
                   <li key={scheme}>
                     <span className="ui-badge library-badge-warning">
@@ -134,6 +186,7 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
                 />
               </div>
             )}
+            {actions !== undefined && <div className="library-work-actions">{actions}</div>}
           </div>
         )}
       </div>
@@ -150,4 +203,15 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
       )}
     </article>
   )
+}
+
+/**
+ * MAM-34 — a work linked as an episode of a TMDb show: "Episode of Планета Земля · S1 E8", the season
+ * alone when no episode was given, the show alone when neither was.
+ */
+function episodeLinkLine(link: LibraryWorkLink): string {
+  const show = link.catalogTitle ?? i18n.t('libraryLinks:card.showFallback', { id: link.catalogId })
+  if (link.seasonNumber === null) return i18n.t('libraryLinks:card.episodeShow', { show })
+  if (link.episodeNumber === null) return i18n.t('libraryLinks:card.episodeSeason', { show, season: link.seasonNumber })
+  return i18n.t('libraryLinks:card.episode', { show, season: link.seasonNumber, episode: link.episodeNumber })
 }

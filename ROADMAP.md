@@ -16,14 +16,15 @@ started: MAM-17 answered specification §7 questions 3 and 6 against the live in
 their releases), MAM-18 (the scan of the media folders for the files no library reported) and
 MAM-19 (the room the files take, each file counted once, and the hashing of only the files that
 could be copies) are built. MAM-33 (recommendations of the works the library doesn't have yet, from
-TMDb, with what Toloka carries of them) is built and ships as release 0.2.1.
+TMDb, with what Toloka carries of them) and MAM-34 (linking a library work to its TMDb film or show
+by hand, a film's id written into its item's ids in Jellyfin) are built and ship as release 0.2.1.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 and MAM-33.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-34.
 Releases for phases C and D are not decided yet.
 
 ## Phases
@@ -428,8 +429,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33 (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32
-and MAM-33.
+**Release:** 0.2.0, and 0.2.1 for MAM-33 and MAM-34 (Vasyl's decisions). **Tickets:** MAM-17 to
+MAM-22 and MAM-32 to MAM-34.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -551,10 +552,45 @@ episode, and how much space could really be recovered — without the app guessi
   by its votes, the recommenders by their logarithm — and the run's progress is now shown, as Vasyl
   asked. The checks of Toloka for the recommended works, the app's reading of its newest releases and
   a download from a recommendation are still to be tried live.
+- **MAM-34 Link a work to TMDb by hand** (built, release 0.2.1): the owner links a library work — a
+  film, a series, or an episode of no series — to its TMDb film or show from the **TMDb…** button on
+  its Library card: one of up to five suggestions a background run (202 + run row + reconciler)
+  prepares after each sync, ranked by evidence the owner reads — the title, the year, the runtime
+  against the duration ffprobe measured, the library's genre, a linked neighbour's collection,
+  director or show —, a pasted TMDb or IMDb link or id, or a TMDb search. A link is kept per library
+  item in a table of its own, with the owner as its source; every sync re-applies it, and it follows
+  its item's files when Jellyfin re-creates the item. A linked work counts the id as its own on the
+  Library and Search pages, in release matching and in the recommendations. A film's id is written
+  into its item's `ProviderIds` in Jellyfin — the TMDb id, and the IMDb id TMDb gives only where
+  Jellyfin has none — by one write read back afterwards, the item sent back as read but for its ids
+  and without its people (Vasyl's decision of 2026-10-05: ids only, no Identify, refresh, images,
+  titles or locks); and each item shows "In Jellyfin", "Not in Jellyfin yet" with **Retry**, or
+  "Jellyfin lost it" with **Write again**. A series' link, and a film item's link to a show's episode,
+  are kept in the app: every save of a series in Jellyfin rewrites all its seasons and episodes, so
+  the app writes no series (Vasyl's decision of 2026-10-06), as the library's capability says
+  (`WritableKinds`). Removing a link puts back only what the app wrote. A TMDb links page
+  reviews the works without an id one at a time by the keyboard, links every confident suggestion —
+  the one exact title-and-year match whose runtime agrees — with one click, written in the
+  background, and lists the conflicts and the links whose item is gone. Owner-only, reads included
+  ([ADR
+  0026](docs/adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md);
+  ADR 0005, 0006, 0008, 0012, 0017, 0023 and 0025 amended). Checked live on 2026-10-05 with Jellyfin
+  12.1.0: an item is read only as a user, so the app reads it as the first enabled administrator;
+  `POST /Items/{id}` with the item as read and only its `ProviderIds` changed answers 204, and read
+  again the item holds the ids, only `Etag`, `ExternalUrls` and a movie's `UserData.Key` changed
+  besides; a series takes its show's id under the same `Tmdb` key, and posting it back without the
+  key removes it — the check did both twice to the Penguins series before Jellyfin's source showed
+  that a series' save rewrites all its seasons and episodes, for the Penguins 149 episodes in 3
+  seasons: nobody read their age ratings before, and the check's read-only listing of 2026-10-06
+  found none of them rated, as the series isn't — what such a save leaves —, so whether any lost a
+  rating then is unknown; a default refresh and "Search for missing metadata" keep the ids. TMDb gives
+  "Landing Stripling" a runtime of 6 minutes, against 6.2 for Jellyfin's file, and names Planet Earth
+  1044 first. The number of confident suggestions in each library is read on the server after the
+  release (Vasyl's decision 4).
 - Separate the duplicate classes of specification §3.3: the same file or a hardlink,
   byte-identical copies, other versions of the same work — a registry id the files share, for an
-  episode its own or its series' with its numbers (ADR 0017) — and possible matches. A seeding file
-  is classed like any other (ADR 0018).
+  episode its own or its series' with its numbers (ADR 0017), a TMDb id the owner linked included
+  (MAM-34) — and possible matches. A seeding file is classed like any other (ADR 0018).
 - A Duplicates page with a filter per class and the evidence behind each grouping; a recoverable
   space estimate only where the storage relationship is known.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
@@ -565,7 +601,10 @@ episode, and how much space could really be recovered — without the app guessi
   releases' kinds and categories live for a day, like the search. MAM-33's catalog, recommendations,
   availability checks and newest releases rebuild themselves from TMDb and the release sources, and the
   posters in `<data>/posters/` are fetched again when missing; each user's "Not interested" and Profile
-  settings are rows of `mam.db`, in its backup.
+  settings are rows of `mam.db`, in its backup. MAM-34's links are the owner's work and live in
+  `mam.db` alone until Jellyfin holds them — an episode's link to its show, a series' link, and a
+  link not written yet, nowhere else —, so they are in its backup; the suggestions and their searches rebuild
+  themselves after the next sync.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -576,7 +615,13 @@ category decides (ADR 0020), except in TV/Anime and TV/Documentary, where Toloka
 series and a season or episodes marker in the title or description decides (MAM-33). For MAM-33: any
 download a recommendation starts by itself; weighting by what was watched or marked favourite, as
 Jellyfin's user data needs a user and the integration has an API key only; and writing the TMDb ids
-the app found into the library or showing the catalog's data on the Library page (ADR 0025).
+the app found by itself into the library or showing the catalog's data on the Library page's cards
+(ADR 0025; MAM-34 writes only the ids the owner picks). For MAM-34: Jellyfin's Identify, a metadata
+refresh, images, titles, locks and collections, which the app never touches; writing a series into
+Jellyfin, whose save rewrites all its seasons and episodes, and sending an item's people, which
+Jellyfin would rebuild; any file or folder; a
+catalog other than TMDb; changing what kind of item Jellyfin says something is; linking a work
+without the owner's click; and joining two libraries' copies by a linked id (MAM-20).
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -614,7 +659,21 @@ after 30 days, a lookup cached when it found nothing; the run's start, worker, r
 triggers; a film in TV/Anime or TV/Documentary matched to the library's movie by the ordinary search;
 and the list's filters and read-time rules, "Not interested" per user, the tab switches and limits
 with the budget split and the shared result, the availability check and its recheck rules, the poster
-endpoint and the Profile settings.
+endpoint and the Profile settings. MAM-34: the Jellyfin adapter reads its recorded answers — the
+users, a movie read and written back, the series as read, the 400, 401 and 404 —, posts a movie item
+as read but for its ids and without its people, once, writes an IMDb id only where none is and reads
+the item again, refuses a series before anything is sent and an item hidden from the administrator,
+and names the kinds it writes; a series' link is kept in the app through set, replace, Accept all,
+the background writer, a sync and a restart; TMDb's
+recorded details give a short's runtime and a show's runtime, IMDb id and other titles; a link
+survives a sync, groups by its id, keeps a third Jellyfin id apart as a conflict, follows its files to
+a re-created item and stays unattached when two items or two links claim them; each write state and
+what a sync makes of it; setting, replacing and removing a link with what is put back, Retry and
+Write again, with every sentence; the suggestion run, its triggers and its cache, the evidence, the
+confident rule and the order; every paste format and the free search; the review queue, "none
+fits", the confident list and Accept all with its background writer; every endpoint owner-only; and
+the Library list, its missing filter and search, the Search page, release matching and the
+recommendations counting a linked id.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -635,7 +694,12 @@ library; the inspection read only those 17, and a second scan read nothing. For 
 Vasyl's token gives each tab its recommendations on the reference installation; the checks of Toloka
 stay within the users' limits; and a download from a recommendation lands in the destination of its
 section, its card gone after the next sync; and the page works in a browser at desktop and phone
-width.
+width. For MAM-34: on the reference installation the owner links a Tom & Jerry short — one with
+watch history first, its played state checked afterwards — and a series, which stays "Kept in the
+app" with nothing sent to Jellyfin, and then accepts every confident suggestion; a sync shows them "In Jellyfin" and a default refresh keeps them; "Planet_Earth_E08 -
+Jungles" linked to show 1044's season 1 episode 8 is kept in the app and the Search page finds it;
+the number of confident suggestions in each library is recorded in the ticket; and the dialog and
+the TMDb links page work in a browser at desktop and phone width.
 
 ### Phase C — Safe replacement
 

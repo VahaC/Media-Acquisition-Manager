@@ -9,10 +9,6 @@ namespace MediaAcquisitionManager.Api.Mapping;
 /// <inheritdoc cref="IRecommendationMapper"/>
 public sealed class RecommendationMapper : IRecommendationMapper
 {
-    /// <summary>Where a poster is served: <c>RecommendationsController</c>'s posters route, which the SPA fetches with
-    /// the user's token and refuses to send anywhere else.</summary>
-    private const string PosterUrlPrefix = "/api/recommendations/posters/";
-
     public RecommendationRunDto ToDto(RecommendationRunEntity run, bool forOwner) =>
         new(
             run.Id,
@@ -54,7 +50,7 @@ public sealed class RecommendationMapper : IRecommendationMapper
             work.Rating,
             work.VoteCount,
             // Only for a name the posters route serves, so a card never asks for one that can only 404.
-            RecommendationPosterNames.FileNameOf(work.PosterPath) is { } fileName ? PosterUrlPrefix + fileName : null,
+            CatalogPosterUrls.Of(work.PosterPath),
             [.. reasons.Select(ReasonDto)],
             availability is null
                 ? null

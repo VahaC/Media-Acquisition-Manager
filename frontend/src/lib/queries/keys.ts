@@ -1,9 +1,13 @@
 import type {
+  ConfidentSuggestionsQuery,
   DestinationsQuery,
   DownloadJobFilesQuery,
   DownloadJobsQuery,
   IntegrationsQuery,
   LibraryEpisodesQuery,
+  LibraryLinkLookupQuery,
+  LibraryLinkSearchQuery,
+  LibraryLinksQuery,
   LibraryWorksQuery,
   RecommendationsQuery,
   SearchReleasesQuery,
@@ -55,6 +59,34 @@ export const qk = {
     episodes: (seriesId: string, query: LibraryEpisodesQuery) => ['library', 'works', seriesId, 'episodes', query] as const,
     locations: ['library', 'locations'] as const,
     sources: ['library', 'sources'] as const,
+    /**
+     * MAM-34 — the TMDb links: under `library`, so a change to an integration drops them with the works
+     * (removing an integration removes its links), but beside `works` rather than under it — an
+     * inspection under way refreshes the works every 2 s, which would ask for an open dialog's
+     * suggestions as often.
+     */
+    links: {
+      /** Every dialog, queue, list and search: what a link change, a finished sync and a finished inspection invalidate. */
+      all: ['library', 'links'] as const,
+      /** One work's dialog; its searches and lookups sit under it. */
+      work: (workId: string) => ['library', 'links', 'works', workId] as const,
+      /** A free TMDb search from one work's dialog; the whole query is part of the key. */
+      search: (workId: string, query: LibraryLinkSearchQuery) => ['library', 'links', 'works', workId, 'search', query] as const,
+      /** A pasted id looked up from one work's dialog. */
+      lookup: (workId: string, query: LibraryLinkLookupQuery) => ['library', 'links', 'works', workId, 'lookup', query] as const,
+      /** The review queue at one index. */
+      queue: (index: number) => ['library', 'links', 'queue', index] as const,
+      /** Every page of the confident suggestions: what "Accept all confident" leaves alone while its rows show. */
+      confidentAll: ['library', 'links', 'confident'] as const,
+      /** One page of the confident suggestions. */
+      confident: (query: ConfidentSuggestionsQuery) => ['library', 'links', 'confident', query] as const,
+      /** One "Accept all confident" click, polled while its writes are under way. */
+      batch: (batchId: string) => ['library', 'links', 'batches', batchId] as const,
+      /** One page of the links of a filter. */
+      list: (query: LibraryLinksQuery) => ['library', 'links', 'list', query] as const,
+      /** The latest preparation of the suggestions. */
+      latestRun: ['library', 'links', 'runs', 'latest'] as const,
+    },
   },
   downloads: {
     /** MAM-13 — the download clients and destinations one release can be sent to. */

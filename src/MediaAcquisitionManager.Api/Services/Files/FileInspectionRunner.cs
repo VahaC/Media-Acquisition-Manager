@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
@@ -34,10 +35,15 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// serves one operation at a time, so they queue on <see cref="_writes"/>; the looks and reads around them
 /// run <see cref="MaximumConcurrentReads"/> at a time.
 /// </para>
+/// <para>
+/// MAM-34 — and once it has succeeded, the owner's TMDb links are brought up to date with the identities it read
+/// (<c>FileInspectionRunner.Links.cs</c>).
+/// </para>
 /// </remarks>
 public sealed partial class FileInspectionRunner(
     ApplicationDbContext db,
     IFileInventory inventory,
+    ILibraryLinkReattacher linkReattacher,
     TimeProvider time,
     ILogger<FileInspectionRunner> logger) : IFileInspectionRunner
 {
@@ -192,7 +198,7 @@ public sealed partial class FileInspectionRunner(
         var (hashCandidates, hashChecked, hashRead, hashProblems, hashProblem) =
             (progress.HashCandidates, progress.HashChecked, progress.HashRead, progress.HashProblems, progress.HashProblem);
         // Never cancelled, the LibrarySyncRunUpdates rule: once the outcome is decided it is written.
-        await db.FileInspectionRuns
+        var succeeded = await db.FileInspectionRuns
             .Where(run => run.Id == runId && run.Status == FileInspectionRunStatus.Running)
             .ExecuteUpdateAsync(
                 setters => setters
@@ -205,11 +211,15 @@ public sealed partial class FileInspectionRunner(
                     .SetProperty(run => run.HashCandidatesRead, hashRead)
                     .SetProperty(run => run.HashProblemCount, hashProblems)
                     .SetProperty(run => run.HashProblem, hashProblem),
-                CancellationToken.None);
+                CancellationToken.None) == 1;
         // Information: counts only — never a path or a title.
         logger.LogInformation(
             "File inspection {RunId} finished: {Checked} of {Total} files checked, {Probed} read by the media inspector; {HashCandidates} files could be copies, {HashRead} read whole for their hash, {HashProblems} not hashed.",
             runId, progress.Checked, files.Count, progress.Probed, hashCandidates, hashRead, hashProblems);
+
+        // 7. MAM-34 — the owner's TMDb links, with the identities this run read.
+        if (succeeded)
+            await ReattachLinksAsync(runId, cancellationToken);
     }
 
     // ── reading what the cache doesn't hold ─────────────────────────────────────────────────────

@@ -12,9 +12,11 @@ namespace MediaAcquisitionManager.Api.Services.Library;
 /// <remarks>
 /// Split by facet: this file replaces and purges a snapshot; <c>LibrarySnapshotStore.WorkAssignment.cs</c>
 /// decides which work each group of items lands on, and <c>LibrarySnapshotStore.Upserts.cs</c> writes the
-/// rows over the ones already stored.
+/// rows over the ones already stored; MAM-34 — <c>LibrarySnapshotStore.Links.cs</c> re-applies the owner's TMDb
+/// links of the library's items.
 /// </remarks>
-public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimeProvider time) : ILibrarySnapshotStore
+public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimeProvider time, ILogger<LibrarySnapshotStore> logger)
+    : ILibrarySnapshotStore
 {
     public async Task<LibrarySnapshotResult> ApplyAsync(
         Guid runId,
@@ -43,6 +45,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
 
             var now = time.GetUtcNow().UtcDateTime;
             var existing = await LoadExistingAsync(integrationId, cancellationToken);
+            var links = await LoadLinksAsync(runId, integrationId, now, cancellationToken);
 
             // ADR 0017 — a missing episode is known to the library but holds no file: it was read, so the
             // pages of its list added up, and it is stored as nothing. Each media source goes to one item
@@ -50,15 +53,23 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
             // once (ADR 0008).
             var resolved = LibraryVersionOwnership.Resolve([.. items.Where(item => !item.IsMissing)]);
 
+            // MAM-34 — the owner's links first: a link whose item came back under a new id finds it by its files,
+            // each link learns from this read whether the library holds it, and the items are grouped by the ids
+            // they count as holding with their links applied (copies: only what the library reported is stored).
+            links.Reattach(resolved, existing.Files);
+            links.JudgeWrites(resolved);
+            var effective = links.Effective(resolved);
+
             // MAM-32 — each kind is grouped on its own, so a movie and a series sharing a TMDb number are
             // never one work (ADR 0017); series first, as an episode is known by its series' ids with its
             // numbers too, and lands in the series work its series item landed on.
-            var seriesItems = resolved
+            var seriesItems = effective
                 .Where(item => item.Kind == MediaWorkKind.Series)
                 .ToDictionary(item => item.SourceItemId, StringComparer.Ordinal);
-            var seriesGroups = GroupsOf(resolved, MediaWorkKind.Series, _ => []);
-            var movieGroups = GroupsOf(resolved, MediaWorkKind.Movie, _ => []);
-            var episodeGroups = GroupsOf(resolved, MediaWorkKind.Episode, item => SeriesPositionKeys(item, seriesItems));
+            var seriesGroups = GroupsOf(effective, MediaWorkKind.Series, _ => []);
+            var movieGroups = GroupsOf(effective, MediaWorkKind.Movie, links.ShowEpisodeKeys);
+            var episodeGroups = GroupsOf(
+                effective, MediaWorkKind.Episode, item => SeriesPositionKeys(item, seriesItems).Concat(links.ShowEpisodeKeys(item)));
 
             var previous = await LoadPreviousWorksAsync(integrationId, existing, cancellationToken);
             var seriesWorkIds = AssignWorks(seriesGroups, MediaWorkKind.Series, existing, previous, _ => [], now);
@@ -71,15 +82,22 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
 
             var upserts = new SnapshotUpserts(db, existing, integrationId, sourceName, now);
             upserts.UpsertLocations(locations);
+            // MAM-34 — the work of every item, of every kind: where each item's link now points.
+            var workOfItem = new Dictionary<string, Guid>(StringComparer.Ordinal);
             foreach (var (groups, workIds) in new[] { (seriesGroups, seriesWorkIds), (movieGroups, movieWorkIds), (episodeGroups, episodeWorkIds) })
             {
                 for (var index = 0; index < groups.Count; index++)
                 {
                     foreach (var item in groups[index].Items)
-                        upserts.UpsertItem(item, workIds[index], SeriesWorkOf(item, seriesWorkOfItem));
+                    {
+                        upserts.UpsertItem(links.Original(item), workIds[index], SeriesWorkOf(item, seriesWorkOfItem));
+                        workOfItem.TryAdd(item.SourceItemId, workIds[index]);
+                    }
                 }
             }
 
+            links.Attach(workOfItem);
+            var identitiesAdded = links.RefreshIdentities(resolved, existing.Files);
             upserts.RemoveUntouched();
             await db.SaveChangesAsync(cancellationToken);
 
@@ -95,6 +113,15 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
             // would throw that away at the last step, leaving the run for the reconciler to blame on a
             // restart.
             await transaction.CommitAsync(CancellationToken.None);
+            // Information: counts only — never a title or an id; and only for a library with links, so a library
+            // without any logs nothing new.
+            if (links.Count > 0)
+            {
+                logger.LogInformation(
+                    "Library sync {RunId} re-applied {Links} TMDb links: {Reattached} re-attached by their files, {Ambiguous} left unattached as their files lead to no single unlinked item, {Identities} file identities added.",
+                    runId, links.Count, links.ReattachedCount, links.AmbiguousCount, identitiesAdded);
+            }
+
             return LibrarySnapshotResult.Applied(worksCount, seriesGroups.Count, upserts.VersionsCount, upserts.FilesCount);
         }
         finally

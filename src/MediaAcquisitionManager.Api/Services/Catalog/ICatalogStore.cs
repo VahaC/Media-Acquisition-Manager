@@ -31,9 +31,10 @@ public interface ICatalogStore
         CatalogConnection catalog, MediaWorkKind kind, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// A film's or a show's details — its genres, IMDb id, collection, directors or creators, seasons and the
-    /// works recommended beside it (each a stored summary) — as of at most <see cref="CatalogStore.RefreshAge"/>
-    /// ago.
+    /// A film's or a show's details — its genres, IMDb id, collection, directors or creators, seasons, the
+    /// works recommended beside it (each a stored summary) and, MAM-34, its runtime, overview and alternative
+    /// titles — as of at most <see cref="CatalogStore.RefreshAge"/> ago, and stored by today's reading of the details
+    /// (<see cref="CatalogStore.CurrentDetailsVersion"/>): details stored before it are read again.
     /// </summary>
     Task<IntegrationCallResult<CatalogWork>> GetWorkAsync(
         CatalogConnection catalog, MediaWorkKind kind, string catalogId, CancellationToken cancellationToken = default);
@@ -74,6 +75,24 @@ public interface ICatalogStore
         IReadOnlyList<int> excludedGenreIds,
         int page,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-34 — the catalog's first page of works of <paramref name="kind"/> titled <paramref name="title"/> (of
+    /// <paramref name="year"/> when one is given), in the catalog's order, each stored as a summary: a suggestion
+    /// or a search hit shown to the owner is a row, so its poster is served and its facts are read from the rows.
+    /// Never cached itself: the suggestions keep what they searched in their own rows, and the owner's own search
+    /// wants the catalog's answer of now. A blank title or an episode throws, as the catalog's search does.
+    /// </summary>
+    Task<IntegrationCallResult<IReadOnlyList<CatalogWorkSummary>>> SearchAsync(
+        CatalogConnection catalog, MediaWorkKind kind, string title, int? year, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-34 — the films and shows the catalog files under <paramref name="imdbId"/>, the films first, each stored as a
+    /// summary like <see cref="SearchAsync"/>'s; an episode's id finds none. Never cached itself: it answers an IMDb id
+    /// the owner pasted. A malformed id throws, as the catalog's find does.
+    /// </summary>
+    Task<IntegrationCallResult<IReadOnlyList<CatalogWorkSummary>>> FindByImdbIdAsync(
+        CatalogConnection catalog, string imdbId, CancellationToken cancellationToken = default);
 
     /// <summary>Stores what a list said of <paramref name="works"/>: each one's summary and genres, a new row or
     /// an update of its own; its details, if read, are left as they were.</summary>

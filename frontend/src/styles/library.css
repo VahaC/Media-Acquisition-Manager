@@ -200,6 +200,21 @@
   min-width: 0;
 }
 
+/* MAM-34 — a linked work's state and conflict badges carry an icon, which `.ui-badge` has no gap
+   for (the warning badge has its own). */
+.library-work-ids .ui-badge {
+  gap: 0.25rem;
+}
+
+/* MAM-34 — the card's actions (the Library page's "TMDb…") under the badges, at the same edge. */
+.library-work-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
 /* One block per version, separated by a line like the source rows: the search page's Details
    dialog (VersionItem). The cards list versions as rows or a table (below). */
 .library-versions {
@@ -570,6 +585,10 @@ button.library-version-row + .library-version-details {
     justify-content: flex-start;
   }
 
+  .library-work-actions {
+    justify-content: flex-start;
+  }
+
   /* MAM-32 — an episode's missing ids go under its title too. */
   .library-episode-head {
     flex-direction: column;
@@ -592,7 +611,8 @@ button.library-version-row + .library-version-details {
 
 @media (max-width: 560px) {
   /* The icon only on a phone; the button keeps its label in title=, which also names it. */
-  .library-source-actions .label-text {
+  .library-source-actions .label-text,
+  .library-work-actions .label-text {
     display: none;
   }
 }

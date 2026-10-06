@@ -1,18 +1,30 @@
 using System.Text.Json;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
+using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 
 // MAM-33 — the catalog's single resources: a work's details with its credits and recommendations in one
-// call, a collection with its parts, a person with the works they directed or created.
+// call, a collection with its parts, a person with the works they directed or created. MAM-34 — the same call
+// also brings a work's other titles and its external ids, for the owner linking a library work to it.
 internal sealed partial class TmdbAdapter
 {
     /// <summary>
-    /// <c>GET /3/movie/{id}</c> or <c>GET /3/tv/{id}</c> with <c>append_to_response=credits,recommendations</c>:
-    /// the details, the crew and TMDb's first page of recommendations in one request instead of three.
+    /// MAM-34 — the most alternative titles a work's details keep: a library work's titles are compared with every
+    /// one of them when its suggestions are ranked, and the tail of a long list is other countries' spellings of the
+    /// titles already kept. The live check found 16 for Planet Earth (VendorSamples); 50 leaves room for a famous
+    /// film's longer list. A constant, not a setting (the house rule for a tuned number).
+    /// </summary>
+    public const int AlternativeTitleMaximumCount = 50;
+
+    /// <summary>
+    /// <c>GET /3/movie/{id}</c> or <c>GET /3/tv/{id}</c> with
+    /// <c>append_to_response=credits,recommendations,alternative_titles,external_ids</c>: the details, the crew,
+    /// TMDb's first page of recommendations and — MAM-34 — the work's other titles and a show's IMDb id, in one
+    /// request instead of five.
     /// </summary>
     public Task<IntegrationCallResult<CatalogWork>> GetWorkAsync(
         IntegrationConnectionSettings settings, MediaWorkKind kind, string id, CancellationToken cancellationToken = default)
@@ -28,7 +40,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                $"{segment}/{id}?append_to_response=credits,recommendations&language={CatalogLanguage}",
+                $"{segment}/{id}?append_to_response=credits,recommendations,alternative_titles,external_ids&language={CatalogLanguage}",
                 WorkNotFoundError(kind, id),
                 (root, secrets) => ReadWork(root, kind, secrets),
                 token),
@@ -88,9 +100,10 @@ internal sealed partial class TmdbAdapter
 
     /// <summary>
     /// A film's or a show's details. A film: its IMDb id, its collection and its directors (the crew's
-    /// <c>Director</c> jobs). A show: its creators (<c>created_by</c>) and its seasons; TMDb's show details
-    /// carry no IMDb id without <c>external_ids</c>, which nothing here needs, so it stays <c>null</c>.
-    /// Either: TMDb's recommendations of the same kind.
+    /// <c>Director</c> jobs). A show: its creators (<c>created_by</c>) and its seasons, and — MAM-34 — its IMDb id
+    /// from <c>external_ids</c>, which TMDb's show details carry only when asked to append them (the lookup's
+    /// details don't ask: its show has none). Either: TMDb's recommendations of the same kind, and — MAM-34 — its
+    /// runtime, its overview and its other titles.
     /// </summary>
     private static CatalogWork? ReadWork(JsonElement root, MediaWorkKind kind, string?[] secrets)
     {
@@ -98,15 +111,20 @@ internal sealed partial class TmdbAdapter
             return null;
 
         var isShow = kind == MediaWorkKind.Series;
+        var overview = TextProperty(root, "overview", CatalogWorkEntity.OverviewMaximumLength, secrets);
         return new CatalogWork(
             summary,
-            isShow ? null : ImdbIdOf(root),
+            isShow ? ExternalImdbIdOf(root) : ImdbIdOf(root),
             isShow || !root.TryGetProperty("belongs_to_collection", out var collection) ? null : ReferenceOf(collection, secrets),
             isShow ? Creators(root, secrets) : Directors(root, secrets),
             isShow ? Seasons(root) : [],
             root.TryGetProperty("recommendations", out var recommendations) && recommendations.ValueKind == JsonValueKind.Object
                 ? ReadSummaries(recommendations, "results", kind, secrets) ?? []
-                : []);
+                : [],
+            isShow ? ShowRuntime(root) : MinutesProperty(root, "runtime"),
+            // TMDb's "" for a work it has no overview of in the language asked (movie-details-short.json).
+            overview.Length > 0 ? overview : null,
+            AlternativeTitles(root, isShow, secrets));
     }
 
     /// <summary>A film's <c>imdb_id</c> when it is one (<see cref="MediaIdentifierRules.IsImdbId"/>);
@@ -118,6 +136,78 @@ internal sealed partial class TmdbAdapter
         && MediaIdentifierRules.IsImdbId(value)
             ? value
             : null;
+
+    /// <summary>
+    /// MAM-34 — a show's IMDb id: <c>external_ids.imdb_id</c> when it is one (tv-details-planet-earth.json's
+    /// tt0795176); a show's details have no <c>imdb_id</c> of their own. The other registries' ids beside it
+    /// (TheTVDB's, Wikidata's …) are not read.
+    /// </summary>
+    private static string? ExternalImdbIdOf(JsonElement root) =>
+        root.TryGetProperty("external_ids", out var externalIds) && externalIds.ValueKind == JsonValueKind.Object
+            ? ImdbIdOf(externalIds)
+            : null;
+
+    /// <summary>
+    /// MAM-34 — a show's runtime: the first of <c>episode_run_time</c>, else its latest episode's
+    /// (<c>last_episode_to_air.runtime</c>). TMDb has left that list empty for shows (tv-details.json and
+    /// tv-details-planet-earth.json both send <c>[]</c>), so the latest episode is what it says today: 88 minutes
+    /// for Yellowstone, 53 for Planet Earth.
+    /// </summary>
+    private static int? ShowRuntime(JsonElement root)
+    {
+        if (root.TryGetProperty("episode_run_time", out var runTimes) && runTimes.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var runTime in runTimes.EnumerateArray())
+            {
+                if (runTime.ValueKind == JsonValueKind.Number && runTime.TryGetInt32(out var minutes) && minutes > 0)
+                    return minutes;
+            }
+        }
+
+        return root.TryGetProperty("last_episode_to_air", out var lastEpisode) && lastEpisode.ValueKind == JsonValueKind.Object
+            ? MinutesProperty(lastEpisode, "runtime")
+            : null;
+    }
+
+    /// <summary>MAM-34 — a runtime in whole minutes; <c>null</c> when absent, TMDb's <c>0</c> for one it doesn't
+    /// know, or anything else.</summary>
+    private static int? MinutesProperty(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var minutesElement)
+        && minutesElement.ValueKind == JsonValueKind.Number
+        && minutesElement.TryGetInt32(out var minutes)
+        && minutes > 0
+            ? minutes
+            : null;
+
+    /// <summary>
+    /// MAM-34 — the other titles TMDb knows a work by: a film's <c>alternative_titles.titles</c>, a show's
+    /// <c>alternative_titles.results</c> (the two shapes differ: movie-details-short.json, tv-details-planet-earth.json).
+    /// Each cleaned (<see cref="RemoteText.Clean"/>), in TMDb's order, each once whatever its letter case — Planet
+    /// Earth's list names "Planet Earth" for three countries — and at most <see cref="AlternativeTitleMaximumCount"/>.
+    /// Their countries and types are not read.
+    /// </summary>
+    private static List<string> AlternativeTitles(JsonElement root, bool isShow, string?[] secrets)
+    {
+        var titles = new List<string>();
+        if (!root.TryGetProperty("alternative_titles", out var alternativeTitles)
+            || alternativeTitles.ValueKind != JsonValueKind.Object
+            || !alternativeTitles.TryGetProperty(isShow ? "results" : "titles", out var entries)
+            || entries.ValueKind != JsonValueKind.Array)
+            return titles;
+
+        foreach (var entry in entries.EnumerateArray())
+        {
+            if (titles.Count == AlternativeTitleMaximumCount)
+                break;
+            if (entry.ValueKind != JsonValueKind.Object)
+                continue;
+            var title = TextProperty(entry, "title", TitleMaximumLength, secrets);
+            if (title.Length > 0 && !titles.Exists(known => string.Equals(known, title, StringComparison.OrdinalIgnoreCase)))
+                titles.Add(title);
+        }
+
+        return titles;
+    }
 
     /// <summary>The crew's directors, each once and in the crew's order: a co-director credited twice, in
     /// two departments, is one director.</summary>

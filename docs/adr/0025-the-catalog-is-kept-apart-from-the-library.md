@@ -143,3 +143,41 @@ This keeps the catalog out of the library, not the library out of the catalog's 
 the library whole, every time. It doesn't make the catalog an authority — a catalog id is never a
 reason to replace, move or rename anything (specification §3.1) — and it doesn't stop a person from
 setting an id in Jellyfin, which the next sync then imports as the library's own.
+
+## The owner's links (added 0.2.1, MAM-34)
+
+**The rule keeps the app's guesses out, not the owner's word.** The Decision's "nothing from them is
+ever written to the library's works, titles or identifiers or shown on the Library page" holds for
+whatever the app finds by itself: a possible match is still never shown or written. A TMDb film or
+show the owner picks for a work is no guess; it is the person setting an id in Jellyfin that the
+Anti-consequence leaves open, done from the app
+([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+Even then nothing is written to `MediaWorks`, `MediaWorkTitles` or `MediaWorkIdentifiers`: the link
+is a row of its own, written into Jellyfin as ids alone when it is a film's — a series' stays in the
+app —, and the next sync imports what Jellyfin then holds. The rejected option "Write the resolved TMDb ids onto the library's works" holds.
+
+**The catalog shows to the owner when the owner links.** The Library page's TMDb dialog and the TMDb
+page — both the owner's alone — show each candidate's poster, title, year, overview and runtime. A
+card shows its link, the id with TMDb's title and the write state, and none of the catalog's other
+data.
+
+**More of the catalog is kept.** `CatalogWorks` gains a runtime, an overview (2,000 characters), the
+other titles TMDb knows a work by (`CatalogWorkAlternativeTitles`, at most 50, cleaned and distinct)
+and a show's IMDb id, and `DetailsVersion`: a work's details are fresh only when younger than 30 days
+and read by this version's reading (`CatalogStore.CurrentDetailsVersion`, 1), so every work stored
+before 0.2.1 is read again the next time a run or a suggestion needs it, with no rebuild and no SQL
+written by hand. A search or a find the owner's suggestions, search or pasted link make stores each
+work it lists as a summary — so its poster is served by the Decision's rule, being some catalog
+work's — but caches no answer; the suggestions keep what they searched in tables of their own
+(`LibraryLinkSearches`, `LibraryLinkCandidates`: a work's queries, when, and its candidates by kind
+and catalog id, with no key into the catalog), going with their work and searched again after 30
+days or when the work's titles, folder or year change.
+
+`CatalogStoreTests.GetWork_stores_a_shows_runtime_overview_alternative_titles_and_imdb_id_and_serves_them_back_from_the_rows`,
+`CatalogStoreTests.Search_stores_every_work_it_lists_so_their_posters_are_served_and_answers_in_the_catalogs_order`,
+`AddLibraryLinksMigrationTests.Upgrade_keeps_every_cached_catalog_work_with_its_details_marked_to_be_read_again`,
+`RecommendationCatalogCacheHttpTests.Recompute_reads_again_within_30_days_the_details_a_reading_before_mam_34_stored`,
+`RecommendationCatalogCacheHttpTests.Recompute_never_writes_the_librarys_works_titles_or_identifiers`
+(no link row either), `LibraryLinkSuggestionRunnerHttpTests.Posters_of_the_candidates_are_served` and
+`LibraryLinkSuggestionRunnerHttpTests.Run_searches_again_a_work_whose_search_is_older_than_a_month`
+pin it.

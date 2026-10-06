@@ -216,6 +216,12 @@ public sealed class FakeTmdbServer
             details["credits"] = Credits(work);
         if (appended.Contains("recommendations"))
             details["recommendations"] = Page(1, Entries(kind, work.RecommendationIds ?? [], $"{KindName(kind)} {work.Id}'s recommendations", withMediaType: true), 1);
+        // MAM-34 — in the shapes the live check recorded (VendorSamples/Tmdb/movie-details-short.json,
+        // tv-details-planet-earth.json): a film's titles under "titles", a show's under "results".
+        if (appended.Contains("alternative_titles"))
+            details["alternative_titles"] = new JsonObject { [kind == MediaWorkKind.Series ? "results" : "titles"] = AlternativeTitles(work) };
+        if (appended.Contains("external_ids"))
+            details["external_ids"] = ExternalIds(work);
         return JsonAnswer(details);
     }
 
@@ -322,7 +328,8 @@ public sealed class FakeTmdbServer
         details["original_title"] = work.OriginalTitle ?? work.Title;
         details["release_date"] = work.ReleaseDate ?? "";
         details["revenue"] = 0;
-        details["runtime"] = 120;
+        // TMDb's 0 for a runtime it doesn't know.
+        details["runtime"] = work.RuntimeMinutes ?? 0;
         details["status"] = "Released";
         details["tagline"] = "";
         details["title"] = work.Title;
@@ -348,12 +355,28 @@ public sealed class FakeTmdbServer
                 ["profile_path"] = null,
             }),
         ]);
+        // MAM-34 — empty, as TMDb sends it today; a show's runtime is its latest episode's (tv-details-planet-earth.json).
         details["episode_run_time"] = new JsonArray();
         details["first_air_date"] = work.ReleaseDate ?? "";
         details["genres"] = Genres(work);
         details["homepage"] = "";
         details["id"] = work.Id;
         details["in_production"] = false;
+        var lastSeason = seasons.LastOrDefault(season => season.Number > 0);
+        details["last_episode_to_air"] = work.RuntimeMinutes is { } runtime
+            ? new JsonObject
+            {
+                ["id"] = work.Id * 1000,
+                ["name"] = "Епізод",
+                ["overview"] = "",
+                ["air_date"] = lastSeason?.AirDate,
+                ["episode_number"] = lastSeason?.EpisodeCount ?? 1,
+                ["episode_type"] = "finale",
+                ["runtime"] = runtime,
+                ["season_number"] = lastSeason?.Number ?? 1,
+                ["show_id"] = work.Id,
+            }
+            : null;
         details["name"] = work.Title;
         details["number_of_episodes"] = seasons.Sum(season => season.EpisodeCount);
         details["number_of_seasons"] = seasons.Count(season => season.Number > 0);
@@ -386,7 +409,7 @@ public sealed class FakeTmdbServer
         ["backdrop_path"] = null,
         ["origin_country"] = new JsonArray("US"),
         ["original_language"] = "en",
-        ["overview"] = "",
+        ["overview"] = work.Overview ?? "",
         ["popularity"] = 10.0,
         ["poster_path"] = work.PosterPath,
         ["production_companies"] = new JsonArray(),
@@ -451,7 +474,7 @@ public sealed class FakeTmdbServer
             entry["origin_country"] = new JsonArray("US");
             entry["original_language"] = "en";
             entry["original_name"] = work.OriginalTitle ?? work.Title;
-            entry["overview"] = "";
+            entry["overview"] = work.Overview ?? "";
             entry["popularity"] = 10.0;
             entry["poster_path"] = work.PosterPath;
             entry["first_air_date"] = work.ReleaseDate ?? "";
@@ -462,7 +485,7 @@ public sealed class FakeTmdbServer
             entry["title"] = work.Title;
             entry["original_language"] = "en";
             entry["original_title"] = work.OriginalTitle ?? work.Title;
-            entry["overview"] = "";
+            entry["overview"] = work.Overview ?? "";
             entry["popularity"] = 10.0;
             entry["poster_path"] = work.PosterPath;
             entry["release_date"] = work.ReleaseDate ?? "";
@@ -474,6 +497,29 @@ public sealed class FakeTmdbServer
         if (withMediaType)
             entry["media_type"] = isShow ? "tv" : "movie";
         return entry;
+    }
+
+    // MAM-34 — each title as TMDb lists it: a country, the title, and a type often left blank.
+    private static JsonArray AlternativeTitles(FakeTmdbWork work) =>
+        new([.. (work.AlternativeTitles ?? []).Select(title => (JsonNode)new JsonObject { ["iso_3166_1"] = "US", ["title"] = title, ["type"] = "" })]);
+
+    // MAM-34 — a film's and a show's external ids as TMDb answers them, every other registry unknown.
+    private static JsonObject ExternalIds(FakeTmdbWork work)
+    {
+        var ids = new JsonObject { ["imdb_id"] = work.ImdbId };
+        if (work.Kind == MediaWorkKind.Series)
+        {
+            ids["freebase_mid"] = null;
+            ids["freebase_id"] = null;
+            ids["tvdb_id"] = null;
+            ids["tvrage_id"] = null;
+        }
+
+        ids["wikidata_id"] = null;
+        ids["facebook_id"] = null;
+        ids["instagram_id"] = null;
+        ids["twitter_id"] = null;
+        return ids;
     }
 
     private static JsonObject Page(int page, JsonArray results, int pages) => new()

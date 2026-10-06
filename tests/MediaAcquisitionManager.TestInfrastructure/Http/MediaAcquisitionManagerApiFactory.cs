@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Api;
 using MediaAcquisitionManager.Api.Serialization;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
+using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Files;
@@ -66,8 +67,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// one transaction interceptor, <see cref="TransactionHook"/>, and one command interceptor,
 /// <see cref="DbCommandHook"/>, do nothing until a test arms them to stage a race. The app's own hosted
 /// services are removed, so a background loop never races a test; tests drive that logic directly
-/// instead — the library sync, file inspection, folder scan and recommendation run workers and reconcilers
-/// through their singletons (<see cref="Resolve{T}"/>).
+/// instead — the library sync, file inspection, folder scan and recommendation run workers and reconcilers, and
+/// MAM-34's links' background writer and TMDb suggestion runs with their reconcilers, through their singletons
+/// (<see cref="Resolve{T}"/>).
 /// Subclass to flip behaviour (see <see cref="FirstRunApiFactory"/>,
 /// <see cref="PipelineProbeApiFactory"/>).
 /// </para>
@@ -244,7 +246,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>,
     /// <see cref="TransactionHook"/> and <see cref="DbCommandHook"/>, empties
     /// <see cref="Files"/>, drains the library sync, file inspection, folder scan and — MAM-33 — recommendation run
-    /// queues (a run id a test queued but never ran would otherwise reach the next test's worker), unpins the client
+    /// queues (a run id a test queued but never ran would otherwise reach the next test's worker) and — MAM-34 — the
+    /// links' background writer's signal and the TMDb suggestion run queue, unpins the client
     /// address and renews <see cref="Scope"/>.
     /// Model-driven: a new entity needs no line here.
     /// </summary>
@@ -282,6 +285,18 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         // MAM-33 — and the recommendations' runs, queued by a sync, a catalog saved or a request.
         var recommendationQueue = Services.GetRequiredService<RecommendationRunQueue>();
         while (recommendationQueue.Reader.TryRead(out _))
+        {
+        }
+
+        // MAM-34 — and the links' background writer's signal, given by "Accept all confident" or the reconciler.
+        var linkWriteQueue = Services.GetRequiredService<LibraryLinkWriteQueue>();
+        while (linkWriteQueue.Reader.TryRead(out _))
+        {
+        }
+
+        // MAM-34 — and the TMDb suggestions' runs, queued by a sync, a catalog saved or the owner's request.
+        var linkSuggestionQueue = Services.GetRequiredService<LibraryLinkSuggestionRunQueue>();
+        while (linkSuggestionQueue.Reader.TryRead(out _))
         {
         }
 

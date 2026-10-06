@@ -17,6 +17,7 @@ const IntegrationsPage = lazy(() =>
 const JobDetailsPage = lazy(() => import('@/pages/JobDetailsPage').then((m) => ({ default: m.JobDetailsPage })))
 const JobsPage = lazy(() => import('@/pages/JobsPage').then((m) => ({ default: m.JobsPage })))
 const LibraryPage = lazy(() => import('@/pages/LibraryPage').then((m) => ({ default: m.LibraryPage })))
+const LibraryTmdbPage = lazy(() => import('@/pages/LibraryTmdbPage').then((m) => ({ default: m.LibraryTmdbPage })))
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const MediaFoldersPage = lazy(() =>
   import('@/pages/settings/MediaFoldersPage').then((m) => ({ default: m.MediaFoldersPage })))
@@ -45,6 +46,9 @@ export default function App() {
                   <Route index element={<HomePage />} />
                   <Route path="search" element={<SearchPage />} />
                   <Route path="library" element={<LibraryPage />} />
+                  {/* MAM-34 — the owner's TMDb links of the works without an id, reached from the
+                      Library's "Missing an id" filter; the header keeps Library highlighted. */}
+                  <Route path="library/tmdb" element={<LibraryTmdbPage />} />
                   {/* MAM-33 — every signed-in user's own lists of works the library doesn't have yet,
                       the tabs they switched on in their Profile; the tab is in `?tab=`. */}
                   <Route path="recommendations" element={<RecommendationsPage />} />

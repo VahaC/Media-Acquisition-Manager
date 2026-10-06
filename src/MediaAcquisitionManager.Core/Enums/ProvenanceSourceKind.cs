@@ -30,4 +30,10 @@ public enum ProvenanceSourceKind
     /// own and never on the library's works (ADR 0025).
     /// </summary>
     Metadata = 5,
+
+    /// <summary>
+    /// MAM-34 — a person set it by hand in the app: the owner's TMDb link of a library item, kept in a table of its
+    /// own (never a row of the library's facts, which a sync replaces) and shown with who set it and when.
+    /// </summary>
+    Person = 6,
 }

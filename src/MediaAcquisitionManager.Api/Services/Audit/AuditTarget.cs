@@ -23,11 +23,17 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     /// ellipsis, as a release title runs to 1000 characters.
     /// </summary>
     public static AuditTarget DownloadJob(DownloadJobEntity job, string releaseTitle) =>
-        new(
-            AuditTargetKind.DownloadJob,
-            job.Id,
-            releaseTitle.Length <= TargetNameMaximumLength ? releaseTitle : string.Concat(releaseTitle.AsSpan(0, TargetNameMaximumLength - 1), "…"));
+        new(AuditTargetKind.DownloadJob, job.Id, Cut(releaseTitle));
+
+    /// <summary>
+    /// MAM-34 — a library item's TMDb link, named by its work's display title: the link row keeps the rest, and the
+    /// audit row's ids say what changed. Cut to the column with an ellipsis, as a title runs to 500 characters.
+    /// </summary>
+    public static AuditTarget LibraryLink(Guid linkId, string name) => new(AuditTargetKind.LibraryLink, linkId, Cut(name));
 
     /// <summary>The audit row's <c>TargetName</c> column.</summary>
     private const int TargetNameMaximumLength = 200;
+
+    private static string Cut(string name) =>
+        name.Length <= TargetNameMaximumLength ? name : string.Concat(name.AsSpan(0, TargetNameMaximumLength - 1), "…");
 }

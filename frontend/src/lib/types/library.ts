@@ -1,3 +1,5 @@
+import type { LibraryWorkLink } from './library-links'
+
 /**
  * What a media work is. MAM-32 — a series is a work of its own, with seasons but no versions; its
  * episodes are works too, each with its versions, listed under it.
@@ -28,12 +30,25 @@ export type LibraryIdentifierFilter = 'Missing'
  */
 export type LibraryKindFilter = 'Movie' | 'Series'
 
-/** A reliable id of a work, and the integration that reported it. */
+/**
+ * What kind of source claimed a fact (ADR 0008). MAM-34 — `Person` is the owner's TMDb link, set by
+ * hand; `Metadata` the catalog, for the IMDb id TMDb gave for a linked work.
+ */
+export type ProvenanceSourceKind = 'MediaLibrary' | 'ReleaseSearch' | 'DownloadClient' | 'FileInspection' | 'Metadata' | 'Person'
+
+/** A reliable id of a work, and the source that claimed it. */
 export interface LibraryIdentifier {
   scheme: MediaIdentifierScheme
   value: string
-  /** The integration's name when it reported it; null when it didn't come from one. */
+  /**
+   * The integration's name when it reported it; null when it didn't come from one. MAM-34 — for an id
+   * set by hand, the name of the user who set it, for the installation owner only: null for everyone else.
+   */
   sourceName: string | null
+  /** MAM-34 — what kind of source claimed it: the library, a person's TMDb link, or the catalog. */
+  sourceKind: ProvenanceSourceKind
+  /** MAM-34 — UTC with a trailing `Z`: when a person set it; null for an id a library or the catalog reported. */
+  setUtc: string | null
 }
 
 /** One file of a version, with the path this app reaches it at when the mappings give one. */
@@ -175,6 +190,8 @@ export interface LibraryWork {
    * season; null for anything but a series.
    */
   seasons: LibrarySeason[] | null
+  /** MAM-34 — the TMDb link of the work's items; null when none of them has one. */
+  link: LibraryWorkLink | null
 }
 
 /** One page of `GET /api/library/works`. */

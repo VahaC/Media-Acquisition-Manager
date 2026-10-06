@@ -1,6 +1,7 @@
 import { CircleCheck, CircleHelp, Library, TextSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { formatNumber } from '@/lib/format'
+import { formatDateTime, formatNumber } from '@/lib/format'
+import { groupedIdentifierKey, groupIdentifiers } from '@/lib/library-identifiers'
 import type { LibraryIdentifier, LibraryTitle, MatchEvidence, MediaIdentifierScheme } from '@/lib/types'
 import '@/styles/library.css' // .library-badge-warning — the amber of a possible match and of a conflict
 import '@/styles/search.css' // .search-badges — the badge row and its icons
@@ -34,6 +35,8 @@ interface MatchBadgesProps {
   heldEpisodeCount?: number | null
 }
 
+const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
+
 /**
  * MAM-12 — why a library work matched what was sought, as badges: the evidence (an id, the title and
  * year, or the title alone — a possible match to check), the matched title with the integration that
@@ -48,10 +51,28 @@ interface MatchBadgesProps {
  * MAM-32 — a TV release's match also says how many episodes of what it claims the library already
  * holds ("9 of its episodes in your library"), a plain fact in the outline tone: a season pack of
  * episodes all held is likely a second copy, one of none a gap to fill.
+ *
+ * MAM-34 — an id the owner linked by hand matches like a library's own, and its badge says so on hover
+ * ("TMDb 679, set by vasyl on …"; "set by hand" for a member, as the card does). One badge per id
+ * whatever claims it: a linked id Jellyfin reports too names both sources.
  */
 export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers = [], matchedTitle = null, searchText = '', inLibraryOf, heldEpisodeCount = null }: MatchBadgesProps) {
-  const { t } = useTranslation(['search', 'library'])
+  const { t } = useTranslation(['search', 'library', 'common'])
   const scheme = (value: MediaIdentifierScheme) => t(`library:schemes.${value}`)
+
+  /** Who claims a matched id, as a clause of its tooltip; null when nothing names a source. */
+  const sourceClause = (identifier: LibraryIdentifier) => {
+    if (identifier.sourceKind === 'Person') {
+      const time = identifier.setUtc === null ? null : formatDateTime(identifier.setUtc, INSTANT_FORMAT)
+      if (identifier.sourceName !== null) {
+        return time === null
+          ? t('match.setByUser', { user: identifier.sourceName })
+          : t('match.setBy', { user: identifier.sourceName, time })
+      }
+      return time === null ? t('match.setByHandUndated') : t('match.setByHand', { time })
+    }
+    return identifier.sourceName ? t('match.reportedBy', { source: identifier.sourceName }) : null
+  }
 
   const evidenceBadges = (() => {
     // A release is never matched by words (ADR 0012), so `match.inLibrary` has no `Words` sentence;
@@ -62,13 +83,16 @@ export function MatchBadges({ evidence, conflictingSchemes, matchedIdentifiers =
       return [{ key: evidence, text: t(`match.inLibrary.${evidence}`, { work: inLibraryOf }), title: undefined }]
     }
     if (evidence === 'Identifier' && matchedIdentifiers.length > 0) {
-      return matchedIdentifiers.map((identifier) => ({
-        key: `${identifier.scheme}:${identifier.value}`,
-        text: t('match.identifier', { scheme: scheme(identifier.scheme) }),
-        title: identifier.sourceName
-          ? t('match.identifierSource', { scheme: scheme(identifier.scheme), value: identifier.value, source: identifier.sourceName })
-          : t('match.identifierValue', { scheme: scheme(identifier.scheme), value: identifier.value }),
-      }))
+      return groupIdentifiers(matchedIdentifiers).map((identifier) => {
+        const sources = identifier.sources.flatMap((claim) => sourceClause(claim) ?? [])
+        return {
+          key: groupedIdentifierKey(identifier),
+          text: t('match.identifier', { scheme: scheme(identifier.scheme) }),
+          title: sources.length > 0
+            ? t('match.identifierSource', { scheme: scheme(identifier.scheme), value: identifier.value, sources: sources.join(t('common:separator')) })
+            : t('match.identifierValue', { scheme: scheme(identifier.scheme), value: identifier.value }),
+        }
+      })
     }
     if (evidence === 'Words') {
       const text = matchedTitle
