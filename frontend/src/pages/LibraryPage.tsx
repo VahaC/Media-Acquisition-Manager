@@ -8,6 +8,7 @@ import { TmdbLinkDialog } from '@/components/library/TmdbLinkDialog'
 import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { FilterBar } from '@/components/shared/FilterBar'
 import { ListPager } from '@/components/shared/ListPager'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { SortSelect } from '@/components/shared/SortSelect'
@@ -42,9 +43,10 @@ const SORTS: readonly LibrarySort[] = ['Title', 'TitleDescending', 'Newest', 'Ol
  *
  * Every signed-in user reads it. A finished sync refreshes the list by itself (useLibrarySources).
  *
- * The order is the last control of the filter row, at its right end: by title either way, by year,
- * by the room the files take or by when a work was added. A new order starts again at page 1, and the
- * order is the page's alone: the episodes a season lists keep their season and number order.
+ * The order stands beside the filters, at the right: by title either way, by year, by the room the files
+ * take or by when a work was added. It is no filter and not part of the row they wrap in, so it never
+ * comes between the filters and their Clear filters. A new order starts again at page 1, and the order is
+ * the page's alone: the episodes a season lists keep their season and number order.
  *
  * MAM-34 — each card has a "TMDb…" action that opens the work's TMDb dialog, where the owner links it
  * to its film or show by hand. A member sees it disabled with the reason, as every owner-only action
@@ -161,7 +163,16 @@ export function LibraryPage() {
 
       <LibrarySyncPanel />
 
-      <div className="settings-toolbar">
+      <FilterBar
+        sort={(
+          <SortSelect
+            label={t('sort.label')}
+            value={sort}
+            options={SORTS.map((option) => ({ value: option, label: t(`sort.${option}`) }))}
+            onChange={setSort}
+          />
+        )}
+      >
         <Input
           type="search"
           className="settings-search"
@@ -201,13 +212,7 @@ export function LibraryPage() {
           <option value="Missing">{t('identifierFilter.missing')}</option>
         </select>
         {identifiers === 'Missing' && <ReviewEntry isOwner={isOwner} onOpen={keepFiltersForBack} />}
-        <SortSelect
-          label={t('sort.label')}
-          value={sort}
-          options={SORTS.map((option) => ({ value: option, label: t(`sort.${option}`) }))}
-          onChange={setSort}
-        />
-      </div>
+      </FilterBar>
 
       {/* MAM-8 — without the libraries the filter offers All libraries alone, which looks like there
           is nothing to choose; this says why instead. A refresh that fails keeps the last list.

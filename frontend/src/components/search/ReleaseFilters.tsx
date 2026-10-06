@@ -1,12 +1,13 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
+import { FilterBar } from '@/components/shared/FilterBar'
 import { SortSelect } from '@/components/shared/SortSelect'
 import { Input } from '@/components/ui/input'
 import { languageName } from '@/lib/media-labels'
 import { bytesFromGibibytes } from '@/lib/size-input'
 import type { ReleaseKind, SearchFacets, SearchReleaseSort, SearchSource } from '@/lib/types'
-import '@/styles/settings-list.css' // .settings-toolbar, .settings-filter — the row of filters
+import '@/styles/settings-list.css' // .settings-filter — the filters' selects
 import '@/styles/search.css' // .search-filters, .search-size-* — the size pair, its invalid bounds and the line under the row
 
 /** What the release filters hold. `''` is "not filtered"; the sizes are the GiB text as typed. */
@@ -59,7 +60,16 @@ export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFil
 
   return (
     <div className="search-filters">
-      <div className="settings-toolbar">
+      <FilterBar
+        sort={(
+          <SortSelect
+            label={t('filters.sort')}
+            value={values.sort}
+            options={SORTS.map((sort) => ({ value: sort, label: t(`filters.sorts.${sort}`) }))}
+            onChange={(sort) => change({ sort })}
+          />
+        )}
+      >
         <select
           className="ui-input settings-filter"
           value={values.source}
@@ -130,13 +140,7 @@ export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFil
             onChange={(event) => change({ maxSize: event.target.value })}
           />
         </div>
-        <SortSelect
-          label={t('filters.sort')}
-          value={values.sort}
-          options={SORTS.map((sort) => ({ value: sort, label: t(`filters.sorts.${sort}`) }))}
-          onChange={(sort) => change({ sort })}
-        />
-      </div>
+      </FilterBar>
       {/* MAM-16 — the line under a form's field that broke a rule; the bound it is about has a red
           border. */}
       {(minInvalid || maxInvalid) && (

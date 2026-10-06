@@ -523,7 +523,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `LibraryMetadataLookupRequested` are history: the first builds of this version wrote them, nothing
   writes them now, and the values stay so old rows read.
 - **The Library sorts its works, and its sort says "Sort by" (MAM-8, Vasyl's request).** A **Sort by**
-  select ends the Library page's filter row, at its right end, with **Title A–Z** (as before),
+  select stands beside the Library page's filters, at the right, with **Title A–Z** (as before),
   **Title Z–A**, **Year, newest first**, **Year, oldest first**, **Largest on disk** and **Recently
   added**. `GET /api/library/works?sort=` takes `Title` (when blank), `TitleDescending`, `Newest`,
   `Oldest`, `Largest` or `Added`, by name in any letter case; `Newest` and `Oldest` go by the year the
@@ -631,12 +631,16 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   and a show's `external_ids.imdb_id`. `CatalogWorks` keeps them, and details stored before this
   version are read again when next needed (`DetailsVersion`). The poster endpoint serves the
   candidates the TMDb dialog shows, as each is stored as a catalog work.
-- **The order of the Search and Recommendations lists sits at the right end of the filter row, under
+- **The order of the Search and Recommendations lists stands beside the filters, at the right, under
   "Sort by" (MAM-8, Vasyl's request).** The order was a select with no label, left among the filters,
-  that read like one more filter. It is now the row's last control, at its right end (wrapping onto
-  its own line on a phone, still at the right), after a sort icon and **Sort by**, as the Library's
-  is; the Search page's label was "Sort". One shared `SortSelect` makes all three, and its select
-  keeps its own accessible name, "Sort by".
+  that read like one more filter — and, as one of the items of the row they wrap in, it could drop onto a
+  line of its own between the filters and the list or its empty state, tearing the filters and **Clear
+  filters** apart. It now stands outside that row (`FilterBar`), after a sort icon and **Sort by**, as
+  the Library's does, and the filters wrap among themselves; under 48rem it goes above the filters
+  instead of beside them, so it is never between them and their answer. The Library's search field
+  gives up a little width so the filters, the **Review works without a TMDb id** button and the order
+  meet on one line on a wide window. The Search page's label was "Sort". One shared `SortSelect` makes all three,
+  and its select keeps its own accessible name, "Sort by".
 
 ### Notes for upgraders
 

@@ -1,5 +1,5 @@
 import { ArrowUpDown } from 'lucide-react'
-import '@/styles/settings-list.css' // .settings-sort, .settings-filter — the order, at the right end of a filter row
+import '@/styles/settings-list.css' // .settings-sort, .settings-filter — the order's label and select
 
 interface SortOption<TSort extends string> {
   value: TSort
@@ -15,11 +15,11 @@ interface SortSelectProps<TSort extends string> {
 }
 
 /**
- * The order of a list, as the last control of its filter row and at the row's right end, under a visible
- * "Sort by" with a sort icon: the filter selects name themselves by their first option ("All reasons"), which
- * a list of orders can't. Shared by the Library, Search and Recommendations pages, so every list says it the
- * same way. The select keeps its own aria-label, so its name stays the label alone rather than the label with
- * the chosen order tacked on, as a wrapping label's text would make it.
+ * The order of a list, beside its filters (in a FilterBar), under a visible "Sort by" with a sort icon: the
+ * filter selects name themselves by their first option ("All reasons"), which a list of orders can't. Shared by
+ * the Library, Search and Recommendations pages, so every list says it the same way. The select keeps its own
+ * aria-label, so its name stays the label alone rather than the label with the chosen order tacked on, as a
+ * wrapping label's text would make it.
  */
 export function SortSelect<TSort extends string>({ label, value, options, onChange }: SortSelectProps<TSort>) {
   return (

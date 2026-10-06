@@ -263,6 +263,35 @@ public sealed class LibraryWorksSortHttpTests : IClassFixture<MediaAcquisitionMa
         Assert.Equal([Serial], (await ReadListAsync(series, cancellationToken)).Items.Select(work => work.Title));
     }
 
+    [Theory]
+    [InlineData("Title")]
+    [InlineData("TitleDescending")]
+    [InlineData("Newest")]
+    [InlineData("Oldest")]
+    [InlineData("Largest")]
+    [InlineData("Added")]
+    public async Task Works_sorted_in_every_order_find_the_same_works_missing_an_id(string sort)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // Two films with both their ids, three without: an order only puts the works found in a row, it never
+        // adds one or takes one away.
+        await _works.CreateMovie(_library, Alpha, 2010, tmdbId: "1", imdbId: "tt0000001", fileSizes: [100]);
+        await _works.CreateMovie(_library, Beta, 1999, tmdbId: "2", imdbId: "tt0000002", fileSizes: [200]);
+        await _works.CreateMovie(_library, Gamma, 2005, fileSizes: [300]);
+        await _works.CreateMovie(_library, Delta, null, imdbId: "tt0000004");
+        await _works.CreateSeries(_library, Serial, 2020, episodeSizeBytes: 400);
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}?identifiers=Missing&sort={sort}", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var list = await ReadListAsync(response, cancellationToken);
+        Assert.Equal(3, list.TotalCount);
+        Assert.Equal([Gamma, Delta, Serial], list.Items.Select(work => work.Title).Order(StringComparer.Ordinal));
+    }
+
     /// <summary>Five works with their years — two in 2010, one without — and a series of 2020.</summary>
     private async Task SeedYearsAsync()
     {

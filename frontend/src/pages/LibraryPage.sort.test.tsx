@@ -59,7 +59,7 @@ describe('LibraryPage sort', () => {
     expect(lastQuery()?.sort).toBeUndefined()
   })
 
-  it('says "Sort by" in the last place of the filter row, which its label puts at the right end', async () => {
+  it('stands the order beside the row the filters wrap in, never inside it, so it cannot come between the filters and Clear filters', async () => {
     // Arrange
     renderPage()
 
@@ -68,9 +68,13 @@ describe('LibraryPage sort', () => {
 
     // Assert
     const label = sortSelect().closest('label')
+    const toolbar = screen.getByRole('searchbox', { name: 'Search the library' }).parentElement
     expect(label).toHaveTextContent('Sort by')
     expect(label).toHaveClass('settings-sort')
-    expect(label?.parentElement?.lastElementChild).toBe(label)
+    expect(toolbar).toHaveClass('settings-toolbar')
+    expect(toolbar).not.toContainElement(label)
+    expect(label?.parentElement).toBe(toolbar?.parentElement)
+    expect(label?.parentElement).toHaveClass('settings-filterbar')
   })
 
   it.each([

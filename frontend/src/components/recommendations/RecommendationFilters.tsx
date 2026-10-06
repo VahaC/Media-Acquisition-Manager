@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
+import { FilterBar } from '@/components/shared/FilterBar'
 import { SortSelect } from '@/components/shared/SortSelect'
 import { formatNumber } from '@/lib/format'
 import { RECOMMENDATION_SORTS } from '@/lib/recommendations'
 import type { CatalogWorkKind, RecommendationFacets, RecommendationReasonKind, RecommendationSort } from '@/lib/types'
-import '@/styles/settings-list.css' // .settings-toolbar, .settings-filter — the row of filters
+import '@/styles/settings-list.css' // .settings-filter — the filters' selects
 import '@/styles/settings-dialog.css' // .settings-check — the Available only box before its label
 
 /** What the toolbar holds. `''` is "not filtered"; the genre and the decade as their option values. */
@@ -42,7 +43,16 @@ export function RecommendationFilters({ facets, showKind, values, onChange, sort
   const option = (label: string, count: number) => t('filters.option', { label, value: formatNumber(count) })
 
   return (
-    <div className="settings-toolbar">
+    <FilterBar
+      sort={(
+        <SortSelect
+          label={t('filters.sort')}
+          value={sort}
+          options={RECOMMENDATION_SORTS.map((option) => ({ value: option, label: t(`filters.sorts.${option}`) }))}
+          onChange={onSort}
+        />
+      )}
+    >
       <select
         className="ui-input settings-filter"
         value={values.reason}
@@ -97,13 +107,6 @@ export function RecommendationFilters({ facets, showKind, values, onChange, sort
         />
         {t('filters.availableOnly')}
       </label>
-      {/* Last, after the filters: it orders what they keep. */}
-      <SortSelect
-        label={t('filters.sort')}
-        value={sort}
-        options={RECOMMENDATION_SORTS.map((option) => ({ value: option, label: t(`filters.sorts.${option}`) }))}
-        onChange={onSort}
-      />
-    </div>
+    </FilterBar>
   )
 }
