@@ -2,6 +2,7 @@ using System.Net;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Abstractions.Search;
 using MediaAcquisitionManager.Core.Enums;
@@ -28,8 +29,15 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     /// </summary>
     public static TheoryData<string> ClientNames => ["jellyfin", "torznab", "qbittorrent", "tmdb"];
 
+    /// <summary>
+    /// MAM-34 — every client, <c>jellyfin-identify</c> too: the second Jellyfin client, which carries Apply alone with its own
+    /// timeout, is configured like the others in everything but the timeout, so a credential never follows a redirect and no
+    /// request URI is logged.
+    /// </summary>
+    public static TheoryData<string> HandlerClientNames => ["jellyfin", "jellyfin-identify", "torznab", "qbittorrent", "tmdb"];
+
     [Theory]
-    [MemberData(nameof(ClientNames))]
+    [MemberData(nameof(HandlerClientNames))]
     public void Every_integration_client_has_a_primary_handler_that_follows_no_redirect_and_keeps_no_cookies(string clientName)
     {
         //Arrange
@@ -68,8 +76,64 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Null(client.BaseAddress);
     }
 
+    [Fact]
+    public void The_identify_client_has_the_twenty_minute_timeout_and_the_shared_jellyfin_client_keeps_fifteen_seconds()
+    {
+        //Arrange
+        // MAM-34 — Apply is synchronous and takes a second per episode of a series (159.3 s for 149 episodes live): its client
+        // has a timeout of its own, and an HttpClient's timeout can't change once it has been used, so it is a second named
+        // client; every other Jellyfin call keeps the shared 15 seconds.
+        using var services = BuildServices();
+        var clients = services.GetRequiredService<IHttpClientFactory>();
+
+        //Act
+        var identify = clients.CreateClient("jellyfin-identify");
+        var shared = clients.CreateClient("jellyfin");
+
+        //Assert
+        Assert.Equal(TimeSpan.FromMinutes(20), identify.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(15), shared.Timeout);
+        Assert.Equal(TimeSpan.FromMinutes(20), IntegrationsInfrastructureExtensions.IdentifyTimeout);
+        Assert.Equal("jellyfin-identify", JellyfinAdapter.IdentifyHttpClientName);
+    }
+
+    [Fact]
+    public void The_identify_client_is_configured_like_the_shared_one_in_everything_but_its_timeout()
+    {
+        //Arrange
+        using var services = BuildServices();
+
+        //Act
+        var client = services.GetRequiredService<IHttpClientFactory>().CreateClient("jellyfin-identify");
+        var (_, primary) = Chain(services.GetRequiredService<IHttpMessageHandlerFactory>().CreateHandler("jellyfin-identify"));
+
+        //Assert
+        Assert.Equal(TimeSpan.FromSeconds(5), Assert.IsType<SocketsHttpHandler>(primary).ConnectTimeout);
+        Assert.Equal(4 * 1024 * 1024, client.MaxResponseContentBufferSize);
+        Assert.Equal("MediaAcquisitionManager/1.0 (+integrations)", client.DefaultRequestHeaders.UserAgent.ToString());
+        Assert.Null(client.BaseAddress);
+    }
+
+    [Fact]
+    public async Task The_identify_client_follows_no_redirect_and_logs_no_request()
+    {
+        //Arrange
+        // Every level recorded; Jellyfin answers, so the identification goes all the way through both clients.
+        using var jellyfin = new JellyfinIdentifyHarness();
+
+        //Act
+        var result = await jellyfin.IdentifyAsync(JellyfinIdentifyHarness.FilmRequest(), TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(LibraryIdentifyOutcome.Identified, result.Value!.Outcome);
+        Assert.DoesNotContain(
+            jellyfin.Adapters.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(jellyfin.Adapters.Logs.Entries, entry => entry.Message.Contains(JellyfinIdentifyHarness.ApiKey, StringComparison.Ordinal));
+    }
+
     [Theory]
-    [MemberData(nameof(ClientNames))]
+    [MemberData(nameof(HandlerClientNames))]
     public void Every_integration_client_has_no_logging_or_retry_handler(string clientName)
     {
         //Arrange
@@ -343,28 +407,27 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     }
 
     [Fact]
-    public async Task A_library_write_logs_nothing_from_the_http_client()
+    public async Task A_film_identify_makes_six_requests_and_logs_nothing_from_the_http_client_nor_the_key()
     {
         //Arrange
-        // MAM-34 — every level recorded; Jellyfin answers, so the write goes all the way: the users, the item, the
-        // one POST and the read again.
+        // MAM-34 — every level recorded; Jellyfin answers, so the identification goes all the way: the users, the item, the
+        // libraries, the search, the one Apply and the item read again.
         using var harness = new IntegrationAdapterHarness();
         var server = new FakeJellyfinServer("http://service.test:8096") { ApiKey = AnyApiKey };
         server.Movies.Add(JellyfinSamples.Item());
+        server.Matches.Add(new FakeJellyfinMatch("Movie", FakeJellyfinServer.TmdbProvider, "Tmdb", "223021", JellyfinSamples.RemoteSearchMovieByTmdbRows()[0]!.AsObject()));
         server.Arm(harness.JellyfinHttp);
-        var writer = harness.Adapter<IMediaLibraryIdentifierWriter>("jellyfin");
+        var identifier = harness.Adapter<IMediaLibraryItemIdentifier>("jellyfin");
         var settings = new IntegrationConnectionSettings(null, server.BaseUrl, null, null, AnyApiKey);
-        var change = new LibraryIdentifierChange(
-            JellyfinSamples.LandingStriplingId,
-            MediaWorkKind.Movie,
-            [new(MediaIdentifierScheme.Tmdb, JellyfinSamples.LandingStriplingTmdbId, LibraryIdentifierEditRule.Always)]);
+        var request = new LibraryIdentifyRequest(
+            JellyfinSamples.LandingStriplingId, MediaWorkKind.Movie, new MediaIdentifier(MediaIdentifierScheme.Tmdb, JellyfinSamples.LandingStriplingTmdbId), false);
 
         //Act
-        var result = await writer.WriteIdentifiersAsync(settings, change, TestContext.Current.CancellationToken);
+        var result = await identifier.IdentifyAsync(settings, request, TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.True(result.Value!.Confirmed);
-        Assert.Equal(4, harness.JellyfinHttp.Requests.Count);
+        Assert.Equal(LibraryIdentifyOutcome.Identified, result.Value!.Outcome);
+        Assert.Equal(6, harness.JellyfinHttp.Requests.Count);
         Assert.DoesNotContain(
             harness.Logs.Entries,
             entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));

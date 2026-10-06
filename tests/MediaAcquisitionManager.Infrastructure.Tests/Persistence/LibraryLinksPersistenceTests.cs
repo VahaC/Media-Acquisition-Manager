@@ -461,14 +461,16 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
     }
 
     [Fact]
-    public async Task A_links_episode_imdb_id_and_lookup_are_kept_whole_and_the_lookup_audit_action_by_name()
+    public async Task A_links_identified_time_episode_imdb_id_and_dormant_lookup_columns_are_kept_whole_and_the_identify_audit_action_is_stored_by_name()
     {
         //Arrange
-        // MAM-34 follow-up — the episode's own IMDb id a link writes, when the library was asked to look its item up and
-        // why it refused, at the columns' full lengths (a sentence is cut to 1000 before it is stored), to the tick.
+        // MAM-34 (0.2.1, ADR 0026) — when the app last confirmed the item identified, the episode's own IMDb id it is
+        // identified by, and the two columns of the retired metadata lookup that stay (an older image still runs against a
+        // migrated database), at the columns' full lengths, to the tick; and the audit action of an Apply that left the app.
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var db = CreateContext();
         var jellyfin = await CreateLibraryAsync(db, "Living room");
+        var identifiedUtc = new DateTime(2026, 10, 6, 14, 30, 45, DateTimeKind.Utc).AddTicks(7_654_321);
         var requestedUtc = new DateTime(2026, 10, 6, 2, 30, 45, DateTimeKind.Utc).AddTicks(1_234_567);
         var episodeImdbId = "tt" + new string('9', LibraryItemLinkEntity.ValueMaximumLength - 2);
         var lookupError = new string('x', LibraryItemLinkEntity.ErrorMaximumLength);
@@ -479,10 +481,11 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
                 row.SeasonNumber = 1;
                 row.EpisodeNumber = 1;
                 row.EpisodeImdbId = episodeImdbId;
+                row.IdentifiedUtc = identifiedUtc;
                 row.LookupRequestedUtc = requestedUtc;
                 row.LookupError = lookupError;
             });
-        await AuditEvents(db).CreateForLink(AuditAction.LibraryMetadataLookupRequested, link.Id, "Blitzkrieg", []);
+        await AuditEvents(db).CreateForLink(AuditAction.LibraryItemIdentified, link.Id, "Blitzkrieg", []);
 
         //Act
         await using var check = CreateContext();
@@ -491,9 +494,9 @@ public sealed class LibraryLinksPersistenceTests : DatabaseTestBase
 
         //Assert
         Assert.Equal(
-            (episodeImdbId, (DateTime?)requestedUtc, lookupError),
-            (stored.EpisodeImdbId, stored.LookupRequestedUtc, stored.LookupError));
-        Assert.Equal("LibraryMetadataLookupRequested", action);
+            (episodeImdbId, (DateTime?)identifiedUtc, (DateTime?)requestedUtc, lookupError),
+            (stored.EpisodeImdbId, stored.IdentifiedUtc, stored.LookupRequestedUtc, stored.LookupError));
+        Assert.Equal("LibraryItemIdentified", action);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

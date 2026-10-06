@@ -26,15 +26,17 @@ const PAGE_SIZE_STORAGE_KEY = 'mam:library-tmdb:linksPageSize'
 const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
 
 /** The lists of links the TMDb page has a tab for. */
-type RowsFilter = 'Conflict' | 'Unattached'
+type RowsFilter = 'Conflict' | 'Unattached' | 'NotWritten'
 
 /**
- * MAM-34 — one of the TMDb page's lists of links, a page at a time: the Conflicts tab (the items whose
- * Jellyfin holds another TMDb id than the one linked, so neither counts — "TMDb…" opens the work's
- * dialog to keep one of the two), or the Unattached tab (the links whose item the library no longer
- * reports — Remove forgets one, after a destructive confirmation; nothing is changed in Jellyfin, as
- * the item is gone). Each card says what the item was, what it is linked to, by whom and when, and
- * where the link stands against Jellyfin.
+ * MAM-34 — one of the TMDb page's lists of links, a page at a time: the Not identified tab (the links
+ * Jellyfin or the app refused or failed to identify — "TMDb…" opens the work's dialog to Retry, to link
+ * another film or show, or to remove the link), the Conflicts tab (the items whose Jellyfin holds another
+ * TMDb id than the one linked, so neither counts — "TMDb…" opens the work's dialog to keep one of the
+ * two), or the Unattached tab (the links whose item the library no longer reports — Remove forgets one,
+ * after a destructive confirmation; nothing is changed in Jellyfin, as the item is gone). Each card says
+ * what the item was, what it is linked to, by whom and when, where the link stands against Jellyfin and,
+ * for a link that is not identified, the reason on screen: a phone shows no tooltip.
  */
 export function TmdbLinkRows({ filter }: { filter: RowsFilter }) {
   const { t } = useTranslation(['libraryLinks', 'common'])
@@ -114,7 +116,8 @@ export function TmdbLinkRows({ filter }: { filter: RowsFilter }) {
                   row={row}
                   removing={remove.isPending && remove.variables === row.linkId}
                   removeError={removeErrors[row.linkId]}
-                  onOpen={filter === 'Conflict' && row.workId !== null ? () => setOpening(row) : undefined}
+                  // Every row of the Not identified list has a work (the server lists attached links only); an unattached link has none.
+                  onOpen={filter !== 'Unattached' && row.workId !== null ? () => setOpening(row) : undefined}
                   onRemove={filter === 'Unattached' ? () => void removeRow(row) : undefined}
                 />
               </li>
@@ -147,8 +150,9 @@ export function TmdbLinkRows({ filter }: { filter: RowsFilter }) {
 
 /**
  * One link: the item it is on, what it is linked to, by whom and when, its state against Jellyfin and
- * a conflict when there is one; "TMDb…" or Remove at the right edge (under the facts on a phone), and
- * a refused removal's sentence under them.
+ * a conflict when there is one, the server's sentence of why when Jellyfin or the app didn't identify
+ * it; "TMDb…" or Remove at the right edge (under the facts on a phone), and a refused removal's sentence
+ * under them.
  */
 function LinkCard({ row, removing, removeError, onOpen, onRemove }: {
   row: LibraryLinkRow
@@ -180,7 +184,7 @@ function LinkCard({ row, removing, removeError, onOpen, onRemove }: {
         </p>
         <p>{t('rows.linkedTo', { link })}</p>
         <div className="tmdb-link-state">
-          <LinkStateBadge state={row.writeState} error={row.writeError} />
+          <LinkStateBadge state={row.writeState} identified={row.identifiedUtc !== null} error={row.writeError} />
           {row.conflictingValue !== null && (
             <span className="ui-badge library-badge-warning" title={t('card.conflictHint')}>
               <TriangleAlert className="h-3 w-3" aria-hidden="true" />
@@ -188,6 +192,13 @@ function LinkCard({ row, removing, removeError, onOpen, onRemove }: {
             </span>
           )}
         </div>
+        {/* The sentence on screen too, as a phone shows no tooltip; verbatim, never rephrased here. */}
+        {row.writeError !== null && (row.writeState === 'NotWritten' || row.writeState === 'Lost') && (
+          <p className="library-source-status" data-status="Failed">
+            <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{row.writeError}</span>
+          </p>
+        )}
         <p className="library-work-meta">
           {t('card.setBy', { user: row.setByUserName, time: formatDateTime(row.setUtc, INSTANT_FORMAT) })}
         </p>

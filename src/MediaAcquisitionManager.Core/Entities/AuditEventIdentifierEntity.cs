@@ -4,9 +4,9 @@ using MediaAcquisitionManager.Core.Enums;
 namespace MediaAcquisitionManager.Core.Entities;
 
 /// <summary>
-/// MAM-34 — an id an audit row records: what the library held for an item before a link was set or written, and what
-/// it held after. Restoring the item when its link is removed starts from these (decision 13), so they are rows, not a
-/// text the app would have to parse back.
+/// MAM-34 — an id an audit row records: what a link held before it was set, replaced or removed, or what the library
+/// held for an item before and after an identification. They are rows, not a text the app would have to parse back;
+/// nothing is restored from them since 0.2.1 (ADR 0026), they are the history the owner reads.
 /// </summary>
 /// <remarks>Written in the same save as its audit row, and removed with it.</remarks>
 public class AuditEventIdentifierEntity : BaseEntity

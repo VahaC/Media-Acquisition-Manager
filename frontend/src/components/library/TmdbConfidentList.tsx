@@ -48,14 +48,16 @@ interface Accepted {
 /**
  * MAM-34 — the TMDb page's Confident tab: every work whose suggestion is confident (decision 8 — the
  * one candidate whose kind, title, year and runtime all agree), a page at a time, with each library's
- * counts above them. Every row starts ticked; "Link N works" links the ticked rows of the page shown
- * in one click, each to its suggestion — a series' like a film's —, and the library writes happen in
- * the background.
+ * counts above them. Every row starts ticked, and the owner reviews and unticks them before the click:
+ * "Link N works" links the ticked rows of the page shown in one click, each to its suggestion — a
+ * series' like a film's —, and Jellyfin identifies each one in the background. The one line above the
+ * toolbar says what that does (it replaces the items' titles, overviews and images; no undo) where the
+ * click is; the click itself asks nothing more, as the owner decided the list's review is the question.
  *
  * After the click the rows stay as they were clicked — a local snapshot, not the list, which would
- * drop the linked works under the pointer (R24) — and each shows how its write went, asked for every
- * 2 s until none waits or is being written. "Back to the confident suggestions" leaves them for the
- * list as it now is.
+ * drop the linked works under the pointer (R24) — and each shows how its identification went, asked
+ * for every 2 s until none waits or is being identified. "Back to the confident suggestions" leaves
+ * them for the list as it now is.
  */
 export function TmdbConfidentList() {
   const queryClient = useQueryClient()
@@ -138,6 +140,9 @@ function ConfidentPage({ onAccepted }: { onAccepted: (accepted: Accepted) => voi
   return (
     <>
       {data && data.locations.length > 0 && <LibraryCounts locations={data.locations} />}
+
+      {/* Once, where the click is: the same statement the dialog makes above its Save. */}
+      {data && data.totalCount > 0 && <p className="ui-hint">{t('confident.identifyNote')}</p>}
 
       {data && (libraries.length > 1 || view.locationId !== '' || data.totalCount > 0) && (
         <div className="tmdb-confident-toolbar">
@@ -257,8 +262,8 @@ function LibraryCounts({ locations }: { locations: LibraryLinkLocationCount[] })
 
 /**
  * The rows of one click, each with what came of it: its links' states against Jellyfin (with the
- * sentence of a write that failed), or why it wasn't linked. The batch is asked for every 2 s until
- * no link waits or is being written.
+ * sentence of an identification that failed), or why it wasn't linked. The batch is asked for every 2 s
+ * until no link waits or is being identified.
  */
 function AcceptedRows({ accepted, onDone }: { accepted: Accepted; onDone: () => void }) {
   const { t } = useTranslation(['libraryLinks', 'common'])
@@ -273,6 +278,8 @@ function AcceptedRows({ accepted, onDone }: { accepted: Accepted; onDone: () => 
   // Counted on the click's own answer, which still holds the works skipped.
   const linked = first.items.filter((item) => item.outcome === 'Linked').length
   const underWay = isBatchUnderWay(latest)
+  // Of a hundred rows the owner can't be left to spot the ones Jellyfin or the app refused: the line counts them.
+  const refused = links.filter((one) => one.writeState === 'NotWritten').length
 
   return (
     <>
@@ -282,9 +289,10 @@ function AcceptedRows({ accepted, onDone }: { accepted: Accepted; onDone: () => 
           : <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />}
         <span>
           {underWay
-            ? t('confident.writing', { done: formatNumber(finished), total: formatNumber(links.length) })
+            ? t('confident.identifying', { done: formatNumber(finished), total: formatNumber(links.length) })
             : t('confident.summary', { count: accepted.rows.length, value: formatNumber(accepted.rows.length), linked: formatNumber(linked) })}
         </span>
+        {!underWay && refused > 0 && <span>{t('confident.refused', { count: refused, value: formatNumber(refused) })}</span>}
       </p>
 
       {/* The rows stay on what the last answer said. */}
@@ -347,7 +355,7 @@ function Outcome({ item }: { item: LibraryLinkBatchItem | undefined }) {
     <>
       {item.links.map((one) => (
         <div key={one.linkId} className="tmdb-link-state">
-          <LinkStateBadge state={one.writeState} error={one.writeError} />
+          <LinkStateBadge state={one.writeState} identified={one.identifiedUtc !== null} error={one.writeError} />
           {/* The sentence on screen too, as a phone shows no tooltip. */}
           {one.writeError !== null && (one.writeState === 'NotWritten' || one.writeState === 'Lost') && (
             <p className="library-source-status" data-status="Failed">

@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -13,7 +14,9 @@ using Microsoft.Extensions.Logging;
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
 // MAM-34, decision 10 — a TMDb link finds its item again by its files when the library re-creates the item under a new
-// id: the link keeps the identities (device, inode, size — R2) of its item's files, copied after each inspection and
+// id — and, 0.2.1, is then no longer identified: the new item is a fresh one with its own file-derived metadata, so the
+// link's identified time is cleared by both ways it follows an item (the inspection's reattacher, the sync) and the repair
+// counts it again: the link keeps the identities (device, inode, size — R2) of its item's files, copied after each inspection and
 // at each sync; once the inspection has read the new item's files, the link moves to the one item of its kind holding
 // them — a series through its episodes' files (R3) — or, failing that, at the next sync. Decided as a whole (R1): files
 // under two items (hardlinks), two links meeting on one item, or an item that holds a link of its own move nothing, and
@@ -112,6 +115,66 @@ public sealed class LibraryLinkReattachHttpTests : IClassFixture<MediaAcquisitio
             entry => entry.Category == typeof(Services.LibraryLinks.LibraryLinkReattacher).FullName
                 && entry.Level == LogLevel.Information
                 && entry.Message.StartsWith("TMDb links after the file inspection: 1 re-attached by their files, 0 left unattached", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Reattach_of_an_identified_link_clears_its_identified_time_so_the_repair_takes_it_again()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync();
+        _jellyfin.Movies.Add(Short(OldItemId, ShortPath));
+        _factory.Files.AddFile(ShortPath, TestMedia.File(ShortInode, ShortSizeBytes));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        var identifiedAt = _factory.Time.GetUtcNow().UtcDateTime;
+        var link = await _links.Create(
+            jellyfin, OldItemId, await WorkOfAsync(OldItemId, cancellationToken), MediaIdentifierScheme.Tmdb, JellyfinSamples.LandingStriplingTmdbId,
+            writeState: LibraryLinkWriteState.Written, configure: row => row.IdentifiedUtc = identifiedAt);
+        await _factory.RunQueuedInspectionsAsync(cancellationToken);
+        _jellyfin.Movies.Clear();
+        _jellyfin.Movies.Add(Short(NewItemId, ShortPath));
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        var unattached = await LinkAsync(link.Id, cancellationToken);
+
+        //Act
+        // The inspection's own pass moves it (the sync couldn't: the new item's name had no identity yet).
+        await _factory.RunQueuedInspectionsAsync(cancellationToken);
+
+        //Assert
+        Assert.Equal((OldItemId, (DateTime?)identifiedAt), (unattached.SourceItemId, unattached.IdentifiedUtc));
+        var row = await LinkAsync(link.Id, cancellationToken);
+        Assert.Equal((NewItemId, (DateTime?)null), (row.SourceItemId, row.IdentifiedUtc));
+        // Not identified on the new item: the repair counts it again.
+        var catchUp = await (await _factory.GetHttpRequest("/api/library/tmdb/catch-up", _owner.AccessToken))
+            .ReadAsync<LibraryLinkCatchUpResponse>(cancellationToken);
+        Assert.Equal(1, catchUp.ToIdentify);
+    }
+
+    [Fact]
+    public async Task Sync_that_moves_an_identified_link_to_a_recreated_item_clears_its_identified_time()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync();
+        _jellyfin.Movies.Add(Short(NewItemId, ShortPath));
+        _factory.Files.AddFile(ShortPath, TestMedia.File(ShortInode, ShortSizeBytes));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        await _factory.RunQueuedInspectionsAsync(cancellationToken);
+        var identifiedAt = _factory.Time.GetUtcNow().UtcDateTime;
+        // The link was identified on the old item; its files are the new item's (the item was re-created).
+        var link = await _links.Create(
+            jellyfin, OldItemId, null, MediaIdentifierScheme.Tmdb, JellyfinSamples.LandingStriplingTmdbId, writeState: LibraryLinkWriteState.Written,
+            files: [(TestMedia.DeviceId, ShortInode, ShortSizeBytes)], configure: row => row.IdentifiedUtc = identifiedAt);
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        var run = await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        Assert.Equal(LibrarySyncStatus.Succeeded, run.Status);
+        var row = await LinkAsync(link.Id, cancellationToken);
+        Assert.Equal((NewItemId, (DateTime?)null), (row.SourceItemId, row.IdentifiedUtc));
     }
 
     [Fact]

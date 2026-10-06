@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.TestInfrastructure.Http;
@@ -7,10 +6,9 @@ using MediaAcquisitionManager.TestInfrastructure.Integrations;
 
 namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 
-// MAM-34 — the fake Jellyfin's one-item read and write, which every link test stands on, answer as the live check
-// recorded (VendorSamples/Jellyfin): the users with their policies, an item read only as a user (400 without one, 404 for
-// an id it doesn't hold), and a write that applies the posted ProviderIds — a key left out or blank removed — so a later
-// read or sync sees them; and the switches that make a write refused, taken but not applied, or its answer lost.
+// MAM-34 — the fake Jellyfin's one-item read, which every link test stands on, answers as the live check recorded it
+// (VendorSamples/Jellyfin): the users with their policies, and an item read only as a user (400 without one, 404 for an id it
+// doesn't hold). Jellyfin's Identify has its own class (FakeJellyfinServerIdentifyTests).
 public sealed class FakeJellyfinServerItemTests : IDisposable
 {
     private const string BaseUrl = "http://jellyfin.test:8096";
@@ -89,125 +87,32 @@ public sealed class FakeJellyfinServerItemTests : IDisposable
     }
 
     [Fact]
-    public async Task Item_write_applies_the_posted_ids_so_a_later_read_and_list_see_them()
-    {
-        //Arrange
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var posted = JellyfinSamples.Movie(JellyfinSamples.AliensTheatricalId);
-        // A key changed, one sent blank, one left out (TmdbCollection): Jellyfin keeps only what it was sent.
-        posted["ProviderIds"] = new JsonObject { ["Tmdb"] = "348", ["Imdb"] = "" };
-
-        //Act
-        var write = await PostAsync(JellyfinSamples.AliensTheatricalId, posted);
-        var read = await _client.GetAsync($"Items/{JellyfinSamples.AliensTheatricalId}?userId={JellyfinSamples.AdministratorUserId}", cancellationToken);
-
-        //Assert
-        Assert.Equal(HttpStatusCode.NoContent, write.StatusCode);
-        Assert.Empty(await write.Content.ReadAsStringAsync(cancellationToken));
-        var item = JsonNode.Parse(await read.Content.ReadAsStringAsync(cancellationToken))!;
-        Assert.Equal("""{"Tmdb":"348"}""", item["ProviderIds"]!.ToJsonString());
-        Assert.Equal("""{"Tmdb":"348"}""", _server.Movies.Single(movie => (string?)movie["Id"] == JellyfinSamples.AliensTheatricalId)["ProviderIds"]!.ToJsonString());
-        // The body stays readable as sent.
-        var request = Assert.Single(_handler.Requests, recorded => recorded.Method == HttpMethod.Post);
-        Assert.Equal(posted.ToJsonString(), request.Body);
-    }
-
-    [Fact]
-    public async Task Item_write_of_a_series_reaches_the_series_list()
-    {
-        //Arrange
-        _server.Series.Add(JellyfinSamples.SeriesItem());
-        var posted = JellyfinSamples.SeriesItem();
-        posted["ProviderIds"] = new JsonObject { ["Tmdb"] = JellyfinSamples.PenguinsTmdbTvId };
-
-        //Act
-        var write = await PostAsync(JellyfinSamples.PenguinsId, posted);
-
-        //Assert
-        Assert.Equal(HttpStatusCode.NoContent, write.StatusCode);
-        Assert.Equal("""{"Tmdb":"7869"}""", _server.Series.Single()["ProviderIds"]!.ToJsonString());
-    }
-
-    [Theory]
-    [InlineData(HttpStatusCode.Forbidden)]
-    [InlineData(HttpStatusCode.BadRequest)]
-    public async Task A_refused_write_answers_its_status_and_applies_nothing(HttpStatusCode refusal)
-    {
-        //Arrange
-        _server.WriteRefusal = refusal;
-        var posted = JellyfinSamples.Movie(JellyfinSamples.AliensTheatricalId);
-        posted["ProviderIds"] = new JsonObject { ["Tmdb"] = "348" };
-
-        //Act
-        var write = await PostAsync(JellyfinSamples.AliensTheatricalId, posted);
-
-        //Assert
-        Assert.Equal(refusal, write.StatusCode);
-        Assert.Equal("679", (string?)_server.Movies.Single(movie => (string?)movie["Id"] == JellyfinSamples.AliensTheatricalId)["ProviderIds"]!["Tmdb"]);
-    }
-
-    [Fact]
-    public async Task An_ignored_write_answers_204_and_applies_nothing()
-    {
-        //Arrange
-        _server.IgnoresWrites = true;
-        var posted = JellyfinSamples.Movie(JellyfinSamples.AliensTheatricalId);
-        posted["ProviderIds"] = new JsonObject { ["Tmdb"] = "348" };
-
-        //Act
-        var write = await PostAsync(JellyfinSamples.AliensTheatricalId, posted);
-
-        //Assert
-        Assert.Equal(HttpStatusCode.NoContent, write.StatusCode);
-        Assert.Equal("679", (string?)_server.Movies.Single(movie => (string?)movie["Id"] == JellyfinSamples.AliensTheatricalId)["ProviderIds"]!["Tmdb"]);
-    }
-
-    [Fact]
-    public async Task A_lost_answer_fails_the_request_after_the_write_landed()
-    {
-        //Arrange
-        _server.AfterWrite = _ => throw new HttpRequestException("The answer never came.");
-        var posted = JellyfinSamples.Movie(JellyfinSamples.AliensTheatricalId);
-        posted["ProviderIds"] = new JsonObject { ["Tmdb"] = "348" };
-
-        //Act
-        var exception = await Record.ExceptionAsync(() => PostAsync(JellyfinSamples.AliensTheatricalId, posted));
-
-        //Assert
-        Assert.IsType<HttpRequestException>(exception);
-        Assert.Equal("348", (string?)_server.Movies.Single(movie => (string?)movie["Id"] == JellyfinSamples.AliensTheatricalId)["ProviderIds"]!["Tmdb"]);
-    }
-
-    [Fact]
-    public async Task Item_write_of_an_id_no_list_holds_is_the_recorded_404()
-    {
-        //Arrange
-
-        //Act
-        var write = await PostAsync($"{Guid.NewGuid():N}", JellyfinSamples.Item());
-
-        //Assert
-        Assert.Equal(HttpStatusCode.NotFound, write.StatusCode);
-    }
-
-    [Fact]
-    public async Task Item_read_and_write_with_a_wrong_key_are_401()
+    public async Task Item_read_with_a_wrong_key_is_401()
     {
         //Arrange
         _server.ApiKey = "another-key";
 
         //Act
         var read = await _client.GetAsync($"Items/{JellyfinSamples.AliensTheatricalId}?userId={JellyfinSamples.AdministratorUserId}", TestContext.Current.CancellationToken);
-        var write = await PostAsync(JellyfinSamples.AliensTheatricalId, JellyfinSamples.Movie(JellyfinSamples.AliensTheatricalId));
 
         //Assert
-        Assert.Equal((HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized), (read.StatusCode, write.StatusCode));
+        Assert.Equal(HttpStatusCode.Unauthorized, read.StatusCode);
     }
 
-    private Task<HttpResponseMessage> PostAsync(string itemId, JsonObject item)
+    [Fact]
+    public async Task A_post_of_an_item_or_a_refresh_is_unknown_to_the_fake()
     {
-        var content = new StringContent(item.ToJsonString(), Encoding.UTF8);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        return _client.PostAsync($"Items/{itemId}", content, TestContext.Current.CancellationToken);
+        //Arrange
+        // Jellyfin's older ways to change an item — POST /Items/{id} with the item sent back, and POST /Items/{id}/Refresh —
+        // are not what the app does since 0.2.1: they answer 404 here, so a regression that posts an item fails loudly.
+        using var body = new StringContent(JellyfinSamples.Item().ToJsonString(), Encoding.UTF8, "application/json");
+
+        //Act
+        var update = await _client.PostAsync($"Items/{JellyfinSamples.LandingStriplingId}", body, TestContext.Current.CancellationToken);
+        var refresh = await _client.PostAsync(
+            $"Items/{JellyfinSamples.LandingStriplingId}/Refresh?metadataRefreshMode=FullRefresh", null, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal((HttpStatusCode.NotFound, HttpStatusCode.NotFound), (update.StatusCode, refresh.StatusCode));
     }
 }

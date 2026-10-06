@@ -18,6 +18,7 @@ import {
   confidentStripling,
   filmsCount,
   linksPage,
+  lockedSentence,
   penguins,
   penguinsShow,
   queueOf,
@@ -28,9 +29,11 @@ vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
 
 // MAM-34 — the TMDb page's Confident tab (R24): every confident suggestion a page at a time with each
-// library's counts, every row ticked, "Link N works" in one click, and then the rows as they were
-// clicked, each following its write every 2 s until none waits or is being written. A ticked series is
-// linked in the same click as the films, with no question.
+// library's counts, every row ticked, one line above the toolbar saying what linking does to the items
+// in Jellyfin (it identifies them, replacing their title, overview and images), "Link N works" in one
+// click with no further question — the owner reviewed and unticked the list first —, and then the rows
+// as they were clicked, each following its identification every 2 s until none waits or is being
+// identified. A ticked series is linked in the same click as the films.
 
 /** The series and its confident show. */
 const confidentPenguins = { work: penguins, candidate: { ...penguinsShow, isConfident: true } }
@@ -93,6 +96,39 @@ describe('LibraryTmdbPage Confident tab', () => {
     expect(libraryLinksApi.confident).toHaveBeenCalledExactlyOnceWith({ locationId: undefined, page: 1, pageSize: 25 })
   })
 
+  it('says before the click what Jellyfin will replace, with no extra question', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Queued'),
+      batchItemOf(confidentCalypso.work, 'Queued'),
+    ]))
+    vi.mocked(libraryLinksApi.batch).mockImplementation(() => new Promise(() => {}))
+    const { user } = renderPage()
+    const hint = await screen.findByText(/^Linking the ticked works makes Jellyfin identify each as its suggestion/)
+    const toolbarButton = screen.getByRole('button', { name: 'Link 2 works' })
+
+    // Act
+    await user.click(toolbarButton)
+
+    // Assert
+    expect(hint).toHaveTextContent('it replaces the title, overview and images of the item with TMDb\'s, a series\' in minutes, and there is no undo. Your files and folders are not touched.')
+    expect(hint.compareDocumentPosition(toolbarButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(libraryLinksApi.acceptConfident).toHaveBeenCalledOnce()
+  })
+
+  it('leaves the statement out when no work has a confident suggestion to link', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [], 0, []))
+
+    // Act
+    renderPage()
+    await screen.findByText(/^No work has a confident suggestion/)
+
+    // Assert
+    expect(screen.queryByText(/^Linking the ticked works/)).not.toBeInTheDocument()
+  })
+
   it('counts only the ticked rows, and says why Link is off with none ticked', async () => {
     // Arrange
     const { user } = renderPage()
@@ -110,7 +146,7 @@ describe('LibraryTmdbPage Confident tab', () => {
     expect(none.parentElement).toHaveAttribute('title', 'Tick at least one work.')
   })
 
-  it('links the ticked rows in one click, then keeps them on screen, each following its write until none is under way', async () => {
+  it('links the ticked rows in one click, then keeps them on screen, each following its identification until none is under way', async () => {
     // Arrange
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([batchItemOf(confidentStripling.work, 'Queued')]))
@@ -121,12 +157,12 @@ describe('LibraryTmdbPage Confident tab', () => {
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Link 1 work' }))
-    const queued = await screen.findByText('Waiting to be written')
+    const queued = await screen.findByText('Waiting to identify')
     await nextPoll()
-    await screen.findByText('Writing…', { selector: '.ui-badge' })
+    await screen.findByText('Identifying…', { selector: '.ui-badge' })
     vi.mocked(libraryLinksApi.batch).mockResolvedValue(batchOf([batchItemOf(confidentStripling.work, 'Written')]))
     await nextPoll()
-    await screen.findByText('Written to Jellyfin')
+    await screen.findByText('Identified in Jellyfin')
     await nextPoll()
     await nextPoll()
 
@@ -141,6 +177,59 @@ describe('LibraryTmdbPage Confident tab', () => {
     // The rows as they were clicked: the list wasn't asked for again under them.
     expect(libraryLinksApi.confident).toHaveBeenCalledOnce()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('shows a series linked in the same click like a film, queued then identified', async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [confidentStripling, confidentPenguins]))
+    vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Queued'),
+      batchItemOf(penguins, 'Queued'),
+    ]))
+    vi.mocked(libraryLinksApi.batch).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Written'),
+      batchItemOf(penguins, 'Writing'),
+    ]))
+    const { user } = renderPage()
+    await screen.findByRole('button', { name: 'Link 2 works' })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
+    expect(await screen.findAllByText('Waiting to identify')).toHaveLength(2)
+    await nextPoll()
+    await screen.findByText('Identifying…', { selector: '.ui-badge' })
+    // Read now: the same line says the work done once the batch ends.
+    const progress = screen.getByText(/^Identifying in Jellyfin/).textContent
+    vi.mocked(libraryLinksApi.batch).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Written'),
+      batchItemOf(penguins, 'Written'),
+    ]))
+    await nextPoll()
+    await screen.findByText('2 of 2 works linked.')
+
+    // Assert
+    expect(progress).toBe('Identifying in Jellyfin: 1 of 2 links…')
+    expect(screen.getAllByText('Identified in Jellyfin')).toHaveLength(2)
+    expect(screen.queryByText(/refused or failed/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows a link Jellyfin holds the ids of but the app never identified as not identified yet', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Written', { identifiedUtc: null }),
+    ]))
+    const { user } = renderPage()
+    await screen.findByRole('button', { name: 'Link 2 works' })
+    await user.click(box('121. Calypso Cat (1962)'))
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Link 1 work' }))
+
+    // Assert
+    expect(await screen.findByText('Not identified yet', { selector: '.ui-badge' })).toHaveClass('library-badge-warning')
+    expect(screen.queryByText('Identified in Jellyfin')).not.toBeInTheDocument()
   })
 
   it('links a ticked series in the same click as the films, with no question', async () => {
@@ -163,10 +252,10 @@ describe('LibraryTmdbPage Confident tab', () => {
       { workId: penguins.id, catalogKind: 'Series', catalogId: '7869' },
     ])
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(await screen.findAllByText('Waiting to be written')).toHaveLength(2)
+    expect(await screen.findAllByText('Waiting to identify')).toHaveLength(2)
   })
 
-  it('says how far the writes are while they are under way', async () => {
+  it('says how far the identifications are while they are under way', async () => {
     // Arrange
     vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
       batchItemOf(confidentStripling.work, 'Written'),
@@ -180,13 +269,13 @@ describe('LibraryTmdbPage Confident tab', () => {
     await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
 
     // Assert
-    expect(await screen.findByText('Writing the ids into Jellyfin, one work at a time: 1 of 2…')).toBeInTheDocument()
+    expect(await screen.findByText('Identifying in Jellyfin: 1 of 2 links…')).toBeInTheDocument()
   })
 
-  it('shows a write Jellyfin refused with its sentence, and a work skipped with why', async () => {
+  it('shows an identification Jellyfin or the app refused with its sentence, and a work skipped with why', async () => {
     // Arrange
     vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
-      batchItemOf(confidentStripling.work, 'NotWritten', { writeError: 'Jellyfin refused to change the item\'s ids.' }),
+      batchItemOf(confidentStripling.work, 'NotWritten', { writeError: lockedSentence, identifiedUtc: null }),
       { workId: confidentCalypso.work.id, outcome: 'Skipped', reason: 'The suggestion is no longer confident.', links: [] },
     ]))
     const { user } = renderPage()
@@ -196,10 +285,15 @@ describe('LibraryTmdbPage Confident tab', () => {
     await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
 
     // Assert
-    expect(await screen.findByText('Not in Jellyfin yet')).toBeInTheDocument()
-    expect(screen.getByText('Jellyfin refused to change the item\'s ids.', { selector: 'span' })).toBeInTheDocument()
+    const badge = await screen.findByText('Not identified yet')
+    expect(badge).toHaveClass('library-badge-warning')
+    expect(badge).toHaveAttribute('title', lockedSentence)
+    // On screen too, verbatim: a phone shows no tooltip.
+    expect(screen.getByText(lockedSentence, { selector: 'span' })).toBeInTheDocument()
     expect(screen.getByText('Not linked: The suggestion is no longer confident.')).toBeInTheDocument()
     expect(screen.getByText('1 of 2 works linked.')).toBeInTheDocument()
+    // Counted in the summary, so a refusal among a hundred rows isn't missed.
+    expect(screen.getByText('1 link was refused or failed: its reason is under its row.').closest('[role="status"]')).toHaveTextContent('1 of 2 works linked.')
     expect(libraryLinksApi.batch).not.toHaveBeenCalled()
   })
 
@@ -217,9 +311,9 @@ describe('LibraryTmdbPage Confident tab', () => {
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
-    await screen.findByText('Waiting to be written')
+    await screen.findByText('Waiting to identify')
     await nextPoll()
-    await screen.findByText('Written to Jellyfin')
+    await screen.findByText('Identified in Jellyfin')
 
     // Assert
     expect(libraryLinksApi.batch).toHaveBeenCalledOnce()
@@ -244,15 +338,15 @@ describe('LibraryTmdbPage Confident tab', () => {
 
     // Act
     await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
-    await screen.findAllByText('Waiting to be written')
+    await screen.findAllByText('Waiting to identify')
     await nextPoll()
-    await screen.findByText('Written to Jellyfin')
+    await screen.findByText('Identified in Jellyfin')
 
     // Assert
     const [strip, calypso] = rows().querySelectorAll<HTMLElement>(':scope > li')
-    expect(within(strip).getByText('Written to Jellyfin')).toBeInTheDocument()
-    expect(within(calypso).getByText('Linked, with no library item to write into.')).toBeInTheDocument()
-    expect(screen.queryByText('Waiting to be written')).not.toBeInTheDocument()
+    expect(within(strip).getByText('Identified in Jellyfin')).toBeInTheDocument()
+    expect(within(calypso).getByText('Linked, with no library item to identify.')).toBeInTheDocument()
+    expect(screen.queryByText('Waiting to identify')).not.toBeInTheDocument()
     expect(screen.getByText('2 of 2 works linked.')).toBeInTheDocument()
   })
 
@@ -286,7 +380,7 @@ describe('LibraryTmdbPage Confident tab', () => {
     await screen.findByRole('button', { name: 'Link 2 works' })
     await user.click(box('121. Calypso Cat (1962)'))
     await user.click(screen.getByRole('button', { name: 'Link 1 work' }))
-    await screen.findByText('Written to Jellyfin')
+    await screen.findByText('Identified in Jellyfin')
     vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [confidentCalypso]))
 
     // Act

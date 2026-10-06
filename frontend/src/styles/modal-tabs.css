@@ -45,7 +45,8 @@
   box-shadow: inset 0 -2px 0 var(--primary);
 }
 
-/* On a phone the four tabs fit without their icons, which their labels don't need. */
+/* On a phone four tabs fit without their icons, which their labels don't need; the TMDb page's five
+   scroll sideways (TmdbLinkTabs brings the current one into view). */
 @media (max-width: 480px) {
   .modal-tab {
     padding: 0.5rem 0.625rem;

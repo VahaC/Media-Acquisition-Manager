@@ -475,3 +475,236 @@ and `LibraryLinkSyncHttpTests.Resync_leaves_a_series_link_the_first_rules_kept_i
 `LibraryLinkCatchUpHttpTests.CatchUp_counts_the_kept_and_not_written_links_that_write_ids_and_the_written_links_never_looked_up_and_nothing_else`
 and `LibraryLinkCatchUpHttpTests.CatchUp_queues_them_and_the_writer_writes_each_fetches_the_episodes_imdb_id_and_asks_jellyfin_to_look_each_up`
 now count, queue and write a series' link the first rules kept in the app.
+
+## Assigning an id is Jellyfin's Identify, and Remove link forgets only (added 0.2.1, MAM-34, decided again 2026-10-06)
+
+The text above, and the two sections before this one, record MAM-34 as it was first built — ids
+only — and as it was extended with a metadata lookup, and they stay as they were. The file name and
+the title above keep the first decision, as the older sections keep theirs. Vasyl reversed both on
+2026-10-06 after a live check of Jellyfin's Identify on the reference installation and an inventory
+of what the earlier writes had left; this section records what replaced them, with the evidence.
+
+**Context.** After the lookup build ran on the reference installation — 229 links: 220 written, 3 not
+written, 6 kept in the app —, 217 of the 220 written items still showed the title Jellyfin had derived
+from the file name, 187 held extra ids added by Jellyfin's own providers, and "Search for missing
+metadata" had been asked for all of them: ids plus a refresh do not make Jellyfin show what TMDb says.
+What Jellyfin's own **Identify** sends was recorded live on 12.1.0, Vasyl typing `y` for each Apply:
+`POST /Items/RemoteSearch/Movie` or `/Series` with
+`{"SearchInfo":{"ProviderIds":{"Tmdb":"223021"}},"ItemId":"<dashed guid>","SearchProviderName":"TheMovieDb"}`
+answers 200 with one row (`Name`, `ProviderIds`, `ProductionYear`, `PremiereDate`, `ImageUrl`,
+`SearchProviderName`, `Overview`, `Artists`), and `POST /Items/RemoteSearch/Apply/{id}?replaceAllImages=true`
+with that row as its body answers 204 and is **synchronous**. The key must be spelled `Tmdb` (`tmdb`
+answers `[]`); an unknown id answers `[]`; a wrong key is a 401 with no body; Apply of an unknown item
+is a 404 problem+json (the all-zero guid is a 400). **Language**: the search body may carry
+`SearchInfo.MetadataLanguage` and `MetadataCountryCode`, and when they are blank Jellyfin uses the
+**server's** (`ItemId` only picks the providers), whereas Apply, which has no language field, refreshes
+the item in its **library's** own `PreferredMetadataLanguage` (the reference libraries: «Фільми» `uk`,
+«Мульфільми» and «Документалки» blank, «Серіали» `en`; English was seen where blank). The three live
+items were all in blank or `en` libraries: a `uk` library was never exercised live.
+
+- **Namespace trap.** A film search by the TV id 7869 returned an unrelated film, "The Fest" (2005); a
+  series search by the film id 223021 returned an unrelated show. An id may only go to the search of
+  its own kind.
+- **Timings.** A film 1.8 s, the Penguins of Madagascar (3 seasons, 149 episodes) **159.3 s** — about
+  a second an episode —, a documentary episode through the Open Movie Database 21.3 s; no timeouts,
+  and Jellyfin keeps working after a client gives up.
+- **What changed.** The film's name ("120. Landing Stripling" → "Landing Stripling"), `Etag`, primary
+  image (768x576 → 1112x1668) and backdrop; its ids kept (Tvdb and TvdbSlug re-added by other
+  providers). The series: all five images re-downloaded, its 149 episodes' names, overviews and images
+  unchanged, their `TvMaze` id dropped, `UserData` (15.4 % played) preserved. The episode-movie
+  "Blitzkrieg", identified through The Open Movie Database by its IMDb id `tt9103946`: name and year
+  corrected (2025 → 2019), its overview **kept** (the row has none), and its 960x1440 poster
+  **replaced by a 1920x1080 image — a frame of the video, not the database's poster** (presumably
+  Jellyfin's screen grabber; the cause was not isolated). The folder listings of all three items before
+  and after were **identical** (162, 153 and 11 entries): no media file or folder changed.
+- **The libraries.** The four media libraries have `SaveLocalMetadata` false, `MetadataSavers` `[]` and
+  no subtitle download languages; only «Колекції» saves beside the media (`SaveLocalMetadata` true,
+  savers null), with no linked item.
+
+**Decision.** **Assigning a TMDb id to a library item is Jellyfin's Identify, done exactly as its web
+button does it: a search by that id in the provider of the item's own kind, then
+`RemoteSearch/Apply` with `replaceAllImages=true`, so Jellyfin replaces the item's title, overview and
+images — in the language of the item's library — and the app confirms by reading the item again. The
+app never reports Written for an item that did not take the match. Removing a link forgets it in the
+app only: Jellyfin keeps what Identify set, and replacing a link is a new Identify** (Vasyl's decision
+of 2026-10-06).
+
+**The capability is `IMediaLibraryItemIdentifier`.** It replaces `IMediaLibraryIdentifierWriter`
+([ADR 0005](0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)): `IdentifiableKinds`
+(Jellyfin: film and series, never an episode item), `UnidentifiableKindReason`, and
+`IdentifyAsync(settings, LibraryIdentifyRequest(item, kind, identifier, protectHeldIds), ct)`. The
+allowed pairs are (film, `Tmdb`), (series, `TmdbTv`) and, for an episode Jellyfin lists as a film,
+(film, `Imdb`) by the **episode's own IMDb id** through The Open Movie Database — the only route
+recorded live, TheMovieDb answering `[]`. A TV id never reaches the film search and a film id never the
+series search: the guard is in the contract, a caller's mistake throwing before anything is sent.
+
+**One Apply, confirmed by a re-read, never sent twice.** The adapter reads the item and its library's
+options, searches carrying the library's own language and country — so the row is in the language
+Apply will give the item —, chooses the one row carrying exactly the requested id (none or two is no
+match), and skips Apply when the item already shows the row: its name, its year when the row has one,
+its id key, a primary image when the row has an image and, when the row has one, its overview. Name,
+year, ids and a poster are also what the old refresh left, so without the overview a name another provider supplied could pass for TMDb's. Otherwise it
+sends Apply **once**, on a client of its own with a 20-minute timeout (`jellyfin-identify`; the shared
+client keeps 15 seconds), and reads the item again: its name and year equal the row's, the id key is
+present, its `Etag` or primary-image tag changed, and a primary image is still there when the row has
+one. A lost answer, a timeout or a 5xx is decided by the re-read, and the sentence tells the owner to
+wait; the app never repeats an Apply
+([ADR 0013](0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+The Retry of a series not identified yet also waits until ten minutes have passed since the audit row
+of its last Apply, as Jellyfin goes on rewriting its episodes after the client gave up: it says when
+to try again, and asks Jellyfin nothing meanwhile.
+A partial result — the ids replaced, the metadata not — is `NotWritten` with its sentence, never
+`Written`.
+
+**Refused before anything is sent.** The item's library saves beside the media (`SaveLocalMetadata`
+true, an `Nfo` saver, trickplay saved with the media, downloaded subtitles saved with the media), or
+its options can't be read, or no library holds the item's path (all fail closed); the item is locked
+(`LockData`, a locked name or a locked overview); the item is of another type; and, for bulk paths
+only, a held id that Identify would discard (below). Files and folders are never touched, nothing is
+moved or renamed, and age ratings do not matter.
+
+**Always queued, never in a request.** Set, Replace, Retry, Accept all and the repair all queue; the
+background worker is the only caller of Identify. Its lanes are long-lived — two for films and
+episode-movies, one for series: at most three Applies at once, one series at a time —, wait for new
+work instead of ending, take the owner's own clicks before a batch's links, and stop a batch whose
+Applies fail to confirm twice in a row, settling the rest `NotWritten` with nothing sent. The `PUT`
+answers at once with the dialog, the item `Queued`, and the dialog polls its item's state. A series
+takes minutes and an episode-movie about 20 seconds, which a request could not hold.
+
+**The repair is the catch-up** (the route and the page's button, "Update Jellyfin", are kept).
+`LibraryItemLinks.IdentifiedUtc` — new, nullable — is set when an Identify was confirmed or the item
+was found already matching, cleared when an Apply is not confirmed, when the link is replaced and when
+a sync moves it to another item, and is what the repair selects on. The catch-up queues every attached,
+identifiable, never-identified link of an enabled library under one batch id and reports `{ toIdentify, progress: { batchId,
+total, done } }`, so the page shows "done of total" while the worker runs. Links refused or failed
+before anything was sent are tried again by every click; a link whose Apply was sent and not confirmed
+waits for the owner's Retry, as a second Apply would delete its images again — and so does a link a
+restart cut while it was identifying (its audit row is written only after the Apply's answer, so none
+exists, and Jellyfin goes on with the Apply after the app is gone). A sync leaves `NotWritten` links
+alone, so it never erases a refusal.
+
+**Held ids are protected in bulk, not against the owner's own click.** A link queued by Accept all or
+the repair carries a batch id and is not identified when Jellyfin holds an id of the same scheme that
+differs: a `Tmdb` different from the link's, an `Imdb` different from the row's, or any `Imdb` when TMDb
+gives the row none; for an episode-movie, any other `Imdb`. Its sentence names the held id and the
+link's, or the held id alone when TMDb gives none to compare. A click of
+the owner's in the dialog — Set, Replace, Retry, which clears the batch — is his word and replaces them,
+as Jellyfin's button does. The four evident mistakes of the inventory — three "The Continental" episodes
+all linked to one TMDb episode, and one Polanski documentary linked to a 1962 film — are what this
+refuses.
+
+**Audit.** `LibraryItemIdentified` (23): one row per Apply that left the app, confirmed or not, its
+before and after the item's registry ids. No titles or images are recorded and there is no undo.
+`LibraryIdsWritten`, `LibraryIdsRestored` and `LibraryMetadataLookupRequested` stay in the enum as
+history and are never written again
+([ADR 0006](0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
+
+**Dormant columns, no migration that drops them.** `LookupRequestedUtc` and `LookupError` stay mapped,
+nothing reading or writing them, and `EpisodeImdbId` stays the episode-movie's key: the previous image
+still runs on a migrated database.
+
+**What of the text above no longer holds.** The title and the Decision's "ids only — no Identify, no
+refresh, no images, titles or locks" (:1, :49-56); "Written in five steps, once" — `POST /Items/{id}`,
+`ProviderIds` only, no `People`, `WritableKinds`, "A series is never sent" (:79-98); "Removing puts
+back only what the app wrote" (:109-120); the rejected options "Jellyfin's Identify, or a metadata
+refresh after the write", "Overwrite an IMDb id the item holds" and "Restore by writing back what was
+read before…" (:140, :146, :147); the Anti-consequence (:235-242). In the second section: the lookup
+bullet and its audit row, the episode bullet's "writes … where the item holds no IMDb id", the
+catch-up bullet with `toWrite` and `toLookUp`, its rejected options (:340-352) and its Consequences,
+Known limits and Anti-consequence (:388-426). In the third block (:428-477): "a series is written like
+a film" by `POST`, `WritableKinds`, the catch-up counts and "A removal puts back the show's id". **Still
+holds**: the link per item, the owner's word as a source, grouping and judging at a sync — the key judged
+is `Tmdb` for a film, `TmdbTv` for a show and the episode's `Imdb` for an episode-movie —, suggestions
+and "confident", owner-only, the audit of Set, Replace and Remove, an episode's own IMDb id through
+TMDb, a series identified like a film (now by Identify), age ratings not mattering, the suggestions, the
+pasted link and the search, and Accept all as it is.
+
+| Rejected option | Why not |
+| --- | --- |
+| Keep "ids only" and ask for "Search for missing metadata" | Recorded on the owner's server: 217 of 220 written items still show the file-derived title; a lookup fills what is missing and replaces nothing |
+| Send a TV id to the film search for an episode-movie | Namespace trap: a film search by TV id 7869 returned "The Fest" (2005); Apply would attach an unrelated film |
+| Identify an episode-movie through TheMovieDb | `RemoteSearch/Movie` by `Imdb` `tt9103946` with `TheMovieDb` answered `[]`; only The Open Movie Database found it |
+| Identify inside the `PUT` request | The Penguins took 159.3 s (about a second an episode) and an Open Movie Database episode 21.3 s; a proxy or a browser gives up first and the item would sit `Writing` |
+| Retry or re-send an Apply that timed out | Jellyfin keeps working after the client gives up; a second Apply on a series deletes its images again. The re-read decides |
+| Keep "restore the ids it wrote" on Remove | Apply replaces title, overview, images and ids, and the audit holds only the `Tmdb` and `Imdb` values, so a restore would be half an undo and a lie. Remove forgets; Replace identifies again |
+| Identify without reading the library's options | A library with `SaveLocalMetadata`, an `Nfo` saver, trickplay or subtitles saved with the media would write files beside it (only «Колекції» does, with no linked item) |
+| Send a language with Apply | Apply has no such field: the item gets its library's `PreferredMetadataLanguage`. The search has the field and falls back to the server's language when blank, so the app hands the library's language to the search — not a choice of its own — and the row matches what Apply will give |
+| Accept a changed name as the confirmation ("equals the row's, or differs from before") | A name another provider supplied (AniList, TheTVDB) would count as TMDb's result; the search is made in the library's language, so strict equality is right |
+| Re-send, at every repair click, an Apply that was sent and not confirmed | Apply deletes the item's images first; a persistent failure would delete them again at every click (a series: minutes each time); those links wait for the owner's Retry |
+| `replaceAllImages=false` | Vasyl's decision: as the web button does it, images are replaced |
+| Protect held ids on every click, the owner's too | Identify A leaves A's IMDb id in the item, so every Replace (A → B) and every hand fix of a wrong Jellyfin match would be refused; the guard is for the bulk paths |
+| Drop `LookupRequestedUtc`, `LookupError` and `EpisodeImdbId` with a migration | The previous image could not run on the migrated database; dormant columns are rollback-safe |
+| A new write state or a stored refusal code | Every refusal is `NotWritten` with its sentence; the owner acts in Jellyfin or presses Retry |
+| Identify again at every catch-up click whatever Jellyfin shows | The shortcut — the item already shows the row — makes the repair cheap and repeatable |
+| Identify two items, or one series twice, at once | One link per item (a unique index) plus the atomic claim; one series at a time |
+
+`JellyfinAdapterIdentifyTests.Identify_of_a_film_reads_the_users_the_item_and_the_libraries_then_searches_applies_once_and_reads_the_item_again`,
+`JellyfinAdapterIdentifyTests.Identify_refuses_a_callers_mistake_without_sending_anything` (the
+namespace guard),
+`JellyfinAdapterIdentifyTests.Identify_of_a_film_in_a_ukrainian_library_compares_the_ukrainian_row_with_the_item_and_is_identified`,
+`JellyfinAdapterIdentifyLibraryTests.Identify_in_a_library_that_saves_beside_the_media_is_refused_before_any_search_or_apply`,
+`JellyfinAdapterIdentifyRefusalTests.Identify_with_protected_held_ids_refuses_the_ones_the_identification_would_discard`,
+`JellyfinAdapterIdentifyFailureTests.Identify_whose_apply_outlives_the_identify_timeout_reads_again_and_never_applies_again`,
+`JellyfinAdapterIdentifyConfirmationTests.Identify_that_took_only_the_ids_is_not_confirmed`,
+`LibraryItemIdentifierIdentifiesOnlyTests.No_member_is_named_for_refreshing_images_titles_locks_deleting_replacing_or_editing`,
+`LibraryLinkSetHttpTests.Set_of_a_film_then_the_worker_identifies_it_through_remote_search_and_apply_and_the_dialog_shows_it_written`,
+`LibraryLinkRemoveHttpTests.Remove_forgets_the_link_with_its_audit_row_and_sends_nothing_to_jellyfin`,
+`LibraryLinkEpisodeHttpTests.Set_of_an_episode_on_a_film_item_is_identified_through_the_open_movie_database_by_the_episodes_imdb_id`,
+`LibraryLinkWriteWorkerHttpTests.RunQueued_runs_at_most_two_film_identifications_at_once_and_one_series_at_a_time`,
+`LibraryLinkWriteWorkerHttpTests.ExecuteAsync_identifies_a_film_queued_while_a_series_is_being_identified_without_waiting_for_the_series`,
+`LibraryLinkCatchUpHttpTests.CatchUp_protects_the_libraries_own_ids_so_the_four_evident_mistakes_are_not_identified_and_no_sync_erases_the_refusal`,
+`LibraryLinkIdentifyHttpTests.Every_flow_sends_jellyfin_only_gets_searches_and_applies`,
+`LibraryLinkSyncHttpTests.Resync_leaves_a_not_written_link_with_its_sentence_even_when_the_item_holds_the_key`,
+`AddLibraryLinkIdentifiedMigrationTests.Upgrade_keeps_the_dormant_lookup_columns_and_their_values` and
+the front end's `TmdbLinkDialog.identify.test.tsx` and `LibraryTmdbPage.catchUp.test.tsx` pin it.
+The tests of the older sections for the write, the restore and the lookup are replaced:
+`JellyfinAdapterIdentifiersTests.WriteIdentifiers_reads_the_users_then_the_item_as_the_administrator_posts_it_once_and_reads_it_again`
+and the rest of that file by `JellyfinAdapterIdentifyTests`, `JellyfinAdapterIdentifyRefusalTests` and
+`JellyfinAdapterIdentifyFailureTests`;
+`JellyfinAdapterIdentifiersTests.WritableKinds_are_films_and_series_and_an_episode_item_says_why_its_link_stays_in_the_app`
+by `JellyfinAdapterIdentifyTests.IdentifiableKinds_are_films_and_series_and_an_episode_item_says_why_its_link_stays_in_the_app`;
+`JellyfinAdapterMetadataLookupTests` and `LibraryLinkLookupHttpTests` are deleted with the lookup;
+`LibraryIdentifierWriterWritesIdsOnlyTests` is replaced by `LibraryItemIdentifierIdentifiesOnlyTests`; every
+`LibraryLinkRemoveHttpTests.Remove_puts_back_…`, `Remove_leaves_an_id_someone_changed_…` and
+`Remove_that_jellyfin_refuses_…_is_502` by `Remove_forgets_the_link_with_its_audit_row_and_sends_nothing_to_jellyfin`
+and its neighbours, and every `LibraryLinkReplaceHttpTests` restore test by
+`Replace_of_an_identified_film_identifies_again_and_the_item_ends_with_only_the_new_ids_and_no_item_is_posted`;
+the `LibraryLinkSetHttpTests`, `LibraryLinkEpisodeHttpTests` and `LibraryLinkWriteAgainHttpTests` tests that
+named a write, a restore or a series kept in the app by the same behaviours through the queue and the
+worker; `LibraryLinkCatchUpHttpTests`' `toWrite` and `toLookUp` tests by the repair's own, which count
+`toIdentify`; and the sync tests of a written link gain
+`LibraryLinkSyncHttpTests.Resync_never_changes_the_identified_time` and
+`LibraryLinkReattachHttpTests.Sync_that_moves_an_identified_link_to_a_recreated_item_clears_its_identified_time`.
+
+**Consequences.** A linked item shows in Jellyfin what TMDb says — title, overview and images — in its
+library's language. A series' Identify refreshes every season and episode, and drops the `TvMaze` key of
+its episodes, which other providers may add again. A documentary episode identified through the Open
+Movie Database gets its title and year corrected, may get a frame of the video instead of a poster, and
+keeps its overview if the database has none. An item with an old link that was only written shows "Not
+identified yet" until the repair or a click identifies it. **The language is each library's own
+setting**: «Фільми» is Ukrainian, while «Мульфільми» and «Документалки» have no preferred language set,
+so Jellyfin uses its server default — English in the live check — and about 168 and 33 items of the
+owner's repair end in English unless he sets the library's metadata language first; the app does not
+choose it. Jellyfin replaces the item's title, overview and images **except fields the owner locked in
+Jellyfin** — a locked name or overview is refused up front, and genres, cast and the like stay as
+locked. **Ids the earlier build wrote stay in Jellyfin after Remove link**, as Remove forgets only: the
+wrong `Tmdb` 11502 it wrote into the Polanski documentary stays until the owner links the right entry or
+fixes it in Jellyfin.
+
+**Known limits, left on purpose.** The language is the library's, not the app's. `AlreadyIdentified`
+for a series proves the series item matches, not that its episodes were refreshed. A restart or a
+timeout during a series' Apply leaves Jellyfin working: Retry re-reads first — after a timeout ten
+minutes later, while a restart leaves no audit row to wait on — and only then, if the item still
+doesn't match, may send a second Apply that overlaps a very slow first one, as Jellyfin has no "in
+progress" signal to read. A series' Apply clears the images of episodes TMDb lacks,
+and rescans its folder read-only, which may add or remove Jellyfin's own rows for files it finds or
+misses — no file is touched. Watch history was preserved on the series checked (`UserData` 15.4 %),
+not tried on a film with history. Jellyfin 12.2 was not checked. The result for episode-movies is one
+live case, Blitzkrieg. A library with a Ukrainian language (`uk`) was not exercised live before the
+bulk run: the repair plan identifies one «Фільми» film by hand first. Two unconfirmed Applies in a row
+stop a batch, and an Apply sent and not confirmed is never re-sent by the repair.
+
+**Anti-consequence (amended).** The app still never links anything on its own, never touches a file or
+a folder, never sends an item update or a refresh, never identifies in a library that saves beside the
+media, never moves or renames anything, never sends an Apply it does not know the fate of again, and
+never changes what kind of item the library says something is.

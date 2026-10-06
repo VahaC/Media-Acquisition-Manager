@@ -32,7 +32,9 @@ public sealed partial class LibraryLinkService
             "UNATTACHED" => db.LibraryItemLinks.Where(link => link.MediaWorkId == null),
             "PENDING" => db.LibraryItemLinks.Where(link => link.WriteState == LibraryLinkWriteState.Queued || link.WriteState == LibraryLinkWriteState.Writing),
             "CONFLICT" => Conflicting(),
-            "NOTWRITTEN" => db.LibraryItemLinks.Where(link => link.WriteState == LibraryLinkWriteState.NotWritten),
+            // Attached links only: an unattached one's item is gone, so it has no card to open and nothing to retry (Retry
+            // needs a work, the repair never takes it), and the Unattached list already shows it.
+            "NOTWRITTEN" => db.LibraryItemLinks.Where(link => link.MediaWorkId != null && link.WriteState == LibraryLinkWriteState.NotWritten),
             "LOST" => db.LibraryItemLinks.Where(link => link.WriteState == LibraryLinkWriteState.Lost),
             _ => null,
         };

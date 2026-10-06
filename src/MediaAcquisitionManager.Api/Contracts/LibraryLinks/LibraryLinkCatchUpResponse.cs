@@ -1,12 +1,11 @@
 namespace MediaAcquisitionManager.Api.Contracts;
 
 /// <summary>
-/// MAM-34 — what the catch-up of the links set before the app wrote series and episodes and asked for the metadata lookup
-/// (Vasyl's decision of 2026-10-06) has to send: what it would send (<c>GET api/library/tmdb/catch-up</c>), or what it
-/// queued (<c>POST</c>).
+/// MAM-34 — what the repair of the links the library was never confirmed to show (Vasyl's decisions of 2026-10-06) has to
+/// identify: what it would (<c>GET api/library/tmdb/catch-up</c>), or what it queued (<c>POST</c>, 202).
 /// </summary>
-/// <param name="ToWrite">The links that write ids of their own and the library doesn't hold yet: kept in the app under
-/// the first rules (a series', an episode's with its season and episode on a film item), or not written — a catch-up's
-/// failed write among them.</param>
-/// <param name="ToLookUp">The links written into the library whose item the library was never asked to look up.</param>
-public sealed record LibraryLinkCatchUpResponse(int ToWrite, int ToLookUp);
+/// <param name="ToIdentify">GET: how many links a click would queue now. POST: how many this click queued.</param>
+/// <param name="Progress">The batch under way — the links <c>Queued</c> or <c>Writing</c> that carry a batch id — or
+/// <c>null</c> when nothing is pending. POST: the batch this click made (<c>Done</c> 0), <c>null</c> when it queued
+/// nothing.</param>
+public sealed record LibraryLinkCatchUpResponse(int ToIdentify, LibraryLinkProgressDto? Progress);

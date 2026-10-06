@@ -8,7 +8,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// synthesized from them for what the reference library doesn't show (MAM-8): merged versions, a
 /// library of any size, a movie without metadata, a stacked movie's parts. MAM-32 adds the series,
 /// seasons and episodes MAM-17 sampled, and series and episodes of any facts. MAM-34 adds a movie and a series item
-/// read whole, as they were read again after their ids were written, the update's recorded answers, and the users.
+/// read whole, the users, and — from the live check of Jellyfin's Identify (2026-10-06) — its search results and Apply
+/// answers, the three items read again after they were identified, and an episode Jellyfin lists as a film.
 /// </summary>
 /// <remarks>
 /// Every call returns fresh nodes, parsed anew, so a test can change what it got (a path, a media
@@ -97,17 +98,17 @@ public static class JellyfinSamples
     public const int SampleEpisodesTotalRecordCount = 471;
 
     /// <summary>MAM-34 — "120. Landing Stripling" (1962), a Tom &amp; Jerry short in the cartoon library, read whole by
-    /// <c>GET /Items/{id}?userId=</c> (<c>item.json</c>): no ids before the write.</summary>
+    /// <c>GET /Items/{id}?userId=</c> (<c>item.json</c>): named after its file, no ids, before its Identify.</summary>
     public const string LandingStriplingId = "750eaa45b0836d08e4ae4b35750b93ca";
 
-    /// <summary>MAM-34 — the TMDb film the live check wrote into <see cref="LandingStriplingId"/>.</summary>
+    /// <summary>MAM-34 — the TMDb film the live check identified <see cref="LandingStriplingId"/> as.</summary>
     public const string LandingStriplingTmdbId = "223021";
 
-    /// <summary>MAM-34 — the IMDb id TMDb gives for it, written with it.</summary>
+    /// <summary>MAM-34 — the IMDb id TMDb gives for it.</summary>
     public const string LandingStriplingImdbId = "tt0056164";
 
-    /// <summary>MAM-34 — the TMDb show the live check wrote into the Penguins series item (<see cref="PenguinsId"/>,
-    /// <c>series-item.json</c>), under Jellyfin's <c>Tmdb</c> key.</summary>
+    /// <summary>MAM-34 — the TMDb show the live check identified the Penguins series item (<see cref="PenguinsId"/>,
+    /// <c>series-item.json</c>) as, under Jellyfin's <c>Tmdb</c> key.</summary>
     public const string PenguinsTmdbTvId = "7869";
 
     /// <summary>MAM-34 — the enabled administrator of <c>users.json</c>, whom an item is read as.</summary>
@@ -115,16 +116,6 @@ public static class JellyfinSamples
 
     /// <summary>MAM-34 — the other user of <c>users.json</c>, enabled and no administrator.</summary>
     public const string MemberUserId = "692951d9e4c24fc0a9691ca9e02c6324";
-
-    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered the item sent back with only its ids changed: 204, no
-    /// body.</summary>
-    public const string ItemUpdateResponseFile = "Jellyfin/item-update-response.txt";
-
-    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered a wrong key: 401, no body.</summary>
-    public const string ItemUpdateWrongKeyResponseFile = "Jellyfin/item-update-wrong-key-response.txt";
-
-    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered an item that doesn't exist: 404 problem details.</summary>
-    public const string ItemUpdateUnknownItemResponseFile = "Jellyfin/item-update-unknown-item-response.txt";
 
     /// <summary>MAM-34 — what <c>GET /Items/{id}?userId=</c> answered an item that doesn't exist: 404 problem
     /// details.</summary>
@@ -134,26 +125,54 @@ public static class JellyfinSamples
     /// request."</summary>
     public const string ItemReadWithoutUserResponseFile = "Jellyfin/item-read-without-user-response.txt";
 
-    /// <summary>MAM-34 — what <c>POST /Items/{id}</c> answered the series item sent back with its TMDb id: 204 after 4.5
-    /// seconds.</summary>
-    public const string SeriesItemUpdateResponseFile = "Jellyfin/series-item-update-response.txt";
+    /// <summary>MAM-34 — "Greatest Events of World War II in Colour" S01E01, which Jellyfin lists as a film: a Movie item in
+    /// the documentary library holding the episode's IMDb id only (<see cref="BlitzkriegImdbId"/>). The live check
+    /// identified it through the Open Movie Database.</summary>
+    public const string BlitzkriegId = "0329939301cb93b1c47eea6efe4975c2";
 
-    /// <summary>
-    /// MAM-34 — what <c>POST /Items/{id}/Refresh</c> with "Search for missing metadata"'s query answered a movie item
-    /// (recorded live on 2026-10-06): 204, no body, in 0.6 ms — queued, not done.
-    /// </summary>
-    public const string ItemRefreshResponseFile = "Jellyfin/item-refresh-response.txt";
+    /// <summary>MAM-34 — the episode's own IMDb id, the one an episode listed as a film is identified by.</summary>
+    public const string BlitzkriegImdbId = "tt9103946";
 
-    /// <summary>MAM-34 — what the same lookup answered the Penguins series item right after its write (recorded live on
-    /// 2026-10-06): 204, no body, in 0.8 ms.</summary>
-    public const string SeriesRefreshResponseFile = "Jellyfin/series-refresh-response.txt";
+    /// <summary>MAM-34 — the name TMDb gives <see cref="LandingStriplingId"/> (the item is named after its file until it is
+    /// identified).</summary>
+    public const string LandingStriplingName = "Landing Stripling";
 
-    /// <summary>MAM-34 — what <c>POST /Items/{id}/Refresh</c> answered an item that doesn't exist: 404 problem
-    /// details.</summary>
-    public const string ItemRefreshUnknownItemResponseFile = "Jellyfin/item-refresh-unknown-item-response.txt";
+    /// <summary>MAM-34 — the root of the library "Фільми" (language <c>uk</c>, country <c>UA</c>).</summary>
+    public const string MoviesRoot = "/media/movies";
 
-    /// <summary>MAM-34 — what <c>POST /Items/{id}/Refresh</c> answered a wrong key: 401, no body.</summary>
-    public const string ItemRefreshWrongKeyResponseFile = "Jellyfin/item-refresh-wrong-key-response.txt";
+    /// <summary>MAM-34 — the root of the library "Мульфільми" (no language).</summary>
+    public const string CartoonsRoot = "/media/cartoons";
+
+    /// <summary>MAM-34 — the root of the library "Документалки" (no language).</summary>
+    public const string DocumentaryRoot = "/media/documentary";
+
+    /// <summary>MAM-34 — the root of the library "Серіали" (language <c>en</c>, no country).</summary>
+    public const string TvShowsRoot = "/media/tv-shows";
+
+    /// <summary>MAM-34 — the root of the library "Колекції", a box-set library that saves beside the media: the one library
+    /// of the reference installation an Identify is refused in.</summary>
+    public const string CollectionsRoot = "/config/data/collections";
+
+    /// <summary>MAM-34 — what <c>POST /Items/RemoteSearch/Apply/{id}</c> answered the film's match (recorded live on
+    /// 2026-10-06): 204, no body, after 1.8 s.</summary>
+    public const string ItemRemoteSearchApplyResponseFile = "Jellyfin/item-remote-search-apply-response.txt";
+
+    /// <summary>MAM-34 — what the same call answered the Penguins series' match: 204 after 159.3 s.</summary>
+    public const string SeriesRemoteSearchApplyResponseFile = "Jellyfin/series-remote-search-apply-response.txt";
+
+    /// <summary>MAM-34 — what the same call answered the episode listed as a film, matched through the Open Movie Database:
+    /// 204 after 21.3 s.</summary>
+    public const string EpisodeMovieRemoteSearchApplyResponseFile = "Jellyfin/episode-movie-remote-search-apply-response.txt";
+
+    /// <summary>MAM-34 — what the same call answered an item that doesn't exist: 404 problem details (the all-zero id is 400,
+    /// so the recording used another).</summary>
+    public const string RemoteSearchApplyUnknownItemResponseFile = "Jellyfin/remote-search-apply-unknown-item-response.txt";
+
+    /// <summary>MAM-34 — what the same call answered a wrong key: 401, no body.</summary>
+    public const string RemoteSearchApplyWrongKeyResponseFile = "Jellyfin/remote-search-apply-wrong-key-response.txt";
+
+    /// <summary>MAM-34 — what <c>POST /Items/RemoteSearch/Movie</c> answered a wrong key: 401, no body, in 0.03 s.</summary>
+    public const string RemoteSearchWrongKeyResponseFile = "Jellyfin/remote-search-wrong-key-response.txt";
 
     private static readonly Lazy<string> MoviesPageText = new(() => Read("movies-page.json"));
     private static readonly Lazy<string> SeriesPageText = new(() => Read("series-page.json"));
@@ -163,11 +182,10 @@ public static class JellyfinSamples
     private static readonly Lazy<string> VirtualFoldersText = new(() => Read("virtual-folders.json"));
     private static readonly Lazy<string> UsersText = new(() => Read("users.json"));
     private static readonly Lazy<string> ItemText = new(() => Read("item.json"));
-    private static readonly Lazy<string> ItemAfterUpdateText = new(() => Read("item-after-update.json"));
-    private static readonly Lazy<string> ItemAfterDefaultRefreshText = new(() => Read("item-after-default-refresh.json"));
-    private static readonly Lazy<string> ItemAfterMissingRefreshText = new(() => Read("item-after-missing-refresh.json"));
+    private static readonly Lazy<string> ItemAfterIdentifyText = new(() => Read("item-after-identify.json"));
     private static readonly Lazy<string> SeriesItemText = new(() => Read("series-item.json"));
-    private static readonly Lazy<string> SeriesItemAfterUpdateText = new(() => Read("series-item-after-update.json"));
+    private static readonly Lazy<string> SeriesItemAfterIdentifyText = new(() => Read("series-item-after-identify.json"));
+    private static readonly Lazy<string> EpisodeMovieAfterIdentifyText = new(() => Read("episode-movie-after-identify.json"));
 
     /// <summary>The answer of <c>GET /System/Info</c>: Jellyfin 12.1.0, "VahaC media".</summary>
     public static JsonObject SystemInfo() => JsonNode.Parse(SystemInfoText.Value)!.AsObject();
@@ -183,25 +201,61 @@ public static class JellyfinSamples
     /// item, 47 fields, no ids.</summary>
     public static JsonObject Item() => JsonNode.Parse(ItemText.Value)!.AsObject();
 
-    /// <summary>MAM-34 — the same item read again after it was sent back with <c>Tmdb</c> and <c>Imdb</c> set: only the
-    /// ids and what Jellyfin derives from them (<c>Etag</c>, <c>ExternalUrls</c>, <c>UserData.Key</c>) changed.</summary>
-    public static JsonObject ItemAfterUpdate() => JsonNode.Parse(ItemAfterUpdateText.Value)!.AsObject();
-
-    /// <summary>MAM-34 — the written item after Jellyfin's default refresh: the ids kept, nothing else changed.</summary>
-    public static JsonObject ItemAfterDefaultRefresh() => JsonNode.Parse(ItemAfterDefaultRefreshText.Value)!.AsObject();
-
-    /// <summary>MAM-34 — the written item after "Search for missing metadata": the ids kept, Jellyfin's own metadata
-    /// filled in.</summary>
-    public static JsonObject ItemAfterMissingRefresh() => JsonNode.Parse(ItemAfterMissingRefreshText.Value)!.AsObject();
+    /// <summary>MAM-34 — <see cref="LandingStriplingId"/> read again after Jellyfin's Identify applied TMDb's result
+    /// (<c>item-after-identify.json</c>, recorded live on 2026-10-06): TMDb's name, overview, poster and backdrop, a new
+    /// Etag, and the ids as the other providers re-added them.</summary>
+    public static JsonObject ItemAfterIdentify() => JsonNode.Parse(ItemAfterIdentifyText.Value)!.AsObject();
 
     /// <summary>MAM-34 — the Penguins series item (<see cref="PenguinsId"/>) as <c>GET /Items/{id}?userId=</c> answered
-    /// it: 41 fields, no ids, named after its folder. The live check's write and removal of its TMDb id are recorded
-    /// beside it (<c>series-item-after-*.json</c>).</summary>
+    /// it: 41 fields, no ids, named after its folder, under <see cref="CartoonsRoot"/>. The live check's earlier write and
+    /// removal of its TMDb id are recorded beside it (<c>series-item-after-update.json</c>, history).</summary>
     public static JsonObject SeriesItem() => JsonNode.Parse(SeriesItemText.Value)!.AsObject();
 
-    /// <summary>MAM-34 — the same series item read again after it was sent back with <c>Tmdb</c> set to
-    /// <see cref="PenguinsTmdbTvId"/>: besides the id only <c>Etag</c> and <c>ExternalUrls</c> changed.</summary>
-    public static JsonObject SeriesItemAfterUpdate() => JsonNode.Parse(SeriesItemAfterUpdateText.Value)!.AsObject();
+    /// <summary>MAM-34 — the Penguins series item read again after its Identify (<c>series-item-after-identify.json</c>):
+    /// TMDb's overview, all five images with new tags, a new Etag, its 149 episodes untouched.</summary>
+    public static JsonObject SeriesItemAfterIdentify() => JsonNode.Parse(SeriesItemAfterIdentifyText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — <see cref="BlitzkriegId"/> read again after its Identify through the Open Movie Database
+    /// (<c>episode-movie-after-identify.json</c>): the name and year corrected, the primary image replaced, the overview and
+    /// the ids kept.</summary>
+    public static JsonObject EpisodeMovieAfterIdentify() => JsonNode.Parse(EpisodeMovieAfterIdentifyText.Value)!.AsObject();
+
+    /// <summary>MAM-34 — the film search by <c>Tmdb</c> 223021 as the live check recorded it: one row, "Landing
+    /// Stripling".</summary>
+    public static JsonArray RemoteSearchMovieByTmdbRows() => RecordedJson("Jellyfin/remote-search-movie-by-tmdb-response.txt");
+
+    /// <summary>MAM-34 — the series search by <c>Tmdb</c> 7869: one row, "The Penguins of Madagascar", with IMDb and TVDB
+    /// ids.</summary>
+    public static JsonArray RemoteSearchSeriesByTmdbRows() => RecordedJson("Jellyfin/remote-search-series-by-tmdb-response.txt");
+
+    /// <summary>MAM-34 — the film search by <c>Imdb</c> tt9103946 through the Open Movie Database: one row, "Blitzkrieg",
+    /// with an IMDb id and no overview.</summary>
+    public static JsonArray RemoteSearchOmdbRows() => RecordedJson("Jellyfin/remote-search-movie-by-imdb-omdb-response.txt");
+
+    /// <summary>MAM-34 — the film search by the TV id 7869: the unrelated film "The Fest" the live check saw (the namespace
+    /// trap).</summary>
+    public static JsonArray RemoteSearchMovieByTvIdRows() => RecordedJson("Jellyfin/remote-search-movie-by-tv-id-response.txt");
+
+    /// <summary>
+    /// MAM-34 — an episode Jellyfin lists as a film (<see cref="BlitzkriegId"/>) as it was before its Identify: named after
+    /// its file, year 2025, the episode's IMDb id only, in the documentary library, with the overview an earlier lookup had
+    /// filled in (Identify through the Open Movie Database leaves it, <c>episode-movie-after-identify.json</c>).
+    /// </summary>
+    public static JsonObject EpisodeMovieItem()
+    {
+        var item = Item();
+        var path = $"{DocumentaryRoot}/Greatest Events of World War II in Colour S01 2019 WEB-DL 1080p/Greatest Events of World War II in Colour.S01E01.Blitzkrieg 2019 WEB-DL 1080p.mkv";
+        item["Id"] = BlitzkriegId;
+        item["Name"] = "Greatest Events of World War II in Colour.S01E01.Blitzkrieg";
+        item["SortName"] = "greatest events of world war ii in colour.s01e01.blitzkrieg";
+        item["ProductionYear"] = 2025;
+        item["ProviderIds"] = new JsonObject { ["Imdb"] = BlitzkriegImdbId };
+        item["Path"] = path;
+        item["MediaSources"]![0]!["Id"] = BlitzkriegId;
+        item["MediaSources"]![0]!["Path"] = path;
+        item["Overview"] = EpisodeMovieAfterIdentify()["Overview"]!.DeepClone();
+        return item;
+    }
 
     /// <summary>The four movies of <c>movies-page.json</c>, in its order: The Continental, 13-й район,
     /// then the two "Чужі".</summary>
@@ -425,6 +479,14 @@ public static class JellyfinSamples
 
     private static string Read(string fileName) =>
         File.ReadAllText(Path.Combine(RepositoryPaths.VendorSamples, "Jellyfin", fileName));
+
+    // A recorded answer is its status line and headers, a blank line, then the body, which here is a JSON array.
+    private static JsonArray RecordedJson(string relativePath)
+    {
+        var lines = File.ReadAllLines(Path.Combine(RepositoryPaths.VendorSamples, relativePath));
+        var blank = Array.FindIndex(lines, line => line.Length == 0);
+        return JsonNode.Parse(string.Join('\n', lines[(blank + 1)..]))!.AsArray();
+    }
 
     // Detached from the parsed page, so each can go into another answer.
     private static List<JsonObject> ItemsOf(string pageText)

@@ -207,112 +207,157 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **The Search page takes a film's TMDb id in its address (MAM-33).**
   `/search?q=Alien (1979)&tmdbId=348` narrows the search it creates by that id, as the **TMDb id**
   field does; anything but digits is ignored.
-- **The owner links a library work to its TMDb film or show, and the app writes its ids into
-  Jellyfin (MAM-34, ADR 0026, ADR 0005).** Each card of the Library page gains **TMDb…**, the
-  owner's (anyone else sees it disabled with "Only the owner can link works to TMDb."), which opens a
-  dialog: the work's items with the ids Jellyfin reports and their links, the prepared suggestions,
-  a field for a pasted link and a free search. `GET /api/library/works/{id}/tmdb` answers it as
-  `{ work, items, catalogConnected, suggestions, search, searchTitle, searchYear }`: `work` as the
-  works list gives it; each item `{ linkId, sourceItemId, sourceName, itemTitle, itemKind, canWrite,
-  cannotWriteReason, target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber,
-  imdbId, writeState, writeError, writeStateUtc, setUtc, setByUserName, libraryIdentifiers,
-  conflictingValue, episodeImdbId, lookupRequestedUtc, lookupError }`, `libraryIdentifiers` being what
-  the last sync read for the item and
-  `conflictingValue` a third TMDb id Jellyfin holds beside the link; `search` `{ searchedUtc,
-  noneFitsUtc, pending, inPopulation }`; `searchTitle` and `searchYear` what the free search starts
-  from — the work's title cleaned as the suggestions' searches clean it ("Landing Stripling" of "120.
-  Landing Stripling", "The Penguins Of Madagascar" of a series named after its release's folder), and
-  the year that title names in brackets (the first of a span, 2008 of "(2008-2015)") else the work's,
-  as TMDb finds nothing by the raw title; a bare 404 for an unknown work. `PUT /api/library/works/{id}/tmdb` with `{ catalogKind, catalogId, seasonNumber,
-  episodeNumber, sourceItemIds }`, every field a string and `sourceItemIds` left out for every item
-  of the work, links each item — one link per library item, as a work can hold several — to the
-  TMDb film (`Movie`) or show (`Series`), or replaces its link, and answers 200 with the dialog as it
-  stands after the write. A film item with a film and a series item with a show are linked as that
-  work (`Work`), and both are written into Jellyfin (Vasyl's final decision of 2026-10-06): the show's
-  TMDb id goes under a series item's `Tmdb` key as a film's under a movie item's. Jellyfin's update of
-  a series also rewrites and saves each of its seasons and episodes — their series name and custom
-  rating always, their official rating unless locked (read in its source at tag v12.1,
-  `ItemUpdateController.UpdateItem`; the recorded write of The Penguins of Madagascar left all its 3
-  seasons and 149 episodes carrying the series' TV-Y7, which the lookup after it didn't change back) —,
-  which Vasyl accepted: age ratings don't matter to him, so nothing asks or warns about it; a film
-  item, or an episode of no series, with a
-  show is an episode of it (`ShowEpisode`), optionally with a season (0–999) and an episode (1–9999),
-  whose own IMDb id is written on a film item that names both (below), and it replaces a film id
-  Jellyfin wrongly gave the item. 400 "Choose a TMDb
-  film (Movie) or show (Series).", "“x” is not a TMDb kind. Use Movie or Series.", "Give the TMDb id
-  to link.", "“x” is not a TMDb id.", "“x” is not a season number. Use 0 to 999.", "“x” is not an
-  episode number. Use 1 to 9999.", "An episode number needs a season number.", "Season and episode
-  numbers go only with a show linked to a film or to an episode.", "A show or an episode can be
-  linked only to a TMDb show.", "Link its series instead: an episode is known by its series' ids." or
-  "“x” is not an item of this work."; 404 "TMDb has no film 223021." (or "show"); 409 "Connect a
-  metadata catalog under Integrations first.", "No library reports this work, so there is nothing to
-  link." or "A write to the library is under way for this work; try again in a moment."; 502 with
-  TMDb's sentence, masked of the token, when it can't be read. A save that changes nothing records
-  and writes nothing. Every link and its audit row (`LibraryLinkSet` or `LibraryLinkReplaced`, with
-  the ids the item held and the ids linked) are saved first, in one transaction; then each item
-  whose library can set ids, writes its kind of item and is switched on is written, whether or not
-  the browser waits: the connection test, `GET /Users` for the first enabled administrator,
-  `GET /Items/{id}?userId=` as that user, one `POST /Items/{id}` with the item as read but for its
-  `ProviderIds` — the TMDb id always, under Jellyfin's `Tmdb` key, and the IMDb id TMDb gives only
-  where Jellyfin holds none — and without its `People`, which Jellyfin would rebuild from their
-  names, roles and types alone, so the cast stays as it is; never sent again, then the same read
-  again. Jellyfin replaces an item's ids as a whole, so an id it held that fails its own format check
-  is gone after the write, though the app sends every other id back as read. A write that left the
-  app is recorded (`LibraryIdsWritten`, the ids before and after) whether or not it was confirmed. A
-  set, a replace or a removal queues a computation of the recommendations (`LinkChanged`). A series link takes its episodes' file identities from a sync
+- **Assigning a TMDb id is Jellyfin's Identify, and Remove link forgets only (MAM-34, Vasyl's
+  decision of 2026-10-06, ADR 0026).** The first builds of this version wrote a link's ids into the
+  item and then asked Jellyfin to look up what the item lacked; the ids changed nothing anyone could
+  see, as 217 of the 220 items the reference installation had linked still showed the title their
+  file name gave. Saving a link now makes Jellyfin do what the **Identify** button of its own web
+  page does, with the same two calls and one read: `POST /Items/RemoteSearch/Movie` (a film, and an
+  episode Jellyfin lists as a film) or `POST /Items/RemoteSearch/Series` (a show) with the id under
+  Jellyfin's exact `Tmdb` or `Imdb` key, then `POST
+  /Items/RemoteSearch/Apply/{id}?replaceAllImages=true` with the one row it found, then the item
+  read again to confirm it. Jellyfin replaces the item's title, overview and images with TMDb's, in
+  the metadata language of the item's library: that is the library's own setting and the app doesn't
+  choose it — «Фільми» is Ukrainian on the reference installation, «Мульфільми» and «Документалки»
+  have none set, so Jellyfin uses its server's default, English in the live check —, and a field
+  locked in Jellyfin stays as locked: an item locked as a whole, or by its name or overview, is
+  refused with the reason. A TMDb id goes only to the search of its own kind, as the other kind's
+  search answers an unrelated work for it (a film search for the show's id 7869 answered “The
+  Fest”). A library that saves artwork or metadata next to the media — an `Nfo` saver, "save artwork
+  into media folders", trickplay or downloaded subtitles saved with the media, or options the app
+  can't read — is refused before any search, so the app writes no file or folder and moves or
+  renames nothing; the live check found the folder listings of three identified items identical
+  before and after. Identify has no undo, and the app sends it only when the owner saves a link,
+  retries one, accepts the confident suggestions or chooses **Update Jellyfin**. In Vasyl's live
+  check of 2026-10-06 on Jellyfin 12.1.0, where he typed `y` for each apply, a film took 1.8 s, an
+  episode through The Open Movie Database 21.3 s and The Penguins of Madagascar (3 seasons, 149
+  episodes) 159.3 s, which is why the app never waits for an identification inside a request.
+- **The owner links a library work to its TMDb film or show, and Jellyfin identifies the item as it
+  (MAM-34, ADR 0026, ADR 0005).** Each card of the Library page gains **TMDb…**, the owner's (anyone
+  else sees it disabled with "Only the owner can link works to TMDb."), which opens a dialog: the
+  work's items with the ids Jellyfin reports and their links, the prepared suggestions, a field for
+  a pasted link and a free search. Above **Save** it says what Jellyfin will replace — the item's
+  title, overview and images —, that there is no undo and that files and folders are not touched.
+  `GET /api/library/works/{id}/tmdb` answers it as `{ work, items, catalogConnected, suggestions,
+  search, searchTitle, searchYear }`: `work` as the works list gives it; each item `{ linkId,
+  sourceItemId, sourceName, itemTitle, itemKind, canWrite, cannotWriteReason, target, catalogKind,
+  catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, writeState, writeError,
+  writeStateUtc, setUtc, setByUserName, libraryIdentifiers, conflictingValue, episodeImdbId,
+  identifiedUtc }`, `libraryIdentifiers` being what the last sync read for the item,
+  `conflictingValue` a third TMDb id Jellyfin holds beside the link, `canWrite` whether Jellyfin
+  would identify the item — it does for a film or a series item of a library whose adapter can,
+  while the integration is switched on, and `cannotWriteReason` says why not — and `identifiedUtc`
+  when the app last read the item showing the link's match, `null` for a link it never did, which is
+  every link set under the first rules; `search` `{ searchedUtc, noneFitsUtc, pending, inPopulation
+  }`; `searchTitle` and `searchYear` what the free search starts from — the work's title cleaned as
+  the suggestions' searches clean it ("Landing Stripling" of "120. Landing Stripling", "The Penguins
+  Of Madagascar" of a series named after its release's folder), and the year that title names in
+  brackets (the first of a span, 2008 of "(2008-2015)") else the work's, as TMDb finds nothing by
+  the raw title; a bare 404 for an unknown work. `PUT /api/library/works/{id}/tmdb` with `{
+  catalogKind, catalogId, seasonNumber, episodeNumber, sourceItemIds }`, every field a string and
+  `sourceItemIds` left out for every item of the work, links each item — one link per library item,
+  as a work can hold several — to the TMDb film (`Movie`) or show (`Series`), or replaces its link,
+  and answers 200 with the dialog at once, each item to be identified `Queued`: the request never
+  waits for Jellyfin, and the dialog asks again every 2 seconds while an item waits or is being
+  identified. A film item with a film and a series item with a show are linked as that work (`Work`)
+  and identified by their TMDb id, a series' apply also refreshing its seasons and episodes: on The
+  Penguins of Madagascar they kept their names, overviews and images, and the series its played
+  state. A film item, or an episode of no series, with a show is an episode of it (`ShowEpisode`),
+  optionally with a season (0–999) and an episode (1–9999), identified as the next bullet says. 400
+  "Choose a TMDb film (Movie) or show (Series).", "“x” is not a TMDb kind. Use Movie or Series.",
+  "Give the TMDb id to link.", "“x” is not a TMDb id.", "“x” is not a season number. Use 0 to 999.",
+  "“x” is not an episode number. Use 1 to 9999.", "An episode number needs a season number.",
+  "Season and episode numbers go only with a show linked to a film or to an episode.", "A show or an
+  episode can be linked only to a TMDb show.", "Link its series instead: an episode is known by its
+  series' ids." or "“x” is not an item of this work."; 404 "TMDb has no film 223021." (or "show");
+  409 "Connect a metadata catalog under Integrations first.", "No library reports this work, so
+  there is nothing to link." or, while one of its links is being identified, "A write to the library
+  is under way for this work; try again in a moment."; 502 with TMDb's sentence, masked of the
+  token, only when TMDb can't be read. A save that changes nothing records and queues nothing. Every
+  link and its audit row (`LibraryLinkSet` or `LibraryLinkReplaced`, with the ids the item held and
+  the ids linked) are saved first, in one transaction. Then a background worker identifies each
+  queued link whose library can identify its kind of item and is switched on, the owner's own clicks
+  before a batch's: the connection test, `GET /Users` for the first enabled administrator, `GET
+  /Items/{id}?userId=` as that user, `GET /Library/VirtualFolders` for the options of the item's
+  library, the search — one request, the id under its exact key, with the library's metadata
+  language when it has one —, one apply carrying the row found, on a client of its own with a
+  20-minute timeout, never sent a second time whatever becomes of its answer, and the same read of
+  the item again. The identification is confirmed only when the item shows the row's name and year,
+  holds its id under the identification's key, has a changed `Etag` or primary image and, when the
+  row has an image, a primary image: an item that took only the ids, or nothing, is `NotWritten`
+  with a sentence saying so, never "Written". An item that already shows the whole match — the name,
+  the year when the row has one, the id, a primary image when the row has an image and, when the row
+  has an overview, TMDb's — is marked identified with no apply at all. An apply that left the app is recorded (`LibraryItemIdentified`, with the
+  ids before and after) whether or not it was confirmed. A link the owner sets or retries replaces
+  the ids Jellyfin holds, as Jellyfin's own Identify does; one queued by **Accept all** or **Update
+  Jellyfin** does not (below). A set, a replace or a removal queues a computation of the
+  recommendations (`LinkChanged`). A series link takes its episodes' file identities from a sync
   when its work holds several series items of the library, as which episode is whose is known only
   there.
-- **Each linked item says whether Jellyfin holds its id (MAM-34, ADR 0026, ADR 0008).** A link's
-  `writeState` is `KeptInApp` (an episode's link that writes no id of its own, an episode item's
-  link, or a library type that can't set ids: "“x” can't set ids, so a link stays in the app."),
-  which
-  no sync changes, `Queued`, which no sync changes either, `Writing`, `NotWritten` with
-  `writeError` (owner only), `Written` once the read again showed it, `InLibrary` once a sync read
-  it from Jellyfin, or `Lost` when a sync reads a link Jellyfin held without it; the card and the
-  dialog show "Kept in the app", "Waiting to be written", "Writing…", "Not in Jellyfin yet", "Written
-  to Jellyfin", "In Jellyfin" and "Jellyfin lost it". A switched-off Jellyfin is never written: the
-  link is `NotWritten` with "“Jellyfin” is switched off. Switch it on under Integrations, then
-  retry.". Jellyfin's refusals say why: "Jellyfin refused to change the item's ids. Check that the
-  API key belongs to an administrator." (403), "Jellyfin refused the item it was sent back; nothing
-  was changed." (400), "Jellyfin no longer has this item; sync the library and link it again." (404),
-  "Jellyfin has no enabled administrator account to read the item as.", "Jellyfin's administrator
-  account can't see this item (a parental limit, a blocked tag or no access to its library), so the
-  app can't read it as that account." — told apart from an item that is gone by the user-less `GET
-  /Items?ids=` —; a change sent whose answer was lost, late or a 5xx, or that the read again doesn't
-  show, is `NotWritten` with the sentence
-  saying the app can't tell, or "“Jellyfin” took the change but still reports other ids. Retry.", and
-  a write a restart cut "The app restarted while writing the ids into the library. Retry.". A sync
-  leaves a link being written or put back (`Writing`) to whoever claimed it. An item's
-  **Retry** and **Write again** send its link once more from a fresh read with `POST
-  /api/library/tmdb/links/{linkId}/write`; `POST /api/library/works/{id}/tmdb/write` does the same for
-  every link of the work; each 200 with the work's dialog; 409 "There is nothing to write: no item of
-  this work is linked.", "There is nothing to write: " with why a link stays in the app ("Without a
-  season and an episode the app has no id of this episode to write.", "TMDb knows no IMDb id of this
-  episode, so its link stays in the app.", "Jellyfin's ids are written on movie and series items
-  only, so a link on an episode stays in the app." or "“x” can't set ids, so a link stays in the
-  app."),
-  "There is nothing to write: the library no longer reports this item.", the switched-off sentence, or
-  the write-under-way one; a bare 404 for an unknown work or link.
-- **Removing a link puts back only what the app wrote (MAM-34, ADR 0026).** **Remove link** in the
-  dialog, after a confirmation: `DELETE /api/library/works/{id}/tmdb` first puts each written item
-  back — the TMDb id to what Jellyfin held before the app's first write, and the IMDb id cleared only
-  when the app added it, each only where Jellyfin still holds what the app last wrote, so an id
-  someone changed since stays — then deletes the link with `LibraryLinkRemoved` and, when it sent
-  something, `LibraryIdsRestored`; 200 `{ dialog }`, 204 when the work has no link. What the app last
-  wrote is read per id from the writes that changed it, so an IMDb id someone set since — which the
-  read after a write shows too — is never taken for the app's, and **Retry** and **Write again** put
-  back the IMDb id the app added when Jellyfin lost it. A write a restart cut is recorded at the next
-  start as what it meant to leave (`LibraryIdsWritten`), so a removal or a replace still puts
-  Jellyfin's ids back after a sync or a Retry. A library that refuses — or an item the administrator
-  can no longer see — keeps the link, back in its state, with 502 "“Jellyfin” couldn't be changed
-  back, so the link stays: …"; a switched-off one 409 "“Jellyfin” is switched off. Switch it on
-  under Integrations to remove the link."; 409 while a write is under way; a bare 404 for an unknown work. Replacing a
-  written film link with an episode link puts Jellyfin's own ids back the same way, 409 "“Jellyfin” is
-  switched off. Switch it on under Integrations to change the link." when it can't. A link never
-  written — kept in the app — has nothing to put back, so it goes even while Jellyfin is switched off.
-  `DELETE
-  /api/library/tmdb/links/{linkId}` removes one link the same way — the **Unattached** list's
-  **Remove**, whose item has nothing to put back —: 204, a bare 404 for an unknown link.
+- **Each linked item says whether Jellyfin identified it (MAM-34, ADR 0026, ADR 0008).** A link's
+  `writeState` is `KeptInApp` (an episode's link that has no id to identify it by, an episode item's
+  link, or a library type that can't identify: "“x” can't identify items, so a link stays in the
+  app."), which no sync changes, `Queued`, which no sync changes either, `Writing` (being
+  identified), `NotWritten` with `writeError` (owner only), `Written` once the app confirmed the
+  identification — `identifiedUtc` says when —, `InLibrary` once a sync read the link's id from
+  Jellyfin, or `Lost` when a sync reads an identified link without it; the card and the dialog show
+  "Kept in the app", "Waiting to identify", "Identifying…", "Not identified yet", "Identified in
+  Jellyfin" and "Jellyfin lost it". A link set under the first rules, whose item may hold its id,
+  shows "Not identified yet" until it is identified, on its Library card too: the card's `link` says
+  so with two booleans, `identified` and `underWay`, and the page asks again while an identification
+  runs. A switched-off Jellyfin is never asked: the link is `NotWritten` with "“Jellyfin” is
+  switched off. Switch it on under Integrations, then retry.". Every other refusal or failure is
+  `NotWritten` with its sentence, nothing identified: "Jellyfin's library “x” saves {what} next to
+  the media, so identifying this item could change files in your media folders; the app left it
+  alone. Switch that off in the library's settings in Jellyfin, then retry." (an `Nfo` saver,
+  artwork and metadata, trickplay images or downloaded subtitles saved with the media), "The app
+  couldn't tell what this item's Jellyfin library saves next to the media (…), so it left the item
+  alone.", "This item is locked in Jellyfin (the whole item, its name or its overview), so Jellyfin
+  wouldn't take the match. Unlock it there, then retry.", "Jellyfin found no film with TMDb id
+  223021. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin."
+  (and the show's, and the Open Movie Database's, and "Jellyfin found more than one result for …, so
+  the app picked none."), "Jellyfin took the match, but the item read again doesn't show it (its
+  name, year or id): it may be locked, or its metadata sources failed. Its own log says why; Retry
+  checks again.", and, when the answer to the apply was lost, late or a 5xx, "The match was sent to
+  Jellyfin, but its answer never came, and the item read again doesn't show it. Jellyfin may still
+  be working on it: Retry in a few minutes checks again before sending anything." (and "… didn't
+  answer within 20 minutes …", "Jellyfin answered the match with …"); Jellyfin's own refusals say
+  why: "Jellyfin refused to identify the item. Check that the API key belongs to an administrator."
+  (403), "Jellyfin refused the match it was sent; nothing was changed." (400), "Jellyfin no longer
+  has this item; sync the library and link it again." (404), "Jellyfin has no enabled administrator
+  account to read the item as.", "Jellyfin's administrator account can't see this item (a parental
+  limit, a blocked tag or no access to its library), so the app can't read it as that account." —
+  told apart from an item that is gone by the user-less `GET /Items?ids=` —. The apply is sent at
+  most once: a **Retry** a few minutes after a lost answer reads the item first, and marks it
+  identified without a second apply when it shows the match; a series whose apply was sent less than
+  10 minutes ago waits instead, with "Jellyfin may still be working on this series after the last
+  attempt; try again after … UTC.", nothing asked of Jellyfin. A sync never erases a refusal: it
+  judges only `Written`, `InLibrary` and `Lost` links, so a `NotWritten` link stays so, with its
+  sentence, while its item holds the id. An item's **Retry**, **Identify again** and **Identify in
+  Jellyfin** queue its link again with `POST /api/library/tmdb/links/{linkId}/write`; `POST
+  /api/library/works/{id}/tmdb/write` does the same for every link of the work; each answers 200
+  with the work's dialog, the items `Queued`, and each asks for a confirmation in the dialog first,
+  as it replaces the item's title, overview and images and can't be undone. The owner's click lifts
+  the protection a batch put on the link (below). 409 "There is nothing to write: no item of this
+  work is linked.", "There is nothing to write: " with why a link stays in the app ("Without a
+  season and an episode the app has no id of this episode to identify it by.", "TMDb knows no IMDb
+  id of this episode, so its link stays in the app.", "Jellyfin identifies movie and series items
+  only, so a link on an episode stays in the app." or "“x” can't identify items, so a link stays in
+  the app."), "There is nothing to write: the library no longer reports this item.", the
+  switched-off sentence, or the identification-under-way one; a bare 404 for an unknown work or
+  link.
+- **Removing a link forgets it in the app only (MAM-34, ADR 0026).** **Remove link** in the dialog,
+  after a confirmation that says Jellyfin keeps what the identification gave the item: `DELETE
+  /api/library/works/{id}/tmdb` deletes the work's links with `LibraryLinkRemoved` (the link's ids
+  before, none after) and calls Jellyfin never, so it works while the integration is switched off or
+  gone; 200 `{ dialog }`, 204 when the work has no link, 409 "A write to the library is under way
+  for this work; try again in a moment." while one of its links is being identified, a bare 404 for
+  an unknown work. A link still waiting in the queue is simply deleted, and the worker passes it
+  over. Nothing is put back: the title, overview, images and ids the identification gave the item
+  stay in Jellyfin — and the ids an earlier build that only wrote ids put there —, and replacing a
+  link is a new identification of the new id. `DELETE /api/library/tmdb/links/{linkId}` removes one
+  link the same way — the **Unattached** list's **Remove**, whose item Jellyfin no longer lists —:
+  204, 409 as above, a bare 404 for an unknown link.
 - **TMDb suggestions are prepared in the background after every sync (MAM-34, ADR 0026, ADR 0025).**
   A run (202 + run row + reconciler) starts after every successful library sync (`LibrarySynced`)
   while a catalog is connected, when a TMDb integration is added switched on or switched back on
@@ -359,7 +404,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   catalog's masked sentence, a bare 404 for an unknown work; every film or show they show is stored
   as a catalog work, so its poster is served.
 - **The TMDb page reviews the works without an id (MAM-34, ADR 0026).** "Review works without a TMDb
-  id", beside the Library page's **Missing an id** filter, opens `/library/tmdb` with four tabs.
+  id", beside the Library page's **Missing an id** filter, opens `/library/tmdb` with five tabs.
   **Review** walks the works one at a time with the dialog inline: 1–5 pick a suggestion, Enter
   saves, 0 marks that none fits, → skips, / goes to the search field — `GET
   /api/library/tmdb/queue?index=` answers `{ totalCount, index, current }`, the works without an id,
@@ -367,109 +412,113 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `PUT` and `DELETE /api/library/works/{id}/tmdb/none-fits` set and clear the mark, 204, a bare 404
   for an unknown work. **Confident** lists every work with a confident suggestion, all ticked, with
   each library's numbers: `GET /api/library/tmdb/confident?locationId=&page=1&pageSize=25` answers
-  `{ items: [{ work, candidate }], totalCount, page, pageSize, locations: [{ locationId, locationName,
-  populationCount, confidentCount }] }`, `locations` the libraries the Library page's filter offers —
-  those that hold a file, so not Jellyfin's box sets library —, works marked "none fits" left out; 400
-  "“x” is not a library id." or a page's sentence. **Link N works** sends `POST /api/library/tmdb/confident` with `{ items:
-  [{ workId, catalogKind, catalogId }] }`, 1 to 100: each work is linked only while that is still its
-  confident suggestion, computed again then, and 202 `{ batchId, items: [{ workId, outcome, reason,
-  links }] }` says what became of each — `Linked`, or `Skipped` with "It is no longer the work's
-  confident suggestion.", "You marked that none fits.", "It was linked meanwhile.", "Its library
-  reports a TMDb id for it now.", "The work is no longer in the library." or the catalog's or the
-  save's own sentence; 400 "Tick at least one work to link.", "At most 100 works can be linked at
-  once.", "Each ticked work needs its work, its kind and its TMDb id.", "Give the work to link.", "“x”
-  is not a work id." or "“x” is ticked twice."; 409 without a catalog. Each work's links are saved as
-  it is done and the writer woken then, so a request the browser cancels halfway still has the works
-  saved before it written.
-  Its links are saved `Queued`, each with its audit row, and a background writer writes them one at
-  a time, each with its own audit rows in the name of whoever queued it; the page polls `GET
-  /api/library/tmdb/batches/{batchId}` (a bare 404 for an unknown click) every 2 seconds until none
-  is waiting or writing. That answer holds only the linked works, as only links are stored: each row
-  keeps its skip reason from the click's own answer, a link is followed by its id whichever work a
-  sync files it under, and a click that linked no work is never asked for. A confident show of a
-  series is queued and written like a film. At a start a write a restart cut is `NotWritten` and the
-  queued ones are written; an episode link whose restore a restart cut is `KeptInApp` with "The app
-  restarted while putting back the ids it had written into the library. Remove the link to put them
-  back.", and a link its library never writes (one of a library type that can't set ids) that a cut
-  removal held goes back to `KeptInApp` with no write recorded for it. The
-  writer counts each link by where its write left it, and a database failing under it ends its pass
-  with the links still queued rather than stopping the app. **Conflicts** and **Unattached** list the
-  links whose item Jellyfin gives another TMDb id — or a film id given after the owner linked the
-  item as an episode of a show, which the card flags too and the recommendations seed by neither —
-  and those whose item is gone, the latter with **Remove**: `GET
+  `{ items: [{ work, candidate }], totalCount, page, pageSize, locations: [{ locationId,
+  locationName, populationCount, confidentCount }] }`, `locations` the libraries the Library page's
+  filter offers — those that hold a file, so not Jellyfin's box sets library —, works marked "none
+  fits" left out; 400 "“x” is not a library id." or a page's sentence. **Link N works** sends `POST
+  /api/library/tmdb/confident` with `{ items: [{ workId, catalogKind, catalogId }] }`, 1 to 100:
+  each work is linked only while that is still its confident suggestion, computed again then, and
+  202 `{ batchId, items: [{ workId, outcome, reason, links }] }` says what became of each —
+  `Linked`, or `Skipped` with "It is no longer the work's confident suggestion.", "You marked that
+  none fits.", "It was linked meanwhile.", "Its library reports a TMDb id for it now.", "The work is
+  no longer in the library." or the catalog's or the save's own sentence; 400 "Tick at least one
+  work to link.", "At most 100 works can be linked at once.", "Each ticked work needs its work, its
+  kind and its TMDb id.", "Give the work to link.", "“x” is not a work id." or "“x” is ticked
+  twice."; 409 without a catalog. Each work's links are saved as it is done and the worker woken
+  then, so a request the browser cancels halfway still has the works saved before it queued and
+  identified. Its links are saved `Queued`, each with its audit row, and a background worker
+  identifies them — two films or episodes at a time, a series alone, a link the owner queued from a
+  dialog before one a batch queued —, each with its own audit rows in the name of whoever queued it;
+  the page polls `GET /api/library/tmdb/batches/{batchId}` (a bare 404 for an unknown click) every 2
+  seconds until none is waiting or being identified. That answer holds only the linked works, as
+  only links are stored: each row keeps its skip reason from the click's own answer, a link is
+  followed by its id whichever work a sync files it under, and a click that linked no work is never
+  asked for. A confident show of a series is queued and identified like a film, in the series' own
+  lane. At a start an identification a restart cut is `NotWritten` with "The app restarted while
+  identifying the item in Jellyfin. Jellyfin may still be working on it: Retry in a few minutes
+  checks what it holds before anything is sent.", a link the rules keep in the app that a restart
+  caught claimed goes back to `KeptInApp`, and the queued ones are identified. A batch whose
+  identifications fail to confirm twice in a row is stopped, as the catch-up's is (below). The
+  worker counts each link by where its identification left it, and a database failing under it ends
+  its pass with the links still queued rather than stopping the app. **Not identified** lists the
+  attached links Jellyfin or the app refused or failed to identify, each with its reason and its
+  work's **TMDb…** to Retry, to link another film or show, or to remove the link. **Conflicts** and
+  **Unattached** list the links whose item Jellyfin gives another TMDb id — or a film id given after
+  the owner linked the item as an episode of a show, which the card flags too and the
+  recommendations seed by neither — and those whose item is gone, the latter with **Remove**: `GET
   /api/library/tmdb/links?filter=&page=1&pageSize=25`, `filter` `Unattached`, `Pending`, `Conflict`,
   `NotWritten` or `Lost`, answers `{ items, totalCount, page, pageSize }`, newest first, each `{
   linkId, workId, workTitle, sourceName, sourceItemId, itemTitle, target, catalogKind, catalogId,
   catalogTitle, seasonNumber, episodeNumber, writeState, writeError, setUtc, setByUserName,
-  conflictingValue }`; 400 "Choose which links to list: Unattached, Pending, Conflict, NotWritten or
+  conflictingValue, identifiedUtc }`; `NotWritten` lists attached links only, as an unattached one
+  has no work to open; 400 "Choose which links to list: Unattached, Pending, Conflict, NotWritten or
   Lost." or "“x” is not a link filter. Use Unattached, Pending, Conflict, NotWritten or Lost.". A
-  status line shows how the suggestions were prepared, with **Prepare suggestions** (**Prepare again**
-  once they have been), disabled with the reason while a preparation is under way.
-- **After writing a link's ids, the app asks Jellyfin to look the item up; an episode's link is
-  written too (MAM-34, Vasyl's decision of 2026-10-06, ADR 0026, ADR 0005).** Written alone,
-  the ids changed nothing anyone could see: Jellyfin fetches an existing item's metadata only when it
-  refreshes it. Now every write that leaves the link's ids in the item — confirmed by the read again,
-  or finding them already there — is followed by one `POST /Items/{id}/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false`,
-  exactly Jellyfin's own "Search for missing metadata", which fills what the item lacks and replaces
-  nothing; never "Replace all metadata", never sent again by itself. Each dialog item gains
-  `lookupRequestedUtc` and `lookupError` (owner only) — "Jellyfin refused to look the item up. Check
-  that the API key belongs to an administrator." (403), "Jellyfin refused the request to look the item
-  up; nothing was changed." (400), "Jellyfin no longer has this item; sync the library and link it
-  again." (404), the key-refused sentence (401) or the shared ones —, and each request writes an
-  audit row, `LibraryMetadataLookupRequested`. A lookup Jellyfin doesn't take leaves the link
-  "Written to Jellyfin", as the ids are in; **Retry** and **Write again** (`POST
-  /api/library/tmdb/links/{linkId}/write`, `POST /api/library/works/{id}/tmdb/write`) now also run on
-  a link whose ids are in place, sending no change and asking again; such a write that reaches nothing
-  — Jellyfin unreachable or refusing — leaves a link the last sync read in Jellyfin "In Jellyfin", the
-  sentence as its `lookupError`, rather than "Not in Jellyfin yet". A replaced link starts with no
-  lookup of its own: the one asked for the link it replaces is not shown for it. A series' link is
-  written and looked up the same way (Vasyl's final decision of the same day), its save giving the
-  series' seasons and episodes its rating as recorded on The Penguins of Madagascar — all 3 seasons
-  and 149 episodes carried TV-Y7 afterwards, and the lookup didn't change them back (ADR 0026) —,
-  which he accepted. A film item's link to
-  an episode of a show that names its season and episode writes the episode's own IMDb id, which TMDb
-  gives (`GET /3/tv/{id}/season/{season}/episode/{episode}?append_to_response=external_ids`; each
-  dialog item gains `episodeImdbId`), where Jellyfin holds no IMDb id, and never a TMDb id, which on a
-  movie item names a film: Jellyfin's lookup then finds the episode by it, as The Open Movie Database
-  does. Without both numbers the link stays in the app with "Without a season and an episode the app
-  has no id of this episode to write."; for an episode TMDb gives no IMDb id, with "TMDb knows no IMDb
-  id of this episode, so its link stays in the app." (both as the item's `cannotWriteReason`, `canWrite`
-  saying whether the item itself takes ids); an item holding another IMDb id keeps it, the link "Not in
-  Jellyfin yet" with "“Jellyfin” holds another IMDb id for this item, and the app never writes over the
-  library's own ids, so the episode's tt9103946 isn't in it. Change it there, then retry."; a Save whose
-  episode TMDb can't be asked about is 502 with TMDb's sentence, nothing saved. A sync judges an
-  episode's link by that IMDb id ("In Jellyfin", "Jellyfin lost it"), a removal takes back only that
-  IMDb id, and a film link it replaces is put back in the same write; the film id it replaced keeps
-  giving way whatever the link's state. An episode item no series holds keeps its link in the app:
-  "Jellyfin's ids are written on movie and series items only, so a link on an episode stays in the
-  app." Saved
-  again with the same season and episode once TMDb gives that episode an IMDb id, a link kept for
-  having none is written.
-- **The catch-up brings the links set before up to date, on the owner's click (MAM-34, Vasyl's
-  decision of 2026-10-06, ADR 0026).** `GET /api/library/tmdb/catch-up` answers `{ toWrite, toLookUp }`:
-  the links that write ids of their own and Jellyfin doesn't hold yet — a series' link and a numbered
-  episode's on a film item kept in the app, and any link not written, a catch-up's failed write among
-  them — and the written links whose item Jellyfin was never asked to look up, a series' among them,
-  attached and in a library switched on; an episode TMDb already said has no IMDb id is not counted
-  again, and one whose IMDb id is still to be asked only while a TMDb catalog is connected and switched
-  on. `POST
-  /api/library/tmdb/catch-up` queues them (202, the same shape: what it queued) for the background
-  writer, which writes each one at a time — asking TMDb for an episode's IMDb id, sending nothing where
-  the ids are in place — and asks Jellyfin to look each up, every link with its own audit rows in the
-  name of whoever set it; the links list's `Pending` filter follows the writes. A write that reaches
-  nothing leaves a link Jellyfin holds "In Jellyfin" with its lookup missed, and the next count takes
-  every such link back. It writes over no id Jellyfin holds but the TMDb id a film's or a series' link
-  replaces — the owner's word —; an IMDb id goes only where the item has none. Nothing happens without
-  the click. Both
-  are the owner's alone, by where their controller lives.
+  status line shows how the suggestions were prepared, with **Prepare suggestions** (**Prepare
+  again** once they have been), disabled with the reason while a preparation is under way.
+- **An episode Jellyfin lists as a film is identified through The Open Movie Database by its own
+  IMDb id (MAM-34, Vasyl's decision of 2026-10-06, ADR 0026, ADR 0005).** A film item's link to an
+  episode of a show that names its season and episode is identified by the episode's own IMDb id,
+  which TMDb gives (`GET
+  /3/tv/{id}/season/{season}/episode/{episode}?append_to_response=external_ids`; each dialog item
+  carries it as `episodeImdbId`): `POST /Items/RemoteSearch/Movie` with the id under the `Imdb` key
+  and the provider "The Open Movie Database", then the same apply. No TMDb id is ever sent for it,
+  as on a movie item it names a film, so the library needs The Open Movie Database among its movie
+  metadata downloaders. On "Greatest Events of World War II in Colour.S01E01.Blitzkrieg" Vasyl's
+  live check corrected the name and the year ("Blitzkrieg", 2019), kept the overview, as the row has
+  none, and replaced the image by a 1920x1080 one — probably a frame of the video, not the 960x1440
+  poster; it took 21.3 s. Without both numbers the link stays in the app with "Without a season and
+  an episode the app has no id of this episode to identify it by."; for an episode TMDb gives no
+  IMDb id, with "TMDb knows no IMDb id of this episode, so its link stays in the app." (both as the
+  item's `cannotWriteReason`). An item holding another IMDb id — typically its show's — is refused
+  when a batch queued the link, with the held-id sentence below, and identified anyway by the
+  owner's own save or **Retry**; a Save whose episode TMDb can't be asked about is 502 with TMDb's
+  sentence, nothing saved. A sync judges an episode's link by that IMDb id, and keeps reading a film
+  id the item holds as giving way to the link. An episode item no series holds keeps its link in the
+  app: "Jellyfin identifies movie and series items only, so a link on an episode stays in the app."
+  Saved again with the same season and episode once TMDb gives that episode an IMDb id, a link kept
+  for having none is queued. Nothing but reads, the film and series searches and the apply is ever
+  sent to Jellyfin about a link: no refresh, no item update, no image, no lock
+  (`LibraryItemIdentifierIdentifiesOnlyTests`).
+- **Update Jellyfin repairs the links set before: it identifies them, on the owner's click (MAM-34,
+  Vasyl's decision of 2026-10-06, ADR 0026).** `GET /api/library/tmdb/catch-up` answers `{
+  toIdentify, progress }`: `toIdentify` the attached links, in a library switched on, that Jellyfin
+  would identify and whose item the app never read showing the link's match (`identifiedUtc` empty)
+  — every such link set before the upgrade, kept in the app under the first rules or not; a
+  `NotWritten` one only when no apply was ever sent for it —, and `progress` `{ batchId, total, done }` for the batch under way, or
+  `null`. `POST` queues them under one new batch (202, the same shape: what it queued and its batch,
+  `progress` `null` when nothing waited), and the background worker identifies each — one apply per
+  item, none for an item that already shows the match —, every apply with its own audit row in the
+  name of whoever set the link; the progress survives a reload, as the batch's id is kept on the links,
+  and the links list's `Pending` filter follows them. Nothing happens without the click, and the
+  page asks to confirm it first. A batch is protected: an item that holds a TMDb or IMDb id other
+  than its link's — or an IMDb id when TMDb gives the link none to compare it with — is refused with
+  "Jellyfin holds IMDb id … for this item, not …, and the app doesn't replace a library's own ids on
+  its own. If the link is right, press Retry to identify it anyway; otherwise change the link.",
+  nothing sent, and **Retry** is the owner's override; the same protects **Accept all**. A link
+  refused or failed before anything was sent is taken again by the next click; a link whose apply
+  was sent and not confirmed is not, as a second apply would delete the item's images again — it
+  waits for **Retry**, and the **Not identified** list shows it; so does one a restart cut while it
+  was identifying (Jellyfin goes on with that apply after the app is gone, and the audit row is
+  written only after its answer). A batch whose identifications fail
+  to confirm twice in a row is stopped: its queued links are `NotWritten` with "The app stopped this
+  batch after Jellyfin failed to confirm two identifications in a row, and sent nothing for this
+  item. Check Jellyfin, then Retry, or press Update Jellyfin again.". Both endpoints are the owner's
+  alone, by where their controller lives.
 - **Every TMDb link endpoint is the owner's, reads included (MAM-34, ADR 0026).** The controllers
   live in `Controllers/Library/Links`, and `LibraryLinksAreOwnerOnlyConvention` gates every action
   there: 403 "Only the installation owner can do this." for anyone else.
   `LibraryLinksAreOwnerOnlyHttpTests` sends each of them as a member and without a token.
-- **An audit row names the ids it changed (MAM-34, ADR 0006).** `AuditAction` gains
-  `LibraryLinkSet`, `LibraryLinkReplaced`, `LibraryLinkRemoved`, `LibraryIdsWritten` and
-  `LibraryIdsRestored`, on a target of kind `LibraryLink` named after the work's title (200
-  characters at most, cut with "…"), each with the ids before and after in `AuditEventIdentifiers`.
+- **An audit row names the ids it changed (MAM-34, ADR 0006, ADR 0026).** `AuditAction` gains
+  `LibraryLinkSet`, `LibraryLinkReplaced`, `LibraryLinkRemoved` and `LibraryItemIdentified` (23), on
+  a target of kind `LibraryLink` named after the work's title (200 characters at most, cut with
+  "…"), each with the ids before and after in `AuditEventIdentifiers`. `LibraryItemIdentified` is
+  written once for every apply that left the app, confirmed or not, with the ids the item held
+  before and after — or, when the item couldn't be read again, the ids the identification meant to
+  leave —, in the name of whoever set or queued the link; an item already showing the match, a
+  refusal, a search that found no match and a failure before the apply write none, and no title,
+  overview or image is recorded. `LibraryIdsWritten`, `LibraryIdsRestored` and
+  `LibraryMetadataLookupRequested` are history: the first builds of this version wrote them, nothing
+  writes them now, and the values stay so old rows read.
 
 ### Changed
 
@@ -502,33 +551,41 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   80rem (1,280 px) wide, its padding included, instead of 64rem (1,024 px). The Recommendations page's
   cards are at least 30rem wide instead of 24rem, so a desktop shows two a row, never three, and a
   window narrower than about 1,020 px one.
-- **The media library contract learns to set an item's ids, as an optional capability (MAM-34, ADR
-  0005).** `IMediaLibraryIdentifierWriter` is a further interface of a library's adapter, found by
-  the registry like a kind contract and required of none: `WriteIdentifiersAsync` takes an item, its
-  kind and edits of its registry ids under the rules `Always`, `OnlyWhereAbsent` and
-  `OnlyWhereExpected`, and answers the ids before and after, whether anything was sent and whether the
-  read afterwards confirmed it; `WritableKinds` names the kinds of item the library is written on and
-  `UnwritableKindReason` says why not the others, so the app keeps such a link in the app because the
-  library says so, not by checking which product it is; `RequestMetadataLookupAsync` asks the library
-  to look an item's missing metadata up (Vasyl's decision of 2026-10-06), the one member named beyond
-  ids. Jellyfin's adapter implements it for films and series, never an episode item; its class
-  summary no longer says it only reads. `IMetadataCatalog` gains `GetEpisodeAsync`, an episode of a show with its own IMDb id. `ProvenanceSourceKind` gains `Person`, `AuditTargetKind`
-  `LibraryLink`, `RecommendationRunTrigger` `LinkChanged`, and `CatalogWork` a runtime, an overview
-  and its other titles, with a show's IMDb id read too.
+- **The media library contract learns to identify an item, as an optional capability (MAM-34, ADR
+  0005, ADR 0026).** `IMediaLibraryItemIdentifier` is a further interface of a library's adapter,
+  found by the registry like a kind contract and required of none: `IdentifyAsync` takes an item,
+  its kind and the one id the identification is by — a film's TMDb id, a show's TMDb TV id, or an
+  episode's IMDb id on a film item, and no other pair, so an id never reaches the search of the
+  other kind — and answers the ids before and after, whether anything was sent, and what became of
+  it; `IdentifiableKinds` names the kinds of item the library identifies and
+  `UnidentifiableKindReason` says why not the others, so the app keeps such a link in the app
+  because the library says so, not by checking which product it is. It replaces
+  `IMediaLibraryIdentifierWriter`, with its edit rules and its metadata lookup. Jellyfin's adapter
+  implements it for films and series, never an episode item; its apply goes out on a named client of
+  its own, `jellyfin-identify`, with a 20-minute timeout, chosen by an optional client name on
+  `HttpIntegrationAdapter`, while every other call keeps the shared client's 15 seconds; its class
+  summary no longer says it only reads. `IMetadataCatalog` gains `GetEpisodeAsync`, an episode of a
+  show with its own IMDb id. `ProvenanceSourceKind` gains `Person`, `AuditTargetKind` `LibraryLink`,
+  `RecommendationRunTrigger` `LinkChanged`, and `CatalogWork` a runtime, an overview and its other
+  titles, with a show's IMDb id read too.
 - **The Library list counts a linked id as the library's own (MAM-34, ADR 0026, ADR 0006).** `GET
   /api/library/works` gives each identifier `sourceKind` — `MediaLibrary`, `Person` for an id the
   owner set, `Metadata` for the IMDb id TMDb gave the link (only where Jellyfin gives none) — and
   `setUtc`; a linked id's `sourceName` is the name of who set it for the owner and `null` for
   everyone else. Each work gains `link` (`null` without one) `{ target, catalogKind, catalogId,
   catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError,
-  conflictingValue }`, the worst write state of its items' links, `setByUserName` and `writeError` for
-  the owner only. A linked work misses no id: `missingIdentifiers` is `[]` and `identifiers=Missing`
-  leaves it out, and the episodes of a linked series too (Vasyl's decision 9). `search` finds a work
-  by its linked id and by the IMDb id TMDb gave. The id a link replaces is hidden until Jellyfin holds
-  the link; a third TMDb id Jellyfin gives is shown beside it as a conflict. The cards show a linked
-  id once whatever its sources, its tooltip saying who reported it and who set it when, the link's
-  state, an episode link as "Episode of Планета Земля · S1 E8", and "TMDb ids disagree: 1234 in
-  Jellyfin, 223021 linked" for a conflict.
+  conflictingValue, identified, underWay }`, the worst write state of its items' links,
+  `setByUserName` and `writeError` for the owner only, `identified` whether the app confirmed every
+  item of the work whose id Jellyfin holds — the card says "Identified in Jellyfin", else "Not
+  identified yet" — and `underWay` whether any item's link waits or is being identified, which makes
+  the page ask again while one does; the two booleans are everyone's. A linked work misses no id:
+  `missingIdentifiers` is `[]` and `identifiers=Missing` leaves it out, and the episodes of a linked
+  series too (Vasyl's decision 9). `search` finds a work by its linked id and by the IMDb id TMDb
+  gave. The id a link replaces is hidden until Jellyfin holds the link; a third TMDb id Jellyfin
+  gives is shown beside it as a conflict. The cards show a linked id once whatever its sources, its
+  tooltip saying who reported it and who set it when, the link's state, an episode link as "Episode
+  of Планета Земля · S1 E8", and "TMDb ids disagree: 1234 in Jellyfin, 223021 linked" for a
+  conflict.
 - **A search and its releases match a linked id (MAM-34, ADR 0012).** `POST /api/searches` and
   `GET /api/searches/{id}` count a work's linked ids like its library ids: a linked id finds the work
   and matches a release that gives it, `matchedIdentifiers` items gain `sourceKind` and `setUtc` and
@@ -537,12 +594,17 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **A sync re-applies the owner's links (MAM-34, ADR 0008).** A sync groups a linked item with its
   linked id, so it joins the work of the library's other items of that id, and a third value keeps
   it alone; it stores nothing of the link as Jellyfin's. A link follows its item to whatever work it
-  lands on, stays unattached when the item is gone, and, when Jellyfin re-created the item under a new
-  id, moves to it by the device, inode and size of its files — after the next file inspection, or at
-  the following sync —, a series by its episodes' files, never when two items or two links claim one
-  file. The sync marks a link `InLibrary` once Jellyfin reports its id and `Lost` once it reports a
-  held link no more; a link kept in the app stays so whatever Jellyfin reports, the id it replaced
-  giving way. A successful sync also queues a preparation of the TMDb suggestions.
+  lands on, stays unattached when the item is gone, and, when Jellyfin re-created the item under a
+  new id, moves to it by the device, inode and size of its files — after the next file inspection,
+  or at the following sync —, a series by its episodes' files, never when two items or two links
+  claim one file. The sync judges a link by the id its identification sets — a film's TMDb id, a
+  show's TMDb TV id, an episode's IMDb id — and marks a link `InLibrary` once Jellyfin reports it
+  and `Lost` once it reports an identified link without it; a link kept in the app stays so whatever
+  Jellyfin reports, and so does a `NotWritten` one, with its sentence, even when its item holds the
+  id, as the app never identified it; the id it replaced giving way. A sync never changes when a
+  link was identified, but a link it moves to an item Jellyfin re-created is not identified again,
+  as the new item is a fresh one. A successful sync also queues a preparation of the TMDb
+  suggestions.
 - **Recommendations seed by a link (MAM-34, ADR 0023).** A work with a link seeds and is held by its
   linked id, and is never looked up by title; a work whose link and library disagree seeds nothing
   and holds both ids; an episode link holds and seeds its show, its season numbers counting as held.
@@ -589,26 +651,45 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **Applying `AddLibraryLinkLookups` rebuilds no table, so it logs no warning 20410 (MAM-34).** It
   adds three nullable columns to `LibraryItemLinks`: `EpisodeImdbId`, `LookupRequestedUtc` and
   `LookupError`. Every link comes through whole, none of them set.
-- **Bring the links set before up to date with the catch-up (MAM-34, Vasyl's decision of
-  2026-10-06).** Links set before this change kept every series' and episode's link in the app and
-  asked Jellyfin to look nothing up. Nothing changes them by itself: open the TMDb links page and start
-  the catch-up (`GET`, then `POST /api/library/tmdb/catch-up`); it writes the series' links, the
-  numbered episodes' links and any link not in Jellyfin yet into Jellyfin, and asks Jellyfin to look up
-  every written item, one at a time in the background. Jellyfin's lookup runs in its own time: start it
-  when Jellyfin isn't busy, and click again for what it couldn't reach. An episode's IMDb id needs TMDb
-  connected.
+- **Applying `AddLibraryLinkIdentified` rebuilds no table, so it logs no warning 20410 (MAM-34).**
+  It adds one nullable column, `IdentifiedUtc`, to `LibraryItemLinks`; every link comes through
+  whole with none set, so every attached link counts for **Update Jellyfin**. `LookupRequestedUtc`
+  and `LookupError` stay as dormant columns that nothing writes or reads, so the previous image
+  still runs on the migrated database.
+- **Bring the links set before up to date with Update Jellyfin (MAM-34, Vasyl's decision of
+  2026-10-06).** Links set under the first rules put ids on items and, later, asked Jellyfin to look
+  up what they lacked; Jellyfin still shows those items the titles, overviews and images it took
+  from their file names. Nothing changes them by itself. Identify has no undo, so back up Jellyfin's
+  data folder first if a way back matters. Each Jellyfin library gives its items the metadata
+  language set on it, and one with none set uses the server's default: set the language of a library
+  before the run if you want another. On the reference installation «Фільми» is Ukrainian and the
+  others have none; the live check ran only in libraries with none or English, so identify one film
+  of a library with a language first — open its work's **TMDb…** dialog and choose **Identify in
+  Jellyfin** — and look at it in Jellyfin. Then open the TMDb links page: the panel counts the links
+  not identified yet (223 on the reference installation), and **Update Jellyfin**, after one
+  confirmation, makes Jellyfin identify each of those items in the background — two films or
+  episodes at a time, a series alone and for about a second per episode: about 15 minutes for the
+  223 — while the panel counts "Identifying in Jellyfin: 41 of 223 links…". The page can be closed
+  or reloaded meanwhile. A link Jellyfin or the app refuses stays as it is with its reason, listed
+  under **Not identified**; the refusals include any item that holds an IMDb or TMDb id other than
+  its link's, which a repair never overwrites — **Retry** on it identifies it anyway, after you have
+  read the sentence —, and a library that saves beside the media, which is refused before any
+  search.
 - **Nothing is linked until the owner links it (MAM-34).** TMDb must be connected (see above); the
-  suggestions are then prepared after the next library sync, or at once with **Prepare again** on the
-  TMDb page (Library → **Missing an id** → **Review works without a TMDb id**). The runtime evidence,
-  and so every confident suggestion, needs the media folders allowed under **Media folders** and the
-  files inspected. To write into Jellyfin, the integration's API key — one made under Jellyfin's
-  **Dashboard → API Keys** is an administrator's — must be allowed to change items, and Jellyfin
-  needs an enabled administrator account to read an item as. Watch history was not tried live:
-  Jellyfin keys a user's watch data by the item's ids, so link one watched work first and check its
-  played state.
-- **Back up `mam.db` (MAM-34).** The links are the owner's work and live only there until Jellyfin
-  holds them; a link kept in the app and a link not in Jellyfin yet live nowhere else. The
-  suggestions are a cache the next run rebuilds.
+  suggestions are then prepared after the next library sync, or at once with **Prepare again** on
+  the TMDb page (Library → **Missing an id** → **Review works without a TMDb id**). The runtime
+  evidence, and so every confident suggestion, needs the media folders allowed under **Media
+  folders** and the files inspected. To have Jellyfin identify items, the integration's API key must
+  be an administrator's — one made under Jellyfin's **Dashboard → API Keys** is —, Jellyfin needs an
+  enabled administrator account to read an item as, and the item's library must not save artwork or
+  metadata next to the media: no `Nfo` metadata saver, no saving artwork into media folders, no
+  trickplay or downloaded subtitles saved with the media. The app refuses to identify in a library
+  that does, and says so on the item. A series with watch history kept its played state on the live
+  check (The Penguins of Madagascar, 15.4 % played); a film with watch history was not tried.
+- **Back up `mam.db` (MAM-34).** The links are the owner's work and live only there. The suggestions
+  are a cache the next run rebuilds. Identify changes Jellyfin's own data — titles, overviews and
+  images — and can't be undone, and removing a link doesn't change Jellyfin back: back up Jellyfin's
+  data folder before **Update Jellyfin** if you want a way back.
 
 ## [0.2.0] — 2026-10-04
 

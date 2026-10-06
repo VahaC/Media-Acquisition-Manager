@@ -16,11 +16,12 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="SeasonNumber">The season an episode-to-show link names.</param>
 /// <param name="EpisodeNumber">The episode of that season.</param>
 /// <param name="WriteState">Where the link stands against the library.</param>
-/// <param name="WriteError">Why the library doesn't hold it.</param>
+/// <param name="WriteError">Why the library didn't identify the item: a final sentence to show verbatim.</param>
 /// <param name="SetUtc">When it was set or last replaced.</param>
 /// <param name="SetByUserName">Who set it.</param>
 /// <param name="ConflictingValue">The library's TMDb id that is neither the link's nor one it replaces; <c>null</c>
 /// when there is none.</param>
+/// <param name="IdentifiedUtc">When the app last confirmed the item identified as the link says; <c>null</c> while never.</param>
 public sealed record LibraryLinkRowDto(
     Guid LinkId,
     Guid? WorkId,
@@ -38,4 +39,5 @@ public sealed record LibraryLinkRowDto(
     string? WriteError,
     DateTime SetUtc,
     string SetByUserName,
-    string? ConflictingValue);
+    string? ConflictingValue,
+    DateTime? IdentifiedUtc);

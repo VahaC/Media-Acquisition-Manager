@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatDateTime } from '@/lib/format'
 import { i18n } from '@/lib/i18n'
+import { isLinkUnderWay } from '@/lib/library-links'
 import {
   useLibraryLinkLookup,
   useLibraryLinkSearch,
@@ -31,7 +32,7 @@ import type {
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-muted — the "nothing here" lines
 import '@/styles/settings-dialog.css' // .settings-dialog-body, .settings-check — the body's grid, the items' boxes
-import '@/styles/library.css' // .library-source-status — a write's failure line under its item
+import '@/styles/library.css' // .library-source-status — an identification's failure line under its item
 import '@/styles/search.css' // .search-details-* — the two columns, their headings and facts; .search-badges
 import '@/styles/recommendations.css' // .recommendation-attribution — TMDb's notice
 import '@/styles/library-links.css' // .tmdb-link-* — the items, the pick, the paste and search forms, the key hints
@@ -51,6 +52,18 @@ export interface TmdbLinkEditorHandle {
   save: () => void
 }
 
+/**
+ * What a save left, for the surface around the editor. `done`: every ticked item came back already
+ * settled (the real API does that only for items it keeps in the app), so the surface may move on.
+ * `queued`: Jellyfin identifies at least one ticked item in the background (the answer for every item
+ * it can identify), which the editor goes on showing. `notWritten`: Jellyfin or the app refused a ticked
+ * item at once; the item says why. `kept`: the app keeps a ticked item's link to itself for a reason the
+ * owner couldn't read before the save (TMDb gives the episode no IMDb id: only asking TMDb tells), so the
+ * editor stays on the item, which now says why. The wire state keeps its name, `NotWritten`, though it
+ * now means "not identified".
+ */
+export type TmdbLinkSaveOutcome = 'done' | 'queued' | 'kept' | 'notWritten'
+
 /** What the surface's Save button needs from the editor. */
 export interface TmdbLinkSave {
   /** The pick form's id: Save sits outside it and names it in `form=`. */
@@ -58,6 +71,11 @@ export interface TmdbLinkSave {
   /** Why Save is disabled; undefined while it can save. */
   reason: string | undefined
   saving: boolean
+  /**
+   * Whether a save of this editor's is still on screen: the pick is cleared, so Save is off, and Cancel
+   * would promise to cancel an identification that nothing can cancel — the surface offers Close.
+   */
+  saved: boolean
 }
 
 interface TmdbLinkEditorProps {
@@ -74,8 +92,8 @@ interface TmdbLinkEditorProps {
   notice?: ReactNode
   /** Shows the Review tab's keys: 1–5 on the suggestions, / on the search (R24). */
   shortcuts?: boolean
-  /** A save went through; `notWritten` when Jellyfin didn't take a ticked item's write. */
-  onSaved: (dialog: LibraryLinkDialog, notWritten: boolean) => void
+  /** A save went through; what it left is `outcome`. */
+  onSaved: (dialog: LibraryLinkDialog, outcome: TmdbLinkSaveOutcome) => void
   /** The bar under the body — the surface's Save and its own buttons — given what Save needs. */
   footer: (save: TmdbLinkSave) => ReactNode
   /** For the Review tab's keys. */
@@ -88,28 +106,34 @@ interface TmdbLinkEditorProps {
  * the Review tab took it too; the surface around it brings the title, Save's place and its own buttons.
  *
  * On the left, the work as it stands: what it is linked to (with Remove link), and each library item it
- * holds — the ids Jellyfin reports for it, where its link stands against Jellyfin, when Jellyfin was
- * asked to look up its missing metadata (or why it couldn't be), and Retry or Write again for that
- * item. On the right, the pick: the prepared suggestions, best first, each with its poster, facts and
- * evidence; the items to link when the work holds several; a season and an episode when a show is
- * picked for a film or an episode of no series. Under the pick, a pasted TMDb or IMDb link and a free
- * TMDb search, each its own form with its own button — Enter in them looks up or searches, never saves
- * — whose answers are picked the same way.
+ * holds — the ids Jellyfin reports for it, where its link stands against Jellyfin (waiting, being
+ * identified, identified and when, not identified and why), and Retry, Identify again or Identify in
+ * Jellyfin for that item. On the right, the pick: the prepared suggestions, best first, each with its
+ * poster, facts and evidence; the items to link when the work holds several; a season and an episode
+ * when a show is picked for a film or an episode of no series. Under the pick, a pasted TMDb or IMDb
+ * link and a free TMDb search, each its own form with its own button — Enter in them looks up or
+ * searches, never saves — whose answers are picked the same way.
  *
- * Save writes the ids into Jellyfin at once — a film's or a series', or for an episode Jellyfin lists
- * as a film (with its season and episode), the episode's own IMDb id —, and Jellyfin is then asked to
- * look up the item's missing metadata, as its own "Search for missing metadata" does: only what the
- * item lacks is filled, and its title stays (Vasyl's decision of 2026-10-06). What stays in the app —
- * an episode of no series, an episode's link without a season and an episode or whose episode TMDb
- * knows no IMDb id of — says why under its item (`cannotWriteReason`), and the editor shows that
- * sentence rather than deciding by the item's kind or the link's numbers. A link kept in the app before
- * that decision, which the server can write now (`canWrite`, no reason), says so and offers Write to
- * Jellyfin; one written before Jellyfin was asked for the lookup offers to ask. A save that would
- * replace an id Jellyfin holds, or the work's link, asks first (R24); a series is saved with no
- * question of its own, as a film is (ADR 0026 says what Jellyfin does to its seasons and episodes, and
- * why that is accepted). A save whose write Jellyfin didn't confirm stays on the items' states, saying
- * so above the buttons while one of those items is still not written. Every failure is a line where it
- * happened; no toasts.
+ * Save links the pick, and Jellyfin then identifies each ticked item as that film or show, as its own
+ * web "Identify" does: it replaces the item's title, overview and images (a series' seasons and
+ * episodes too), and there is no undo (Vasyl's decision of 2026-10-06, ADR 0026). A film's or a series'
+ * item goes by its TMDb id; an episode Jellyfin lists as a film (with its season and episode), by the
+ * episode's own IMDb id through the Open Movie Database. So the owner reads what Jellyfin will replace
+ * above Save, before the click, and Save never waits for Jellyfin: the answer comes at once with the
+ * items `Queued`, the editor stays on them, and the dialog's poll shows each one turn "Identifying…" and
+ * then "Identified in Jellyfin", or "Not identified yet" with the server's sentence and Retry. What
+ * stays in the app — an episode of no series, an episode link without a season and an episode or whose
+ * episode TMDb knows no IMDb id of, a library that saves beside the media, a locked item — says why
+ * under its item, and the editor shows every such sentence verbatim rather than deciding by the item's
+ * kind or the link's numbers. A link kept in the app under the first rules that the server can identify
+ * now (`canWrite`, no reason), and one whose ids Jellyfin holds but the app never identified, say so
+ * and offer Identify in Jellyfin.
+ *
+ * What would be replaced is asked about first: a save over an id Jellyfin holds or over the work's link
+ * (R24), and every per-item Identify, Retry and Identify again, because the bulk paths refuse an item
+ * that holds another id of its own and this single click is the one that overrides it. A save is no
+ * retry, so its statement above the buttons stands in for a question. Remove link forgets the link in
+ * the app only. Every failure is a line where it happened; no toasts.
  */
 export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcuts = false, onSaved, footer, ref }: TmdbLinkEditorProps) {
   const { t } = useTranslation(['libraryLinks', 'library', 'recommendations', 'common'])
@@ -128,17 +152,23 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
   // The items not ticked, so every item — one a refetch adds too — starts ticked.
   const [unticked, setUnticked] = useState<string[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
-  // The items the last save left not written into Jellyfin. The warning above the buttons stands
-  // while one of them still is, so a Retry that lands takes it away, and one refused again keeps it.
-  const [notWrittenIds, setNotWrittenIds] = useState<string[]>([])
+  // The items ticked at the last save that Jellyfin hadn't settled: the banner above the buttons follows
+  // them as the poll brings their states, so a Retry that lands takes the warning away and one refused
+  // again keeps it. Cleared by the next save, a Remove, and a new pick, whose statement replaces it.
+  const [savedIds, setSavedIds] = useState<string[]>([])
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [writeErrors, setWriteErrors] = useState<Record<string, string>>({})
-  // A double click on Save, or Enter pressed twice, sends one link.
+  // A double click on Save, or Enter pressed twice, sends one link; the same for an item's Identify.
   const inFlight = useRef(false)
+  const writeInFlight = useRef(false)
 
   const items = dialog.items
   const tickedItems = items.filter((item) => !unticked.includes(item.sourceItemId))
-  const notWritten = items.some((item) => notWrittenIds.includes(item.sourceItemId) && item.writeState === 'NotWritten')
+  const savedItems = items.filter((item) => savedIds.includes(item.sourceItemId))
+  const failed = savedItems.some((item) => item.writeState === 'NotWritten')
+  const underWay = savedItems.some((item) => isLinkUnderWay(item.writeState))
+  const keptNow = !failed && !underWay && savedItems.some((item) => item.writeState === 'KeptInApp')
+  const identifiedNow = !failed && !underWay && !keptNow && savedItems.some((item) => item.writeState === 'Written' || item.writeState === 'InLibrary')
   // A show picked for a film or an episode of no series links it as the show's episode (ADR 0026).
   const episodeLink = pick !== null && pick.catalogKind === 'Series' && work.kind !== 'Series'
 
@@ -148,9 +178,23 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
       ? t('dialog.pickFirst')
       : tickedItems.length === 0 ? t('dialog.noItemsTicked') : undefined
 
+  // What Jellyfin will do to the ticked items if he saves now, said above the buttons before the click
+  // (Vasyl's decision of 2026-10-06). Only for an item the server will identify: one it keeps in the app
+  // never promises an Identify, its own sentence says what happens. An episode link promises the
+  // Open-Movie-Database lookup only on a film item with both numbers, as the server keeps the link in
+  // the app otherwise, next to an episode hint that says so.
+  const statement = pick === null || !tickedItems.some((item) => item.canWrite)
+    ? null
+    : episodeLink
+      ? work.kind === 'Movie' && season.trim() !== '' && episode.trim() !== '' ? 'willIdentifyEpisode' : null
+      : pick.catalogKind === 'Series' ? 'willIdentifyShow' : 'willIdentify'
+
   const choose = (candidate: LinkCandidate) => {
     setPick(candidate)
     setSaveError(null)
+    // So only one banner is on screen: a pick after a save says what the new pick would do, never that
+    // on top of "Saved, and Jellyfin identified the item." (the body has little room on a phone).
+    setSavedIds([])
     // The numbers are the pick's own — a suggestion's guess, those a pasted episode link names, none
     // for a bare number —, never the pick's before it nor the work's link's: a pasted link to another
     // episode of the linked show means that episode.
@@ -168,13 +212,15 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
           ? t('dialog.replaceLink', { old: replaced.value, new: pick.catalogId })
           : replaced.keptReason === null
             ? t('dialog.replaceLibrary', { old: replaced.value, new: pick.catalogId })
-            // A link the server won't write (any while its library is switched off) doesn't replace
-            // the id in Jellyfin: the question gives the server's reason instead.
+            // A link the server won't identify (any while its library is switched off) sends nothing to
+            // Jellyfin: the question gives the server's reason instead.
             : t('dialog.replaceKept', { old: replaced.value, new: pick.catalogId, reason: replaced.keptReason })
-        if (!(await confirm({ title: t('dialog.replaceTitle'), message, confirmLabel: t('dialog.replace') }))) return
+        // Destructive unless nothing reaches Jellyfin: the other two questions say it replaces the item's
+        // title, overview and images, with no undo.
+        if (!(await confirm({ title: t('dialog.replaceTitle'), message, confirmLabel: t('dialog.replace'), destructive: replaced.keptReason === null }))) return
       }
       setSaveError(null)
-      setNotWrittenIds([])
+      setSavedIds([])
       const ticked = tickedItems.map((item) => item.sourceItemId)
       const next = await setLink.mutateAsync({
         catalogKind: pick.catalogKind,
@@ -184,16 +230,21 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
         // Every item is the API's default; only a narrower choice is named.
         sourceItemIds: ticked.length === items.length ? null : ticked,
       })
-      // A write Jellyfin didn't take is a state with its sentence, not a failure of the save: the
-      // editor stays on the items, which say why and offer Retry.
-      const failed = next.items
-        .filter((item) => ticked.includes(item.sourceItemId) && item.writeState === 'NotWritten')
-        .map((item) => item.sourceItemId)
-      if (failed.length > 0) {
+      // The identification isn't waited for: the items come back `Queued`, or `NotWritten` with their
+      // sentence when the app refused one at once. Neither is a failure of the save — the editor stays
+      // on the items, which show how it goes and offer Retry — and the pick is spent, so Save is off
+      // and the surface offers Close.
+      const settled = next.items.filter((item) => ticked.includes(item.sourceItemId))
+      const outcome: TmdbLinkSaveOutcome = settled.some((item) => item.writeState === 'NotWritten')
+        ? 'notWritten'
+        : settled.some((item) => isLinkUnderWay(item.writeState))
+          ? 'queued'
+          : settled.some((item) => item.writeState === 'KeptInApp' && keptReasonUnseen(item, items)) ? 'kept' : 'done'
+      if (outcome !== 'done') {
         setPick(null)
-        setNotWrittenIds(failed)
+        setSavedIds(ticked)
       }
-      onSaved(next, failed.length > 0)
+      onSaved(next, outcome)
     } catch (e: unknown) {
       setSaveError(getApiErrorMessage(e, t('dialog.saveFailed')))
     } finally {
@@ -228,23 +279,42 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
     if (!confirmed) return
     try {
       await removeLink.mutateAsync()
-      setNotWrittenIds([])
+      setSavedIds([])
     } catch (e: unknown) {
       setRemoveError(getApiErrorMessage(e, t('dialog.removeFailed')))
     }
   }
 
-  /** Retry, Write again, Write to Jellyfin or the lookup's ask for one item's link. */
-  const write = async (linkId: string) => {
-    setWriteErrors((errors) => {
-      const next = { ...errors }
-      delete next[linkId]
-      return next
-    })
+  /**
+   * Identify in Jellyfin, Retry or Identify again for one item's link, after a question. Why every one
+   * asks: the bulk paths (Accept all confident, Update Jellyfin) leave an item that holds another id of
+   * its own alone, and this single click is the one that overrides that — it irreversibly turns the item
+   * into another film or episode, with no undo. Cancelling sends nothing. `confirmLabel` is the label of
+   * the button he pressed, so the question's own button says the same word.
+   */
+  const write = async (item: LibraryLinkItem, linkId: string, confirmLabel: string) => {
+    if (writeInFlight.current) return
+    writeInFlight.current = true
     try {
-      await writeLink.mutateAsync(linkId)
-    } catch (e: unknown) {
-      setWriteErrors((errors) => ({ ...errors, [linkId]: getApiErrorMessage(e, t('dialog.writeFailed')) }))
+      const confirmed = await confirm({
+        title: t('dialog.identifyConfirmTitle'),
+        message: t('dialog.identifyConfirmMessage', { name: item.itemTitle ?? t('dialog.untitledItem') }),
+        confirmLabel,
+        destructive: true,
+      })
+      if (!confirmed) return
+      setWriteErrors((errors) => {
+        const next = { ...errors }
+        delete next[linkId]
+        return next
+      })
+      try {
+        await writeLink.mutateAsync(linkId)
+      } catch (e: unknown) {
+        setWriteErrors((errors) => ({ ...errors, [linkId]: getApiErrorMessage(e, t('dialog.identifyFailed')) }))
+      }
+    } finally {
+      writeInFlight.current = false
     }
   }
 
@@ -278,7 +348,7 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
                 item={item}
                 writing={writeLink.isPending && writeLink.variables === item.linkId}
                 error={item.linkId === null ? undefined : writeErrors[item.linkId]}
-                onWrite={(linkId) => void write(linkId)}
+                onWrite={(linkId, confirmLabel) => void write(item, linkId, confirmLabel)}
               />
             ))}
           </ul>
@@ -345,10 +415,18 @@ export function TmdbLinkEditor({ dialog, formId, bodyClassName, notice, shortcut
         </section>
       </div>
 
-      {/* Outside the body, above the buttons. */}
-      {notWritten && <Banner tone="warning">{t('dialog.savedNotWritten')}</Banner>}
+      {/* Outside the body, above the buttons, one banner at a time: what the pick would do, or how the last
+          save stands — the pick is spent by a save, and a new pick clears the saved items. */}
+      {statement !== null && <Banner tone="warning">{t(`dialog.${statement}`)}</Banner>}
+      {failed
+        ? <Banner tone="warning">{t('dialog.savedNotWritten')}</Banner>
+        : underWay
+          ? <Banner tone="ok">{t('dialog.savedUnderWay')}</Banner>
+          : keptNow
+            ? <Banner tone="warning">{t('dialog.savedKept')}</Banner>
+            : identifiedNow && <Banner tone="ok">{t('dialog.savedIdentified')}</Banner>}
       {saveError && <Banner>{saveError}</Banner>}
-      {footer({ formId, reason: saveReason, saving: setLink.isPending })}
+      {footer({ formId, reason: saveReason, saving: setLink.isPending, saved: savedIds.length > 0 })}
     </>
   )
 }
@@ -408,43 +486,53 @@ function CurrentLink({ link, removing, error, onRemove }: {
 
 /**
  * One library item: its name, the ids Jellyfin reports for it, and its link's state against Jellyfin
- * with Retry (not written) or Write again (Jellyfin lost it), or why it isn't written, or — kept in the
- * app before the app wrote such links, and writable now — Write to Jellyfin; an episode link's own IMDb
- * id; and when Jellyfin was asked to look up the item's missing metadata, or why it didn't take that,
- * with Retry, which writes the ids again (nothing changes where they are in place) and asks again — or,
- * never asked, a button that asks. No click asks first: a series' is sent like a film's.
+ * as a badge — waiting, identifying, identified (with when), not identified (with the server's reason
+ * as a line, as a phone shows no tooltip), kept in the app (with why) — and the button that goes on:
+ * Retry for a link Jellyfin refused or failed, Identify again for one Jellyfin lost, Identify in
+ * Jellyfin for one kept in the app under the first rules that the server can identify now, or whose ids
+ * Jellyfin holds but the app never identified. An episode link's own IMDb id sits under it, and an
+ * identification under way says how long it takes. The button asks first (the editor's `write`).
  */
 function ItemRow({ item, writing, error, onWrite }: {
   item: LibraryLinkItem
   writing: boolean
   error: string | undefined
-  onWrite: (linkId: string) => void
+  onWrite: (linkId: string, confirmLabel: string) => void
 }) {
   const { t } = useTranslation(['libraryLinks', 'library'])
   const state = item.writeState
   const idsIn = state === 'Written' || state === 'InLibrary'
-  // A failed lookup leaves the ids in (the state stays), so only its line says to retry.
-  const lookupFailed = item.lookupError !== null && idsIn
+  const identified = item.identifiedUtc !== null
+  // The ids are in Jellyfin but the app never identified the item: a link set under the first rules put
+  // the ids and nothing else, so Jellyfin still shows the title, overview and images it took from the
+  // file name.
+  const notIdentifiedYet = idsIn && !identified
+  const underWay = isLinkUnderWay(state)
   // Why the link stays in the app, as the server sends it: the item's sentence or its link's (no season
   // and episode, or no IMDb id of the episode on TMDb) — shown whatever `canWrite` says, as an episode
-  // link's reason sits on a film item, which can be written. The link's own error stands in only where
-  // the server can't write the item: a link kept in the app that the server can write — one kept under
-  // the first rules, a series' or a numbered episode's, whatever error it still holds — is no longer
-  // kept for that error, and offers Write to Jellyfin.
+  // link's reason sits on a film item, which can be identified. The link's own error stands in only
+  // where the server can't identify the item: a link kept in the app that the server can identify — one
+  // kept under the first rules, a series' or a numbered episode's, whatever error it still holds — is no
+  // longer kept for that error, and offers Identify in Jellyfin.
   const keptReason = item.cannotWriteReason ?? (state === 'KeptInApp' && !item.canWrite ? item.writeError : null)
-  // Kept in the app under the first rules and nothing keeps it there now: the server writes it on this
-  // click, or on Update Jellyfin's (Vasyl's decision of 2026-10-06). Without this, such an item showed
-  // the badge alone, with no way on.
+  // Kept in the app under the first rules and nothing keeps it there now: the server identifies it on
+  // this click, or on Update Jellyfin's (Vasyl's decision of 2026-10-06). Without this, such an item
+  // showed the badge alone, with no way on.
   const writableNow = state === 'KeptInApp' && item.canWrite && keptReason === null
-  // Written before the app asked Jellyfin for the lookup (or with the request never recorded): the
-  // click sends no change where the ids are in place, and asks.
-  const neverLookedUp = idsIn && item.canWrite && item.lookupRequestedUtc === null && item.lookupError === null
-  const action = state === 'NotWritten' || lookupFailed
+  // An item whose link is kept in the app for a reason of its own (an episode link with no season and
+  // episode, say) can't be identified whatever the ids it holds: the server would answer 409.
+  const identifyNow = writableNow || (notIdentifiedYet && item.canWrite && keptReason === null)
+  const action = state === 'NotWritten'
     ? t('dialog.retry')
     : state === 'Lost'
-      ? t('dialog.writeAgain')
-      : writableNow ? t('dialog.writeNow') : neverLookedUp ? t('dialog.askLookup') : null
+      ? t('dialog.identifyAgain')
+      : identifyNow ? t('dialog.identifyNow') : null
   const linkId = item.linkId
+  // How long it takes, by what Jellyfin does: a series' seasons and episodes one by one (minutes), an
+  // episode Jellyfin lists as a film through the Open Movie Database (about 20 seconds), a film (seconds).
+  const underWayLine = item.itemKind === 'Series'
+    ? t('dialog.underWay.series')
+    : item.target === 'ShowEpisode' ? t('dialog.underWay.episode') : t('dialog.underWay.film')
 
   return (
     <li className="tmdb-link-item">
@@ -466,7 +554,7 @@ function ItemRow({ item, writing, error, onWrite }: {
         <p className="settings-muted">{t('dialog.notLinkedItem')}</p>
       ) : (
         <div className="tmdb-link-state">
-          <LinkStateBadge state={state} />
+          <LinkStateBadge state={state} identified={identified} />
           {item.conflictingValue !== null && item.catalogId !== null && (
             <span className="ui-badge library-badge-warning" title={t('card.conflictHint')}>
               <TriangleAlert className="h-3 w-3" aria-hidden="true" />
@@ -475,11 +563,11 @@ function ItemRow({ item, writing, error, onWrite }: {
           )}
           {action !== null && (
             <div className="tmdb-link-actions">
-              <Button type="button" variant="outline" size="sm" title={action} disabled={writing} onClick={() => onWrite(linkId)}>
-                {writableNow && !writing
+              <Button type="button" variant="outline" size="sm" title={action} disabled={writing} onClick={() => onWrite(linkId, action)}>
+                {identifyNow && !writing
                   ? <Upload className="h-3.5 w-3.5" aria-hidden="true" />
                   : <RotateCw className={writing ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} aria-hidden="true" />}
-                <span className="label-text">{writing ? t('dialog.writing') : action}</span>
+                <span className="label-text">{writing ? t('dialog.identifying') : action}</span>
               </Button>
             </div>
           )}
@@ -495,17 +583,18 @@ function ItemRow({ item, writing, error, onWrite }: {
       {item.target === 'ShowEpisode' && item.episodeImdbId !== null && (
         <p className="settings-muted">{t('dialog.episodeImdb', { id: item.episodeImdbId })}</p>
       )}
-      {/* A request Jellyfin didn't take is recorded with its time too: one line, the failure's, so the
-          item never says both that Jellyfin was asked and that it wasn't. */}
-      {item.lookupError !== null ? (
-        <p className="library-source-status" data-status="Failed">
-          <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>{t('dialog.lookupNotTaken', { error: item.lookupError })}</span>
+      {/* One status line at most: how long it takes while Jellyfin works (a series' single Apply has no
+          other progress, so a running one says since when), when it was confirmed, or that the app
+          never identified it. */}
+      {underWay ? (
+        <p className="settings-muted">
+          {underWayLine}
+          {state === 'Writing' && item.writeStateUtc !== null && ` ${t('dialog.startedAt', { time: formatDateTime(item.writeStateUtc, INSTANT_FORMAT) })}`}
         </p>
-      ) : item.lookupRequestedUtc !== null ? (
-        <p className="settings-muted">{t('dialog.lookupAsked', { time: formatDateTime(item.lookupRequestedUtc, INSTANT_FORMAT) })}</p>
-      ) : neverLookedUp ? (
-        <p className="settings-muted">{t('dialog.lookupNever')}</p>
+      ) : idsIn && item.identifiedUtc !== null ? (
+        <p className="settings-muted">{t('dialog.identifiedOn', { time: formatDateTime(item.identifiedUtc, INSTANT_FORMAT) })}</p>
+      ) : notIdentifiedYet && item.canWrite && keptReason === null ? (
+        <p className="settings-muted">{t('dialog.notIdentified')}</p>
       ) : null}
       {keptReason !== null && <p className="settings-muted">{keptReason}</p>}
       {writableNow && <p className="settings-muted">{t('dialog.writableNow')}</p>}
@@ -742,6 +831,18 @@ function episodeNumbers(seasonNumber: number, episodeNumber: number | null): str
 }
 
 /**
+ * Whether a link kept in the app, as a save answered it, has a sentence the item didn't carry before the
+ * save: the editor has to stay open for the owner to read it. A reason the item already showed (its
+ * library is switched off, it is an episode of no series) was read before the click.
+ */
+function keptReasonUnseen(saved: LibraryLinkItem, before: LibraryLinkItem[]): boolean {
+  const reason = saved.cannotWriteReason ?? saved.writeError
+  if (reason === null) return false
+  const earlier = before.find((item) => item.sourceItemId === saved.sourceItemId)
+  return reason !== (earlier?.cannotWriteReason ?? earlier?.writeError ?? null)
+}
+
+/**
  * Whether two answers are the same pick: the same film or show with the same season and episode. A
  * lookup of the show a pasted episode link named, by its bare number, answers the same show without
  * the episode: a radio of its own, not already checked, so picking it takes its numbers.
@@ -753,10 +854,10 @@ function samePick(one: LinkCandidate, other: LinkCandidate): boolean {
 
 /**
  * The id a save would replace, when any (R24): an id Jellyfin holds of the pick's scheme that isn't the
- * pick — only for a link to the work itself, whose id takes the place of Jellyfin's: in Jellyfin when
- * the server can write the item, else in the app (a library switched off, or one that can't set ids),
- * `keptReason` then being the server's sentence why — else another link of a ticked item. Null when
- * nothing would be replaced.
+ * pick — only for a link to the work itself, whose id takes the place of Jellyfin's: Jellyfin identifies
+ * the item as the pick when the server can identify it, else the link stays in the app (a library
+ * switched off, or one Jellyfin can't identify), `keptReason` then being the server's sentence why —
+ * else another link of a ticked item. Null when nothing would be replaced.
  */
 function replacedId(pick: LinkCandidate, ticked: LibraryLinkItem[], episodeLink: boolean): { value: string; inLibrary: boolean; keptReason: string | null } | null {
   if (!episodeLink) {

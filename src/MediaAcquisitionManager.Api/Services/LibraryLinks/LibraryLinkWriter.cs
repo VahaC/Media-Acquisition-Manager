@@ -1,3 +1,4 @@
+using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Api.Services.Files;
@@ -15,9 +16,9 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
 /// <inheritdoc cref="ILibraryLinkWriter"/>
 /// <remarks>
-/// A bug that throws out of a write — the adapter refusing a change the rules built — settles the link
-/// <c>NotWritten</c> with <see cref="AppErrorMessage"/> and is logged as an Error, instead of leaving it <c>Writing</c>,
-/// which would refuse every change of the work until the next restart.
+/// A bug that throws out of an identification settles the link <c>NotWritten</c> with <see cref="AppErrorMessage"/> and is
+/// logged as an Error, instead of leaving it <c>Writing</c>, which would refuse every change of the work until the next
+/// restart.
 /// </remarks>
 public sealed class LibraryLinkWriter(
     ApplicationDbContext db,
@@ -28,27 +29,24 @@ public sealed class LibraryLinkWriter(
     TimeProvider time,
     ILogger<LibraryLinkWriter> logger) : ILibraryLinkWriter
 {
-    internal const string AppErrorMessage = "The write stopped because of an error in the app. Its log says more.";
-
-    /// <summary>R12 — a library switched off is never written; the link waits for it.</summary>
-    internal static string SwitchedOffError(string name) => $"“{name}” is switched off. Switch it on under Integrations, then retry.";
-
-    /// <summary>R11 — a library switched off can't be changed back, so the link it holds stays.</summary>
-    internal static string SwitchedOffToRemoveError(string name) =>
-        $"“{name}” is switched off. Switch it on under Integrations to remove the link.";
-
-    /// <summary>R10 — sent, but the read afterwards didn't show it, and the library gave no reason of its own.</summary>
-    internal static string NotConfirmedError(string name) => $"“{name}” took the change but still reports other ids. Retry.";
-
-    /// <summary>What the app wrote for a link replaced by one that isn't written couldn't be put back.</summary>
-    internal static string NotRestoredError(string name, string error) => $"“{name}” couldn't be changed back: {error}";
+    internal const string AppErrorMessage = "The identification stopped because of an error in the app. Its log says more.";
 
     /// <summary>
-    /// MAM-34 — an episode's IMDb id goes only where the item holds none, and the item holds another: the app never writes
-    /// over the library's own ids, so the owner changes it in the library (then Retry, or the next sync, finds it).
+    /// How long after the audit row of a series' last Apply the app keeps from sending another for it. Jellyfin's Apply runs
+    /// on after the client that sent it gave up (its server side is never cancelled) and keeps rewriting seasons and
+    /// episodes for minutes, so an immediate Retry or repair click would read a half-refreshed series — which can pass the
+    /// confirmation early — or send a second Apply that deletes the episode images again. Ten minutes is the longest
+    /// series the owner's library holds (Penguins of Madagascar, 149 episodes, 159 s live) with margin; a film's Apply takes
+    /// seconds and needs no such wait.
     /// </summary>
-    internal static string HoldsAnotherImdbError(string name, string episodeImdbId) =>
-        $"“{name}” holds another IMDb id for this item, and the app never writes over the library's own ids, so the episode's {episodeImdbId} isn't in it. Change it there, then retry.";
+    private static readonly TimeSpan SeriesWait = TimeSpan.FromMinutes(10);
+
+    /// <summary>R12 — a library switched off is never identified in; the link waits for it.</summary>
+    internal static string SwitchedOffError(string name) => $"“{name}” is switched off. Switch it on under Integrations, then retry.";
+
+    /// <summary>The series wait of <see cref="SeriesWait"/>: when the last attempt's ten minutes are over, in UTC.</summary>
+    internal static string SeriesStillWorkingError(DateTime untilUtc) =>
+        $"Jellyfin may still be working on this series after the last attempt; try again after {untilUtc.ToString("HH:mm", CultureInfo.InvariantCulture)} UTC.";
 
     public async Task<LibraryLinkWriteResult> WriteAsync(Guid linkId, Guid attemptId, AuditActor? actor, CancellationToken cancellationToken = default)
     {
@@ -57,57 +55,38 @@ public sealed class LibraryLinkWriter(
 
         try
         {
-            return await WriteClaimedAsync(link, attemptId, actor, cancellationToken);
+            return await IdentifyClaimedAsync(link, attemptId, actor, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger.LogError(exception, "Writing TMDb link {LinkId} into its library threw.", link.Id);
+            logger.LogError(exception, "Identifying TMDb link {LinkId} in its library threw.", link.Id);
             return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, AppErrorMessage);
         }
     }
 
-    public async Task<LibraryLinkRestoreResult> RestoreAsync(Guid linkId, Guid attemptId, CancellationToken cancellationToken = default)
-    {
-        // A link no longer this caller's: the removal that follows is conditional on the claim and refuses.
-        if (await ClaimedAsync(linkId, attemptId, cancellationToken) is not { } link)
-            return LibraryLinkRestoreResult.NotNeeded;
+    // ── identifying ──────────────────────────────────────────────────────────────────────────────
 
-        try
-        {
-            return await RestoreClaimedAsync(link, cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogError(exception, "Restoring the library item of TMDb link {LinkId} threw.", link.Id);
-            return LibraryLinkRestoreResult.Failed(AppErrorMessage);
-        }
-    }
-
-    // ── writing ──────────────────────────────────────────────────────────────────────────────────
-
-    private async Task<LibraryLinkWriteResult> WriteClaimedAsync(LibraryItemLinkEntity link, Guid attemptId, AuditActor? actor, CancellationToken cancellationToken)
+    private async Task<LibraryLinkWriteResult> IdentifyClaimedAsync(LibraryItemLinkEntity link, Guid attemptId, AuditActor? actor, CancellationToken cancellationToken)
     {
         // Removed with its links (decision 12): nothing is left to settle.
         if (await IntegrationOfAsync(link, cancellationToken) is not { } integration)
             return LibraryLinkWriteResult.ClaimLost;
 
-        // Only an item of a kind its library writes is ever sent (Jellyfin: a film or a series, never an episode item); a
-        // link on any other stays in the app, and nothing of it was ever written to put back.
-        if (adapters.Find<IMediaLibraryIdentifierWriter>(integration.AdapterType) is not { } writer
-            || LibraryLinkWritability.ItemReason(writer, integration.Name, link.ItemKind) is not null)
+        // Only an item of a kind its library identifies is ever sent (Jellyfin: a film or a series, never an episode item).
+        if (adapters.Find<IMediaLibraryItemIdentifier>(integration.AdapterType) is not { } identifier
+            || LibraryLinkWritability.ItemReason(identifier, integration.Name, link.ItemKind) is not null)
             return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, null);
 
-        var history = await LibraryLinkWriteHistory.ReadAsync(db, link, cancellationToken);
-        // A link that writes no ids of its own — an episode's link without its numbers — is kept in the app, after what
-        // the app wrote for the item before is put back (a film link replaced by it, R11).
+        // A link with no id of its own to identify by — an episode's without its numbers — stays in the app: the library
+        // has nothing to be asked for.
         if (LibraryLinkWritability.LinkReason(link.Target, link.SeasonNumber, link.EpisodeNumber) is not null)
-            return await RestoreAndKeepAsync(link, attemptId, integration, writer, history, null, actor, cancellationToken);
+            return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, null);
         if (!integration.IsEnabled)
-            return await SentNothingAsync(link, attemptId, SwitchedOffError(integration.Name));
+            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, SwitchedOffError(integration.Name));
 
-        // MAM-34 — an episode's link writes the episode's own IMDb id, asked of TMDb when the link doesn't hold it yet: a
-        // link set before the app wrote episodes (the catch-up), or one whose TMDb couldn't be asked then. TMDb's "none"
-        // that the save claiming the link just heard is on the link already, and isn't asked again.
+        // MAM-34 — an episode's link is identified by the episode's own IMDb id, asked of TMDb when the link doesn't hold it
+        // yet: a link set before the app identified episodes (the repair), or one whose TMDb couldn't be asked then. TMDb's
+        // "none" that the save claiming the link just heard is on the link already, and isn't asked again.
         if (link is { Target: LibraryLinkTarget.ShowEpisode, EpisodeImdbId: null })
         {
             var episode = LibraryLinkWritability.KnowsNoEpisodeImdb(link)
@@ -116,192 +95,96 @@ public sealed class LibraryLinkWriter(
             if (episode.Error is { } catalogError)
                 return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, catalogError);
             if (episode.ImdbId is not { } episodeImdbId)
-                return await RestoreAndKeepAsync(link, attemptId, integration, writer, history, LibraryLinkWritability.NoEpisodeImdbReason, actor, cancellationToken);
+                return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, LibraryLinkWritability.NoEpisodeImdbReason);
             if (!await KeepEpisodeImdbIdAsync(link, attemptId, episodeImdbId))
                 return LibraryLinkWriteResult.ClaimLost;
             link.EpisodeImdbId = episodeImdbId;
         }
 
+        if (await SeriesWaitAsync(link, cancellationToken) is { } waitsUntilUtc)
+            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, SeriesStillWorkingError(waitsUntilUtc));
+
         var built = settingsFactory.Create(integration);
         if (built.Settings is not { } settings)
-            return await SentNothingAsync(link, attemptId, built.Error!);
+            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, built.Error!);
 
-        // The version gate (MAM-8), as before every sync: a server the app can't write to safely is never sent a change.
+        // The version gate (MAM-8), as before every sync: a server the app can't identify in safely is never sent anything.
         var adapter = adapters.Find(integration.AdapterType)!;
         var test = await adapter.TestConnectionAsync(settings, cancellationToken);
         if (!test.IsSuccess)
-            return await SentNothingAsync(link, attemptId, Masked(test.Message, settings));
+            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, Masked(test.Message, settings));
 
-        var edits = LibraryLinkEdits.Write(link, history);
-        var result = await writer.WriteIdentifiersAsync(settings, new LibraryIdentifierChange(link.SourceItemId, link.ItemKind, edits), cancellationToken);
+        var request = new LibraryIdentifyRequest(
+            link.SourceItemId,
+            link.ItemKind,
+            link.Target == LibraryLinkTarget.Work
+                ? new MediaIdentifier(link.Scheme, link.Value)
+                : new MediaIdentifier(MediaIdentifierScheme.Imdb, link.EpisodeImdbId!),
+            // ADR 0026 — a bulk click (Accept all, the repair) never replaces an id the library holds on its own; the owner's
+            // own Save, Replace and Retry in the dialog is his word and does (Retry clears the batch for that reason).
+            ProtectHeldIds: link.BatchId is not null);
+        // Never cancelled once claimed (ADR 0013): the identification runs to its end, and is never sent twice.
+        var result = await identifier.IdentifyAsync(settings, request, CancellationToken.None);
         if (!result.IsSuccess)
         {
-            // Warning, so it ships off the box: the owner's library refused or couldn't be reached. The status only.
-            logger.LogWarning("TMDb link {LinkId} was not written into its library: {Status}.", link.Id, result.Status);
-            // A refused write changed nothing (IMediaLibraryIdentifierWriter): the item holds what it held.
-            return await SentNothingAsync(link, attemptId, Masked(result.Error!, settings));
+            // Warning, so it ships off the box: the owner's library refused or couldn't be reached. The status only. Nothing
+            // was sent, so the item holds what it held: no audit row, and its identified time is kept.
+            logger.LogWarning("TMDb link {LinkId} was not identified in its library: {Status}.", link.Id, result.Status);
+            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, Masked(result.Error!, settings));
         }
 
-        var write = result.Value!;
-        if (write.Sent)
+        var identification = result.Value!;
+        if (identification.Sent)
         {
-            // R10 — whatever left the app is recorded, confirmed or not: a later removal starts from this row.
+            // R10 — whatever left the app is recorded, confirmed or not: it is the app's only record that an Apply was sent,
+            // read by the repair's selection and the series wait. Saved before the link settles, so a settle that fails still
+            // leaves the record.
             auditTrail.Record(
-                AuditAction.LibraryIdsWritten,
+                AuditAction.LibraryItemIdentified,
                 actor,
                 AuditTarget.LibraryLink(link.Id, TargetName(link)),
-                LibraryLinkEdits.AuditIdentifiers(write.Before, LibraryLinkEdits.After(write, edits)));
+                LibraryLinkKeys.AuditIdentifiers(identification.IdsBefore, identification.IdsAfter));
             await db.SaveChangesAsync(CancellationToken.None);
         }
 
-        logger.LogInformation("TMDb link {LinkId} was written into its library: sent {Sent}, confirmed {Confirmed}.", link.Id, write.Sent, write.Confirmed);
-        if (!write.Confirmed)
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, Masked(write.Problem ?? NotConfirmedError(integration.Name), settings));
-        // An IMDb id goes only where the item holds none: an episode's whose item holds another isn't in the library,
-        // however confirmed the write (it left that id alone), and the owner is told why.
-        if (LibraryLinkEdits.WrittenKey(link) is { } key && !LibraryLinkEdits.Holds(write.Sent ? write.After : write.Before, key))
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, HoldsAnotherImdbError(integration.Name, key.Value));
-
-        var written = await SettleAsync(link, attemptId, LibraryLinkWriteState.Written, null);
-        if (written.Status == LibraryLinkWriteStatus.Written)
-            await RequestLookupAsync(link, attemptId, writer, settings, actor);
-        return written;
-    }
-
-    /// <summary>
-    /// What the app wrote for the item before put back (R11) — a film link replaced by a link that writes nothing of its
-    /// own — and the link settled <c>KeptInApp</c> with <paramref name="keptError"/>, or with the sentence why the item
-    /// couldn't be put back. Nothing to put back sends nothing.
-    /// </summary>
-    private async Task<LibraryLinkWriteResult> RestoreAndKeepAsync(
-        LibraryItemLinkEntity link,
-        Guid attemptId,
-        IntegrationConnectionEntity integration,
-        IMediaLibraryIdentifierWriter writer,
-        LibraryLinkWriteHistory? history,
-        string? keptError,
-        AuditActor? actor,
-        CancellationToken cancellationToken)
-    {
-        IReadOnlyList<LibraryIdentifierEdit> edits = history is null ? [] : LibraryLinkEdits.Restore(history);
-        if (edits.Count == 0)
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, keptError);
-        if (!integration.IsEnabled)
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, NotRestoredError(integration.Name, SwitchedOffError(integration.Name)));
-
-        var built = settingsFactory.Create(integration);
-        if (built.Settings is not { } settings)
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, NotRestoredError(integration.Name, built.Error!));
-        var test = await adapters.Find(integration.AdapterType)!.TestConnectionAsync(settings, cancellationToken);
-        if (!test.IsSuccess)
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, NotRestoredError(integration.Name, Masked(test.Message, settings)));
-
-        var result = await writer.WriteIdentifiersAsync(settings, new LibraryIdentifierChange(link.SourceItemId, link.ItemKind, edits), cancellationToken);
-        if (!result.IsSuccess)
+        logger.LogInformation(
+            "TMDb link {LinkId} was identified in its library: {Outcome}, sent {Sent}.", link.Id, identification.Outcome, identification.Sent);
+        var sentence = Masked(identification.Sentence ?? AppErrorMessage, settings);
+        switch (identification.Outcome)
         {
-            logger.LogWarning("The library item of TMDb link {LinkId} was not put back: {Status}.", link.Id, result.Status);
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.KeptInApp, NotRestoredError(integration.Name, Masked(result.Error!, settings)));
-        }
-
-        var write = result.Value!;
-        if (write.Sent)
-        {
-            auditTrail.Record(
-                AuditAction.LibraryIdsRestored,
-                actor,
-                AuditTarget.LibraryLink(link.Id, TargetName(link)),
-                LibraryLinkEdits.AuditIdentifiers(write.Before, LibraryLinkEdits.After(write, edits)));
-            await db.SaveChangesAsync(CancellationToken.None);
-        }
-
-        return await SettleAsync(
-            link,
-            attemptId,
-            LibraryLinkWriteState.KeptInApp,
-            write.Confirmed ? keptError : NotRestoredError(integration.Name, Masked(write.Problem ?? NotConfirmedError(integration.Name), settings)));
-    }
-
-    /// <summary>
-    /// MAM-34 — asks the library to look up the item's missing metadata now that its ids are in (Vasyl's decision of
-    /// 2026-10-06), and records it: when, and why the library didn't take it, on the link; an audit row of the request.
-    /// Best effort: whatever comes of it, the link stays <c>Written</c> — the ids are in —, and Retry asks again.
-    /// </summary>
-    /// <remarks>
-    /// After the link is settled, not under its claim: a slow lookup must not keep a written link "being written". Its
-    /// record goes only onto the link this write settled (the same attempt), so a later write's record stands.
-    /// </remarks>
-    private async Task RequestLookupAsync(
-        LibraryItemLinkEntity link, Guid attemptId, IMediaLibraryIdentifierWriter writer, IntegrationConnectionSettings settings, AuditActor? actor)
-    {
-        try
-        {
-            // Never cancelled: the write it follows ran to its end whether or not the browser was still there (ADR 0013).
-            var lookup = await writer.RequestMetadataLookupAsync(settings, link.SourceItemId, link.ItemKind, CancellationToken.None);
-            string? error = null;
-            if (!lookup.IsSuccess)
-            {
-                logger.LogWarning("The library didn't take the metadata lookup of TMDb link {LinkId}: {Status}.", link.Id, lookup.Status);
-                error = FileInspectionRunUpdates.Cut(Masked(lookup.Error!, settings), LibraryItemLinkEntity.ErrorMaximumLength);
-            }
-
-            auditTrail.Record(AuditAction.LibraryMetadataLookupRequested, actor, AuditTarget.LibraryLink(link.Id, TargetName(link)));
-            await db.SaveChangesAsync(CancellationToken.None);
-            await db.LibraryItemLinks
-                .Where(row => row.Id == link.Id && row.WriteAttemptId == attemptId)
-                .ExecuteUpdateAsync(
-                    setters => setters
-                        .SetProperty(row => row.LookupRequestedUtc, time.GetUtcNow().UtcDateTime)
-                        .SetProperty(row => row.LookupError, error),
-                    CancellationToken.None);
-        }
-        catch (Exception exception)
-        {
-            // A bug, or a database that failed: logged, never the write's failure — the ids are in the library.
-            logger.LogError(exception, "Asking the library to look up the item of TMDb link {LinkId} threw.", link.Id);
+            case LibraryIdentifyOutcome.Identified or LibraryIdentifyOutcome.AlreadyIdentified:
+                return await SettleAsync(link, attemptId, LibraryLinkWriteState.Written, null, IdentifiedChange.Set, identification.Outcome);
+            case LibraryIdentifyOutcome.NotConfirmed:
+                // An Apply may have damaged the item (it deletes the images first): the repair must see the link again.
+                return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, sentence, IdentifiedChange.Clear, identification.Outcome);
+            default:
+                if (identification.Refusal is { } refusal)
+                    logger.LogWarning("TMDb link {LinkId} was refused by its library's identification: {Refusal}.", link.Id, refusal);
+                // A refusal or a missing match changed nothing: the identified time is kept.
+                return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, sentence, IdentifiedChange.Keep, identification.Outcome);
         }
     }
 
     /// <summary>
-    /// A write that sent nothing — the library switched off, its secrets unreadable, unreachable or refusing — settled:
-    /// <c>NotWritten</c> with <paramref name="error"/>, unless the last sync read the link's written key in its item. Then
-    /// the ids are in the library as far as the app knows — the sync's own judgment (R5) —, and only the lookup the write
-    /// was to ask for is missed: the link is settled <c>InLibrary</c> with the sentence as its lookup's error (MAM-34). A
-    /// Retry or a catch-up that only meant to ask for the lookup so never turns a link the library holds into "Not in
-    /// Jellyfin yet", and the catch-up counts its lookup again.
+    /// When the series wait of <see cref="SeriesWait"/> is over — in UTC — for a series link not identified yet whose last
+    /// Apply left the app less than that ago, read from its <c>LibraryItemIdentified</c> audit row; <c>null</c> when there is
+    /// nothing to wait for (a film, an identified series, no Apply sent since the link was set, or the wait is over).
     /// </summary>
-    private async Task<LibraryLinkWriteResult> SentNothingAsync(LibraryItemLinkEntity link, Guid attemptId, string error)
+    private async Task<DateTime?> SeriesWaitAsync(LibraryItemLinkEntity link, CancellationToken cancellationToken)
     {
-        if (LibraryLinkEdits.WrittenKey(link) is not { } key || !await LastSyncHoldsAsync(link, key))
-            return await SettleAsync(link, attemptId, LibraryLinkWriteState.NotWritten, error);
+        if (link.ItemKind != MediaWorkKind.Series || link.IdentifiedUtc is not null)
+            return null;
 
-        var storedError = FileInspectionRunUpdates.Cut(error, LibraryItemLinkEntity.ErrorMaximumLength);
-        var settled = await db.LibraryItemLinks
-            .Where(row => row.Id == link.Id && row.WriteState == LibraryLinkWriteState.Writing && row.WriteAttemptId == attemptId)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(row => row.WriteState, LibraryLinkWriteState.InLibrary)
-                    .SetProperty(row => row.WriteError, (string?)null)
-                    .SetProperty(row => row.WriteStateUtc, time.GetUtcNow().UtcDateTime)
-                    .SetProperty(row => row.LookupError, storedError),
-                CancellationToken.None) == 1;
-        // Not written by this write, whatever the library holds: what the background writer counts it as.
-        return settled ? new LibraryLinkWriteResult(LibraryLinkWriteStatus.NotWritten, storedError) : LibraryLinkWriteResult.ClaimLost;
-    }
-
-    /// <summary>Whether the last sync of the link's library read <paramref name="key"/> in its item — the library's rows
-    /// of the snapshot, as a sync judges a link by them (R5).</summary>
-    private async Task<bool> LastSyncHoldsAsync(LibraryItemLinkEntity link, MediaIdentifier key)
-    {
-        // Settling, never cancelled (R9): the claim is this write's to end.
-        var values = await db.MediaWorkIdentifiers
+        var lastAttemptUtc = await db.AuditEvents
             .AsNoTracking()
-            .Where(row => row.SourceKind == ProvenanceSourceKind.MediaLibrary
-                && row.SourceConnectionId == link.IntegrationConnectionId
-                && row.SourceItemId == link.SourceItemId
-                && row.Scheme == key.Scheme)
-            .Select(row => row.Value)
-            .ToListAsync(CancellationToken.None);
-        return values.Any(value => LibraryLinkEdits.Holds([new MediaIdentifier(key.Scheme, value)], key));
+            .Where(auditEvent => auditEvent.Action == AuditAction.LibraryItemIdentified
+                && auditEvent.TargetKind == AuditTargetKind.LibraryLink
+                && auditEvent.TargetId == link.Id
+                && auditEvent.CreatedUtc >= link.SetUtc)
+            .OrderByDescending(auditEvent => auditEvent.CreatedUtc)
+            .Select(auditEvent => (DateTime?)auditEvent.CreatedUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        return lastAttemptUtc is { } attemptUtc && time.GetUtcNow().UtcDateTime < attemptUtc + SeriesWait ? attemptUtc + SeriesWait : null;
     }
 
     /// <summary>MAM-34 — the episode's IMDb id from the metadata catalog, or why it couldn't be asked.</summary>
@@ -317,48 +200,12 @@ public sealed class LibraryLinkWriter(
         return episode;
     }
 
-    /// <summary>Keeps the episode's IMDb id TMDb gave on the claimed link, before anything is sent: a write a restart cuts
-    /// is then recorded with it (R10). <c>false</c> when the claim was lost meanwhile.</summary>
+    /// <summary>Keeps the episode's IMDb id TMDb gave on the claimed link, before anything is sent: a restart that cuts the
+    /// identification finds it there. <c>false</c> when the claim was lost meanwhile.</summary>
     private async Task<bool> KeepEpisodeImdbIdAsync(LibraryItemLinkEntity link, Guid attemptId, string episodeImdbId) =>
         await db.LibraryItemLinks
             .Where(row => row.Id == link.Id && row.WriteState == LibraryLinkWriteState.Writing && row.WriteAttemptId == attemptId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.EpisodeImdbId, episodeImdbId), CancellationToken.None) == 1;
-
-    // ── restoring ────────────────────────────────────────────────────────────────────────────────
-
-    private async Task<LibraryLinkRestoreResult> RestoreClaimedAsync(LibraryItemLinkEntity link, CancellationToken cancellationToken)
-    {
-        // R11 — an unattached link's item is gone from the library's list: there is no item to put back. Nor is there
-        // for a link on a kind of item its library doesn't write (an episode in Jellyfin): it was never written.
-        if (link.MediaWorkId is null)
-            return LibraryLinkRestoreResult.NotNeeded;
-        if (await IntegrationOfAsync(link, cancellationToken) is not { } integration
-            || adapters.Find<IMediaLibraryIdentifierWriter>(integration.AdapterType) is not { } writer
-            || !writer.WritableKinds.Contains(link.ItemKind))
-            return LibraryLinkRestoreResult.NotNeeded;
-        if (await LibraryLinkWriteHistory.ReadAsync(db, link, cancellationToken) is not { } history
-            || LibraryLinkEdits.Restore(history) is not { Count: > 0 } edits)
-            return LibraryLinkRestoreResult.NotNeeded;
-
-        if (!integration.IsEnabled)
-            return LibraryLinkRestoreResult.SwitchedOff(SwitchedOffToRemoveError(integration.Name));
-        var built = settingsFactory.Create(integration);
-        if (built.Settings is not { } settings)
-            return LibraryLinkRestoreResult.Failed(built.Error!);
-        var test = await adapters.Find(integration.AdapterType)!.TestConnectionAsync(settings, cancellationToken);
-        if (!test.IsSuccess)
-            return LibraryLinkRestoreResult.Failed(Masked(test.Message, settings));
-
-        var result = await writer.WriteIdentifiersAsync(settings, new LibraryIdentifierChange(link.SourceItemId, link.ItemKind, edits), cancellationToken);
-        logger.LogInformation("The library item of TMDb link {LinkId} was put back: {Status}, sent {Sent}.", link.Id, result.Status, result.Value?.Sent ?? false);
-        return result switch
-        {
-            { Status: IntegrationCallStatus.NotFound } => LibraryLinkRestoreResult.ItemGone,
-            { IsSuccess: false } => LibraryLinkRestoreResult.Failed(Masked(result.Error!, settings)),
-            { Value.Sent: false } => LibraryLinkRestoreResult.NotNeeded,
-            _ => LibraryLinkRestoreResult.Restored(result.Value! with { After = LibraryLinkEdits.After(result.Value!, edits) }),
-        };
-    }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────────────
 
@@ -372,20 +219,47 @@ public sealed class LibraryLinkWriter(
     private Task<IntegrationConnectionEntity?> IntegrationOfAsync(LibraryItemLinkEntity link, CancellationToken cancellationToken) =>
         db.IntegrationConnections.AsNoTracking().SingleOrDefaultAsync(integration => integration.Id == link.IntegrationConnectionId, cancellationToken);
 
+    /// <summary>What a settle does to <see cref="LibraryItemLinkEntity.IdentifiedUtc"/>.</summary>
+    private enum IdentifiedChange
+    {
+        /// <summary>Leaves it as it is: nothing happened to the item.</summary>
+        Keep,
+
+        /// <summary>Sets it to now: the item shows the link's match.</summary>
+        Set,
+
+        /// <summary>Clears it: an Apply was sent and the item doesn't show the match.</summary>
+        Clear,
+    }
+
     /// <summary>
     /// The claimed link's final state (R9): only while it is still <c>Writing</c> under this claim, never cancelled —
     /// once the library was called, its outcome is recorded whatever happened to the caller.
     /// </summary>
-    private async Task<LibraryLinkWriteResult> SettleAsync(LibraryItemLinkEntity link, Guid attemptId, LibraryLinkWriteState state, string? error)
+    private async Task<LibraryLinkWriteResult> SettleAsync(
+        LibraryItemLinkEntity link,
+        Guid attemptId,
+        LibraryLinkWriteState state,
+        string? error,
+        IdentifiedChange identified = IdentifiedChange.Keep,
+        LibraryIdentifyOutcome? outcome = null)
     {
         var storedError = error is null ? null : FileInspectionRunUpdates.Cut(error, LibraryItemLinkEntity.ErrorMaximumLength);
+        var now = time.GetUtcNow().UtcDateTime;
         var settled = await db.LibraryItemLinks
             .Where(row => row.Id == link.Id && row.WriteState == LibraryLinkWriteState.Writing && row.WriteAttemptId == attemptId)
             .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(row => row.WriteState, state)
-                    .SetProperty(row => row.WriteError, storedError)
-                    .SetProperty(row => row.WriteStateUtc, time.GetUtcNow().UtcDateTime),
+                setters =>
+                {
+                    setters
+                        .SetProperty(row => row.WriteState, state)
+                        .SetProperty(row => row.WriteError, storedError)
+                        .SetProperty(row => row.WriteStateUtc, now);
+                    if (identified == IdentifiedChange.Set)
+                        setters.SetProperty(row => row.IdentifiedUtc, (DateTime?)now);
+                    else if (identified == IdentifiedChange.Clear)
+                        setters.SetProperty(row => row.IdentifiedUtc, (DateTime?)null);
+                },
                 CancellationToken.None) == 1;
         if (!settled)
             return LibraryLinkWriteResult.ClaimLost;
@@ -397,13 +271,14 @@ public sealed class LibraryLinkWriter(
                 LibraryLinkWriteState.KeptInApp => LibraryLinkWriteStatus.KeptInApp,
                 _ => LibraryLinkWriteStatus.NotWritten,
             },
-            storedError);
+            storedError,
+            outcome);
     }
 
     // The sentences already come masked from the adapter; masked again here (ADR 0007's "masked twice").
     private static string Masked(string error, IntegrationConnectionSettings settings) => SecretRedaction.Redact(error, settings.Secrets)!;
 
-    /// <summary>The audit row's name of the link's writes: the item's title when it was linked, else the catalog's, else
-    /// the item's id.</summary>
+    /// <summary>The audit row's name of the link's identifications: the item's title when it was linked, else the
+    /// catalog's, else the item's id.</summary>
     internal static string TargetName(LibraryItemLinkEntity link) => link.ItemTitle ?? link.CatalogTitle ?? link.SourceItemId;
 }

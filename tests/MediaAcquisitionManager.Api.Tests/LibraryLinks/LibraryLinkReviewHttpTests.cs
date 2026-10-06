@@ -17,9 +17,9 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 // works in the Library page's title order without those the owner marked "none fits"), "none fits" itself (PUT/DELETE
 // works/{id}/tmdb/none-fits), the confident suggestions paged by title with each library's numbers (GET tmdb/confident,
 // "none fits" left out) and "Accept all confident" (POST tmdb/confident): every ticked work checked again on the server,
-// linked only while its suggestion is still the confident one — skipped with the reason otherwise —, and written into the
-// library in the background, only what was linked, each written item looked up by Jellyfin after its write — a series'
-// link like a film's (Vasyl's final decision of 2026-10-06).
+// linked only while its suggestion is still the confident one — skipped with the reason otherwise —, and identified in the
+// library in the background (0.2.1, ADR 0026: Jellyfin's own Identify), only what was linked, each pick under the click's
+// batch, which also protects the library's own ids — a series' link like a film's (Vasyl's final decision of 2026-10-06).
 public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -31,7 +31,6 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
     private const string TakenId = "d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4";
     private const string IdentifiedId = "e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5";
     private const string PenguinsId = "f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6";
-    private const string PenguinsFolder = "/media/tv/The Penguins of Madagascar";
     private const string ShowsFolder = "/media/tv-shows/The Penguins of Madagascar";
     private const string NoLongerConfident = "It is no longer the work's confident suggestion.";
 
@@ -59,6 +58,10 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
             JellyfinSamples.MovieWith(TakenId, "Заручниця", "Taken", 2008, "/media/movies/Taken (2008)/Taken.mkv"),
             JellyfinSamples.MovieWith(IdentifiedId, "Том і Джеррі: Фільм", null, 1992, "/media/cartoons/Tom and Jerry The Movie (1992).mkv", tmdbId: "11134"),
         ]);
+        // What Jellyfin's TMDb provider holds for the films and the show the owner accepts.
+        _jellyfin.AddFilm("7001", "Calypso Cat", 1962);
+        _jellyfin.AddFilm("223021", "Landing Stripling", 1962);
+        _jellyfin.AddShow(JellyfinSamples.PenguinsTmdbTvId, "The Penguins of Madagascar", 2008);
         _jellyfin.Arm(_factory.JellyfinHttp);
         _tmdb = FakeTmdbServer.Arm(_factory.TmdbHttp);
         _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Movie, 7001, "Калипсо", "Calypso Cat", "1962-06-22", RuntimeMinutes: 7));
@@ -314,7 +317,7 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
     }
 
     [Fact]
-    public async Task Accept_all_links_only_what_is_still_confident_writes_only_that_and_skips_the_rest_with_reasons()
+    public async Task Accept_all_links_only_what_is_still_confident_queues_only_that_and_skips_the_rest_with_reasons()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -351,42 +354,74 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
             ],
             batch.Items.Select(item => (item.WorkId, item.Outcome, item.Reason, item.Links.Count)));
         Assert.Equal(LibraryLinkWriteState.Queued, batch.Items[0].Links[0].WriteState);
-        // Nothing sent yet: the writes are the background writer's (decision 6), which the click woke (R13).
+        // Nothing sent yet: the identifications are the background writer's, which the click woke (R13).
         Assert.Equal(sent, _factory.JellyfinHttp.Requests.Count);
         Assert.True(_factory.Resolve<LibraryLinkWriteQueue>().Reader.TryPeek(out _));
         await _factory.WithDbAsync(async db =>
         {
             var link = await db.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken);
+            // The batch is also what protects the library's own ids from the identification.
             Assert.Equal(
-                (LandingId, (Guid?)landingWorkId, "223021", (Guid?)batch.BatchId, LibraryLinkWriteState.Queued),
-                (link.SourceItemId, link.MediaWorkId, link.Value, link.BatchId, link.WriteState));
+                (LandingId, (Guid?)landingWorkId, "223021", (Guid?)batch.BatchId, LibraryLinkWriteState.Queued, (DateTime?)null),
+                (link.SourceItemId, link.MediaWorkId, link.Value, link.BatchId, link.WriteState, link.IdentifiedUtc));
             Assert.Equal(AuditAction.LibraryLinkSet, (await db.AuditEvents.AsNoTracking().SingleAsync(cancellationToken)).Action);
             // One recommendation run for the click.
             Assert.Equal(RecommendationRunTrigger.LinkChanged, (await db.RecommendationRuns.AsNoTracking().SingleAsync(cancellationToken)).Trigger);
         });
 
-        await _factory.Resolve<LibraryLinkWriteWorker>().RunQueuedAsync(cancellationToken);
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
         var polled = await ReadAsync<LibraryLinkBatchResponse>(
             await _factory.GetHttpRequest($"{BaseUrl}/tmdb/batches/{batch.BatchId}", _owner.AccessToken), cancellationToken);
-        Assert.Equal(LibraryLinkWriteState.Written, Assert.Single(polled.Items[0].Links).WriteState);
-        // Jellyfin was written once, the linked item only, and asked to look that item up.
-        var posted = Assert.Single(
-            _factory.JellyfinHttp.Requests,
-            request => request.Method == HttpMethod.Post && !request.Uri.AbsolutePath.EndsWith("/Refresh", StringComparison.Ordinal));
-        Assert.Contains(LandingId, posted.Uri.AbsolutePath, StringComparison.OrdinalIgnoreCase);
+        var polledLink = Assert.Single(polled.Items[0].Links);
+        Assert.Equal(LibraryLinkWriteState.Written, polledLink.WriteState);
+        Assert.NotNull(polledLink.IdentifiedUtc);
+        // Jellyfin was identified once, the linked item only, through the film search.
+        Assert.Equal(LandingId, Assert.Single(_jellyfin.Applied).ItemId);
+        Assert.Equal("Movie", Assert.Single(_jellyfin.RemoteSearches).Endpoint);
         Assert.Equal(["223021", null, null, null], ((string[])[LandingId, CalypsoId, DickyId, TakenId]).Select(TmdbOf));
-        Assert.Equal([LandingId], _jellyfin.Lookups);
     }
 
     [Fact]
-    public async Task Accept_all_of_a_confident_show_links_its_series_and_the_writer_writes_it_into_jellyfin_and_asks_it_to_look_it_up()
+    public async Task Accept_all_picks_are_identified_in_the_background_each_with_its_own_audit_row()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        _jellyfin.Series.Add(JellyfinSamples.SeriesWith(PenguinsId, "The Penguins of Madagascar", 2008, PenguinsFolder));
-        _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith("f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7", "Gone in a Flash", PenguinsId, 1, 1, $"{PenguinsFolder}/S01E01.mkv"));
+        await PrepareAsync(cancellationToken);
+        var landingWorkId = await WorkOfAsync(LandingId, cancellationToken);
+        var calypsoWorkId = await WorkOfAsync(CalypsoId, cancellationToken);
+        var response = await _factory.PostHttpRequest(
+            $"{BaseUrl}/tmdb/confident",
+            _owner.AccessToken,
+            new LibraryLinkAcceptRequest([Accept(landingWorkId, "Movie", "223021"), Accept(calypsoWorkId, "Movie", "7001")]));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var batch = await ReadAsync<LibraryLinkBatchResponse>(response, cancellationToken);
+
+        //Act
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
+
+        //Assert
+        var polled = await ReadAsync<LibraryLinkBatchResponse>(
+            await _factory.GetHttpRequest($"{BaseUrl}/tmdb/batches/{batch.BatchId}", _owner.AccessToken), cancellationToken);
+        Assert.All(polled.Items.SelectMany(item => item.Links), row => Assert.Equal(LibraryLinkWriteState.Written, row.WriteState));
+        Assert.Equal(["223021", "7001"], ((string[])[LandingId, CalypsoId]).Select(TmdbOf));
+        await _factory.WithDbAsync(async db =>
+        {
+            var identified = await db.AuditEvents.AsNoTracking().Where(auditEvent => auditEvent.Action == AuditAction.LibraryItemIdentified).ToListAsync(cancellationToken);
+            Assert.Equal(2, identified.Count);
+            Assert.All(identified, auditEvent => Assert.Equal("owner", auditEvent.ActorUserName));
+            Assert.Equal(2, await db.LibraryItemLinks.CountAsync(link => link.BatchId == batch.BatchId && link.IdentifiedUtc != null, cancellationToken));
+        });
+    }
+
+    [Fact]
+    public async Task Accept_all_of_a_confident_show_links_its_series_and_the_worker_identifies_it_alone()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _jellyfin.Series.Add(JellyfinSamples.SeriesWith(PenguinsId, "The Penguins of Madagascar", 2008, ShowsFolder));
+        _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith("f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7", "Gone in a Flash", PenguinsId, 1, 1, $"{ShowsFolder}/S01E01.mkv"));
         await _factory.SyncLibraryAsync(_library.Id, _owner.AccessToken, cancellationToken);
-        await new MediaInspectionSeeder(_factory.Scope).Measure($"{PenguinsFolder}/S01E01.mkv", TimeSpan.FromMinutes(23));
+        await new MediaInspectionSeeder(_factory.Scope).Measure($"{ShowsFolder}/S01E01.mkv", TimeSpan.FromMinutes(23));
         _tmdb.AddWork(new FakeTmdbWork(
             MediaWorkKind.Series, int.Parse(JellyfinSamples.PenguinsTmdbTvId), "Пінгвіни з Мадагаскару", "The Penguins of Madagascar", "2008-11-28", RuntimeMinutes: 23));
         _tmdb.AddSearch(MediaWorkKind.Series, "The Penguins of Madagascar", 2008, int.Parse(JellyfinSamples.PenguinsTmdbTvId));
@@ -402,10 +437,10 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
             $"{BaseUrl}/tmdb/confident", _owner.AccessToken, new LibraryLinkAcceptRequest([Accept(seriesWorkId, "Series", JellyfinSamples.PenguinsTmdbTvId)]));
         var woken = _factory.Resolve<LibraryLinkWriteQueue>().Reader.TryPeek(out _);
         var sentByTheClick = _factory.JellyfinHttp.Requests.Count - sent;
-        await _factory.Resolve<LibraryLinkWriteWorker>().RunQueuedAsync(cancellationToken);
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
 
         //Assert
-        // Linked and queued like a film (Vasyl's final decision of 2026-10-06): the click sends nothing, the writer does.
+        // Linked and queued like a film: the click sends nothing, the worker identifies the series in its own lane.
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var batch = await ReadAsync<LibraryLinkBatchResponse>(response, cancellationToken);
         var linked = Assert.Single(batch.Items);
@@ -413,15 +448,15 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(LibraryLinkWriteState.Queued, Assert.Single(linked.Links).WriteState);
         Assert.True(woken);
         Assert.Equal(0, sentByTheClick);
-        // The show's id under Jellyfin's Tmdb key — TMDb gave the fake show no IMDb id —, then the series looked up.
+        // Through the series search, by the show's id under Jellyfin's Tmdb key — TMDb gave the fake show no IMDb id.
+        Assert.Equal("Series", Assert.Single(_jellyfin.RemoteSearches).Endpoint);
         Assert.Equal("""{"Tmdb":"7869"}""", _jellyfin.Series.Single()["ProviderIds"]!.ToJsonString());
-        Assert.Equal([PenguinsId], _jellyfin.Lookups);
         await _factory.WithDbAsync(async db =>
         {
             var link = await db.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken);
             Assert.Equal(
                 (PenguinsId, MediaWorkKind.Series, (Guid?)batch.BatchId, LibraryLinkWriteState.Written, true),
-                (link.SourceItemId, link.ItemKind, link.BatchId, link.WriteState, link.LookupRequestedUtc is not null));
+                (link.SourceItemId, link.ItemKind, link.BatchId, link.WriteState, link.IdentifiedUtc is not null));
         });
     }
 
@@ -475,10 +510,10 @@ public sealed class LibraryLinkReviewHttpTests : IClassFixture<MediaAcquisitionM
         var response = await _factory.PostHttpRequest(
             $"{BaseUrl}/tmdb/confident", _owner.AccessToken, new LibraryLinkAcceptRequest([Accept(landingWorkId, "Movie", "223021"), Accept(takenWorkId, "Movie", "8681")]));
         var woken = _factory.Resolve<LibraryLinkWriteQueue>().Reader.TryPeek(out _);
-        await _factory.Resolve<LibraryLinkWriteWorker>().RunQueuedAsync(cancellationToken);
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
 
         //Assert
-        // R9 — what was saved before the browser left is written all the same, and its recommendations computed again.
+        // R9 — what was saved before the browser left is identified all the same, and its recommendations computed again.
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.True(woken);
         Assert.Equal(["223021", null], ((string[])[LandingId, TakenId]).Select(TmdbOf));

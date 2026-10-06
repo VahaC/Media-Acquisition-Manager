@@ -71,7 +71,7 @@ const MAX_TABLE_VERSIONS = 6
  *
  * MAM-34 — an id the owner linked by hand is one of the work's ids, with "Set by … on …" on hover;
  * one badge per id whatever claims it (a linked id Jellyfin reports too is still one id). Beside them,
- * where the link stands against Jellyfin ("In Jellyfin", "Not in Jellyfin yet", "Jellyfin lost it"),
+ * where the link stands against Jellyfin ("Identified in Jellyfin", "Not identified yet", "Jellyfin lost it"),
  * and a warning when Jellyfin holds a third TMDb id; a work linked as an episode of a show says so
  * under its title. The Library page puts its "TMDb…" action under the badges.
  */
@@ -151,7 +151,7 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
                 })}
                 {link !== null && (
                   <li>
-                    <LinkStateBadge state={link.writeState} error={link.writeError} />
+                    <LinkStateBadge state={link.writeState} error={link.writeError} identified={link.identified} />
                   </li>
                 )}
                 {link !== null && link.conflictingValue !== null && (

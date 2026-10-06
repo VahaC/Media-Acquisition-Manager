@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
@@ -14,11 +15,13 @@ namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 // work the item lands on, and stays (unattached) when the item is gone; a linked id groups items like the library's own
 // ids, the id a link replaces giving way only while the link isn't confirmed (R6), a third value keeping the item alone;
 // a link to an episode of a show groups by the show and its numbers and drops the film id the library wrongly gave
-// (R7); what Jellyfin reported decides whether it holds the link (R5) — a series' by its show's id —, never for a write
-// the read couldn't have seen (R4), nor for a link kept in the app — a series' the first rules never wrote —, whose
-// replaced id keeps giving way, nor for one waiting for the background writer (LibraryLinkCatchUpHttpTests); an
-// episode's link is judged by its IMDb id (LibraryLinkEpisodeHttpTests); the link's ids are never stored as Jellyfin's,
-// a failed sync changes no link, and the sync stays GET-only.
+// (R7); what Jellyfin reported decides whether it holds the link (R5) — a series' by its show's id —, never for an
+// identification the read couldn't have seen (R4), nor for a link kept in the app — a series' the first rules never
+// identified —, whose replaced id keeps giving way, nor for one waiting for the background writer
+// (LibraryLinkCatchUpHttpTests), nor — 0.2.1, ADR 0008's amendment — for a NotWritten one: the refusal, missing match or
+// failure the worker stored is its own, Retry's, Remove's and the repair's, and no sync erases it; a sync never touches a
+// link's identified time; an episode's link is judged by its IMDb id (LibraryLinkEpisodeHttpTests); the link's ids are
+// never stored as Jellyfin's, a failed sync changes no link, and the sync stays GET-only.
 // Each sync is the owner's over HTTP; the links are planted as the owner's Save would leave them.
 public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
@@ -187,7 +190,6 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
 
     [Theory]
     [InlineData(LibraryLinkWriteState.Written)]
-    [InlineData(LibraryLinkWriteState.NotWritten)]
     [InlineData(LibraryLinkWriteState.Lost)]
     public async Task Resync_marks_a_link_in_jellyfin_once_jellyfin_reports_its_id(LibraryLinkWriteState state)
     {
@@ -197,8 +199,7 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
         _jellyfin.Movies.Add(Cartoon(LinkedItemId, tmdbId: LandingStriplingTmdbId));
         await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
         var link = await _links.Create(
-            jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, $" {LandingStriplingTmdbId} ", writeState: state,
-            configure: row => row.WriteError = state == LibraryLinkWriteState.NotWritten ? WriteError : null);
+            jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, $" {LandingStriplingTmdbId} ", writeState: state);
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
         var now = Now();
 
@@ -208,6 +209,62 @@ public sealed class LibraryLinkSyncHttpTests : IClassFixture<MediaAcquisitionMan
         //Assert
         var row = await LinkAsync(link.Id, cancellationToken);
         Assert.Equal((LibraryLinkWriteState.InLibrary, (string?)null, (DateTime?)now), (row.WriteState, row.WriteError, row.WriteStateUtc));
+    }
+
+    [Fact]
+    public async Task Resync_leaves_a_not_written_link_with_its_sentence_even_when_the_item_holds_the_key()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync();
+        // The old ids-only code wrote the link's TMDb id into every item: the item holds the link's key although the worker
+        // refused to identify it (a conflicting IMDb id), so a sync that judged it would flip it to InLibrary and clear why.
+        _jellyfin.Movies.Add(Cartoon(LinkedItemId, tmdbId: LandingStriplingTmdbId));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        var link = await _links.Create(
+            jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, LandingStriplingTmdbId,
+            writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User, configure: row => row.WriteError = WriteError);
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        var listed = await (await _factory.GetHttpRequest("/api/library/tmdb/links?filter=NotWritten", _owner.AccessToken)).ReadAsync<LibraryLinkListResponse>(cancellationToken);
+
+        //Assert
+        var row = await LinkAsync(link.Id, cancellationToken);
+        Assert.Equal((LibraryLinkWriteState.NotWritten, (string?)WriteError, link.WriteStateUtc), (row.WriteState, row.WriteError, row.WriteStateUtc));
+        // Still in the not identified list, with its sentence.
+        var shown = Assert.Single(listed.Items);
+        Assert.Equal((link.Id, WriteError), (shown.LinkId, shown.WriteError));
+    }
+
+    [Theory]
+    [InlineData(LibraryLinkWriteState.Written, LandingStriplingTmdbId)]
+    [InlineData(LibraryLinkWriteState.InLibrary, LandingStriplingTmdbId)]
+    [InlineData(LibraryLinkWriteState.InLibrary, WrongTmdbId)]
+    [InlineData(LibraryLinkWriteState.NotWritten, LandingStriplingTmdbId)]
+    public async Task Resync_never_changes_the_identified_time(LibraryLinkWriteState state, string reportedTmdbId)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync();
+        _jellyfin.Movies.Add(Cartoon(LinkedItemId, tmdbId: LandingStriplingTmdbId));
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        var identifiedAt = Now();
+        var link = await _links.Create(
+            jellyfin, LinkedItemId, await WorkOfAsync(LinkedItemId, cancellationToken), MediaIdentifierScheme.Tmdb, LandingStriplingTmdbId, writeState: state,
+            configure: row => row.IdentifiedUtc = identifiedAt);
+        // The state a sync judges it to: in Jellyfin when the item reports the id, lost when it reports another.
+        Movie(LinkedItemId)["ProviderIds"] = new JsonObject { ["Tmdb"] = reportedTmdbId };
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        // Judged or left, the time the app last confirmed the item identified is the writer's alone.
+        var row = await LinkAsync(link.Id, cancellationToken);
+        Assert.Equal((DateTime?)identifiedAt, row.IdentifiedUtc);
     }
 
     [Theory]

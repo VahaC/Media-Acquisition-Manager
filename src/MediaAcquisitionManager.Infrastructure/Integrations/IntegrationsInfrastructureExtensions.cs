@@ -32,8 +32,8 @@ internal static class IntegrationsInfrastructureExtensions
     /// MAM-33 — TMDb's heaviest answers are a film's details with its credits and recommendations (about
     /// 170 KB for Guardians of the Galaxy, VendorSamples) and a person's combined credits (about 160 KB for
     /// Robert Zemeckis); a poster at w342 is tens of kilobytes. All far under 4 MiB. MAM-34 — one Jellyfin item read
-    /// whole, streams and people included, is about 6 KB (VendorSamples' <c>item.json</c>), and the write sends that
-    /// item back once.
+    /// whole, streams and people included, is about 6 to 15 KB (VendorSamples' <c>item.json</c> and
+    /// <c>episode-movie-after-identify.json</c>), and a search answers a few hundred bytes a result.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 
@@ -56,11 +56,21 @@ internal static class IntegrationsInfrastructureExtensions
     /// category for a job they no longer find), plus one <c>torrents/files</c> of a torrent, each answered
     /// from qBittorrent's memory. MAM-33 — TMDb answers over the internet rather than the LAN, in well under
     /// a second; each request is bounded on its own, a 429's wait (at most 10 s) included in none of them.
-    /// MAM-34 — a write of an item's ids is a read of the users and of the item, one <c>POST /Items/{id}</c> and the
-    /// item read again, each bounded on its own; the POST of a series took 4.5 s live (VendorSamples), and one whose
-    /// answer doesn't come in time is reported as sent and not confirmed, never sent again.
+    /// MAM-34 — an identification is reads (the users, the item, the libraries), one search and the item read again, each
+    /// bounded on its own and answered from Jellyfin's memory or one provider's answer in well under a second; the
+    /// one call that is not is Apply, which has a client of its own (<see cref="IdentifyTimeout"/>).
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// MAM-34 — the timeout of the <c>jellyfin-identify</c> client, which carries Jellyfin's Apply and nothing else. Apply
+    /// is synchronous and fetches the item's metadata and images again, and for a series every episode's too: recorded live
+    /// on Jellyfin 12.1.0 a film took 1.8 s, an episode through the Open Movie Database 21.3 s and the Penguins of
+    /// Madagascar (149 episodes) 159.3 s, about a second per episode. 20 minutes covers a series of about 1,100 episodes. A
+    /// timeout of this client is never "failed": Jellyfin carries on after a client gives up (its Apply runs with no
+    /// cancellation), so the item is read again to see what became of it, and Apply is never sent twice.
+    /// </summary>
+    public static readonly TimeSpan IdentifyTimeout = TimeSpan.FromMinutes(20);
 
     /// <summary>
     /// A LAN service accepts a TCP connection in milliseconds; without this, an address where nothing
@@ -71,6 +81,9 @@ internal static class IntegrationsInfrastructureExtensions
     public static IServiceCollection AddIntegrationsInfrastructure(this IServiceCollection services)
     {
         AddIntegrationClient(services, JellyfinAdapter.HttpClientName);
+        // MAM-34 — Jellyfin's Apply alone, with its own timeout and the same handler settings: a redirect never carries the
+        // key, and nothing logs a URI.
+        AddIntegrationClient(services, JellyfinAdapter.IdentifyHttpClientName, IdentifyTimeout);
         AddIntegrationClient(services, TorznabAdapter.HttpClientName);
         AddIntegrationClient(services, QBittorrentAdapter.HttpClientName);
         // MAM-33 — the posters from TMDb's image host go through this client too, so the test host's handler
@@ -94,13 +107,13 @@ internal static class IntegrationsInfrastructureExtensions
     // No retry or resilience handler (house rule 8): a test is one attempt, a failed qBittorrent sign-in
     // repeated counts towards its ban, and — MAM-13 — a torrents/add whose answer was lost may have added the
     // release already. MAM-33 — the TMDb adapter sends a GET again itself, only after a 429 and after the
-    // wait TMDb asked for: a read, and an answer that says it was not served. MAM-34 — a Jellyfin POST of an
-    // item whose answer was lost may have changed its ids already, and a metadata lookup asked twice is one
-    // Jellyfin runs twice.
-    private static void AddIntegrationClient(IServiceCollection services, string name) =>
+    // wait TMDb asked for: a read, and an answer that says it was not served. MAM-34 — a Jellyfin Apply whose answer
+    // was lost may have replaced the item's title, overview and images already, and one sent twice is two identifies:
+    // each deletes the item's images first, and a series' repeats for every episode.
+    private static void AddIntegrationClient(IServiceCollection services, string name, TimeSpan? timeout = null) =>
         services.AddHttpClient(name, client =>
             {
-                client.Timeout = RequestTimeout;
+                client.Timeout = timeout ?? RequestTimeout;
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
                 client.MaxResponseContentBufferSize = MaximumResponseBytes;
                 // No BaseAddress (a house deviation): one client serves every connection of its type,

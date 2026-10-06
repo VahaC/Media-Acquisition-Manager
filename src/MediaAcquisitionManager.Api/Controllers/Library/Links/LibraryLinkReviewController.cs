@@ -45,7 +45,7 @@ public class LibraryLinkReviewController(
 
     /// <summary>
     /// "Accept all confident": links each ticked work (at most 100) while its suggestion is still the confident one, and
-    /// queues the writes into the libraries; 202 with what happened to each work, polled at <c>batches/{batchId}</c>. 400
+    /// queues the identifications in the libraries; 202 with what happened to each work, polled at <c>batches/{batchId}</c>. 400
     /// for a malformed list, 409 without a catalog.
     /// </summary>
     [HttpPost("confident")]

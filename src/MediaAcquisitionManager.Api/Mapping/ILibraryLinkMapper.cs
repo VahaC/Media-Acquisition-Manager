@@ -12,11 +12,11 @@ namespace MediaAcquisitionManager.Api.Mapping;
 public interface ILibraryLinkMapper
 {
     /// <summary>
-    /// One library item of a work in its dialog: the item as the library reports it, whether ids would be written into
-    /// it in its library (<paramref name="canWrite"/>, <paramref name="cannotWriteReason"/>), its link when it has one —
-    /// MAM-34: with the episode's IMDb id it writes and the library's lookup asked after the write —, and the ids the last
-    /// sync read for it (<paramref name="libraryRows"/>, the library's own) — with the library's TMDb id that is neither
-    /// the link's nor one it replaces, when there is one.
+    /// One library item of a work in its dialog: the item as the library reports it, whether its library would identify it
+    /// (<paramref name="canWrite"/>, <paramref name="cannotWriteReason"/>), its link when it has one — MAM-34: with the
+    /// episode's IMDb id it is identified by and when the app last confirmed it identified —, and the ids the last sync read
+    /// for it (<paramref name="libraryRows"/>, the library's own) — with the library's TMDb id that is neither the link's nor
+    /// one it replaces, when there is one.
     /// </summary>
     LibraryLinkItemDto ToItemDto(
         string sourceItemId,

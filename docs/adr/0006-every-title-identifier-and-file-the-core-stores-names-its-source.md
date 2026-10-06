@@ -437,3 +437,10 @@ row.
 `LibraryWorksLinksHttpTests.Works_lists_a_linked_id_without_the_name_of_who_set_it_or_the_write_error_for_a_member`
 and `LibraryLinkSyncHttpTests.Resync_keeps_a_link_on_its_item_and_its_work_and_stores_none_of_its_ids_as_jellyfins`
 pin it.
+
+**Amended 2026-10-06 (ADR 0026's Identify section, added in 0.2.1).** "The ids before and after a link's
+change, write or restore" now also names the ids of an Identify: `AuditEventIdentifiers` rows hang on
+`LibraryItemIdentified` (23) — the item's registry ids as read before an Apply and after it, or the ids
+meant to be left when the read again never came — one row per Apply that left the app. Nothing is
+restored any more: `LibraryIdsRestored`, `LibraryIdsWritten` and `LibraryMetadataLookupRequested` are
+history, never written again, and their enum values stay so the old rows still read.

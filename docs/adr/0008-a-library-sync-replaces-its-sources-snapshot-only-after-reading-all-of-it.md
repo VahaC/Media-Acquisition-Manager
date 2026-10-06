@@ -217,3 +217,20 @@ now, so a sync judges a written one by the show's id Jellyfin reports for the se
 one the first rules kept in the app stays `KeptInApp`, never judged, until the catch-up or **Write
 again** writes it — the test named above for a series is now
 `LibraryLinkSyncHttpTests.Resync_leaves_a_series_link_the_first_rules_kept_in_the_app_to_the_catch_up_whatever_jellyfin_reports_and_lets_the_id_it_replaced_give_way`.
+
+**Amended 2026-10-06 (ADR 0026's Identify section, added in 0.2.1).** This replaces the wording of
+the amendment above where it differs. The key a sync judges a link by is the one Identify leaves in the
+item — `Tmdb` for a film, `TmdbTv` for a show, the episode's own `Imdb` for an episode-movie — and
+a link is "put back" no more: Remove link deletes it and restores nothing. A `Writing` link is still left
+to the worker that claimed it, and so is a `Queued` one. A link a worker found `NotWritten` is left
+alone too: an item that holds the key is not thereby identified, so the refusal and its sentence stay
+until the owner presses Retry or, when nothing was sent for it, chooses Update Jellyfin. A sync never sets `IdentifiedUtc` and never changes it, except to
+clear it when it moves a link to a re-created item, which is a new item with its own file-derived
+metadata; only a worker's confirmed re-read, or its finding the item already showing the match, sets
+it. A link the first rules kept in the app stays `KeptInApp` until the catch-up or Retry identifies
+it. The sync tests named above stay in force where they still describe the sync; the rules of this
+paragraph are pinned by
+`LibraryLinkSyncHttpTests.Resync_marks_a_link_in_jellyfin_once_jellyfin_reports_its_id`,
+`LibraryLinkSyncHttpTests.Resync_never_changes_the_identified_time`,
+`LibraryLinkReattachHttpTests.Sync_that_moves_an_identified_link_to_a_recreated_item_clears_its_identified_time` and
+`LibraryLinkSyncHttpTests.Resync_leaves_a_not_written_link_with_its_sentence_even_when_the_item_holds_the_key`.

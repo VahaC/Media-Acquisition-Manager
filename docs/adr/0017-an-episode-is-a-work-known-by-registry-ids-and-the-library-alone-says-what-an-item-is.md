@@ -194,3 +194,16 @@ ratings; and a movie item's link to an episode of a show, naming its season and 
 episode's own IMDb id there, never a TMDb id. The library still says what every item is. The series
 test named above is now
 `LibraryLinkSetHttpTests.Set_of_a_show_on_a_series_writes_the_shows_ids_into_jellyfin_confirmed_asks_it_to_look_the_series_up_and_the_next_sync_finds_them`.
+
+**Amended 2026-10-06 (ADR 0026's Identify section, added in 0.2.1).** This replaces the wording of the
+amendment above and of "kept in the app and never written into Jellyfin", "the app never writes one" and
+the ratings it accepted. A series item's link is identified: Jellyfin replaces the series' title,
+overview and images with TMDb's and refreshes its seasons and episodes (age ratings do not matter to
+Vasyl). A film item's link to an episode of a show, naming its season and episode, is identified by the
+episode's own IMDb id through The Open Movie Database — no TMDb id is ever sent for it; the film id such
+an item held is dropped by Apply, and a sync keeps reading it as giving way (R7), so the item stays a
+movie. An episode item still keeps its link in the app, with the library's sentence "Jellyfin identifies
+movie and series items only, so a link on an episode stays in the app."; a numbered episode's link
+whose episode TMDb gives no IMDb id, or without its numbers, stays in the app too, saying why. The
+library still says what every item is. The series test named above is replaced by
+`LibraryLinkSetHttpTests.Set_of_a_show_on_a_series_is_identified_by_the_worker_through_the_series_search_with_the_shows_tmdb_id_and_the_next_sync_finds_it`.

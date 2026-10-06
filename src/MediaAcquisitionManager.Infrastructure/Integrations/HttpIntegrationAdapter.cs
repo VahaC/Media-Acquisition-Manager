@@ -51,6 +51,7 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
             ConnectionTestResult.Failed,
             // Success included: its sentence repeats what the service calls itself.
             (result, secrets) => result with { Message = SecretRedaction.Redact(result.Message, secrets)! },
+            httpClientName,
             cancellationToken);
 
     /// <summary>
@@ -70,15 +71,21 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     /// <param name="call">The adapter's calls and reading: given the client, the session secrets to
     /// add to, and the caller's token. Transport failures and timeouts may propagate.</param>
     /// <param name="cancellationToken">The caller's token; its cancellation propagates.</param>
+    /// <param name="clientName">MAM-34 — another named client of this adapter than the one it was built with, for a call
+    /// that needs its own timeout: an <see cref="HttpClient"/>'s timeout can't change once it has been used, so a call that
+    /// may legitimately run for minutes (Jellyfin's Apply) takes a client registered with that timeout instead of the
+    /// shared one's. The timeout sentence reports that client's.</param>
     protected Task<IntegrationCallResult<T>> CallAsync<T>(
         IntegrationConnectionSettings settings,
         Func<HttpClient, ICollection<string>, CancellationToken, Task<IntegrationCallResult<T>>> call,
-        CancellationToken cancellationToken) where T : class =>
+        CancellationToken cancellationToken,
+        string? clientName = null) where T : class =>
         RunAsync(
             settings,
             call,
             IntegrationCallResult<T>.Failed,
             (result, secrets) => result.Error is null ? result : result with { Error = SecretRedaction.Redact(result.Error, secrets) },
+            clientName ?? httpClientName,
             cancellationToken);
 
     /// <summary>
@@ -160,11 +167,12 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         Func<HttpClient, ICollection<string>, CancellationToken, Task<TResult>> call,
         Func<IntegrationCallStatus, string, TResult> failed,
         Func<TResult, string?[], TResult> redact,
+        string clientName,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var client = httpClients.CreateClient(httpClientName);
+        var client = httpClients.CreateClient(clientName);
         var sessionSecrets = new List<string>();
         TResult result;
         try

@@ -1,7 +1,12 @@
 import { useEffect, useEffectEvent, useId, useRef, useState } from 'react'
 import { Ban, Check, ChevronRight, CircleCheck, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { TmdbLinkEditor, type TmdbLinkEditorHandle, type TmdbLinkSave } from '@/components/library/TmdbLinkEditor'
+import {
+  TmdbLinkEditor,
+  type TmdbLinkEditorHandle,
+  type TmdbLinkSave,
+  type TmdbLinkSaveOutcome,
+} from '@/components/library/TmdbLinkEditor'
 import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -25,16 +30,19 @@ const REVIEW_FORM_ID = 'tmdb-review-pick'
 
 /** What the last save or "none fits" did, said above the next work. */
 interface LastAction {
-  kind: 'linked' | 'notWritten' | 'noneFits'
+  kind: 'linked' | 'queued' | 'kept' | 'notWritten' | 'noneFits'
   workId: string
   text: string
 }
 
 /**
  * MAM-34 — the TMDb page's Review tab: the works without a TMDb id, one at a time, each with the TMDb
- * dialog's content inline (TmdbLinkEditor). Save links the pick, "None fits" marks that no suggestion
- * fits, Skip moves on; the first two take the work out of the queue, so the same place then shows the
- * next work, and Skip wraps to the first after the last.
+ * dialog's content inline (TmdbLinkEditor). Save links the pick and Jellyfin identifies it in the
+ * background, "None fits" marks that no suggestion fits, Skip moves on; the first two take the work out
+ * of the queue, so the same place then shows the next work, and Skip wraps to the first after the last.
+ * The editor says above its buttons what an identification replaces, as the dialog does. A saved pick
+ * does not wait for Jellyfin: the tab moves on at once, and an identification that fails later is
+ * listed in the Not identified tab and counted in the Update Jellyfin panel.
  *
  * The keys of R24, while this tab is on screen with a work: 1 to 5 pick a suggestion (they only pick:
  * Enter or Save links it, one Save per surface), 0 is "None fits", → is Skip, / goes to the search
@@ -99,7 +107,7 @@ export function TmdbReviewQueue() {
     }
   }
 
-  const saved = (next: LibraryLinkDialog, notWritten: boolean) => {
+  const saved = (next: LibraryLinkDialog, outcome: TmdbLinkSaveOutcome) => {
     const link = next.work.link
     const linkText = link === null
       ? ''
@@ -109,9 +117,21 @@ export function TmdbReviewQueue() {
     const values = { work: workTitle(next.work), link: linkText }
     setActionError(null)
     setLeaving(next.work.id)
-    setLast(notWritten
+    // 'queued' is what the server answers for every item Jellyfin can identify: it is not identified
+    // yet, and the line says so. 'done' is a link nothing waits on whose kept-in-the-app reason was
+    // on screen already.
+    // 'kept' is a link the app keeps to itself for a reason only the save found out (TMDb gives the episode
+    // no IMDb id): the tab moves on, so the line carries the server's sentence.
+    const keptReason = outcome === 'kept'
+      ? next.items.map((item) => item.cannotWriteReason ?? item.writeError).find((reason) => reason !== null && reason !== undefined)
+      : undefined
+    setLast(outcome === 'notWritten'
       ? { kind: 'notWritten', workId: next.work.id, text: t('review.linkedNotWritten', values) }
-      : { kind: 'linked', workId: next.work.id, text: t('review.linked', values) })
+      : outcome === 'queued'
+        ? { kind: 'queued', workId: next.work.id, text: t('review.linkedQueued', values) }
+        : keptReason !== undefined
+          ? { kind: 'kept', workId: next.work.id, text: t('review.linkedKept', { ...values, reason: keptReason }) }
+          : { kind: 'linked', workId: next.work.id, text: t('review.linked', values) })
   }
 
   // The key's meaning is read when it comes, from what is on screen then; the listener itself is
@@ -284,7 +304,7 @@ function ShortcutKey({ children }: { children: string }) {
  */
 function LastActionLine({ action, undoing, onUndo }: { action: LastAction; undoing: boolean; onUndo: () => void }) {
   const { t } = useTranslation('libraryLinks')
-  const warning = action.kind === 'notWritten'
+  const warning = action.kind === 'notWritten' || action.kind === 'kept'
 
   return (
     <div className="tmdb-review-last">

@@ -1,22 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { libraryApi } from '@/lib/library-api'
 import { libraryLinksApi } from '@/lib/library-links-api'
-import type { CurrentUser } from '@/lib/types'
+import type { CurrentUser, LibraryWorkLink } from '@/lib/types'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { aliens, locations, sourceOf, sourcesOf, worksPage } from '@/test/library'
-import { dialogOf, landingStripling } from '@/test/library-links'
+import { dialogOf, landingStripling, workLinkOf } from '@/test/library-links'
 
 vi.mock('@/lib/library-api')
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
 
 // MAM-34 — the Library page's "TMDb…" on each card: the owner opens the work's TMDb dialog; a member
-// sees the action disabled with the reason. Nothing is asked for it until the dialog opens.
+// sees the action disabled with the reason. Nothing is asked for it until the dialog opens. A link
+// Jellyfin identifies in the background (a film in seconds, a series in minutes) is followed by its
+// card: the works are asked for again every 5 s while any card's link waits or is being identified.
 
 /** The TMDb page in these tests: a Back button, as the browser's. */
 function TmdbPageStandIn() {
@@ -44,6 +46,14 @@ function renderPage(signedIn: CurrentUser = owner, path = '/library') {
 
 const identifiersFilter = () => screen.getByRole('combobox', { name: 'Identifiers' })
 
+/** The Library's works, the short carrying `link`. */
+function serveWorksWithLink(link: LibraryWorkLink) {
+  vi.mocked(libraryApi.works).mockImplementation(async (query) => worksPage(query, [aliens, { ...landingStripling, link }]))
+}
+
+/** Lets `milliseconds` pass, with the answers they bring. */
+const pass = (milliseconds: number) => act(() => vi.advanceTimersByTimeAsync(milliseconds))
+
 /** The card of the work titled `title`. */
 const cardOf = async (title: string) => (await screen.findByRole('heading', { level: 2, name: title })).closest('article')!
 
@@ -55,6 +65,10 @@ describe('LibraryPage TMDb links', () => {
     vi.mocked(libraryApi.locations).mockResolvedValue(locations)
     vi.mocked(libraryApi.sources).mockResolvedValue(sourcesOf(sourceOf({})))
     vi.mocked(libraryLinksApi.dialog).mockResolvedValue(dialogOf())
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('gives every card a TMDb action, and asks for no link until one is opened', async () => {
@@ -111,6 +125,64 @@ describe('LibraryPage TMDb links', () => {
     expect(focusedLoaded).toBe(byClick)
     expect(focusedByKey).toBe(byKey)
     await waitFor(() => expect(button).toHaveFocus())
+  })
+
+  it('asks for the works again every 5 s while a card\'s link is under way, and stops once none is', async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    serveWorksWithLink(workLinkOf({ writeState: 'Queued', identified: false, underWay: true }))
+    renderPage()
+    const card = await cardOf('120. Landing Stripling')
+    expect(within(card).getByText('Waiting to identify')).toBeInTheDocument()
+    expect(libraryApi.works).toHaveBeenCalledOnce()
+
+    // Act
+    await pass(4_000)
+    const before = vi.mocked(libraryApi.works).mock.calls.length
+    serveWorksWithLink(workLinkOf({ writeState: 'Written', identified: true, underWay: false }))
+    await pass(1_000)
+
+    // Assert
+    expect(before).toBe(1)
+    expect(await within(await cardOf('120. Landing Stripling')).findByText('Identified in Jellyfin')).toBeInTheDocument()
+    const settled = vi.mocked(libraryApi.works).mock.calls.length
+    expect(settled).toBe(2)
+
+    // Act
+    await pass(30_000)
+
+    // Assert: no poll once nothing is under way.
+    expect(vi.mocked(libraryApi.works)).toHaveBeenCalledTimes(settled)
+  })
+
+  it('follows a work whose worst state is not identified but whose other item is queued', async () => {
+    // Arrange — the card's state is the worst of its items' (`NotWritten`); `underWay` is the fact that
+    // one of them still waits, and the poll reads that, not the state.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    serveWorksWithLink(workLinkOf({ writeState: 'NotWritten', identified: false, underWay: true }))
+    renderPage()
+    const card = await cardOf('120. Landing Stripling')
+    expect(within(card).getByText('Not identified yet')).toBeInTheDocument()
+
+    // Act
+    await pass(5_000)
+
+    // Assert
+    await waitFor(() => expect(libraryApi.works).toHaveBeenCalledTimes(2))
+  })
+
+  it('never polls the works when no card\'s link is under way', async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    serveWorksWithLink(workLinkOf({ writeState: 'NotWritten', identified: false, underWay: false }))
+    renderPage()
+    await cardOf('120. Landing Stripling')
+
+    // Act
+    await pass(30_000)
+
+    // Assert
+    expect(libraryApi.works).toHaveBeenCalledOnce()
   })
 
   it('shows a member the action disabled with the reason', async () => {

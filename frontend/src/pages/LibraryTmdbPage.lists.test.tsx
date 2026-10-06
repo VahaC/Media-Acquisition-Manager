@@ -8,16 +8,30 @@ import type { LibraryLinkList, LibraryLinksQuery } from '@/lib/types'
 import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
 import { apiError } from '@/test/api-error'
 import { owner, signInAs } from '@/test/auth-session'
-import { catchUpOf, dialogOf, landingStripling, linkId, linkRowOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
+import {
+  catchUpOf,
+  conflictSentence,
+  dialogOf,
+  landingStripling,
+  linkedDialogOf,
+  linkedItemOf,
+  linkId,
+  linkRowOf,
+  linksPage,
+  queueOf,
+  suggestionRunOf,
+} from '@/test/library-links'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
 
-// MAM-34 — the TMDb page's Conflicts and Unattached tabs: the links Jellyfin holds another TMDb id
+// MAM-34 — the TMDb page's Not identified, Conflicts and Unattached tabs: the links Jellyfin or the app
+// refused or failed to identify, each with its reason on screen (each opening its work's dialog to
+// Retry, to link another film or show, or to remove the link), the links Jellyfin holds another TMDb id
 // against (each opening its work's dialog to keep one of the two), and the links whose item the
 // library no longer reports (each removable after a destructive confirmation), a page at a time.
 
-function renderPage(tab: 'Conflicts' | 'Unattached') {
+function renderPage(tab: 'NotIdentified' | 'Conflicts' | 'Unattached') {
   signInAs(owner)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -40,13 +54,22 @@ const cardOf = async (title: string) => (await screen.findByText(title, { select
 /** A link whose item Jellyfin no longer reports: its work went with it, its title stays. */
 const goneRow = linkRowOf({ workId: null, workTitle: null, itemTitle: '120. Landing Stripling (1962) [old cut]', writeState: 'InLibrary' })
 
-/** Answers the tab's list with `answer`, and the Update Jellyfin panel's count of pending links with none. */
+/** A link Jellyfin or the app refused to identify: its item is in the library, the reason is the server's sentence. */
+const refusedRow = linkRowOf({ writeState: 'NotWritten', writeError: conflictSentence, identifiedUtc: null })
+
+/**
+ * The Update Jellyfin panel's asks, which these tests are not about: the Pending list and the one-link
+ * count of the Not identified list, both answered with none.
+ */
+const isPanelAsk = (query: LibraryLinksQuery) => query.filter === 'Pending' || (query.filter === 'NotWritten' && query.pageSize === 1)
+
+/** Answers the tab's list with `answer`, and the Update Jellyfin panel's asks with none. */
 function serveLists(answer: (query: LibraryLinksQuery) => Promise<LibraryLinkList>) {
-  vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => (query.filter === 'Pending' ? linksPage(query, []) : answer(query)))
+  vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => (isPanelAsk(query) ? linksPage(query, []) : answer(query)))
 }
 
 /** The tab's own asks for its list, without the Update Jellyfin panel's. */
-const listAsks = () => vi.mocked(libraryLinksApi.links).mock.calls.map(([query]) => query).filter((query) => query.filter !== 'Pending')
+const listAsks = () => vi.mocked(libraryLinksApi.links).mock.calls.map(([query]) => query).filter((query) => !isPanelAsk(query))
 
 describe('LibraryTmdbPage lists of links', () => {
   beforeEach(() => {
@@ -57,7 +80,86 @@ describe('LibraryTmdbPage lists of links', () => {
     vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf())
     serveLists(async (query) => linksPage(query, query.filter === 'Conflict'
       ? [linkRowOf({ conflictingValue: '999', writeState: 'Lost' })]
-      : [goneRow]))
+      : query.filter === 'NotWritten' ? [refusedRow] : [goneRow]))
+  })
+
+  describe('Not identified', () => {
+    it('lists the links Jellyfin or the app refused or failed to identify, with each reason on screen', async () => {
+      // Arrange
+      renderPage('NotIdentified')
+
+      // Act
+      const card = await cardOf('120. Landing Stripling')
+
+      // Assert
+      expect(listAsks()).toEqual([{ filter: 'NotWritten', page: 1, pageSize: 25 }])
+      expect(screen.getByText(/^Jellyfin or the app refused or failed to identify these items; each card says why\./)).toBeInTheDocument()
+      expect(within(card).getByText('Home Jellyfin · 120. Landing Stripling')).toBeInTheDocument()
+      expect(within(card).getByText('Linked to Посадка Стріплінга (Film, TMDb 223021)')).toBeInTheDocument()
+      const badge = within(card).getByText('Not identified yet')
+      expect(badge).toHaveClass('library-badge-warning')
+      // On the card as a line, verbatim, and not only as the badge's tooltip: a phone shows no tooltip.
+      expect(badge).toHaveAttribute('title', conflictSentence)
+      expect(within(card).getByText(conflictSentence, { selector: 'span' })).toBeInTheDocument()
+      expect(within(card).getByText(/^Set by vasyl on /)).toBeInTheDocument()
+      expect(within(card).queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+    })
+
+    it('opens the work\'s dialog from a row, which has Retry', async () => {
+      // Arrange
+      vi.mocked(libraryLinksApi.dialog).mockResolvedValue(linkedDialogOf({
+        items: [linkedItemOf({ writeState: 'NotWritten', writeError: conflictSentence, identifiedUtc: null })],
+      }))
+      const { user } = renderPage('NotIdentified')
+      const card = await cardOf('120. Landing Stripling')
+
+      // Act
+      await user.click(within(card).getByRole('button', { name: 'TMDb…' }))
+
+      // Assert
+      const dialog = await screen.findByRole('dialog', { name: 'Link “120. Landing Stripling” to TMDb' })
+      expect(libraryLinksApi.dialog).toHaveBeenCalledExactlyOnceWith(landingStripling.id)
+      expect(await within(dialog).findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+      expect(within(dialog).getByText(conflictSentence)).toBeInTheDocument()
+    })
+
+    it('says no link is waiting on the owner when none was refused or failed', async () => {
+      // Arrange
+      serveLists(async (query) => linksPage(query, []))
+
+      // Act
+      renderPage('NotIdentified')
+
+      // Assert
+      expect(await screen.findByText('No link is waiting on you: none was refused or failed.')).toBeInTheDocument()
+    })
+
+    it('asks the server for the next page', async () => {
+      // Arrange
+      serveLists(async (query) => linksPage(query, [refusedRow], 40))
+      const { user } = renderPage('NotIdentified')
+      await cardOf('120. Landing Stripling')
+
+      // Act
+      await user.click(screen.getByRole('button', { name: 'Next page' }))
+
+      // Assert
+      expect(listAsks().at(-1)).toEqual({ filter: 'NotWritten', page: 2, pageSize: 25 })
+    })
+
+    it('shows why the list couldn\'t load, with Try again', async () => {
+      // Arrange
+      serveLists(async () => {
+        throw apiError(502, 'The server is restarting.')
+      })
+
+      // Act
+      renderPage('NotIdentified')
+
+      // Assert
+      expect(await screen.findByText('The server is restarting.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    })
   })
 
   describe('Conflicts', () => {
@@ -76,6 +178,20 @@ describe('LibraryTmdbPage lists of links', () => {
       expect(within(card).getByText('Jellyfin lost it')).toBeInTheDocument()
       expect(within(card).getByText(/^Set by vasyl on /)).toBeInTheDocument()
       expect(within(card).queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
+    })
+
+    it('shows the sentence of a link Jellyfin lost on the card too, as a phone shows no tooltip', async () => {
+      // Arrange
+      serveLists(async (query) => linksPage(query, [
+        linkRowOf({ conflictingValue: '999', writeState: 'Lost', writeError: 'The library read the item again without its TMDb id.' }),
+      ]))
+
+      // Act
+      renderPage('Conflicts')
+      const card = await cardOf('120. Landing Stripling')
+
+      // Assert
+      expect(within(card).getByText('The library read the item again without its TMDb id.', { selector: 'span' })).toBeInTheDocument()
     })
 
     it('opens the work\'s TMDb dialog from its card', async () => {
@@ -129,7 +245,7 @@ describe('LibraryTmdbPage lists of links', () => {
 
       // Assert
       expect(listAsks()).toEqual([{ filter: 'Unattached', page: 1, pageSize: 25 }])
-      expect(within(card).getByText('In Jellyfin')).toBeInTheDocument()
+      expect(within(card).getByText('Identified in Jellyfin')).toBeInTheDocument()
       expect(within(card).getByRole('button', { name: 'Remove' })).toHaveClass('ui-button-danger')
       expect(within(card).queryByRole('button', { name: 'TMDb…' })).not.toBeInTheDocument()
     })

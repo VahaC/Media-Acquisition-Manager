@@ -12,9 +12,9 @@ using Microsoft.EntityFrameworkCore;
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
 // MAM-34 — a work's TMDb dialog (GET /api/library/works/{id}/tmdb): the work as its card shows it, each library item it
-// holds with the ids the last sync read for it, its link and where the link stands, whether a link to the work itself
-// would be written into the item's library and why not (an episode item, a library type that can't set ids, one
-// switched off — a series is written like a film, with no warning of any kind; an episode's link of its own in
+// holds with the ids the last sync read for it, its link, where the link stands and when the app confirmed it identified,
+// whether the item's library would identify it and why not (an episode item, a library type that can't identify, one
+// switched off — a series is identified like a film, with no warning of any kind; an episode's link of its own in
 // LibraryLinkEpisodeHttpTests), the third TMDb id Jellyfin holds beside a link, whether a catalog is connected, and the
 // title and year the free search starts from. Reading calls nothing outside the app.
 public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
@@ -63,9 +63,10 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
         await _integrations.Create("tmdb", "TMDb", FakeTmdbServer.BaseUrl, apiKey: FakeTmdbServer.Token);
         var workId = await WorkOfAsync(AliensSpecialId, cancellationToken);
+        var identifiedAt = _factory.Time.GetUtcNow().UtcDateTime;
         var link = await _links.Create(
             _jellyfinIntegration, AliensSpecialId, workId, MediaIdentifierScheme.Tmdb, "8077", writeState: LibraryLinkWriteState.InLibrary,
-            configure: row => row.CatalogTitle = "Чужий 3");
+            configure: row => (row.CatalogTitle, row.IdentifiedUtc) = ("Чужий 3", identifiedAt));
         var sent = _factory.JellyfinHttp.Requests.Count;
 
         //Act
@@ -81,8 +82,9 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         Assert.All(dialog.Items, item => Assert.Equal(("Living room", "Чужі", MediaWorkKind.Movie, true, (string?)null), (item.SourceName!, item.ItemTitle!, item.ItemKind, item.CanWrite, item.CannotWriteReason)));
         var linked = dialog.Items[1];
         Assert.Equal(
-            ((LibraryLinkTarget?)LibraryLinkTarget.Work, "Чужий 3", (LibraryLinkWriteState?)LibraryLinkWriteState.InLibrary, (string?)AliensTmdbId),
-            (linked.Target, linked.CatalogTitle!, linked.WriteState, linked.ConflictingValue));
+            ((LibraryLinkTarget?)LibraryLinkTarget.Work, "Чужий 3", (LibraryLinkWriteState?)LibraryLinkWriteState.InLibrary, (string?)AliensTmdbId, (DateTime?)identifiedAt),
+            (linked.Target, linked.CatalogTitle!, linked.WriteState, linked.ConflictingValue, linked.IdentifiedUtc));
+        Assert.Null(dialog.Items[0].IdentifiedUtc);
         Assert.Equal(
             [(MediaIdentifierScheme.Imdb, "tt0090605", ProvenanceSourceKind.MediaLibrary), (MediaIdentifierScheme.Tmdb, AliensTmdbId, ProvenanceSourceKind.MediaLibrary)],
             linked.LibraryIdentifiers.Select(identifier => (identifier.Scheme, identifier.Value, identifier.SourceKind)));
@@ -91,7 +93,7 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
     }
 
     [Fact]
-    public async Task Dialog_says_an_item_of_a_library_switched_off_would_not_be_written_and_why()
+    public async Task Dialog_says_an_item_of_a_library_switched_off_would_not_be_identified_and_why()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -118,7 +120,7 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
     }
 
     [Fact]
-    public async Task Dialog_says_an_episode_with_no_series_is_never_written()
+    public async Task Dialog_says_an_episode_with_no_series_is_never_identified()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -134,12 +136,30 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
         Assert.Equal(
-            (MediaWorkKind.Episode, false, (string?)"Jellyfin's ids are written on movie and series items only, so a link on an episode stays in the app."),
+            (MediaWorkKind.Episode, false, (string?)"Jellyfin identifies movie and series items only, so a link on an episode stays in the app."),
             (item.ItemKind, item.CanWrite, item.CannotWriteReason));
     }
 
     [Fact]
-    public async Task Dialog_says_a_series_is_written_into_jellyfin_like_a_film_with_no_reason_against_it()
+    public async Task Dialog_says_an_item_of_a_library_type_that_cannot_identify_would_not_be_identified_and_why()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // The fake type is a media library without the identify capability (ADR 0005).
+        var library = await _integrations.Create(name: "Old library");
+        var work = await new MediaWorkSeeder(_factory.Scope).CreateMovie(library, "Landing Stripling", 1962);
+
+        //Act
+        var response = await _factory.GetHttpRequest(DialogUrl(work.Id), _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
+        Assert.Equal((false, (string?)"“Old library” can't identify items, so a link stays in the app."), (item.CanWrite, item.CannotWriteReason));
+    }
+
+    [Fact]
+    public async Task Dialog_says_a_series_is_identified_like_a_film_with_no_reason_against_it()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -156,8 +176,8 @@ public sealed class LibraryLinkDialogHttpTests : IClassFixture<MediaAcquisitionM
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
-        // Jellyfin writes a series (Vasyl's final decision of 2026-10-06): the age ratings its save gives the seasons and
-        // episodes are no reason the owner is shown.
+        // Jellyfin identifies a series (Vasyl's final decision of 2026-10-06): the time its Apply takes is no reason the
+        // owner is shown — the identification runs in the background.
         Assert.Equal(
             (PenguinsId, MediaWorkKind.Series, true, (string?)null),
             (item.SourceItemId, item.ItemKind, item.CanWrite, item.CannotWriteReason));

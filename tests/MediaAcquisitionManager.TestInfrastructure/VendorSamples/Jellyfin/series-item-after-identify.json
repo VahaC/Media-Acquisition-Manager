@@ -1,0 +1,416 @@
+{
+  "Name": "The Penguins of Madagascar",
+  "OriginalTitle": "The Penguins of Madagascar",
+  "ServerId": "7e510bf027b0470988c018aa322da282",
+  "Id": "9ac821b3ddea72fd14ba1835b4153e50",
+  "Etag": "bd6e56fd2cbfbde625954abe6a5c04a2",
+  "DateCreated": "2026-07-15T10:52:25.46Z",
+  "DateLastMediaAdded": "2026-07-15T11:49:48.4652753Z",
+  "CanDelete": true,
+  "CanDownload": false,
+  "PreferredMetadataLanguage": "",
+  "PreferredMetadataCountryCode": "",
+  "SortName": "penguins of madagascar",
+  "ForcedSortName": "",
+  "PremiereDate": "2008-11-28T00:00:00.0000000Z",
+  "ExternalUrls": [
+    {
+      "Name": "IMDb",
+      "Url": "https://www.imdb.com/title/tt0892700"
+    },
+    {
+      "Name": "TheTVDB",
+      "Url": "https://www.thetvdb.com/series/the-penguins-of-madagascar"
+    },
+    {
+      "Name": "TMDB",
+      "Url": "https://www.themoviedb.org/tv/7869"
+    },
+    {
+      "Name": "Trakt",
+      "Url": "https://trakt.tv/shows/tt0892700"
+    },
+    {
+      "Name": "TVmaze",
+      "Url": "https://www.tvmaze.com/shows/4037"
+    }
+  ],
+  "Path": "/media/cartoons/The Penguins Of Madagascar (Season 1-3) (2008-2015) WEBDL 1080p [Ukr,Eng] Sub [Eng] [ Hurtom ] by Jatx_11",
+  "EnableMediaSourceDisplay": true,
+  "OfficialRating": "TV-Y7",
+  "ChannelId": null,
+  "Overview": "The adventures of four penguins—Skipper, Kowalski, Private, and Rico, who perform various commando-like missions to protect their home in the Central Park Zoo. The penguins often have to deal with problems caused, or made worse, by their zoo neighbors, King Julien XIII (a ring-tailed lemur), Maurice (an aye-aye), and Mort (a mouse lemur).",
+  "Taglines": [],
+  "Genres": [
+    "Animation",
+    "Comedy",
+    "Family",
+    "Kids"
+  ],
+  "CommunityRating": 7.519,
+  "CumulativeRunTimeTicks": 6600000000,
+  "RunTimeTicks": 6600000000,
+  "PlayAccess": "Full",
+  "ProductionYear": 2008,
+  "RemoteTrailers": [
+    {
+      "Url": "https://www.youtube.com/watch?v=np4JwN73hTU",
+      "Name": "The Penguins of Madagascar   Trailer"
+    }
+  ],
+  "ProviderIds": {
+    "Tmdb": "7869",
+    "Imdb": "tt0892700",
+    "Tvdb": "85075",
+    "TvRage": "21572",
+    "TvdbSlug": "the-penguins-of-madagascar",
+    "TvMaze": "4037"
+  },
+  "IsFolder": true,
+  "ParentId": "4caf2087accca130221e50418e04e846",
+  "Type": "Series",
+  "People": [
+    {
+      "Name": "Tom McGrath",
+      "Id": "35f87957d0f171d7922e63a641174e69",
+      "Role": "Skipper (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "958d152ee35c593944cc500cbd6c241d",
+      "ImageBlurHashes": {
+        "Primary": {
+          "958d152ee35c593944cc500cbd6c241d": "dSHxmd-:L4b_xct8yDoz9~RkZ~RktokD%htRI;f+xCs."
+        }
+      }
+    },
+    {
+      "Name": "Jeff Bennett",
+      "Id": "d0d6666e71e82a0a08b6299793739ef1",
+      "Role": "Kowalski (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "afd74ae8b78f851a5a73c808c603e83d",
+      "ImageBlurHashes": {
+        "Primary": {
+          "afd74ae8b78f851a5a73c808c603e83d": "dQF}sND$0z9u^OR*ksIp56x^v}ogI;XTaKt8WCNHxvoM"
+        }
+      }
+    },
+    {
+      "Name": "John DiMaggio",
+      "Id": "0adabbfa04ea001f03216d17b2b570bb",
+      "Role": "Rico (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "2e5e5af42cb147fbbb5c638b139f2c76",
+      "ImageBlurHashes": {
+        "Primary": {
+          "2e5e5af42cb147fbbb5c638b139f2c76": "dUH^^s-oF|x]?Ge.R+oL0eM|a0M{x^kC%Mt8tSbI?H%2"
+        }
+      }
+    },
+    {
+      "Name": "Danny Jacobs",
+      "Id": "85682f324574b7f22c3ceb8aef2b8077",
+      "Role": "King Julien XIII (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "05910f44f3c4328ca9cd77f3e230d9c4",
+      "ImageBlurHashes": {
+        "Primary": {
+          "05910f44f3c4328ca9cd77f3e230d9c4": "dLG8N8~W1$S%?GtRg2xa0zIo#,n$S#xFs:NbE%kC-oxt"
+        }
+      }
+    },
+    {
+      "Name": "Kevin Michael Richardson",
+      "Id": "83eba3fa512db90591e59864d8df9eb8",
+      "Role": "Maurice (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "7b6e6fe8024ee00233fb2785c736a282",
+      "ImageBlurHashes": {
+        "Primary": {
+          "7b6e6fe8024ee00233fb2785c736a282": "daI;YG^*.7-;~Uxu%Lt6-;WYM}of-pozNHoKxuozsms."
+        }
+      }
+    },
+    {
+      "Name": "Andy Richter",
+      "Id": "9713fddff894014d950ad4a7e80cf267",
+      "Role": "Mort (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "935b7ec4ad4ad733d56fce2e27f9b9fa",
+      "ImageBlurHashes": {
+        "Primary": {
+          "935b7ec4ad4ad733d56fce2e27f9b9fa": "daNkx3}sMd]n{3r[WCWBOTjZxZxG+vS#xGR*+dRkxFkC"
+        }
+      }
+    },
+    {
+      "Name": "Nicole Sullivan",
+      "Id": "43e5ca1045392703d7d57d14f6aa329c",
+      "Role": "Marlene (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "ee2c221d4e01bc473cd941e1761b781d",
+      "ImageBlurHashes": {
+        "Primary": {
+          "ee2c221d4e01bc473cd941e1761b781d": "d:Jtevaex^j]~Vt6tRofkWofj]ozS5Rkj]j[ofafoffk"
+        }
+      }
+    },
+    {
+      "Name": "James Patrick Stuart",
+      "Id": "bb60243e0750fc08dff086920bb27c46",
+      "Role": "Private (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "58a7c5c6956056cc855c7196603384dd",
+      "ImageBlurHashes": {
+        "Primary": {
+          "58a7c5c6956056cc855c7196603384dd": "dQG*+uxY10X8$yxt9FRP9uWB?GkCE2M|tRWp9Zj[xZof"
+        }
+      }
+    },
+    {
+      "Name": "James Patrick Stuart",
+      "Id": "bb60243e0750fc08dff086920bb27c46",
+      "Role": "Joey",
+      "Type": "Actor",
+      "PrimaryImageTag": "58a7c5c6956056cc855c7196603384dd",
+      "ImageBlurHashes": {
+        "Primary": {
+          "58a7c5c6956056cc855c7196603384dd": "dQG*+uxY10X8$yxt9FRP9uWB?GkCE2M|tRWp9Zj[xZof"
+        }
+      }
+    },
+    {
+      "Name": "Conrad Vernon",
+      "Id": "54e5ea0616107e1432e649e33c035389",
+      "Role": "Mason (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "2e169da598339b686c478ff322cf90f6",
+      "ImageBlurHashes": {
+        "Primary": {
+          "2e169da598339b686c478ff322cf90f6": "dXELpxt00fM_~Dt29aRjX9jsR%WXIoaxjaWCNHWUs:of"
+        }
+      }
+    },
+    {
+      "Name": "Wayne Knight",
+      "Id": "c8d0da258d1bc9f5d3a092f787a2328a",
+      "Role": "Max",
+      "Type": "Actor",
+      "PrimaryImageTag": "33ebdf19667fa78afbd67936e61f44a5",
+      "ImageBlurHashes": {
+        "Primary": {
+          "33ebdf19667fa78afbd67936e61f44a5": "dsGlYTxuFgXU?wofbxo#JAWBxDoLX9j[adWBXUW=xat7"
+        }
+      }
+    },
+    {
+      "Name": "Wayne Knight",
+      "Id": "c8d0da258d1bc9f5d3a092f787a2328a",
+      "Role": "Max (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "33ebdf19667fa78afbd67936e61f44a5",
+      "ImageBlurHashes": {
+        "Primary": {
+          "33ebdf19667fa78afbd67936e61f44a5": "dsGlYTxuFgXU?wofbxo#JAWBxDoLX9j[adWBXUW=xat7"
+        }
+      }
+    },
+    {
+      "Name": "Clancy Brown",
+      "Id": "f8675d914d75a9ebc903cf675bc93a4e",
+      "Role": "Buck Rockgut (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "b95e51e5f8c20b969b48a8d43fab523f",
+      "ImageBlurHashes": {
+        "Primary": {
+          "b95e51e5f8c20b969b48a8d43fab523f": "d,M%+axu-=%g~pofxut7Nba}M_WB%MkCs:t7-;j[oft7"
+        }
+      }
+    },
+    {
+      "Name": "Richard Kind",
+      "Id": "fe70ad961d32014eab2a351a700f9ca4",
+      "Role": "Roger (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "ba2f0d551de59cb6e54f97fc244a1d6a",
+      "ImageBlurHashes": {
+        "Primary": {
+          "ba2f0d551de59cb6e54f97fc244a1d6a": "dXJkAm?HEyXO~VRj%h%NI]kDxYawo}kBVst7%Mj[xuxa"
+        }
+      }
+    },
+    {
+      "Name": "Kathy Kinney",
+      "Id": "5d6703f67f173e8ff4f5798b9d7f6d57",
+      "Role": "Rhonda (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "1d6c97edec878767a964c8f1ed7703cf",
+      "ImageBlurHashes": {
+        "Primary": {
+          "1d6c97edec878767a964c8f1ed7703cf": "dUF;pG%L0LIU^5t6IVM|9tR*-ptQE1RkxuxaV@WCj[j["
+        }
+      }
+    },
+    {
+      "Name": "Fred Stoller",
+      "Id": "00bd6776ba43691e731ad89d24fb59ba",
+      "Role": "Fred (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "d12ec9a4e2aea873c6fbca8b8d239e29",
+      "ImageBlurHashes": {
+        "Primary": {
+          "d12ec9a4e2aea873c6fbca8b8d239e29": "dVIY5l_2.kyCrVatX3V=Ouk6jKs9pHo2xvoyM{R$s-ad"
+        }
+      }
+    },
+    {
+      "Name": "Cedric Yarbrough",
+      "Id": "651907d2d0dd220fd9b24ccb2f1a7cce",
+      "Role": "Officer X (voice)",
+      "Type": "Actor",
+      "PrimaryImageTag": "eb4896ab6bf1b0d5f7b26a97b58a3f4b",
+      "ImageBlurHashes": {
+        "Primary": {
+          "eb4896ab6bf1b0d5f7b26a97b58a3f4b": "dOF5aCxt*0tS~Wax%gt7I;WBRPWVx]s:s;ozx^WV%2s:"
+        }
+      }
+    },
+    {
+      "Name": "Bret Haaland",
+      "Id": "70a2e2db3295c69bc20f207ebc907e0f",
+      "Role": "Director",
+      "Type": "Director",
+      "PrimaryImageTag": "94773df2647ac336bf2b6022194f670e",
+      "ImageBlurHashes": {
+        "Primary": {
+          "94773df2647ac336bf2b6022194f670e": "dVEelV%20zIq%1jZRjfPIpWWxZj[Sia}ozofM|WBs+oK"
+        }
+      }
+    },
+    {
+      "Name": "Eric Darnell",
+      "Id": "cfa8247eb1b3976b6ce1dcf40d3fa759",
+      "Role": "",
+      "Type": "Creator",
+      "PrimaryImageTag": "5bfc4ad92340ee8f12c559dd73932910",
+      "ImageBlurHashes": {
+        "Primary": {
+          "5bfc4ad92340ee8f12c559dd73932910": "dF8WT]s:0zNH={s:9uNHI:oe$%R*9[WV-UoLI:R*xZxZ"
+        }
+      }
+    },
+    {
+      "Name": "Tom McGrath",
+      "Id": "35f87957d0f171d7922e63a641174e69",
+      "Role": "Skipper",
+      "Type": "Creator",
+      "PrimaryImageTag": "958d152ee35c593944cc500cbd6c241d",
+      "ImageBlurHashes": {
+        "Primary": {
+          "958d152ee35c593944cc500cbd6c241d": "dSHxmd-:L4b_xct8yDoz9~RkZ~RktokD%htRI;f+xCs."
+        }
+      }
+    }
+  ],
+  "Studios": [
+    {
+      "Name": "Nickelodeon",
+      "Id": "3a989bfbdf1aad0954d0eeb1ae09b9bf"
+    },
+    {
+      "Name": "DreamWorks Animation",
+      "Id": "e06730e67f5a2e6712cb6789f424a16d"
+    },
+    {
+      "Name": "Nickelodeon Animation Studio",
+      "Id": "9ebfc2b6d9924e80117e4fd9abc6a086"
+    },
+    {
+      "Name": "Nicktoons",
+      "Id": "94128839f371d9481ca04ce638685933"
+    },
+    {
+      "Name": "Nickelodeon (US)",
+      "Id": "8e587b9e21fe242c8fb479e9b1e9146a"
+    }
+  ],
+  "GenreItems": [
+    {
+      "Name": "Animation",
+      "Id": "074229225b7254292f131f9f49f8dcd6"
+    },
+    {
+      "Name": "Comedy",
+      "Id": "08d31605d366d63a7a924f944b4417f1"
+    },
+    {
+      "Name": "Family",
+      "Id": "ccbd8d9008aab2b5e749e1cc4bc458a4"
+    },
+    {
+      "Name": "Kids",
+      "Id": "fa408a040604eb2bbbbebffb279bc1a0"
+    }
+  ],
+  "LocalTrailerCount": 0,
+  "UserData": {
+    "PlayedPercentage": 15.436241610738255,
+    "UnplayedItemCount": 126,
+    "PlaybackPositionTicks": 0,
+    "PlayCount": 0,
+    "IsFavorite": false,
+    "Played": false,
+    "Key": "85075",
+    "ItemId": "9ac821b3ddea72fd14ba1835b4153e50"
+  },
+  "RecursiveItemCount": 149,
+  "ChildCount": 3,
+  "SpecialFeatureCount": 0,
+  "DisplayPreferencesId": "f63033ff6886ecc7083a696cbeced1b0",
+  "Status": "Ended",
+  "AirDays": [],
+  "Tags": [
+    "penguin",
+    "madagascar",
+    "spin off",
+    "based on movie",
+    "talking animal",
+    "3d animation",
+    "zoo animals",
+    "witty"
+  ],
+  "PrimaryImageAspectRatio": 0.6666666666666666,
+  "DisplayOrder": "",
+  "ImageTags": {
+    "Primary": "52464c1fd74945e5f6990cb1901cf7c6",
+    "Logo": "f664b81b965e609ff3e335104111a230",
+    "Thumb": "874176e811aa02d3bf3a608a714222ea",
+    "Banner": "3f5d79d3f317e40d4a447e1147618d7c"
+  },
+  "BackdropImageTags": [
+    "644c6ec264d8492fc2904533df4d97a9"
+  ],
+  "ImageBlurHashes": {
+    "Backdrop": {
+      "644c6ec264d8492fc2904533df4d97a9": "WIDSzM%L0LIpEM-:9FtQxttQ-pNH4oWB%LjYn$s:R*Iot7xZRkjZ"
+    },
+    "Primary": {
+      "52464c1fd74945e5f6990cb1901cf7c6": "dWJ]iV?bK,*0?bW=RjxuTfoJVst7?wxtj[n~yYXTROad"
+    },
+    "Logo": {
+      "f664b81b965e609ff3e335104111a230": "VKGuXO$%1ISiJ:9wNGRis+$%zmxZK5NdJ8}YW?OtslNZ"
+    },
+    "Thumb": {
+      "874176e811aa02d3bf3a608a714222ea": "WbPhQ$:+#6%hskwF}QNMbdxTRjxZ;xVuR.otg3tR]$$fV]ahj^Ne"
+    },
+    "Banner": {
+      "3f5d79d3f317e40d4a447e1147618d7c": "H^MtgYsmV@Vs%gyDt8%gNH~qj]WBn$tQxuoJtRoz"
+    }
+  },
+  "Chapters": [],
+  "LocationType": "FileSystem",
+  "MediaType": "Unknown",
+  "EndDate": "2013-02-28T00:00:00.0000000Z",
+  "LockedFields": [],
+  "LockData": false,
+  "OriginalLanguage": "en"
+}

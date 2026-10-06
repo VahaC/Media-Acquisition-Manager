@@ -100,7 +100,7 @@ public sealed class LibraryWorksLinksHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(
             new LibraryWorkLinkDto(
                 LibraryLinkTarget.Work, MediaWorkKind.Movie, "223021", "Посадка", null, null, "tt0056164", "owner", link.SetUtc,
-                LibraryLinkWriteState.NotWritten, "Jellyfin refused to change the item's ids.", null),
+                LibraryLinkWriteState.NotWritten, "Jellyfin refused to change the item's ids.", null, Identified: false, UnderWay: false),
             work.Link);
     }
 
@@ -270,7 +270,7 @@ public sealed class LibraryWorksLinksHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(
             new LibraryWorkLinkDto(
                 LibraryLinkTarget.ShowEpisode, MediaWorkKind.Series, "1044", "Планета Земля", 1, 8, "tt0795176", "owner", link.SetUtc,
-                LibraryLinkWriteState.KeptInApp, null, null),
+                LibraryLinkWriteState.KeptInApp, null, null, Identified: false, UnderWay: false),
             work.Link);
         Assert.Equal((0, 0), (byShow.TotalCount, byFilm.TotalCount));
     }
@@ -322,6 +322,66 @@ public sealed class LibraryWorksLinksHttpTests : IClassFixture<MediaAcquisitionM
             (LibraryLinkWriteState.NotWritten, "The special edition's library refused the ids."),
             (work.Link!.WriteState, work.Link.WriteError));
         Assert.Null(work.Link.ConflictingValue);
+    }
+
+    [Fact]
+    public async Task Works_say_whether_their_links_are_identified_and_whether_one_is_under_way()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        // Identified: the app confirmed the item shows the link.
+        await _links.Create(
+            _livingRoom, LandingStriplingItemId, await WorkOfItemAsync(LandingStriplingItemId, cancellationToken), MediaIdentifierScheme.Tmdb, "223021",
+            writeState: LibraryLinkWriteState.Written, setBy: _owner.User, configure: link => link.IdentifiedUtc = now);
+        // Not identified yet: a link the earlier ids-only rule wrote reads "in the library" but was never confirmed.
+        await LinkAlienAsync(LibraryLinkWriteState.Written, supersededValue: null, imdbId: null, cancellationToken);
+        // Under way beside a refusal: the card's state is the worst of the two, so only the flag says one is waiting.
+        var aliens = await WorkOfItemAsync(JellyfinSamples.AliensTheatricalId, cancellationToken);
+        await _links.Create(
+            _livingRoom, JellyfinSamples.AliensTheatricalId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.Queued, setBy: _owner.User,
+            configure: link => link.IdentifiedUtc = now);
+        await _links.Create(
+            _livingRoom, JellyfinSamples.AliensSpecialEditionId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.NotWritten, setBy: _owner.User,
+            configure: link => link.WriteError = "The special edition's library refused the match.");
+
+        //Act
+        var landing = await CardAsync(LandingStripling, _owner, cancellationToken);
+        var alien = await CardAsync(Alien, _owner, cancellationToken);
+        var both = await CardAsync("Чужі", _owner, cancellationToken);
+        var asMember = await CardAsync("Чужі", _member, cancellationToken);
+
+        //Assert
+        Assert.Equal((true, false), (landing.Link!.Identified, landing.Link.UnderWay));
+        Assert.Equal((false, false), (alien.Link!.Identified, alien.Link.UnderWay));
+        Assert.Equal((LibraryLinkWriteState.NotWritten, false, true), (both.Link!.WriteState, both.Link.Identified, both.Link.UnderWay));
+        // They carry no secret: a member reads them as the owner does.
+        Assert.Equal((false, true), (asMember.Link!.Identified, asMember.Link.UnderWay));
+    }
+
+    [Fact]
+    public async Task Works_say_a_work_is_identified_only_when_every_item_the_library_holds_has_been_confirmed()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        var aliens = await WorkOfItemAsync(JellyfinSamples.AliensTheatricalId, cancellationToken);
+        await _links.Create(
+            _livingRoom, JellyfinSamples.AliensTheatricalId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.InLibrary, setBy: _owner.User,
+            configure: link => link.IdentifiedUtc = now);
+        var special = await _links.Create(
+            _livingRoom, JellyfinSamples.AliensSpecialEditionId, aliens, MediaIdentifierScheme.Tmdb, "679", writeState: LibraryLinkWriteState.Written, setBy: _owner.User);
+
+        //Act
+        var oneUnconfirmed = await CardAsync("Чужі", _owner, cancellationToken);
+        await _factory.WithDbAsync(db => db.LibraryItemLinks
+            .Where(link => link.Id == special.Id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(link => link.IdentifiedUtc, (DateTime?)now), cancellationToken));
+        var bothConfirmed = await CardAsync("Чужі", _owner, cancellationToken);
+
+        //Assert
+        Assert.False(oneUnconfirmed.Link!.Identified);
+        Assert.True(bothConfirmed.Link!.Identified);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

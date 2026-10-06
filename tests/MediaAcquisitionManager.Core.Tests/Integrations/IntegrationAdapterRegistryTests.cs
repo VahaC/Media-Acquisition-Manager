@@ -83,24 +83,24 @@ public sealed class IntegrationAdapterRegistryTests
     }
 
     [Fact]
-    public void Find_of_the_optional_identifier_writer_returns_only_a_library_that_implements_it()
+    public void Find_of_the_optional_item_identifier_returns_only_a_library_that_implements_it()
     {
         //Arrange
         // MAM-34 — a further interface of the library's class (ADR 0005); a library without it keeps its links in the
         // app, so the registry answers null rather than a stub.
-        var writing = new WritingLibraryAdapter(Descriptor("writing", "Writing library", IntegrationKind.MediaLibrary));
+        var identifying = new IdentifyingLibraryAdapter(Descriptor("identifying", "Identifying library", IntegrationKind.MediaLibrary));
         var reading = new LibraryAdapter(Descriptor("reading", "Reading library", IntegrationKind.MediaLibrary));
-        var registry = new IntegrationAdapterRegistry([writing, reading]);
+        var registry = new IntegrationAdapterRegistry([identifying, reading]);
 
         //Act
-        var writingAsWriter = registry.Find<IMediaLibraryIdentifierWriter>("writing");
-        var writingAsLibrary = registry.Find<IMediaLibraryProvider>("writing");
-        var readingAsWriter = registry.Find<IMediaLibraryIdentifierWriter>("reading");
+        var identifyingAsIdentifier = registry.Find<IMediaLibraryItemIdentifier>("identifying");
+        var identifyingAsLibrary = registry.Find<IMediaLibraryProvider>("identifying");
+        var readingAsIdentifier = registry.Find<IMediaLibraryItemIdentifier>("reading");
 
         //Assert
-        Assert.Same(writing, writingAsWriter);
-        Assert.Same(writing, writingAsLibrary);
-        Assert.Null(readingAsWriter);
+        Assert.Same(identifying, identifyingAsIdentifier);
+        Assert.Same(identifying, identifyingAsLibrary);
+        Assert.Null(readingAsIdentifier);
     }
 
     [Fact]
@@ -224,9 +224,9 @@ public sealed class IntegrationAdapterRegistryTests
             Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
     }
 
-    /// <summary>A library type that also sets its items' ids, as JellyfinAdapter does since MAM-34.</summary>
-    private sealed class WritingLibraryAdapter(IntegrationAdapterDescriptor descriptor)
-        : IIntegrationAdapter, IMediaLibraryProvider, IMediaLibraryIdentifierWriter
+    /// <summary>A library type that also identifies its items, as JellyfinAdapter does since MAM-34.</summary>
+    private sealed class IdentifyingLibraryAdapter(IntegrationAdapterDescriptor descriptor)
+        : IIntegrationAdapter, IMediaLibraryProvider, IMediaLibraryItemIdentifier
     {
         public IntegrationAdapterDescriptor Descriptor => descriptor;
 
@@ -241,16 +241,12 @@ public sealed class IntegrationAdapterRegistryTests
         public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
             Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
 
-        public IReadOnlyList<MediaWorkKind> WritableKinds { get; } = [MediaWorkKind.Movie];
+        public IReadOnlyList<MediaWorkKind> IdentifiableKinds { get; } = [MediaWorkKind.Movie];
 
-        public string UnwritableKindReason(MediaWorkKind kind) => "The test adapter writes films only.";
+        public string UnidentifiableKindReason(MediaWorkKind kind) => "The test adapter identifies films only.";
 
-        public Task<IntegrationCallResult<LibraryIdentifierWrite>> WriteIdentifiersAsync(
-            IntegrationConnectionSettings settings, LibraryIdentifierChange change, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryIdentifierWrite>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
-
-        public Task<IntegrationCallResult<LibraryMetadataLookup>> RequestMetadataLookupAsync(
-            IntegrationConnectionSettings settings, string sourceItemId, MediaWorkKind kind, CancellationToken cancellationToken = default) =>
-            Task.FromResult(IntegrationCallResult<LibraryMetadataLookup>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+        public Task<IntegrationCallResult<LibraryIdentification>> IdentifyAsync(
+            IntegrationConnectionSettings settings, LibraryIdentifyRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<LibraryIdentification>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
     }
 }

@@ -3,28 +3,33 @@ import type { CatalogWorkKind } from './recommendations'
 
 // MAM-34 — a library work linked to its TMDb film or show by hand, as `/api/library/.../tmdb` describes
 // it. The link is the owner's word, kept per library item (a work can hold several: the two "Чужі").
-// A film's and a series' ids are written into the library's ProviderIds, and an episode's own IMDb id
-// for an episode Jellyfin lists as a film; Jellyfin is then asked to look up the item's missing
-// metadata (Vasyl's decision of 2026-10-06, ADR 0026). What the app has no id to write for stays in
-// the app, as the server says per item. Every route here is the installation owner's; members see a
-// linked id only on the cards, without the name.
+// Saving it makes Jellyfin identify each item as that film or show, exactly as Jellyfin's own web
+// "Identify" does: a film's or a series' item by its TMDb id, an episode Jellyfin lists as a film by the
+// episode's own IMDb id through the Open Movie Database. Jellyfin replaces the item's title, overview
+// and images, and there is no undo (Vasyl's decision of 2026-10-06, ADR 0026). What Jellyfin can't or
+// mustn't identify (a library that saves beside the media, a locked item, an episode with no IMDb id)
+// stays in the app, with the reason, per item. Every route here is the installation owner's; members
+// see a linked id only on the cards, without the name.
 
 /**
  * What a link says its library item is: the catalog work itself (a film item ↔ a TMDb film, a series ↔
  * a TMDb show), or an episode of a TMDb show (a film item Jellyfin lists as a movie, or an episode of no
- * series). A link to the work itself is written into Jellyfin as the work's ids; an episode's link to
- * its show only as the episode's own IMDb id — on a film item, a TMDb id would name a film —, and only
- * when it names a season and an episode TMDb knows that id of.
+ * series). Jellyfin identifies a link to the work itself by its TMDb id; an episode's link to its show
+ * only by the episode's own IMDb id — on a film item, a TMDb id would name a film —, and only when it
+ * names a season and an episode TMDb knows that id of.
  */
 export type LibraryLinkTarget = 'Work' | 'ShowEpisode'
 
 /**
- * Where a link stands against the library. KeptInApp: never written (an episode-to-show link without
+ * Where a link stands against Jellyfin. The names are the wire's and were kept when writing ids became
+ * identifying: "written" now means "identified". KeptInApp: never sent (an episode-to-show link without
  * a season and an episode or whose episode TMDb knows no IMDb id of, an episode of no series' link, or
- * a library that can't set ids). Queued: waiting for the background writer.
- * Writing: a write is under way. NotWritten: the write failed or wasn't confirmed, `writeError` says
- * why. Written: the library confirmed it and no sync has read it since. InLibrary: a sync read it as
- * the library's own. Lost: it was there and a later sync read the item without it.
+ * a library that can't identify). Queued: waiting for the background worker. Writing: Jellyfin is
+ * identifying the item. NotWritten: the identification was refused, failed or wasn't confirmed,
+ * `writeError` says why. Written: Jellyfin took the match and the app read the item again and saw it.
+ * InLibrary: a sync read the link's ids as the library's own. Lost: they were there and a later sync
+ * read the item without them. `identifiedUtc` on the item or row tells a link the app identified from a
+ * `Written` or `InLibrary` one set under the first rules, which put the ids only.
  */
 export type LibraryLinkWriteState = 'KeptInApp' | 'Queued' | 'Writing' | 'NotWritten' | 'Written' | 'InLibrary' | 'Lost'
 
@@ -50,8 +55,9 @@ export type LibraryLinkSuggestionRunStatus = 'Queued' | 'Running' | 'Succeeded' 
 export type LibraryLinkSuggestionRunTrigger = 'LibrarySynced' | 'CatalogConnected' | 'Requested'
 
 /**
- * The TMDb page's lists of links: those whose item is gone, those waiting for the library, those whose
- * library holds a third id, those not written, and those the library lost.
+ * The TMDb page's lists of links: those whose item is gone, those waiting for Jellyfin, those whose
+ * library holds a third id, those Jellyfin or the app refused or failed to identify (`NotWritten`;
+ * attached links only), and those the library lost.
  */
 export type LibraryLinkListFilter = 'Unattached' | 'Pending' | 'Conflict' | 'NotWritten' | 'Lost'
 
@@ -80,6 +86,17 @@ export interface LibraryWorkLink {
   writeError: string | null
   /** The library's TMDb id that is neither the link's nor one it replaces, when an item holds one: neither wins. */
   conflictingValue: string | null
+  /**
+   * Whether the work has a `Written` or `InLibrary` item link and every such link was identified by the
+   * app. False for links set under the first rules, which put ids only: the card says "Not identified yet".
+   */
+  identified: boolean
+  /**
+   * Whether any of the work's item links is `Queued` or `Writing`. `writeState` above is the worst of the
+   * states, so a work with a refused item and a queued one reports `NotWritten`: only this tells the
+   * Library page to keep asking.
+   */
+  underWay: boolean
 }
 
 /** Where the preparation of a work's suggestions stands. */
@@ -107,12 +124,12 @@ export interface LibraryLinkItem {
   /** What the library says the item is. */
   itemKind: MediaWorkKind
   /**
-   * Whether a link to the work itself would be written into the library: false for an episode of no
-   * series, and for a library switched off or that can't set ids.
+   * Whether Jellyfin would identify the item as its link: false for an item kind Jellyfin doesn't
+   * identify (an episode of no series), and for a library switched off or whose type can't identify.
    */
   canWrite: boolean
   /**
-   * Why the item's link isn't written, as the server's sentence, which the dialog shows under the item
+   * Why the item's link isn't identified, as the server's sentence, which the dialog shows under the item
    * whenever there is one: the item's (above), or its episode link's own (no season and episode, or no
    * IMDb id of that episode on TMDb).
    */
@@ -126,22 +143,15 @@ export interface LibraryLinkItem {
   episodeNumber: number | null
   imdbId: string | null
   /**
-   * An episode link's own IMDb id, as TMDb gives it for the season and episode: the one id written into
-   * the film item Jellyfin lists the episode as. Null for any other link, and until it is fetched.
+   * An episode link's own IMDb id, as TMDb gives it for the season and episode: the one Jellyfin
+   * identifies the film item it lists the episode as by. Null for any other link, and until it is fetched.
    */
   episodeImdbId: string | null
   writeState: LibraryLinkWriteState | null
-  /** Why the library doesn't hold it (the dialog is the owner's). */
+  /** Why Jellyfin didn't identify it (the dialog is the owner's), the server's sentence verbatim. */
   writeError: string | null
-  /** UTC with a trailing `Z`: when the state last changed. */
+  /** UTC with a trailing `Z`: when the state last changed; while `Writing`, when the identification began. */
   writeStateUtc: string | null
-  /**
-   * UTC with a trailing `Z`: when Jellyfin was last asked to look up the item's missing metadata, after
-   * a write (its "Search for missing metadata"); null when it never was.
-   */
-  lookupRequestedUtc: string | null
-  /** Why Jellyfin couldn't be asked for that lookup; null unless the last request failed (the owner's). */
-  lookupError: string | null
   /** UTC with a trailing `Z`: when the link was set or last replaced. */
   setUtc: string | null
   setByUserName: string | null
@@ -149,6 +159,12 @@ export interface LibraryLinkItem {
   libraryIdentifiers: LibraryIdentifier[]
   /** The library's TMDb id that is neither the link's nor one it replaces; null when there is none. */
   conflictingValue: string | null
+  /**
+   * UTC with a trailing `Z`: when an identification was confirmed in Jellyfin — the app saw the item
+   * show the match after Apply, or found it showing it already. Null for a link never identified,
+   * including a `Written` one set under the first rules, which put ids only.
+   */
+  identifiedUtc: string | null
 }
 
 /** How close a suggestion's titles come to the work's. */
@@ -252,7 +268,7 @@ export interface LinkCandidateList {
   items: LinkCandidate[]
 }
 
-/** `DELETE /api/library/works/{id}/tmdb`: the dialog as the removal left it. */
+/** `DELETE /api/library/works/{id}/tmdb`: the dialog as the removal left it (Jellyfin keeps what Identify set). */
 export interface LibraryLinkRemoveResult {
   dialog: LibraryLinkDialog
 }
@@ -368,11 +384,14 @@ export interface LibraryLinkRow {
   seasonNumber: number | null
   episodeNumber: number | null
   writeState: LibraryLinkWriteState
+  /** Why Jellyfin or the app didn't identify it, the server's sentence verbatim; null when nothing failed. */
   writeError: string | null
   /** UTC with a trailing `Z`. */
   setUtc: string
   setByUserName: string
   conflictingValue: string | null
+  /** UTC with a trailing `Z`: when an identification was confirmed; null for a link never identified. */
+  identifiedUtc: string | null
 }
 
 /** One work of an "Accept all confident" click. */
@@ -385,7 +404,7 @@ export interface LibraryLinkBatchItem {
   links: LibraryLinkRow[]
 }
 
-/** What "Accept all confident" did, polled again by its id while the writes are under way. */
+/** What "Accept all confident" did, polled again by its id while the identifications are under way. */
 export interface LibraryLinkBatch {
   batchId: string
   items: LibraryLinkBatchItem[]
@@ -399,15 +418,24 @@ export interface LibraryLinkList {
   pageSize: number
 }
 
+/** A batch of identifications under way: the links that carry its id, and how many are settled. */
+export interface LibraryLinkProgress {
+  batchId: string
+  /** Links carrying the batch id. */
+  total: number
+  /** Of them, those no longer `Queued` or `Writing`: identified, refused or failed — settled either way. */
+  done: number
+}
+
 /**
- * `GET` and `POST /api/library/tmdb/catch-up`: the links set before the app wrote series' and
- * episodes' links and asked Jellyfin for the lookup — what is left (GET), or what was queued (POST).
+ * `GET` and `POST /api/library/tmdb/catch-up`: what "Update Jellyfin" would still identify (GET), or
+ * what this click queued (POST), and the batch under way.
  */
 export interface LibraryLinkCatchUp {
-  /** Links kept in the app that the app can write now. */
-  toWrite: number
-  /** Links written (or read in the library) whose item's metadata Jellyfin wasn't asked to look up. */
-  toLookUp: number
+  /** GET: links a click would queue now. POST: links this click queued. */
+  toIdentify: number
+  /** The batch under way; null when none is. POST: the batch this click made, null when it queued nothing. */
+  progress: LibraryLinkProgress | null
 }
 
 /** The query params of `GET /api/library/tmdb/links`. */

@@ -12,9 +12,10 @@ using Microsoft.EntityFrameworkCore;
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
 // MAM-34 — the TMDb page's lists of links (GET /api/library/tmdb/links?filter=…): the links whose item the library no
-// longer reports, those waiting for or under a write, those whose item Jellyfin gave a third TMDb id, those not written
-// and those Jellyfin lost — filtered, counted and paged by the server, newest first, each with its work, its library and
-// its conflict. A missing or unknown filter, or a bad page, is a 400 with its sentence.
+// longer reports, those waiting for or under an identification, those whose item Jellyfin gave a third TMDb id, those not
+// identified (attached ones only: an unattached link has no card to open and is listed under Unattached) and those
+// Jellyfin lost — filtered, counted and paged by the server, newest first, each with its work, its library, its conflict
+// and when the app confirmed it identified. A missing or unknown filter, or a bad page, is a 400 with its sentence.
 public sealed class LibraryLinkListHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string LinksUrl = "/api/library/tmdb/links";
@@ -158,6 +159,50 @@ public sealed class LibraryLinkListHttpTests : IClassFixture<MediaAcquisitionMan
         //Assert
         var row = Assert.Single(list.Items);
         Assert.Equal((listed.Id, state, (string?)"Jellyfin said no."), (row.LinkId, row.WriteState, row.WriteError));
+    }
+
+    [Fact]
+    public async Task NotWritten_lists_attached_links_only_and_an_unattached_not_written_link_stays_under_unattached()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var workId = await SyncAsync(cancellationToken, (ShortId, null));
+        var attached = await _links.Create(
+            _jellyfinIntegration, ShortId, workId, MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.NotWritten,
+            configure: row => row.WriteError = "Jellyfin said no.");
+        // Its item is gone: its card has no button (Retry needs a work) and the repair never retries it.
+        var gone = await GoneAsync("01", "Calypso Cat", LibraryLinkWriteState.NotWritten);
+
+        //Act
+        var notWritten = await ReadListAsync($"{LinksUrl}?filter=NotWritten", cancellationToken);
+        var unattached = await ReadListAsync($"{LinksUrl}?filter=Unattached", cancellationToken);
+
+        //Assert
+        Assert.Equal([attached.Id], notWritten.Items.Select(row => row.LinkId));
+        Assert.Equal(1, notWritten.TotalCount);
+        Assert.Equal([gone.Id], unattached.Items.Select(row => row.LinkId));
+    }
+
+    [Fact]
+    public async Task List_rows_carry_the_time_the_app_confirmed_the_link_identified()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var workId = await SyncAsync(cancellationToken, (ShortId, null), (OtherShortId, null));
+        var otherWorkId = await WorkOfAsync(OtherShortId, cancellationToken);
+        var identifiedAt = _factory.Time.GetUtcNow().UtcDateTime;
+        await _links.Create(
+            _jellyfinIntegration, ShortId, workId, MediaIdentifierScheme.Tmdb, FilmId, writeState: LibraryLinkWriteState.Lost,
+            configure: row => row.IdentifiedUtc = identifiedAt);
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+        await _links.Create(_jellyfinIntegration, OtherShortId, otherWorkId, MediaIdentifierScheme.Tmdb, "300", writeState: LibraryLinkWriteState.Lost);
+
+        //Act
+        var list = await ReadListAsync($"{LinksUrl}?filter=Lost", cancellationToken);
+
+        //Assert
+        // Newest first: the link never confirmed, then the one the app did.
+        Assert.Equal([(DateTime?)null, identifiedAt], list.Items.Select(row => row.IdentifiedUtc));
     }
 
     [Theory]

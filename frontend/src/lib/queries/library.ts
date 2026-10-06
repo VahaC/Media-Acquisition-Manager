@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { libraryApi } from '../library-api'
+import { LIBRARY_POLL_MS } from '../library-links'
 import { isSyncUnderWay } from '../library-runs'
 import type { LibraryEpisodesQuery, LibrarySourceList, LibraryWorksQuery } from '../types'
 import { qk } from './keys'
@@ -16,12 +17,20 @@ const SYNC_POLL_MS = 2_000
 /**
  * One page of the Library page's works, searched, filtered and paged by the server. The previous
  * page stays on screen while the next one loads, so typing a search doesn't blank the list.
+ *
+ * MAM-34 — a card whose link waits for Jellyfin or is being identified follows it to its end, even after
+ * the dialog that started it was closed: an identification runs in the background (a series' for
+ * minutes). It reads the card's `underWay` flag, not `writeState`, which is the worst state over the
+ * work's items — a work with one refused item and one queued reports `NotWritten` and would never be
+ * followed. The cadence is `LIBRARY_POLL_MS`, not the 2 s of the cheap counters, because every tick
+ * fetches the whole paged works payload.
  */
 export const useLibraryWorks = (query: LibraryWorksQuery) =>
   useQuery({
     queryKey: qk.library.works(query),
     queryFn: () => libraryApi.works(query),
     placeholderData: keepPreviousData,
+    refetchInterval: (poll) => (poll.state.data?.items.some((work) => work.link?.underWay === true) ? LIBRARY_POLL_MS : false),
     // A 400 for a bad page or filter won't change on a second try.
     retry: false,
   })

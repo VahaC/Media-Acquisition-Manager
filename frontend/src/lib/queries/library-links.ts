@@ -1,10 +1,11 @@
 import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { isBatchUnderWay, isSuggestionRunUnderWay } from '../library-links'
+import { isBatchUnderWay, isLinkUnderWay, isSuggestionRunUnderWay, LINK_POLL_MS } from '../library-links'
 import { libraryLinksApi } from '../library-links-api'
 import type {
   ConfidentSuggestionsQuery,
   LibraryLinkAcceptItem,
   LibraryLinkBatch,
+  LibraryLinkCatchUp,
   LibraryLinkDialog,
   LibraryLinkList,
   LibraryLinkLookupQuery,
@@ -16,26 +17,34 @@ import type {
 import { qk } from './keys'
 
 /**
- * MAM-34 — how often an open dialog is asked for again while one of its items is being written (or
- * waits for the background writer) or its suggestions are being prepared. A write takes a few seconds
- * (the one save the live check of 2026-10-05 timed took Jellyfin 4.5 s — a series'), so the 2 s of a
- * sync's progress line rather than the 10 s of other live views.
+ * MAM-34 — a work's TMDb dialog (owner-only), asked for when the dialog opens and again every
+ * `LINK_POLL_MS` while an item waits for Jellyfin or is being identified (a film takes seconds, a series
+ * minutes) or the suggestions are being prepared, so the state and the suggestions fill in by
+ * themselves.
+ *
+ * When an identification that was under way in the answer the cache held is over in the new one, the
+ * works (the cards) and the other link queries (the panel's counts, the lists) are asked for again: the
+ * dialog may long since have been closed or never been the one that started it, and nothing else tells
+ * them the link has settled. The pattern `useLibraryLinkBatch` uses. Only a link's own identification
+ * counts: a preparation of the suggestions ending is no link change and mustn't refetch the works and the
+ * Review queue.
  */
-const LINK_POLL_MS = 2_000
-
-/**
- * MAM-34 — a work's TMDb dialog (owner-only), asked for when the dialog opens and again every 2 s while
- * an item's write is under way or the suggestions are being prepared, so the state and the suggestions
- * fill in by themselves.
- */
-export const useLibraryLinkDialog = (workId: string) =>
-  useQuery({
+export const useLibraryLinkDialog = (workId: string) => {
+  const queryClient = useQueryClient()
+  return useQuery({
     queryKey: qk.library.links.work(workId),
-    queryFn: () => libraryLinksApi.dialog(workId),
+    queryFn: async () => {
+      const next = await libraryLinksApi.dialog(workId)
+      // Read after the answer arrived: a save meanwhile has put its queued items in the cache.
+      const previous = queryClient.getQueryData<LibraryLinkDialog>(qk.library.links.work(workId))
+      if (linkUnderWay(previous) && !linkUnderWay(next)) invalidateAfterLinkChange(queryClient, workId)
+      return next
+    },
     refetchInterval: (query) => (underWay(query.state.data) ? LINK_POLL_MS : false),
     // A 403 or a 404 for a work a sync removed won't change on a second try.
     retry: false,
   })
+}
 
 /**
  * MAM-34 — a free TMDb search from a work's dialog, asked only once the owner searches (`query` null
@@ -59,8 +68,9 @@ export const useLibraryLinkLookup = (workId: string, query: LibraryLinkLookupQue
   })
 
 /**
- * MAM-34 — links a work's items to a TMDb film or show, or replaces their link (owner-only). The
- * answer is the dialog as the save left it, so it goes into the cache at once; see
+ * MAM-34 — links a work's items to a TMDb film or show, or replaces their link (owner-only). Jellyfin's
+ * identification is queued, never waited for: the answer is the dialog as the save left it, the items
+ * `Queued`, and it goes into the cache at once, where the dialog's poll takes over; see
  * `invalidateAfterLinkChange` for what else is asked for again.
  */
 export const useSetLibraryLink = (workId: string) => {
@@ -75,8 +85,9 @@ export const useSetLibraryLink = (workId: string) => {
 }
 
 /**
- * MAM-34 — removes a work's links (owner-only). A 200 brings the dialog as the removal left it; a 204
- * (nothing was linked — another tab removed it) brings nothing, so the dialog is asked for again.
+ * MAM-34 — removes a work's links in the app (owner-only); Jellyfin keeps what Identify set. A 200
+ * brings the dialog as the removal left it; a 204 (nothing was linked — another tab removed it) brings
+ * nothing, so the dialog is asked for again.
  */
 export const useRemoveLibraryLink = (workId: string) => {
   const queryClient = useQueryClient()
@@ -91,9 +102,10 @@ export const useRemoveLibraryLink = (workId: string) => {
 }
 
 /**
- * MAM-34 — Retry, or Write again, for one item's link (owner-only). The answer isn't read: the dialog
- * is asked for again whatever it was, as a 409 usually means a write is already under way, which the
- * refetch then shows (and polls until it ends). The works are asked for again for the card's state.
+ * MAM-34 — Identify in Jellyfin, Retry or Identify again for one item's link (owner-only). The answer
+ * isn't read: the dialog is asked for again whatever it was, as a 409 usually means an identification
+ * is already under way, which the refetch then shows (and polls until it ends). The works are asked for
+ * again for the card's state.
  */
 export const useWriteLibraryLink = (workId: string) => {
   const queryClient = useQueryClient()
@@ -121,10 +133,31 @@ function invalidateAfterLinkChange(queryClient: QueryClient, workId: string) {
   })
 }
 
-/** Whether an open dialog shows something under way that a poll will bring the end of. */
+/**
+ * Every page of every filter's list of links asked for again (the Not identified count and tab, the
+ * Conflicts and Unattached tabs), except the list of `except`: a hook that is itself returning that
+ * list's answer must not invalidate it, or its own fetch is cancelled and started over without end.
+ */
+function invalidateLinkLists(queryClient: QueryClient, except?: LibraryLinksQuery) {
+  void queryClient.invalidateQueries({
+    queryKey: qk.library.links.all,
+    predicate: (query) => {
+      if (query.queryKey[2] !== 'list') return false
+      const listed = query.queryKey[3] as LibraryLinksQuery
+      return except === undefined
+        || listed.filter !== except.filter || listed.page !== except.page || listed.pageSize !== except.pageSize
+    },
+  })
+}
+
+/** Whether one of an open dialog's items waits for Jellyfin or is being identified: a link change a poll will bring the end of. */
+function linkUnderWay(dialog: LibraryLinkDialog | null | undefined): boolean {
+  return dialog != null && dialog.items.some((item) => isLinkUnderWay(item.writeState))
+}
+
+/** Whether an open dialog shows something under way that a poll will bring the end of: an identification, or suggestions being prepared. */
 function underWay(dialog: LibraryLinkDialog | null | undefined): boolean {
-  return dialog != null && (dialog.search.pending
-    || dialog.items.some((item) => item.writeState === 'Queued' || item.writeState === 'Writing'))
+  return dialog != null && (dialog.search.pending || linkUnderWay(dialog))
 }
 
 // ── the TMDb page ──
@@ -180,11 +213,11 @@ export const useConfidentSuggestions = (query: ConfidentSuggestionsQuery) =>
   })
 
 /**
- * MAM-34 — "Link N works": links the ticked works to their confident suggestion (owner-only), the
- * library writes left to the background. The answer is the batch's first state, put in the cache so
+ * MAM-34 — "Link N works": links the ticked works to their confident suggestion (owner-only), Jellyfin's
+ * identifications left to the background. The answer is the batch's first state, put in the cache so
  * its rows show at once and poll from there (`useLibraryLinkBatch`). The works and the other link
  * queries are asked for again — but not the confident list, whose rows the page keeps as they were
- * clicked while their writes are followed (R24), nor the batches, which poll themselves.
+ * clicked while their identifications are followed (R24), nor the batches, which poll themselves.
  */
 export const useAcceptConfidentSuggestions = () => {
   const queryClient = useQueryClient()
@@ -202,9 +235,9 @@ export const useAcceptConfidentSuggestions = () => {
 }
 
 /**
- * MAM-34 — an "Accept all confident" click followed while its writes are under way (owner-only):
- * asked for every 2 s until no link of it waits or is being written. The answer that brings the last
- * write's end asks for the works again, for the cards' states.
+ * MAM-34 — an "Accept all confident" click followed while its identifications are under way (owner-only):
+ * asked for every 2 s until no link of it waits or is being identified. The answer that brings the last
+ * one's end asks for the works again, for the cards' states.
  *
  * Each answer holds only the linked works: it is rebuilt from the stored links, and a skipped work
  * isn't stored, so the caller keeps the click's own answer for those. `enabled` is false for a click
@@ -231,11 +264,15 @@ export const useLibraryLinkBatch = (batchId: string, enabled: boolean) => {
   })
 }
 
-/** MAM-34 — one page of the links of a filter: the conflicts, or those whose item is gone (owner-only). */
-export const useLibraryLinkList = (query: LibraryLinksQuery) =>
+/**
+ * MAM-34 — one page of the links of a filter: the conflicts, those whose item is gone, or those not
+ * identified (owner-only). `enabled` is false for a member, whom the API refuses (the panel's count).
+ */
+export const useLibraryLinkList = (query: LibraryLinksQuery, enabled = true) =>
   useQuery({
     queryKey: qk.library.links.list(query),
     queryFn: () => libraryLinksApi.links(query),
+    enabled,
     placeholderData: keepPreviousData,
     // A 400 for a filter or a page the server refuses won't change on a second try.
     retry: false,
@@ -317,29 +354,47 @@ function suggestionsMayHaveChanged(
 
 // ── Update Jellyfin ──
 
-/** The Pending list one link at a time: its count is how many links wait for the writer or are being written. */
+/** The Pending list one link at a time: its count is how many links wait for Jellyfin or are being identified. */
 const PENDING_LINKS: LibraryLinksQuery = { filter: 'Pending', page: 1, pageSize: 1 }
 
 /**
- * MAM-34 — what "Update Jellyfin" would still send (owner-only, Vasyl's decision of 2026-10-06): the
- * links kept in the app that can be written now (series', episodes' with a season and an episode), and
- * the written ones whose item Jellyfin wasn't asked to look up. `enabled` is false for a member, whom
- * the API refuses.
+ * MAM-34 — what "Update Jellyfin" would still identify, and the batch under way (owner-only, Vasyl's
+ * decision of 2026-10-06). `enabled` is false for a member, whom the API refuses.
+ *
+ * Asked for again every `LINK_POLL_MS` while a batch is under way (`progress` not null), so its "done of
+ * total" moves and a reload in the middle finds it still going. The answer that brings its end (the
+ * cache held a batch, the new one holds none) asks for the works and every list of links again: the
+ * cards, the Not identified count and its tab changed.
  */
-export const useLibraryLinkCatchUp = (enabled: boolean) =>
-  useQuery({
+export const useLibraryLinkCatchUp = (enabled: boolean) => {
+  const queryClient = useQueryClient()
+  return useQuery({
     queryKey: qk.library.links.catchUp,
-    queryFn: () => libraryLinksApi.catchUp(),
+    queryFn: async () => {
+      const next = await libraryLinksApi.catchUp()
+      // Read after the answer arrived: a start meanwhile has put its batch in the cache.
+      const previous = queryClient.getQueryData<LibraryLinkCatchUp>(qk.library.links.catchUp)
+      if (previous?.progress != null && next.progress === null) {
+        void queryClient.invalidateQueries({ queryKey: qk.library.worksAll })
+        invalidateLinkLists(queryClient)
+      }
+      return next
+    },
     enabled,
+    refetchInterval: (query) => (query.state.data?.progress != null ? LINK_POLL_MS : false),
     // A 403 for anyone but the owner won't change on a second try.
     retry: false,
   })
+}
 
 /**
- * MAM-34 — how many links wait for the background writer or are being written (owner-only), read from
- * the Pending list a link at a time and asked for every 2 s while there are any: "Update Jellyfin"
- * follows its writes by it, and a reload in the middle of them finds them still under way. The answer
- * that brings the last write's end asks for the counts and the works again.
+ * MAM-34 — how many links wait for the background worker or are being identified (owner-only), read
+ * from the Pending list a link at a time and asked for every `LINK_POLL_MS` while there are any. A link
+ * queued from the dialog or the Review tab carries no batch id, so the catch-up's `progress` never
+ * mentions it and the panel would never learn it failed; this list does. The answer that brings the
+ * last one's end asks for the counts, every other list of links (the Not identified count and tab) and
+ * the works again. The Pending list itself is left out of that: invalidating the query whose answer is
+ * being returned would cancel it and ask again, with the same cache, forever.
  */
 export const usePendingLibraryLinks = (enabled: boolean) => {
   const queryClient = useQueryClient()
@@ -352,6 +407,7 @@ export const usePendingLibraryLinks = (enabled: boolean) => {
       if (previous !== undefined && previous.totalCount > 0 && next.totalCount === 0) {
         void queryClient.invalidateQueries({ queryKey: qk.library.links.catchUp })
         void queryClient.invalidateQueries({ queryKey: qk.library.worksAll })
+        invalidateLinkLists(queryClient, PENDING_LINKS)
       }
       return next
     },
@@ -362,11 +418,11 @@ export const usePendingLibraryLinks = (enabled: boolean) => {
 }
 
 /**
- * MAM-34 — "Update Jellyfin" (owner-only): queues the links the counts name for the background writer.
- * Its answer, what it queued, isn't kept: every link query is asked for again — the counts, now
- * without the queued links, and the Pending list, whose poll then follows the writes — and so are the
- * works, whose cards show their links waiting. The click ends once the link queries have answered, so
- * the button doesn't come back on between the start and the first count of the writes.
+ * MAM-34 — "Update Jellyfin" (owner-only): queues the links the count names for the background worker.
+ * Its answer isn't kept: every link query is asked for again — the counts, now without the queued
+ * links and with the batch's progress, which starts the progress poll — and so are the works, whose
+ * cards show their links waiting. The click ends once the link queries have answered, so the button
+ * doesn't come back on between the start and the first progress.
  */
 export const useStartLibraryLinkCatchUp = () => {
   const queryClient = useQueryClient()

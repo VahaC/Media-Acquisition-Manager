@@ -133,6 +133,11 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <see cref="ResetAsync"/>.</summary>
     public FakeIntegrationAdapter FakeAdapter { get; } = new();
 
+    /// <summary>MAM-34 — the <c>fake-library</c> integration type, registered beside the real ones: a media library that
+    /// identifies items and answers each identification as a test arms it, so the link writer and its worker are tested
+    /// without a Jellyfin. Reset by <see cref="ResetAsync"/>.</summary>
+    public FakeLibraryItemIdentifier FakeLibraryIdentifier { get; } = new();
+
     /// <summary>The network behind the Jellyfin adapter's client; 503 until armed. Reset by
     /// <see cref="ResetAsync"/>.</summary>
     public RecordingHttpHandler JellyfinHttp { get; } = new();
@@ -243,7 +248,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// Puts the factory back to a clean state; every test calls it first. Empties every table of the
     /// EF model in one batched command (a round trip per table adds up across a suite), rewinds the
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
-    /// <see cref="FakeAdapter"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>,
+    /// <see cref="FakeAdapter"/>, <see cref="FakeLibraryIdentifier"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>,
     /// <see cref="TransactionHook"/> and <see cref="DbCommandHook"/>, empties
     /// <see cref="Files"/>, drains the library sync, file inspection, folder scan and — MAM-33 — recommendation run
     /// queues (a run id a test queued but never ran would otherwise reach the next test's worker) and — MAM-34 — the
@@ -259,6 +264,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         Logs.Clear();
         PasswordHasher.Clear();
         FakeAdapter.Reset();
+        FakeLibraryIdentifier.Reset();
         JellyfinHttp.Reset();
         TorznabHttp.Reset();
         QBittorrentHttp.Reset();
@@ -357,6 +363,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<ILoggerProvider>(Logs);
             // Beside the real adapters, not instead of them: the registry takes every one registered.
             services.AddSingleton<IIntegrationAdapter>(FakeAdapter);
+            // MAM-34 — a library type that identifies items, answering whatever a test arms, beside the real Jellyfin adapter.
+            services.AddSingleton<IIntegrationAdapter>(FakeLibraryIdentifier);
             // The app attaches every save interceptor in the container; unarmed, this one does nothing.
             services.AddSingleton<ISaveChangesInterceptor>(SaveChangesHook);
             // MAM-11 — added to the context's options after the app's own configuration, beside its
@@ -373,6 +381,9 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             // ConfigurePrimaryHttpMessageHandler and win; everything else about each client (timeout,
             // buffer limit, user agent, no logging handlers) stays the app's.
             UsePrimaryHandler(services, JellyfinAdapter.HttpClientName, JellyfinHttp);
+            // MAM-34 — Apply goes through a client of its own; one handler for both, so a test sees every Jellyfin request
+            // in one ordered list.
+            UsePrimaryHandler(services, JellyfinAdapter.IdentifyHttpClientName, JellyfinHttp);
             UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
             UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
             UsePrimaryHandler(services, TmdbAdapter.HttpClientName, TmdbHttp);

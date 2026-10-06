@@ -7,28 +7,29 @@ using Microsoft.AspNetCore.Mvc;
 namespace MediaAcquisitionManager.Api.Controllers.Library.Links;
 
 /// <summary>
-/// MAM-34 — the catch-up (Vasyl's decision of 2026-10-06): the links set before the app wrote series and episodes into
-/// the library and asked it to look a written item up, and any link not in it yet, brought to today's rules on the
-/// owner's click — what it would send, and the click that queues it.
+/// MAM-34 — the repair (Vasyl's decisions of 2026-10-06; the TMDb page's "Update Jellyfin", the route keeps its old name):
+/// the links the library was never confirmed to show — those set before the app identified items, and any whose
+/// identification was refused or failed before anything was sent — identified on the owner's click: what it would
+/// identify, and the click that queues it.
 /// </summary>
 /// <remarks>
 /// The installation owner's alone, both actions, by where this controller lives (<see cref="LibraryLinksAreOwnerOnlyConvention"/>,
-/// R19): the click writes into the owner's library. The writes are long work done by the background writer, one link at a
-/// time (202, the rows are the queue, the reconciler); the page follows them through the links list's <c>Pending</c>
-/// filter. Nothing happens without the click.
+/// R19): the click changes the owner's library. The identifications are long work done by the background writer, in
+/// bounded lanes (202, the rows are the queue, the reconciler); the answer carries the batch's progress, which the page
+/// polls through <c>GET</c> again. Nothing happens without the click.
 /// </remarks>
 [ApiController]
 [Authorize]
 [Route("api/library/tmdb/catch-up")]
 public class LibraryLinkCatchUpController(ILibraryLinkService links) : ControllerBase
 {
-    /// <summary>How many links the catch-up would write, and how many it would ask the library to look up.</summary>
+    /// <summary>How many links the repair would identify now, and the progress of the batch under way.</summary>
     [HttpGet]
     public async Task<ActionResult<LibraryLinkCatchUpResponse>> Read(CancellationToken cancellationToken) =>
         Ok(await links.ReadCatchUpAsync(cancellationToken));
 
-    /// <summary>Queues those links for the background writer, which writes each and asks the library to look its item up;
-    /// 202 with how many it queued of each.</summary>
+    /// <summary>Queues those links under one new batch for the background writer, which identifies each; 202 with how many it
+    /// queued and the batch's progress.</summary>
     [HttpPost]
     public async Task<ActionResult<LibraryLinkCatchUpResponse>> Start(CancellationToken cancellationToken) =>
         Accepted(await links.StartCatchUpAsync(cancellationToken));

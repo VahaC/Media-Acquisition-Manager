@@ -41,8 +41,7 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
             libraryMapper.ToDtos(libraryRows),
             link is null ? null : ConflictingValue(link, libraryRows),
             link?.EpisodeImdbId,
-            link?.LookupRequestedUtc,
-            link?.LookupError);
+            link?.IdentifiedUtc);
 
     public LibraryLinkRowDto ToRowDto(
         LibraryItemLinkEntity link,
@@ -66,7 +65,8 @@ public sealed class LibraryLinkMapper(ILibraryMapper libraryMapper) : ILibraryLi
             link.WriteError,
             link.SetUtc,
             link.SetByUserName,
-            ConflictingValue(link, libraryRows));
+            ConflictingValue(link, libraryRows),
+            link.IdentifiedUtc);
 
     public MediaWorkKind CatalogKindOf(MediaIdentifierScheme scheme) =>
         scheme == MediaIdentifierScheme.TmdbTv ? MediaWorkKind.Series : MediaWorkKind.Movie;

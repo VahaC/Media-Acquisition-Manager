@@ -25,8 +25,12 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// </remarks>
 public sealed class IntegrationAdapterHarness : IDisposable
 {
+    // MAM-34 — Jellyfin's Apply has a client of its own (a 20-minute timeout); a test that shrinks the timeouts shrinks it too.
     private static readonly string[] ClientNames =
-        [JellyfinAdapter.HttpClientName, TorznabAdapter.HttpClientName, QBittorrentAdapter.HttpClientName, TmdbAdapter.HttpClientName];
+    [
+        JellyfinAdapter.HttpClientName, JellyfinAdapter.IdentifyHttpClientName, TorznabAdapter.HttpClientName,
+        QBittorrentAdapter.HttpClientName, TmdbAdapter.HttpClientName,
+    ];
 
     private readonly ServiceProvider _services;
 
@@ -47,6 +51,8 @@ public sealed class IntegrationAdapterHarness : IDisposable
         if (fakeNetwork)
         {
             UsePrimaryHandler(services, JellyfinAdapter.HttpClientName, JellyfinHttp);
+            // One recording handler for both Jellyfin clients, so a test sees every request in one ordered list.
+            UsePrimaryHandler(services, JellyfinAdapter.IdentifyHttpClientName, JellyfinHttp);
             UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
             UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
             UsePrimaryHandler(services, TmdbAdapter.HttpClientName, TmdbHttp);
@@ -61,7 +67,8 @@ public sealed class IntegrationAdapterHarness : IDisposable
         _services = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
     }
 
-    /// <summary>The network behind the <c>jellyfin</c> client.</summary>
+    /// <summary>The network behind the <c>jellyfin</c> client and, MAM-34, the <c>jellyfin-identify</c> client Apply goes
+    /// through: one handler, so the requests of an identification are one ordered list.</summary>
     public RecordingHttpHandler JellyfinHttp { get; } = new();
 
     /// <summary>The network behind the <c>torznab</c> client.</summary>

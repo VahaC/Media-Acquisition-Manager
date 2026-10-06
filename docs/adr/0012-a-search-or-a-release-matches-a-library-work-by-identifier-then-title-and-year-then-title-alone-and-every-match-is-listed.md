@@ -448,3 +448,11 @@ duration ffprobe measured; even then, only the owner's click links it.
 `TitleSimilarityTests.Of_counts_the_pairs_both_titles_have_by_dice`,
 `LinkSuggestionRankingTests.Rank_makes_nothing_confident_a_year_off` and
 `LinkSuggestionRankingTests.Rank_makes_nothing_confident_when_two_exact_titles_share_the_year` pin it.
+
+**Amended 2026-10-06 (ADR 0026's Identify section, added in 0.2.1).** The words "a series' link, never
+written into Jellyfin, never" in the section above had been stale since a series' link began to be
+written, and no longer hold at all. The id a link replaces matches nothing while the library hasn't
+taken the link, until a sync reads the link's key in the item, and a series' link is identified like a
+film's: Jellyfin's Identify replaces the item's title, overview and images with TMDb's, and the id the
+link leaves in the item is read back at the next sync as the library's own. The rule that a linked id is
+an identifier, and that a link replaces the guess, stands.

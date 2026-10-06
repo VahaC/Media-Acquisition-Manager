@@ -20,7 +20,9 @@ import {
   linkedDialogOf,
   linkedItemOf,
   linksPage,
+  lockedSentence,
   queueOf,
+  queuedItemOf,
   suggestionRunOf,
 } from '@/test/library-links'
 
@@ -31,7 +33,9 @@ vi.mock('@/lib/search-api')
 // MAM-34 — the TMDb page's Review tab (R24): the works without a TMDb id one at a time, with the
 // dialog's content inline, and its keys — 1–5 pick a suggestion, Enter or Save links it, 0 is "None
 // fits", → skips (wrapping), / goes to the search field ahead of the header's — each left alone where
-// it belongs to something else.
+// it belongs to something else. A saved pick does not wait for Jellyfin to identify the item: the tab
+// moves on at once and says what happened, and the editor says above its buttons what an
+// identification replaces.
 
 /** The works the queue holds, in its order; a link or "none fits" takes one out, as the API does. */
 let waiting: LibraryLinkDialog[] = []
@@ -146,6 +150,24 @@ describe('LibraryTmdbPage Review tab', () => {
     expect(screen.getByText('Linked “120. Landing Stripling” to Посадка Стріплінга (Film, TMDb 223021).')).toBeInTheDocument()
   })
 
+  it('says above the buttons what Jellyfin will replace once a suggestion is picked, and not before', async () => {
+    // Arrange
+    const { user } = renderPage()
+    await workHeading('120. Landing Stripling (1962)')
+    const statement = /^Saving makes Jellyfin identify each ticked item as this film/
+    const before = screen.queryByText(statement)
+
+    // Act
+    await user.keyboard('1')
+
+    // Assert
+    expect(before).toBeNull()
+    const shown = screen.getByText(statement)
+    expect(shown).toHaveTextContent('it replaces the item\'s title, overview and images with TMDb\'s')
+    expect(shown).toHaveTextContent('There is no undo; your files and folders are not touched.')
+    expect(shown.compareDocumentPosition(saveButton()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('links the suggestion a digit picked with Save too', async () => {
     // Arrange
     const { user } = renderPage()
@@ -176,11 +198,55 @@ describe('LibraryTmdbPage Review tab', () => {
     expect(libraryLinksApi.link).not.toHaveBeenCalled()
   })
 
-  it('says when Jellyfin didn\'t take the link\'s write, and still moves on', async () => {
+  it('says Jellyfin identifies the link in the background, and moves on at once', async () => {
     // Arrange
     vi.mocked(libraryLinksApi.link).mockImplementation(async (workId) => {
       leave(workId)
-      return linkedDialogOf({ items: [linkedItemOf({ writeState: 'NotWritten', writeError: 'Jellyfin refused to change the item\'s ids.' })] })
+      return linkedDialogOf({ items: [queuedItemOf()] })
+    })
+    const { user } = renderPage()
+    await workHeading('120. Landing Stripling (1962)')
+
+    // Act
+    await user.keyboard('1')
+    await user.keyboard('{Enter}')
+
+    // Assert
+    expect(await workHeading('Planet_Earth_E08 - Jungles')).toBeInTheDocument()
+    const line = screen.getByText(/^Linked “120. Landing Stripling”/)
+    expect(line).toHaveTextContent('Linked “120. Landing Stripling” to Посадка Стріплінга (Film, TMDb 223021). '
+      + 'Jellyfin identifies it in the background; the Not identified tab lists it if that fails.')
+    expect(line.closest('[role="status"]')).toHaveAttribute('data-status', 'Succeeded')
+    // The tab did not wait for the identification: the one request was the save.
+    expect(libraryLinksApi.link).toHaveBeenCalledOnce()
+  })
+
+  it('says why the app keeps the link to itself when only the save found out, and still moves on', async () => {
+    // Arrange
+    const noImdb = 'TMDb gives this episode no IMDb id, so Jellyfin can not be asked to identify it.'
+    vi.mocked(libraryLinksApi.link).mockImplementation(async (workId) => {
+      leave(workId)
+      return linkedDialogOf({ items: [linkedItemOf({ writeState: 'KeptInApp', writeError: noImdb, cannotWriteReason: noImdb, identifiedUtc: null })] })
+    })
+    const { user } = renderPage()
+    await workHeading('120. Landing Stripling (1962)')
+
+    // Act
+    await user.keyboard('1')
+    await user.keyboard('{Enter}')
+
+    // Assert
+    expect(await workHeading('Planet_Earth_E08 - Jungles')).toBeInTheDocument()
+    const line = screen.getByText(`Linked “120. Landing Stripling” to Посадка Стріплінга (Film, TMDb 223021), but the app keeps the link to itself: ${noImdb}`)
+    expect(line.closest('p')).toHaveClass('library-source-warning')
+    expect(line.closest('[role="status"]')).not.toBeNull()
+  })
+
+  it('says when Jellyfin didn\'t identify the link, and still moves on', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.link).mockImplementation(async (workId) => {
+      leave(workId)
+      return linkedDialogOf({ items: [linkedItemOf({ writeState: 'NotWritten', writeError: lockedSentence, identifiedUtc: null })] })
     })
     const { user } = renderPage()
     await workHeading('120. Landing Stripling (1962)')
@@ -192,8 +258,9 @@ describe('LibraryTmdbPage Review tab', () => {
     // Assert
     expect(await workHeading('Planet_Earth_E08 - Jungles')).toBeInTheDocument()
     // The way to Retry: the Library card has only the state, its reason and Retry are in its dialog.
-    expect(screen.getByText('Linked “120. Landing Stripling” to Посадка Стріплінга (Film, TMDb 223021), but Jellyfin '
-      + 'doesn\'t hold the id yet: open TMDb… on its Library card to see why and Retry.')).toBeInTheDocument()
+    const line = screen.getByText('Linked “120. Landing Stripling” to Посадка Стріплінга (Film, TMDb 223021), but Jellyfin '
+      + 'didn\'t identify it: open TMDb… on its Library card to see why and Retry.')
+    expect(line.closest('p')).toHaveClass('library-source-warning')
   })
 
   it('marks that none fits with 0, shows the next work at the same place, and takes the mark back with Undo', async () => {

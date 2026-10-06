@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { libraryLinksApi } from '@/lib/library-links-api'
-import { candidateOf, dialogOf, landingStripling, linkedDialogOf, linkId } from '@/test/library-links'
+import { batchId, candidateOf, dialogOf, landingStripling, linkedDialogOf, linkId, progressOf, queuedItemOf } from '@/test/library-links'
 
 /**
  * Answers every request with `status` and `body`, and keeps the requests it was sent. A replaced
@@ -45,16 +45,19 @@ describe('libraryLinksApi', () => {
     expect(api.getUri(requests[0])).toBe(`/api/library/works/${workId}/tmdb`)
   })
 
-  it('puts the pick, its numbers and items as the body of the link', async () => {
+  it('puts the pick, its numbers and items as the body of the link and hands back the dialog with its item queued', async () => {
     // Arrange
-    const requests = respondWith(200, linkedDialogOf())
+    const queued = linkedDialogOf({ items: [queuedItemOf()] })
+    const requests = respondWith(200, queued)
     const request = { catalogKind: 'Series' as const, catalogId: '1044', seasonNumber: '1', episodeNumber: '8', sourceItemIds: ['c0ffee'] }
 
     // Act
     const dialog = await libraryLinksApi.link(workId, request)
 
     // Assert
-    expect(dialog).toEqual(linkedDialogOf())
+    expect(dialog).toEqual(queued)
+    expect(dialog.items[0].writeState).toBe('Queued')
+    expect(dialog.items[0].identifiedUtc).toBeNull()
     expect(requests[0].method).toBe('put')
     expect(api.getUri(requests[0])).toBe(`/api/library/works/${workId}/tmdb`)
     expect(JSON.parse(requests[0].data as string)).toEqual(request)
@@ -84,7 +87,7 @@ describe('libraryLinksApi', () => {
     expect(result).toBeNull()
   })
 
-  it('writes one item\'s link again by the link\'s id', async () => {
+  it('queues one item\'s identification by the link\'s id', async () => {
     // Arrange
     const requests = respondWith(200, linkedDialogOf())
 
@@ -193,28 +196,42 @@ describe('libraryLinksApi', () => {
     expect(api.getUri(requests[0])).toBe(`/api/library/tmdb/links/${linkId}`)
   })
 
-  it('reads what Update Jellyfin would send', async () => {
+  it('reads what Update Jellyfin would identify when no batch is under way', async () => {
     // Arrange
-    const requests = respondWith(200, { toWrite: 3, toLookUp: 12 })
+    const requests = respondWith(200, { toIdentify: 223, progress: null })
 
     // Act
     const counts = await libraryLinksApi.catchUp()
 
     // Assert
-    expect(counts).toEqual({ toWrite: 3, toLookUp: 12 })
+    expect(counts).toEqual({ toIdentify: 223, progress: null })
     expect(requests[0].method).toBe('get')
     expect(api.getUri(requests[0])).toBe('/api/library/tmdb/catch-up')
   })
 
-  it('posts Update Jellyfin with no body and hands back what it queued', async () => {
+  it('reads the batch under way with its total and how many are settled', async () => {
     // Arrange
-    const requests = respondWith(202, { toWrite: 3, toLookUp: 12 })
+    const progress = progressOf()
+    const requests = respondWith(200, { toIdentify: 182, progress })
+
+    // Act
+    const counts = await libraryLinksApi.catchUp()
+
+    // Assert
+    expect(counts).toEqual({ toIdentify: 182, progress: { batchId, total: 223, done: 41 } })
+    expect(api.getUri(requests[0])).toBe('/api/library/tmdb/catch-up')
+  })
+
+  it('posts Update Jellyfin with no body and hands back what it queued and its batch', async () => {
+    // Arrange
+    const progress = progressOf({ done: 0 })
+    const requests = respondWith(202, { toIdentify: 223, progress })
 
     // Act
     const queued = await libraryLinksApi.startCatchUp()
 
     // Assert
-    expect(queued).toEqual({ toWrite: 3, toLookUp: 12 })
+    expect(queued).toEqual({ toIdentify: 223, progress: { batchId, total: 223, done: 0 } })
     expect(requests).toHaveLength(1)
     expect(requests[0].method).toBe('post')
     expect(api.getUri(requests[0])).toBe('/api/library/tmdb/catch-up')

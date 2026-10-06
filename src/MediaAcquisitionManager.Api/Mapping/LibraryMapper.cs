@@ -72,8 +72,9 @@ public sealed class LibraryMapper : ILibraryMapper
     }
 
     // MAM-34 — the work's links as one line: what the latest set links to, the worst state of all its items' links, and
-    // the first conflicting library id. Who set it and why the library doesn't hold it are the owner's (the sync run's
-    // rule: the owner's sign-in name, and a sentence that can name the library's address).
+    // the first conflicting library id. Who set it and why the library didn't identify it are the owner's (the sync run's
+    // rule: the owner's sign-in name, and a sentence that can name the library's address). Identified and UnderWay carry no
+    // secret and are for everyone: see the two below.
     private static LibraryWorkLinkDto? ToLinkDto(LinkedWork linked, bool forOwner)
     {
         if (linked.Links.Count == 0)
@@ -93,7 +94,18 @@ public sealed class LibraryMapper : ILibraryMapper
             latest.SetUtc,
             worst.WriteState,
             forOwner ? worst.WriteError : null,
-            linked.ConflictingValue);
+            linked.ConflictingValue,
+            IsIdentified(linked.Links),
+            linked.Links.Any(link => link.WriteState is LibraryLinkWriteState.Queued or LibraryLinkWriteState.Writing));
+    }
+
+    // MAM-34 — whether the card may say "Identified": an item's link is Written or InLibrary, and every such link was
+    // confirmed by the app (IdentifiedUtc). Without the second half, every link the earlier ids-only rule wrote would read
+    // "done" right after the migration while the repair still counts it.
+    private static bool IsIdentified(IReadOnlyList<LibraryItemLinkEntity> links)
+    {
+        var held = links.Where(link => link.WriteState is LibraryLinkWriteState.Written or LibraryLinkWriteState.InLibrary).ToList();
+        return held.Count > 0 && held.All(link => link.IdentifiedUtc is not null);
     }
 
     // MAM-32 — the first place an episode has, by season as a series lists them (the regular ones, then the

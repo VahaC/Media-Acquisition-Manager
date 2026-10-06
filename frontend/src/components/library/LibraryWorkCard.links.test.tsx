@@ -7,8 +7,8 @@ import { yellowstone } from '@/test/library'
 import { libraryIdentifierOf, linkedIdentifierOf, linkedLandingStripling, planetEarthJungles, workLinkOf } from '@/test/library-links'
 
 // MAM-34 — a work linked to TMDb by hand on its card: the linked ids with who set them, one badge per
-// id whatever claims it, where the link stands against Jellyfin, a conflict, an episode-to-show link,
-// and the card's actions.
+// id whatever claims it, where the link stands against Jellyfin (identified, not identified yet, waiting,
+// being identified), a conflict, an episode-to-show link, and the card's actions.
 
 const setOn = formatDateTime('2026-10-05T18:40:00Z', { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -45,7 +45,7 @@ describe('LibraryWorkCard with a TMDb link', () => {
   })
 
   it('shows an id Jellyfin reports and the owner linked as one badge naming both', () => {
-    // Arrange — the linked id written into Jellyfin, which the next sync read back.
+    // Arrange — the linked id put into Jellyfin by an identification, which the next sync read back.
     const work: LibraryWork = {
       ...linkedLandingStripling,
       identifiers: [libraryIdentifierOf('Tmdb', '223021'), linkedIdentifierOf('Tmdb', '223021')],
@@ -56,7 +56,7 @@ describe('LibraryWorkCard with a TMDb link', () => {
     render(<LibraryWorkCard work={work} />)
 
     // Assert
-    expect(idBadges()).toEqual(['TMDb 223021', 'In Jellyfin'])
+    expect(idBadges()).toEqual(['TMDb 223021', 'Identified in Jellyfin'])
     expect(screen.getByText('TMDb 223021')).toHaveAttribute('title', `Reported by Home Jellyfin · Set by vasyl on ${setOn}`)
   })
 
@@ -76,15 +76,15 @@ describe('LibraryWorkCard with a TMDb link', () => {
   })
 
   it.each([
-    ['Written', 'Written to Jellyfin'],
-    ['InLibrary', 'In Jellyfin'],
-    ['Lost', 'Jellyfin lost it'],
-    ['KeptInApp', 'Kept in the app'],
-    ['Queued', 'Waiting to be written'],
-    ['Writing', 'Writing…'],
-  ] as const)('shows a link %s as "%s"', (writeState, text) => {
+    [{ writeState: 'Written', identified: true }, 'Identified in Jellyfin'],
+    [{ writeState: 'InLibrary', identified: true }, 'Identified in Jellyfin'],
+    [{ writeState: 'Lost' }, 'Jellyfin lost it'],
+    [{ writeState: 'KeptInApp' }, 'Kept in the app'],
+    [{ writeState: 'Queued' }, 'Waiting to identify'],
+    [{ writeState: 'Writing' }, 'Identifying…'],
+  ] as const)('shows a link %o as "%s"', (changes, text) => {
     // Arrange
-    const work: LibraryWork = { ...linkedLandingStripling, link: workLinkOf({ writeState }) }
+    const work: LibraryWork = { ...linkedLandingStripling, link: workLinkOf(changes) }
 
     // Act
     render(<LibraryWorkCard work={work} />)
@@ -93,16 +93,42 @@ describe('LibraryWorkCard with a TMDb link', () => {
     expect(idBadges()).toContain(text)
   })
 
-  it('shows a link not written yet as a warning with the owner\'s sentence on hover', () => {
+  it.each(['Written', 'InLibrary'] as const)('shows a %s link the app never identified as not identified yet, in the warning tone, never as a neutral "In Jellyfin"', (writeState) => {
     // Arrange
-    const writeError = 'Jellyfin refused to change the item\'s ids. Check that the API key belongs to an administrator.'
+    // As a link set under the first rules reads: the ids are in Jellyfin, but the title, overview and images are still the file name's.
+    const work: LibraryWork = { ...linkedLandingStripling, link: workLinkOf({ writeState, identified: false }) }
+
+    // Act
+    render(<LibraryWorkCard work={work} />)
+
+    // Assert
+    expect(screen.getByText('Not identified yet')).toHaveClass('library-badge-warning')
+    expect(idBadges()).not.toContain('In Jellyfin')
+  })
+
+  it('shows a link Jellyfin is identifying with the spinner and no warning', () => {
+    // Arrange
+    const work: LibraryWork = { ...linkedLandingStripling, link: workLinkOf({ writeState: 'Writing', underWay: true }) }
+
+    // Act
+    render(<LibraryWorkCard work={work} />)
+
+    // Assert
+    const badge = screen.getByText('Identifying…')
+    expect(badge).toHaveClass('ui-badge-outline')
+    expect(badge.querySelector('svg')).toHaveClass('animate-spin')
+  })
+
+  it('shows a link not identified as a warning with the owner\'s sentence on hover', () => {
+    // Arrange
+    const writeError = 'Jellyfin took the match, but the item read again doesn\'t show it (its name, year or id): it may be locked, or its metadata sources failed. Its own log says why; Retry checks again.'
     const work: LibraryWork = { ...linkedLandingStripling, link: workLinkOf({ writeState: 'NotWritten', writeError }) }
 
     // Act
     render(<LibraryWorkCard work={work} />)
 
     // Assert
-    const badge = screen.getByText('Not in Jellyfin yet')
+    const badge = screen.getByText('Not identified yet')
     expect(badge).toHaveClass('library-badge-warning')
     expect(badge).toHaveAttribute('title', writeError)
   })

@@ -33,8 +33,13 @@ interface TmdbLinkDialogProps {
  * page's Review tab shows inline too; the dialog brings the title, the one scrolling body and the
  * footer, [Save] [Cancel].
  *
- * A save whose write Jellyfin didn't confirm keeps the dialog open on the items' states; any other
- * save closes it.
+ * A save never waits for Jellyfin: the items come back queued, and the dialog stays open on them while
+ * its poll shows each one being identified and then identified, or not identified with the reason and
+ * Retry. Only a save that leaves nothing for Jellyfin to do and nothing new to read (every ticked item
+ * kept in the app for a reason the item showed before the click) closes it: an item the save found
+ * TMDb has no IMDb id for stays on screen with its sentence. While a save is on screen the footer
+ * offers Close in place of Cancel, as nothing can cancel an identification, and the owner may close it
+ * any time: the result shows on the Library card too.
  *
  * The focus goes to the dialog itself as it opens, whatever has loaded by then, and back to the
  * control that opened it as it closes.
@@ -105,7 +110,7 @@ export function TmdbLinkDialog({ work, onClose }: TmdbLinkDialogProps) {
                 {getApiErrorMessage(query.error)}
               </Banner>
             )}
-            onSaved={(_, notWritten) => { if (!notWritten) onClose() }}
+            onSaved={(_, outcome) => { if (outcome === 'done') onClose() }}
             footer={(save) => <Footer save={save} onClose={onClose} />}
           />
         )}
@@ -115,8 +120,10 @@ export function TmdbLinkDialog({ work, onClose }: TmdbLinkDialogProps) {
 }
 
 /**
- * Save, then Cancel — the order every dialog in the app uses. Save is disabled, without a reason,
- * until the dialog has loaded (`save` null).
+ * Save, then Cancel — the order every dialog in the app uses — and Close once a save is on screen: Cancel
+ * would promise to cancel an identification that nothing can. Save is disabled, without a reason, until
+ * the dialog has loaded (`save` null); after a save its own reason ("Pick a film or a show first.")
+ * keeps it off, as the pick was spent.
  */
 function Footer({ save, onClose }: { save: TmdbLinkSave | null; onClose: () => void }) {
   const { t } = useTranslation(['libraryLinks', 'common'])
@@ -127,7 +134,7 @@ function Footer({ save, onClose }: { save: TmdbLinkSave | null; onClose: () => v
           {save?.saving ? t('dialog.saving') : t('dialog.save')}
         </Button>
       </DisabledReason>
-      <Button type="button" variant="outline" onClick={onClose}>{t('common:cancel')}</Button>
+      <Button type="button" variant="outline" onClick={onClose}>{save?.saved ? t('common:close') : t('common:cancel')}</Button>
     </DialogFooter>
   )
 }

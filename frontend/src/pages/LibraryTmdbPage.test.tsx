@@ -9,14 +9,24 @@ import type { CurrentUser } from '@/lib/types'
 import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
 import { apiError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
-import { catchUpOf, confidentPage, confidentStripling, dialogOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
+import {
+  catchUpOf,
+  confidentPage,
+  confidentStripling,
+  conflictSentence,
+  dialogOf,
+  linkRowOf,
+  linksPage,
+  queueOf,
+  suggestionRunOf,
+} from '@/test/library-links'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
 
 // MAM-34 — the TMDb page around its tabs: the way back to the Library's "Missing an id" list, how the
-// suggestions were last prepared with Prepare again, the four tabs with the current one in the
-// address, and a member's sentence instead of all of it.
+// suggestions were last prepared with Prepare again, the five tabs with the current one in the
+// address (Not identified among them, deep-linkable), and a member's sentence instead of all of it.
 
 /** The address the page is at, so a test can read what the tabs put there. */
 function Address() {
@@ -66,7 +76,7 @@ describe('LibraryTmdbPage', () => {
     vi.useRealTimers()
   })
 
-  it('shows its title, the way back to the Library\'s missing ids, the four tabs on Review, and TMDb\'s notice', async () => {
+  it('shows its title, the way back to the Library\'s missing ids, the five tabs on Review, and TMDb\'s notice', async () => {
     // Arrange
     renderPage()
 
@@ -76,7 +86,7 @@ describe('LibraryTmdbPage', () => {
     // Assert
     expect(screen.getByRole('heading', { level: 1, name: 'TMDb links' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Library' })).toHaveAttribute('href', '/library?identifiers=Missing')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Review', 'Confident', 'Conflicts', 'Unattached'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Review', 'Confident', 'Not identified', 'Conflicts', 'Unattached'])
     expect(screen.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByRole('heading', { level: 2, name: '120. Landing Stripling (1962)' })).toBeInTheDocument()
     expect(screen.getByRole('tabpanel', { name: 'Review' })).toBeInTheDocument()
@@ -122,6 +132,26 @@ describe('LibraryTmdbPage', () => {
     expect(libraryLinksApi.queue).not.toHaveBeenCalled()
   })
 
+  it('opens at the Not identified tab its address names, with the links the app refused or failed to identify', async () => {
+    // Arrange
+    vi.mocked(libraryLinksApi.links).mockImplementation(async (query) => linksPage(
+      query,
+      query.filter === 'NotWritten' && query.pageSize !== 1
+        ? [linkRowOf({ writeState: 'NotWritten', writeError: conflictSentence, identifiedUtc: null })]
+        : [],
+    ))
+
+    // Act
+    renderPage('/library/tmdb?tab=NotIdentified')
+
+    // Assert
+    expect(screen.getByRole('tab', { name: 'Not identified' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText(conflictSentence, { selector: 'span' })).toBeInTheDocument()
+    expect(screen.getByRole('tabpanel', { name: 'Not identified' })).toBeInTheDocument()
+    expect(address()).toBe('/library/tmdb?tab=NotIdentified')
+    expect(libraryLinksApi.queue).not.toHaveBeenCalled()
+  })
+
   it('reads a tab that isn\'t one as Review', async () => {
     // Arrange
     renderPage('/library/tmdb?tab=Everything')
@@ -146,6 +176,20 @@ describe('LibraryTmdbPage', () => {
     expect(screen.getByRole('tab', { name: 'Unattached' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: 'Unattached' })).toHaveFocus()
     expect(address()).toBe('/library/tmdb?tab=Unattached')
+  })
+
+  it('moves from Confident to Not identified with ArrowRight', async () => {
+    // Arrange
+    const { user } = renderPage('/library/tmdb?tab=Confident')
+    screen.getByRole('tab', { name: 'Confident' }).focus()
+
+    // Act
+    await user.keyboard('{ArrowRight}')
+
+    // Assert
+    expect(screen.getByRole('tab', { name: 'Not identified' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Not identified' })).toHaveFocus()
+    expect(address()).toBe('/library/tmdb?tab=NotIdentified')
   })
 
   it('says when the suggestions were prepared', async () => {

@@ -173,7 +173,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Role).HasConversion<string>().HasMaxLength(32);
             e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
             // MAM-34 — one id per place on its audit row; leading with the row, so it also serves the foreign key and
-            // "the ids of this row", which a restore reads.
+            // "the ids of this row", which a reader of the row reads.
             e.HasIndex(x => new { x.AuditEventId, x.Position }).IsUnique();
             // Cascade: the ids are part of the row that records them, never a row of their own.
             e.HasOne<AuditEventEntity>().WithMany()
@@ -783,6 +783,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.Target).HasConversion<string>().HasMaxLength(32);
             e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
             e.Property(x => x.WriteState).HasConversion<string>().HasMaxLength(32);
+            // MAM-34 (0.2.1) — LookupRequestedUtc and LookupError stay mapped and stay columns although nothing writes or
+            // reads them since the Identify rework: an older image must still run against a migrated database, and a
+            // migration that dropped them would rebuild the table (ADR 0009, ADR 0026). IdentifiedUtc is the repair's
+            // selector ("never identified" = null): a nullable column read once per click over a few hundred rows already
+            // narrowed by the WriteState index below, so it has no index of its own.
             // One link per library item: the item is the link's target, so a second would be two words on one item. The
             // set path checks first; this settles a double click. Leading with the connection, so it also serves the
             // cascade below.

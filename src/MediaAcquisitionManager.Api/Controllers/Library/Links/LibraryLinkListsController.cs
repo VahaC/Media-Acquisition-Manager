@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MediaAcquisitionManager.Api.Controllers.Library.Links;
 
 /// <summary>MAM-34 — the TMDb page's links one by one: the lists of links by what needs the owner (gone, waiting, in
-/// conflict, not written, lost), Retry or Write again of one link, removing one, and the results of an "Accept all
+/// conflict, not identified, lost), Retry or Write again of one link, removing one, and the results of an "Accept all
 /// confident" click.</summary>
 /// <remarks>
 /// The installation owner's alone, every action, by where this controller lives
@@ -34,14 +34,14 @@ public class LibraryLinkListsController(ILibraryLinkService links) : ControllerB
         };
     }
 
-    /// <summary>Writes one link into its library again — Retry or Write again for one item —, with its work's dialog
+    /// <summary>Queues one link for identification again — Retry or Write again for one item —, with its work's dialog
     /// as it then stands; a bare 404 without such a link.</summary>
     [HttpPost("links/{linkId:guid}/write")]
     public async Task<ActionResult<LibraryLinkDialogResponse>> WriteLink(Guid linkId, CancellationToken cancellationToken) =>
         Answer(await links.WriteLinkAsync(linkId, UserId, cancellationToken));
 
-    /// <summary>Removes one link — the Unattached list's Remove — after its library item is put back when it still has
-    /// one (R11); 204.</summary>
+    /// <summary>Forgets one link in the app only — the Unattached list's Remove; the library is never called and keeps what
+    /// its Identify set —; 204, 409 while it is being identified.</summary>
     [HttpDelete("links/{linkId:guid}")]
     public async Task<IActionResult> RemoveLink(Guid linkId, CancellationToken cancellationToken)
     {
@@ -49,8 +49,8 @@ public class LibraryLinkListsController(ILibraryLinkService links) : ControllerB
         return result.Status == LibraryLinkStatus.Succeeded ? NoContent() : Answer(result);
     }
 
-    /// <summary>The links of an "Accept all confident" click with their write states as they are now, polled while
-    /// they are written; a bare 404 for a click no link has.</summary>
+    /// <summary>The links of an "Accept all confident" click (or a repair click) with their states as they are now, polled
+    /// while they are identified; a bare 404 for a click no link has.</summary>
     [HttpGet("batches/{batchId:guid}")]
     public async Task<ActionResult<LibraryLinkBatchResponse>> Batch(Guid batchId, CancellationToken cancellationToken) =>
         await links.ReadBatchAsync(batchId, cancellationToken) is { } batch ? Ok(batch) : NotFound();

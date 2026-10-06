@@ -16,8 +16,9 @@ namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 /// <inheritdoc cref="ILibraryLinkService"/>
 /// <remarks>
 /// Split by facet: the dialog and what every facet shares here; setting and "Accept all confident" in
-/// <c>LibraryLinkService.Set.cs</c>, removal in <c>.Remove.cs</c>, writing again in <c>.Write.cs</c>, the TMDb page's
-/// lists in <c>.Lists.cs</c>.
+/// <c>LibraryLinkService.Set.cs</c>, removal in <c>.Remove.cs</c>, identifying again in <c>.Write.cs</c>, the repair in
+/// <c>.CatchUp.cs</c>, the TMDb page's lists in <c>.Lists.cs</c>. No facet calls the library: each only saves or queues
+/// links, and the background writer identifies them (<see cref="LibraryLinkWriter"/>).
 /// </remarks>
 public sealed partial class LibraryLinkService(
     ApplicationDbContext db,
@@ -27,14 +28,14 @@ public sealed partial class LibraryLinkService(
     ICatalogConnector catalogs,
     ICatalogStore catalogStore,
     IIntegrationAdapterRegistry adapters,
-    ILibraryLinkWriter writer,
     LibraryLinkWriteQueue writeQueue,
     IAuditTrail auditTrail,
     IRecommendationRunService recommendations,
     TimeProvider time,
     ILogger<LibraryLinkService> logger) : ILibraryLinkService
 {
-    /// <summary>R9 — one write at a time per work: a second one would race the first for the same library items.</summary>
+    /// <summary>R9 — one identification at a time per work: a second one would race the first for the same library items. The
+    /// sentence keeps saying "write": it is what the page and its tests already show for it.</summary>
     internal const string UnderWayError = "A write to the library is under way for this work; try again in a moment.";
 
     internal const string NoItemsError = "No library reports this work, so there is nothing to link.";
@@ -171,19 +172,19 @@ public sealed partial class LibraryLinkService(
                 .ToDictionaryAsync(connection => connection.Id, cancellationToken);
 
     /// <summary>
-    /// Whether ids would be written into an item of <paramref name="workKind"/> in its library, and why not: a library
-    /// type without the capability keeps its links in the app (ADR 0005), and so does one for a kind of item it doesn't
-    /// write — the library's own sentence (Jellyfin: an episode item); a library switched off is never written (R12).
+    /// Whether the library would identify an item of <paramref name="workKind"/>, and why not: a library type without the
+    /// capability keeps its links in the app (ADR 0005), and so does one for a kind of item it doesn't identify — the
+    /// library's own sentence (Jellyfin: an episode item); a library switched off is never identified in (R12).
     /// </summary>
     private (bool CanWrite, string? Reason) WriteAbility(IntegrationConnectionEntity connection, MediaWorkKind workKind)
     {
-        if (LibraryLinkWritability.ItemReason(adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType), connection.Name, workKind) is { } reason)
+        if (LibraryLinkWritability.ItemReason(adapters.Find<IMediaLibraryItemIdentifier>(connection.AdapterType), connection.Name, workKind) is { } reason)
             return (false, reason);
         return connection.IsEnabled ? (true, null) : (false, LibraryLinkWriter.SwitchedOffError(connection.Name));
     }
 
-    /// <summary>MAM-34 — why an episode's link on an item that takes ids writes none: without its numbers, or with an
-    /// episode TMDb gives no IMDb id; <c>null</c> for any other link.</summary>
+    /// <summary>MAM-34 — why an episode's link on an item the library identifies identifies none: without its numbers, or
+    /// with an episode TMDb gives no IMDb id; <c>null</c> for any other link.</summary>
     private static string? EpisodeKeptReason(LibraryItemLinkEntity link) =>
         LibraryLinkWritability.LinkReason(link.Target, link.SeasonNumber, link.EpisodeNumber)
         ?? (LibraryLinkWritability.KnowsNoEpisodeImdb(link) ? LibraryLinkWritability.NoEpisodeImdbReason : null);
@@ -198,28 +199,6 @@ public sealed partial class LibraryLinkService(
 
     private Task<AuditActor> ActorAsync(Guid userId, CancellationToken cancellationToken) =>
         db.Users.Where(user => user.Id == userId).Select(user => new AuditActor(user.Id, user.UserName)).SingleAsync(cancellationToken);
-
-    /// <summary>
-    /// The conditional claim of a link for a write or a removal (R9): only while it is as it was read — not
-    /// <c>Writing</c>, under the same attempt — so of two callers only one wins. The new attempt id, or <c>null</c> when
-    /// the link changed meanwhile.
-    /// </summary>
-    private async Task<Guid?> ClaimAsync(LibraryItemLinkEntity link)
-    {
-        var attemptId = Guid.NewGuid();
-        var claimed = await db.LibraryItemLinks
-            .Where(row => row.Id == link.Id
-                && row.WriteState == link.WriteState
-                && row.WriteState != LibraryLinkWriteState.Writing
-                && row.WriteAttemptId == link.WriteAttemptId)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(row => row.WriteState, LibraryLinkWriteState.Writing)
-                    .SetProperty(row => row.WriteAttemptId, attemptId)
-                    .SetProperty(row => row.WriteStateUtc, time.GetUtcNow().UtcDateTime),
-                CancellationToken.None) == 1;
-        return claimed ? attemptId : null;
-    }
 
     /// <summary>
     /// A link change may change which catalog works the library holds: the recommendations are computed again. Best

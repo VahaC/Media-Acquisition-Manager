@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
@@ -12,14 +11,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Tests.LibraryLinks;
 
-// MAM-34 follow-up (Vasyl's decision of 2026-10-06) — an episode's link to its show on a film item (Jellyfin lists a
-// documentary's episodes as movies): with its season and episode, the episode's own IMDb id TMDb gives is the link's
-// written key — written where the item holds no IMDb id, never a TMDb id (on a movie item Tmdb names a film), then
-// Jellyfin asked to look the item up, which finds the episode by it (the live check of "Greatest Events of World War II
-// in Colour" S01E01, tt9103946). Without both numbers, or with an episode TMDb gives no IMDb id, the link stays in the app
-// and says why — until the same pick saved again finds TMDb giving one; an episode item no series holds keeps its link in
-// the app as before. A sync judges the link by that IMDb
-// id; a removal takes back only the IMDb id the app wrote; a film link it replaces is put back first, in the same write.
+// MAM-34 (0.2.1, ADR 0026; Vasyl's decision 3 of 2026-10-06) — an episode's link to its show on a film item (Jellyfin lists a
+// documentary's episodes as movies): with its season and episode, the episode's own IMDb id TMDb gives is what the item is
+// identified by — a film search through the Open Movie Database by that id, the one route recorded live (Blitzkrieg,
+// tt9103946), never a TMDb id, which on a movie item names a film. Jellyfin's Identify then corrects the item's name,
+// year and poster and keeps its overview (the Open Movie Database gives none), and drops the film id it held. Without both
+// numbers, or with an episode TMDb gives no IMDb id, the link stays in the app and says why — until the same pick saved
+// again finds TMDb giving one; an episode item no series holds keeps its link in the app. A sync judges the link by that
+// IMDb id.
 public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library";
@@ -30,10 +29,8 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
     private const string EpisodeImdbId = TmdbSamples.TvEpisodeWwiiImdbId;
     private const string NoImdbShowId = "1044";
     private const string PlanetEarthJunglesImdbId = TmdbSamples.TvEpisodePlanetEarthImdbId;
-    private const string FilmId = JellyfinSamples.LandingStriplingTmdbId;
-    private const string FilmImdbId = JellyfinSamples.LandingStriplingImdbId;
     private const string WrongTmdbId = "100";
-    private const string NoNumbersReason = "Without a season and an episode the app has no id of this episode to write.";
+    private const string NoNumbersReason = "Without a season and an episode the app has no id of this episode to identify it by.";
     private const string NoEpisodeImdbReason = "TMDb knows no IMDb id of this episode, so its link stays in the app.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
@@ -52,6 +49,9 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         _owner = await new UserSeeder(_factory.Scope).CreateAuthorizedOwner("owner");
         _jellyfin = new FakeJellyfinServer { ApiKey = ApiKey };
         _jellyfin.Movies.Clear();
+        // What the Open Movie Database holds for the episodes, as the live check saw it: an IMDb id only, no overview.
+        _jellyfin.AddEpisodeMovie(EpisodeImdbId, "Blitzkrieg", 2019);
+        _jellyfin.AddEpisodeMovie(PlanetEarthJunglesImdbId, "Jungles", 2006);
         _jellyfin.Arm(_factory.JellyfinHttp);
         _tmdb = FakeTmdbServer.Arm(_factory.TmdbHttp);
         _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Series, int.Parse(ShowId), "Найвизначніші події Другої світової у кольорі", "Greatest Events of WWII in Colour"));
@@ -59,60 +59,74 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         _tmdb.AddEpisode(new FakeTmdbEpisode(int.Parse(ShowId), 1, 1, "Серія 1", EpisodeImdbId, "2019-07-12", 50));
         _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Series, int.Parse(NoImdbShowId), "Планета Земля", "Planet Earth", "2006-03-05", ImdbId: "tt0795176"));
         _tmdb.AddEpisode(new FakeTmdbEpisode(int.Parse(NoImdbShowId), 1, 8, "Джунглі"));
-        _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Movie, int.Parse(FilmId), "Посадкова смуга", ImdbId: FilmImdbId));
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
-    public async Task Set_of_an_episode_on_a_film_item_writes_the_episodes_own_imdb_id_only_and_asks_jellyfin_to_look_the_item_up()
+    public async Task Set_of_an_episode_on_a_film_item_is_identified_through_the_open_movie_database_by_the_episodes_imdb_id()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         // Jellyfin gave the episode, which it lists as a movie, a film's id.
         var workId = await SyncEpisodeItemAsync(tmdbId: WrongTmdbId, imdbId: null);
+        var before = Movie(EpisodeItemId).DeepClone().AsObject();
         var jellyfinSent = _factory.JellyfinHttp.Requests.Count;
-        var now = _factory.Time.GetUtcNow().UtcDateTime;
 
         //Act
         var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
+        var queued = Assert.Single((await response.ReadDialogAsync(cancellationToken)).Items);
+        var sentByTheRequest = _factory.JellyfinHttp.Requests.Count - jellyfinSent;
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
         Assert.Equal(
-            ((LibraryLinkTarget?)LibraryLinkTarget.ShowEpisode, (LibraryLinkWriteState?)LibraryLinkWriteState.Written, (string?)EpisodeImdbId, true, (string?)null, (DateTime?)now),
-            (item.Target, item.WriteState, item.EpisodeImdbId, item.CanWrite, item.CannotWriteReason, item.LookupRequestedUtc));
+            ((LibraryLinkTarget?)LibraryLinkTarget.ShowEpisode, (LibraryLinkWriteState?)LibraryLinkWriteState.Queued, (string?)EpisodeImdbId, true, (string?)null),
+            (queued.Target, queued.WriteState, queued.EpisodeImdbId, queued.CanWrite, queued.CannotWriteReason));
+        Assert.Equal(0, sentByTheRequest);
         // TMDb asked for the episode with its external ids, once.
         Assert.Single(
             _factory.TmdbHttp.Requests,
             request => request.Uri.PathAndQuery == $"/3/tv/{ShowId}/season/1/episode/1?append_to_response=external_ids&language=uk-UA");
-        // The episode's IMDb id only: Jellyfin's film id stays in Jellyfin (on a movie item Tmdb names a film), and
-        // Jellyfin's lookup finds the episode by the IMDb id.
-        Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = WrongTmdbId, ["Imdb"] = EpisodeImdbId }, ProviderIdsOf(EpisodeItemId));
-        Assert.Equal([EpisodeItemId], _jellyfin.Lookups);
-        Assert.Single(_factory.JellyfinHttp.Requests.Skip(jellyfinSent), request => request.Method == HttpMethod.Post && request.Body is not null);
-        var link = await SingleLinkAsync(cancellationToken);
+
+        // The film search, by the episode's own IMDb id through the Open Movie Database — never a TMDb id.
+        var search = Assert.Single(_jellyfin.RemoteSearches);
+        Assert.Equal("Movie", search.Endpoint);
         Assert.Equal(
-            (EpisodeImdbId, (string?)WrongTmdbId, LibraryLinkWriteState.Written, (DateTime?)now, (string?)null),
-            (link.EpisodeImdbId, link.SupersededValue, link.WriteState, link.LookupRequestedUtc, link.LookupError));
+            """{"SearchInfo":{"ProviderIds":{"Imdb":"tt9103946"}},"ItemId":"c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3","SearchProviderName":"The Open Movie Database"}""",
+            search.Body);
+        Assert.Equal("true", Assert.Single(_jellyfin.Applied).ReplaceAllImages);
+
+        // Jellyfin's Identify corrected the name and year and gave a new poster, dropped the film id the item held and left
+        // its overview, which the Open Movie Database has none of.
+        var after = Movie(EpisodeItemId);
+        Assert.Equal(("Blitzkrieg", 2019), ((string?)after["Name"], (int?)after["ProductionYear"]));
+        Assert.Equal(new Dictionary<string, string> { ["Imdb"] = EpisodeImdbId }, ProviderIdsOf(EpisodeItemId));
+        Assert.Equal((string?)before["Overview"], (string?)after["Overview"]);
+        Assert.False(string.IsNullOrWhiteSpace((string?)after["ImageTags"]?["Primary"]));
+
+        var link = await _factory.SingleLinkAsync(cancellationToken);
+        Assert.Equal(
+            (EpisodeImdbId, (string?)WrongTmdbId, LibraryLinkWriteState.Written, (string?)null),
+            (link.EpisodeImdbId, link.SupersededValue, link.WriteState, link.WriteError));
+        Assert.NotNull(link.IdentifiedUtc);
         Assert.Equal(
             [
                 (AuditAction.LibraryLinkSet, $"Before Tmdb {WrongTmdbId}, After TmdbTv {ShowId}"),
-                (AuditAction.LibraryIdsWritten, $"After Imdb {EpisodeImdbId}"),
-                (AuditAction.LibraryMetadataLookupRequested, ""),
+                (AuditAction.LibraryItemIdentified, $"Before Tmdb {WrongTmdbId}, After Imdb {EpisodeImdbId}"),
             ],
-            await AuditAsync(cancellationToken));
+            (await _factory.AuditAsync(cancellationToken)).Select(row => (row.Action, row.Identifiers)));
     }
 
     [Fact]
-    public async Task Written_episode_link_keeps_the_film_id_it_replaced_giving_way_in_the_app()
+    public async Task Identified_episode_link_no_longer_sees_the_film_id_apply_dropped_and_the_next_sync_finds_it_by_the_episodes_imdb_id()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var workId = await SyncEpisodeItemAsync(tmdbId: WrongTmdbId, imdbId: null);
-        await SetAsync(workId, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
-        // A sync reads the episode's IMDb id from Jellyfin, beside the film id Jellyfin still holds.
+        await SetAndIdentifyAsync(workId, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
+        // A sync reads the episode's IMDb id from Jellyfin, where the film id is gone: Identify dropped it.
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
 
         //Act
@@ -120,13 +134,16 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         var byEpisodeImdbId = await _factory.GetHttpRequest($"{BaseUrl}/works?search={EpisodeImdbId}", _owner.AccessToken);
 
         //Assert
-        // R7 — what the app writes for an episode is its IMDb id, never a TMDb one: the wrong film id gives way whatever the
-        // link's state. The episode's IMDb id is Jellyfin's own now, read as any library id.
-        Assert.Equal(0, (await ReadAsync<LibraryWorkListResponse>(byFilmId, cancellationToken)).TotalCount);
-        var found = Assert.Single((await ReadAsync<LibraryWorkListResponse>(byEpisodeImdbId, cancellationToken)).Items);
+        // R7 — what the app identifies an episode by is its IMDb id, never a TMDb one: the wrong film id is gone from Jellyfin
+        // and gives way in the app whatever the link's state. The episode's IMDb id is Jellyfin's own now.
+        Assert.Equal(0, (await byFilmId.ReadAsync<LibraryWorkListResponse>(cancellationToken)).TotalCount);
+        var found = Assert.Single((await byEpisodeImdbId.ReadAsync<LibraryWorkListResponse>(cancellationToken)).Items);
         Assert.Equal(workId, found.Id);
         Assert.Null(found.Link!.ConflictingValue);
-        Assert.Equal(LibraryLinkWriteState.InLibrary, (await SingleLinkAsync(cancellationToken)).WriteState);
+        var link = await _factory.SingleLinkAsync(cancellationToken);
+        Assert.Equal(LibraryLinkWriteState.InLibrary, link.WriteState);
+        // Judging never touches the identified time.
+        Assert.NotNull(link.IdentifiedUtc);
     }
 
     [Fact]
@@ -142,18 +159,18 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
-        // The item takes ids; the link has none of its own to write.
+        var item = Assert.Single((await response.ReadDialogAsync(cancellationToken)).Items);
+        // The item is identified by its library; the link has no id of its own to identify it by.
         Assert.Equal(
             ((LibraryLinkWriteState?)LibraryLinkWriteState.KeptInApp, true, (string?)NoNumbersReason, (string?)null),
             (item.WriteState, item.CanWrite, item.CannotWriteReason, item.EpisodeImdbId));
         Assert.DoesNotContain(_factory.TmdbHttp.Requests, request => request.Uri.AbsolutePath.Contains("/episode/", StringComparison.Ordinal));
         Assert.Equal(jellyfinSent, _factory.JellyfinHttp.Requests.Count);
-        Assert.Equal([(AuditAction.LibraryLinkSet, $"After TmdbTv {ShowId}")], await AuditAsync(cancellationToken));
+        Assert.Equal([(AuditAction.LibraryLinkSet, $"After TmdbTv {ShowId}")], (await _factory.AuditAsync(cancellationToken)).Select(row => (row.Action, row.Identifiers)));
     }
 
     [Fact]
-    public async Task Set_of_an_episode_tmdb_gives_no_imdb_id_keeps_the_link_in_the_app_says_why_and_sends_nothing()
+    public async Task Set_of_an_episode_tmdb_gives_no_imdb_id_keeps_the_link_in_the_app_says_why_and_calls_jellyfin_not_at_all()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -162,47 +179,49 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
 
         //Act
         var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", NoImdbShowId, SeasonNumber: "1", EpisodeNumber: "8"));
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
+        var item = Assert.Single((await response.ReadDialogAsync(cancellationToken)).Items);
         Assert.Equal(
             ((LibraryLinkWriteState?)LibraryLinkWriteState.KeptInApp, true, (string?)NoEpisodeImdbReason, (string?)null),
             (item.WriteState, item.CanWrite, item.CannotWriteReason, item.EpisodeImdbId));
-        // Only asking TMDb tells it, so the link keeps it: the catch-up and the writer don't ask again.
-        Assert.Equal(NoEpisodeImdbReason, (await SingleLinkAsync(cancellationToken)).WriteError);
+        // Only asking TMDb tells it, so the link keeps it: the repair and the writer don't ask again.
+        Assert.Equal(NoEpisodeImdbReason, (await _factory.SingleLinkAsync(cancellationToken)).WriteError);
         Assert.Equal(jellyfinSent, _factory.JellyfinHttp.Requests.Count);
-        Assert.Empty(_jellyfin.Lookups);
+        Assert.Empty(_jellyfin.RemoteSearches);
     }
 
     [Fact]
-    public async Task Set_again_of_an_episode_tmdb_gave_no_imdb_id_once_it_gives_one_writes_it_and_asks_jellyfin_to_look_the_item_up()
+    public async Task Set_again_of_an_episode_tmdb_gave_no_imdb_id_once_it_gives_one_queues_and_identifies_it()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var workId = await SyncEpisodeItemAsync(tmdbId: null, imdbId: null);
         await SetAsync(workId, new LibraryLinkRequest("Series", NoImdbShowId, SeasonNumber: "1", EpisodeNumber: "8"));
-        var kept = await SingleLinkAsync(cancellationToken);
+        var kept = await _factory.SingleLinkAsync(cancellationToken);
         // TMDb gives the episode an IMDb id since (VendorSamples/Tmdb/tv-episode-planet-earth-s01e08.json).
         _tmdb.AddEpisode(new FakeTmdbEpisode(int.Parse(NoImdbShowId), 1, 8, "Джунглі", PlanetEarthJunglesImdbId));
-        var now = _factory.Time.GetUtcNow().UtcDateTime;
 
         //Act
-        // The same pick: only asking TMDb tells it, and Retry and the catch-up leave such a link alone.
+        // The same pick: only asking TMDb tells it, and Retry and the repair leave such a link alone.
         var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", NoImdbShowId, SeasonNumber: "1", EpisodeNumber: "8"));
+        var queued = await _factory.SingleLinkAsync(cancellationToken);
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)NoEpisodeImdbReason), (kept.WriteState, kept.WriteError));
-        var link = await SingleLinkAsync(cancellationToken);
+        Assert.Equal((kept.Id, LibraryLinkWriteState.Queued, (string?)PlanetEarthJunglesImdbId), (queued.Id, queued.WriteState, queued.EpisodeImdbId));
+        var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal(
-            (kept.Id, LibraryLinkWriteState.Written, (string?)null, (string?)PlanetEarthJunglesImdbId, (DateTime?)now),
-            (link.Id, link.WriteState, link.WriteError, link.EpisodeImdbId, link.LookupRequestedUtc));
+            (kept.Id, LibraryLinkWriteState.Written, (string?)null, (string?)PlanetEarthJunglesImdbId),
+            (link.Id, link.WriteState, link.WriteError, link.EpisodeImdbId));
         Assert.Equal(new Dictionary<string, string> { ["Imdb"] = PlanetEarthJunglesImdbId }, ProviderIdsOf(EpisodeItemId));
-        Assert.Equal([EpisodeItemId], _jellyfin.Lookups);
         Assert.Equal(
-            [AuditAction.LibraryLinkSet, AuditAction.LibraryLinkReplaced, AuditAction.LibraryIdsWritten, AuditAction.LibraryMetadataLookupRequested],
-            (await AuditAsync(cancellationToken)).Select(row => row.Action));
+            [AuditAction.LibraryLinkSet, AuditAction.LibraryLinkReplaced, AuditAction.LibraryItemIdentified],
+            await _factory.AuditActionsAsync(cancellationToken));
     }
 
     [Fact]
@@ -217,7 +236,7 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var link = await SingleLinkAsync(cancellationToken);
+        var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal((LibraryLinkWriteState.KeptInApp, (string?)NoEpisodeImdbReason, (int?)9, (int?)99), (link.WriteState, link.WriteError, link.SeasonNumber, link.EpisodeNumber));
     }
 
@@ -247,49 +266,50 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Fact]
-    public async Task Set_of_an_episode_whose_item_holds_another_imdb_id_leaves_it_and_is_not_written_with_the_sentence()
+    public async Task Set_of_an_episode_whose_item_holds_another_imdb_id_replaces_it_when_set_by_hand()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        // Jellyfin matched the file to a film and gave it that film's IMDb id: the library's own, never written over.
+        // Jellyfin matched the file to a film and gave it that film's IMDb id: the owner's own click replaces it, as
+        // Jellyfin's Identify button would (only a bulk click protects the library's own ids).
         var workId = await SyncEpisodeItemAsync(tmdbId: null, imdbId: "tt5555555");
 
         //Act
         var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
+        await _factory.IdentifyQueuedLinksAsync(cancellationToken);
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var link = await SingleLinkAsync(cancellationToken);
+        var link = await _factory.SingleLinkAsync(cancellationToken);
+        Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError));
+        Assert.Equal(new Dictionary<string, string> { ["Imdb"] = EpisodeImdbId }, ProviderIdsOf(EpisodeItemId));
         Assert.Equal(
-            (LibraryLinkWriteState.NotWritten,
-                (string?)$"“Living room” holds another IMDb id for this item, and the app never writes over the library's own ids, so the episode's {EpisodeImdbId} isn't in it. Change it there, then retry.",
-                (DateTime?)null),
-            (link.WriteState, link.WriteError, link.LookupRequestedUtc));
-        // Nothing changed, so nothing was posted, and no lookup asked for: the episode's id isn't there to find it by.
-        Assert.Equal(new Dictionary<string, string> { ["Imdb"] = "tt5555555" }, ProviderIdsOf(EpisodeItemId));
-        Assert.DoesNotContain(_factory.JellyfinHttp.Requests, request => request.Method == HttpMethod.Post);
-        Assert.Equal([AuditAction.LibraryLinkSet], (await AuditAsync(cancellationToken)).Select(row => row.Action));
+            [
+                (AuditAction.LibraryLinkSet, "Before Imdb tt5555555, After TmdbTv 91724"),
+                (AuditAction.LibraryItemIdentified, "Before Imdb tt5555555, After Imdb tt9103946"),
+            ],
+            (await _factory.AuditAsync(cancellationToken)).Select(row => (row.Action, row.Identifiers)));
     }
 
     [Fact]
-    public async Task Resync_marks_a_written_episode_link_in_jellyfin_by_the_episodes_imdb_id_and_lost_once_jellyfin_drops_it()
+    public async Task Resync_marks_an_identified_episode_link_in_jellyfin_by_the_episodes_imdb_id_and_lost_once_jellyfin_drops_it()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var workId = await SyncEpisodeItemAsync(tmdbId: null, imdbId: null);
-        await SetAsync(workId, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
+        await SetAndIdentifyAsync(workId, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
 
         //Act
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
-        var inJellyfin = (await SingleLinkAsync(cancellationToken)).WriteState;
+        var inJellyfin = (await _factory.SingleLinkAsync(cancellationToken)).WriteState;
         // A metadata replace dropped it.
         Movie(EpisodeItemId)["ProviderIds"] = new JsonObject();
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
 
         //Assert
-        // R5 by the link's written key — the episode's IMDb id —, as a film's link is judged by its TMDb id.
-        Assert.Equal((LibraryLinkWriteState.InLibrary, LibraryLinkWriteState.Lost), (inJellyfin, (await SingleLinkAsync(cancellationToken)).WriteState));
+        // R5 by the link's identified key — the episode's IMDb id —, as a film's link is judged by its TMDb id.
+        Assert.Equal((LibraryLinkWriteState.InLibrary, LibraryLinkWriteState.Lost), (inJellyfin, (await _factory.SingleLinkAsync(cancellationToken)).WriteState));
     }
 
     [Fact]
@@ -299,70 +319,15 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         var cancellationToken = TestContext.Current.CancellationToken;
         var workId = await SyncEpisodeItemAsync(tmdbId: null, imdbId: null);
         await SetAsync(workId, new LibraryLinkRequest("Series", NoImdbShowId, SeasonNumber: "1", EpisodeNumber: "8"));
-        var kept = await SingleLinkAsync(cancellationToken);
+        var kept = await _factory.SingleLinkAsync(cancellationToken);
         Movie(EpisodeItemId)["ProviderIds"] = new JsonObject { ["Imdb"] = "tt5555555" };
 
         //Act
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
 
         //Assert
-        var link = await SingleLinkAsync(cancellationToken);
+        var link = await _factory.SingleLinkAsync(cancellationToken);
         Assert.Equal((LibraryLinkWriteState.KeptInApp, kept.WriteStateUtc), (link.WriteState, link.WriteStateUtc));
-    }
-
-    [Fact]
-    public async Task Remove_of_a_written_episode_link_takes_back_only_the_imdb_id_the_app_wrote()
-    {
-        //Arrange
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var workId = await SyncEpisodeItemAsync(tmdbId: WrongTmdbId, imdbId: null);
-        await SetAsync(workId, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
-        var written = ProviderIdsOf(EpisodeItemId);
-
-        //Act
-        var response = await _factory.DeleteHttpRequest(LinkUrl(workId), _owner.AccessToken);
-
-        //Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = WrongTmdbId, ["Imdb"] = EpisodeImdbId }, written);
-        // Jellyfin's own film id was never the app's: it stays.
-        Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = WrongTmdbId }, ProviderIdsOf(EpisodeItemId));
-        await _factory.WithDbAsync(async db => Assert.False(await db.LibraryItemLinks.AnyAsync(cancellationToken)));
-        Assert.Equal(
-            [
-                (AuditAction.LibraryLinkRemoved, $"Before TmdbTv {ShowId}"),
-                (AuditAction.LibraryIdsRestored, $"Before Imdb {EpisodeImdbId}"),
-            ],
-            (await AuditAsync(cancellationToken)).Skip(3));
-    }
-
-    [Fact]
-    public async Task Replace_of_a_written_film_link_with_an_episode_link_puts_the_film_id_back_and_writes_the_episodes_imdb_id_in_one_write()
-    {
-        //Arrange
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var workId = await SyncEpisodeItemAsync(tmdbId: WrongTmdbId, imdbId: null);
-        await SetAsync(workId, new LibraryLinkRequest("Movie", FilmId));
-        var asFilm = ProviderIdsOf(EpisodeItemId);
-        var posted = _factory.JellyfinHttp.Requests.Count(request => request.Method == HttpMethod.Post && request.Body is not null);
-
-        //Act
-        var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
-
-        //Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = FilmId, ["Imdb"] = FilmImdbId }, asFilm);
-        // R11 — the film id Jellyfin held is back, and the IMDb id the app added is swapped for the episode's: one POST.
-        Assert.Equal(new Dictionary<string, string> { ["Tmdb"] = WrongTmdbId, ["Imdb"] = EpisodeImdbId }, ProviderIdsOf(EpisodeItemId));
-        Assert.Equal(posted + 1, _factory.JellyfinHttp.Requests.Count(request => request.Method == HttpMethod.Post && request.Body is not null));
-        var link = await SingleLinkAsync(cancellationToken);
-        Assert.Equal(
-            (LibraryLinkTarget.ShowEpisode, LibraryLinkWriteState.Written, (string?)EpisodeImdbId, (string?)WrongTmdbId),
-            (link.Target, link.WriteState, link.EpisodeImdbId, link.SupersededValue));
-        Assert.Equal([EpisodeItemId, EpisodeItemId], _jellyfin.Lookups);
-        Assert.Equal(
-            (AuditAction.LibraryIdsWritten, $"Before Imdb {FilmImdbId}, Before Tmdb {FilmId}, After Imdb {EpisodeImdbId}, After Tmdb {WrongTmdbId}"),
-            (await AuditAsync(cancellationToken)).Skip(4).First());
     }
 
     [Fact]
@@ -374,19 +339,19 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         _jellyfin.Episodes.Add(JellyfinSamples.EpisodeWith(KidsItemId, "Tom & Jerry Kids 01", null, null, null, "/media/cartoons/Tom & Jerry Kids/01.mkv"));
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
         await ConnectTmdbAsync();
-        var workId = await WorkOfAsync(KidsItemId, cancellationToken);
+        var workId = await _factory.WorkOfItemAsync(KidsItemId, cancellationToken);
         var jellyfinSent = _factory.JellyfinHttp.Requests.Count;
 
         //Act
         var response = await _factory.PutHttpRequest(LinkUrl(workId), _owner.AccessToken, new LibraryLinkRequest("Series", ShowId, SeasonNumber: "1", EpisodeNumber: "1"));
 
         //Assert
-        // Jellyfin's ids are written on movie and series items only: an episode item keeps its link in the app, as before.
+        // Jellyfin identifies movie and series items only: an episode item keeps its link in the app.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var item = Assert.Single((await ReadDialogAsync(response, cancellationToken)).Items);
+        var item = Assert.Single((await response.ReadDialogAsync(cancellationToken)).Items);
         Assert.Equal(
             ((LibraryLinkWriteState?)LibraryLinkWriteState.KeptInApp, false,
-                (string?)"Jellyfin's ids are written on movie and series items only, so a link on an episode stays in the app."),
+                (string?)"Jellyfin identifies movie and series items only, so a link on an episode stays in the app."),
             (item.WriteState, item.CanWrite, item.CannotWriteReason));
         Assert.DoesNotContain(_factory.TmdbHttp.Requests, request => request.Uri.AbsolutePath.Contains("/episode/", StringComparison.Ordinal));
         Assert.Equal(jellyfinSent, _factory.JellyfinHttp.Requests.Count);
@@ -403,10 +368,10 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         _jellyfinIntegration = await _integrations.Create("jellyfin", "Living room", apiKey: ApiKey);
         _jellyfin.Movies.Add(JellyfinSamples.MovieWith(
             EpisodeItemId, "Greatest Events of World War II in Colour.S01E01.Blitzkrieg", null, 2019,
-            "/media/documentary/Greatest Events of World War II in Colour/S01E01.Blitzkrieg.mkv", imdbId, tmdbId));
+            $"{JellyfinSamples.DocumentaryRoot}/Greatest Events of World War II in Colour/S01E01.Blitzkrieg.mkv", imdbId, tmdbId));
         await _factory.SyncLibraryAsync(_jellyfinIntegration.Id, _owner.AccessToken, cancellationToken);
         await ConnectTmdbAsync();
-        return await WorkOfAsync(EpisodeItemId, cancellationToken);
+        return await _factory.WorkOfItemAsync(EpisodeItemId, cancellationToken);
     }
 
     // After the syncs, so a sync queues no recommendation run of its own.
@@ -420,51 +385,16 @@ public sealed class LibraryLinkEpisodeHttpTests : IClassFixture<MediaAcquisition
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
     }
 
+    // The Save and the identification it queued, with a minute passing after them.
+    private async Task SetAndIdentifyAsync(Guid workId, LibraryLinkRequest request)
+    {
+        await SetAsync(workId, request);
+        await _factory.IdentifyQueuedLinksAsync(TestContext.Current.CancellationToken);
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+    }
+
     private JsonObject Movie(string itemId) => _jellyfin.Movies.Single(movie => (string?)movie["Id"] == itemId);
 
     private Dictionary<string, string> ProviderIdsOf(string itemId) =>
         Movie(itemId)["ProviderIds"]!.AsObject().ToDictionary(pair => pair.Key, pair => (string)pair.Value!);
-
-    private static async Task<LibraryLinkDialogResponse> ReadDialogAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
-        await ReadAsync<LibraryLinkDialogResponse>(response, cancellationToken);
-
-    private static async Task<T> ReadAsync<T>(HttpResponseMessage response, CancellationToken cancellationToken) =>
-        (await response.Content.ReadFromJsonAsync<T>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
-
-    private async Task<LibraryItemLinkEntity> SingleLinkAsync(CancellationToken cancellationToken)
-    {
-        LibraryItemLinkEntity? link = null;
-        await _factory.WithDbAsync(async db => link = await db.LibraryItemLinks.AsNoTracking().SingleAsync(cancellationToken));
-        return link!;
-    }
-
-    private async Task<Guid> WorkOfAsync(string itemId, CancellationToken cancellationToken)
-    {
-        var workId = Guid.Empty;
-        await _factory.WithDbAsync(async db => workId = await db.MediaWorkTitles
-            .Where(title => title.SourceItemId == itemId)
-            .Select(title => title.MediaWorkId)
-            .FirstAsync(cancellationToken));
-        return workId;
-    }
-
-    // The audit rows in the order they were recorded, each with its ids as "Role Scheme Value" in role and scheme order.
-    private async Task<List<(AuditAction Action, string Identifiers)>> AuditAsync(CancellationToken cancellationToken)
-    {
-        var rows = new List<(AuditAction, string)>();
-        await _factory.WithDbAsync(async db =>
-        {
-            var identifiers = (await db.AuditEventIdentifiers.AsNoTracking().ToListAsync(cancellationToken)).ToLookup(identifier => identifier.AuditEventId);
-            rows.AddRange((await db.AuditEvents.AsNoTracking().ToListAsync(cancellationToken))
-                .OrderBy(auditEvent => auditEvent.CreatedUtc)
-                .ThenBy(auditEvent => auditEvent.Action)
-                .Select(auditEvent => (
-                    auditEvent.Action,
-                    string.Join(", ", identifiers[auditEvent.Id]
-                        .OrderBy(identifier => identifier.Role)
-                        .ThenBy(identifier => identifier.Scheme)
-                        .Select(identifier => $"{identifier.Role} {identifier.Scheme} {identifier.Value}")))));
-        });
-        return rows;
-    }
 }

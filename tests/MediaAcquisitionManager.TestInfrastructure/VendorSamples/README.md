@@ -7,12 +7,15 @@ rather than against their documentation. MAM-17 added Jellyfin's series, seasons
 on the same day. MAM-33 added TMDb's answers, read with Vasyl's own token, and Prowlarr's newest Toloka
 releases on 2026-10-05. MAM-34 added, the same day, Jellyfin's users, a movie and a series item read
 whole, written back with new ids and read again, the refusals of a read and a write, and the movie
-after two refreshes — the only samples of a write to Jellyfin, made on the reference installation by
+after two refreshes — the first samples of a write to Jellyfin, made on the reference installation by
 a live check Vasyl ran —, and TMDb's details of a short and of Planet Earth with their runtimes, IMDb
 ids and other titles. The MAM-34 follow-up adds, from a second live check Vasyl ran on 2026-10-06,
 Jellyfin's answers to a metadata lookup of a movie and of a series item (`POST /Items/{id}/Refresh`),
 the answer to one more write of the series, and TMDb's details of two episodes with their own IMDb
-ids — every one of them recorded, none made by hand.
+ids — every one of them recorded, none made by hand. The MAM-34 Identify rework adds, from the live check
+Vasyl ran on 2026-10-06 against Jellyfin 12.1.0 (he typed `y` for each Apply), Jellyfin's `RemoteSearch`
+answers for a film, a show and a documentary episode, their `Apply` answers, the three items read again and
+their image lists — every one recorded, none made by hand.
 `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
@@ -56,24 +59,47 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Jellyfin/seasons-page.json` | The same with `includeItemTypes=Season` (four picked from the 25) | The seasons of the picked episodes, Mickey Mouse Clubhouse's virtual "Specials", without a path, among them |
 | `Jellyfin/episodes-page.json` | The same with `includeItemTypes=Episode` (six picked from the 471) | An ordinary episode (Yellowstone S01E01); the Tom & Jerry Kids item, one episode with 65 media sources and no series; a documentary episode in a mixed library; the two halves of Mickey Mouse Clubhouse S03E09, with the same numbers and ids; and a virtual special whose one media source is a `Placeholder` without a path |
 | `Jellyfin/users.json` | `GET /Users` (allowlisted: `Name`, `Id`, `Policy.IsAdministrator`, `Policy.IsDisabled`; 2026-10-05, MAM-34) | Two users, one an enabled administrator: the one the app reads an item as |
-| `Jellyfin/item.json` | `GET /Items/{id}?userId={administrator}` | The movie item "120. Landing Stripling" whole, 47 fields — `Etag`, `MediaSources`, `People`, `LockedFields`, `LockData`, `UserData` among them —, with empty `ProviderIds` and `RunTimeTicks` 3,730,210,000 (6.2 minutes): the body a write sends back, less its `People` |
-| `Jellyfin/item-update-response.txt` | `POST /Items/{id}` with `item.json`, only its `ProviderIds` set to `Tmdb` 223021 and `Imdb` tt0056164 | `204 No Content`, no body. Read by `VendorResponses.Recorded` |
-| `Jellyfin/item-after-update.json` | The same read again | The new ids; besides them only `Etag`, `ExternalUrls` and `UserData.Key` (now "223021") changed |
-| `Jellyfin/item-after-default-refresh.json` | The read after `POST /Items/{id}/Refresh` with `metadataRefreshMode=Default` | Nothing changed: the ids kept |
-| `Jellyfin/item-after-missing-refresh.json` | The read after "Search for missing metadata" (`metadataRefreshMode=FullRefresh`, `replaceAllMetadata=false`) | The ids kept, `Tvdb` and `TvdbSlug` added, and the overview, genres, people, studios, tags and ratings Jellyfin filled in: 53 fields. Its two people (Gene Deitch, William L. Snyder) are what a write leaves out of the body |
-| `Jellyfin/item-update-wrong-key-response.txt` | `POST /Items/{id}` with a wrong key | `401 Unauthorized` with no body. Read by `VendorResponses.Recorded` |
-| `Jellyfin/item-update-unknown-item-response.txt` | `POST /Items/{id}` of an item that doesn't exist | `404 Not Found` with JSON problem details |
+| `Jellyfin/item.json` | `GET /Items/{id}?userId={administrator}` | The movie item "120. Landing Stripling" whole, 47 fields — `Etag`, `MediaSources`, `People`, `LockedFields`, `LockData`, `UserData` among them —, with empty `ProviderIds` and `RunTimeTicks` 3,730,210,000 (6.2 minutes): what the app reads before an Identify, and the body the earlier ids-only write sent back, less its `People` |
+| `Jellyfin/item-update-response.txt` | `POST /Items/{id}` with `item.json`, only its `ProviderIds` set to `Tmdb` 223021 and `Imdb` tt0056164 | `204 No Content`, no body. History since the 0.2.1 Identify rework replaced this write: no test reads it |
+| `Jellyfin/item-after-update.json` | The same read again | The new ids; besides them only `Etag`, `ExternalUrls` and `UserData.Key` (now "223021") changed. History: no test reads it |
+| `Jellyfin/item-after-default-refresh.json` | The read after `POST /Items/{id}/Refresh` with `metadataRefreshMode=Default` | Nothing changed: the ids kept. History: no test reads it |
+| `Jellyfin/item-after-missing-refresh.json` | The read after "Search for missing metadata" (`metadataRefreshMode=FullRefresh`, `replaceAllMetadata=false`) | The ids kept, `Tvdb` and `TvdbSlug` added, and the overview, genres, people, studios, tags and ratings Jellyfin filled in: 53 fields. Its two people (Gene Deitch, William L. Snyder) are what the earlier write left out of the body. History: no test reads it |
+| `Jellyfin/item-update-wrong-key-response.txt` | `POST /Items/{id}` with a wrong key | `401 Unauthorized` with no body. History: no test reads it |
+| `Jellyfin/item-update-unknown-item-response.txt` | `POST /Items/{id}` of an item that doesn't exist | `404 Not Found` with JSON problem details. History: no test reads it |
 | `Jellyfin/item-read-unknown-item-response.txt` | `GET /Items/{id}?userId=…` of an item that doesn't exist | The same `404` |
 | `Jellyfin/item-read-without-user-response.txt` | `GET /Items/{id}` with the key and no user | `400 Bad Request`, `text/plain`, "Error processing request." |
 | `Jellyfin/series-item.json` | `GET /Items/{id}?userId={administrator}` of a series | The Penguins of Madagascar's series item whole, 41 fields — `AirDays`, `ChildCount`, `RecursiveItemCount`, `DateLastMediaAdded` among them —, named after its folder, "The Penguins Of Madagascar (Season 1-3) (2008-2015) WEBDL 1080p [Ukr,Eng] Sub [Eng] [ Hurtom ] by Jatx 11", with no ids |
-| `Jellyfin/series-item-update-response.txt` | `POST /Items/{id}` with it, only `ProviderIds.Tmdb` set to 7869 | `204 No Content`, after 4.5 seconds. The fake Jellyfin's answer to a series' update. Read by `VendorResponses.Recorded` |
-| `Jellyfin/series-item-after-update.json` | The same read again | `ProviderIds` `{ "Tmdb": "7869" }`; besides it only `Etag` and `ExternalUrls` changed on the series item. Its `ProviderIds` are what the app's write of the series sends (`JellyfinSamples.SeriesItemAfterUpdate`) |
+| `Jellyfin/series-item-update-response.txt` | `POST /Items/{id}` with it, only `ProviderIds.Tmdb` set to 7869 | `204 No Content`, after 4.5 seconds. History: no test reads it |
+| `Jellyfin/series-item-after-update.json` | The same read again | `ProviderIds` `{ "Tmdb": "7869" }`; besides it only `Etag` and `ExternalUrls` changed on the series item. History: no test reads it |
 | `Jellyfin/series-item-update-2026-10-06-response.txt` | The same `POST /Items/{id}` of the series, by then holding `Tmdb` 7869 and five other ids and rated `TV-Y7`, sent back as read without its `People` (2026-10-06, MAM-34 follow-up) | `204 No Content` after 9.5 seconds (`X-Response-Time-ms` 9484.99): the save that gave all 3 seasons and 149 episodes the series' rating (below). Kept as the check's record; no test reads it |
-| `Jellyfin/item-refresh-response.txt` | `POST /Items/{id}/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false` — Jellyfin's own "Search for missing metadata" — of the movie item "Greatest Events of World War II in Colour.S01E01.Blitzkrieg" (2026-10-06, MAM-34) | `204 No Content`, no body, in 0.6 ms: queued, not done. Read by `VendorResponses.Recorded` |
-| `Jellyfin/item-refresh-unknown-item-response.txt` | The same of an item that doesn't exist | `404 Not Found` with JSON problem details, as an update of one answers |
-| `Jellyfin/item-refresh-wrong-key-response.txt` | The same with a wrong key | `401 Unauthorized` with no body |
-| `Jellyfin/series-refresh-response.txt` | The same of the Penguins of Madagascar's series item, right after its update | `204 No Content` in 0.8 ms. The fake Jellyfin's answer to a series' lookup. Read by `VendorResponses.Recorded` |
+| `Jellyfin/item-refresh-response.txt` | `POST /Items/{id}/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=false&replaceAllImages=false` — Jellyfin's own "Search for missing metadata" — of the movie item "Greatest Events of World War II in Colour.S01E01.Blitzkrieg" (2026-10-06, MAM-34) | `204 No Content`, no body, in 0.6 ms: queued, not done. History: no test reads it |
+| `Jellyfin/item-refresh-unknown-item-response.txt` | The same of an item that doesn't exist | `404 Not Found` with JSON problem details, as an update of one answers. History: no test reads it |
+| `Jellyfin/item-refresh-wrong-key-response.txt` | The same with a wrong key | `401 Unauthorized` with no body. History: no test reads it |
+| `Jellyfin/series-refresh-response.txt` | The same of the Penguins of Madagascar's series item, right after its update | `204 No Content` in 0.8 ms. History: no test reads it |
 | `Jellyfin/series-item-after-removal.json` | The read after posting it back without the `Tmdb` key | The key gone; only `Etag` differs from `series-item.json`. Kept as the check's record; no test reads it |
+| `Jellyfin/remote-search-movie-by-tmdb-response.txt` | `POST /Items/RemoteSearch/Movie` with `{"SearchInfo": {"ProviderIds": {"Tmdb": "223021"}}, "ItemId": "750eaa45-b083-6d08-e4ae-4b35750b93ca", "SearchProviderName": "TheMovieDb"}` (2026-10-06, MAM-34 Identify) | `200 OK` after 0.12 s, a JSON array of one row: "Landing Stripling" (1962) with `Tmdb` and `Imdb`, a premiere date, an `ImageUrl`, the overview and an empty `Artists`. The fake Jellyfin's row of a film (`JellyfinSamples.RemoteSearchMovieByTmdbRows`) and the row the adapter applies |
+| `Jellyfin/remote-search-movie-by-tmdb-without-item-response.txt` | The same without `ItemId`: `{"SearchInfo": {"ProviderIds": {"Tmdb": "223021"}}, "SearchProviderName": "TheMovieDb"}` | `200 OK` after 0.02 s, the same row: a search works without the item. Kept as the check's record; no test reads it |
+| `Jellyfin/remote-search-movie-by-tmdb-all-providers-response.txt` | The same without `SearchProviderName`: `{"SearchInfo": {"ProviderIds": {"Tmdb": "223021"}}, "ItemId": "750eaa45-b083-6d08-e4ae-4b35750b93ca"}` | `200 OK` after 0.20 s, the same row: only TheMovieDb answered an id search by `Tmdb`. Kept as the check's record; no test reads it |
+| `Jellyfin/remote-search-movie-by-tmdb-lowercase-key-response.txt` | The same with the key spelled `tmdb` | `200 OK` after 0.06 s with `[]`: the key must be exactly `Tmdb`. The fake Jellyfin answers it so, and the adapter spells it so |
+| `Jellyfin/remote-search-movie-unknown-tmdb-id-response.txt` | The same with `Tmdb` 999999999 | `200 OK` after 0.15 s with `[]`: no match, not an error. Read by the adapter's no-match test |
+| `Jellyfin/remote-search-movie-by-tv-id-response.txt` | `POST /Items/RemoteSearch/Movie` with the TV id: `Tmdb` 7869 | `200 OK` after 0.14 s with one **unrelated** film, "The Fest" (2005): an id searched in the wrong namespace answers whatever has that number (`JellyfinSamples.RemoteSearchMovieByTvIdRows`) |
+| `Jellyfin/remote-search-series-by-tmdb-response.txt` | `POST /Items/RemoteSearch/Series` with `{"SearchInfo": {"ProviderIds": {"Tmdb": "7869"}}, "ItemId": "9ac821b3-ddea-72fd-14ba-1835b4153e50", "SearchProviderName": "TheMovieDb"}` | `200 OK` after 0.16 s, one row: "The Penguins of Madagascar" (2008) with `Tmdb`, `Imdb` and `Tvdb`. The fake Jellyfin's row of a show (`JellyfinSamples.RemoteSearchSeriesByTmdbRows`) |
+| `Jellyfin/remote-search-series-by-movie-id-response.txt` | `POST /Items/RemoteSearch/Series` with the film id: `Tmdb` 223021 | `200 OK` after 0.15 s with one unrelated show, "Ham.W.Shaha": the same trap the other way |
+| `Jellyfin/remote-search-movie-by-imdb-omdb-response.txt` | `POST /Items/RemoteSearch/Movie` with `{"SearchInfo": {"ProviderIds": {"Imdb": "tt9103946"}}, "ItemId": "03299393-01cb-93b1-c47e-ea6efe4975c2", "SearchProviderName": "The Open Movie Database"}` | `200 OK` after 0.18 s, one row: "Blitzkrieg" (2019) with `Imdb` only, a Media-Amazon `ImageUrl` and **no overview**: an episode Jellyfin lists as a film, found by its own IMDb id (`JellyfinSamples.RemoteSearchOmdbRows`) |
+| `Jellyfin/remote-search-movie-by-imdb-tmdb-response.txt` | The same with `SearchProviderName` `TheMovieDb` | `200 OK` after 0.13 s with `[]`: TMDb finds no episode by its IMDb id. The fake Jellyfin answers it so |
+| `Jellyfin/remote-search-movie-by-imdb-all-providers-response.txt` | The same without `SearchProviderName` | `200 OK` after 0.16 s, the same single Open Movie Database row. Kept as the check's record; no test reads it |
+| `Jellyfin/remote-search-wrong-key-response.txt` | `POST /Items/RemoteSearch/Movie` with a wrong API key | `401 Unauthorized` with no body, in 0.03 s. Read by `VendorResponses.Recorded` |
+| `Jellyfin/item-remote-search-apply-response.txt` | `POST /Items/RemoteSearch/Apply/{itemId}?replaceAllImages=true` with the row of "Landing Stripling" as the body (2026-10-06, MAM-34). Recorded as `remote-search-apply-response.txt`, renamed to pair with the two below | `204 No Content`, no body, with a `Content-Language` header, after 1.8 s: Apply is synchronous, and a film takes seconds. Read by `VendorResponses.Recorded` |
+| `Jellyfin/series-remote-search-apply-response.txt` | The same with the row of "The Penguins of Madagascar" (3 seasons, 149 episodes) | `204 No Content` after **159.3 s**: about a second per episode. Apply is not a request a 15-second client can wait for |
+| `Jellyfin/episode-movie-remote-search-apply-response.txt` | The same with the Open Movie Database's row of "Blitzkrieg" | `204 No Content` after 21.3 s |
+| `Jellyfin/remote-search-apply-unknown-item-response.txt` | The same of an item that doesn't exist (`782f4e68cd195fc78596a7a040f90bb7`) with a dummy body | `404 Not Found` with JSON problem details; the all-zero id answers 400 instead, so a test uses another |
+| `Jellyfin/remote-search-apply-wrong-key-response.txt` | The same with a wrong API key | `401 Unauthorized` with no body |
+| `Jellyfin/item-after-identify.json` | `GET /Items/{id}?userId={administrator}` of "120. Landing Stripling" after its Apply | The item whole: TMDb's `Name` ("Landing Stripling", the file's was "120. Landing Stripling"), `Etag` new, a new Primary poster and Backdrop, the overview, `ProviderIds` `Tmdb`, `Imdb`, `Tvdb` and `TvdbSlug` (`JellyfinSamples.ItemAfterIdentify`) |
+| `Jellyfin/series-item-after-identify.json` | The same of the Penguins series item after its Apply | `Name` already TMDb's, all five images with new tags, `Etag` new, 3 seasons and 149 episodes untouched, `UserData` kept (15.4 % played) (`JellyfinSamples.SeriesItemAfterIdentify`) |
+| `Jellyfin/episode-movie-after-identify.json` | The same of the episode Jellyfin lists as a film ("Blitzkrieg") after its Apply through the Open Movie Database | `Name` "Blitzkrieg" and year 2019 corrected, the Primary image replaced by a 1920x1080 one, the overview (168 characters) and `ProviderIds` `{ "Imdb": "tt9103946" }` kept (`JellyfinSamples.EpisodeMovieAfterIdentify`) |
+| `Jellyfin/item-images-after-identify.json` | `GET /Items/{id}/Images` of the film after its Apply | A Primary poster (1112x1668) and a Backdrop (1280x720), files under Jellyfin's own `/config/metadata/library`. Kept as the check's record; no test reads it |
+| `Jellyfin/series-images-after-identify.json` | The same of the series | Primary, Logo, Thumb, Banner and Backdrop. Kept as the check's record; no test reads it |
+| `Jellyfin/episode-movie-images-after-identify.json` | The same of the episode listed as a film | One Primary image, 1920x1080. Kept as the check's record; no test reads it |
 | `QBittorrent/app-version.txt`, `webapi-version.txt`, `build-info.json` | `GET /api/v2/app/...` | Versions |
 | `QBittorrent/categories.json` | `GET /api/v2/torrents/categories` | Four categories, each saving to the folder of one Jellyfin library, under qBittorrent's `/downloads` |
 | `QBittorrent/preferences.json` | `GET /api/v2/app/preferences` (allowlisted) | Automatic torrent management on, no separate folder for incomplete downloads, content layout `Original` |
@@ -284,9 +310,9 @@ The four movies in `movies-page.json`:
   changed in between wasn't recorded — most likely a metadata refresh, after the 2026-10-05 writes had
   copied the series' missing rating over the children's. An update sent `People` rebuilds the item's people from their
   names, roles and types alone (`LibraryManager.UpdatePeople`), and one without it leaves them as they
-  are, so the app leaves them out. `ProviderIds` replace the item's ids as a whole
+  are, so the earlier write left them out. `ProviderIds` replace the item's ids as a whole
   (`ProviderIdsExtensions.SetProviderIds`): an id Jellyfin holds that fails its own format check is
-  dropped by the write, though the app sends it back as read. And an item a user may not see answers
+  dropped by the write, though the earlier write sent it back as read. And an item a user may not see answers
   that user's read 404, as one that is gone does.
 - **A refresh keeps an id set by hand** (MAM-34). A default refresh changed nothing; "Search for
   missing metadata" kept `Tmdb` and `Imdb`, added `Tvdb` and `TvdbSlug`, and filled the overview,
@@ -317,6 +343,44 @@ The four movies in `movies-page.json`:
   the check counted them —, and nothing the app or Jellyfin keeps can put them back. Vasyl accepted it:
   the app writes a series like a film (2026-10-06,
   [ADR 0026](../../../docs/adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+- **Identify is a search by id and one synchronous Apply, and it replaces title, overview and images**
+  (MAM-34, Vasyl's live check of 2026-10-06 on Jellyfin 12.1.0,
+  [ADR 0026](../../../docs/adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)).
+  This replaces the decision to write ids alone; the records above stand as they were made.
+  1. **Calls.** `POST /Items/RemoteSearch/Movie|Series` with
+     `{"SearchInfo":{"ProviderIds":{"Tmdb":"223021"}},"ItemId":"<dashed guid>","SearchProviderName":"TheMovieDb"}`
+     answers 200 with one row (`Name`, `ProviderIds`, `ProductionYear`, `PremiereDate`, `ImageUrl`,
+     `SearchProviderName`, `Overview`, `Artists`); it works without `ItemId` and without a provider name (then
+     only TheMovieDb answered a `Tmdb` search); the key must be `Tmdb` — `tmdb` answers 200 `[]`, as an unknown id
+     does; a wrong key is 401 with no body (0.03 s). `POST /Items/RemoteSearch/Apply/{id 32-hex}?replaceAllImages=true`
+     with that row as the body answers 204 (empty body, a `Content-Language` header) **after the work is done**; an
+     unknown item is 404 problem+json (the all-zero guid is 400), a wrong key 401.
+  2. **Namespace trap.** A Movie search with the TV id 7869 returned an unrelated film, "The Fest" (2005); a Series
+     search with the film id 223021 an unrelated show. An id may only go to the search of its own kind.
+  3. **Episodes as films.** `RemoteSearch/Movie` with `{"Imdb":"tt9103946"}` and `SearchProviderName` `The Open Movie
+     Database` returned one row (`Blitzkrieg`, 2019, `Imdb` only, a Media-Amazon image, no overview); with
+     `TheMovieDb` `[]`; with no provider name the same OMDb row.
+  4. **Timings.** Film 1.8 s; the Penguins of Madagascar (3 seasons, 149 episodes) 159.3 s (about a second per
+     episode); the episode through OMDb 21.3 s; no timeouts. Jellyfin's Apply uses `CancellationToken.None`, so it
+     carries on when the client gives up.
+  5. **What changed.** Film: Name, Etag, Primary (768x576 → 1112x1668), Backdrop; Overview/Genres/Studios/Tags/
+     People/UserData unchanged (an earlier refresh had filled them); `ProviderIds` kept their keys (Tvdb and TvdbSlug
+     re-added by other providers). Series: five images re-downloaded, Etag changed, 3 seasons and 149 episodes
+     unchanged, episode names/overviews/images unchanged, episodes lost their `TvMaze` id, `UserData` preserved
+     (15.4 % played). Episode-movie: Name and year corrected (2025 → 2019), Primary replaced by a **1920x1080 image
+     — not OMDb's 960x1440 poster; presumably the Screen Grabber's video frame** (not isolated) —, overview kept
+     (168 characters), `ProviderIds` and `UserData.Key` unchanged.
+  6. **Files.** The folder listings of the three items before and after (`find -printf` inside the container:
+     162 / 153 / 11 entries) were identical; Jellyfin's images are files under its own `/config/metadata/library`.
+  7. **Libraries** (`virtual-folders.json`): the four media libraries `SaveLocalMetadata` false, `MetadataSavers`
+     `[]`, no subtitle download languages; «Колекції» (boxsets) `SaveLocalMetadata` true and no `MetadataSavers` list — the one
+     that writes beside the media. `PreferredMetadataLanguage`: Фільми `uk`, Мульфільми and Документалки empty,
+     Серіали `en`; Apply has no language field. Movie fetchers (cartoons): AniList, TheMovieDb, The Open Movie
+     Database, TheTVDB; documentary: TheMovieDb, The Open Movie Database.
+  8. **Language (source-read, not exercised live).** The search body may carry `SearchInfo.MetadataLanguage` /
+     `MetadataCountryCode`; when blank Jellyfin falls back to the server's (`ProviderManager.cs:969-977`; `ItemId`
+     only picks the providers), while Apply refreshes the item in its library's language. All three recorded items
+     were in libraries with a blank language or `en`.
 - **TMDb gives an episode its own IMDb id under `external_ids`** (MAM-34). Asked with
   `append_to_response=external_ids`, an episode's details carry `external_ids.imdb_id` (and TheTVDB's
   id), no `imdb_id` of their own; its `name` is TMDb's fallback "Серія 1" where it has no Ukrainian

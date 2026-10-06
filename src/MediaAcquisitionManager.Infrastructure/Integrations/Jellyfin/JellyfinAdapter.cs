@@ -15,27 +15,32 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 /// <summary>
 /// Jellyfin behind the core's contracts (Adapter, ADR 0005): the registration and the connection test
 /// (MAM-7), the media library contract (MAM-8): its movies, and since MAM-32 its series and episodes;
-/// and since MAM-34 the optional identifier writer (<c>JellyfinAdapter.Identifiers.cs</c>), which sets the
-/// owner's TMDb link into one item's <c>ProviderIds</c>. That write, and the lookup of the item's missing metadata asked
-/// right after it, are the calls that change anything in Jellyfin: the write sends a movie or series item back with only
-/// its ids changed — a series' save also gives its seasons and episodes its name and ratings, which Vasyl accepted —, the
-/// lookup is Jellyfin's own "Search for missing metadata", which replaces nothing; every other call is a GET, and a sync
-/// only reads.
+/// and since MAM-34 the optional item identifier (<c>JellyfinAdapter.Identify*.cs</c>), which identifies one
+/// movie or series item as the owner's TMDb link says, exactly as Jellyfin's own "Identify" button does. Identify is the
+/// only thing that changes anything in Jellyfin: a search for the id, which changes nothing although it is a POST, and
+/// Apply, which replaces the item's title, overview, images and ids with the chosen result's; every other call is a GET,
+/// and a sync only reads.
 /// </summary>
 /// <remarks>
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer
 /// also carries its streams, people, images and the server's paths, none of which goes further than
-/// this class. MAM-34 — the write sends the item back as it was read, but for its people, which goes no further than
-/// this class either: Jellyfin's update replaces the item with what it is sent.
+/// this class. MAM-34 — the one body this adapter sends back is the chosen search result, exactly as Jellyfin gave it.
 /// </remarks>
 internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
-    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider, IMediaLibraryIdentifierWriter
+    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider, IMediaLibraryItemIdentifier
 {
     /// <summary>The stored type id — part of the on-disk contract (ADR 0005).</summary>
     public const string TypeId = "jellyfin";
 
     /// <summary>The named client this adapter's requests go through, so a test can swap its handler.</summary>
     public const string HttpClientName = TypeId;
+
+    /// <summary>
+    /// MAM-34 — the second named client, for Apply alone: the shared client's 15 seconds is far too short for a call that
+    /// takes a second per episode of a series, and an <see cref="HttpClient"/>'s timeout can't change once it has been used
+    /// (<see cref="IntegrationsInfrastructureExtensions.IdentifyTimeout"/>).
+    /// </summary>
+    public const string IdentifyHttpClientName = "jellyfin-identify";
 
     /// <summary>
     /// The most items one page may ask for. The heaviest sample movie is about 12 KB as Jellyfin sends

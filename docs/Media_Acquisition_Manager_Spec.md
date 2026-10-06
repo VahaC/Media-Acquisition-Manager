@@ -45,6 +45,15 @@ doesn't change back — recorded on The Penguins of Madagascar, whose 3 seasons 
 carried TV-Y7 afterwards —, and he accepted that: age ratings don't matter to him. The links set
 before are brought up to date only on the owner's click.
 
+**Note (2026-10-06, MAM-34, decided again):** assigning a catalog id to an item is now the media
+server's own Identify — a search by that id, then Apply — so the server replaces the item's title,
+overview and images in its library's language; this replaces the two notes above wherever they say
+"ids alone", "no identify, no refresh", "looks up missing metadata" or put back. Removing a link
+forgets it in the app only, and the server keeps what the Identify gave the item. Files and folders
+are never touched, and a library that saves beside the media is refused. (Vasyl, 2026-10-06; [ADR
+0026](adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)'s
+section added that day.)
+
 ## 2. First-version scope and default decisions
 
 | Question | Working decision | Status |
@@ -156,7 +165,7 @@ Application-level contracts (interfaces/ports) with explicit capabilities:
 
 | Contract | Responsibility | First implementation |
 | --- | --- | --- |
-| `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; request a scan; optional version capabilities; optionally set an item's registry ids and nothing else, on the kinds of item it names, then ask it to look up the item's missing metadata (`IMediaLibraryIdentifierWriter`, MAM-34; Jellyfin: films and series) | Jellyfin |
+| `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; request a scan; optional version capabilities; optionally identify an item as a catalog film or show and nothing else, on the kinds of item it names (`IMediaLibraryItemIdentifier`, MAM-34; Jellyfin: films and series) | Jellyfin |
 | `IReleaseSearchProvider` | Search and normalize results; retrieve a payload separately for client submission | Torznab (Jackett) |
 | `IDownloadClient` | Supported payload types, destination validation, submission, status, file list/status, job correlation | qBittorrent |
 | `IFileInventory` | Scan only allowed roots; file identity, size/hash, ffprobe, quarantine | Local/container mount |
@@ -179,7 +188,7 @@ Minimum `ReplacementJob` fields: internal ID, source/release reference or snapsh
 
 **Library:** search existing works, versions, and paths; indicate missing IDs. Allow manual linking once that workflow is implemented.
 
-**Library (MAM-34):** the owner's `TMDb…` action on a work opens a dialog with the ids the media server reports for each of its items, up to five ranked catalog suggestions with their evidence (title, year, runtime against the measured duration, the library's genre, a linked neighbour) and the one confident suggestion marked, a field for a pasted TMDb or IMDb link or id, and a catalog search; Save links the picked film or show, Remove link puts back what the app wrote. A film item linked to a show is an episode of it, with optional season and episode numbers; named both, the episode's own IMDb id is written into the item, else the link is kept in the app and says why. Each linked item shows whether the server holds the id: "In Jellyfin", "Not in Jellyfin yet" with Retry, "Jellyfin lost it" with Write again, or "Kept in the app", and when the server was asked to look it up after the write. A series' link is written like a film's, the server's update of a series also giving each of its seasons and episodes the series' rating, which the owner accepted (2026-10-06); nothing asks or warns about it. The TMDb links page brings the links set before up to date on the owner's click. A film id the server gives an item after the owner linked it as an episode of a show is shown as a conflict, neither winning. A TMDb links page, opened from the missing-ID filter, reviews the works without an id one at a time by the keyboard, links every confident suggestion at once and lists the conflicting and unattached links. Linked ids show on the cards as "set by" the owner; members see them, without the owner's name, and can't link.
+**Library (MAM-34):** the owner's `TMDb…` action on a work opens a dialog with the ids the media server reports for each of its items, up to five ranked catalog suggestions with their evidence (title, year, runtime against the measured duration, the library's genre, a linked neighbour) and the one confident suggestion marked, a field for a pasted TMDb or IMDb link or id, and a catalog search; above Save it says what the server will replace, and Save links the picked film or show and queues the server's Identify for each item — its title, overview and images become the catalog's, in the language of the item's library, in the background —, while Remove link forgets the link in the app only. A film item linked to a show is an episode of it, with optional season and episode numbers; named both, the server identifies it through The Open Movie Database by the episode's own IMDb id, else the link is kept in the app and says why. Each linked item shows whether the server identified it: "Waiting to identify" and "Identifying…" while it runs, then "Identified in Jellyfin", "Not identified yet" with Retry and the reason, "Jellyfin lost it" with Identify again, or "Kept in the app". A series' link is identified like a film's, in the background, and the server also refreshes its seasons and episodes. The TMDb links page repairs the links set before on the owner's click (Update Jellyfin: a count, one confirmation, progress) and lists, under Not identified, every link the server or the app refused or failed to identify, with its reason. A library that saves artwork or metadata next to the media is refused before any search, and files and folders are never touched. A film id the server gives an item after the owner linked it as an episode of a show is shown as a conflict, neither winning. A TMDb links page, opened from the missing-ID filter, reviews the works without an id one at a time by the keyboard, links every confident suggestion at once and lists the conflicting and unattached links. Linked ids show on the cards as "set by" the owner; members see them, without the owner's name, and can't link.
 
 **Search (MAM-34):** a linked id matches like the server's own and is shown as "set by" the owner; a linked id beside a different server id of its scheme is flagged as a conflict.
 

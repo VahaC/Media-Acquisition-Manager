@@ -6,110 +6,140 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.LibraryLinks;
 
-// MAM-34 — the catch-up (Vasyl's decision of 2026-10-06): the links set before the app wrote series and episodes, and
-// before it asked the library to look a written item up, brought to today's rules — on the owner's click only. A series'
-// link and a numbered episode's kept in the app are written now; a written film link gets the lookup it never had. A
-// link a catch-up couldn't write — the library unreachable, TMDb not answering — is counted again, so the next click
-// takes it back. The background writer does it all, one link at a time, each with its own audit rows (Queue/Worker,
-// as "Accept all confident"); the links list's Pending filter follows it.
+// MAM-34 — the repair (the TMDb page's "Update Jellyfin"; Vasyl's decisions of 2026-10-06, ADR 0026): every link the library
+// has not been confirmed to show yet — those set before the app identified items, and any whose identification was refused
+// or failed before anything was sent — queued for the background writer on the owner's click, with progress. Each is an
+// Identify of its own, with its own audit row; a link whose library already shows the match is found so and sent nothing.
+// The route keeps its name (api/library/tmdb/catch-up).
 public sealed partial class LibraryLinkService
 {
     /// <inheritdoc/>
-    public async Task<LibraryLinkCatchUpResponse> ReadCatchUpAsync(CancellationToken cancellationToken = default)
-    {
-        var (toWrite, toLookUp) = await CatchUpAsync(cancellationToken);
-        return new LibraryLinkCatchUpResponse(toWrite.Count, toLookUp.Count);
-    }
+    public async Task<LibraryLinkCatchUpResponse> ReadCatchUpAsync(CancellationToken cancellationToken = default) =>
+        new((await RepairCandidatesAsync(cancellationToken)).Count, await ProgressAsync(cancellationToken));
 
     /// <inheritdoc/>
     public async Task<LibraryLinkCatchUpResponse> StartCatchUpAsync(CancellationToken cancellationToken = default)
     {
-        var (toWrite, toLookUp) = await CatchUpAsync(cancellationToken);
+        var candidates = await RepairCandidatesAsync(cancellationToken);
+        if (candidates.Count == 0)
+            return new LibraryLinkCatchUpResponse(0, null);
+
         // From here on the request's token is no longer taken: links half queued would be queued all the same at the next
         // signal, but the answer would say otherwise.
+        var batchId = Guid.NewGuid();
         var now = time.GetUtcNow().UtcDateTime;
-        var written = await QueueAsync(toWrite, LibraryLinkWriteState.KeptInApp, now) + await QueueAsync(toWrite, LibraryLinkWriteState.NotWritten, now);
-        var lookedUp = await QueueAsync(toLookUp, LibraryLinkWriteState.Written, now) + await QueueAsync(toLookUp, LibraryLinkWriteState.InLibrary, now);
-        if (written + lookedUp > 0)
+        var queued = await RepairCandidateLinks()
+            // The ids as one JSON parameter (EF.Parameter, the LibrarySnapshotStore rule): a repair may queue every link of
+            // the library, past SQLite's limit on the number of parameters. The candidate rules are asked again in SQL, so a
+            // link a Retry, a removal's delete or the worker took meanwhile is left to it.
+            .Where(link => EF.Parameter(candidates).Contains(link.Id))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(link => link.WriteState, LibraryLinkWriteState.Queued)
+                    .SetProperty(link => link.WriteError, (string?)null)
+                    .SetProperty(link => link.WriteStateUtc, now)
+                    // The click's id: progress survives a reload, and the links are protected (ProtectHeldIds) — the repair
+                    // never replaces an id the library holds on its own.
+                    .SetProperty(link => link.BatchId, (Guid?)batchId),
+                CancellationToken.None);
+        if (queued > 0)
             writeQueue.Signal();
 
         // Information: counts only — what the owner's click queued.
-        logger.LogInformation("The TMDb links' catch-up queued {Written} links to write and {LookedUp} to look up.", written, lookedUp);
-        return new LibraryLinkCatchUpResponse(written, lookedUp);
+        logger.LogInformation("The TMDb links' repair {BatchId} queued {Queued} links to identify.", batchId, queued);
+        return new LibraryLinkCatchUpResponse(queued, queued > 0 ? new LibraryLinkProgressDto(batchId, queued, 0) : null);
     }
 
     /// <summary>
-    /// The links the catch-up writes — those that write ids of their own under today's rules
-    /// (<see cref="LibraryLinkWritability"/>) and the library doesn't hold yet: kept in the app under the first rules, or
-    /// not written (a catch-up's write that failed among them) — and those it asks the library to look up — written or in
-    /// the library, never looked up. Only links whose item the library still reports (attached), in a library switched on
-    /// (R12: one switched off is never written; its links wait for it, and a click once it is on). An episode's link TMDb
-    /// already said has no IMDb id is left alone: asking again would keep it in the app all the same; one whose IMDb id is
-    /// still to be asked counts only while a catalog is connected, as without one its write could only fail.
+    /// The links the repair would identify: attached (the library still reports the item), never confirmed identified
+    /// (<see cref="LibraryItemLinkEntity.IdentifiedUtc"/> null), not already queued or being identified, in a library switched
+    /// on (R12: one switched off is never identified in; its links wait for it) — and, for a <c>NotWritten</c> link, only
+    /// when no Apply was ever sent for its current setting.
     /// </summary>
     /// <remarks>
-    /// The candidates are read in one query and judged in memory by the library's own capability (ADR 0005), which no
-    /// SQL can ask; there are as many as there are links, a few hundred in the reference library.
+    /// <para>
+    /// A link refused or failed before an Apply (a conflicting id, a library that saves beside the media, a locked item, no
+    /// match, the library down, a stopped batch) changed nothing in the library, so trying it again is cheap — one read and
+    /// one search — and true: it is "not identified yet". A link whose Apply was sent and not confirmed (the answer lost, a
+    /// 5xx, a timeout, only the ids taken) has had its images deleted, and a repeat would send a new Apply that deletes them
+    /// again — a series for another ~159 s each time — for an item that keeps failing the confirmation. Those wait for the
+    /// owner's own Retry, per link, once he has read the sentence. The <c>LibraryItemIdentified</c> audit row is the app's
+    /// only record that an Apply was sent, written whenever one left. Rows older than the link's current setting (<c>SetUtc</c>:
+    /// a replaced link) belong to another id and don't count.
+    /// </para>
+    /// <para>
+    /// An identification a restart cut is the one exception to "the audit row says": the row is written only after the Apply's
+    /// answer, so a process that died inside an Apply left none, and Jellyfin goes on with that Apply (a series for minutes)
+    /// after the app that sent it is gone. Such a link — the reconciler's <c>RestartedError</c> — waits for the owner's own
+    /// Retry too, as its sentence says: a repair click right after the restart would send a second Apply into a series still
+    /// being refreshed.
+    /// </para>
     /// </remarks>
-    private async Task<(List<Guid> ToWrite, List<Guid> ToLookUp)> CatchUpAsync(CancellationToken cancellationToken)
+    private IQueryable<LibraryItemLinkEntity> RepairCandidateLinks() =>
+        db.LibraryItemLinks.Where(link => link.MediaWorkId != null
+            && link.IdentifiedUtc == null
+            && link.WriteState != LibraryLinkWriteState.Queued
+            && link.WriteState != LibraryLinkWriteState.Writing
+            && db.IntegrationConnections.Any(connection => connection.Id == link.IntegrationConnectionId && connection.IsEnabled)
+            && (link.WriteState != LibraryLinkWriteState.NotWritten
+                || (link.WriteError != LibraryLinkWriteReconciler.RestartedError
+                    && !db.AuditEvents.Any(auditEvent => auditEvent.Action == AuditAction.LibraryItemIdentified
+                        && auditEvent.TargetKind == AuditTargetKind.LibraryLink
+                        && auditEvent.TargetId == link.Id
+                        && auditEvent.CreatedUtc >= link.SetUtc))));
+
+    /// <summary>
+    /// The ids of the links the repair identifies: <see cref="RepairCandidateLinks"/> judged in memory by the library's own
+    /// capability (ADR 0005), which no SQL can ask — those that are identified by rule today
+    /// (<see cref="LibraryLinkWritability"/>). An episode's link TMDb already said has no IMDb id is left alone: asking again
+    /// would keep it in the app all the same; one whose IMDb id is still to be asked counts only while a catalog is connected,
+    /// as without one its identification could only fail.
+    /// </summary>
+    /// <remarks>There are as many candidates as there are links, a few hundred in the reference library.</remarks>
+    private async Task<List<Guid>> RepairCandidatesAsync(CancellationToken cancellationToken)
     {
-        var candidates = await db.LibraryItemLinks
-            .AsNoTracking()
-            .Where(link => link.MediaWorkId != null
-                && (link.WriteState == LibraryLinkWriteState.KeptInApp
-                    || link.WriteState == LibraryLinkWriteState.NotWritten
-                    || ((link.WriteState == LibraryLinkWriteState.Written || link.WriteState == LibraryLinkWriteState.InLibrary)
-                        && link.LookupRequestedUtc == null))
-                && db.IntegrationConnections.Any(connection => connection.Id == link.IntegrationConnectionId && connection.IsEnabled))
-            .OrderBy(link => link.Id)
-            .ToListAsync(cancellationToken);
+        var candidates = await RepairCandidateLinks().AsNoTracking().OrderBy(link => link.Id).ToListAsync(cancellationToken);
         var connections = await ConnectionsAsync([.. candidates.Select(link => link.IntegrationConnectionId).Distinct()], cancellationToken);
         bool? catalogConnected = null;
 
-        var toWrite = new List<Guid>();
-        var toLookUp = new List<Guid>();
+        var ids = new List<Guid>();
         foreach (var link in candidates)
         {
             if (!connections.TryGetValue(link.IntegrationConnectionId, out var connection))
                 continue;
-            var writer = adapters.Find<IMediaLibraryIdentifierWriter>(connection.AdapterType);
-            if (link.WriteState is LibraryLinkWriteState.KeptInApp or LibraryLinkWriteState.NotWritten)
-            {
-                if (LibraryLinkWritability.KeptReason(link, writer, connection.Name) is not null)
-                    continue;
-                // The writer asks TMDb for the episode's IMDb id first (LibraryLinkWriter).
-                if (link is { Target: LibraryLinkTarget.ShowEpisode, EpisodeImdbId: null }
-                    && !(catalogConnected ??= await catalogs.HasCatalogAsync(cancellationToken)))
-                    continue;
-                toWrite.Add(link.Id);
-            }
-            else if (LibraryLinkWritability.ItemReason(writer, connection.Name, link.ItemKind) is null)
-            {
-                toLookUp.Add(link.Id);
-            }
+            if (LibraryLinkWritability.KeptReason(link, adapters.Find<IMediaLibraryItemIdentifier>(connection.AdapterType), connection.Name) is not null)
+                continue;
+            // The writer asks TMDb for the episode's IMDb id first (LibraryLinkWriter).
+            if (link is { Target: LibraryLinkTarget.ShowEpisode, EpisodeImdbId: null }
+                && !(catalogConnected ??= await catalogs.HasCatalogAsync(cancellationToken)))
+                continue;
+            ids.Add(link.Id);
         }
 
-        return (toWrite, toLookUp);
+        return ids;
     }
 
     /// <summary>
-    /// Queues those of <paramref name="linkIds"/> still in <paramref name="state"/> for the background writer (R13: the
-    /// rows are the queue): a write a link got meanwhile — a Retry, a removal's claim — is left to it. A kept or not
-    /// written link's sentence goes with it; the writer gives it a new one.
+    /// The batch under way — the one of the link <c>Queued</c> or <c>Writing</c> with a batch whose state changed last (ties
+    /// by the batch id) — as done of total: the links carrying its id, and how many of them are no longer queued or being
+    /// identified. <c>null</c> when nothing is pending. A link the owner removed meanwhile just leaves the total.
     /// </summary>
-    private async Task<int> QueueAsync(List<Guid> linkIds, LibraryLinkWriteState state, DateTime now) =>
-        linkIds.Count == 0
-            ? 0
-            : await db.LibraryItemLinks
-                // The ids as one JSON parameter (EF.Parameter, the LibrarySnapshotStore rule): a catch-up may queue every
-                // link of the library, past SQLite's limit on the number of parameters.
-                .Where(link => EF.Parameter(linkIds).Contains(link.Id)
-                    && link.WriteState == state
-                    && (state == LibraryLinkWriteState.KeptInApp || state == LibraryLinkWriteState.NotWritten || link.LookupRequestedUtc == null))
-                .ExecuteUpdateAsync(
-                    setters => setters
-                        .SetProperty(link => link.WriteState, LibraryLinkWriteState.Queued)
-                        .SetProperty(link => link.WriteError, (string?)null)
-                        .SetProperty(link => link.WriteStateUtc, now),
-                    CancellationToken.None);
+    private async Task<LibraryLinkProgressDto?> ProgressAsync(CancellationToken cancellationToken)
+    {
+        var batchId = await db.LibraryItemLinks
+            .AsNoTracking()
+            .Where(link => link.BatchId != null && (link.WriteState == LibraryLinkWriteState.Queued || link.WriteState == LibraryLinkWriteState.Writing))
+            .OrderByDescending(link => link.WriteStateUtc)
+            .ThenBy(link => link.BatchId)
+            .Select(link => link.BatchId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (batchId is null)
+            return null;
+
+        var links = db.LibraryItemLinks.AsNoTracking().Where(link => link.BatchId == batchId);
+        var total = await links.CountAsync(cancellationToken);
+        var pending = await links.CountAsync(
+            link => link.WriteState == LibraryLinkWriteState.Queued || link.WriteState == LibraryLinkWriteState.Writing, cancellationToken);
+        return new LibraryLinkProgressDto(batchId.Value, total, total - pending);
+    }
 }

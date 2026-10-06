@@ -338,6 +338,12 @@
   min-width: 0;
 }
 
+/* The buttons keep their width: a long reason made the flex row shrink their box below the button, so
+   it stuck out over the card's padding by a different amount in each row. The body takes the squeeze. */
+.ui-card.tmdb-link-row > .tmdb-link-actions {
+  flex-shrink: 0;
+}
+
 .tmdb-link-row-title {
   font-weight: 600;
   overflow-wrap: anywhere;

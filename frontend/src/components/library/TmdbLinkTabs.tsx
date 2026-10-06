@@ -1,15 +1,16 @@
-import type { KeyboardEvent } from 'react'
-import { BadgeCheck, ListChecks, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { BadgeCheck, CircleAlert, ListChecks, TriangleAlert, Unlink, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import '@/styles/modal-tabs.css' // .modal-tab* — the app's underline tabs
 
 /** The TMDb page's tabs, in their order. */
-export type TmdbLinkTab = 'Review' | 'Confident' | 'Conflicts' | 'Unattached'
+export type TmdbLinkTab = 'Review' | 'Confident' | 'NotIdentified' | 'Conflicts' | 'Unattached'
 
 const TAB_ICONS: Record<TmdbLinkTab, LucideIcon> = {
   Review: ListChecks,
   Confident: BadgeCheck,
+  NotIdentified: CircleAlert,
   Conflicts: TriangleAlert,
   Unattached: Unlink,
 }
@@ -25,13 +26,26 @@ interface TmdbLinkTabsProps {
 }
 
 /**
- * MAM-34 — the TMDb page's underline tabs (R24): Review, Confident, Conflicts, Unattached, each with its
- * icon. The ARIA tabs pattern of the Recommendations page's tabs: one tab stop, the arrow keys (and
+ * MAM-34 — the TMDb page's underline tabs (R24): Review, Confident, Not identified, Conflicts, Unattached,
+ * each with its icon. The ARIA tabs pattern of the Recommendations page's tabs: one tab stop, the arrow keys (and
  * Home, End) move between the tabs and open the one they reach. The Review tab's → leaves the key to
  * this list while the focus is in it.
  */
 export function TmdbLinkTabs({ tabs, current, panelId, tabId, onSelect }: TmdbLinkTabsProps) {
   const { t } = useTranslation('libraryLinks')
+  const list = useRef<HTMLDivElement>(null)
+
+  // Five tabs don't fit a phone's width, so the row scrolls sideways, and a page opened on `?tab=Unattached`
+  // (or reloaded there) would show a row with no tab underlined. The row's own scroll is moved, not the
+  // page's: scrollIntoView would also drag the page to the tabs on every load.
+  useEffect(() => {
+    const row = list.current
+    const active = row?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!row || !active) return
+    const hiddenLeft = active.offsetLeft < row.scrollLeft
+    const hiddenRight = active.offsetLeft + active.offsetWidth > row.scrollLeft + row.clientWidth
+    if (hiddenLeft || hiddenRight) row.scrollLeft = active.offsetLeft - (row.clientWidth - active.offsetWidth) / 2
+  }, [current])
 
   const move = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = tabs.indexOf(current)
@@ -47,7 +61,7 @@ export function TmdbLinkTabs({ tabs, current, panelId, tabId, onSelect }: TmdbLi
   }
 
   return (
-    <div className="modal-tabs" role="tablist" aria-label={t('tabs.label')} onKeyDown={move}>
+    <div ref={list} className="modal-tabs" role="tablist" aria-label={t('tabs.label')} onKeyDown={move}>
       {tabs.map((tab) => {
         const Icon = TAB_ICONS[tab]
         const selected = tab === current

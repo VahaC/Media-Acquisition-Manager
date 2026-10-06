@@ -80,13 +80,13 @@ export const qk = {
       confidentAll: ['library', 'links', 'confident'] as const,
       /** One page of the confident suggestions. */
       confident: (query: ConfidentSuggestionsQuery) => ['library', 'links', 'confident', query] as const,
-      /** One "Accept all confident" click, polled while its writes are under way. */
+      /** One "Accept all confident" click, polled while its identifications are under way. */
       batch: (batchId: string) => ['library', 'links', 'batches', batchId] as const,
       /** One page of the links of a filter. */
       list: (query: LibraryLinksQuery) => ['library', 'links', 'list', query] as const,
       /** The latest preparation of the suggestions. */
       latestRun: ['library', 'links', 'runs', 'latest'] as const,
-      /** What "Update Jellyfin" would still send: the links set before series and lookups were written. */
+      /** What "Update Jellyfin" would still identify, and the batch under way. */
       catchUp: ['library', 'links', 'catch-up'] as const,
     },
   },

@@ -1,0 +1,21 @@
+[
+  {
+    "ImageType": "Primary",
+    "ImageTag": "9f674fd57061c114f4e1654fbecee5ff",
+    "Path": "/config/metadata/library/75/750eaa45b0836d08e4ae4b35750b93ca/poster.jpg",
+    "BlurHash": "diI5JlpJ5os=}mR*K6s.rDWBXSa#jLoMkCR,SLWqs.oe",
+    "Height": 1668,
+    "Width": 1112,
+    "Size": 221401
+  },
+  {
+    "ImageType": "Backdrop",
+    "ImageIndex": 0,
+    "ImageTag": "8b57ab492fa821c171174ec89bd12ae3",
+    "Path": "/config/metadata/library/75/750eaa45b0836d08e4ae4b35750b93ca/backdrop.jpg",
+    "BlurHash": "WI4=UsX;SjtSW?YRofngSikrozWFVrV?n%krj]nNTzaJr=b_aeof",
+    "Height": 720,
+    "Width": 1280,
+    "Size": 457896
+  }
+]

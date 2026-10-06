@@ -57,7 +57,7 @@ public interface ILibraryLinkSuggestionService
     /// <summary>
     /// "Accept all confident": the ticked works of a page (at most 100), each linked to the film or show the click names
     /// only while that is still its confident suggestion — computed again now —, else skipped with the reason; the links are
-    /// written into the libraries in the background (<see cref="ILibraryLinkService.LinkBatchAsync"/>).
+    /// identified in the libraries in the background (<see cref="ILibraryLinkService.LinkBatchAsync"/>).
     /// </summary>
     Task<LibraryLinkAcceptResult> AcceptConfidentAsync(LibraryLinkAcceptRequest? request, Guid ownerUserId, CancellationToken cancellationToken = default);
 }

@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: application/json; charset=utf-8
+Date: Tue, 06 Oct 2026 10:41:45 GMT
+Server: Kestrel
+Content-Language: en-US
+Transfer-Encoding: chunked
+Vary: Accept-Encoding
+X-Response-Time-ms: 0.7767
+
+[{"Name":"Landing Stripling","ProviderIds":{"Tmdb":"223021","Imdb":"tt0056164"},"ProductionYear":1962,"PremiereDate":"1962-05-17T21:00:00.0000000Z","ImageUrl":"https://image.tmdb.org/t/p/original/ooZQbu20BBYxInF542jHonKz4Pl.jpg","SearchProviderName":"TheMovieDb","Overview":"Tom and Jerry are sleeping outside during the day when a yellow bird wearing a red helmet lands on Tom, waking him up. Although the bird brushes Tom\u0027s torso off and reacts politely like \u0022pardon me\u0022, Tom goes after the bird, catches it, and proceeds to beat it up.","Artists":[]}]

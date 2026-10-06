@@ -59,8 +59,8 @@ public sealed partial class LibrarySnapshotStore
     /// tracked rows and saved by the sync's one <c>SaveChangesAsync</c>, so a sync that fails changes no link either.
     /// </summary>
     /// <remarks>
-    /// The sync stays GET-only toward the library: nothing here writes a link into it — that is the owner's Save,
-    /// Retry or Write again, never a sync's.
+    /// The sync stays GET-only toward the library: nothing here identifies a link in it — that is the owner's Save,
+    /// Retry or Write again through the background writer, never a sync's.
     /// </remarks>
     private sealed class SnapshotLinks(
         ApplicationDbContext db,
@@ -128,8 +128,13 @@ public sealed partial class LibrarySnapshotStore
 
             foreach (var link in gone)
             {
-                if (moves.TryGetValue(link.Id, out var itemId))
-                    link.SourceItemId = itemId;
+                if (!moves.TryGetValue(link.Id, out var itemId))
+                    continue;
+                link.SourceItemId = itemId;
+                // The item that came back is a new library item with its own file-derived metadata: it was never identified,
+                // whatever the one the link left was. The repair counts it again; the judging below says whether it holds the
+                // link's id.
+                link.IdentifiedUtc = null;
             }
 
             ReattachedCount = moves.Count;
@@ -137,30 +142,36 @@ public sealed partial class LibrarySnapshotStore
         }
 
         /// <summary>
-        /// R5 — what this sync's read says of each link whose item it read, by the link's written key
-        /// (<see cref="LibraryLinkEdits.WrittenKey"/>: a link to the work, its TMDb id; MAM-34 — an episode's link, the
+        /// R5 — what this sync's read says of each link whose item it read, by the link's identified key
+        /// (<see cref="LibraryLinkKeys.IdentifiedKey"/>: a link to the work, its TMDb id; MAM-34 — an episode's link, the
         /// episode's own IMDb id): the library holding it is <see cref="LibraryLinkWriteState.InLibrary"/>; a link the
-        /// library held (written, or read there before) that it now reports without — no id, the replaced one, or a
-        /// third — is <see cref="LibraryLinkWriteState.Lost"/> ("Write again"); anything else stays as it is.
+        /// library held (identified, or read there before) that it now reports without — no id, the replaced one, or a
+        /// third — is <see cref="LibraryLinkWriteState.Lost"/> ("Write again"). It judges <c>Written</c>, <c>InLibrary</c> and
+        /// <c>Lost</c> links only; any other stays as it is, and a link's identified time is never touched by it.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// R4 — a link whose state changed at or after the moment this run started reading is left alone: its write may
-        /// have reached the library after the item was read, and the read can't say what the library holds now. The next
-        /// sync judges it. A link that writes nothing of its own — an episode's without its IMDb id — has nothing to
+        /// R4 — a link whose state changed at or after the moment this run started reading is left alone: its identification
+        /// may have reached the library after the item was read, and the read can't say what the library holds now. The next
+        /// sync judges it. A link that identifies nothing of its own — an episode's without its IMDb id — has nothing to
         /// judge; nor has a link kept in the app (<see cref="LibraryLinkWriteState.KeptInApp"/>: an episode item's in
-        /// Jellyfin, any of a library type that can't set ids, a series' or an episode's set before the app wrote them),
-        /// which stays so whatever the library reports — the id it replaced keeps giving way (R6) — until it is written. Nor
-        /// has a link waiting for the background writer (<see cref="LibraryLinkWriteState.Queued"/>): its write, and the
-        /// lookup that follows it, are still to come — taken out of the queue as "in the library", the link would never
-        /// get the lookup the owner queued it for (the catch-up). The writer settles it; the next sync judges it.
+        /// Jellyfin, any of a library type that can't identify, a series' or an episode's set before the app identified
+        /// them), which stays so whatever the library reports — the id it replaced keeps giving way (R6) — until it is
+        /// identified. Nor has a link waiting for the background writer (<see cref="LibraryLinkWriteState.Queued"/>): its
+        /// identification is still to come. The writer settles it; the next sync judges it.
         /// </para>
         /// <para>
-        /// R9 — a link being written or put back (<see cref="LibraryLinkWriteState.Writing"/>) is its claimer's to settle,
-        /// however long ago it was claimed: its write may still be on its way, and a removal deletes only the link it still
-        /// holds the claim of, recording what it sent back in the same transaction. Taken from under it, the removal would
-        /// answer 409 with its restore sent and unrecorded. A claim a restart cut is settled by the reconciler; the next
-        /// sync judges what came of it.
+        /// R9 — a link being identified (<see cref="LibraryLinkWriteState.Writing"/>) is its claimer's to settle, however long
+        /// ago it was claimed: its Apply may still be on its way, and a removal deletes only a link no worker holds. A claim a
+        /// restart cut is settled by the reconciler; the next sync judges what came of it.
+        /// </para>
+        /// <para>
+        /// A <see cref="LibraryLinkWriteState.NotWritten"/> link is the worker's, Retry's, Remove's and the repair's (MAM-34,
+        /// ADR 0008): every refusal, missing match, failure and unconfirmed identification the worker stores — a conflicting
+        /// id, a library that saves beside the media, a locked item — would otherwise be erased by the next sync, because
+        /// the item usually holds the link's key already (the old ids-only code wrote it into every link's item): the link
+        /// would flip to <c>InLibrary</c> with its sentence cleared and leave the Not identified list. Judged only while the
+        /// worker has not decided it.
         /// </para>
         /// </remarks>
         public void JudgeWrites(IReadOnlyList<LibraryItem> resolved)
@@ -168,8 +179,8 @@ public sealed partial class LibrarySnapshotStore
             var items = ItemsById(resolved);
             foreach (var link in links)
             {
-                if (link.WriteState is LibraryLinkWriteState.Writing or LibraryLinkWriteState.KeptInApp or LibraryLinkWriteState.Queued
-                    || LibraryLinkEdits.WrittenKey(link) is not { } key
+                if (link.WriteState is LibraryLinkWriteState.Writing or LibraryLinkWriteState.KeptInApp or LibraryLinkWriteState.Queued or LibraryLinkWriteState.NotWritten
+                    || LibraryLinkKeys.IdentifiedKey(link) is not { } key
                     || !items.TryGetValue(link.SourceItemId, out var item)
                     || !MaySeeWriteOf(link))
                     continue;

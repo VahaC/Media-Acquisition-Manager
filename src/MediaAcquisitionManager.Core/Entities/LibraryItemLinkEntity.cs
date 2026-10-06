@@ -91,8 +91,9 @@ public class LibraryItemLinkEntity : AuditableEntity
 
     /// <summary>
     /// MAM-34 — for an episode-to-show link with its season and episode, the episode's own IMDb id as TMDb gave it: the
-    /// one id of the episode a film item can be given — its <c>Tmdb</c> key names a film —, so what the app writes into
-    /// the item. <c>null</c> while TMDb wasn't asked, when it gives none, and for any other link.
+    /// one id of the episode a film item can be identified by — its <c>Tmdb</c> key names a film —, so what the app asks
+    /// the library's Open Movie Database for. <c>null</c> while TMDb wasn't asked, when it gives none, and for any other
+    /// link.
     /// </summary>
     [MaxLength(ValueMaximumLength)]
     public string? EpisodeImdbId { get; set; }
@@ -126,23 +127,30 @@ public class LibraryItemLinkEntity : AuditableEntity
     public DateTime SetUtc { get; set; }
 
     /// <summary>
-    /// The "Accept all confident" click that set it, shared by every link of that click so the page can poll their
-    /// results; <c>null</c> for a link set from the dialog.
+    /// The click that last queued this link for identification — an "Accept all confident" click or a repair click —
+    /// shared by every link of that click so the page can poll their progress; <c>null</c> for a link set or retried from
+    /// the work's dialog. That is also what decides whether the identification protects the library's own ids
+    /// (<c>LibraryIdentifyRequest.ProtectHeldIds</c>): a bulk click does, the owner's own word in the dialog does not.
     /// </summary>
     public Guid? BatchId { get; set; }
 
-    /// <summary>Where it stands against the library it would be written into.</summary>
+    /// <summary>
+    /// Where the link stands against the library's Identify: <see cref="LibraryLinkWriteState.Written"/> means the
+    /// library identified the item as the link says; <see cref="LibraryLinkWriteState.KeptInApp"/> means a rule keeps it
+    /// out of the library for good; <see cref="LibraryLinkWriteState.NotWritten"/> is every refusal, no match, failure and
+    /// unconfirmed identification, and <see cref="WriteError"/> says which.
+    /// </summary>
     public LibraryLinkWriteState WriteState { get; set; }
 
     /// <summary>
-    /// A new id per claim of the link for a write (R9): the claimer's final update matches it, so a write that ran
-    /// late can't overwrite the state a later write already set.
+    /// A new id per claim of the link for an identification (R9): the claimer's final update matches it, so one that ran
+    /// late can't overwrite the state a later one already set.
     /// </summary>
     public Guid WriteAttemptId { get; set; }
 
-    /// <summary>A readable sentence saying why the library doesn't hold it, the library's secrets masked; shown to the
-    /// owner only. <c>null</c> unless <see cref="WriteState"/> says something went wrong — or, for an episode's link kept
-    /// in the app because TMDb gives its episode no IMDb id, that sentence, as only asking TMDb tells it.</summary>
+    /// <summary>A readable sentence saying why the library didn't identify the item, the library's secrets masked; shown
+    /// to the owner only. <c>null</c> unless <see cref="WriteState"/> says something went wrong — or, for an episode's link
+    /// kept in the app because TMDb gives its episode no IMDb id, that sentence, as only asking TMDb tells it.</summary>
     [MaxLength(ErrorMaximumLength)]
     public string? WriteError { get; set; }
 
@@ -150,18 +158,26 @@ public class LibraryItemLinkEntity : AuditableEntity
     public DateTime? WriteStateUtc { get; set; }
 
     /// <summary>
-    /// MAM-34 — when the app last asked the library to look up the item's missing metadata, right after a write that
-    /// left the link's ids in it; <c>null</c> while it never did — a link written before the app asked
-    /// (<c>GET api/library/tmdb/catch-up</c> counts those), one not written, or one kept in the app.
+    /// MAM-34 — when the app last confirmed the item identified as this link says: set when an Identify was confirmed by
+    /// reading the item again, or when the item was found already showing the result (nothing was sent); <c>null</c>
+    /// while never — every link written under the earlier ids-only rule, and every link a replace reset. Cleared when an
+    /// identification was sent and not confirmed (it may have damaged the item), and when a sync moves the link to another
+    /// library item (a new item has its own file-derived metadata); kept by a refusal, a missing match, a failure before
+    /// anything was sent and by a retry; a sync's judging never touches it. It is the repair's selector
+    /// (<c>GET api/library/tmdb/catch-up</c>): <c>null</c> makes an attached link a candidate.
+    /// </summary>
+    public DateTime? IdentifiedUtc { get; set; }
+
+    /// <summary>
+    /// Dormant since the 0.2.1 Identify rework (ADR 0026): nothing writes or reads it. Kept as a column and in the model so
+    /// an older image still runs against a migrated database. It held when the app last asked the library to look up the
+    /// item's missing metadata.
     /// </summary>
     public DateTime? LookupRequestedUtc { get; set; }
 
     /// <summary>
-    /// MAM-34 — why the library didn't take that request, as a readable sentence with the library's secrets masked;
-    /// shown to the owner only, who asks again with Retry. <c>null</c> when it took it. A failed lookup never changes
-    /// <see cref="WriteState"/>: the ids are in. Also why it couldn't be asked, when a write whose ids the last sync read
-    /// in the item reached nothing (the library unreachable or refusing): the link stays in the library, its lookup
-    /// missed.
+    /// Dormant since the 0.2.1 Identify rework (ADR 0026): nothing writes or reads it. Kept as a column and in the model so
+    /// an older image still runs against a migrated database. It held why the library didn't take that lookup.
     /// </summary>
     [MaxLength(ErrorMaximumLength)]
     public string? LookupError { get; set; }

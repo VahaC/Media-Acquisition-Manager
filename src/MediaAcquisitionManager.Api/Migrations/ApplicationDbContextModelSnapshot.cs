@@ -1086,6 +1086,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<int?>("EpisodeNumber")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("IdentifiedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ImdbId")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");

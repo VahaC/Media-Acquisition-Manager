@@ -1,0 +1,11 @@
+HTTP/1.1 200 OK
+Connection: close
+Content-Type: application/json; charset=utf-8
+Date: Tue, 06 Oct 2026 10:41:45 GMT
+Server: Kestrel
+Content-Language: en-US
+Transfer-Encoding: chunked
+Vary: Accept-Encoding
+X-Response-Time-ms: 135.0672
+
+[{"Name":"The Fest","ProviderIds":{"Tmdb":"7869","Imdb":"tt0475953"},"ProductionYear":2005,"PremiereDate":"2005-08-23T21:00:00.0000000Z","SearchProviderName":"TheMovieDb","Overview":"","Artists":[]}]

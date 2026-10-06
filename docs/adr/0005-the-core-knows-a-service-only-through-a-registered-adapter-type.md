@@ -545,3 +545,31 @@ and `TmdbAdapterEpisodesTests.GetEpisode_with_a_callers_mistake_throws_without_s
 `JellyfinAdapterIdentifiersTests.WritableKinds_are_films_only_and_every_other_kind_says_why_its_link_stays_in_the_app`,
 named in the section above, is now
 `JellyfinAdapterIdentifiersTests.WritableKinds_are_films_and_series_and_an_episode_item_says_why_its_link_stays_in_the_app`.
+
+**Amended 2026-10-06 (ADR 0026's Identify section, added in 0.2.1).** The two sections above — "A
+library that sets an item's ids" and "A library looks an item up after its ids are written" — are
+replaced as they stand, and stay as history. The optional capability is now
+`IMediaLibraryItemIdentifier` (`Core/Abstractions/Library`): `IdentifiableKinds` (Jellyfin: film and
+series, never an episode item), `UnidentifiableKindReason` and `IdentifyAsync`, taking a
+`LibraryIdentifyRequest` — the item, its kind, the one identifier and whether to protect held ids —
+and answering a `LibraryIdentification`. It is found exactly as before, by
+`Find<IMediaLibraryItemIdentifier>(typeId)`, and is still no kind contract; the six Core types of the
+two sections above (`IMediaLibraryIdentifierWriter`, `LibraryIdentifierChange`, `LibraryIdentifierEdit`,
+`LibraryIdentifierEditRule`, `LibraryIdentifierWrite`, `LibraryMetadataLookup`) are gone.
+`JellyfinAdapter` implements it, and the words `ProviderIds`, `RemoteSearch` and `Apply` stay in
+Infrastructure, no Core name naming the product. The one request that changes anything is Apply,
+sent on a second named client (`jellyfin-identify`, a 20-minute timeout) chosen through an optional
+client name on `HttpIntegrationAdapter.CallAsync` — one hook in the Template Method, the shared client
+keeping its 15 seconds; the film or series search is a `POST` that changes nothing. Neither the item
+update (`POST /Items/{id}`) nor the refresh (`POST /Items/{id}/Refresh`) is sent any more.
+`LibraryItemIdentifierIdentifiesOnlyTests` allows exactly one verb, `IdentifyAsync`, and forbids any
+member named for refreshing, updating, editing, replacing, deleting, images, titles or locks. The tests
+the two sections above name are replaced: the registry's by
+`IntegrationAdapterRegistryTests.Find_of_the_optional_item_identifier_returns_only_a_library_that_implements_it`,
+the kind contract's by `AdapterKindContractTests.Jellyfin_identifies_items_and_every_item_identifier_is_a_media_library_that_lists_items`
+and `AdapterKindContractTests.Every_item_identifier_identifies_only_films_or_shows_and_says_why_it_keeps_the_rest_in_the_app`,
+and `JellyfinAdapterIdentifiersTests` and `JellyfinAdapterMetadataLookupTests` by
+`JellyfinAdapterIdentifyTests`, `JellyfinAdapterIdentifyConfirmationTests`,
+`JellyfinAdapterIdentifyFailureTests`, `JellyfinAdapterIdentifyLibraryTests`,
+`JellyfinAdapterIdentifyRefusalTests` and `JellyfinAdapterIdentifyShortcutTests`; the second client is
+pinned by `IntegrationsInfrastructureExtensionsTests.The_identify_client_has_the_twenty_minute_timeout_and_the_shared_jellyfin_client_keeps_fifteen_seconds`.

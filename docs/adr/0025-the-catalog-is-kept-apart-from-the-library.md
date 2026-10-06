@@ -181,3 +181,10 @@ days or when the work's titles, folder or year change.
 (no link row either), `LibraryLinkSuggestionRunnerHttpTests.Posters_of_the_candidates_are_served` and
 `LibraryLinkSuggestionRunnerHttpTests.Run_searches_again_a_work_whose_search_is_older_than_a_month`
 pin it.
+
+**Amended 2026-10-06 (ADR 0026's Identify section, added in 0.2.1).** "Written into Jellyfin as ids alone
+when it is a film's — a series' stays in the app —" had been stale since a series' link began to be
+written, and is replaced: the owner's pick is identified in Jellyfin — its title, overview and images
+become TMDb's, by Vasyl's decision —, and the next sync imports what Jellyfin then holds. The rule's
+other half holds: the app's own guesses are never written and never shown, and nothing is written to
+`MediaWorks`, `MediaWorkTitles` or `MediaWorkIdentifiers`.

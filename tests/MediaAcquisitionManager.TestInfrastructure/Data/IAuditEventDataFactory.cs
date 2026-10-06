@@ -16,7 +16,7 @@ public interface IAuditEventDataFactory
     /// <summary>
     /// MAM-34 — a saved audit row recording <paramref name="action"/> on the TMDb link <paramref name="linkId"/> named
     /// <paramref name="targetName"/>, with the ids it found and left (<paramref name="identifiers"/>, in their order), at
-    /// <paramref name="createdUtc"/> (the clock's now when <c>null</c>): the history a restore starts from. Stored as
+    /// <paramref name="createdUtc"/> (the clock's now when <c>null</c>): the history the repair reads to tell a sent Apply. Stored as
     /// given, as the app's <see cref="IAuditTrail"/> would add it.
     /// </summary>
     Task<AuditEventEntity> CreateForLink(

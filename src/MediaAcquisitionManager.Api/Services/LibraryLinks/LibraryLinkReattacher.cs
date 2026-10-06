@@ -99,7 +99,10 @@ public sealed class LibraryLinkReattacher(ApplicationDbContext db, ILogger<Libra
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(row => row.SourceItemId, itemId)
-                    .SetProperty(row => row.MediaWorkId, (Guid?)workId),
+                    .SetProperty(row => row.MediaWorkId, (Guid?)workId)
+                    // A re-created item has its own file-derived metadata: it was never identified, whatever the item the link
+                    // left was. Kept, the link would stay out of the repair and the dialog would say "identified" for it.
+                    .SetProperty(row => row.IdentifiedUtc, (DateTime?)null),
                 cancellationToken) == 1;
 
     // ── identities ───────────────────────────────────────────────────────────────────────────────

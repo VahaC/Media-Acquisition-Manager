@@ -10,6 +10,7 @@ import type {
   LibraryLinkItem,
   LibraryLinkList,
   LibraryLinkLocationCount,
+  LibraryLinkProgress,
   LibraryLinkQueue,
   LibraryLinkRow,
   LibraryLinkSuggestionRun,
@@ -25,7 +26,9 @@ import type {
 // 223021 with a runtime of 6 and IMDb tt0056164) in «Мультфільми», and "Planet_Earth_E08 - Jungles",
 // a film item of an episode of TMDb show 1044 ("Планета Земля"); and of 2026-10-06: the documentary
 // file "Greatest Events of World War II in Colour.S01E01.Blitzkrieg" Jellyfin lists as a movie, the
-// episode S1 E1 of TMDb show 91724, whose own IMDb id is tt9103946.
+// episode S1 E1 of TMDb show 91724, whose own IMDb id is tt9103946. Saving a link makes Jellyfin identify
+// the item (the owner's decision of 2026-10-06): `Queued` -> `Writing` -> `Written` with `identifiedUtc`
+// set, or `NotWritten` with the server's sentence, which the fixtures below name.
 
 export const homeJellyfinItemId = 'b81c6f3a2d9e4f0aa1c2d3e4f5a6b7c8'
 export const linkId = '11c00000-0000-4000-8000-000000000001'
@@ -167,19 +170,18 @@ export function itemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem 
     writeState: null,
     writeError: null,
     writeStateUtc: null,
-    lookupRequestedUtc: null,
-    lookupError: null,
     setUtc: null,
     setByUserName: null,
     libraryIdentifiers: [],
     conflictingValue: null,
+    identifiedUtc: null,
     ...changes,
   }
 }
 
 /**
- * The same item once linked to film 223021 and written, Jellyfin then asked to look up its metadata;
- * `changes` sets the fields a test is about.
+ * The same item once linked to film 223021 and identified in Jellyfin; `changes` sets the fields a
+ * test is about.
  */
 export function linkedItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
   return itemOf({
@@ -191,14 +193,27 @@ export function linkedItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLin
     imdbId: 'tt0056164',
     writeState: 'Written',
     writeStateUtc: '2026-10-05T18:40:05Z',
-    lookupRequestedUtc: '2026-10-05T18:40:05Z',
     setUtc: '2026-10-05T18:40:00Z',
     setByUserName: 'vasyl',
+    identifiedUtc: '2026-10-05T18:40:05Z',
     ...changes,
   })
 }
 
-/** A work's link to film 223021, written into Jellyfin; `changes` sets the fields a test is about. */
+/** The short's item with its link saved and waiting for Jellyfin: `Queued`, nothing identified yet. */
+export function queuedItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
+  return linkedItemOf({ writeState: 'Queued', identifiedUtc: null, ...changes })
+}
+
+/**
+ * The short's item as a link set under the first rules left it: `Written` (the ids were put on the item)
+ * but never identified, so Jellyfin still shows the title, overview and images it had.
+ */
+export function legacyWrittenItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
+  return linkedItemOf({ identifiedUtc: null, ...changes })
+}
+
+/** A work's link to film 223021, identified in Jellyfin; `changes` sets the fields a test is about. */
 export function workLinkOf(changes: Partial<LibraryWorkLink> = {}): LibraryWorkLink {
   return {
     target: 'Work',
@@ -213,6 +228,8 @@ export function workLinkOf(changes: Partial<LibraryWorkLink> = {}): LibraryWorkL
     writeState: 'Written',
     writeError: null,
     conflictingValue: null,
+    identified: true,
+    underWay: false,
     ...changes,
   }
 }
@@ -243,7 +260,7 @@ export function dialogOf(changes: Partial<LibraryLinkDialog> = {}): LibraryLinkD
   }
 }
 
-/** The short's dialog once linked and written. */
+/** The short's dialog once linked and identified. */
 export function linkedDialogOf(changes: Partial<LibraryLinkDialog> = {}): LibraryLinkDialog {
   return dialogOf({
     work: linkedLandingStripling,
@@ -253,9 +270,9 @@ export function linkedDialogOf(changes: Partial<LibraryLinkDialog> = {}): Librar
   })
 }
 
-// ── a series, whose TMDb id is written too (Vasyl's decision of 2026-10-06) ──
+// ── a series, which Jellyfin identifies too (Vasyl's decision of 2026-10-06) ──
 
-/** The API's sentence for an item whose Jellyfin integration is switched off: its link isn't written. */
+/** The API's sentence for an item whose Jellyfin integration is switched off: its link isn't identified. */
 export const switchedOffReason = '“Home Jellyfin” is switched off. Switch it on under Integrations, then retry.'
 
 export const penguinsItemId = 'e7c4a91d3b6f4e2a9c8d7b6a5f4e3d21'
@@ -307,7 +324,7 @@ export function penguinsItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryL
   })
 }
 
-/** The series as the Library page lists it once linked to show 7869 and written, never missing an id. */
+/** The series as the Library page lists it once linked to show 7869 and identified, never missing an id. */
 export const linkedPenguins: LibraryWork = {
   ...penguins,
   identifiers: [linkedIdentifierOf('TmdbTv', '7869', { setUtc: '2026-10-06T09:00:00Z' })],
@@ -334,7 +351,7 @@ export function penguinsDialogOf(changes: Partial<LibraryLinkDialog> = {}): Libr
   })
 }
 
-/** The series' item once linked to show 7869, written, and Jellyfin asked to look up its metadata. */
+/** The series' item once linked to show 7869 and identified in Jellyfin. */
 export function linkedPenguinsItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
   return penguinsItemOf({
     linkId: penguinsLinkId,
@@ -344,14 +361,14 @@ export function linkedPenguinsItemOf(changes: Partial<LibraryLinkItem> = {}): Li
     catalogTitle: 'Пінгвіни з Мадагаскару',
     writeState: 'Written',
     writeStateUtc: '2026-10-06T09:00:04Z',
-    lookupRequestedUtc: '2026-10-06T09:00:05Z',
     setUtc: '2026-10-06T09:00:00Z',
     setByUserName: 'vasyl',
+    identifiedUtc: '2026-10-06T09:00:05Z',
     ...changes,
   })
 }
 
-/** The series' dialog once linked to show 7869: its item's link written. */
+/** The series' dialog once linked to show 7869: its item identified. */
 export function linkedPenguinsDialogOf(changes: Partial<LibraryLinkDialog> = {}): LibraryLinkDialog {
   return penguinsDialogOf({
     work: linkedPenguins,
@@ -364,7 +381,7 @@ export function linkedPenguinsDialogOf(changes: Partial<LibraryLinkDialog> = {})
 // ── an episode Jellyfin lists as a film ──
 
 /** The API's sentence for an episode link without a season and an episode: kept in the app. */
-export const noEpisodeNumbersReason = 'Without a season and an episode the app has no id of this episode to write.'
+export const noEpisodeNumbersReason = 'Without a season and an episode the app has no id of this episode to identify it by.'
 
 /** The API's sentence for an episode link whose episode TMDb knows no IMDb id of: kept in the app. */
 export const noEpisodeImdbReason = 'TMDb knows no IMDb id of this episode, so its link stays in the app.'
@@ -382,9 +399,9 @@ export const blitzkrieg: LibraryWork = {
 }
 
 /**
- * The film item linked to S1 E1 of show 91724, its episode's own IMDb id written and Jellyfin asked to
- * look the item up — the one edit on a film item, as a TMDb id there would name a film. The show's own
- * IMDb id is the fixture's, not TMDb's. `changes` sets the fields a test is about.
+ * The film item linked to S1 E1 of show 91724 and identified through the Open Movie Database by the
+ * episode's own IMDb id — the only id that fits a film item, as a TMDb id there would name a film. The
+ * show's own IMDb id is the fixture's, not TMDb's. `changes` sets the fields a test is about.
  */
 export function blitzkriegItemOf(changes: Partial<LibraryLinkItem> = {}): LibraryLinkItem {
   return itemOf({
@@ -401,9 +418,9 @@ export function blitzkriegItemOf(changes: Partial<LibraryLinkItem> = {}): Librar
     episodeImdbId: 'tt9103946',
     writeState: 'Written',
     writeStateUtc: '2026-10-06T10:00:02Z',
-    lookupRequestedUtc: '2026-10-06T10:00:03Z',
     setUtc: '2026-10-06T10:00:00Z',
     setByUserName: 'vasyl',
+    identifiedUtc: '2026-10-06T10:00:03Z',
     ...changes,
   })
 }
@@ -505,7 +522,7 @@ export function confidentPage(
   return { items, totalCount, page: query.page, pageSize: query.pageSize, locations }
 }
 
-/** A link as the TMDb page's lists show it: the short's, written; `changes` sets the fields a test is about. */
+/** A link as the TMDb page's lists show it: the short's, identified; `changes` sets the fields a test is about. */
 export function linkRowOf(changes: Partial<LibraryLinkRow> = {}): LibraryLinkRow {
   return {
     linkId,
@@ -525,13 +542,19 @@ export function linkRowOf(changes: Partial<LibraryLinkRow> = {}): LibraryLinkRow
     setUtc: '2026-10-05T18:40:00Z',
     setByUserName: 'vasyl',
     conflictingValue: null,
+    identifiedUtc: '2026-10-05T18:40:05Z',
     ...changes,
   }
 }
 
-/** What "Update Jellyfin" would send; `changes` sets the counts a test is about. */
+/** What "Update Jellyfin" would identify, with no batch under way; `changes` sets what a test is about. */
 export function catchUpOf(changes: Partial<LibraryLinkCatchUp> = {}): LibraryLinkCatchUp {
-  return { toWrite: 3, toLookUp: 12, ...changes }
+  return { toIdentify: 223, progress: null, ...changes }
+}
+
+/** A batch of 223 identifications 41 settled; `changes` sets the fields a test is about. */
+export function progressOf(changes: Partial<LibraryLinkProgress> = {}): LibraryLinkProgress {
+  return { batchId, total: 223, done: 41, ...changes }
 }
 
 /** One page of links answering `query`. */
@@ -558,3 +581,20 @@ export const batchId = 'ba7c0000-0000-4000-8000-000000000001'
 export function batchOf(items: LibraryLinkBatchItem[]): LibraryLinkBatch {
   return { batchId, items }
 }
+
+// ── the sentences the server gives for an item it didn't identify, shown as they are ──
+
+/** A library that saves beside the media: the app left the item alone (backend 2.6). */
+export const writesBesideSentence = "Jellyfin's library “Мультфільми” saves artwork and metadata and NFO files next to the media, so identifying this item could change files in your media folders; the app left it alone. Switch that off in the library's settings in Jellyfin, then retry."
+
+/** An item whose metadata or name is locked in Jellyfin (backend 2.9). */
+export const lockedSentence = "This item is locked in Jellyfin (the whole item, its name or its overview), so Jellyfin wouldn't take the match. Unlock it there, then retry."
+
+/** An item that holds another TMDb id than the link's, named with both ids (backend 2.7). */
+export const conflictSentence = "Jellyfin holds TMDb id 555000 for this item, not 223021, and the app doesn't replace a library's own ids on its own. If the link is right, press Retry to identify it anyway; otherwise change the link."
+
+/** Jellyfin found no film with the link's id (backend 2.9). */
+export const noMatchSentence = "Jellyfin found no film with TMDb id 223021. Check the id, and that TheMovieDb is among this library's metadata sources in Jellyfin."
+
+/** Jellyfin took the match but the item read again doesn't show it (backend 2.9). */
+export const notConfirmedSentence = "Jellyfin took the match, but the item read again doesn't show it (its name, year or id): it may be locked, or its metadata sources failed. Its own log says why; Retry checks again."

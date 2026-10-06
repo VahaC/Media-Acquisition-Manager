@@ -113,6 +113,12 @@
   min-width: 0;
 }
 
+/* A button inside a row's lines (Update Jellyfin's "Show them") starts under the text it belongs to; the
+   right edge is for the row's own button beside the lines. */
+.library-source-body > .library-source-actions {
+  justify-content: flex-start;
+}
+
 /* A link inside a sentence. The reset strips every link's colour and underline, and the button-link
    variant carries a button's height and padding, which a line of text can't take. */
 .library-link {

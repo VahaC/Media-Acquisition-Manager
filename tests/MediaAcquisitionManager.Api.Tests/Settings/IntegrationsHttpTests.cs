@@ -36,7 +36,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
     // ── Adapter types ───────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task AdapterTypes_is_200_with_jellyfin_torznab_qbittorrent_and_tmdb_and_what_each_takes()
+    public async Task AdapterTypes_is_200_with_jellyfin_torznab_qbittorrent_and_tmdb_and_what_each_takes_and_the_test_hosts_own_two()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -49,7 +49,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         var raw = await response.Content.ReadAsStringAsync(cancellationToken);
         var body = JsonSerializer.Deserialize<IntegrationAdapterTypeListResponse>(raw, MediaAcquisitionManagerApiFactory.JsonOptions);
         var types = body!.Items.ToDictionary(type => type.TypeId);
-        Assert.Equal(5, types.Count);
+        Assert.Equal(6, types.Count);
         Assert.Equal(
             new IntegrationAdapterTypeDto(
                 "jellyfin", "Jellyfin", IntegrationKind.MediaLibrary,
@@ -71,12 +71,18 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
                 "tmdb", "TMDb", IntegrationKind.Metadata,
                 CredentialRequirement.NotUsed, CredentialRequirement.NotUsed, CredentialRequirement.Required, ReportsFilePaths: false),
             types["tmdb"]);
-        // The test host's own type, registered beside the real ones.
+        // The test host's own types, registered beside the real ones: one with no capability beyond listing, and — MAM-34 —
+        // one that identifies items, for the flows above the library adapter.
         Assert.Equal(
             new IntegrationAdapterTypeDto(
                 "fake", "Fake service", IntegrationKind.MediaLibrary,
                 CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.Optional, ReportsFilePaths: true),
             types["fake"]);
+        Assert.Equal(
+            new IntegrationAdapterTypeDto(
+                "fake-library", "Fake library", IntegrationKind.MediaLibrary,
+                CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.Optional, ReportsFilePaths: true),
+            types["fake-library"]);
         // By name on the wire, which the dialog's type keys on.
         Assert.Contains("\"kind\":\"DownloadClient\"", raw, StringComparison.Ordinal);
         Assert.Contains("\"apiKey\":\"Required\"", raw, StringComparison.Ordinal);
@@ -93,8 +99,8 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
 
         //Assert
         var body = await response.Content.ReadFromJsonAsync<IntegrationAdapterTypeListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        // Media libraries (Fake service, Jellyfin), then release sources, download clients and catalogs.
-        Assert.Equal(["fake", "jellyfin", "torznab", "qbittorrent", "tmdb"], body!.Items.Select(type => type.TypeId));
+        // Media libraries (Fake library, Fake service, Jellyfin), then release sources, download clients and catalogs.
+        Assert.Equal(["fake-library", "fake", "jellyfin", "torznab", "qbittorrent", "tmdb"], body!.Items.Select(type => type.TypeId));
     }
 
     // ── List ────────────────────────────────────────────────────────────────────────────────────
