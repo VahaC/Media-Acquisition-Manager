@@ -47,7 +47,8 @@ public sealed partial class LibrarySnapshotStore
         DateTime now)
     {
         // Item continuity: the works each item's facts sat on — normally one, but a previous sync's
-        // split or bad stored data may have left an item's facts on several.
+        // split or bad stored data may have left an item's facts on several. MAM-35 — not its poster, which sits
+        // where its other facts do and so adds nothing.
         var worksByItem = existing.Titles.Select(title => (title.SourceItemId, title.MediaWorkId))
             .Concat(existing.Identifiers.Select(identifier => (identifier.SourceItemId, identifier.MediaWorkId)))
             .Concat(existing.Versions.Select(version => (version.SourceItemId, version.MediaWorkId)))
@@ -151,6 +152,7 @@ public sealed partial class LibrarySnapshotStore
     /// </remarks>
     private async Task<HashSet<Guid>> SharedWorksAsync(Guid integrationId, List<Guid> workIds, CancellationToken cancellationToken)
     {
+        // MAM-35 — not the posters: another source's poster sits beside that source's other facts, which are asked here.
         var shared = await db.MediaWorkTitles
             .Where(title => EF.Parameter(workIds).Contains(title.MediaWorkId)
                 && (title.SourceConnectionId != integrationId || title.SourceKind != ProvenanceSourceKind.MediaLibrary))

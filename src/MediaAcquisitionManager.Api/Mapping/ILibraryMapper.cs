@@ -21,14 +21,23 @@ public interface ILibraryMapper
     /// <paramref name="seasons"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// MAM-34 — its ids are <paramref name="linked"/>'s, its items' TMDb links applied (<c>ILibraryLinkReader</c>), with
     /// the links as one line: what they link to, the worst of their states, a conflicting library id, and — only
     /// <paramref name="forOwner"/> — who set them and why the library doesn't hold them. A work that counts as linked
     /// lacks no id (decision 9, R16): the one rule the missing-ids filter applies too.
+    /// </para>
+    /// <para>
+    /// MAM-35 — its picture is one of <paramref name="posters"/>: the poster of the item whose displayed title the card
+    /// shows, else of the items of its other displayed titles in title order, then of its original titles' items, then
+    /// any other by source name and item id — so a card shows the picture of the item it is named after, and the same
+    /// picture on every read.
+    /// </para>
     /// </remarks>
     LibraryWorkDto ToDto(
         MediaWorkEntity work,
         IReadOnlyList<MediaWorkTitleEntity> titles,
+        IReadOnlyList<MediaWorkPosterEntity> posters,
         LinkedWork linked,
         IReadOnlyList<MediaVersionEntity> versions,
         Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf,

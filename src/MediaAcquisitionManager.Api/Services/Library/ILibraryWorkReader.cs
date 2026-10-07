@@ -13,10 +13,10 @@ public interface ILibraryWorkReader
     /// <summary>
     /// <paramref name="works"/> with everything the cards show, in the order given; a file's path problem
     /// and why it couldn't be inspected only <paramref name="forOwner"/> — they quote the owner's path
-    /// mappings and paths inside the app. Batched, no N+1: one query each for the titles, the identifiers,
-    /// the versions, their files, the files' libraries, the path mappings of the integrations that
-    /// reported them, and the readings of the files the app inspected with their tracks — however many
-    /// works.
+    /// mappings and paths inside the app. Batched, no N+1: one query each for the titles, the poster tags
+    /// (MAM-35), the identifiers, the versions, their files, the files' libraries, the path mappings of the
+    /// integrations that reported them, and the readings of the files the app inspected with their tracks —
+    /// however many works.
     /// </summary>
     /// <remarks>
     /// <para>

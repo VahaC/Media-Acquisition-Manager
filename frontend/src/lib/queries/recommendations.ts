@@ -1,4 +1,5 @@
 import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { dataUrlOf } from '../data-url'
 import { recommendationsApi } from '../recommendations-api'
 import { isRunUnderWay } from '../recommendations'
 import type { RecommendationDismissal, RecommendationRun, RecommendationsQuery } from '../types'
@@ -127,14 +128,3 @@ export const usePoster = (url: string | null, wanted = true) =>
     staleTime: Infinity,
     retry: false,
   })
-
-/** The blob as a `data:` URL; anything but an image is refused, so only a picture reaches an `<img>`. */
-function dataUrlOf(blob: Blob): Promise<string> {
-  if (!blob.type.startsWith('image/')) return Promise.reject(new Error(`Not an image: ${blob.type}`))
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('The poster could not be read.'))
-    reader.readAsDataURL(blob)
-  })
-}

@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Services.Catalog;
+using MediaAcquisitionManager.Api.Services.Posters;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Recommendations;
@@ -57,50 +58,9 @@ public sealed class RecommendationPosterService(
             // Masked again with the call's secrets — a second pass after the adapter's own (the MAM-7 rule).
             return await FailedAsync(SecretRedaction.Redact(poster.Error, catalog.Settings.Secrets)!, callerUserId, cancellationToken);
 
-        await KeepAsync(directory, path, poster.Value!.Content, cancellationToken);
+        // MAM-35 — the keep the Library's posters share (PosterFiles), logged as this service.
+        await PosterFiles.KeepAsync(directory, path, poster.Value!.Content, logger, cancellationToken);
         return RecommendationPosterResult.Served(poster.Value.Content, mediaType);
-    }
-
-    /// <summary>
-    /// Writes <paramref name="content"/> to <paramref name="path"/> whole or not at all: to a file of its own first,
-    /// then moved into place, so a request reading the cache never gets half a poster. Best effort — a disk that
-    /// refuses costs only the next request a fetch, so the poster is served whatever happens here.
-    /// </summary>
-    private async Task KeepAsync(string directory, string path, byte[] content, CancellationToken cancellationToken)
-    {
-        // A dot first, so the posters route — which takes no name starting with one — can never serve it half written.
-        var temporary = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
-        try
-        {
-            Directory.CreateDirectory(directory);
-            await File.WriteAllBytesAsync(temporary, content, cancellationToken);
-            try
-            {
-                File.Move(temporary, path, overwrite: false);
-            }
-            catch (IOException) when (File.Exists(path))
-            {
-                // Another request fetched the same poster and kept it first: one image, so either copy will do.
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // Warning, so it ships off the box: a data volume that refuses writes is the operator's to fix.
-            logger.LogWarning(exception, "The poster {FileName} was fetched but couldn't be kept in {Directory}.", Path.GetFileName(path), directory);
-        }
-        finally
-        {
-            try
-            {
-                if (File.Exists(temporary))
-                    File.Delete(temporary);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                // A leftover starts with a dot, so nothing ever serves it; failing the poster over it would be worse.
-                logger.LogWarning(exception, "The temporary poster file {File} couldn't be removed.", Path.GetFileName(temporary));
-            }
-        }
     }
 
     /// <summary>A failed fetch: <paramref name="error"/> for the installation owner, <see cref="FetchFailedError"/> for

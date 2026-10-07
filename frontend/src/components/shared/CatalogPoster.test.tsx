@@ -126,7 +126,7 @@ describe('CatalogPoster', () => {
       const { container } = renderPoster()
 
       // Assert
-      const box = container.querySelector('.catalog-poster')
+      const box = container.querySelector('.poster-box')
       expect(recommendationsApi.poster).not.toHaveBeenCalled()
       expect(screen.queryByRole('img')).not.toBeInTheDocument()
       expect(container.querySelector('.lucide-film')).toBeInTheDocument()
@@ -141,7 +141,7 @@ describe('CatalogPoster', () => {
       const { container } = renderPoster()
 
       // Act
-      observer.scrollNear(container.querySelector('.catalog-poster')!)
+      observer.scrollNear(container.querySelector('.poster-box')!)
 
       // Assert
       const image = await screen.findByRole('img', { name: 'Poster of Вартові Галактики 3' })

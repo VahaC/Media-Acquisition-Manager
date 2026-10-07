@@ -119,6 +119,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<LibraryLinkCandidateEntity> LibraryLinkCandidates => Set<LibraryLinkCandidateEntity>();
 
+    public DbSet<MediaWorkPosterEntity> MediaWorkPosters => Set<MediaWorkPosterEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -268,6 +270,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // show the owner (specification §3.1), not one to forbid and lose.
             e.HasIndex(x => new { x.Scheme, x.Value });
             // Cascade: an identifier says something only about its work.
+            e.HasOne<MediaWorkEntity>().WithMany()
+                .HasForeignKey(x => x.MediaWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MediaWorkPosterEntity>(e =>
+        {
+            ConfigureProvenance(e);
+            // MAM-35 — the poster endpoint's lookup: a file name is an item id and a tag, and only a pair some row holds is
+            // served or fetched, so the endpoint is no proxy to the library. The provenance index leads with the
+            // connection, which the file name doesn't carry. Not unique: two libraries may report one item id.
+            e.HasIndex(x => new { x.SourceItemId, x.Tag });
+            // Cascade: a poster says something only about its work.
             e.HasOne<MediaWorkEntity>().WithMany()
                 .HasForeignKey(x => x.MediaWorkId)
                 .OnDelete(DeleteBehavior.Cascade);

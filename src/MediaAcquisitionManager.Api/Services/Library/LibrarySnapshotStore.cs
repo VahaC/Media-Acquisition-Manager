@@ -149,6 +149,8 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         await db.MediaWorkTitles.Where(ReportedBy<MediaWorkTitleEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.MediaWorkIdentifiers.Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.MediaEpisodePositions.Where(ReportedBy<MediaEpisodePositionEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
+        // MAM-35 — its posters too: a work another source keeps would otherwise show a picture of a library that is gone.
+        await db.MediaWorkPosters.Where(ReportedBy<MediaWorkPosterEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await db.LibraryLocations.Where(ReportedBy<LibraryLocationEntity>(integrationId)).ExecuteDeleteAsync(cancellationToken);
         await DeleteEmptyWorksAsync(workIds, cancellationToken);
     }
@@ -173,6 +175,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         return db.LibraryLocationFolders.Where(folder => locations.Any(location => location.Id == folder.LibraryLocationId));
     }
 
+    // MAM-35 — not the posters: a poster row is only ever written beside its item's other facts, so it adds no work.
     private IQueryable<Guid> WorksReportedBy(Guid integrationId) =>
         db.MediaWorkTitles.Where(ReportedBy<MediaWorkTitleEntity>(integrationId)).Select(title => title.MediaWorkId)
             .Union(db.MediaWorkIdentifiers.Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId)).Select(identifier => identifier.MediaWorkId))
@@ -197,7 +200,8 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
             await Ordered(db.MediaWorkIdentifiers.AsTracking().Where(ReportedBy<MediaWorkIdentifierEntity>(integrationId))).ToListAsync(cancellationToken),
             await Ordered(db.MediaVersions.AsTracking().Where(ReportedBy<MediaVersionEntity>(integrationId))).ToListAsync(cancellationToken),
             await Ordered(db.PhysicalFiles.AsTracking().Where(ReportedBy<PhysicalFileEntity>(integrationId))).ToListAsync(cancellationToken),
-            await Ordered(db.MediaEpisodePositions.AsTracking().Where(ReportedBy<MediaEpisodePositionEntity>(integrationId))).ToListAsync(cancellationToken));
+            await Ordered(db.MediaEpisodePositions.AsTracking().Where(ReportedBy<MediaEpisodePositionEntity>(integrationId))).ToListAsync(cancellationToken),
+            await Ordered(db.MediaWorkPosters.AsTracking().Where(ReportedBy<MediaWorkPosterEntity>(integrationId))).ToListAsync(cancellationToken));
 
     private static IQueryable<TFact> Ordered<TFact>(IQueryable<TFact> facts) where TFact : ProvenancedEntity =>
         facts.OrderBy(fact => fact.CreatedUtc).ThenBy(fact => fact.Id);
@@ -205,6 +209,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
     /// <summary>Deletes those of <paramref name="workIds"/> that no longer hold a title, an identifier, a
     /// version or an episode position of any source. A series that goes leaves its episodes' positions
     /// pointing at no series (the database's SetNull, MAM-32).</summary>
+    /// <remarks>MAM-35 — a poster doesn't count: a picture alone says nothing of a work, and goes with it by cascade.</remarks>
     private Task<int> DeleteEmptyWorksAsync(List<Guid> workIds, CancellationToken cancellationToken) =>
         db.MediaWorks
             // One JSON parameter (EF.Parameter) rather than EF Core 10's default of one parameter per id:
@@ -240,6 +245,7 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
                 CancellationToken.None) == 1;
     }
 
+    // MAM-35 — not the poster tag: an item with nothing but a picture still makes no work.
     private static bool HasFacts(LibraryItem item) =>
         item.Titles.Count > 0
         || item.Identifiers.Count > 0
@@ -286,10 +292,11 @@ public sealed partial class LibrarySnapshotStore(ApplicationDbContext db, TimePr
         List<MediaWorkIdentifierEntity> Identifiers,
         List<MediaVersionEntity> Versions,
         List<PhysicalFileEntity> Files,
-        List<MediaEpisodePositionEntity> Positions)
+        List<MediaEpisodePositionEntity> Positions,
+        List<MediaWorkPosterEntity> Posters)
     {
         /// <summary>Every work one of the snapshot's titles, identifiers, versions or episode positions sat
-        /// on.</summary>
+        /// on. MAM-35 — not the posters': each sits on a work its item's other facts sit on.</summary>
         public HashSet<Guid> WorkIds { get; } =
         [
             .. Titles.Select(title => title.MediaWorkId),

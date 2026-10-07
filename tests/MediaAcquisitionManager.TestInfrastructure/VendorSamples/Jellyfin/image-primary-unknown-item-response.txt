@@ -1,0 +1,9 @@
+HTTP/1.1 400 Bad Request
+Content-Type: text/plain
+Date: Wed, 07 Oct 2026 07:56:14 GMT
+Server: Kestrel
+Content-Language: en-US
+Transfer-Encoding: chunked
+X-Response-Time-ms: 80.2781
+
+Error processing request.

@@ -573,3 +573,39 @@ and `JellyfinAdapterIdentifiersTests` and `JellyfinAdapterMetadataLookupTests` b
 `JellyfinAdapterIdentifyFailureTests`, `JellyfinAdapterIdentifyLibraryTests`,
 `JellyfinAdapterIdentifyRefusalTests` and `JellyfinAdapterIdentifyShortcutTests`; the second client is
 pinned by `IntegrationsInfrastructureExtensionsTests.The_identify_client_has_the_twenty_minute_timeout_and_the_shared_jellyfin_client_keeps_fifteen_seconds`.
+
+## A library's poster (added 0.2.1, MAM-35)
+
+**The library provider reads an item's poster.** `IMediaLibraryProvider` gains
+`GetPosterAsync(settings, sourceItemId, posterTag)`, answering a `LibraryPoster` — the bytes and their
+media type, a JPEG the library resized to at most 342 pixels wide — or `NotFound` when the library has
+no such image or no longer knows the item; an id or a tag the library never gives is a caller's
+mistake that throws before anything is sent. `LibraryItem` gains `PosterTag`, the library's own name of
+the item's current poster image, which changes whenever the image does: always the item's own, never
+its series' or season's lent to an episode, and `null` when it has none. `LibraryPosterNames`
+(`Core/Library`) says which file names the app serves a poster under: the item id and the tag, each 1
+to 64 letters and digits, and `.jpg`
+([ADR 0027](0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
+
+**A member of the kind contract, not an optional capability.** Reading the library is what a library
+provider does, so every implementer serves it — `JellyfinAdapter`, and the test doubles — and nothing
+asks the registry whether it may. It is never a member of `IMediaLibraryItemIdentifier`:
+`LibraryItemIdentifierIdentifiesOnlyTests` scans that capability and every type of
+`Core.Abstractions.Library` its members reach — `LibraryIdentifyRequest`, `LibraryIdentification`,
+`LibraryIdentifyOutcome`, `LibraryIdentifyRefusal` — for image words, and reaches none of
+`IMediaLibraryProvider`, `LibraryItem` and `LibraryPoster`. No Core name names the product
+(`CoreIsVendorNeutralTests`): the poster and its tag are Core's words, while `ImageTags`, `Primary`,
+`format=Jpg` and `quality=90` stay in Infrastructure. The Jellyfin adapter's fetch is one GET on the
+shared `jellyfin` client, with its 15 seconds and its 4 MiB limit, never on Apply's
+`jellyfin-identify`, through `HttpIntegrationAdapter.CallAsync` like every other call — the key masked
+out of any sentence, no redirect followed —, asking for `image/jpeg` instead of JSON and keeping only
+a JPEG.
+
+`JellyfinAdapterPostersTests.GetPoster_asks_for_the_items_primary_image_as_a_342_wide_jpeg_with_the_key_in_the_media_browser_header`,
+`JellyfinAdapterPostersTests.GetPoster_goes_through_the_shared_client_and_its_fifteen_seconds`,
+`JellyfinAdapterPostersTests.GetPoster_with_an_id_jellyfin_never_gives_throws_without_sending_anything`,
+`JellyfinAdapterPostersTests.GetPoster_with_a_tag_the_sync_never_reads_throws_without_sending_anything`,
+`JellyfinAdapterPostersTests.ListItems_reads_no_poster_tag_for_an_episode_without_its_own_image_whatever_its_series_has`
+and `LibraryPosterNamesTests.TryParse_refuses_any_other_name` pin it;
+`LibraryItemIdentifierIdentifiesOnlyTests.No_member_is_named_for_refreshing_images_titles_locks_deleting_replacing_or_editing`
+holds as it was.

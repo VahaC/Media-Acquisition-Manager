@@ -60,6 +60,14 @@ export const qk = {
     locations: ['library', 'locations'] as const,
     sources: ['library', 'sources'] as const,
     /**
+     * MAM-35 — one work's library poster as a `data:` URL, by the URL the works gave. Beside `works`
+     * rather than under it, as the links are: a finished sync, an inspection under way, a link change,
+     * the works' poll while a link is under way and Refresh all invalidate the works, which would ask
+     * for every poster on screen again. The URL names one version of the image (its tag), so nothing
+     * needs to invalidate it.
+     */
+    poster: (url: string) => ['library', 'posters', url] as const,
+    /**
      * MAM-34 — the TMDb links: under `library`, so a change to an integration drops them with the works
      * (removing an integration removes its links), but beside `works` rather than under it — an
      * inspection under way refreshes the works every 2 s, which would ask for an open dialog's

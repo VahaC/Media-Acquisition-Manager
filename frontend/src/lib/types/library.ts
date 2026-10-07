@@ -198,6 +198,12 @@ export interface LibraryWork {
   seasons: LibrarySeason[] | null
   /** MAM-34 — the TMDb link of the work's items; null when none of them has one. */
   link: LibraryWorkLink | null
+  /**
+   * MAM-35 — the work's own picture from its library, `/api/library/posters/{itemId}-{tag}.jpg`, fetched
+   * with the user's token (`libraryApi.poster`); null when none of its items has one. The Library and
+   * Search cards show it; an episode inside an opened season carries one too, which nothing shows.
+   */
+  posterUrl: string | null
 }
 
 /** One page of `GET /api/library/works`. */

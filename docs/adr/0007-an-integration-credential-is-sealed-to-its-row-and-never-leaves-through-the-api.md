@@ -229,3 +229,29 @@ sign-in to repeat.
 `TmdbAdapterRateLimitTests.A_429_is_waited_out_and_the_same_get_is_sent_again` and
 `IntegrationsInfrastructureExtensionsTests.A_metadata_call_and_a_poster_fetch_log_nothing_from_the_http_client`
 pin it.
+
+## Jellyfin's images (added 0.2.1, MAM-35)
+
+**The key goes in a header, to the saved address, for one image.** The Library's posters are fetched
+by the server from the Jellyfin the owner saved: `GET Items/{id}/Images/Primary?tag=…` with the API
+key in the `Authorization: MediaBrowser Token=…` header like every other Jellyfin call, never in a
+query
+([ADR 0027](0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
+Jellyfin's image route needs no key (recorded on 2026-10-07), but the key only ever goes to the saved
+address, and a reverse proxy in front of Jellyfin may want it. The browser gets the app's own URL,
+`/api/library/posters/{itemId}-{tag}.jpg`, which carries no address and no key, and never contacts
+Jellyfin.
+
+**A member's first view sends it.** Until now only what the owner started — a connection test, a
+sync, a TMDb link's identification — made the server send the Jellyfin key. A poster not kept yet is
+fetched when any signed-in user's page first asks for it, so a member's view makes the server send
+the key too — to the saved address only, for an item id and a tag a sync stored, as a GET of one
+image, never following a redirect. Why a fetch failed is the owner's alone: the adapter masks the
+key out of the sentence, the service masks it again with the call's secrets, and anyone else reads
+"The media library couldn't send this poster.".
+
+`LibraryPostersHttpTests.Poster_first_asked_for_by_a_member_is_fetched_from_the_saved_jellyfin_with_the_key_in_the_header_and_kept`,
+`LibraryPostersHttpTests.Poster_answered_with_a_redirect_that_carries_the_key_is_502_with_the_key_masked_and_follows_none`,
+`LibraryPostersHttpTests.Poster_of_a_library_whose_failure_quotes_its_key_gives_the_owner_the_sentence_masked`
+and `JellyfinAdapterPostersTests.GetPoster_answered_with_a_redirect_follows_none_and_masks_the_key`
+pin it.

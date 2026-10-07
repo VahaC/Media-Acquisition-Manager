@@ -253,7 +253,10 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
                 "sortOrder=Ascending",
                 "startIndex=49",
                 "limit=50",
-                "enableImages=false",
+                // MAM-35 — the primary image's tag and no other image's: it names the poster a card shows.
+                "enableImages=true",
+                "enableImageTypes=Primary",
+                "imageTypeLimit=1",
                 "enableUserData=false",
                 "enableTotalRecordCount=true",
             ],

@@ -25,6 +25,8 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer
 /// also carries its streams, people, images and the server's paths, none of which goes further than
 /// this class. MAM-34 — the one body this adapter sends back is the chosen search result, exactly as Jellyfin gave it.
+/// MAM-35 — of the images, the sync reads one name: the tag of the item's own primary image (<c>ImageTags.Primary</c>),
+/// and the poster it names is fetched as a JPEG by one more GET (<c>JellyfinAdapter.Posters.cs</c>).
 /// </remarks>
 internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider, IMediaLibraryItemIdentifier
@@ -205,9 +207,12 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         // items instead of 870 in the reference library (VendorSamples README). SortName, then
         // DateCreated: a stable order is what makes overlapping pages mean something, and the two
         // "Чужі" items share a sort name, as the two halves of a Mickey Mouse Clubhouse episode do. No
-        // images and no user data: nothing here reads them. MAM-32 — a series has no files of its own,
-        // so its list asks for its ids and titles only; an episode's SeriesId, ParentIndexNumber,
-        // IndexNumber and LocationType come without being asked for (VendorSamples README).
+        // user data: nothing here reads it. MAM-32 — a series has no files of its own, so its list asks
+        // for its ids and titles only; an episode's SeriesId, ParentIndexNumber, IndexNumber and
+        // LocationType come without being asked for (VendorSamples README). MAM-35 — the primary image's
+        // tag and no other image's (enableImageTypes=Primary, imageTypeLimit=1): it names the poster a
+        // card shows (PosterTag). An episode's answer still carries its series' and season's tags
+        // (SeriesPrimaryImageTag, ParentPrimaryImageTag, recorded 2026-10-07), which are never read.
         var (type, fields) = page.Kind switch
         {
             MediaWorkKind.Series => ("Series", "ProviderIds,OriginalTitle"),
@@ -216,7 +221,7 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         };
         var query = string.Create(
             CultureInfo.InvariantCulture,
-            $"Items?recursive=true&includeItemTypes={type}&collapseBoxSetItems=false&fields={fields}&sortBy=SortName,DateCreated&sortOrder=Ascending&startIndex={page.StartIndex}&limit={page.Limit}&enableImages=false&enableUserData=false&enableTotalRecordCount=true");
+            $"Items?recursive=true&includeItemTypes={type}&collapseBoxSetItems=false&fields={fields}&sortBy=SortName,DateCreated&sortOrder=Ascending&startIndex={page.StartIndex}&limit={page.Limit}&enableImages=true&enableImageTypes=Primary&imageTypeLimit=1&enableUserData=false&enableTotalRecordCount=true");
         using var request = CreateRequest(settings, query);
         using var response = await client.SendAsync(request, cancellationToken);
         if (response.StatusCode != HttpStatusCode.OK)
@@ -444,7 +449,8 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             Identifiers(element, kind),
             hasFiles && sources.ValueKind == JsonValueKind.Array ? Versions(sources, secrets) : [],
             kind == MediaWorkKind.Episode ? Episode(element) : null,
-            kind == MediaWorkKind.Episode && IsVirtual(element));
+            kind == MediaWorkKind.Episode && IsVirtual(element),
+            PosterTag(element, id));
         var partCount = element.TryGetProperty("PartCount", out var parts) && parts.ValueKind == JsonValueKind.Number && parts.TryGetInt32(out var count)
             ? count
             : 1;
@@ -535,6 +541,26 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
         element.TryGetProperty("LocationType", out var location)
         && location.ValueKind == JsonValueKind.String
         && string.Equals(location.GetString(), "Virtual", StringComparison.Ordinal);
+
+    /// <summary>
+    /// MAM-35 — the tag of the item's own primary image (<c>ImageTags.Primary</c>), the one its card shows; <c>null</c> when
+    /// it has none (an empty <c>ImageTags</c>, as a virtual special has), or when the value is not a tag the app can keep
+    /// and name a file by (<see cref="PosterTagPattern"/>). Nor when the item's id is not a Guid:
+    /// <see cref="GetPosterAsync"/> sends only a Guid (MAM-8's rule), so no stored row names a poster the fetch would refuse
+    /// — the poster endpoint would otherwise throw on every view of the card instead of answering 404. Never the
+    /// <c>SeriesPrimaryImageTag</c> or <c>ParentPrimaryImageTag</c> an episode also carries: those are its series' and
+    /// season's pictures, and a card shows the item's own or none. Identify reads the same property more leniently for its own purpose, to see whether Apply
+    /// changed the item (<see cref="ItemFactsOf"/>); this reading is the sync's alone.
+    /// </summary>
+    private static string? PosterTag(JsonElement element, string itemId) =>
+        Guid.TryParse(itemId, out _)
+        && element.TryGetProperty("ImageTags", out var imageTags)
+        && imageTags.ValueKind == JsonValueKind.Object
+        && imageTags.TryGetProperty("Primary", out var primary)
+        && primary.ValueKind == JsonValueKind.String
+        && PosterTagPattern().IsMatch(primary.GetString()!)
+            ? primary.GetString()
+            : null;
 
     /// <summary>The type Jellyfin gives the items of <paramref name="kind"/>'s list.</summary>
     private static string TypeName(MediaWorkKind kind) => kind switch
@@ -709,4 +735,12 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// </summary>
     [GeneratedRegex(@"^([0-9]+)\.([0-9]+)")]
     private static partial Regex VersionPattern();
+
+    /// <summary>
+    /// MAM-35 — an image tag as the app takes one: 1 to 64 ASCII letters and digits (Jellyfin's are 32 hexadecimal digits,
+    /// and a poster row holds 64, <see cref="MediaWorkPosterEntity.TagMaximumLength"/>), so it goes into a query and a file
+    /// name as it is. <c>\z</c>, not <c>$</c>, which would also accept a trailing line break.
+    /// </summary>
+    [GeneratedRegex(@"^[A-Za-z0-9]{1,64}\z")]
+    private static partial Regex PosterTagPattern();
 }

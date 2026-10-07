@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -14,8 +15,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// A Jellyfin server behind a <see cref="RecordingHttpHandler"/> (MAM-8): it answers the requests the
 /// adapter makes — <c>/System/Info</c>, <c>/Library/VirtualFolders</c>, pages of <c>/Items</c> and
 /// <c>/Videos/{id}/AdditionalParts</c>, and MAM-34's <c>GET /Users</c>, <c>GET /Items/{id}</c>,
-/// <c>POST /Items/RemoteSearch/{Movie|Series}</c> and <c>POST /Items/RemoteSearch/Apply/{id}</c> — from the real samples
-/// (<see cref="JellyfinSamples"/>) unless a test changes them.
+/// <c>POST /Items/RemoteSearch/{Movie|Series}</c> and <c>POST /Items/RemoteSearch/Apply/{id}</c>, and MAM-35's
+/// <c>GET /Items/{id}/Images/Primary</c> — from the real samples (<see cref="JellyfinSamples"/>) unless a test changes them.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -52,6 +53,14 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <c>TvMaze</c> id; an item that is locked gets its ids and Etag changed only, as in Jellyfin's source. It carries no
 /// language of its own. A POST of an item or of its refresh, Jellyfin's older ways to change one, answers 404 here, so a
 /// regression that posts an item fails loudly.
+/// </para>
+/// <para>
+/// MAM-35 — an item's poster is answered as the live check of 2026-10-07 recorded it: for an item of any list whose
+/// <c>ImageTags</c> hold a <c>Primary</c>, the recorded 200 with the test JPEG as its body (<see cref="RecordedPoster"/>),
+/// whatever tag is asked — Jellyfin doesn't check it —; for an item without one, the recorded 404; for an id no list holds,
+/// the recorded 400. So a fake Apply changes what the route serves, and one that left the item without images
+/// (<see cref="AppliesIdsOnly"/>) leaves a 404, with no switch of its own. Apply mints letters-and-digits tags, as Jellyfin's
+/// are, so a sync after it reads the new one.
 /// </para>
 /// <para>
 /// One server per address: <see cref="Arm(RecordingHttpHandler, FakeJellyfinServer[])"/> gives one
@@ -310,6 +319,23 @@ public sealed class FakeJellyfinServer
                 ["Artists"] = new JsonArray(),
             }));
 
+    /// <summary>
+    /// MAM-35 — what <c>GET /Items/{id}/Images/Primary</c> answered for an item with a poster (recorded live on 2026-10-07,
+    /// <see cref="JellyfinSamples.ImagePrimaryResponseFile"/>): its status and headers as recorded — <c>image/jpeg</c>, the
+    /// year-long immutable <c>Cache-Control</c>, the <c>ETag</c> — with the test JPEG as its body (<see cref="TestImages"/>),
+    /// since the recording keeps no picture. Its <c>Content-Length</c> is the JPEG's, not the recorded poster's.
+    /// </summary>
+    public static HttpResponseMessage RecordedPoster()
+    {
+        var response = VendorResponses.Recorded(JellyfinSamples.ImagePrimaryResponseFile);
+        using var recorded = response.Content;
+        var content = new ByteArrayContent(TestImages.Jpeg());
+        foreach (var header in recorded.Headers.NonValidated.Where(header => !string.Equals(header.Key, "Content-Length", StringComparison.OrdinalIgnoreCase)))
+            content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        response.Content = content;
+        return response;
+    }
+
     /// <summary>Makes <paramref name="handler"/> answer as this server.</summary>
     public void Arm(RecordingHttpHandler handler) => Arm(handler, this);
 
@@ -348,6 +374,7 @@ public sealed class FakeJellyfinServer
             _ when segments is ["Items", "RemoteSearch", "Apply", var itemId] && request.Method == HttpMethod.Post => Apply(uri, itemId, body),
             _ when segments is ["Items", "RemoteSearch", ("Movie" or "Series") and var endpoint] && request.Method == HttpMethod.Post => RemoteSearch(endpoint, body),
             _ when segments is ["Videos", var itemId, "AdditionalParts"] => PartsOf(itemId),
+            _ when segments is ["Items", var itemId, "Images", "Primary"] && request.Method == HttpMethod.Get => PosterOf(itemId),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
     }
@@ -579,7 +606,8 @@ public sealed class FakeJellyfinServer
                 item["ImageTags"] = tags;
             }
 
-            tags["Primary"] = string.Create(CultureInfo.InvariantCulture, $"applied-primary-{number}");
+            // MAM-35 — letters and digits, as Jellyfin's tags are: the sync reads no other form as a poster's tag.
+            tags["Primary"] = string.Create(CultureInfo.InvariantCulture, $"{number:x32}");
             // Only TMDb has backdrops: the Open Movie Database result left none (recorded).
             if (replaceAllImages && isTmdbRow)
                 item["BackdropImageTags"] = new JsonArray(string.Create(CultureInfo.InvariantCulture, $"applied-backdrop-{number}"));
@@ -732,6 +760,20 @@ public sealed class FakeJellyfinServer
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    // ── MAM-35: an item's poster ─────────────────────────────────────────────
+
+    private HttpResponseMessage PosterOf(string itemId)
+    {
+        lock (_gate)
+        {
+            if (Stored(itemId) is not { } item)
+                return VendorResponses.Recorded(JellyfinSamples.ImagePrimaryUnknownItemResponseFile);
+            return item["ImageTags"] is JsonObject tags && tags["Primary"] is JsonValue primary && primary.TryGetValue<string>(out var tag) && tag.Length > 0
+                ? RecordedPoster()
+                : VendorResponses.Recorded(JellyfinSamples.ImagePrimaryMissingResponseFile);
         }
     }
 

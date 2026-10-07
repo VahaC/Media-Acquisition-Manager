@@ -201,6 +201,49 @@ public sealed class MediaModelPersistenceTests : DatabaseTestBase
     }
 
     [Fact]
+    public async Task Deleting_a_work_removes_its_posters()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
+        var works = Works(db);
+        var work = await CreateReportedWorkAsync(db, library, "item-a");
+        var otherWork = await CreateReportedWorkAsync(db, library, "item-b");
+        await works.AddPoster(work.Id, "7060953c5bc967a2e947ecc514b77a37", library.Id, library.Name, "item-a");
+        var kept = await works.AddPoster(otherWork.Id, "c46fbb41d55088253b976fab0894d6a8", library.Id, library.Name, "item-b");
+
+        //Act
+        await db.MediaWorks.Where(x => x.Id == work.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // MAM-35 — Cascade: a poster says something only about its work.
+        var remaining = await db.MediaWorkPosters.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal((kept.Id, otherWork.Id, "c46fbb41d55088253b976fab0894d6a8"), (remaining.Id, remaining.MediaWorkId, remaining.Tag));
+    }
+
+    [Fact]
+    public async Task Deleting_an_integration_keeps_the_posters_it_reported_with_its_source_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var library = await Integrations(db).Create("Jellyfin", "jellyfin", IntegrationKind.MediaLibrary, apiKey: "0123456789abcdef");
+        var work = await CreateReportedWorkAsync(db, library, "item-a");
+        await Works(db).AddPoster(work.Id, "7060953c5bc967a2e947ecc514b77a37", library.Id, library.Name, "item-a");
+
+        //Act
+        await db.IntegrationConnections.Where(x => x.Id == library.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // MAM-7's SetNull, as every fact: the database keeps the row; it is the integration's removal in code (the
+        // snapshot's purge) that takes a removed library's posters away.
+        var stored = await db.MediaWorkPosters.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal((work.Id, (Guid?)null, "Jellyfin", "item-a"), (stored.MediaWorkId, stored.SourceConnectionId, stored.SourceName, stored.SourceItemId));
+        Assert.Equal(ProvenanceSourceKind.MediaLibrary, stored.SourceKind);
+    }
+
+    [Fact]
     public async Task Deleting_a_download_client_keeps_its_jobs_with_the_client_name()
     {
         //Arrange

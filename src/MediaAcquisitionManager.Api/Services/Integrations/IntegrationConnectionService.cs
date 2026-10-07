@@ -281,8 +281,9 @@ public sealed partial class IntegrationConnectionService(
         // a commit, it rolls both back.
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         // A library's snapshot goes with it (ADR 0006, MAM-8): the titles, identifiers, versions, episode
-        // positions (MAM-32), files and libraries it reported, and the works left with nothing. Only its
-        // own: every other integration's facts, and anything a non-library source said, stay.
+        // positions (MAM-32), poster tags (MAM-35), files and libraries it reported, and the works left
+        // with nothing. Only its own: every other integration's facts, and anything a non-library source
+        // said, stay.
         await librarySnapshots.PurgeAsync(integration.Id, cancellationToken);
         // The audit row copies the name: it has to say what was removed after the row is gone.
         auditTrail.Record(AuditAction.IntegrationDeleted, actor, AuditTarget.Integration(integration));

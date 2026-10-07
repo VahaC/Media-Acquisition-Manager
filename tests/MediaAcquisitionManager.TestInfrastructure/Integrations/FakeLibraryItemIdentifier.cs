@@ -18,7 +18,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// unless a test arms another answer, because the link writer runs it as the version gate before every identification.
 /// The identification itself is unarmed until a test says what it answers: it then fails with
 /// <see cref="IntegrationCallStatus.Unreachable"/>, so a test that forgot to arm it sees a failing library and can't pass for
-/// a working one.
+/// a working one. MAM-35 — a poster likewise (<see cref="Posters"/>), so the poster service's failures and their masking are
+/// tested without a Jellyfin.
 /// </para>
 /// <para>
 /// Thread safe: the worker's lanes call it from several threads at once. The requests are recorded in a concurrent queue, and
@@ -79,6 +80,11 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
     /// <summary>The libraries a location list answers; none when <c>null</c>.</summary>
     public IReadOnlyList<LibraryLocation>? Locations { get; set; }
 
+    /// <summary>MAM-35 — the whole answer to a poster, given the item id and the tag asked for, a failure status included;
+    /// unarmed, a poster fails with <see cref="IntegrationCallStatus.Unreachable"/>. May block, or throw as a bug in an
+    /// adapter would.</summary>
+    public Func<string, string, IntegrationCallResult<LibraryPoster>>? Posters { get; set; }
+
     /// <summary>Every identification asked of it since the last <see cref="Reset"/>, oldest first.</summary>
     public IReadOnlyList<LibraryIdentifyRequest> Requests => [.. _requests];
 
@@ -107,7 +113,7 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
     public static LibraryIdentification Refused(LibraryIdentifyRefusal refusal, string sentence) =>
         new(LibraryIdentifyOutcome.Refused, refusal, Sent: false, [], [], sentence);
 
-    /// <summary>Forgets what it was asked and disarms everything: the answers, the kinds and the lists.</summary>
+    /// <summary>Forgets what it was asked and disarms everything: the answers, the kinds, the lists and the posters.</summary>
     public void Reset()
     {
         ConnectionTest = null;
@@ -116,6 +122,7 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
         Throws = null;
         ItemPages = null;
         Locations = null;
+        Posters = null;
         IdentifiableKinds = [MediaWorkKind.Movie, MediaWorkKind.Series];
         _requests.Clear();
         _calls.Clear();
@@ -181,5 +188,15 @@ public sealed class FakeLibraryItemIdentifier : IIntegrationAdapter, IMediaLibra
     {
         _calls.Enqueue(settings);
         return Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Succeeded(Locations ?? []));
+    }
+
+    /// <inheritdoc/>
+    public Task<IntegrationCallResult<LibraryPoster>> GetPosterAsync(
+        IntegrationConnectionSettings settings, string sourceItemId, string posterTag, CancellationToken cancellationToken = default)
+    {
+        _calls.Enqueue(settings);
+        return Task.FromResult(
+            Posters?.Invoke(sourceItemId, posterTag)
+            ?? IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, UnarmedMessage));
     }
 }

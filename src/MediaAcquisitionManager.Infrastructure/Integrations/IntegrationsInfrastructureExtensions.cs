@@ -33,7 +33,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// 170 KB for Guardians of the Galaxy, VendorSamples) and a person's combined credits (about 160 KB for
     /// Robert Zemeckis); a poster at w342 is tens of kilobytes. All far under 4 MiB. MAM-34 — one Jellyfin item read
     /// whole, streams and people included, is about 6 to 15 KB (VendorSamples' <c>item.json</c> and
-    /// <c>episode-movie-after-identify.json</c>), and a search answers a few hundred bytes a result.
+    /// <c>episode-movie-after-identify.json</c>), and a search answers a few hundred bytes a result. MAM-35 — a library
+    /// poster is asked for as a JPEG at most 342 pixels wide, about 35 KB (recorded live), and a page of the sync carries one
+    /// image tag more per item.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 

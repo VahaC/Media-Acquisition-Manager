@@ -20,8 +20,8 @@ TMDb, every signed-in user also gets recommendations of the films, series, carto
 the library doesn't have yet, each with why it is there and what the release sources carry of it,
 and downloads one through the Search page like any other; and the owner links a library work without
 a TMDb id to its TMDb film or show, picked from the app's suggestions, and Jellyfin identifies the
-item as it — its title, overview and images become TMDb's — in the background; see
-[ROADMAP.md](ROADMAP.md).
+item as it — its title, overview and images become TMDb's — in the background; and every library
+work's card shows its own poster from Jellyfin; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -102,6 +102,13 @@ application.
   files; an episode of no series is a card of its own with its season and number, and an episode
   Jellyfin lists without a file is left out
   ([ADR 0019](docs/adr/0019-a-series-is-a-work-its-episodes-point-at-its-seasons-come-from-their-numbers-and-an-episode-without-a-file-is-left-out.md)).
+  Each card shows the work's own picture from Jellyfin beside its title (MAM-35): the item's own
+  primary image — for an item Jellyfin identified, the one it took from TMDb then, never the
+  Recommendations page's TMDb poster —, the series' picture on a series' card, its own on an episode
+  of no series, none on the episodes of an opened season, and a film or TV icon where Jellyfin has
+  none, shown whole rather than cropped. The server fetches each picture once from Jellyfin, after a
+  sync stored its tag, and keeps it
+  ([ADR 0027](docs/adr/0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
   The server searches by title, original title, IMDb, TMDb or TVDB id, year or path, reaching into a
   series' episodes, filters by Jellyfin library, by kind (movies or series) or by a missing id of
   the work's kind, and pages, with titles in Ukrainian alphabetical order. The owner imports a
@@ -201,10 +208,10 @@ application.
   and the page narrows the search by a year, an IMDb id and a TMDb id in fields of their own
   (owner's choice), and by a season; a film's TMDb id also comes in its address (`?tmdbId=`), as a
   recommendation's **Releases** opens it. **In your library** shows each matching movie or series
-  as the Library page does, versions and verified file facts included, with how it matched — by
-  IMDb or TMDb id, an id the owner linked included and shown as set by them, by title and year, or
-  by title alone as a possible match to check — and a warning when ids conflict; every match is
-  listed, strongest first, and nothing is picked or merged. Below the
+  as the Library page does, its poster, versions and verified file facts included, with how it
+  matched — by IMDb or TMDb id, an id the owner linked included and shown as set by them, by title
+  and year, or by title alone as a possible match to check — and a warning when ids conflict; every
+  match is listed, strongest first, and nothing is picked or merged. Below the
   matches come up to 20 works that don't match but one of whose titles or file paths holds every
   word searched for, each whole, marked as no match, with how many more there are and a link to the
   Library page searched for the same text
@@ -460,6 +467,28 @@ acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed 
   all three items sat in libraries with no language or `en`. The installation's database held 229
   links, 220 of them written by the first builds, and 217 of those items still showed the title
   their file name gave.
+- **Jellyfin's images (MAM-35, 2026-10-06 and 2026-10-07):** Vasyl's read-only GETs to Jellyfin
+  12.1.0 — the image route asked with no key, the lists and the per-library counts with the API key
+  in the header — recorded what the Library's posters stand on. `GET /Items/{id}/Images/Primary`
+  answered without a key; with `tag=…&format=Jpg&maxWidth=342&quality=90` and `Accept: image/jpeg`,
+  Yellowstone's poster came back 200 `image/jpeg`, 342x513 and 34,972 bytes, with `Cache-Control:
+  public, max-age=31536000, immutable`; without `quality=90` it was 115 KB, and without
+  `format=Jpg`, asked with `Accept: image/webp,*/*`, Jellyfin answered WebP. A wrong tag answered
+  200 with the same image and echoed the tag as its `ETag`; an item without the image — "Follow the
+  Mouse", a virtual special — answered 404 with a JSON string, an id Jellyfin doesn't know 400
+  `text/plain`, and nothing redirected. The sync's list asked with
+  `enableImages=true&enableImageTypes=Primary&imageTypeLimit=1` gives each item its own primary tag,
+  and an episode its series' and season's beside it. Not every picture is a poster: the Tom & Jerry
+  Kids episode's is 342x237, Blitzkrieg's a 1920x1080 frame since its Identify, and "120. Landing
+  Stripling"'s was a 342x256 frame before its Identify on 2026-10-06. The items with a picture on
+  2026-10-07: 635 of the 650 movies of «Фільми»; all 194 movies, both series and all 284 episodes of
+  «Мульфільми», its 29 virtual episodes left out; all 35 movies, the one series and the 16 episodes
+  of «Документалки»; and all 8 series and 140 episodes of «Серіали». The app's own sync of the
+  reference installation on 2026-10-07 stored 1,315 poster tags: 843 of the 858 movie works, all 7
+  series and all 432 episodes. The Library page then showed each card's picture beside its title at
+  1280 and 375 px wide — posters, frames of the video shown whole, the placeholder for none — each
+  fetched once and kept (25 files, 1.4 MB, for a page of 25 cards), and the Recommendations page's
+  posters were unchanged.
 
 Not tried live yet:
 
@@ -493,6 +522,10 @@ Not tried live yet:
   than the series were not tried. A 403 for a key that isn't an administrator's was never met, as
   Jellyfin's API keys are. Nor was an item a parental limit hides from the administrator met:
   Jellyfin answers its read 404, and the app asks the user-less list whether it is still there.
+- The Library's posters from a Jellyfin other than 12.1.0, or behind a reverse proxy that wants
+  Jellyfin's key (MAM-35): the image route was read on 12.1.0 alone, with nothing in front of it.
+  The Search page's **In your library** cards with their posters were not opened live: they are the
+  Library page's cards with the same `posterUrl` (`SearchesLibraryPostersHttpTests`).
 
 ### What it will do
 
@@ -563,8 +596,8 @@ The core works with media works, versions, physical files, releases, and persist
 title, identifier, version, file and release it stores names the source that reported it
 ([ADR 0006](docs/adr/0006-every-title-identifier-and-file-the-core-stores-names-its-source.md)).
 Adapter contracts keep it independent of any one media server, indexer, download client or
-catalog. The first four adapters exist: Jellyfin's reads the library and identifies an item as the
-TMDb film or show the owner links it to, the Torznab adapter searches
+catalog. The first four adapters exist: Jellyfin's reads the library, its items' posters included,
+and identifies an item as the TMDb film or show the owner links it to, the Torznab adapter searches
 releases, reads a source's newest releases and fetches a release's download, qBittorrent's lists its
 categories with the folders they save to, adds a release, finds its torrents by info hash or by
 category, and reads their state and their files, and TMDb's reads the film and TV catalog the
@@ -640,7 +673,14 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   `LibraryWritesAreOwnerOnlyHttpTests` sends every library endpoint that isn't a GET as a non-owner
   and expects 403. A failed sync's reason can name the service's address, a path problem quotes the
   owner's path mappings, and who started a sync is the owner's sign-in name, so only the owner gets
-  them; everyone else gets `null`.
+  them; everyone else gets `null`. A work's poster is everyone's to read too, as the works are: `GET
+  /api/library/posters/{fileName}` lives outside `Controllers/Library/Links` and serves only an item
+  id and tag a sync stored, so it is no proxy to Jellyfin. A poster not kept yet is fetched by the
+  server from the saved Jellyfin with the stored key in the `Authorization` header, so a member's
+  first view of a card makes the server send the key — to that address only, never in a URL the
+  browser sees, and following no redirect —; why a fetch failed, masked of the key, goes to the
+  owner alone, and everyone else reads "The media library couldn't send this poster."
+  ([ADR 0027](docs/adr/0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
 - **Linking works to TMDb is the owner's alone, reads included.** The link endpoints live in
   `Controllers/Library/Links`, and every action there is owner-only because of where it lives
   (`LibraryLinksAreOwnerOnlyConvention`), GETs too: they spend the owner's TMDb token, and say why
@@ -810,8 +850,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
 - **Security headers on every response:** `X-Content-Type-Options: nosniff`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a Content Security Policy that
   forbids inline scripts and allows images only from the app itself and `data:` URLs, the
-  recommendations' posters included. The only inline script, which applies dark mode before the
-  first paint (`frontend/index.html`), is allowed by its SHA-256 hash, pinned in
+  recommendations' and the Library's posters included. The only inline script, which applies dark
+  mode before the first paint (`frontend/index.html`), is allowed by its SHA-256 hash, pinned in
   `SecurityHeadersMiddleware.ThemeScriptHash`. Change one byte of that script and
   `SecurityHeadersHttpTests` fails until the hash is updated.
 - **Secrets never live in the repository.** Committed `appsettings*.json` files hold `null` for
@@ -863,7 +903,8 @@ answers and its database is open and fully migrated. When it isn't,
 **Data and backups.** Everything the installation keeps is in `/data` inside the container, on the
 `mam-data` volume: `mam.db` and the generated secrets in `.secrets/`, and the recommendations'
 posters in `posters/`, a cache never pruned that needs no backup, as a missing poster is fetched
-again while TMDb is connected. The owner's TMDb links live in `mam.db` alone — a link kept in the
+again while TMDb is connected; and the Library's posters in `library-posters/`, a cache of the same
+kind, a missing one fetched again from Jellyfin. The owner's TMDb links live in `mam.db` alone — a link kept in the
 app, and a link Jellyfin hasn't identified, nowhere else —, while the suggestions are a cache the
 next run rebuilds. An Identify changes Jellyfin's own data and can't be undone, so back up
 Jellyfin's data folder too before **Update Jellyfin** if you want a way back. Back up `mam.db` and
@@ -1022,8 +1063,9 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `DELETE /api/settings/destinations/{id}` | Owner only. 204 and an audit row; nothing changes in the client, a removed default leaves none, and the download jobs sent to it keep its name and category. 404. |
 | `GET /api/settings/destinations/client-destinations/{downloadClientId}` | Owner only. What the download client offers right now: 200 `{ items, error }`, each item `{ key, displayName, check }` in the client's order, `check` as above. When the client couldn't be asked — switched off, a type this version can't send downloads to, a stored secret it can't read, or its call failed — `items` is empty and `error` says why. 404 when the id is not a download client. |
 | `GET /api/settings/destinations/sections` | Owner only. The tracker sections of every release source, for the destination dialog (ADR 0020): 200 `{ sources }` whatever the sources answered, each release-search integration by name `{ id, name, sections, error }`, each section `{ name, categoryIds, isSourceSpecific, destinationId, destinationName }`. An enabled source is asked for its categories each time, all of them at once; the categories of one cleaned name (Prowlarr's leading `\|-` dropped), rank and destination are one section, in the source's order, and a mapped category the source no longer lists comes last under its stored name. A switched-off source, one of a type this version can't search and one whose key can't be read are not asked, and `error` says why, as it does with the masked sentence of one whose call failed; each still lists the sections mapped to a destination. Not paged: an update replaces a destination's sections, so the dialog needs every mapped one. |
-| `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link }`, ordered by `sort` — `Title` by default, in Ukrainian alphabetical order (Latin titles after Cyrillic ones), `TitleDescending`, `Newest` or `Oldest` by the year the card shows (a work with none last either way), `Largest` by the sizes of its files added up (a series' episodes' files too; a work with no size last) or `Added` by when the app first saw it (a series by its latest episode), each read by name in any letter case and each falling back to the title order, so the order is total (MAM-8); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue, identified, underWay }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only, `identified` true when the work has an item `Written` or `InLibrary` and every such item has an `identifiedUtc`, and `underWay` true when any item's link is `Queued` or `Writing` (the page asks again while it is), both everyone's. `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, an unknown kind ("“x” is not a kind filter. Use Movie or Series.") or an unknown sort ("“x” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added."). |
+| `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link, posterUrl }`, ordered by `sort` — `Title` by default, in Ukrainian alphabetical order (Latin titles after Cyrillic ones), `TitleDescending`, `Newest` or `Oldest` by the year the card shows (a work with none last either way), `Largest` by the sizes of its files added up (a series' episodes' files too; a work with no size last) or `Added` by when the app first saw it (a series by its latest episode), each read by name in any letter case and each falling back to the title order, so the order is total (MAM-8); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue, identified, underWay }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only, `identified` true when the work has an item `Written` or `InLibrary` and every such item has an `identifiedUtc`, and `underWay` true when any item's link is `Queued` or `Writing` (the page asks again while it is), both everyone's. `posterUrl` (MAM-35) is `/api/library/posters/{itemId}-{tag}.jpg`, the poster of the item whose title the work shows, else of the next item that has one, or `null` when Jellyfin holds no picture of any of them (ADR 0027). `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, an unknown kind ("“x” is not a kind filter. Use Movie or Series.") or an unknown sort ("“x” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added."). |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
+| `GET /api/library/posters/{fileName}` | Every signed-in user. A library work's own poster, as a work's `posterUrl` names it — `{itemId}-{tag}.jpg`, each half 1 to 64 letters and digits: 200 with the bytes, `image/jpeg`, and `Cache-Control: private, max-age=2592000, immutable`, only for an item id and tag a sync stored. The first request fetches it from the Jellyfin that reported it — `GET /Items/{id}/Images/Primary?tag=…&format=Jpg&maxWidth=342&quality=90`, the key in the header — and keeps it in `<data>/library-posters/`, which is never pruned; later ones read it from there, whatever the library's state (ADR 0027). A bare 404 for a name that is no poster file name, one no library reported (a removed library's included), one not kept while its library is switched off or of a type that can't read a library, and one Jellyfin has no image for or no longer knows. 502 when Jellyfin couldn't send it — its sentence, masked of the key, for the owner, and "The media library couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
 | `GET /api/library/sources` | 200 `{ items, inspection, scan }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem }, space }`, by name, `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun, hasQueuedRun, space }` for the whole library, each run as `GET /api/library/inspections/{runId}` gives it, and `scan` `{ activeRun, lastFinishedRun, hasQueuedRun, files, space }` for the media folders (ADR 0021), each run as `GET /api/library/scans/{runId}` gives it; an active run is the running one, else the queued one. `files` counts the names the scans stored that no file a library reported maps to now, as each library's `inspection` counts its files, so a sync that starts reporting a path, or a fixed path mapping, takes a name off at once; a scanned name never counts in a library's row. `space` `{ sizeBytes, fileCount, nameCount, unmeasuredCount }` is the room the files take on disk (ADR 0018, ADR 0022), counted when read over the integration's file names, over every stored file name for `inspection`, and over the names `files` counts for `scan`: each file once by its device and inode, with the size the app's last look read, never the size a library reported; `nameCount` is the names that lead to those files, and `unmeasuredCount` the names with no identity or size read, left out of `sizeBytes`. `pathProblem`, `problem` and each run's `requestedByUserName`, `problem`, `hashing.problem` and `error` only for the owner, `null` for everyone else; `space` is everyone's. |
 | `POST /api/library/sources/{integrationId}/syncs` | Owner only. 202 with the queued run and its `Location`; the sync runs in the background. 404 for an unknown integration or one that isn't a media library; 409 when it is switched off, its type can't read a library, or a sync of it is under way; 503 when too many syncs are waiting. |
@@ -1359,7 +1401,8 @@ their own in `RecommendationScoringTests`, `RecommendationRatingFloorTests`,
 `RecommendationQueryTitleTests`, `RecommendationPosterNamesTests` and `SeedTitleCleaningTests`. In the
 web app, `RecommendationsPage.test.tsx`, `RecommendationsPage.cards.test.tsx`,
 `RecommendationsPage.filters.test.tsx`, `RecommendationsPage.sort.test.tsx`, `RecommendationsPage.run.test.tsx`,
-`CatalogPoster.test.tsx` (the poster component, shared with the TMDb links since MAM-34),
+`CatalogPoster.test.tsx` (the poster component, shared with the TMDb links since MAM-34; its box is
+`PosterBox` since MAM-35),
 `RecommendationReasons.test.tsx`,
 `RecommendationSettingsCard.test.tsx`, `recommendations.test.ts`, `recommendations-api.test.ts` and
 `profile-api.test.ts` cover the new pieces.
@@ -1422,6 +1465,29 @@ in `AuditTrailTests`. The core's rules are tested in `LinkedIdentifiersTests`,
 `LibraryTmdbPage.catchUp.test.tsx`, `LibraryTmdbPage.lists.test.tsx`, `MatchBadges.test.tsx`,
 `keyboard.test.ts`, `library-identifiers.test.ts`, `library-links.test.ts`, `library-links.test.tsx`
 (the queries' polling) and `library-links-api.test.ts` cover it.
+
+The Library's posters (MAM-35) are tested against Jellyfin's real answers recorded live.
+`JellyfinSamples` loads the sampled movies, series and episodes read again with the sync's new
+query, and the image route's recorded answers — a poster's headers, the 404 of an item without one
+and the 400 of an id Jellyfin doesn't know —, which `JellyfinAdapterPostersTests` reads: each item's
+own tag, never an episode's series' or season's, none for the virtual special, a tag the app
+couldn't keep or an item whose id isn't a Guid, the exact request with the key in the header, a JPEG
+kept whatever the letter case of its type and anything else refused, the 404 and the 400 as no
+poster, a redirect never followed, the shared client, and a caller's mistake that sends nothing;
+`JellyfinAdapterItemsTests` and `JellyfinAdapterTvTests` pin the lists' query. `FakeJellyfinServer`
+answers the image route as recorded, with the test JPEG (`TestImages`) under the recorded poster's
+headers, and gives an applied item a tag of letters and digits (`FakeJellyfinServerPosterTests` pin
+it). Over HTTP, `LibrarySnapshotPostersHttpTests` (the tags stored with their provenance, kept,
+replaced, removed and moved, a sync that fails, an item with nothing else, the purge),
+`LibraryWorksPostersHttpTests` (each kind's `posterUrl`, the picture of the item the card is named
+after, else the next, an original title's item before an untitled one, none without a picture, a new
+tag's URL, a season's episodes), `SearchesLibraryPostersHttpTests` (the Search page's library works)
+and `LibraryPostersHttpTests` (401, a member's first fetch with the key in the header and kept, the
+cache and security headers, served from disk, a library switched off or removed, every bare 404, the
+502 for the owner and for everyone else, the key masked, two libraries); the table in
+`MediaModelPersistenceTests` and the file names in `LibraryPosterNamesTests`. In the web app,
+`PosterBox.test.tsx`, `LibraryPoster.test.tsx`, `LibraryWorkCard.poster.test.tsx` and
+`library-api.test.ts` (the poster URL guard) cover it.
 
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
@@ -1517,7 +1583,7 @@ no known context), the startup skips both.
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
 of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32 to
-MAM-34).
+MAM-36).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -1529,8 +1595,8 @@ MAM-34).
    hash only the files that could be copies (built), and recommend the films, series, cartoons and
    documentaries the library doesn't have yet, from TMDb, with what the release sources carry of
    them (built, 0.2.1), and let the owner link a work without an id to its TMDb film or show, identified
-   by Jellyfin (built, 0.2.1). Label exact, same-work, and possible matches separately, for
-   movies and episodes alike.
+   by Jellyfin (built, 0.2.1), and show each library work's own poster from Jellyfin (built,
+   0.2.1). Label exact, same-work, and possible matches separately, for movies and episodes alike.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different

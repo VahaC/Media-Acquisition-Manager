@@ -1,4 +1,5 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { dataUrlOf } from '../data-url'
 import { libraryApi } from '../library-api'
 import { LIBRARY_POLL_MS } from '../library-links'
 import { isSyncUnderWay } from '../library-runs'
@@ -45,6 +46,20 @@ export const useLibraryEpisodes = (seriesId: string, query: LibraryEpisodesQuery
     queryFn: () => libraryApi.episodes(seriesId, query),
     placeholderData: keepPreviousData,
     // A 404 for a series a sync removed, or a 400 for a bad filter, won't change on a second try.
+    retry: false,
+  })
+
+/**
+ * MAM-35 — a work's own poster from its library as a `data:` URL, as `usePoster` shows a catalog's (it
+ * says why). The URL carries the image's tag, so a changed image comes under a new URL and key: one is
+ * never asked for twice while cached. Nothing is asked without a URL or while `wanted` is false (the
+ * card is far from the screen), and a failure isn't retried — the card shows its placeholder instead.
+ */
+export const useLibraryPoster = (url: string | null, wanted = true) =>
+  useQuery({
+    queryKey: qk.library.poster(url ?? ''),
+    queryFn: url === null || !wanted ? skipToken : async () => dataUrlOf(await libraryApi.poster(url)),
+    staleTime: Infinity,
     retry: false,
   })
 

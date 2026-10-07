@@ -444,3 +444,27 @@ change, write or restore" now also names the ids of an Identify: `AuditEventIden
 meant to be left when the read again never came — one row per Apply that left the app. Nothing is
 restored any more: `LibraryIdsRestored`, `LibraryIdsWritten` and `LibraryMetadataLookupRequested` are
 history, never written again, and their enum values stay so the old rows still read.
+
+## A library's poster tag (added 0.2.1, MAM-35)
+
+**One more fact with its source.** `MediaWorkPosters` is a `ProvenancedEntity` table like the titles
+and identifiers: one row per library item with a picture, of source kind `MediaLibrary`, its
+`SourceItemId` the item whose image it is, its `Tag` the library's own name of that image's current
+version (64 characters at most), and the work it sits on, `MediaWorkId`, removed with the work by the
+database's cascade
+([ADR 0027](0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
+It stores the tag, never the picture, which the app fetches from the library and keeps on disk under a
+name the tag makes. The picture is no column of the work, for the Decision's own reason: two items of
+one work keep a row each, and which one a card shows is chosen when the work is read, by the title the
+card shows.
+
+**Removing an integration.** As the Decision says of every fact, the foreign key to the integration is
+set to null and the row keeps its `SourceName`; a media library's purge then deletes its rows with the
+rest of its snapshot
+([ADR 0008](0008-a-library-sync-replaces-its-sources-snapshot-only-after-reading-all-of-it.md)), so a
+removed library's pictures stop being served.
+
+`MediaModelPersistenceTests.Deleting_a_work_removes_its_posters`,
+`MediaModelPersistenceTests.Deleting_an_integration_keeps_the_posters_it_reported_with_its_source_name`
+and `LibrarySnapshotPostersHttpTests.Sync_of_the_samples_with_images_stores_each_items_own_poster_tag_on_its_work_with_its_provenance`
+pin it.

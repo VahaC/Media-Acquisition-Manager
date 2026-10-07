@@ -18,6 +18,10 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// <param name="IsMissing">Whether the library only knows of the item and holds no file for it — a
 /// missing episode it lists from the show's metadata (MAM-32). Read like any other, so the pages of the
 /// list still add up, and stored as nothing (ADR 0017).</param>
+/// <param name="PosterTag">MAM-35 — the library's own name of the item's current poster image, which changes whenever
+/// the image does; <c>null</c> when the item has none. Always the item's own image, never its series' or season's lent to
+/// an episode: a card shows the picture of the item it stands for, or none. The poster itself is fetched with it
+/// (<see cref="IMediaLibraryProvider.GetPosterAsync"/>).</param>
 public sealed record LibraryItem(
     string SourceItemId,
     MediaWorkKind Kind,
@@ -25,4 +29,5 @@ public sealed record LibraryItem(
     IReadOnlyList<MediaIdentifier> Identifiers,
     IReadOnlyList<LibraryVersion> Versions,
     LibraryEpisode? Episode = null,
-    bool IsMissing = false);
+    bool IsMissing = false,
+    string? PosterTag = null);

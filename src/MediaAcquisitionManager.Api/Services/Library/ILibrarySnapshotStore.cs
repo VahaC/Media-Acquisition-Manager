@@ -46,8 +46,8 @@ public interface ILibrarySnapshotStore
 
     /// <summary>
     /// Deletes the snapshot of <paramref name="integrationId"/> — its titles, identifiers, versions,
-    /// episode positions (MAM-32), files and libraries with their root folders, and the works left with
-    /// none — inside the caller's transaction. The facts of any other integration or source kind stay.
+    /// episode positions (MAM-32), poster tags (MAM-35), files and libraries with their root folders, and the works
+    /// left with none — inside the caller's transaction. The facts of any other integration or source kind stay.
     /// </summary>
     /// <remarks>
     /// A removed version takes all its files with it by the database's cascade, whatever source

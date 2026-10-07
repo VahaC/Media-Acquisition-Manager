@@ -115,7 +115,7 @@
 
 /* Beside a candidate the poster takes 4rem rather than a recommendation card's 6rem: five of them
    stack in a dialog column. */
-.tmdb-link-candidate .catalog-poster {
+.tmdb-link-candidate .poster-box {
   width: 4rem;
 }
 
@@ -317,7 +317,7 @@
   min-width: 0;
 }
 
-.tmdb-confident-candidate .catalog-poster {
+.tmdb-confident-candidate .poster-box {
   width: 3rem;
 }
 

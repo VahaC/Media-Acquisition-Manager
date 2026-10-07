@@ -554,6 +554,36 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   of its own, which is not built. No endpoint or table changed. `LibrarySyncPanel.refreshAll.test.tsx`
   pins it.
 
+- **Each Library and Search card shows the work's own poster from Jellyfin (MAM-35, ADR 0027,
+  Vasyl's decisions of 2026-10-06).** Beside the title block of every card on the Library page, and
+  under **In your library** on the Search page, sits the picture Jellyfin holds for the work's item —
+  its Primary image —, in a box the size of a recommendation's poster: a series' card shows the
+  series' picture, the episodes of an opened season show none, and an episode of no series shows its
+  own. A picture of another shape, such as a frame of the video, is shown whole, and a film or TV icon
+  stands in while it loads, when Jellyfin has none and when it can't be fetched. It is never the
+  Recommendations page's TMDb poster; for an item Jellyfin identified through TMDb it is the image
+  Jellyfin took from TMDb then. Each sync stores the tag Jellyfin gives each item's own picture, never
+  its series' or season's, as a fact of its work with its source (`MediaWorkPosters`): replaced when
+  the picture changes, removed when it goes and purged with the integration. Every work the API gives
+  as `GET /api/library/works` does — a season's episodes, the Search page's library works and the
+  owner's TMDb dialog's work included — carries `posterUrl` (after `link`):
+  `/api/library/posters/{itemId}-{tag}.jpg` for the item whose title the card shows, else for the
+  next item that has a picture, or `null`. `GET /api/library/posters/{fileName}`, every signed-in
+  user's, answers `image/jpeg` with `Cache-Control: private, max-age=2592000, immutable`, and only for
+  an item id and tag a sync stored: from `<data>/library-posters/`, or fetched once from the Jellyfin
+  that reported it — `GET /Items/{id}/Images/Primary?tag=…&format=Jpg&maxWidth=342&quality=90`, the
+  key in the header, about 35 KB — and kept; a bare 404 for a name that is no poster's or that no
+  library reported, for one not kept while its library is switched off, for any of a removed
+  library's, kept or not, as its rows go with it, and for an item Jellyfin has no picture of or no
+  longer knows; 502 when Jellyfin couldn't send it, with its sentence, masked of the key, for the
+  owner and "The media library couldn't send this poster." for everyone else, nothing kept. The page
+  fetches each picture with the user's token when its card comes within about a screen of the window
+  and shows it as a `data:` URL; a finished sync, an inspection or **Refresh all** doesn't fetch it
+  again.
+  `LibraryPostersHttpTests`, `LibrarySnapshotPostersHttpTests`, `LibraryWorksPostersHttpTests`,
+  `SearchesLibraryPostersHttpTests`, `JellyfinAdapterPostersTests`, `LibraryPoster.test.tsx` and
+  `LibraryWorkCard.poster.test.tsx` pin it.
+
 ### Changed
 
 - **A film filed in TV/Anime or TV/Documentary is a movie, and the movie search finds it (MAM-33, ADR
@@ -677,6 +707,20 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   "Sources" stays, for the page's outline and a screen reader. No API changed.
   `LibrarySyncPanel.bar.test.tsx` pins the bar; the other panel and page tests open Details first.
 
+- **The media library contract reads an item's poster, and a sync asks Jellyfin for each item's
+  image tag (MAM-35, ADR 0005, ADR 0008, ADR 0027).** `IMediaLibraryProvider` gains `GetPosterAsync`,
+  which every library provider implements — reading is what one does, so it is no optional
+  capability, and `IMediaLibraryItemIdentifier` still names no image —, answering a `LibraryPoster`,
+  a JPEG at most 342 pixels wide, or `NotFound`; `LibraryItem` gains `PosterTag`. The sync's lists
+  ask Jellyfin for `enableImages=true&enableImageTypes=Primary&imageTypeLimit=1` instead of
+  `enableImages=false`, so each page carries one tag more per item, while an Identify's item lookup
+  keeps `enableImages=false`; the sync still only reads. On the Library card the poster and the title
+  block share a row of their own: the badges and actions keep the header's right edge, going under
+  both on a phone, and the versions, table and seasons keep the card's whole width. The box the
+  recommendations' and the TMDb dialog's posters sit in is one shared component now (`PosterBox`,
+  class `.poster-box` in `poster-box.css`, replacing `.catalog-poster` and `catalog-poster.css`), and
+  looks as before.
+
 ### Notes for upgraders
 
 - **Applying `AddReleaseDescription`, `AddRecommendations` and `AddRecommendationRunProgress`
@@ -751,6 +795,15 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   are a cache the next run rebuilds. Identify changes Jellyfin's own data — titles, overviews and
   images — and can't be undone, and removing a link doesn't change Jellyfin back: back up Jellyfin's
   data folder before **Update Jellyfin** if you want a way back.
+- **Applying `AddLibraryPosters` rebuilds no table, so it logs no warning 20410 (MAM-35).** It only
+  creates `MediaWorkPosters` and its three indexes.
+- **The Library's posters appear after each library's next sync (MAM-35).** The tags they are fetched
+  by come only from a sync: until the owner's **Sync now** of each Jellyfin library, or **Refresh
+  all** on the Library page, every card shows its placeholder. Nothing needs switching on.
+- **Library posters are cached in the data directory (MAM-35).** `<data>/library-posters/` holds every
+  poster a Library or Search card has shown, about 35 KB each, and is never pruned — an older
+  picture's file stays after Jellyfin's picture changes —; it needs no backup, as a missing one is
+  fetched again while its Jellyfin integration is switched on.
 
 ## [0.2.0] — 2026-10-04
 

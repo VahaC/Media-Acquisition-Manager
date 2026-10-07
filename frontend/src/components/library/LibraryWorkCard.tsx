@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react'
 import { Rows3, Table2, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { LibraryPoster } from '@/components/library/LibraryPoster'
 import { SeriesSeasons } from '@/components/library/SeriesSeasons'
 import { VersionRows } from '@/components/library/VersionRows'
 import { VersionTable } from '@/components/library/VersionTable'
@@ -74,6 +75,10 @@ const MAX_TABLE_VERSIONS = 6
  * where the link stands against Jellyfin ("Identified in Jellyfin", "Not identified yet", "Jellyfin lost it"),
  * and a warning when Jellyfin holds a third TMDb id; a work linked as an episode of a show says so
  * under its title. The Library page puts its "TMDb…" action under the badges.
+ *
+ * MAM-35 — beside the title block, the work's own picture from its library (LibraryPoster), or a film or
+ * TV icon when it has none; on the Search page's cards too. A series shows the series' picture, and the
+ * episodes inside an opened season show none (SeriesSeasons).
  */
 export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilters, actions }: LibraryWorkCardProps) {
   const { t } = useTranslation(['library', 'libraryLinks', 'common'])
@@ -101,6 +106,7 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
   const isSeries = work.kind === 'Series'
   const place = work.episode === null ? null : episodePlace(work.episode)
   const Heading = headingLevel === 3 ? 'h3' : 'h2'
+  const title = work.title ?? t('work.unknownTitle')
 
   /** Who claims an id, for its tooltip: "Reported by Home Jellyfin · Set by vasyl on 5 Oct 2026, 21:40". */
   const sourceText = (identifier: LibraryIdentifier) => {
@@ -120,17 +126,23 @@ export function LibraryWorkCard({ work, evidence, headingLevel = 2, episodeFilte
   return (
     <article className="ui-card library-work" aria-labelledby={titleId}>
       <div className="library-work-header">
-        <div className="library-work-heading">
-          <Heading id={titleId} className="ui-card-title library-work-title">{work.title ?? t('work.unknownTitle')}</Heading>
-          <p className="library-work-meta">
-            {isSeries && <span>{t('work.series')}</span>}
-            {place !== null && <span>{place}</span>}
-            {showOriginalTitle && <span>{t('work.originalTitle', { title: work.originalTitle })}</span>}
-            <span>{work.year ?? t('work.unknownYear')}</span>
-            {source && <span>{t('work.from', { source })}</span>}
-          </p>
-          {link !== null && link.target === 'ShowEpisode' && <p className="library-work-meta">{episodeLinkLine(link)}</p>}
-          {evidence}
+        {/* MAM-35 — the poster beside the title block only, in a row of their own: the badges keep the
+            header's right edge (or go under both on a phone), and the versions, table and seasons the
+            card's whole width. */}
+        <div className="library-work-lead">
+          <LibraryPoster url={work.posterUrl} title={title} kind={work.kind} />
+          <div className="library-work-heading">
+            <Heading id={titleId} className="ui-card-title library-work-title">{title}</Heading>
+            <p className="library-work-meta">
+              {isSeries && <span>{t('work.series')}</span>}
+              {place !== null && <span>{place}</span>}
+              {showOriginalTitle && <span>{t('work.originalTitle', { title: work.originalTitle })}</span>}
+              <span>{work.year ?? t('work.unknownYear')}</span>
+              {source && <span>{t('work.from', { source })}</span>}
+            </p>
+            {link !== null && link.target === 'ShowEpisode' && <p className="library-work-meta">{episodeLinkLine(link)}</p>}
+            {evidence}
+          </div>
         </div>
         {(hasBadges || comparable || actions !== undefined) && (
           <div className="library-work-side">

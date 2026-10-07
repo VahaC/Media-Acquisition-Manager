@@ -6,6 +6,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
@@ -63,22 +64,6 @@ public sealed class FakeTmdbServer
     private static readonly Lazy<Dictionary<int, string>> MovieGenreNames = new(() => GenreNames(TmdbSamples.GenresMovie()));
     private static readonly Lazy<Dictionary<int, string>> TvGenreNames = new(() => GenreNames(TmdbSamples.GenresTv()));
 
-    /// <summary>
-    /// A 1×1 baseline JPEG, as an image encoder writes one: a poster no browser or decoder would refuse,
-    /// built here because the vendor samples are text only.
-    /// </summary>
-    private static readonly byte[] PosterBytes = Convert.FromHexString(
-        "FFD8FFE000104A46494600010101006000600000FFDB0043000302020302020303030304030304050805050404050A070706080C0A0C0C0B0A0B0B0D0E1210"
-        + "0D0E110E0B0B1016101113141515150C0F171816141812141514FFDB00430103040405040509050509140D0B0D1414141414141414141414141414141414"
-        + "141414141414141414141414141414141414141414141414141414141414FFC00011080001000103012200021101031101FFC4001F00000105010101010101"
-        + "00000000000000000102030405060708090A0BFFC400B5100002010303020403050504040000017D01020300041105122131410613516107227114328191A1"
-        + "082342B1C11552D1F02433627282090A161718191A25262728292A3435363738393A434445464748494A535455565758595A636465666768696A7374757677"
-        + "78797A838485868788898A92939495969798999AA2A3A4A5A6A7A8A9AAB2B3B4B5B6B7B8B9BAC2C3C4C5C6C7C8C9CAD2D3D4D5D6D7D8D9DAE1E2E3E4E5E6E7"
-        + "E8E9EAF1F2F3F4F5F6F7F8F9FAFFC4001F0100030101010101010101010000000000000102030405060708090A0BFFC400B51100020102040403040705040400"
-        + "010277000102031104052131061241510761711322328108144291A1B1C109233352F0156272D10A162434E125F11718191A262728292A35363738393A434445"
-        + "464748494A535455565758595A636465666768696A737475767778797A82838485868788898A92939495969798999AA2A3A4A5A6A7A8A9AAB2B3B4B5B6B7B8B9"
-        + "BAC2C3C4C5C6C7C8C9CAD2D3D4D5D6D7D8D9DAE2E3E4E5E6E7E8E9EAF2F3F4F5F6F7F8F9FAFFDA000C03010002110311003F00F0AA28A2BF733F1C3FFFD9");
-
     private readonly Lock _gate = new();
     private readonly Dictionary<(MediaWorkKind Kind, int Id), FakeTmdbWork> _works = [];
     private readonly Dictionary<int, (string Name, int[] MovieIds)> _collections = [];
@@ -106,7 +91,7 @@ public sealed class FakeTmdbServer
     }
 
     /// <summary>A fresh copy of the JPEG every poster answers.</summary>
-    public static byte[] PosterJpeg() => [.. PosterBytes];
+    public static byte[] PosterJpeg() => TestImages.Jpeg();
 
     /// <summary>Adds a film or a show; adding one of the same kind and id again replaces it.</summary>
     public void AddWork(FakeTmdbWork work)

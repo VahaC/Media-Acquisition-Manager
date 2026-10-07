@@ -13,6 +13,12 @@ import type {
 const BASE_URL = '/api/library'
 
 /**
+ * MAM-35 — where every library poster URL the works give points. The image is fetched with the user's
+ * token, so only a path under it is ever asked for: a URL from anywhere else would carry the token there.
+ */
+const POSTER_PATH = `${BASE_URL}/posters/`
+
+/**
  * MAM-8 — the imported library. Every signed-in user reads it; only the installation owner starts a
  * sync, which sends the owner's stored key to the service and replaces the snapshot everyone reads.
  * A run's `error` can name the service's address, and a path problem names the owner's mappings, so
@@ -94,4 +100,18 @@ export const libraryApi = {
    */
   startScan: async (): Promise<FolderScanRun> =>
     (await api.post<FolderScanRun>(`${BASE_URL}/scans`)).data,
+
+  /**
+   * MAM-35 — `GET /api/library/posters/{itemId}-{tag}.jpg`, every signed-in user: a work's own image
+   * from its library (a JPEG the app asked the library for and keeps), as the works' `posterUrl` names
+   * it. Through the API client rather than an `<img src>`, which couldn't send the bearer token; the
+   * caller shows it as a `data:` URL, the only image source besides the app's own the CSP allows. A
+   * bare 404 for a name no library item has, or an image the library no longer holds; 502 `{ error }`
+   * when the library couldn't send it. A URL outside the posters path is refused here, before any
+   * request.
+   */
+  poster: async (url: string): Promise<Blob> => {
+    if (!url.startsWith(POSTER_PATH) || url.includes('..')) throw new Error(`Not a poster URL: ${url}`)
+    return (await api.get<Blob>(url, { responseType: 'blob' })).data
+  },
 }

@@ -1,10 +1,7 @@
-import { useState } from 'react'
-import { Film, Tv } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { PosterBox } from '@/components/shared/PosterBox'
 import { usePoster } from '@/lib/queries'
 import type { CatalogWorkKind } from '@/lib/types'
 import { useNearViewport } from '@/lib/use-near-viewport'
-import '@/styles/catalog-poster.css' // .catalog-poster — the 2:3 box and its placeholder
 
 interface CatalogPosterProps {
   /** The API's `posterUrl` (`/api/recommendations/posters/{file}`); null when the catalog has no poster. */
@@ -28,24 +25,12 @@ interface CatalogPosterProps {
  * MAM-34 — moved here from the recommendations (it was RecommendationPoster) for the TMDb dialog's
  * suggestions, whose posters the app serves under the same path. A surface sizes it through its own
  * sheet (a smaller box beside a suggestion).
+ *
+ * MAM-35 — the box itself is PosterBox, shared with the Library's own posters (LibraryPoster).
  */
 export function CatalogPoster({ url, title, kind }: CatalogPosterProps) {
-  const { t } = useTranslation()
   const [box, near] = useNearViewport<HTMLDivElement>()
   const poster = usePoster(url, near)
-  // A fetched file the browser can't decode (a truncated download the disk cache kept) shows the
-  // placeholder too, rather than a broken-image icon.
-  const [brokenSource, setBrokenSource] = useState<string | null>(null)
-  const source = poster.data !== undefined && poster.data !== brokenSource ? poster.data : null
-  const Placeholder = kind === 'Series' ? Tv : Film
 
-  return (
-    <div ref={box} className="catalog-poster">
-      {source !== null ? (
-        <img src={source} alt={t('posterAlt', { title })} onError={() => setBrokenSource(source)} />
-      ) : (
-        <Placeholder className="h-6 w-6" aria-hidden="true" />
-      )}
-    </div>
-  )
+  return <PosterBox ref={box} source={poster.data} title={title} kind={kind} />
 }

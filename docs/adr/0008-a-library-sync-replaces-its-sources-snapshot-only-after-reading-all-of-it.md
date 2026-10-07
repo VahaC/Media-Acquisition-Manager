@@ -234,3 +234,35 @@ paragraph are pinned by
 `LibraryLinkSyncHttpTests.Resync_never_changes_the_identified_time`,
 `LibraryLinkReattachHttpTests.Sync_that_moves_an_identified_link_to_a_recreated_item_clears_its_identified_time` and
 `LibraryLinkSyncHttpTests.Resync_leaves_a_not_written_link_with_its_sentence_even_when_the_item_holds_the_key`.
+
+## The poster tags (added 0.2.1, MAM-35)
+
+**The lists ask for one image tag.** Each list's query asks for each item's primary image tag and no
+other image's — `enableImages=true&enableImageTypes=Primary&imageTypeLimit=1` instead of
+`enableImages=false`, everything else unchanged —, so a page carries one tag more per item; the
+user-less `Items?ids=` lookup of MAM-34's Identify keeps `enableImages=false`. The sync stays GET-only
+towards Jellyfin. The adapter reads the item's own `ImageTags.Primary`, never the series' and season's
+tags an episode also carries
+([ADR 0027](0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
+
+**Poster rows are part of the snapshot.** `MediaWorkPosters` (one per library item with a picture) is
+loaded with the integration's other rows, found again by its item, keeps its id and `CreatedUtc`, gets
+the new `ObservedUtc`, takes a new tag in place, sits on the work the item lands on, and is deleted
+when no item reports it — the item gone, or its picture gone —, all in the one transaction, so a sync
+that fails changes none; the purge of a removed integration takes them too. A poster is never a reason
+for a work: an item with nothing but a picture gets no work, a work left with only posters is deleted
+as empty, and neither the grouping's continuity nor the check for another source's facts reads them,
+as a poster sits where its item's other facts do.
+
+`LibrarySnapshotPostersHttpTests.Resync_of_an_unchanged_library_keeps_every_poster_row_and_refreshes_its_last_seen_time`,
+`LibrarySnapshotPostersHttpTests.Resync_after_the_library_gives_an_items_image_a_new_tag_replaces_its_poster_in_place`,
+`LibrarySnapshotPostersHttpTests.Resync_after_an_items_image_is_gone_removes_its_poster_and_keeps_its_work`,
+`LibrarySnapshotPostersHttpTests.Resync_without_an_item_removes_its_poster_with_its_other_facts`,
+`LibrarySnapshotPostersHttpTests.Resync_after_an_item_moves_to_a_work_of_its_own_moves_its_poster_with_it`,
+`LibrarySnapshotPostersHttpTests.Resync_that_fails_keeps_every_poster_as_it_was`,
+`LibrarySnapshotPostersHttpTests.Sync_of_an_item_with_nothing_but_a_poster_stores_no_work_and_no_poster_for_it`
+and `LibrarySnapshotPostersHttpTests.Delete_of_the_library_integration_purges_its_posters_and_keeps_another_librarys`
+pin it; `JellyfinAdapterItemsTests.ListItems_asks_for_one_page_of_every_movie_with_the_key_in_the_media_browser_header`
+and `JellyfinAdapterTvTests.ListItems_asks_for_one_page_of_the_list_with_its_fields` pin the query,
+and `JellyfinAdapterIdentifyFailureTests.Identify_of_an_item_jellyfin_no_longer_has_is_not_found_and_searches_nothing`
+the lookup's.

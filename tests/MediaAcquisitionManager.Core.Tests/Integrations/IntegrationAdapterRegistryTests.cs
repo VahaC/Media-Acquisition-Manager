@@ -222,6 +222,10 @@ public sealed class IntegrationAdapterRegistryTests
 
         public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
             Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+
+        public Task<IntegrationCallResult<LibraryPoster>> GetPosterAsync(
+            IntegrationConnectionSettings settings, string sourceItemId, string posterTag, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
     }
 
     /// <summary>A library type that also identifies its items, as JellyfinAdapter does since MAM-34.</summary>
@@ -240,6 +244,10 @@ public sealed class IntegrationAdapterRegistryTests
 
         public Task<IntegrationCallResult<IReadOnlyList<LibraryLocation>>> ListLocationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
             Task.FromResult(IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
+
+        public Task<IntegrationCallResult<LibraryPoster>> GetPosterAsync(
+            IntegrationConnectionSettings settings, string sourceItemId, string posterTag, CancellationToken cancellationToken = default) =>
+            Task.FromResult(IntegrationCallResult<LibraryPoster>.Failed(IntegrationCallStatus.Unreachable, "The test adapter is never called."));
 
         public IReadOnlyList<MediaWorkKind> IdentifiableKinds { get; } = [MediaWorkKind.Movie];
 

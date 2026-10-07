@@ -26,6 +26,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// but a series.</param>
 /// <param name="Link">MAM-34 — the TMDb link of the work's items; <c>null</c> when none of them has one. Appended with a
 /// default, so every construction of before still compiles.</param>
+/// <param name="PosterUrl">MAM-35 — where the app serves the work's own picture from its library (ADR 0027): the poster of
+/// the item whose title <paramref name="Title"/> is, else of the next item that has one; <c>null</c> when none of its
+/// items has a poster. The app's own URL, fetched with the user's token, never the library's address.</param>
 public sealed record LibraryWorkDto(
     Guid Id,
     MediaWorkKind Kind,
@@ -37,4 +40,5 @@ public sealed record LibraryWorkDto(
     IReadOnlyList<LibraryVersionDto> Versions,
     LibraryEpisodeDto? Episode,
     IReadOnlyList<LibrarySeasonDto>? Seasons,
-    LibraryWorkLinkDto? Link = null);
+    LibraryWorkLinkDto? Link = null,
+    string? PosterUrl = null);

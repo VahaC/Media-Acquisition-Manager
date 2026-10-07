@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { libraryApi } from '@/lib/library-api'
-import { inspectionRunOf, locations, runOf, scanRunOf, sourceOf, sourcesOf, worksPage, aliens, yellowstone, yellowstoneEpisodeOf } from '@/test/library'
+import { inspectionRunOf, locations, runOf, scanRunOf, sourceOf, sourcesOf, worksPage, aliens, yellowstone, yellowstoneEpisodeOf, yellowstonePosterUrl } from '@/test/library'
 
 /**
  * Answers every request with `status` and `body`, and keeps the requests it was sent. A replaced
@@ -213,5 +213,49 @@ describe('libraryApi', () => {
 
     // Assert
     await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 409, data: { error: sentence } } })
+  })
+
+  it('fetches a work\'s poster from its library through the API client as a blob', async () => {
+    // Arrange
+    const poster = new Blob(['jpeg bytes'], { type: 'image/jpeg' })
+    const requests = respondWith(200, poster)
+
+    // Act
+    const blob = await libraryApi.poster(yellowstonePosterUrl)
+
+    // Assert
+    expect(blob).toBe(poster)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('get')
+    expect(requests[0].url).toBe('/api/library/posters/bad3e58c7b81156c7bccd6235599accd-7060953c5bc967a2e947ecc514b77a37.jpg')
+    expect(requests[0].responseType).toBe('blob')
+  })
+
+  it('rejects a poster the library no longer holds with the bare 404', async () => {
+    // Arrange
+    respondWith(404, '')
+
+    // Act
+    const result = libraryApi.poster(yellowstonePosterUrl)
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 404, data: '' } })
+  })
+
+  it.each([
+    ['the library itself', 'http://192.168.1.195:8096/Items/bad3e58c7b81156c7bccd6235599accd/Images/Primary'],
+    ['another API path', '/api/library/works'],
+    ['a way out of the posters', '/api/library/posters/../works'],
+    ['a catalog poster', '/api/recommendations/posters/x.jpg'],
+  ])('refuses %s as a library poster URL without sending the token anywhere', async (_, url) => {
+    // Arrange
+    const requests = respondWith(200, new Blob())
+
+    // Act
+    const attempt = libraryApi.poster(url)
+
+    // Assert
+    await expect(attempt).rejects.toThrow('Not a poster URL')
+    expect(requests).toEqual([])
   })
 })

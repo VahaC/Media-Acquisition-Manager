@@ -79,6 +79,7 @@ export const aliens: LibraryWork = {
   episode: null,
   seasons: null,
   link: null,
+  posterUrl: null,
   // Not in edition label order, as a later sync may send them, so the card's own order shows.
   versions: [
     {
@@ -130,6 +131,7 @@ export const continental: LibraryWork = {
   episode: null,
   seasons: null,
   link: null,
+  posterUrl: null,
   versions: [{
     id: '7a1e0000-0000-4000-8000-000000000013',
     sourceName: 'Home Jellyfin',
@@ -162,6 +164,7 @@ export const unknownWork: LibraryWork = {
   episode: null,
   seasons: null,
   link: null,
+  posterUrl: null,
   versions: [
     {
       id: '7a1e0000-0000-4000-8000-000000000014',
@@ -222,6 +225,7 @@ export const yellowstone: LibraryWork = {
     { number: null, episodeCount: 2 },
   ],
   link: null,
+  posterUrl: null,
 }
 
 /** MAM-32 — an episode of Yellowstone's first season as the episodes endpoint lists it; `changes` sets the fields a test is about. */
@@ -254,6 +258,7 @@ export function yellowstoneEpisodeOf(changes: Partial<LibraryWork>): LibraryWork
     episode: { seriesId: yellowstone.id, seasonNumber: 1, episodeNumber: 1 },
     seasons: null,
     link: null,
+    posterUrl: null,
     ...changes,
   }
 }
@@ -290,7 +295,19 @@ export const tomAndJerryKids: LibraryWork = {
   episode: { seriesId: null, seasonNumber: 1, episodeNumber: 4 },
   seasons: null,
   link: null,
+  posterUrl: null,
 }
+
+/**
+ * MAM-35 — a work's `posterUrl` as the API names it, `/api/library/posters/{itemId}-{tag}.jpg`, from the
+ * item ids and Primary image tags the MAM-35 Jellyfin samples recorded: the Theatrical Cut of Aliens,
+ * the series Yellowstone, its episode Daybreak, whose own tag isn't the series', and the Tom & Jerry
+ * Kids episode of no series.
+ */
+export const aliensPosterUrl = '/api/library/posters/00a49b2db2200514168431dc028f0a0b-a608b4104259bc0bb01c6ad262c53aed.jpg'
+export const yellowstonePosterUrl = '/api/library/posters/bad3e58c7b81156c7bccd6235599accd-7060953c5bc967a2e947ecc514b77a37.jpg'
+export const daybreakPosterUrl = '/api/library/posters/9dce0fa40765e5104b1c0a123a281280-c46fbb41d55088253b976fab0894d6a8.jpg'
+export const tomAndJerryKidsPosterUrl = '/api/library/posters/4f28ab262a69cb4a9eb85ea904a6dc5d-4a58e8e95f7f6ad8307f541d94e23800.jpg'
 
 /** The page the server answers `query` with, out of `total` works. */
 export function worksPage(query: LibraryWorksQuery, items: LibraryWork[], total = items.length): LibraryWorkList {

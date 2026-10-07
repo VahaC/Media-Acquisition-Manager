@@ -36,6 +36,11 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
                 .Where(title => workIds.Contains(title.MediaWorkId))
                 .ToListAsync(cancellationToken))
             .ToLookup(title => title.MediaWorkId);
+        // MAM-35 — the items' poster tags, the card's picture chosen among them by its title (LibraryMapper).
+        var posters = (await db.MediaWorkPosters.AsNoTracking()
+                .Where(poster => workIds.Contains(poster.MediaWorkId))
+                .ToListAsync(cancellationToken))
+            .ToLookup(poster => poster.MediaWorkId);
         // MAM-34 — the ids with the items' TMDb links applied, as every reader counts them.
         var linked = await links.ReadAsync(workIds, forOwner, cancellationToken);
         var versions = await db.MediaVersions.AsNoTracking()
@@ -83,6 +88,7 @@ public sealed class LibraryWorkReader(ApplicationDbContext db, ILibraryMapper ma
             .. works.Select(work => mapper.ToDto(
                 work,
                 [.. titles[work.Id]],
+                [.. posters[work.Id]],
                 linked[work.Id],
                 [.. versionsByWork[work.Id]],
                 version => [.. filesByVersion[version.Id].Select(file => mapper.ToDto(

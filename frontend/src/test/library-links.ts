@@ -55,6 +55,7 @@ export const landingStripling: LibraryWork = {
   episode: null,
   seasons: null,
   link: null,
+  posterUrl: null,
   versions: [{
     id: '7a1e0000-0000-4000-8000-000000000035',
     sourceName: 'Home Jellyfin',
@@ -293,6 +294,7 @@ export const penguins: LibraryWork = {
   episode: null,
   seasons: [{ number: 1, episodeCount: 49 }, { number: 2, episodeCount: 51 }, { number: 3, episodeCount: 46 }],
   link: null,
+  posterUrl: null,
   versions: [],
 }
 

@@ -188,3 +188,29 @@ written, and is replaced: the owner's pick is identified in Jellyfin — its tit
 become TMDb's, by Vasyl's decision —, and the next sync imports what Jellyfin then holds. The rule's
 other half holds: the app's own guesses are never written and never shown, and nothing is written to
 `MediaWorks`, `MediaWorkTitles` or `MediaWorkIdentifiers`.
+
+## The library's own pictures (added 0.2.1, MAM-35)
+
+**A Library card shows a picture, and it is never the catalog's.** The Library and Search pages' cards
+now show each work's picture: the primary image Jellyfin holds for the item, read from Jellyfin by the
+app ([ADR 0027](0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
+No card takes the catalog's poster — never `CatalogWorks.PosterPath`, `<data>/posters/` or
+`/api/recommendations/posters/` —, and the app never fetches a card's picture from TMDb. For an item
+the owner identified
+([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)'s
+Identify section, `replaceAllImages=true`) that image is the one Jellyfin itself took from TMDb: the
+library's data, as the title it took is, which the Anti-consequence's "a person setting an id in
+Jellyfin, which the next sync then imports as the library's own" already left open. The Decision's
+"nothing from them is ever … shown on the Library page" holds.
+
+**Two caches, kept apart.** The catalog's posters stay in `<data>/posters/`, named by
+`RecommendationPosterNames` and served at `/api/recommendations/posters/`; the library's are in
+`<data>/library-posters/`, named by `LibraryPosterNames` and served at `/api/library/posters/`
+(`LibraryPosterUrls`, never `CatalogPosterUrls`). A name of one is never served by the other; only the
+way a fetched picture is kept whole (`PosterFiles.KeepAsync`) and shown — through the API with the
+user's token, as a `data:` URL — is shared.
+
+`LibraryWorksPostersHttpTests.Works_as_a_member_carries_the_poster_url_of_each_movie_series_and_episode_of_no_series`,
+`LibraryPostersHttpTests.Poster_first_asked_for_by_a_member_is_fetched_from_the_saved_jellyfin_with_the_key_in_the_header_and_kept`
+and `RecommendationPostersHttpTests.Poster_first_asked_for_is_fetched_from_the_image_host_without_the_token_and_kept`,
+unchanged, pin it.

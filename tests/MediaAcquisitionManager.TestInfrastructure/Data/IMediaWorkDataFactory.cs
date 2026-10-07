@@ -42,4 +42,13 @@ public interface IMediaWorkDataFactory
         Guid? sourceConnectionId,
         string? sourceName,
         string? sourceItemId);
+
+    /// <summary>MAM-35 — a saved poster tag of <paramref name="workId"/> as the library integration
+    /// <paramref name="sourceConnectionId"/> reported it for its item <paramref name="sourceItemId"/>, without a sync.</summary>
+    Task<MediaWorkPosterEntity> AddPoster(
+        Guid workId,
+        string tag,
+        Guid? sourceConnectionId,
+        string? sourceName,
+        string? sourceItemId);
 }

@@ -23,7 +23,7 @@ public sealed partial class LibrarySnapshotStore
     /// (item, kind) and an identifier by (item, scheme), the first of each in the item winning; a version
     /// by its media source id, which is unique per file on the server — or, without one, by (item,
     /// position among the item's versions without one); a file by (version row, path), compared byte for
-    /// byte; MAM-32 — an episode's position by its item, one per item.
+    /// byte; MAM-32 — an episode's position by its item, one per item; MAM-35 — a poster by its item, one per item.
     /// </para>
     /// <para>
     /// The lookups over stored rows are built by grouping and keeping the first of each key, never with
@@ -65,6 +65,9 @@ public sealed partial class LibrarySnapshotStore
         private readonly Dictionary<string, MediaEpisodePositionEntity> _positions = FirstByKey(
             existing.Positions.Where(position => position.SourceItemId is not null), position => position.SourceItemId!);
 
+        private readonly Dictionary<string, MediaWorkPosterEntity> _posters = FirstByKey(
+            existing.Posters.Where(poster => poster.SourceItemId is not null), poster => poster.SourceItemId!);
+
         // Every stored or added row this sync reached, across the tables (ids are unique across them).
         private readonly HashSet<Guid> _touched = [];
 
@@ -100,6 +103,8 @@ public sealed partial class LibrarySnapshotStore
                 UpsertIdentifier(item, identifier, workId);
             if (item.Episode is { } episode)
                 UpsertPosition(item, episode, workId, seriesWorkId);
+            if (item.PosterTag is { } posterTag)
+                UpsertPoster(item, posterTag, workId);
 
             var withoutSourceId = 0;
             foreach (var version in item.Versions)
@@ -133,6 +138,9 @@ public sealed partial class LibrarySnapshotStore
             db.MediaVersions.RemoveRange(existing.Versions.Where(Untouched));
             db.MediaWorkIdentifiers.RemoveRange(existing.Identifiers.Where(Untouched));
             db.MediaEpisodePositions.RemoveRange(existing.Positions.Where(Untouched));
+            // MAM-35 — an item whose image went, or that went itself, loses its poster: no card asks for a picture the
+            // library no longer has.
+            db.MediaWorkPosters.RemoveRange(existing.Posters.Where(Untouched));
             db.MediaWorkTitles.RemoveRange(existing.Titles.Where(Untouched));
             db.LibraryLocations.RemoveRange(existing.Locations.Where(Untouched));
         }
@@ -197,6 +205,21 @@ public sealed partial class LibrarySnapshotStore
             row.SeriesWorkId = seriesWorkId;
             row.SeasonNumber = episode.SeasonNumber;
             row.EpisodeNumber = episode.EpisodeNumber;
+            Observe(row, item.SourceItemId);
+        }
+
+        /// <summary>
+        /// MAM-35 — the item's own poster, as its tag: on the item's work, wherever the item lands, and replaced in place
+        /// when the library gives the image a new tag, which makes the card ask for the new picture.
+        /// </summary>
+        private void UpsertPoster(LibraryItem item, string posterTag, Guid workId)
+        {
+            var row = Find(_posters, item.SourceItemId, () => new MediaWorkPosterEntity { CreatedUtc = now }, db.MediaWorkPosters);
+            if (row is null)
+                return;
+
+            row.MediaWorkId = workId;
+            row.Tag = posterTag;
             Observe(row, item.SourceItemId);
         }
 

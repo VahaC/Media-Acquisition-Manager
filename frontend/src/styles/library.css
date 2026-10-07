@@ -258,6 +258,25 @@
   min-width: 0;
 }
 
+/* MAM-35 — the work's poster beside its title block only, at the size a recommendation card gives it:
+   the badges keep the header's right edge, the versions, table and seasons the card's whole width.
+   It stays a row when the header stacks at 48rem (below): the poster beside the title, the badges
+   under both. */
+.library-work-lead {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem 1rem;
+  min-width: 0;
+}
+
+/* MAM-35 — a library's picture isn't always a poster (a 4:3 frame of a short, an episode's still):
+   shown whole in the 2:3 box rather than cropped. Two classes and the element win over `.poster-box
+   img` whichever sheet loads first. */
+.library-work .poster-box img {
+  object-fit: contain;
+}
+
 /* A title without spaces (a scene name) breaks rather than widening the card. */
 .library-work-title {
   overflow-wrap: anywhere;

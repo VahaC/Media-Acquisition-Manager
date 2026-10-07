@@ -14,6 +14,8 @@ public static class LibraryServiceCollectionExtensions
         services.AddScoped<ILibrarySyncService, LibrarySyncService>();
         services.AddScoped<ILibrarySyncRunner, LibrarySyncRunner>();
         services.AddScoped<ILibrarySnapshotStore, LibrarySnapshotStore>();
+        // MAM-35 — the works' posters, kept on disk and fetched from the library on a first request.
+        services.AddScoped<ILibraryPosterService, LibraryPosterService>();
         // Singleton: the one queue the starts write to and the worker reads.
         services.AddSingleton<LibrarySyncQueue>();
         return services;

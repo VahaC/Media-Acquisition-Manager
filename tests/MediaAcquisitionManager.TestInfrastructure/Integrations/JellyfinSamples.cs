@@ -9,7 +9,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// library of any size, a movie without metadata, a stacked movie's parts. MAM-32 adds the series,
 /// seasons and episodes MAM-17 sampled, and series and episodes of any facts. MAM-34 adds a movie and a series item
 /// read whole, the users, and — from the live check of Jellyfin's Identify (2026-10-06) — its search results and Apply
-/// answers, the three items read again after they were identified, and an episode Jellyfin lists as a film.
+/// answers, the three items read again after they were identified, and an episode Jellyfin lists as a film. MAM-35 adds the
+/// sampled movies, series and episodes read again with their primary image's tag (2026-10-07), and the image route's answers.
 /// </summary>
 /// <remarks>
 /// Every call returns fresh nodes, parsed anew, so a test can change what it got (a path, a media
@@ -174,6 +175,37 @@ public static class JellyfinSamples
     /// <summary>MAM-34 — what <c>POST /Items/RemoteSearch/Movie</c> answered a wrong key: 401, no body, in 0.03 s.</summary>
     public const string RemoteSearchWrongKeyResponseFile = "Jellyfin/remote-search-wrong-key-response.txt";
 
+    /// <summary>MAM-35 — the tag of Yellowstone's (<see cref="YellowstoneId"/>) primary image, the poster
+    /// <c>image-primary-response.txt</c> was recorded for.</summary>
+    public const string YellowstonePosterTag = "7060953c5bc967a2e947ecc514b77a37";
+
+    /// <summary>
+    /// MAM-35 — what <c>GET /Items/{id}/Images/Primary?tag=…&amp;format=Jpg&amp;maxWidth=342&amp;quality=90</c> answered for
+    /// Yellowstone without a key (recorded live on 2026-10-07): 200, <c>image/jpeg</c>, 34,972 bytes, an immutable year-long
+    /// <c>Cache-Control</c> and the asked tag as its <c>ETag</c>. The headers only: the poster's bytes are not kept, so a test
+    /// answers the test JPEG under them (<see cref="FakeJellyfinServer.RecordedPoster"/>).
+    /// </summary>
+    public const string ImagePrimaryResponseFile = "Jellyfin/image-primary-response.txt";
+
+    /// <summary>MAM-35 — what the same route answered for an item without a primary image (the virtual special
+    /// <see cref="FollowTheMouseId"/>): 404, <c>application/json</c>, the JSON string "Follow the Mouse does not have an
+    /// image of type Primary".</summary>
+    public const string ImagePrimaryMissingResponseFile = "Jellyfin/image-primary-missing-response.txt";
+
+    /// <summary>MAM-35 — what the same route answered for an id Jellyfin doesn't know (the all-zero one): 400,
+    /// <c>text/plain</c>, "Error processing request."</summary>
+    public const string ImagePrimaryUnknownItemResponseFile = "Jellyfin/image-primary-unknown-item-response.txt";
+
+    /// <summary>MAM-35 — the whole answer of <c>movies-page-with-images.json</c>, <c>series-page-with-images.json</c> or
+    /// <c>episodes-page-with-images.json</c> as recorded, for a test that answers the adapter with it byte for byte.</summary>
+    public const string MoviesWithImagesPageFile = "Jellyfin/movies-page-with-images.json";
+
+    /// <inheritdoc cref="MoviesWithImagesPageFile"/>
+    public const string SeriesWithImagesPageFile = "Jellyfin/series-page-with-images.json";
+
+    /// <inheritdoc cref="MoviesWithImagesPageFile"/>
+    public const string EpisodesWithImagesPageFile = "Jellyfin/episodes-page-with-images.json";
+
     private static readonly Lazy<string> MoviesPageText = new(() => Read("movies-page.json"));
     private static readonly Lazy<string> SeriesPageText = new(() => Read("series-page.json"));
     private static readonly Lazy<string> SeasonsPageText = new(() => Read("seasons-page.json"));
@@ -186,6 +218,9 @@ public static class JellyfinSamples
     private static readonly Lazy<string> SeriesItemText = new(() => Read("series-item.json"));
     private static readonly Lazy<string> SeriesItemAfterIdentifyText = new(() => Read("series-item-after-identify.json"));
     private static readonly Lazy<string> EpisodeMovieAfterIdentifyText = new(() => Read("episode-movie-after-identify.json"));
+    private static readonly Lazy<string> MoviesWithImagesPageText = new(() => Read("movies-page-with-images.json"));
+    private static readonly Lazy<string> SeriesWithImagesPageText = new(() => Read("series-page-with-images.json"));
+    private static readonly Lazy<string> EpisodesWithImagesPageText = new(() => Read("episodes-page-with-images.json"));
 
     /// <summary>The answer of <c>GET /System/Info</c>: Jellyfin 12.1.0, "VahaC media".</summary>
     public static JsonObject SystemInfo() => JsonNode.Parse(SystemInfoText.Value)!.AsObject();
@@ -290,6 +325,24 @@ public static class JellyfinSamples
 
     /// <summary>The sample episode <paramref name="id"/>.</summary>
     public static JsonObject Episode(string id) => Episodes().Single(episode => string.Equals((string?)episode["Id"], id, StringComparison.Ordinal));
+
+    /// <summary>
+    /// MAM-35 — the four movies of <c>movies-page.json</c> read again on 2026-10-07 with the sync's query that asks for the
+    /// primary image's tag (<c>movies-page-with-images.json</c>), asked for by their ids, in the order Jellyfin listed them:
+    /// 13-й район, The Continental, then the two "Чужі", each with its own <c>ImageTags.Primary</c>.
+    /// </summary>
+    public static List<JsonObject> MoviesWithImages() => ItemsOf(MoviesWithImagesPageText.Value);
+
+    /// <summary>MAM-35 — the five series of <c>series-page.json</c> read the same way (<c>series-page-with-images.json</c>):
+    /// every one with a primary image, the Penguins of Madagascar named and pictured as its Identify (MAM-34) left it.</summary>
+    public static List<JsonObject> SeriesWithImages() => ItemsOf(SeriesWithImagesPageText.Value);
+
+    /// <summary>
+    /// MAM-35 — the six episodes of <c>episodes-page.json</c> read the same way (<c>episodes-page-with-images.json</c>):
+    /// each with its own primary image but the virtual special, whose <c>ImageTags</c> is empty; every episode of a series
+    /// also carries its series' and season's tags (<c>SeriesPrimaryImageTag</c>, <c>ParentPrimaryImageTag</c>).
+    /// </summary>
+    public static List<JsonObject> EpisodesWithImages() => ItemsOf(EpisodesWithImagesPageText.Value);
 
     /// <summary>
     /// A series of its own with these facts (MAM-32): Yellowstone with its id, title, year, provider ids

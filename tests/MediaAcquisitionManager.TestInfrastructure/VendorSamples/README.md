@@ -15,7 +15,10 @@ the answer to one more write of the series, and TMDb's details of two episodes w
 ids — every one of them recorded, none made by hand. The MAM-34 Identify rework adds, from the live check
 Vasyl ran on 2026-10-06 against Jellyfin 12.1.0 (he typed `y` for each Apply), Jellyfin's `RemoteSearch`
 answers for a film, a show and a documentary episode, their `Apply` answers, the three items read again and
-their image lists — every one recorded, none made by hand.
+their image lists — every one recorded, none made by hand. MAM-35 adds, from a read-only live check Vasyl ran on
+2026-10-07 against the same Jellyfin, the sampled movies, series and episodes read again with the sync's new query, which
+asks for each item's primary image tag, and the image route's answers for a poster, for an item without one and for an
+id Jellyfin doesn't know — every one recorded, none made by hand.
 `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
@@ -100,6 +103,12 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Jellyfin/item-images-after-identify.json` | `GET /Items/{id}/Images` of the film after its Apply | A Primary poster (1112x1668) and a Backdrop (1280x720), files under Jellyfin's own `/config/metadata/library`. Kept as the check's record; no test reads it |
 | `Jellyfin/series-images-after-identify.json` | The same of the series | Primary, Logo, Thumb, Banner and Backdrop. Kept as the check's record; no test reads it |
 | `Jellyfin/episode-movie-images-after-identify.json` | The same of the episode listed as a film | One Primary image, 1920x1080. Kept as the check's record; no test reads it |
+| `Jellyfin/movies-page-with-images.json` | `GET /Items?ids={the four of movies-page.json}&recursive=true&includeItemTypes=Movie&collapseBoxSetItems=false&fields=Path,MediaSources,ProviderIds,OriginalTitle&sortBy=SortName,DateCreated&sortOrder=Ascending&enableImages=true&enableImageTypes=Primary&imageTypeLimit=1&enableUserData=false&enableTotalRecordCount=true&startIndex=0&limit=200` — the sync's query since MAM-35, for the recorded items (2026-10-07) | The same four movies in the order Jellyfin listed them (13-й район, The Continental, the two "Чужі"), each with its own `ImageTags.Primary`. The envelope is the real one, so `TotalRecordCount` is the 4 in the file (`JellyfinSamples.MoviesWithImages`) |
+| `Jellyfin/series-page-with-images.json` | The same with `includeItemTypes=Series`, `fields=ProviderIds,OriginalTitle` and the five ids of `series-page.json` | The five series, each with a primary image; the Penguins of Madagascar named and pictured as its Identify left it, with the tag `series-item-after-identify.json` holds (`JellyfinSamples.SeriesWithImages`) |
+| `Jellyfin/episodes-page-with-images.json` | The same with `includeItemTypes=Episode` and the six ids of `episodes-page.json` | Each episode with its own `ImageTags.Primary` — Daybreak's `c46fbb41…`, not its series' `7060953c…` —, the virtual special "Follow the Mouse" with `ImageTags` `{}`; every episode of a series also carries its series' and season's tags (`SeriesPrimaryImageTag`, `ParentPrimaryImageItemId`, `ParentPrimaryImageTag`), which the app never reads (`JellyfinSamples.EpisodesWithImages`) |
+| `Jellyfin/image-primary-response.txt` | `GET /Items/bad3e58c7b81156c7bccd6235599accd/Images/Primary?tag=7060953c5bc967a2e947ecc514b77a37&format=Jpg&maxWidth=342&quality=90` with `Accept: image/jpeg` and **no key**: Yellowstone's poster (2026-10-07, MAM-35) | `200 OK`, `image/jpeg`, 34,972 bytes, `Cache-Control: public, max-age=31536000, immutable`, the asked tag as its `ETag`, `Vary: Accept`, `Content-Disposition: attachment`. The status line and headers only: the poster's bytes are not kept, so `FakeJellyfinServer.RecordedPoster` answers the test JPEG under these headers |
+| `Jellyfin/image-primary-missing-response.txt` | The same route for the virtual special "Follow the Mouse" (`1728f2c0514906e2c522eb130d401193`), which has no primary image | `404 Not Found`, `application/json; charset=utf-8`, the body a JSON string: "Follow the Mouse does not have an image of type Primary". Read by `VendorResponses.Recorded` |
+| `Jellyfin/image-primary-unknown-item-response.txt` | The same route for the id `00000000000000000000000000000000` | `400 Bad Request`, `text/plain`, "Error processing request.": an id Jellyfin doesn't know is a 400 here, not a 404. Read by `VendorResponses.Recorded` |
 | `QBittorrent/app-version.txt`, `webapi-version.txt`, `build-info.json` | `GET /api/v2/app/...` | Versions |
 | `QBittorrent/categories.json` | `GET /api/v2/torrents/categories` | Four categories, each saving to the folder of one Jellyfin library, under qBittorrent's `/downloads` |
 | `QBittorrent/preferences.json` | `GET /api/v2/app/preferences` (allowlisted) | Automatic torrent management on, no separate folder for incomplete downloads, content layout `Original` |
@@ -381,6 +390,15 @@ The four movies in `movies-page.json`:
      `MetadataCountryCode`; when blank Jellyfin falls back to the server's (`ProviderManager.cs:969-977`; `ItemId`
      only picks the providers), while Apply refreshes the item in its library's language. All three recorded items
      were in libraries with a blank language or `en`.
+- **A library poster is one GET that needs no key, and its tag only versions the URL** (MAM-35, Vasyl's
+  read-only live check of 2026-10-07 on Jellyfin 12.1.0). `GET /Items/{id}/Images/Primary` answered without a key.
+  `format=Jpg` makes it a JPEG — without it, asked with `Accept: image/webp,*/*`, Jellyfin chose WebP —; `maxWidth=342`
+  keeps the image's own shape (a poster is 342x513, the Tom & Jerry Kids episode's frame 342x237); and `quality=90` made
+  Yellowstone's poster 35 KB where Jellyfin's default quality made it 115 KB. The tag is not checked: a wrong one answered
+  200 with the same image and echoed the asked tag as its `ETag`, so neither says which version came back — the tag the
+  sync reads (`enableImages=true&enableImageTypes=Primary&imageTypeLimit=1`) says which is current. An item without the
+  image answers 404 with a JSON string, an id Jellyfin doesn't know 400 `text/plain`, and the route doesn't redirect. An
+  episode carries its own `ImageTags.Primary` beside its series' and season's tags; the sync reads its own only.
 - **TMDb gives an episode its own IMDb id under `external_ids`** (MAM-34). Asked with
   `append_to_response=external_ids`, an episode's details carry `external_ids.imdb_id` (and TheTVDB's
   id), no `imdb_id` of their own; its `name` is TMDb's fallback "Серія 1" where it has no Ukrainian

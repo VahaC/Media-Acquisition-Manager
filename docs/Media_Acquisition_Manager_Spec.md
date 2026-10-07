@@ -54,6 +54,15 @@ are never touched, and a library that saves beside the media is refused. (Vasyl,
 0026](adr/0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)'s
 section added that day.)
 
+**Note (2026-10-07, MAM-35):** the Library page's cards, and the Search page's `In your library`
+cards, now show each work's own picture: the image the media server holds for the item the card
+stands for, read by each sync as a version tag and fetched by the app from the server, kept on the
+app's disk and served by the app, so the browser never contacts the media server. It is never the
+catalog's poster (§3.5); for an item identified through the catalog it is the image the server
+itself took from the catalog then, which is the library's data. Nothing is written to the media
+server for it. (Vasyl's decisions of 2026-10-06; [ADR
+0027](adr/0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md).)
+
 ## 2. First-version scope and default decisions
 
 | Question | Working decision | Status |
@@ -146,6 +155,7 @@ Do not indiscriminately call Jellyfin's `DELETE /Items/{id}`: one item may repre
 - Keep the catalog's data apart from the library: never written into the library's works, titles or identifiers, never shown on the Library page, refreshed after about 30 days. A work without a catalog id is looked up by its IMDb id or title and year, as a possible match used for recommendations only. Posters are served by the app; the browser never contacts the catalog.
 - Each user switches the four lists on or off and sets the daily limit in their profile; every list is on until they change it.
 - *Added 2026-10-05 (MAM-34):* a work the owner linked to a catalog film or show by hand is known by that link, seeds suggestions by it and is held by it, and is never looked up as a possible match. The catalog's data shows on the Library page only in the owner's link dialog.
+- *Added 2026-10-07 (MAM-35):* the Library page's cards show a picture, and it is the library's own — the media server's image of the item, which for an item identified through the catalog is the image the server itself took from the catalog —, never the catalog's poster cache; the app never fetches a card's picture from the catalog. So "never shown on the Library page" above still holds for the catalog's data ([ADR 0027](adr/0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
 
 See [ADR 0023](adr/0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md), [ADR 0024](adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md) and [ADR 0025](adr/0025-the-catalog-is-kept-apart-from-the-library.md).
 
@@ -165,7 +175,7 @@ Application-level contracts (interfaces/ports) with explicit capabilities:
 
 | Contract | Responsibility | First implementation |
 | --- | --- | --- |
-| `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; request a scan; optional version capabilities; optionally identify an item as a catalog film or show and nothing else, on the kinds of item it names (`IMediaLibraryItemIdentifier`, MAM-34; Jellyfin: films and series) | Jellyfin |
+| `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; read an item's poster image, resized by the library (MAM-35); request a scan; optional version capabilities; optionally identify an item as a catalog film or show and nothing else, on the kinds of item it names (`IMediaLibraryItemIdentifier`, MAM-34; Jellyfin: films and series) | Jellyfin |
 | `IReleaseSearchProvider` | Search and normalize results; retrieve a payload separately for client submission | Torznab (Jackett) |
 | `IDownloadClient` | Supported payload types, destination validation, submission, status, file list/status, job correlation | qBittorrent |
 | `IFileInventory` | Scan only allowed roots; file identity, size/hash, ffprobe, quarantine | Local/container mount |
@@ -191,6 +201,8 @@ Minimum `ReplacementJob` fields: internal ID, source/release reference or snapsh
 **Library (MAM-34):** the owner's `TMDb…` action on a work opens a dialog with the ids the media server reports for each of its items, up to five ranked catalog suggestions with their evidence (title, year, runtime against the measured duration, the library's genre, a linked neighbour) and the one confident suggestion marked, a field for a pasted TMDb or IMDb link or id, and a catalog search; above Save it says what the server will replace, and Save links the picked film or show and queues the server's Identify for each item — its title, overview and images become the catalog's, in the language of the item's library, in the background —, while Remove link forgets the link in the app only. A film item linked to a show is an episode of it, with optional season and episode numbers; named both, the server identifies it through The Open Movie Database by the episode's own IMDb id, else the link is kept in the app and says why. Each linked item shows whether the server identified it: "Waiting to identify" and "Identifying…" while it runs, then "Identified in Jellyfin", "Not identified yet" with Retry and the reason, "Jellyfin lost it" with Identify again, or "Kept in the app". A series' link is identified like a film's, in the background, and the server also refreshes its seasons and episodes. The TMDb links page repairs the links set before on the owner's click (Update Jellyfin: a count, one confirmation, progress) and lists, under Not identified, every link the server or the app refused or failed to identify, with its reason. A library that saves artwork or metadata next to the media is refused before any search, and files and folders are never touched. A film id the server gives an item after the owner linked it as an episode of a show is shown as a conflict, neither winning. A TMDb links page, opened from the missing-ID filter, reviews the works without an id one at a time by the keyboard, links every confident suggestion at once and lists the conflicting and unattached links. Linked ids show on the cards as "set by" the owner; members see them, without the owner's name, and can't link.
 
 **Search (MAM-34):** a linked id matches like the server's own and is shown as "set by" the owner; a linked id beside a different server id of its scheme is flagged as a conflict.
+
+**Library (MAM-35):** each work's card, on the Library page and among the Search page's `In your library` results, shows the work's own picture from the media server beside its title, in a box of a poster's shape at the size of a recommendation's: the picture of the item whose title the card shows, else of the next item that has one. A series' card shows the series' picture, the episodes of an opened season show none, and an episode of no series shows its own; no season has one. A picture that isn't a poster's shape, such as a frame of the video, is shown whole, not cropped, and a placeholder of the work's kind stands in while it loads, when the server has none and when it can't be fetched. The pictures appear after each library's next sync.
 
 **Duplicates:** filters for `byte-identical`, `same work / other versions`, and `possible`; show the evidence behind each grouping. Display a numeric “potentially recoverable space” estimate only when the storage relationship is known well enough to calculate it.
 

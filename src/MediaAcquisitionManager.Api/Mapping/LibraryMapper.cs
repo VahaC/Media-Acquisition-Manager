@@ -29,6 +29,7 @@ public sealed class LibraryMapper : ILibraryMapper
     public LibraryWorkDto ToDto(
         MediaWorkEntity work,
         IReadOnlyList<MediaWorkTitleEntity> titles,
+        IReadOnlyList<MediaWorkPosterEntity> posters,
         LinkedWork linked,
         IReadOnlyList<MediaVersionEntity> versions,
         Func<MediaVersionEntity, IReadOnlyList<LibraryFileDto>> filesOf,
@@ -68,7 +69,32 @@ public sealed class LibraryMapper : ILibraryMapper
                     [.. filesOf(version).OrderBy(file => file.ServicePath, StringComparer.Ordinal)]))],
             work.Kind == MediaWorkKind.Episode ? ToEpisodeDto(positions) : null,
             work.Kind == MediaWorkKind.Series ? seasons ?? [] : null,
-            ToLinkDto(linked, forOwner));
+            ToLinkDto(linked, forOwner),
+            PosterUrlOf(titles, posters));
+    }
+
+    // MAM-35 — the picture of the item the card is named after: the poster of the displayed title's item, else of the items
+    // of the other displayed titles, then of the original titles', in title order, then any other the work has by source
+    // name and item id. Only posters the route would serve count, so a card never asks for one that can only 404. An item
+    // is a (connection, item id) pair: two libraries may report one id.
+    private static string? PosterUrlOf(IReadOnlyList<MediaWorkTitleEntity> titles, IReadOnlyList<MediaWorkPosterEntity> posters)
+    {
+        var served = posters
+            .Select(poster => (poster.SourceConnectionId, poster.SourceItemId, poster.SourceName, Url: LibraryPosterUrls.Of(poster.SourceItemId, poster.Tag)))
+            .Where(poster => poster.Url is not null)
+            .OrderBy(poster => poster.SourceName, StringComparer.Ordinal)
+            .ThenBy(poster => poster.SourceItemId, StringComparer.Ordinal)
+            .ThenBy(poster => poster.Url, StringComparer.Ordinal)
+            .ToList();
+        if (served.Count == 0)
+            return null;
+
+        var titled = InTitleOrder(titles, MediaTitleKind.Display)
+            .Concat(InTitleOrder(titles, MediaTitleKind.Original))
+            .Select(title => served.FindIndex(poster =>
+                poster.SourceConnectionId == title.SourceConnectionId && string.Equals(poster.SourceItemId, title.SourceItemId, StringComparison.Ordinal)))
+            .FirstOrDefault(index => index >= 0, 0);
+        return served[titled].Url;
     }
 
     // MAM-34 — the work's links as one line: what the latest set links to, the worst state of all its items' links, and
@@ -295,10 +321,13 @@ public sealed class LibraryMapper : ILibraryMapper
     /// reading any card (<c>LibraryMatcher</c>).
     /// </remarks>
     internal static MediaWorkTitleEntity? FirstInTitleOrder(IReadOnlyList<MediaWorkTitleEntity> titles, MediaTitleKind kind) =>
+        InTitleOrder(titles, kind).FirstOrDefault();
+
+    // The titles of kind in title order (LibraryTitleOrder, then ordinal, then id): the first is the card's.
+    private static IOrderedEnumerable<MediaWorkTitleEntity> InTitleOrder(IReadOnlyList<MediaWorkTitleEntity> titles, MediaTitleKind kind) =>
         titles
             .Where(title => title.Kind == kind)
             .OrderBy(title => title.Text, LibraryTitleOrder.Comparer)
             .ThenBy(title => title.Text, StringComparer.Ordinal)
-            .ThenBy(title => title.Id)
-            .FirstOrDefault();
+            .ThenBy(title => title.Id);
 }

@@ -18,14 +18,15 @@ MAM-19 (the room the files take, each file counted once, and the hashing of only
 could be copies) are built. MAM-33 (recommendations of the works the library doesn't have yet, from
 TMDb, with what Toloka carries of them) and MAM-34 (linking a library work to its TMDb film or show
 by hand, Jellyfin then identifying the item as it) are built and ship as release 0.2.1, with
-MAM-36 (the Library page's Sources card as a status bar, and Refresh all).
+MAM-35 (each library work's own poster from Jellyfin on the Library and Search cards) and MAM-36 (the
+Library page's Sources card as a status bar, and Refresh all).
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-34 and MAM-36.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-36.
 Releases for phases C and D are not decided yet.
 
 ## Phases
@@ -430,8 +431,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33, MAM-34 and MAM-36 (Vasyl's decisions). **Tickets:** MAM-17 to
-MAM-22, MAM-32 to MAM-34 and MAM-36.
+**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions). **Tickets:** MAM-17 to
+MAM-22 and MAM-32 to MAM-36.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -601,6 +602,34 @@ episode, and how much space could really be recovered — without the app guessi
   title their file name gave. TMDb gives "Landing Stripling" a runtime of 6 minutes, against 6.2 for
   Jellyfin's file, and names Planet Earth 1044 first. The number of confident suggestions in each
   library is read on the server after the release (Vasyl's decision 4).
+- **MAM-35 Show each library work's own poster from Jellyfin on the Library and Search cards**
+  (built, release 0.2.1): every card on the Library page, and under **In your library** on the
+  Search page, shows the work's own picture beside its title block, in the 6rem box of a poster's
+  2:3 shape the recommendations use: the Primary image Jellyfin holds for the item whose title the
+  card shows, else for the next item that has one; a series' card the series' picture, the episodes
+  of an opened season none, an episode of no series its own, and a film or TV icon where Jellyfin
+  has none (Vasyl's decisions of 2026-10-06). It is never TMDb's poster from the catalog (ADR 0025);
+  an item Jellyfin identified (MAM-34) shows the image Jellyfin took from TMDb then. Each sync reads
+  each item's own image tag (`enableImages=true&enableImageTypes=Primary&imageTypeLimit=1`) and
+  stores it as a fact of its work with its source; the app serves
+  `/api/library/posters/{itemId}-{tag}.jpg` to every signed-in user, only for a tag a sync stored,
+  fetching it once from the saved Jellyfin as a 342-wide JPEG with the key in the header and keeping
+  it in `<data>/library-posters/`, and the page shows it as a `data:` URL, so the browser never
+  contacts Jellyfin and the Content-Security-Policy is unchanged. A picture of another shape, such as
+  a frame of the video, is shown whole, and nothing is written to Jellyfin ([ADR
+  0027](docs/adr/0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md);
+  ADR 0005, 0006, 0007, 0008 and 0025 amended). Checked live and read-only with Jellyfin 12.1.0 on
+  2026-10-06 and 2026-10-07: the image route answers without a key, `format=Jpg` makes it a JPEG and
+  `quality=90` a 342x513 poster of 35 KB instead of 115 KB, the tag isn't checked and only versions
+  the URL, an item without the image is 404 and an id Jellyfin doesn't know 400, and an episode's
+  entry in the list carries its series' and season's tags beside its own. The items with a picture,
+  read on 2026-10-07: 635 of the 650 movies of «Фільми»; all 194 movies, both series and all 284
+  episodes of «Мульфільми», its 29 virtual episodes left out; all 35 movies, the one series and the
+  16 episodes of «Документалки»; and all 8 series and 140 episodes of «Серіали». Checked end to end
+  on 2026-10-07: a sync of the reference installation stored 1,315 poster tags (843 of the 858 movie
+  works, all 7 series, all 432 episodes), and the Library page showed the pictures at 1280 and 375 px
+  wide, each fetched once and kept; the Search page's library block was not opened live
+  (`SearchesLibraryPostersHttpTests` pins its `posterUrl`).
 - Separate the duplicate classes of specification §3.3: the same file or a hardlink,
   byte-identical copies, other versions of the same work — a registry id the files share, for an
   episode its own or its series' with its numbers (ADR 0017), a TMDb id the owner linked included
@@ -619,7 +648,8 @@ episode, and how much space could really be recovered — without the app guessi
   in `mam.db` alone — a link kept in the app, and a link not identified yet, nowhere else —, so they
   are in its backup; the suggestions and their searches rebuild themselves after the next sync.
   Identify changes Jellyfin's own data and can't be undone, so Jellyfin's data folder is worth a
-  backup before **Update Jellyfin**.
+  backup before **Update Jellyfin**. MAM-35's poster tags come back with the next sync, and the
+  posters in `<data>/library-posters/` are fetched again from Jellyfin when missing.
 - **MAM-36 The Library's Sources card as a status bar, and Refresh all** (built, release 0.2.1): the
   card that took about 480 px at the top of the Library page is one bar — an item for each media
   library, for the media folders and for the file inspection, with an icon, when it last ran or how far
@@ -647,7 +677,11 @@ an item of the other kind (a show's on a movie item, or any id sent to the other
 identifying in a library that saves beside the media; sending an item's people; any file or folder —
 nothing is moved, renamed or written; a catalog other than TMDb; changing what kind of item Jellyfin
 says something is; an undo of an Identify; linking a work without the owner's click; and joining two
-libraries' copies by a linked id (MAM-20).
+libraries' copies by a linked id (MAM-20). For MAM-35: the catalog's posters on the Library and
+Search cards (ADR 0025); a season's picture, and pictures on the episodes of an opened season; any
+of Jellyfin's images but the item's own primary one — a backdrop, a logo, or a series' or season's
+picture lent to an episode —; uploading, setting, refreshing or deleting an image in Jellyfin; and
+pruning the posters' cache.
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -714,7 +748,17 @@ review queue, "none fits", the confident list and Accept all with its background
 migration that adds one column and keeps the old ones; every endpoint owner-only; the dialog saying
 before **Save** what Jellyfin will replace and asking before **Retry**, the panel's count,
 confirmation and progress, and the **Not identified** tab; and the Library list, its missing filter
-and search, the Search page, release matching and the recommendations counting a linked id.
+and search, the Search page, release matching and the recommendations counting a linked id. MAM-35:
+the Jellyfin adapter reads each item's own primary image tag from the recorded pages — an episode its
+own, never its series' or season's, the virtual special none, a tag the app couldn't keep none —,
+asks for a 342-wide JPEG with the key in the header, keeps only a JPEG, takes the recorded 404 and
+400 as no poster, follows no redirect and throws on an id or a tag Jellyfin never gives; a sync
+stores, keeps, replaces, removes and moves the tags with the rest of the snapshot, changes none when
+it fails, stores none for an item with nothing else, and the purge takes them; the works and the
+Search page's library works carry the poster of the item the card is named after, else of the next;
+the endpoint serves only a pair a sync stored, from disk or fetched once and kept, with every bare
+404 and the 502 for the owner and for everyone else, its key masked; and the card shows the poster
+beside the title, the placeholder without one, and fetches it once, only as it comes near the window.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -743,6 +787,11 @@ the four refused ones listed under **Not identified**, and changes no file or fo
 that saves beside the media is refused before any search, and the live check compared three items'
 folder listings before and after; the number of confident suggestions in each library is recorded in
 the ticket; and the dialog and the TMDb links page work in a browser at desktop and phone width.
+For MAM-35: after a sync of the reference installation (**Sync now** or **Refresh all**), the
+Library and Search pages show each work's own picture from Jellyfin — the series' on a series card,
+its own on an episode of no series, none on the episodes of an opened season and an icon where
+Jellyfin has none —, the server fetches each once and then serves it from its disk, nothing is
+written to Jellyfin, and both pages work in a browser at desktop and phone width.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify

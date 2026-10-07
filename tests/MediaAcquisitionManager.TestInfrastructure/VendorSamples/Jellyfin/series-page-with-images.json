@@ -1,0 +1,184 @@
+{
+  "Items": [
+    {
+      "Name": "Clarkson's Farm",
+      "OriginalTitle": "Clarkson's Farm",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "d35b5d642dc60a0898a2a54bee8d9f0b",
+      "PremiereDate": "2021-06-10T21:00:00.0000000Z",
+      "OfficialRating": "TV-PG",
+      "ChannelId": null,
+      "CommunityRating": 8.507,
+      "RunTimeTicks": 0,
+      "ProductionYear": 2021,
+      "ProviderIds": {
+        "Imdb": "tt10541088",
+        "Tmdb": "117648",
+        "Tvdb": "378165"
+      },
+      "IsFolder": true,
+      "Type": "Series",
+      "Status": "Continuing",
+      "AirDays": [],
+      "DisplayOrder": "",
+      "ImageTags": {
+        "Primary": "84efddafd1408cbacb7700107c602dff"
+      },
+      "ImageBlurHashes": {
+        "Primary": {
+          "84efddafd1408cbacb7700107c602dff": "dRC$lyozNHWr~VWrf+oe%MWrkDR+T0S5s:oLSiX9o0s."
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown",
+      "EndDate": "2026-06-16T21:00:00.0000000Z",
+      "OriginalLanguage": "en"
+    },
+    {
+      "Name": "How the Universe Works",
+      "OriginalTitle": "How the Universe Works",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "d0d8035e1431be7c3631b3cf6e1e266b",
+      "PremiereDate": "2010-04-24T21:00:00.0000000Z",
+      "OfficialRating": "TV-PG",
+      "ChannelId": null,
+      "CommunityRating": 8.3,
+      "RunTimeTicks": 25200000000,
+      "ProductionYear": 2010,
+      "ProviderIds": {
+        "Imdb": "tt1832668",
+        "Tmdb": "33827",
+        "TvRage": "25537",
+        "Tvdb": "159651"
+      },
+      "IsFolder": true,
+      "Type": "Series",
+      "Status": "Ended",
+      "AirDays": [],
+      "ImageTags": {
+        "Primary": "658e4aa24e972c31d2f4af570181385c"
+      },
+      "ImageBlurHashes": {
+        "Primary": {
+          "658e4aa24e972c31d2f4af570181385c": "d668Eex]9FRk-;M{IToe-:V@IUM{~qofD*V[-;M{IUt7"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown",
+      "EndDate": "2023-04-01T21:00:00.0000000Z",
+      "OriginalLanguage": "en"
+    },
+    {
+      "Name": "Mickey Mouse Clubhouse",
+      "OriginalTitle": "Mickey Mouse Clubhouse",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "5d35cbe1d774979d932ee85791c466db",
+      "PremiereDate": "2006-05-04T21:00:00.0000000Z",
+      "OfficialRating": "TV-Y",
+      "ChannelId": null,
+      "CommunityRating": 6.761,
+      "RunTimeTicks": 0,
+      "ProductionYear": 2006,
+      "ProviderIds": {
+        "Imdb": "tt0784896",
+        "Tmdb": "3934",
+        "TvMaze": "710",
+        "TvRage": "10824",
+        "Tvdb": "79854",
+        "TvdbSlug": "mickey-mouse-clubhouse"
+      },
+      "IsFolder": true,
+      "Type": "Series",
+      "Status": "Ended",
+      "AirTime": "09:00",
+      "AirDays": [
+        "Saturday"
+      ],
+      "DisplayOrder": "",
+      "ImageTags": {
+        "Primary": "01de7f6467277e81d5abec6fc8256006"
+      },
+      "ImageBlurHashes": {
+        "Primary": {
+          "01de7f6467277e81d5abec6fc8256006": "dlG0B{KgR,xs.Tw}W?t7tUxuWFRQ-=bbNwRjnoRko}tR"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown",
+      "EndDate": "2016-11-05T22:00:00.0000000Z",
+      "OriginalLanguage": "en"
+    },
+    {
+      "Name": "The Penguins of Madagascar",
+      "OriginalTitle": "The Penguins of Madagascar",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "9ac821b3ddea72fd14ba1835b4153e50",
+      "PremiereDate": "2008-11-27T22:00:00.0000000Z",
+      "OfficialRating": "TV-Y7",
+      "ChannelId": null,
+      "CommunityRating": 7.519,
+      "RunTimeTicks": 6600000000,
+      "ProductionYear": 2008,
+      "ProviderIds": {
+        "Imdb": "tt0892700",
+        "Tmdb": "7869",
+        "TvMaze": "4037",
+        "TvRage": "21572",
+        "Tvdb": "85075",
+        "TvdbSlug": "the-penguins-of-madagascar"
+      },
+      "IsFolder": true,
+      "Type": "Series",
+      "Status": "Ended",
+      "AirDays": [],
+      "DisplayOrder": "",
+      "ImageTags": {
+        "Primary": "52464c1fd74945e5f6990cb1901cf7c6"
+      },
+      "ImageBlurHashes": {
+        "Primary": {
+          "52464c1fd74945e5f6990cb1901cf7c6": "dWJ]iV?bK,*0?bW=RjxuTfoJVst7?wxtj[n~yYXTROad"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown",
+      "EndDate": "2013-02-27T22:00:00.0000000Z",
+      "OriginalLanguage": "en"
+    },
+    {
+      "Name": "Yellowstone",
+      "OriginalTitle": "Yellowstone",
+      "ServerId": "7e510bf027b0470988c018aa322da282",
+      "Id": "bad3e58c7b81156c7bccd6235599accd",
+      "PremiereDate": "2018-06-19T21:00:00.0000000Z",
+      "OfficialRating": "TV-MA",
+      "ChannelId": null,
+      "CommunityRating": 8.272,
+      "RunTimeTicks": 0,
+      "ProductionYear": 2018,
+      "ProviderIds": {
+        "Imdb": "tt4236770",
+        "Tmdb": "73586",
+        "Tvdb": "341164"
+      },
+      "IsFolder": true,
+      "Type": "Series",
+      "Status": "Ended",
+      "AirDays": [],
+      "ImageTags": {
+        "Primary": "7060953c5bc967a2e947ecc514b77a37"
+      },
+      "ImageBlurHashes": {
+        "Primary": {
+          "7060953c5bc967a2e947ecc514b77a37": "dUDlp2%Lx[%2~pxtxtxtxFRjbHt7IUM|WBWCNHj?V@M|"
+        }
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown",
+      "EndDate": "2024-12-14T22:00:00.0000000Z",
+      "OriginalLanguage": "en"
+    }
+  ],
+  "TotalRecordCount": 5,
+  "StartIndex": 0
+}

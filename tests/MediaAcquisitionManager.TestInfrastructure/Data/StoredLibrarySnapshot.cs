@@ -7,8 +7,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
 /// <summary>
 /// Every row the library syncs store (MAM-8) — works, titles, identifiers, versions, files, libraries and
-/// their root folders (MAM-11), episode positions (MAM-32) — read at once, so a test asserts what a sync
-/// stored, or that a failed one stored nothing, row by row.
+/// their root folders (MAM-11), episode positions (MAM-32), poster tags (MAM-35) — read at once, so a test
+/// asserts what a sync stored, or that a failed one stored nothing, row by row.
 /// </summary>
 /// <param name="Works">Every work.</param>
 /// <param name="Titles">Every title.</param>
@@ -18,6 +18,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 /// <param name="Locations">Every library of a media library integration.</param>
 /// <param name="Folders">Every root folder of those libraries.</param>
 /// <param name="Positions">Every episode position (MAM-32).</param>
+/// <param name="Posters">Every library poster's tag (MAM-35).</param>
 public sealed record StoredLibrarySnapshot(
     IReadOnlyList<MediaWorkEntity> Works,
     IReadOnlyList<MediaWorkTitleEntity> Titles,
@@ -26,7 +27,8 @@ public sealed record StoredLibrarySnapshot(
     IReadOnlyList<PhysicalFileEntity> Files,
     IReadOnlyList<LibraryLocationEntity> Locations,
     IReadOnlyList<LibraryLocationFolderEntity> Folders,
-    IReadOnlyList<MediaEpisodePositionEntity> Positions)
+    IReadOnlyList<MediaEpisodePositionEntity> Positions,
+    IReadOnlyList<MediaWorkPosterEntity> Posters)
 {
     /// <summary>Every snapshot row in <paramref name="db"/>, each table ordered by id, the folders by their
     /// library and place.</summary>
@@ -46,7 +48,8 @@ public sealed record StoredLibrarySnapshot(
             [.. (await db.LibraryLocationFolders.AsNoTracking().ToListAsync(cancellationToken))
                 .OrderBy(row => row.LibraryLocationId)
                 .ThenBy(row => row.Position)],
-            [.. (await db.MediaEpisodePositions.AsNoTracking().ToListAsync(cancellationToken)).OrderBy(row => row.Id)]);
+            [.. (await db.MediaEpisodePositions.AsNoTracking().ToListAsync(cancellationToken)).OrderBy(row => row.Id)],
+            [.. (await db.MediaWorkPosters.AsNoTracking().ToListAsync(cancellationToken)).OrderBy(row => row.Id)]);
     }
 
     /// <summary>
@@ -80,6 +83,7 @@ public sealed record StoredLibrarySnapshot(
         .. Folders.Select(folder => Line("folder", folder.LibraryLocationId, folder.Position, folder.ServicePath)),
         .. Positions.Select(position => Line(
             "position", position.Id, position.MediaWorkId, position.SeriesWorkId, position.SeasonNumber, position.EpisodeNumber, Provenance(position))),
+        .. Posters.Select(poster => Line("poster", poster.Id, poster.MediaWorkId, poster.Tag, Provenance(poster))),
     ];
 
     /// <summary>

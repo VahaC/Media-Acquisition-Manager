@@ -107,4 +107,30 @@ public sealed class MediaWorkDataFactory(ApplicationDbContext db, TimeProvider t
         db.ChangeTracker.Clear();
         return position;
     }
+
+    public async Task<MediaWorkPosterEntity> AddPoster(
+        Guid workId,
+        string tag,
+        Guid? sourceConnectionId,
+        string? sourceName,
+        string? sourceItemId)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        var poster = new MediaWorkPosterEntity
+        {
+            MediaWorkId = workId,
+            Tag = tag,
+            SourceKind = ProvenanceSourceKind.MediaLibrary,
+            SourceConnectionId = sourceConnectionId,
+            SourceName = sourceName,
+            SourceItemId = sourceItemId,
+            CreatedUtc = now,
+            ObservedUtc = now,
+        };
+
+        db.MediaWorkPosters.Add(poster);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        return poster;
+    }
 }

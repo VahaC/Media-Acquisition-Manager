@@ -1756,6 +1756,53 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("MediaWorkIdentifiers");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaWorkPosterEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MediaWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ObservedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SourceConnectionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceItemId")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tag")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MediaWorkId");
+
+                    b.HasIndex("SourceConnectionId", "SourceItemId");
+
+                    b.HasIndex("SourceItemId", "Tag");
+
+                    b.ToTable("MediaWorkPosters");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaWorkTitleEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2881,6 +2928,20 @@ namespace MediaAcquisitionManager.Api.Migrations
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaWorkIdentifierEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.MediaWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("MediaWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.IntegrationConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SourceConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.MediaWorkPosterEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.MediaWorkEntity", null)
                         .WithMany()
