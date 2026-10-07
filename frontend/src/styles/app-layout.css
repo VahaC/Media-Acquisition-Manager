@@ -21,12 +21,14 @@ html {
   z-index: 30;
 }
 
-/* MAM-16 — three columns: the brand on the left, the links in a centre column of at most 42rem, and
+/* MAM-16 — three columns: the brand on the left, the links in a centre column of at most 52rem, and
    the user menu on the right. The side columns are as wide as their content and share what is left
-   evenly, so the centre column stays in the middle of the window. */
+   evenly, so the centre column stays in the middle of the window.
+   MAM-21 — 52rem, widened from 42rem: in 672px the owner's five labelled links (Duplicates joined them)
+   left the search field 111px however wide the window; see the budget at the 76rem rule below. */
 .app-header {
   display: grid;
-  grid-template-columns: minmax(max-content, 1fr) minmax(0, 42rem) minmax(max-content, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 52rem) minmax(max-content, 1fr);
   align-items: center;
   gap: 1.25rem;
   padding: 0.625rem 1.5rem;
@@ -243,19 +245,24 @@ html:has(.app-offline) {
   color: var(--muted-foreground);
 }
 
-/* MAM-33 — up to 64rem the header links are icons with their titles, closer together, and the
+/* MAM-33 — up to 76rem the header links are icons with their titles, closer together, and the
    header's columns closer too, so the header stays on one line with a search field of at least
    220px. With the labels, three links (Recommendations joined Library and Jobs) wrapped onto three
    rows at 790–880px and left the field 144px.
    Measured in Chrome with a 15px scrollbar: the brand 224px, the user menu 102px (a five-letter
-   name), the header's padding 2 × 24px; the links labelled 337px (Library 85, Recommendations 158,
-   Jobs 70, 12px apart), as icons 116px (36px each, 4px apart); 12px between the field and them.
-   - Labelled, the field gets width − 15 − 48 − 2 × 20 − 224 − 102 − 12 − 337 = width − 778px:
-     220px from 998px, 246px at 1025px — room left for a user name about 25px longer.
-   - As icons, from 769px (above 48rem the brand shows its name and version), with 12px between the
-     columns: 769 − 15 − 48 − 2 × 12 − 224 − 102 − 12 − 116 = 228px.
-   From about 1100px the centre column reaches its 42rem and the field stays at 323px. */
-@media (max-width: 64rem) {
+   name), the header's padding 2 × 24px; the links labelled Library 85px, Recommendations 158px and
+   Jobs 70px, 12px apart, and as icons 36px each, 4px apart; 12px between the field and them.
+   MAM-21 — up to 76rem, from 64rem: Duplicates joined the links for everyone, after the owner's TMDb
+   (MAM-34), measured the same way at 107px and 81px labelled. The owner's five take 549px labelled and
+   196px as icons, a member's four 456px and 156px.
+   - Labelled, the owner's field gets width − 15 − 48 − 2 × 20 − 224 − 102 − 12 − 549 = width − 990px:
+     227px at 1217px (76rem is 1216px), where a member's gets 320px.
+   - As icons, with 12px between the columns, the owner's field gets width − 15 − 48 − 2 × 12 − 224 −
+     102 − 12 − 196 = width − 621px: 228px at 849px, where the brand shows its name and version again
+     (53rem, below); a member's 268px there.
+   From about 1261px the centre column reaches its 52rem and the field stays at 271px for the owner,
+   364px for a member. Checked in Chrome on 2026-10-07 at 1280, 1217, 1216, 1024, 849, 848 and 768px. */
+@media (max-width: 76rem) {
   .app-header {
     gap: 0.75rem;
   }
@@ -270,8 +277,9 @@ html:has(.app-offline) {
 }
 
 /* MAM-16 — narrow screens: the logo without the name and version, so the centre column keeps its
-   room; the links are icons already (above). */
-@media (max-width: 48rem) {
+   room; the links are icons already (above). MAM-21 — up to 53rem, from 48rem: with five link icons
+   the owner's field had 148px at 769px beside the name and version, and has 342px there without them. */
+@media (max-width: 53rem) {
   /* Hidden from sight only: display: none would also take them out of the link's name, and leave
      it named by its title, a sentence about the version. */
   .app-brand-text {
@@ -285,7 +293,9 @@ html:has(.app-offline) {
     white-space: nowrap;
     border: 0;
   }
+}
 
+@media (max-width: 48rem) {
   /* A phone or a tablet has no key to press, and the field needs the room. */
   .app-search-key {
     display: none;
@@ -305,8 +315,10 @@ html:has(.app-offline) {
    90px at 320px, too little to read what was typed. The field takes a row of its own under them:
    `display: contents` lets the centre column's field and links take places in the header's grid.
    Tab still reaches the field right after the logo, before the links above it: it stays the header's
-   first control, as on a wider screen, rather than the DOM order changing with the width. */
-@media (max-width: 480px) {
+   first control, as on a wider screen, rather than the DOM order changing with the width.
+   MAM-21 — up to 560px, from 480px: the owner's five link icons left the field 54px at 481px and
+   133px at 560px. */
+@media (max-width: 560px) {
   html {
     scroll-padding-top: 7rem;
   }
@@ -343,5 +355,19 @@ html:has(.app-offline) {
 
   .app-offline {
     padding: 0.5rem 1rem;
+  }
+}
+
+/* MAM-21 — narrower than 360px (a 320px phone, or 1280px at 400% zoom): the owner's five link icons need
+   196px and the row beside the logo and the user menu leaves them 176px, so Jobs wrapped onto a line of its
+   own and the header grew past the 7rem its scroll padding allows for. Closer together and slimmer, the five
+   take 150px; a link stays 28px tall and 30px wide, more than the 24px a pointer target needs. */
+@media (max-width: 360px) {
+  .app-nav {
+    gap: 0;
+  }
+
+  .app-nav-link {
+    padding: 0.375rem 0.4375rem;
   }
 }

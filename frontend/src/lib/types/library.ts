@@ -157,6 +157,13 @@ export interface LibraryVersion {
   files: LibraryFile[]
 }
 
+/**
+ * MAM-21 — what a work's versions as rows (VersionRows) and as a table (VersionTable) read of a version:
+ * the Duplicates page shows each file of a group as one, named by its file, rather than faking the
+ * other fields of a version it isn't.
+ */
+export type ShownVersion = Pick<LibraryVersion, 'id' | 'editionLabel' | 'files'>
+
 /** MAM-32 — where an episode sits, as the library places it. */
 export interface LibraryEpisode {
   /** The series work it belongs to; null when the library names none. */

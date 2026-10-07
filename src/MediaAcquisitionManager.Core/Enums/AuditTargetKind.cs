@@ -17,4 +17,10 @@ public enum AuditTargetKind
 
     /// <summary>MAM-34 — the owner's TMDb link of a library item, named by its work's title.</summary>
     LibraryLink = 5,
+
+    /// <summary>
+    /// MAM-21 — a possible match of the Duplicates list, by its group's key, named by the title and year it was offered
+    /// by.
+    /// </summary>
+    DuplicateMatch = 6,
 }

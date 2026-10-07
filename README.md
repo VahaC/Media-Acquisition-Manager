@@ -23,8 +23,9 @@ a TMDb id to its TMDb film or show, picked from the app's suggestions, and Jelly
 item as it — its title, overview and images become TMDb's — in the background; and every library
 work's card shows its own poster from Jellyfin; and the app sorts the library's files into the
 specification's four kinds of duplicate — one file's names, byte-identical copies, other copies of
-one movie or episode, and possible matches —, which every signed-in user reads through the API while
-the page that shows them is still to come; see [ROADMAP.md](ROADMAP.md).
+one movie or episode, and possible matches —, which every signed-in user sees on the Duplicates
+page, where the owner confirms or dismisses a possible match and nothing is removed; see
+[ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -192,8 +193,7 @@ application.
   0022](docs/adr/0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md),
   [ADR
   0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
-  The Duplicates list groups the copies by these hashes (below); the page that shows them is still
-  to come.
+  The Duplicates page groups the copies by these hashes (below).
 - **Duplicates, sorted as the specification sorts them.** The app works out on every read, from what
   it already holds, which file names are one file (one device and inode), which files are
   byte-identical (one SHA-256), which are other copies of one movie or episode — works of any
@@ -210,9 +210,32 @@ application.
   for byte-identical files only, and only on a file system known not to share blocks between files,
   read from Linux's mount table — btrfs, ZFS, XFS, a network share and Windows give none, with the
   reason. A file a torrent seeds is classed like any other, and no download client is asked. Every
-  signed-in user reads the groups through `GET /api/library/duplicates`; nothing is stored or
-  removed, and the Duplicates page, with confirm and dismiss, is still to come (MAM-21)
+  signed-in user reads the groups, on the Duplicates page (below) or through
+  `GET /api/library/duplicates`; nothing is removed, and nothing but the owner's decisions on
+  possible matches is stored
   ([ADR 0028](docs/adr/0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)).
+- **The Duplicates page, where the owner confirms or dismisses a possible match.** **Duplicates** in
+  the header, and at the top of the Library page, opens it for every signed-in user, with a tab for
+  each class — All, Same file, Byte-identical, Same work and Possible — and Dismissed last, the tab
+  kept in the address, filtered and paged on the server. Each group is headed by its movie, or by
+  its show with the season and episode, and shows its class, what flags it for review, the evidence
+  behind it — the one file's device and inode, the shared SHA-256, the shared ids, or the shared
+  title and year with whether the running times agree —, the room its files take and, only where
+  the server can say, the room removing all but one copy would free, or why it can't. Its files are
+  listed as the Library lists a movie's versions, rows or a comparison table, each named by the end
+  of its path that tells it from the group's other files — its file name, which tells the halves of
+  an episode apart, or, where another file has that name, the nearest folder that differs, as for a
+  hardlink's two names —, with its folder, identity, hash, editions and the works that hold it. Only
+  the installation owner confirms or dismisses a possible match, or undoes either (Vasyl's decisions
+  of 2026-10-07), each with an audit row; others see the decision and when, with the buttons
+  disabled and why. A confirmed match stays on the list, marked confirmed, still a possible match,
+  and authorises nothing; a dismissed one leaves every tab for Dismissed, a short row with **Undo**
+  taking its card's place, and can be undone there too. A decision is kept by the possible match's
+  key, made of its works and the files no library reports, so a group another work, or a scanned
+  file no library reports, joins or leaves is asked about again, while another file or version of a
+  work already in it changes nothing. Nothing on the page removes, moves or renames a file, and
+  nothing acts on several groups at once
+  ([ADR 0029](docs/adr/0029-a-possible-match-is-confirmed-or-dismissed-by-the-owner-alone-kept-by-its-groups-key-and-never-authorises-removal.md)).
 - **The Sources card and Refresh all.** The card at the top of the Library page is one status bar: an
   item for each media library, for the media folders and for the file inspection, with an icon, when it
   last ran or how far it has got, amber chips for what needs a look — files without an app path, files in
@@ -540,6 +563,15 @@ Not tried live yet:
   Madagascar pairs, 34 of them flagged for review — and no possible match. The file system of a
   device was read from a real mount table only in a Linux container (overlayfs); MAM-22 does the
   live check.
+- The Duplicates page and its decisions against the reference library or production (MAM-21): on
+  2026-10-07 the page was opened in Chrome only against a throwaway database seeded with groups of
+  every class — a hardlink, byte-identical copies, two cuts of one film, an episode in two halves,
+  possible matches with a scanned file among them —, as the owner and as a member, at desktop width,
+  375px and 320px: the tabs and `?tab=` across a reload, the rows and the table, Confirm, Dismiss
+  with its short row and Undo, Undo on Dismissed with Dismiss again, a member's disabled buttons
+  with the reason, and the Library page's Duplicates button. The development database offers no
+  possible match (MAM-20), so Confirm, Dismiss and Undo have nothing to act on there; MAM-22 does
+  the live check.
 - The app's checks of Toloka for the recommended works within the users' limits, its reading of
   Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
   the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
@@ -564,9 +596,9 @@ Not tried live yet:
 - **Link a download by hand.** Tie a job the app couldn't tell apart from the client's other
   downloads (**Needs linking**) to the right one, so it is followed like any other.
 - **Show duplicates without conflating different editions.** The grouping into hardlinks,
-  byte-identical files, other copies of the same work and possible matches is built (above); the
-  Duplicates page, with a filter per class, the evidence behind each group and confirm or dismiss, is
-  still to come (MAM-21).
+  byte-identical files, other copies of the same work and possible matches, and the Duplicates page
+  with a tab per class, the evidence behind each group and the owner's confirm or dismiss, are built
+  (above); what is left is the live check on the reference installation (MAM-22).
 - **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
   the specific new file, its identity, and its visibility to the media server before moving the
   specific old copy into quarantine where possible.
@@ -718,6 +750,12 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   The duplicate groups are everyone's to read as well (`GET /api/library/duplicates`, MAM-20): they
   read only what the library, the scan and the inspection stored, never a file or a download client,
   and a file's path or inspection problem and the name of who set a linked id stay the owner's.
+  Confirming, dismissing and undoing a possible match are the owner's alone (MAM-21, Vasyl's
+  decision of 2026-10-07): `PUT` and `DELETE /api/library/duplicates/{key}/decision` live beside the
+  list, so each declares the gate, and `LibraryWritesAreOwnerOnlyHttpTests` sends both as a
+  non-owner and expects 403 and no decision left behind. Everyone reads a decision and when it was
+  made; who made it, the owner's sign-in name, goes to the owner only
+  ([ADR 0029](docs/adr/0029-a-possible-match-is-confirmed-or-dismissed-by-the-owner-alone-kept-by-its-groups-key-and-never-authorises-removal.md)).
 - **Linking works to TMDb is the owner's alone, reads included.** The link endpoints live in
   `Controllers/Library/Links`, and every action there is owner-only because of where it lives
   (`LibraryLinksAreOwnerOnlyConvention`), GETs too: they spend the owner's TMDb token, and say why
@@ -817,14 +855,17 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   every user's change of their own password (`UserPasswordChanged`), every change to an integration
   (add, edit, remove), every save of the media folders, every change to a destination (add, edit,
   remove), every download sent (`DownloadRequested`, written with its job before anything is fetched
-  or sent), every job cancelled (`DownloadCancelled`), and every TMDb link set, replaced or removed
-  (`LibraryLinkSet`, `LibraryLinkReplaced`, `LibraryLinkRemoved`, one row per library item) write an
-  audit row in the same transaction as the change: what happened, when, who did it and to whom or
-  what, with both names copied so the row outlives them. A link's rows carry the ids before and
-  after, and every apply the app sends to Jellyfin writes `LibraryItemIdentified` with the ids the
-  item held before and after — whenever the apply left the app, confirmed or not; an item already
-  showing the match, a refusal and a failure before the apply write none —, in the name of whoever
-  set or queued the link. No title, overview or image is recorded, as an Identify has no undo.
+  or sent), every job cancelled (`DownloadCancelled`), every TMDb link set, replaced or removed
+  (`LibraryLinkSet`, `LibraryLinkReplaced`, `LibraryLinkRemoved`, one row per library item), and
+  every decision on a possible match given, changed or undone (`DuplicateMatchConfirmed`,
+  `DuplicateMatchDismissed`, `DuplicateMatchDecisionUndone`, the group named by its key and the
+  title and year it was offered by) write an audit row in the same transaction as the change: what
+  happened, when, who did it and to whom or what, with both names copied so the row outlives them.
+  A link's rows carry the ids before and after, and every apply the app sends to Jellyfin writes
+  `LibraryItemIdentified` with the ids the item held before and after — whenever the apply left the
+  app, confirmed or not; an item already showing the match, a refusal and a failure before the apply
+  write none —, in the name of whoever set or queued the link. No title, overview or image is
+  recorded, as an Identify has no undo.
   `LibraryIdsWritten`, `LibraryIdsRestored` and `LibraryMetadataLookupRequested` are rows of the
   first builds, which nothing writes now. A save that changes nothing and a connection test write
   none, and neither does a retry of a download already sent, a cancel of a job that already ended, a
@@ -834,7 +875,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   neither does a user's "Not interested", its undo or a save of their Profile's recommendation
   settings, which are that user's own preferences, nor a check of the release sources for a
   recommended work, nor a preparation of the TMDb suggestions or the owner's "none fits"; reading
-  the duplicate groups writes none, nor anything else. There is no screen for it yet.
+  the duplicate groups writes none, nor anything else, and neither does a decision on a possible
+  match given again or an undo of none. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys, TMDb's API Read Access Token and
   the qBittorrent password are stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed
   to its integration and field, so a value copied to another row or column doesn't open. The API
@@ -1103,7 +1145,9 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link, posterUrl }`, ordered by `sort` — `Title` by default, in Ukrainian alphabetical order (Latin titles after Cyrillic ones), `TitleDescending`, `Newest` or `Oldest` by the year the card shows (a work with none last either way), `Largest` by the sizes of its files added up (a series' episodes' files too; a work with no size last) or `Added` by when the app first saw it (a series by its latest episode), each read by name in any letter case and each falling back to the title order, so the order is total (MAM-8); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue, identified, underWay }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only, `identified` true when the work has an item `Written` or `InLibrary` and every such item has an `identifiedUtc`, and `underWay` true when any item's link is `Queued` or `Writing` (the page asks again while it is), both everyone's. `posterUrl` (MAM-35) is `/api/library/posters/{itemId}-{tag}.jpg`, the poster of the item whose title the work shows, else of the next item that has one, or `null` when Jellyfin holds no picture of any of them (ADR 0027). `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, an unknown kind ("“x” is not a kind filter. Use Movie or Series.") or an unknown sort ("“x” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added."). |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
 | `GET /api/library/posters/{fileName}` | Every signed-in user. A library work's own poster, as a work's `posterUrl` names it — `{itemId}-{tag}.jpg`, each half 1 to 64 letters and digits: 200 with the bytes, `image/jpeg`, and `Cache-Control: private, max-age=2592000, immutable`, only for an item id and tag a sync stored. The first request fetches it from the Jellyfin that reported it — `GET /Items/{id}/Images/Primary?tag=…&format=Jpg&maxWidth=342&quality=90`, the key in the header — and keeps it in `<data>/library-posters/`, which is never pruned; later ones read it from there, whatever the library's state (ADR 0027). A bare 404 for a name that is no poster file name, one no library reported (a removed library's included), one not kept while its library is switched off or of a type that can't read a library, and one Jellyfin has no image for or no longer knows. 502 when Jellyfin couldn't send it — its sentence, masked of the key, for the owner, and "The media library couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
-| `GET /api/library/duplicates?class=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows, then by `key`, 32 hex characters that name the group while what makes it one stays. `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `EpisodeNumbers`, `Edition` and `DynamicRange`, and `needsReview` is true with any, and always for `Possible`. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100." or "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible." (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client. |
+| `GET /api/library/duplicates?class=&decision=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028; MAM-21, ADR 0029). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable, decision }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows — an episode's group by its series' title, then its season (the specials after the numbered seasons, a place without a season last) and its number (MAM-21) —, then by `key`, 32 hex characters that name the group while what makes it one stays. `decision` is `Confirmed` or `Dismissed`, read in any letter case, never as a number, and lists only the possible matches the owner decided so; without it every group is listed but the dismissed possible matches, which leave every class and the totals. A group's `decision` is `null` while undecided and for every other class, else `{ decision, decidedUtc, decidedByUserName }`, the name the owner's only; `needsReview` stays true on a decided possible match. `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `EpisodeNumbers`, `Edition` and `DynamicRange`, and `needsReview` is true with any, and always for `Possible`. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100.", "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible." or "“x” is not a decision. Use Confirmed or Dismissed.", checked in that order (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client. |
+| `PUT /api/library/duplicates/{key}/decision` with `{ decision }` | Owner only (MAM-21, ADR 0029). Confirms or dismisses the possible match `key` names now — worked out as the list does —, `decision` being `Confirmed` or `Dismissed` by name, in any letter case, never a number: one row per group key with who decided and when, and an audit row `DuplicateMatchConfirmed` or `DuplicateMatchDismissed` whose target is the key, named by the first title and year the group was offered by. 204, also when it was already decided so, which writes nothing; a change of decision rewrites the row with its own audit row. 400 "A decision is needed: Confirmed or Dismissed.", "“x” is not a decision. Use Confirmed or Dismissed." (the value cut to 32 characters and "…") or, for a body that isn't JSON with a decision as text, "The body must be JSON with a decision, such as { "decision": "Confirmed" }.", checked first; then a bare 404 for a key that isn't 32 lowercase hex characters or that no group has now — a group whose members changed has another key —, and 400 "Only a possible match is confirmed or dismissed: this group is one by its files' identity, bytes or registry ids, which no one has to confirm." for a group of another class. A decision never joins the works, changes `needsReview` or touches the library, a file or a download client. |
+| `DELETE /api/library/duplicates/{key}/decision` | Owner only (MAM-21, ADR 0029). **Undo**: forgets the decision on the possible match `key` names now, deleting its row with an audit row `DuplicateMatchDecisionUndone` in one transaction, so the group is undecided and back on the list. 204, also when there was none, which writes nothing; a bare 404 and the 400 for another class as for `PUT`. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
 | `GET /api/library/sources` | 200 `{ items, inspection, scan }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem }, space }`, by name, `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun, hasQueuedRun, space }` for the whole library, each run as `GET /api/library/inspections/{runId}` gives it, and `scan` `{ activeRun, lastFinishedRun, hasQueuedRun, files, space }` for the media folders (ADR 0021), each run as `GET /api/library/scans/{runId}` gives it; an active run is the running one, else the queued one. `files` counts the names the scans stored that no file a library reported maps to now, as each library's `inspection` counts its files, so a sync that starts reporting a path, or a fixed path mapping, takes a name off at once; a scanned name never counts in a library's row. `space` `{ sizeBytes, fileCount, nameCount, unmeasuredCount }` is the room the files take on disk (ADR 0018, ADR 0022), counted when read over the integration's file names, over every stored file name for `inspection`, and over the names `files` counts for `scan`: each file once by its device and inode, with the size the app's last look read, never the size a library reported; `nameCount` is the names that lead to those files, and `unmeasuredCount` the names with no identity or size read, left out of `sizeBytes`. `pathProblem`, `problem` and each run's `requestedByUserName`, `problem`, `hashing.problem` and `error` only for the owner, `null` for everyone else; `space` is everyone's. |
 | `POST /api/library/sources/{integrationId}/syncs` | Owner only. 202 with the queued run and its `Location`; the sync runs in the background. 404 for an unknown integration or one that isn't a media library; 409 when it is switched off, its type can't read a library, or a sync of it is under way; 503 when too many syncs are waiting. |
@@ -1561,6 +1605,42 @@ disagree, no line, an escaped space, a malformed line) and, on Linux only,
 device no mount names, the order of the answers, a table that can't be read).
 `ControllerAccessDeclarationTests` covers the new controller's gate.
 
+The Duplicates page and the owner's decisions (MAM-21) are tested over HTTP with possible matches
+planted as two libraries' movies of one title and year, without ids.
+`LibraryDuplicateDecisionsHttpTests` covers a confirmation with its row and audit row, the list
+showing it to the owner with the decider's name and to a member without, a dismissal leaving every
+list but the dismissed one, a decision in any letter case, the same decision again writing nothing,
+a change of decision with a second audit row, two first decisions racing, a member's 403 and 401
+without a token writing nothing, every key no group has — of any shape — as a bare 404, a same-work
+group's 400, every decision that isn't one and every body that can't be read with their sentences,
+the decision checked before the key, an undo with its audit row and one with nothing to undo, a
+member's undo, a group whose members changed asked about again, and the library left as it was.
+`LibraryDuplicatesHttpTests` covers the decision filter's sentences, its place after the page and
+the class, `decision` on the wire and the episode groups ordered by their series, then season and
+episode (`List_orders_episode_groups_by_their_series_then_season_and_episode`);
+`LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_of_byte_identical_groups`
+that a list of decided matches asks no file system; `DuplicateMatchDecisionPersistenceTests` the
+table — one row per key, the decision and the audit actions and target kind stored by name, a
+deleted user's decisions kept with their names —, `AuditTrailTests` the target, and
+`ControllerAccessDeclarationTests` and `LibraryWritesAreOwnerOnlyHttpTests` the gate. In the web
+app, `DuplicatesPage.test.tsx` (the tabs and the address, the query each tab sends, the pager and a
+list that shrank, loading, a failed refresh, a first load failing with a 500 or no answer with
+**Try again** and a refused page without it), `DuplicatesPage.decisions.test.tsx` (the short row a
+dismissal leaves with its Undo, which takes the focus, and its Undo failing — a changed group
+included —, the Dismissed tab, the row an Undo there leaves with Dismiss again, the rows dropped on
+another tab, a confirmed match, a member's disabled buttons), `DuplicateGroupCard.test.tsx` (each
+class's evidence, room and estimate, a space line with nothing measured, an episode's heading, the
+distinctions, a decision for the owner and for a member), `DuplicateGroupCard.files.test.tsx` (the
+rows, two files of one name told apart by their folders, a file's facts and holders, the table),
+`DuplicateGroupCard.decisions.test.tsx` (Confirm, Dismiss and Undo, pending and failed, and a 404
+that says the group changed and asks for the list again), `PageTabs.test.tsx`, `duplicates.test.ts`
+(the tab in the address, the first work — an episode by its series, season and number —, the
+heading and a group's name, the path ends that tell files apart, the facts' words),
+`duplicates-api.test.ts`, and `nav-items.test.ts`, `AppLayout.test.tsx`, `App.test.tsx` and
+`LibraryPage.test.tsx` for the ways in cover it. The page was checked in Chrome on 2026-10-07 at
+desktop width, 375px and 320px against a throwaway database seeded with groups of every class, as
+the owner and as a member (see [Tested with](#tested-with)).
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -1586,7 +1666,8 @@ src/
                                                settings, the library and its background sync,
                                                the media folders, the file inspection with its
                                                hashing, the room the files take, the duplicate
-                                               groups, the scan of the media folders, the
+                                               groups and the owner's decisions on their
+                                               possible matches, the scan of the media folders, the
                                                release search, the stored searches and their
                                                library matches, the download destinations, the
                                                downloads sent to a client and their following,
@@ -1615,8 +1696,9 @@ src/
                                                evidence and order, re-attaching by files, and
                                                reading a pasted link, and the duplicate
                                                classes: registry keys, edition labels, which
-                                               file systems share blocks, and the reading of a
-                                               scanned file's name; no package references
+                                               file systems share blocks, the reading of a
+                                               scanned file's name, and what a decision on a
+                                               possible match may be; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab, qBittorrent and TMDb
@@ -1672,7 +1754,8 @@ MAM-36).
    them (built, 0.2.1), and let the owner link a work without an id to its TMDb film or show, identified
    by Jellyfin (built, 0.2.1), and show each library work's own poster from Jellyfin (built,
    0.2.1). Group exact, same-work, and possible matches separately, for movies and episodes alike
-   (built, 0.2.1), and show them on a Duplicates page.
+   (built, 0.2.1), and show them on a Duplicates page where the owner confirms or dismisses a
+   possible match (built, 0.2.1).
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different

@@ -114,4 +114,23 @@ public enum AuditAction
     /// (ADR 0026). It is also the app's only record that an Apply was sent, which the repair and a series' retry read.
     /// </summary>
     LibraryItemIdentified = 23,
+
+    /// <summary>
+    /// MAM-21 — the owner confirmed a possible match of the Duplicates list, or changed a dismissal to a confirmation.
+    /// Written with the decision; never for the same decision given again. It makes no works one and allows no removal
+    /// (ADR 0029).
+    /// </summary>
+    DuplicateMatchConfirmed = 24,
+
+    /// <summary>
+    /// MAM-21 — the owner dismissed a possible match of the Duplicates list, or changed a confirmation to a dismissal.
+    /// Written with the decision; never for the same decision given again.
+    /// </summary>
+    DuplicateMatchDismissed = 25,
+
+    /// <summary>
+    /// MAM-21 — the owner undid the decision on a possible match: the decision is forgotten and the group is asked about
+    /// again. Written with the delete; never when there was no decision to undo.
+    /// </summary>
+    DuplicateMatchDecisionUndone = 26,
 }

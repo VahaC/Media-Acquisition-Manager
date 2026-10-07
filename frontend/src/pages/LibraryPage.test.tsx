@@ -62,6 +62,22 @@ describe('LibraryPage', () => {
     expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
   })
 
+  it.each([
+    ['the installation owner', owner],
+    ['any other user', member],
+  ])('offers %s Duplicates at the right of the title, which links to the Duplicates page', async (_, signedIn) => {
+    // Arrange
+    await renderPage(signedIn, '/library', { details: false })
+
+    // Act
+    const link = screen.getByRole('link', { name: 'Duplicates' })
+
+    // Assert
+    expect(link).toHaveAttribute('href', '/library/duplicates')
+    expect(link).toHaveAttribute('title', 'The files that are one file, copies or possible matches of each other, with the evidence')
+    expect(link.parentElement).toHaveClass('settings-header')
+  })
+
   it('says Loading… while the first page is on its way', async () => {
     // Arrange
     vi.mocked(libraryApi.works).mockReturnValue(new Promise(() => {}))

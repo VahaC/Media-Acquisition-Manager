@@ -17,7 +17,7 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // is added without it. Reads are for every signed-in user and aren't swept. MAM-34 — the TMDb links'
 // controllers below, in Controllers/Library/Links, are owner-only by their namespace's convention, reads
 // included (R19, LibraryLinksAreOwnerOnlyHttpTests); their writes are swept here too, and none of them may
-// leave a link, an audit row or a request to Jellyfin behind.
+// leave a link, an audit row or a request to Jellyfin behind. MAM-21 — nor a decision on a possible match.
 public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     // Spelled out rather than read from a type: this pins where the Library's controllers live.
@@ -66,6 +66,9 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
                 "DELETE api/library/tmdb/links/{linkId:guid}",
                 // MAM-34 follow-up — the catch-up of the links set under MAM-34's first rules.
                 "POST api/library/tmdb/catch-up",
+                // MAM-21 — the owner's Confirm or Dismiss of a possible match, and its Undo.
+                "PUT api/library/duplicates/{key}/decision",
+                "DELETE api/library/duplicates/{key}/decision",
             },
             writes);
     }
@@ -105,6 +108,7 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
             Assert.Equal(0, await db.FileInspectionRuns.CountAsync(cancellationToken));
             Assert.Equal(0, await db.FolderScanRuns.CountAsync(cancellationToken));
             Assert.Equal(0, await db.LibraryItemLinks.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.DuplicateMatchDecisions.CountAsync(cancellationToken));
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
         });
         Assert.Empty(_factory.JellyfinHttp.Requests);

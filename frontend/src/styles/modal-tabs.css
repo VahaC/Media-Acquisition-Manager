@@ -46,7 +46,8 @@
 }
 
 /* On a phone four tabs fit without their icons, which their labels don't need; the TMDb page's five
-   scroll sideways (TmdbLinkTabs brings the current one into view). */
+   scroll sideways (TmdbLinkTabs brings the current one into view), and MAM-21 — the Duplicates page's
+   six (PageTabs does the same). */
 @media (max-width: 480px) {
   .modal-tab {
     padding: 0.5rem 0.625rem;

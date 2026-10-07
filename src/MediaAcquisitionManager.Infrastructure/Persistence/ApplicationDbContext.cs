@@ -121,6 +121,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<MediaWorkPosterEntity> MediaWorkPosters => Set<MediaWorkPosterEntity>();
 
+    public DbSet<DuplicateMatchDecisionEntity> DuplicateMatchDecisions => Set<DuplicateMatchDecisionEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -891,6 +893,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<LibraryLinkSearchEntity>().WithMany()
                 .HasForeignKey(x => x.LibraryLinkSearchId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MAM-21 — the owner's decisions on the Duplicates list's possible matches, by group key (ADR 0029). The groups
+        // themselves are stored nowhere (ADR 0028), so there is no key into works or files: a decision outlives the
+        // members its key was made of, matching nothing until they come back.
+        modelBuilder.Entity<DuplicateMatchDecisionEntity>(e =>
+        {
+            // The longest name is 9 characters; 16 leaves room for a longer one without a migration.
+            e.Property(x => x.Decision).HasConversion<string>().HasMaxLength(16);
+            // One decision per group: a second Confirm or Dismiss changes the row. The service reads first; this settles
+            // two first decisions racing.
+            e.HasIndex(x => x.GroupKey).IsUnique();
+            // SetNull: the decision outlives the account that made it, like a link's setter; DecidedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.DecidedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 

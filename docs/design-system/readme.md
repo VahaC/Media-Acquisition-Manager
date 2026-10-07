@@ -19,7 +19,7 @@ The owner approved `ui_kits/current` as the target design, and the app implement
 - `ui_kits/proposal` (sidebar shell) was not adopted. It is kept for reference only.
 
 ## Products / surfaces
-One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react). Pages: Setup, Sign in, Home (service status), **Search** (primary), **Library**, **Jobs**, **Profile**, and owner-only settings: Integrations, Destinations, Media folders, Users. Planned: Duplicates. Jobs, Job details and the Download dialog exist in the app but are not covered by this design system yet.
+One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react). Pages: Setup, Sign in, Home (service status), **Search** (primary), **Library**, **Jobs**, **Profile**, and owner-only settings: Integrations, Destinations, Media folders, Users. **Duplicates** (MAM-21, `/library/duplicates`) exists in the app but is not covered by this design system: underline tabs, one card per group reusing the Library's version rows and table. Jobs, Job details and the Download dialog exist in the app but are not covered by this design system yet.
 
 ## Content fundamentals
 - English only, every string from a locale file (ADR 0001). Sentence case everywhere: "Sync now", "Add integration", "Media folders".

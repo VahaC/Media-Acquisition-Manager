@@ -31,6 +31,15 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     /// </summary>
     public static AuditTarget LibraryLink(Guid linkId, string name) => new(AuditTargetKind.LibraryLink, linkId, Cut(name));
 
+    /// <summary>
+    /// MAM-21 — a possible match of the Duplicates list, by its group's key, named by the title and year it was offered
+    /// by. A key's 32 hex digits are a Guid whose "N" form gives the key back, so every decision on one group has one
+    /// target, whichever row holds it then: a decision undone and given again is the same group's history. Cut to the
+    /// column with an ellipsis, as a title runs to 500 characters.
+    /// </summary>
+    public static AuditTarget DuplicateMatch(string key, string name) =>
+        new(AuditTargetKind.DuplicateMatch, Guid.ParseExact(key, "N"), Cut(name));
+
     /// <summary>The audit row's <c>TargetName</c> column.</summary>
     private const int TargetNameMaximumLength = 200;
 

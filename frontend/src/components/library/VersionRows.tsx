@@ -1,13 +1,24 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { FileLines } from '@/components/library/FileLines'
 import { formatFileSize } from '@/lib/format'
 import { versionSize } from '@/lib/library-versions'
 import { codecName, languageCode, resolutionClass } from '@/lib/media-labels'
-import type { LibraryVersion } from '@/lib/types'
+import type { ShownVersion } from '@/lib/types'
 import '@/styles/settings-list.css' // .settings-muted — "Not inspected yet", "No file reported" and a file with no chips
 import '@/styles/library.css' // .library-version-rows, -row, -row-inset, -name, -chips, -chip, -size, -details, .library-file-problem
+
+interface VersionRowsProps {
+  versions: ShownVersion[]
+  /**
+   * MAM-21 — more about a version, in its open part after its files: the Duplicates page's facts of a
+   * file (its identity, hash, editions and the works holding it). None on the Library and Search pages.
+   */
+  details?: (version: ShownVersion) => ReactNode
+  /** MAM-21 — the list's accessible name: "Versions" unless the rows are something else (the Duplicates page's files). */
+  label?: string
+}
 
 /**
  * MAM-16 — a work's versions as rows, the approved layout's default view: each row names the version
@@ -17,8 +28,11 @@ import '@/styles/library.css' // .library-version-rows, -row, -row-inset, -name,
  * file is a plain row too: its row already says so, and there is nothing to open.
  *
  * Takes the versions in the card's order, which also numbers the unlabelled ones ("Version 2").
+ *
+ * MAM-21 — the Duplicates page shows a group's files as these rows too, each file a version named by the
+ * end of its path that tells it apart, with its facts under its file lines (`details`).
  */
-export function VersionRows({ versions }: { versions: LibraryVersion[] }) {
+export function VersionRows({ versions, details, label: listLabel }: VersionRowsProps) {
   const { t } = useTranslation('library')
   const detailsId = useId()
   // The open row by its version's id, which a sync keeps (ADR 0008), so the row stays open while the
@@ -27,7 +41,7 @@ export function VersionRows({ versions }: { versions: LibraryVersion[] }) {
   const single = versions.length === 1
 
   return (
-    <ul className="library-version-rows" aria-label={t('work.versions')}>
+    <ul className="library-version-rows" aria-label={listLabel ?? t('work.versions')}>
       {versions.map((version, index) => {
         const label = version.editionLabel ?? t('versions.unlabelled', { number: index + 1 })
         const hasFile = version.files.length > 0
@@ -38,7 +52,7 @@ export function VersionRows({ versions }: { versions: LibraryVersion[] }) {
               <div className={single ? 'library-version-row' : 'library-version-row library-version-row-inset'}>
                 <RowCells version={version} label={label} />
               </div>
-              {hasFile && <VersionDetails version={version} />}
+              {hasFile && <VersionDetails version={version} details={details} />}
             </li>
           )
         }
@@ -57,7 +71,7 @@ export function VersionRows({ versions }: { versions: LibraryVersion[] }) {
               <Chevron className="library-version-chevron h-4 w-4" aria-hidden="true" />
               <RowCells version={version} label={label} />
             </button>
-            {open && <VersionDetails id={id} version={version} />}
+            {open && <VersionDetails id={id} version={version} details={details} />}
           </li>
         )
       })}
@@ -71,7 +85,7 @@ export function VersionRows({ versions }: { versions: LibraryVersion[] }) {
  * The label, the summary and the size. Spans only: in a version that opens they sit inside a button,
  * which may hold phrasing content alone.
  */
-function RowCells({ version, label }: { version: LibraryVersion; label: string }) {
+function RowCells({ version, label }: { version: ShownVersion; label: string }) {
   const { t } = useTranslation('library')
   const size = versionSize(version)
 
@@ -91,7 +105,7 @@ function RowCells({ version, label }: { version: LibraryVersion; label: string }
  * couldn't, says so rather than showing no chips, which would read as a file with nothing in it. A
  * version of several files is summed up by its first; all of them are listed once it is open.
  */
-function Summary({ version }: { version: LibraryVersion }) {
+function Summary({ version }: { version: ShownVersion }) {
   const { t } = useTranslation(['library', 'common'])
   const [file] = version.files
 
@@ -143,11 +157,16 @@ function Problem({ text }: { text: string }) {
   )
 }
 
-/** The open part of a row: every file of the version in full. */
-function VersionDetails({ id, version }: { id?: string; version: LibraryVersion }) {
+/** The open part of a row: every file of the version in full, then what the page adds about it (MAM-21). */
+function VersionDetails({ id, version, details }: {
+  id?: string
+  version: ShownVersion
+  details: VersionRowsProps['details']
+}) {
   return (
     <div id={id} className="library-version-details">
       {version.files.map((file) => <FileLines key={file.id} file={file} />)}
+      {details?.(version)}
     </div>
   )
 }

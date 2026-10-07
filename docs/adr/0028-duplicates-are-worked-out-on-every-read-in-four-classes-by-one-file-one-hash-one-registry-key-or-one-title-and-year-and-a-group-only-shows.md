@@ -313,3 +313,44 @@ authorises anything (ADR 0012's Anti-consequence). No download client is read: a
 seeds is classed and counted like any other (ADR 0018), and what removing a seeded copy means stays
 MAM-23's. The library is unchanged: a film item grouped with an episode stays a film, and what
 Jellyfin says an item is stays its word (ADR 0017).
+
+## Decisions (added 0.2.1, MAM-21)
+
+**A possible match is now confirmed or dismissed, by the owner alone, and that is all that is
+stored.** The Anti-consequence above said no group is confirmed, dismissed or kept and no audit row
+is written, as those were the Duplicates page's. MAM-21 built the page and gave the owner Confirm,
+Dismiss and Undo of a possible match, each change with its audit row
+([ADR 0029](0029-a-possible-match-is-confirmed-or-dismissed-by-the-owner-alone-kept-by-its-groups-key-and-never-authorises-removal.md)).
+The groups are still worked out on every read and stored nowhere; what is stored is the owner's
+decision, one row of `DuplicateMatchDecisions` per group key, the key defined in **Worked out on every
+read** above. The page addresses a group by it, as that paragraph foresaw: `PUT` and `DELETE
+/api/library/duplicates/{key}/decision`. No other class is decided, and the rest of the
+Anti-consequence holds: nothing is removed, moved, renamed or written to the library because of a
+group, confirmed or not, and a confirmed match is no same-work group.
+
+**The list.** `GET /api/library/duplicates` takes `decision` — `Confirmed` or `Dismissed` by name, in
+any letter case, never a number, checked after the page and the class: "“x” is not a decision. Use
+Confirmed or Dismissed." —, and without it leaves the dismissed possible matches out of every class
+and of the totals. Each group carries `decision` last, `null` while undecided and for every other
+class; `needsReview` stays as these rules set it, so a possible match still needs review once
+confirmed. A list with `decision` asks no file system, whatever its class: only a possible match is
+ever decided, and it shows no estimate, so the file system is asked only for a list of every class
+or of `ByteIdentical` with no decision. The order of **The list** above now follows what a group's
+card is headed by: by class, then by that title — an episode's group by its series' title, then its
+season (the specials after the numbered seasons, a place without a season last) and its number —,
+then by key. By the episode's own title, as MAM-20 ordered it, one show's episode groups came in no
+order the page shows and two shows' came between each other. **Every request reads the whole
+library** above now reads one table more, the decisions, whole, in one query.
+
+**The page shows no count per class.** Its tabs — All, Same file, Byte-identical, Same work,
+Possible and Dismissed — carry their names alone, and a tab's total is its pager's, so the rejected
+count per class stays rejected. Each file is shown with the Library's version rows and comparison
+table, as **The list** above foresaw, named by the end of its path that tells it from the group's
+other files, its works, identity, hash and editions beside it.
+
+`LibraryDuplicatesHttpTests` pins the filter and `decision` on the wire, and
+`LibraryDuplicatesHttpTests.List_orders_episode_groups_by_their_series_then_season_and_episode` the
+order; `LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_of_byte_identical_groups`
+also asks for `decision=Dismissed`, `decision=Confirmed` and `class=ByteIdentical&decision=Confirmed`
+and finds no file system asked for them; `LibraryDuplicateDecisionsHttpTests` pins the decisions
+(ADR 0029 names its tests).

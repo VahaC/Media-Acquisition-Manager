@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Duplicates;
+using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paging;
@@ -34,7 +35,7 @@ public sealed partial class LibraryDuplicateService(
     private const int ClassEchoLength = 32;
 
     public async Task<LibraryDuplicateListResult> ListAsync(
-        string? duplicateClass, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
+        string? duplicateClass, string? decision, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         if (PagingRules.Validate(page, pageSize) is { } pagingError)
             return LibraryDuplicateListResult.Invalid(pagingError);
@@ -52,11 +53,20 @@ public sealed partial class LibraryDuplicateService(
             classFilter = Enum.Parse<DuplicateClass>(name);
         }
 
+        if (DuplicateDecisionRules.ValidateFilter(decision, out var decisionFilter) is { } decisionError)
+            return LibraryDuplicateListResult.Invalid(decisionError);
+
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         var library = await LoadAsync(forOwner, cancellationToken);
+        // MAM-21 — the owner's decisions, read whole (a row per possible match decided, a small table: one query) and met
+        // with the groups by key. A key carries its class, so a row only ever meets the possible match it was given for;
+        // a row whose key no group has now — its members changed — matches nothing and stays (ADR 0029).
+        var decisions = await db.DuplicateMatchDecisions.AsNoTracking()
+            .ToDictionaryAsync(row => row.GroupKey, StringComparer.Ordinal, cancellationToken);
 
-        // Only when byte-identical groups are listed: a page of another class shows no estimate to ask for.
-        IReadOnlyList<long> devices = classFilter is null or DuplicateClass.ByteIdentical
+        // Only when byte-identical groups are listed: a page of another class shows no estimate to ask for. Nor does a
+        // page of decided matches (MAM-21): only a possible match is ever decided, whatever the class asked for.
+        IReadOnlyList<long> devices = decisionFilter is null && classFilter is null or DuplicateClass.ByteIdentical
             ? DuplicateGrouping.DevicesOfByteIdenticalCopies(library.Names)
             : [];
         var fileSystems = new Dictionary<long, string?>();
@@ -68,10 +78,18 @@ public sealed partial class LibraryDuplicateService(
 
         var groups = DuplicateGrouping.Group(library.Names, library.Works, fileSystems)
             .Where(group => classFilter is null || group.Class == classFilter)
-            .Select(group => (Group: group, Title: TitleOf(group, library)))
+            // MAM-21 (Vasyl, 2026-10-07) — a dismissed possible match leaves the list, every class's tab included; the
+            // dismissed ones are listed apart, where the decision can be undone.
+            .Where(group => decisionFilter is null
+                ? decisions.GetValueOrDefault(group.Key)?.Decision != DuplicateMatchDecision.Dismissed
+                : decisions.GetValueOrDefault(group.Key)?.Decision == decisionFilter)
+            .Select(group => (Group: group, Order: OrderOf(group, library)))
             .OrderBy(group => group.Group.Class)
-            .ThenBy(group => group.Title, LibraryTitleOrder.Comparer)
-            .ThenBy(group => group.Title, StringComparer.Ordinal)
+            .ThenBy(group => group.Order.Title, LibraryTitleOrder.Comparer)
+            .ThenBy(group => group.Order.Title, StringComparer.Ordinal)
+            .ThenBy(group => group.Order.SeasonRank)
+            .ThenBy(group => group.Order.Season)
+            .ThenBy(group => group.Order.Episode)
             .ThenBy(group => group.Group.Key, StringComparer.Ordinal)
             .Select(group => group.Group)
             .ToList();
@@ -83,16 +101,29 @@ public sealed partial class LibraryDuplicateService(
             return LibraryDuplicateListResult.Listed(new LibraryDuplicateListResponse([], groups.Count, page, pageSize));
 
         var pageGroups = groups.Skip((int)offset).Take(pageSize).ToList();
-        var items = await MapAsync(pageGroups, library, forOwner, cancellationToken);
+        var items = await MapAsync(pageGroups, library, decisions, forOwner, cancellationToken);
         return LibraryDuplicateListResult.Listed(new LibraryDuplicateListResponse(items, groups.Count, page, pageSize));
+    }
+
+    public async Task<DuplicateGroup?> FindAsync(string key, CancellationToken cancellationToken = default)
+    {
+        // As the list reads the library, for a caller who isn't the owner: the owner-only names change no key.
+        var library = await LoadAsync(forOwner: false, cancellationToken);
+        return DuplicateGrouping.Group(library.Names, library.Works, new Dictionary<long, string?>())
+            .FirstOrDefault(group => group.Key.Equals(key, StringComparison.Ordinal));
     }
 
     /// <summary>
     /// The page's groups as the list shows them, with the full facts of the page's files — their readings and tracks,
-    /// two queries for the page — each file by service path (ordinal), then id.
+    /// two queries for the page — each file by service path (ordinal), then id; MAM-21 — and the owner's decision on each
+    /// from <paramref name="decisions"/>, by key.
     /// </summary>
     private async Task<List<LibraryDuplicateGroupDto>> MapAsync(
-        IReadOnlyList<DuplicateGroup> groups, Snapshot library, bool forOwner, CancellationToken cancellationToken)
+        IReadOnlyList<DuplicateGroup> groups,
+        Snapshot library,
+        IReadOnlyDictionary<string, DuplicateMatchDecisionEntity> decisions,
+        bool forOwner,
+        CancellationToken cancellationToken)
     {
         var namesById = library.Names.ToDictionary(name => name.FileId);
         var readingIds = groups
@@ -145,7 +176,8 @@ public sealed partial class LibraryDuplicateService(
                 ];
                 // ADR 0018 — each file once, by the identity and size the app read, never the size a library reported.
                 var space = FileSpace.Of(names.Select(name => (name.DeviceId, name.Inode, name.SizeBytes)));
-                return mapper.ToDto(group, files, space);
+                return mapper.ToDto(
+                    group, files, space, decisions.GetValueOrDefault(group.Key) is { } decision ? mapper.ToDto(decision, forOwner) : null);
             }),
         ];
     }
@@ -154,17 +186,49 @@ public sealed partial class LibraryDuplicateService(
     /// What a group is ordered by: the title the Library card of its first work shows, in title order; a group of names
     /// no library reported by its first path.
     /// </summary>
-    private static string TitleOf(DuplicateGroup group, Snapshot library)
+    /// <remarks>
+    /// MAM-21 — an episode by what its group's card is headed by: its series' title, then its season (specials after the
+    /// numbered seasons, a place without one last, as the Library lists them) and its number. By the episode's own title,
+    /// one show's episode groups came in no order the page shows and two shows' came between each other.
+    /// </remarks>
+    private static (string Title, int SeasonRank, int Season, int Episode) OrderOf(DuplicateGroup group, Snapshot library)
     {
         if (group.WorkIds.Count == 0)
-            return group.FileIds.Select(fileId => library.Files[fileId].ServicePath).Min(StringComparer.Ordinal) ?? "";
+            return (group.FileIds.Select(fileId => library.Files[fileId].ServicePath).Min(StringComparer.Ordinal) ?? "", 0, 0, 0);
 
         return group.WorkIds
-            .Select(workId => (LibraryMapper.FirstInTitleOrder([.. library.Titles[workId]], MediaTitleKind.Display)
-                ?? LibraryMapper.FirstInTitleOrder([.. library.Titles[workId]], MediaTitleKind.Original))?.Text ?? "")
-            .Order(LibraryTitleOrder.Comparer)
+            .Select(workId => OrderOf(workId, library))
+            .OrderBy(order => order.Title, LibraryTitleOrder.Comparer)
+            .ThenBy(order => order.Title, StringComparer.Ordinal)
+            .ThenBy(order => order.SeasonRank)
+            .ThenBy(order => order.Season)
+            .ThenBy(order => order.Episode)
             .First();
     }
+
+    /// <summary>
+    /// A work's place in the list: its card's title; an episode of a series its series' card title with the place its
+    /// card shows (<see cref="LibraryMapper.ToEpisodeDto"/>, as <see cref="LibraryDuplicateMapper"/> heads it).
+    /// </summary>
+    private static (string Title, int SeasonRank, int Season, int Episode) OrderOf(Guid workId, Snapshot library)
+    {
+        var title = CardTitleOf([.. library.Titles[workId]]) ?? "";
+        if (library.WorkRows[workId].Kind != MediaWorkKind.Episode)
+            return (title, 0, 0, 0);
+
+        var place = LibraryMapper.ToEpisodeDto([.. library.Positions[workId]]);
+        var seriesTitle = place.SeriesId is { } seriesId ? CardTitleOf([.. library.Titles[seriesId]]) : null;
+        return (
+            seriesTitle ?? title,
+            place.SeasonNumber is null ? 2 : place.SeasonNumber == 0 ? 1 : 0,
+            place.SeasonNumber ?? 0,
+            place.EpisodeNumber ?? int.MaxValue);
+    }
+
+    /// <summary>A card's title: a displayed one, else an original one (MAM-8).</summary>
+    private static string? CardTitleOf(IReadOnlyList<MediaWorkTitleEntity> titles) =>
+        (LibraryMapper.FirstInTitleOrder(titles, MediaTitleKind.Display)
+            ?? LibraryMapper.FirstInTitleOrder(titles, MediaTitleKind.Original))?.Text;
 
     private static string Echo(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : string.Concat(value.AsSpan(0, maximumLength), "…");

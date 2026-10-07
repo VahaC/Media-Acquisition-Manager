@@ -60,6 +60,10 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("LibraryController.Poster", actions);
         // MAM-20 — a GET outside Controllers/Library/Links: every signed-in user's, like the works it groups.
         Assert.Contains("LibraryDuplicatesController.List", actions);
+        // MAM-21 — the owner's Confirm, Dismiss and Undo of a possible match, beside the list: [Authorize] by the
+        // controller, owner-only by their own [RequireInstallationOwner] (LibraryWritesAreOwnerOnlyHttpTests).
+        Assert.Contains("LibraryDuplicatesController.Decide", actions);
+        Assert.Contains("LibraryDuplicatesController.Undo", actions);
         Assert.Contains("LibrarySyncController.Start", actions);
         Assert.Contains("LibrarySyncController.GetRun", actions);
         Assert.Contains("AllowedRootsController.Get", actions);

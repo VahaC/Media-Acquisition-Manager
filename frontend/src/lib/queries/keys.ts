@@ -4,6 +4,7 @@ import type {
   DownloadJobFilesQuery,
   DownloadJobsQuery,
   IntegrationsQuery,
+  LibraryDuplicatesQuery,
   LibraryEpisodesQuery,
   LibraryLinkLookupQuery,
   LibraryLinkSearchQuery,
@@ -67,6 +68,15 @@ export const qk = {
      * needs to invalidate it.
      */
     poster: (url: string) => ['library', 'posters', url] as const,
+    /**
+     * MAM-21 — every page of every tab of the Duplicates page: what a decision invalidates, as a dismissed
+     * group leaves every tab but Dismissed and a confirmed one changes its card on each. Under `library`, so a
+     * change to an integration drops them with the works; beside `works` rather than under it, as an inspection
+     * under way invalidates the works every 2 s, and every answer here is worked out from the whole library.
+     */
+    duplicatesAll: ['library', 'duplicates'] as const,
+    /** MAM-21 — one page of one tab; the whole query object is part of the key, so each is cached apart. */
+    duplicates: (query: LibraryDuplicatesQuery) => ['library', 'duplicates', query] as const,
     /**
      * MAM-34 — the TMDb links: under `library`, so a change to an integration drops them with the works
      * (removing an integration removes its links), but beside `works` rather than under it — an

@@ -480,8 +480,9 @@ public sealed class LibraryDuplicatesByteIdenticalHttpTests : IClassFixture<Medi
         var all = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
         var askedForAll = _factory.Files.DescribedDevices;
         var others = new List<HttpResponseMessage>();
-        foreach (var duplicateClass in new[] { "SameFile", "SameWork", "Possible" })
-            others.Add(await _factory.GetHttpRequest($"{BaseUrl}?class={duplicateClass}", _owner.AccessToken));
+        // MAM-21 — and a page of decided matches, whatever the class: only a possible match is ever decided.
+        foreach (var query in new[] { "class=SameFile", "class=SameWork", "class=Possible", "decision=Dismissed", "decision=Confirmed", "class=ByteIdentical&decision=Confirmed" })
+            others.Add(await _factory.GetHttpRequest($"{BaseUrl}?{query}", _owner.AccessToken));
         var askedForOthers = _factory.Files.DescribedDevices;
         var byteIdentical = await _factory.GetHttpRequest($"{BaseUrl}?class=ByteIdentical", _owner.AccessToken);
 
@@ -495,7 +496,7 @@ public sealed class LibraryDuplicatesByteIdenticalHttpTests : IClassFixture<Medi
         // Only the copies' devices, each once a request: the episode's disk decides nothing, as removing one of
         // its names frees nothing whatever its file system.
         Assert.Equal([TestMedia.DeviceId, BackupDeviceId], askedForAll.Order());
-        // A page of another class shows no estimate, so it asks nothing.
+        // A page of another class, or of decided matches, shows no estimate, so it asks nothing.
         Assert.Equal(askedForAll, askedForOthers);
         Assert.Equal(
             new DuplicateRecoverableSpaceDto(TakenSizeBytes, null),

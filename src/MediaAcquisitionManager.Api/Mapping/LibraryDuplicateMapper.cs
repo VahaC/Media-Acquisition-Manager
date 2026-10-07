@@ -11,7 +11,8 @@ namespace MediaAcquisitionManager.Api.Mapping;
 /// <inheritdoc cref="ILibraryDuplicateMapper"/>
 public sealed class LibraryDuplicateMapper(ILibraryMapper library) : ILibraryDuplicateMapper
 {
-    public LibraryDuplicateGroupDto ToDto(DuplicateGroup group, IReadOnlyList<LibraryDuplicateFileDto> files, LibrarySpaceDto space) =>
+    public LibraryDuplicateGroupDto ToDto(
+        DuplicateGroup group, IReadOnlyList<LibraryDuplicateFileDto> files, LibrarySpaceDto space, DuplicateDecisionDto? decision) =>
         new(
             group.Key,
             group.Class,
@@ -27,7 +28,13 @@ public sealed class LibraryDuplicateMapper(ILibraryMapper library) : ILibraryDup
                 group.DurationsAgree),
             files,
             space,
-            group.Recoverable is { } recoverable ? new DuplicateRecoverableSpaceDto(recoverable.SizeBytes, recoverable.Gap) : null);
+            group.Recoverable is { } recoverable ? new DuplicateRecoverableSpaceDto(recoverable.SizeBytes, recoverable.Gap) : null,
+            decision);
+
+    // MAM-21 — the decider's name is the owner's sign-in name, half of the owner's credentials: only the owner reads it
+    // (the LibraryLinkReader rule for a link's setter).
+    public DuplicateDecisionDto ToDto(DuplicateMatchDecisionEntity decision, bool forOwner) =>
+        new(decision.Decision, decision.DecidedUtc, forOwner ? decision.DecidedByUserName : null);
 
     public LibraryDuplicateFileDto ToDto(
         DuplicateName name,

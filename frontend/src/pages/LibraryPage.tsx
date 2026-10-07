@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link2, ListChecks } from 'lucide-react'
+import { CopyCheck, Link2, ListChecks } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LibrarySyncPanel } from '@/components/library/LibrarySyncPanel'
@@ -56,6 +56,9 @@ const SORTS: readonly LibrarySort[] = ['Title', 'TitleDescending', 'Newest', 'Ol
  * owner's; a member sees it disabled with the reason). The filters live in the page, not the address,
  * so before it opens the address takes the ones the page reads back — the search and `?identifiers=` —
  * and Back from the TMDb page finds the list as it was.
+ *
+ * MAM-21 — "Duplicates" at the header's right opens the Duplicates page, for everyone: its groups are
+ * every signed-in user's to read, as the header's link to it says.
  */
 export function LibraryPage() {
   const { t } = useTranslation(['library', 'common'])
@@ -159,6 +162,12 @@ export function LibraryPage() {
           <h1 className="settings-title">{t('title')}</h1>
           <p className="settings-lead">{t('lead')}</p>
         </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/library/duplicates" title={t('duplicates.title')}>
+            <CopyCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="label-text">{t('duplicates.action')}</span>
+          </Link>
+        </Button>
       </div>
 
       <LibrarySyncPanel />

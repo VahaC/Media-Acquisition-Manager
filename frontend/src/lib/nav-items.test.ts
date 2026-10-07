@@ -2,7 +2,7 @@ import { NAV_ITEMS, navItemsFor } from '@/lib/nav-items'
 import { member, owner } from '@/test/auth-session'
 
 describe('navItemsFor', () => {
-  it('offers Search, the Library, Recommendations, then Jobs in the header to every signed-in user, and the TMDb page after the Library to the installation owner only', () => {
+  it('offers Search, the Library, Duplicates, Recommendations, then Jobs in the header to every signed-in user, and the TMDb page after the Library to the installation owner only', () => {
     // Arrange
     const users = [owner, member]
 
@@ -11,8 +11,8 @@ describe('navItemsFor', () => {
 
     // Assert
     expect(header).toEqual([
-      ['/search', '/library', '/library/tmdb', '/recommendations', '/jobs'],
-      ['/search', '/library', '/recommendations', '/jobs'],
+      ['/search', '/library', '/library/tmdb', '/library/duplicates', '/recommendations', '/jobs'],
+      ['/search', '/library', '/library/duplicates', '/recommendations', '/jobs'],
     ])
   })
 

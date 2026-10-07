@@ -1,0 +1,224 @@
+/* MAM-21 — the Duplicates page: its tab's column, a group's card (its head, badges, evidence and
+   actions) and the facts of a file. The page frame and its states are settings-list.css's, the tabs
+   modal-tabs.css's, and a group's files the Library's version rows and table (library.css), which
+   this sheet only adds to. Imported by every component that uses its classes; tokens only, so dark mode
+   needs nothing of its own. */
+
+/* The tab's column: the banners, the cards and the pager, spaced like the page's own grid. */
+.duplicates-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.duplicates-groups {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* A group's card as the Library's work card is laid out: one grid of the head, the evidence and the
+   files, with padding of its own. Two classes win over `.ui-card` whichever sheet loads first. */
+.ui-card.duplicates-group {
+  display: grid;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 1.25rem 1.5rem;
+}
+
+/* The heading and the badges side by side on a wide screen; stacked on a phone (below). */
+.duplicates-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.duplicates-group-heading {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* A title without spaces (a file name) breaks rather than widening the card. */
+.duplicates-group-title {
+  overflow-wrap: anywhere;
+}
+
+/* The badges over the view switch and the actions, at the card's right edge. */
+.duplicates-group-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+}
+
+.duplicates-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* The decision's badge carries an icon, which `.ui-badge` has no gap for (the warning badge has its own). */
+.duplicates-badges .ui-badge {
+  gap: 0.25rem;
+}
+
+/* The house action row: it wraps, and on a phone the labels go (below), each button keeping its title. */
+.duplicates-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Why the group is one, the room it takes, what removing copies would free and the decision: a line
+   each. */
+.duplicates-evidence {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* A label before what it names (the shared ids, titles or hash), which wrap beside it. */
+.duplicates-evidence-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* A SHA-256 is 64 characters without a space, and a path has few: both break anywhere rather than
+   widen the card past a phone's screen. */
+.duplicates-hash,
+.duplicates-path {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* A file's row is named by the end of its path (fileVersions), not by a short edition label: the Library's
+   6rem name column broke "Arrival (2016) 2160p.mkv" over two lines. The name takes the row, and the chips go
+   on a line under it, as the Library's rows do on a phone (library.css, 480px). */
+.duplicates-group .library-version-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.duplicates-group button.library-version-row {
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+}
+
+.duplicates-group .library-version-chips {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
+
+.duplicates-group button.library-version-row .library-version-chips {
+  grid-column: 2 / -1;
+}
+
+/* A possible match the owner just took off the tab, in its card's place (DuplicateLeftRow): one line and the
+   way back, dashed as a recommendation hidden by "Not interested" (recommendations.css). */
+.duplicates-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+/* A file's facts in its open row, under its file lines: a label column beside the values. */
+.duplicates-facts {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.duplicates-facts > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.duplicates-facts dt {
+  color: var(--muted-foreground);
+}
+
+.duplicates-facts dd {
+  min-width: 0;
+}
+
+/* The works holding a file, one block each, a line between two. */
+.duplicates-holders {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.duplicates-holder {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.duplicates-holder + .duplicates-holder {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.duplicates-holder-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  /* The badges and the actions under the heading: beside it they would squeeze a long title. */
+  .duplicates-group-header {
+    flex-direction: column;
+  }
+
+  .duplicates-group-side {
+    justify-items: start;
+  }
+
+  .duplicates-badges,
+  .duplicates-actions {
+    justify-content: flex-start;
+  }
+
+  /* A phone always shows the files as rows, as the Library's cards do; DuplicateGroupCard renders the
+     rows here too, through useNarrowScreen at this same width. */
+  .duplicates-view {
+    display: none;
+  }
+}
+
+/* The padding every other card has on a phone. */
+@media (max-width: 640px) {
+  .ui-card.duplicates-group {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  /* The icon only on a phone; the button keeps its label in title=, which also names it. */
+  .duplicates-actions .label-text {
+    display: none;
+  }
+}
+
+/* The label over its value: beside it, a 7rem column leaves a holder's lines a few words wide. */
+@media (max-width: 480px) {
+  .duplicates-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.125rem;
+  }
+}

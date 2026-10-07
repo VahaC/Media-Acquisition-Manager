@@ -19,9 +19,9 @@ could be copies) are built. MAM-33 (recommendations of the works the library doe
 TMDb, with what Toloka carries of them) and MAM-34 (linking a library work to its TMDb film or show
 by hand, Jellyfin then identifying the item as it) are built and ship as release 0.2.1, with
 MAM-35 (each library work's own poster from Jellyfin on the Library and Search cards), MAM-36 (the
-Library page's Sources card as a status bar, and Refresh all) and MAM-20 (the library's files
-grouped into the four duplicate classes of the specification, read through the API; the page is
-MAM-21's).
+Library page's Sources card as a status bar, and Refresh all), MAM-20 (the library's files grouped
+into the four duplicate classes of the specification) and MAM-21 (the Duplicates page, where the
+owner confirms or dismisses a possible match).
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -433,8 +433,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, built while
-0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to MAM-36.
+**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20 and MAM-21,
+built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to MAM-36.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -654,9 +654,29 @@ episode, and how much space could really be recovered — without the app guessi
   hash or measurement yet; 17 movies with several files, 9 of them different cuts and 3 a widescreen
   variant; 20 Penguins of Madagascar pairs and the S03E31/S03E33 pair under one episode's IMDb id;
   the eight Mickey Mouse Clubhouse halves; and no file the scan found. The live check is MAM-22's.
-- A Duplicates page (MAM-21) with a filter per class, the evidence behind each grouping and the
-  recoverable space MAM-20 estimates where the storage relationship is known, and confirming or
-  dismissing a group with an audit row; no removal.
+- **MAM-21 Show duplicates on a Duplicates page** (built, release 0.2.1): `/library/duplicates`,
+  every signed-in user's, from **Duplicates** in the header and at the top of the Library page
+  (Vasyl's decision 4 of 2026-10-07), with underline tabs All, Same file (decision 3),
+  Byte-identical, Same work, Possible and Dismissed, the tab in the address, filtered and paged on
+  the server. Each group is headed by its first work — an episode by its series, with its season,
+  episode and own title — and shows its class, its distinctions, the evidence its class gives, the
+  room its files take and, only where MAM-20 gives one, the room removing all but one copy would
+  free, or why there is none; the list comes in the order of those headings, an episode's group by
+  its series, season and number. Its files reuse the Library's version rows and comparison table,
+  each named by the end of its path that tells it from the group's other files — its file name, or
+  the nearest folder that differs where another file has that name —, with its folder, identity,
+  hash, editions and the works that hold it. The owner alone confirms or dismisses a possible match
+  and undoes either (decision 1; members see the decision without the decider's name, the buttons
+  disabled with the reason): `PUT` and `DELETE
+  /api/library/duplicates/{key}/decision`, one row of `DuplicateMatchDecisions` per group key, each
+  change with an audit row (`DuplicateMatchConfirmed`, `DuplicateMatchDismissed`,
+  `DuplicateMatchDecisionUndone`), the same decision again writing nothing
+  ([ADR 0029](docs/adr/0029-a-possible-match-is-confirmed-or-dismissed-by-the-owner-alone-kept-by-its-groups-key-and-never-authorises-removal.md);
+  ADR 0028 amended). A confirmed match stays on the list, marked, still a possible match, and never
+  authorises removal; a dismissed one leaves every tab for Dismissed, a short row with **Undo**
+  taking its card's place, and can be undone there too (decision 2); a group another work, or a
+  scanned file no library reports, joins or leaves gets another key and is asked about again. Only
+  possible matches are decided. No delete, move or bulk action of any kind.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
   — the names by rescanning, the hashes by the next inspection, which reads the files that could be
   copies whole again — so they need no export of their own; the series, seasons and episodes come
@@ -672,7 +692,8 @@ episode, and how much space could really be recovered — without the app guessi
   backup before **Update Jellyfin**. MAM-35's poster tags come back with the next sync, and the
   posters in `<data>/library-posters/` are fetched again from Jellyfin when missing. MAM-20 stores
   nothing: the duplicate groups are worked out on every read from the names, hashes, ids and links
-  above.
+  above. MAM-21's decisions on possible matches are the owner's work and live in `mam.db` alone
+  (`DuplicateMatchDecisions`, with their audit rows), so they are in its backup.
 - **MAM-36 The Library's Sources card as a status bar, and Refresh all** (built, release 0.2.1): the
   card that took about 480 px at the top of the Library page is one bar — an item for each media
   library, for the media folders and for the file inspection, with an icon, when it last ran or how far
@@ -704,10 +725,13 @@ libraries' copies by a linked id (MAM-20). For MAM-35: the catalog's posters on 
 Search cards (ADR 0025); a season's picture, and pictures on the episodes of an opened season; any
 of Jellyfin's images but the item's own primary one — a backdrop, a logo, or a series' or season's
 picture lent to an episode —; uploading, setting, refreshing or deleting an image in Jellyfin; and
-pruning the posters' cache. For MAM-20: the Duplicates page and confirming or dismissing a group,
-which are MAM-21's; removal of any kind, a copy chosen to keep or one called redundant; counts per
-class in the answer; storing the groups; reading a download client; and a file system's type read
-anywhere but Linux's mount table, so Windows gives no estimate.
+pruning the posters' cache. For MAM-20: removal of any kind, a copy chosen to keep or one called
+redundant; counts per class in the answer; storing the groups; reading a download client; and a
+file system's type read anywhere but Linux's mount table, so Windows gives no estimate. For MAM-21:
+deleting, moving or renaming a file, and any bulk action; a decision on a group of another class,
+by a member, or one that follows a group whose members changed; a confirmation that joins the works
+or clears the review flag; pruning the decisions whose key no group has now; and counts on the
+tabs.
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -799,6 +823,21 @@ places, different cuts and different measured dynamic ranges require manual revi
 or years are never merged or offered; a possible match needs one title key and its year, never
 across kinds, differing ids or episode places, and a scanned file is offered by its file or folder
 name, never an episode's; and the list's access, sentences, filter, paging, order and wire names.
+MAM-21: the owner's confirmation and dismissal are stored by group key with an audit row whose
+target is the key, the same decision again writes nothing and a change writes a second audit row;
+a dismissed match leaves every list but the dismissed one and a confirmed one stays, still needing
+review, the decider's name for the owner only; a member's decision or undo is 403 and an anonymous
+one 401, writing nothing; a key no group has now, of any shape, is a bare 404 and a group of another
+class 400; every decision that isn't one, and every body that can't be read, gets its sentence,
+checked before the key; an undo forgets the decision with an audit row, and one with nothing to undo
+writes nothing; two first decisions racing leave one row; a decision doesn't follow a group whose
+members changed and changes nothing in the library; the episode groups come by their series, then
+season and episode, and a list of decided matches asks no file system; and the page's tabs and
+address, the query each tab sends, its paging, each class's evidence and estimate, an episode's
+heading, the path ends that tell files apart and two files of one name told apart by their
+folders, the rows and the table, the decisions and their failures, a 404 that says the group
+changed and asks for the list again, the short rows a dismissal and an undone dismissal leave with
+Undo and Dismiss again, a member's disabled buttons and the load and refresh failures.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -838,7 +877,15 @@ never redundant, with the cuts flagged; the Penguins of Madagascar pairs and S03
 for review; no works of similar titles or years joined, and no possible match between works whose
 ids differ; a byte-identical group only for two files that share their bytes, with no estimate
 where the file system isn't known to keep its files apart; and nothing written to the library, the
-files or any download client. The page's acceptance is MAM-21's.
+files or any download client. For MAM-21: on the reference installation, after an inspection, the
+Duplicates page lists those groups under their tabs, each with its evidence, the Mickey Mouse
+Clubhouse halves told apart by their paths and the cuts flagged, with no estimate shown where
+MAM-20 gives none; the owner confirms, dismisses and undoes a possible match — where the library
+offers none, the tests stand for it —, each with its audit row, and a member sees the decision
+without the buttons working; nothing is written to the library, the files or any download client;
+and the page works in a browser at desktop and phone width — checked on 2026-10-07 in Chrome at
+desktop width, 375 and 320px against a throwaway database seeded with groups of every class, as the
+owner and as a member; the reference installation's part is MAM-22's.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify

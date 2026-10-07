@@ -36,6 +36,10 @@
   "noMatch": "Nothing in the library matches these filters.",
   "clearFilters": "Clear filters",
   "empty": "Nothing here yet. Once a media library is synced, its movies and series are listed here.",
+  "duplicates": {
+    "action": "Duplicates",
+    "title": "The files that are one file, copies or possible matches of each other, with the evidence"
+  },
   "sources": {
     "title": "Sources",
     "description": "The media libraries this list is read from, and the media folders, scanned for the files no library reported. A sync reads a whole library again and replaces what was stored from it; a scan only lists the files' names. Nothing changes in the libraries or the folders themselves.",

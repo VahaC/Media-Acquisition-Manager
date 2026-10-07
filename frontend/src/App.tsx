@@ -11,6 +11,7 @@ import { queryClient } from '@/lib/query-client'
 // the header stays on screen while a page's code arrives.
 const DestinationsPage = lazy(() =>
   import('@/pages/settings/DestinationsPage').then((m) => ({ default: m.DestinationsPage })))
+const DuplicatesPage = lazy(() => import('@/pages/DuplicatesPage').then((m) => ({ default: m.DuplicatesPage })))
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
 const IntegrationsPage = lazy(() =>
   import('@/pages/settings/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })))
@@ -49,6 +50,9 @@ export default function App() {
                   {/* MAM-34 — the owner's TMDb links of the works without an id, reached from the
                       Library's "Missing an id" filter; the header keeps Library highlighted. */}
                   <Route path="library/tmdb" element={<LibraryTmdbPage />} />
+                  {/* MAM-21 — every signed-in user's Duplicates page, reached from the header and the
+                      Library's Duplicates button; the tab is in `?tab=`, and only the owner decides. */}
+                  <Route path="library/duplicates" element={<DuplicatesPage />} />
                   {/* MAM-33 — every signed-in user's own lists of works the library doesn't have yet,
                       the tabs they switched on in their Profile; the tab is in `?tab=`. */}
                   <Route path="recommendations" element={<RecommendationsPage />} />

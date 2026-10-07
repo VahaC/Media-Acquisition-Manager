@@ -1,5 +1,5 @@
 import type { ParseKeys } from 'i18next'
-import { CircleUser, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, ListChecks, Plug, Search, Sparkles, Users, type LucideIcon } from 'lucide-react'
+import { CircleUser, CopyCheck, FolderInput, FolderOpen, HardDriveDownload, LibraryBig, ListChecks, Plug, Search, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import type { CurrentUser } from './types'
 
 /** Where an entry is offered: the header bar, or the signed-in user's menu. */
@@ -34,6 +34,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
   // MAM-34 — right after the Library, whose works it links to their film or show. The owner's page:
   // every route behind it answers a member with a 403, so a member isn't offered the link.
   { path: '/library/tmdb', labelKey: 'nav.libraryTmdb', icon: ListChecks, ownerOnly: true, placement: 'header' },
+  // MAM-21 — after the TMDb page, the Library's other page: the library's duplicates. Every signed-in user
+  // reads them (Vasyl's decision of 2026-10-07); only the owner confirms or dismisses a possible match
+  // there, and a member's buttons say so.
+  { path: '/library/duplicates', labelKey: 'nav.duplicates', icon: CopyCheck, ownerOnly: false, placement: 'header' },
   // MAM-33 — after the Library, whose gaps it fills, and before Jobs, which stays last. Every signed-in
   // user reads their own lists; AppLayout hides the link while all four of the user's tabs are off.
   { path: '/recommendations', labelKey: 'nav.recommendations', icon: Sparkles, ownerOnly: false, placement: 'header' },

@@ -610,9 +610,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree }, files: [{ file,
   readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year,
   episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable
-  }`, by class in that order, then by the title the Library card of the group's first work shows,
-  then by `key` — 32 hex characters that name the group on every read while what makes it one stays,
-  for the Duplicates page (MAM-21) to address it by —; each class fills its part of `evidence`. A
+  }`, by class in that order, then by the title the Library card of the group's first work shows
+  (an episode's group by its series, season and number since MAM-21, below), then by `key` — 32 hex
+  characters that name the group on every read while what makes it one stays, for the Duplicates
+  page (MAM-21) to address it by —; each class fills its part of `evidence`. A
   `file` is the Library's own (`appPath`, `pathStatus`, `inspection`…), `space` counts each file once
   by its identity, never with a library's size, and `recoverable` `{ sizeBytes, gap }` is `0` for a
   same-file group, `null` for the copies of a work and for a possible match, and for a byte-identical
@@ -626,7 +627,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   or Possible.", the value cut to 32 characters and "…"; a page past the end is empty with the total.
   Every signed-in user reads it, like the Library; a file's `pathProblem` and inspection `problem`
   and the name of who set a linked id are the owner's, `null` for everyone else. It writes no row and
-  no audit event, and removes nothing; there is no page for it yet (MAM-21).
+  no audit event, and removes nothing; the Duplicates page shows it (MAM-21, below).
   `LibraryDuplicatesHttpTests`, `LibraryDuplicatesSameFileHttpTests`,
   `LibraryDuplicatesByteIdenticalHttpTests`, `LibraryDuplicatesSameWorkHttpTests`,
   `LibraryDuplicatesPossibleHttpTests`, `RegistryKeysTests`, `EditionLabelsTests`,
@@ -638,10 +639,107 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `null` for a device no line names or whose lines disagree, for every device when the table can't be
   read, and on any other platform. It reads no library file, so it takes no allowed root, and never
   throws. The Duplicates list asks it only for the devices of byte-identical groups, and only when
-  the list asked for is of every class or of `ByteIdentical`. `MountTableTests`,
+  the list asked for is of every class or of `ByteIdentical` — never of decided matches (MAM-21,
+  below). `MountTableTests`,
   `LocalFileInventoryFileSystemLinuxTests` (Linux only) and
   `LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_of_byte_identical_groups`
   pin it.
+- **The Duplicates page shows each group with the evidence behind it (MAM-21, ADR 0028, ADR 0029,
+  Vasyl's decisions of 2026-10-07).** **Duplicates** in the header, after **TMDb**, opens
+  `/library/duplicates` for every signed-in user, and so does **Duplicates** at the right of the
+  Library page's header; there the header marks the Duplicates link alone. Its underline tabs —
+  **All**, **Same file**, **Byte-identical**, **Same work**, **Possible** and, last, **Dismissed** —
+  are taken by a click or the arrow keys, the current one brought into view when the row is wider
+  than a phone, and kept in the address (`?tab=SameFile`, left out for All, one it doesn't know read
+  as All). A class's tab asks the server for that class, **Dismissed** for `decision=Dismissed` and
+  **All** for every group but the dismissed ones, paged on the server with the Library's pager, the
+  page size kept per device and another tab starting at page 1. A card is headed by its first work by
+  title in Ukrainian order — an episode by its series, with "Season 3 · Episode 31" and its own title
+  under it —, else by the title and year a possible match offers or its first file's name, with its
+  class, **Needs review** while it needs review and is undecided, **Confirmed** or **Dismissed** once
+  decided, and what tells its files apart as warning badges ("TMDb ids differ", "Their shows' TVDB
+  ids differ", "Episode numbers differ", "Editions differ", "Dynamic ranges differ"). The server
+  lists the groups in the order of those headings: by class, then by the title the card is headed by
+  — an episode's group by its series' title, then its season (the specials after the numbered
+  seasons, a place without a season last) and its number —, then by key; ordered by the episode's
+  own title, as MAM-20 had it, one show's episode groups came in no order the page shows and two
+  shows' came between each other. Under the badges come the evidence its class gives — the one
+  file's device, inode and the names the file system counts; the SHA-256; the ids that make the
+  works one, a show's with its season and episode; the title and year they share and whether the
+  running times agree, differ or aren't measured —, the room its files take with the names not
+  measured yet ("2 names not measured yet" alone when none is, never "0 files · 0 B"), and the room
+  removing all but one copy would free only where the server estimates it: "Removing a name frees
+  nothing while the file has another." for one file's names, "Removing all but one copy would free
+  about 4.2 GiB." for byte-identical copies, or the reason there is none; nothing for the copies of
+  a work or a possible match. Its files are the Library's version rows, or its comparison table for
+  two to six (the same Rows/Table switch and choice, rows always below 48rem). Each file is named, in
+  its row and in the table's column header, by the end of its path that tells it from the group's
+  other files: its file name when no other file has it, else the nearest folder that differs with
+  the folders between left out — "hardlinks/Arrival (2016) 2160p.mkv" beside "Arrival (2016)/Arrival
+  (2016) 2160p.mkv", "tv-4k/…/S01E01.mkv" beside "tv/…/S01E01.mkv" —, every folder kept where
+  leaving them out would make two read alike; its chips go on the line under the name. An open row
+  adds its name over its folder, its identity or "Not looked at yet", its SHA-256 or "Not hashed",
+  the editions its names give and the works that hold it, each with its kind, series and place,
+  version name, library and ids, or "No library reports this file; the folder scan found it."; the
+  table has Folder, Identity, SHA-256, Editions and Held by as rows. A refresh that fails keeps the
+  cards under a banner with **Retry**, a first load that fails shows the server's sentence with
+  **Try again** where asking again can help, and each tab says when it has nothing. Nothing on the
+  page removes, moves or renames a file, and nothing acts on several groups at once. `VersionRows`
+  and `VersionTable` show any version-like `{ id, editionLabel, files }` and take optional details,
+  rows, a label and a caption, the Library's cards unchanged without them; the tabs are a shared
+  `PageTabs`, the TMDb and Recommendations pages keeping their own. `DuplicatesPage.test.tsx`,
+  `DuplicateGroupCard.test.tsx`, `DuplicateGroupCard.files.test.tsx`, `PageTabs.test.tsx`,
+  `duplicates.test.ts`, `duplicates-api.test.ts`, `nav-items.test.ts`, `AppLayout.test.tsx`,
+  `App.test.tsx`, `LibraryPage.test.tsx` and
+  `LibraryDuplicatesHttpTests.List_orders_episode_groups_by_their_series_then_season_and_episode`
+  pin it.
+- **The owner confirms or dismisses a possible match, kept by its group's key with an audit row
+  (MAM-21, ADR 0029, Vasyl's decisions of 2026-10-07).** An undecided possible match's card offers
+  the owner **Confirm** and **Dismiss**, and a decided one **Undo**; anyone else sees them disabled
+  with "Only the owner confirms or dismisses a possible match." and never reaches the server. A
+  confirmed match stays where it was, marked **Confirmed**, with who confirmed it for the owner and
+  when for everyone, and "It stays a possible match: nothing is removed because of it."; a dismissed
+  one leaves the list for **Dismissed**, and a short dashed row takes its card's place, "“Arrival
+  (2016)” is dismissed: it is listed under Dismissed now." with **Undo**, which takes the keyboard
+  focus, as **Not interested** leaves a recommendation. On **Dismissed**, **Undo** on a card leaves
+  "“Arrival (2016)” is back among the possible matches." with **Dismiss again**. Either way back puts
+  the card back where it was, and the rows stay until the tab or the page changes; a row names the
+  group by its card's heading with the film's year or the episode's place. The button pressed says
+  "Confirming…", "Dismissing…" or "Undoing…", and a failure is a line in the card or the row. A
+  Confirm, Dismiss or Undo answered by a bare 404 — the group's members changed since the page
+  loaded, so its key names no group — makes the page ask for the list again, and the card or the row
+  says "This group has changed since the page loaded: the list shows it again as it is now."
+  `GET /api/library/duplicates` takes `decision` — `Confirmed` or `Dismissed` by name, in any letter
+  case, never a number —, checked after the page and the class (400 "“x” is not a decision. Use
+  Confirmed or Dismissed.", the value cut to 32 characters and "…"): without it every group but the
+  dismissed ones, on every class and in the totals; with it only the possible matches decided so,
+  and no file system is asked, whatever the class, as a possible match shows no estimate. Each group
+  gains `decision`, last: `null` while undecided and for every other class, else `{ decision,
+  decidedUtc, decidedByUserName }`, the name the owner's only; `needsReview` is unchanged.
+  `PUT /api/library/duplicates/{key}/decision` with `{ "decision": "Confirmed" }` or `"Dismissed"`,
+  and `DELETE` the same, are the installation owner's (403 "Only the installation owner can do
+  this." for anyone else) and answer 204, also for the same decision again and an undo of none,
+  which write nothing. The decision is checked first: 400 "A decision is needed: Confirmed or
+  Dismissed.", "“x” is not a decision. Use Confirmed or Dismissed." or, for a body that isn't JSON
+  with a decision as text, "The body must be JSON with a decision, such as { "decision": "Confirmed"
+  }."; then a key that isn't 32 lowercase hex characters, or that no group has now, is a bare 404 —
+  a possible match's key is made of its works and the files no library reports, so another work, or
+  a scanned file no library reports, joining or leaving gives it another key that asks again, while
+  another file or version of a work already in it changes nothing —, and a group of another class
+  is 400 "Only a possible match is confirmed or dismissed: this group is one by its files' identity,
+  bytes or registry ids, which no one has to confirm." A decision is a row of
+  `DuplicateMatchDecisions`, one per group key, with who decided last and when: a change rewrites it,
+  an undo deletes it, and a row whose key no group has now stays, matching nothing. `AuditAction`
+  gains `DuplicateMatchConfirmed` (24), `DuplicateMatchDismissed` (25) and
+  `DuplicateMatchDecisionUndone` (26), and `AuditTargetKind` `DuplicateMatch` (6): the target's id is
+  the key read as a Guid, its name the first title and year the group was offered by, "Arrival
+  (2016)". Two first decisions racing are settled by the key's unique index, the second applied to
+  the row the first wrote. Nothing is written to the library, a file or a download client.
+  `LibraryDuplicateDecisionsHttpTests`, `LibraryDuplicatesHttpTests`,
+  `LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_of_byte_identical_groups`,
+  `DuplicateMatchDecisionPersistenceTests`, `AuditTrailTests`, `LibraryWritesAreOwnerOnlyHttpTests`,
+  `ControllerAccessDeclarationTests`, `DuplicateGroupCard.decisions.test.tsx` and
+  `DuplicatesPage.decisions.test.tsx` pin it.
 
 ### Changed
 
@@ -790,6 +888,18 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   on Linux, reads as before.
   `RecommendationExclusionsHttpTests.Recompute_leaves_out_a_work_a_scan_found_files_name_claims` and
   `FileNameClaimsTests.Read_claims_by_the_folders_name_when_the_file_name_has_no_year` pin it.
+- **The header makes room for Duplicates (MAM-21).** With **Duplicates** among the links, for
+  everyone, the centre column is at most 52rem instead of 42rem, the links are icons with their
+  titles below 76rem instead of 64rem, the brand is the logo alone below 53rem instead of 48rem, and
+  the search field takes a row of its own below 560px instead of 480px, so the field keeps room to
+  type beside one more link. At 360px and narrower the links sit with no gap between them and
+  slimmer padding, each 30px wide and 28px tall, so the owner's five icons stay on one line at 320px
+  and the header stays 97px tall, under its 7rem scroll padding; before, Jobs wrapped onto a line of
+  its own at 339px and narrower. Measured in Chrome on 2026-10-07 at 1280, 1217, 1216, 1024, 849,
+  848, 768, 600, 561, 560, 375, 340 and 320px: labelled, TMDb is 81px and Duplicates 107px, and the
+  owner's five links take 549px, 196px as icons; the owner's search field is 227px at 1217px and
+  271px from about 1261px. `AppLayout.test.tsx` and `nav-items.test.ts` pin the links and their
+  order: Library, the owner's TMDb, Duplicates, Recommendations, Jobs.
 
 ### Notes for upgraders
 
@@ -880,7 +990,11 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   files inspected — and the possible copies hashed — inside the media folders the owner allowed, a
   name only the scan found needs a scan, and a link the owner sets counts at once. On the reference
   installation, where no two video files share a size, the byte-identical class stays empty. The
-  Duplicates page is MAM-21's; until then the groups are read through `GET /api/library/duplicates`.
+  **Duplicates** page shows them (MAM-21).
+- **Applying `AddDuplicateMatchDecisions` rebuilds no table, so it logs no warning 20410 (MAM-21).**
+  It only creates `DuplicateMatchDecisions` and its two indexes. The owner's decisions on possible
+  matches live there alone, with their audit rows, so they are in a backup of `mam.db` and nowhere
+  else; nothing needs switching on, and a group the owner never decided shows as before.
 
 ## [0.2.0] — 2026-10-04
 

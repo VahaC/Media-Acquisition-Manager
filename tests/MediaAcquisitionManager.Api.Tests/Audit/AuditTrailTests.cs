@@ -10,8 +10,8 @@ namespace MediaAcquisitionManager.Api.Tests.Audit;
 
 // MAM-34 — the audit trail's ids (R14): a row recorded with the ids a link change found and left adds them to the same
 // unsaved row, in their order, so the caller's one save commits both or neither; and a link is named on its row by its
-// work's title, cut to the column with an ellipsis. The trail is resolved from the app's own container, as a service
-// uses it; no endpoint reads it.
+// work's title, cut to the column with an ellipsis (MAM-21 — and a possible match by its group's key, named by its
+// title). The trail is resolved from the app's own container, as a service uses it; no endpoint reads it.
 public sealed class AuditTrailTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private readonly MediaAcquisitionManagerApiFactory _factory;
@@ -94,6 +94,26 @@ public sealed class AuditTrailTests : IClassFixture<MediaAcquisitionManagerApiFa
         Assert.Equal((200, new string('Ж', 199) + "…"), (target.Name.Length, target.Name));
         Assert.Equal(new string('Ж', 200), exact.Name);
         Assert.Equal(AuditTargetKind.LibraryLink, target.Kind);
+    }
+
+    [Fact]
+    public void DuplicateMatch_targets_the_groups_key_as_a_guid_and_cuts_a_long_title_with_an_ellipsis()
+    {
+        //Arrange
+        const string key = "0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+        var title = new string('Ж', 199) + "кінець (2016)";
+
+        //Act
+        var target = AuditTarget.DuplicateMatch(key, title);
+        var plain = AuditTarget.DuplicateMatch(key, "Arrival (2016)");
+
+        //Assert
+        // MAM-21 — the key's 32 hex digits are the target's id, and give the key back: every decision on one group has
+        // one target, whichever row holds it.
+        Assert.Equal((AuditTargetKind.DuplicateMatch, key), (target.Kind, target.Id.ToString("N")));
+        Assert.Equal(target.Id, plain.Id);
+        Assert.Equal((200, new string('Ж', 199) + "…"), (target.Name.Length, target.Name));
+        Assert.Equal("Arrival (2016)", plain.Name);
     }
 
     private async Task<(int Events, int Identifiers)> CountsAsync(CancellationToken cancellationToken)

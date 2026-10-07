@@ -6,6 +6,7 @@ public enum LibraryDuplicateListStatus
     /// <summary>The page was read.</summary>
     Listed = 1,
 
-    /// <summary>The page, the page size or the class is not one the list takes, which the error names.</summary>
+    /// <summary>The page, the page size, the class or the decision is not one the list takes, which the error
+    /// names.</summary>
     Invalid = 2,
 }

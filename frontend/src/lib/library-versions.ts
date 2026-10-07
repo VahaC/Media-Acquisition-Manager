@@ -30,8 +30,10 @@ export function splitPath(path: string): { name: string; folder: string | null }
  * MAM-16 — the bytes a version takes on disk: its files' sizes added up (Jellyfin stacks a movie in
  * parts as one version of several files). Null when a size is missing, which leaves the total
  * unknown rather than too small, or when the version has no file.
+ *
+ * MAM-21 — of anything with files: the Duplicates page shows each file of a group as a version.
  */
-export function versionSize(version: LibraryVersion): number | null {
+export function versionSize(version: Pick<LibraryVersion, 'files'>): number | null {
   if (version.files.length === 0) return null
   let total = 0
   for (const file of version.files) {

@@ -820,6 +820,46 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("DownloadJobFiles");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DuplicateMatchDecisionEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DecidedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DecidedByUserName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DecidedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByUserId");
+
+                    b.HasIndex("GroupKey")
+                        .IsUnique();
+
+                    b.ToTable("DuplicateMatchDecisions");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileHashEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2764,6 +2804,14 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasForeignKey("DownloadJobId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DuplicateMatchDecisionEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.FileInspectionRunEntity", b =>

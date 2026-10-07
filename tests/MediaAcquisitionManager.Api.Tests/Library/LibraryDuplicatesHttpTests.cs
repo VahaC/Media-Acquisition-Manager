@@ -22,6 +22,8 @@ namespace MediaAcquisitionManager.Api.Tests.Library;
 // rows), then by the title of their first work, each once across the pages; classes, distinctions, editions and gaps
 // travel by name. What makes each class is the class files': LibraryDuplicatesSameFileHttpTests,
 // LibraryDuplicatesByteIdenticalHttpTests, LibraryDuplicatesSameWorkHttpTests and LibraryDuplicatesPossibleHttpTests.
+// MAM-21 — a decision filter by name with the class filter's rules, checked after it; what the owner's decisions do to
+// the list is LibraryDuplicateDecisionsHttpTests'.
 public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library/duplicates";
@@ -66,6 +68,17 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         { "SameWork,Possible", NotAClass("SameWork,Possible") },
         // A pasted page of text comes back cut, never whole.
         { new string('x', 500), NotAClass(new string('x', 32) + "…") },
+    };
+
+    // MAM-21 — the decision filter's, with the class filter's rules.
+    public static TheoryData<string, string> UnknownDecisions => new()
+    {
+        { "Maybe", NotADecision("Maybe") },
+        // By name only: the number of a decision is not its name.
+        { "1", NotADecision("1") },
+        { "Confirmed,Dismissed", NotADecision("Confirmed,Dismissed") },
+        // A pasted page of text comes back cut, never whole.
+        { new string('x', 500), NotADecision(new string('x', 32) + "…") },
     };
 
     public async ValueTask InitializeAsync()
@@ -139,12 +152,31 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
     }
 
     [Theory]
+    [MemberData(nameof(UnknownDecisions))]
+    public async Task List_with_an_unknown_decision_is_400_naming_the_decisions(string decision, string error)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantPossibleMatchAsync("Arrival", 2016);
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}?decision={Uri.EscapeDataString(decision)}", _member.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(error, await response.ReadErrorAsync(cancellationToken));
+    }
+
+    [Theory]
     [InlineData("page=0", "Page must be 1 or more.")]
     [InlineData("page=-1", "Page must be 1 or more.")]
     [InlineData("pageSize=0", "Page size must be between 1 and 100.")]
     [InlineData("pageSize=101", "Page size must be between 1 and 100.")]
     // Paging is checked first: one sentence, the same as the Library's.
     [InlineData("page=0&class=Hardlink", "Page must be 1 or more.")]
+    // MAM-21 — then the class, then the decision.
+    [InlineData("pageSize=101&decision=Maybe", "Page size must be between 1 and 100.")]
+    [InlineData("class=Hardlink&decision=Maybe", "“Hardlink” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible.")]
     public async Task List_with_a_page_or_page_size_out_of_range_is_400(string query, string error)
     {
         //Arrange
@@ -254,6 +286,44 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         Assert.Equal(6, list.TotalCount);
     }
 
+    // MAM-21 — an episode's group is headed by its series, then where the episode sits, so it is ordered by them too:
+    // by the episodes' own titles, Yellowstone's would come in the order A Thundering, Behind the Story, Daybreak, Kill
+    // the Messenger, with Breaking Bad's Pilot after them all.
+    [Fact]
+    public async Task List_orders_episode_groups_by_their_series_then_season_and_episode()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var yellowstone = await PlantSeriesAsync(_livingRoom, "Yellowstone");
+        var breakingBad = await PlantSeriesAsync(_livingRoom, "Breaking Bad");
+        await PlantEpisodeCopiesAsync(yellowstone, 2, 1, "A Thundering", "tt8526530");
+        await PlantEpisodeCopiesAsync(yellowstone, 1, 2, "Kill the Messenger", "tt7999740");
+        await PlantEpisodeCopiesAsync(yellowstone, 0, 1, "Behind the Story", "tt9022356");
+        await PlantEpisodeCopiesAsync(breakingBad, 1, 1, "Pilot", "tt0959621");
+        await PlantEpisodeCopiesAsync(yellowstone, 1, 1, "Daybreak", "tt4236770");
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}?class=SameWork", _member.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var list = await ReadListAsync(response, cancellationToken);
+        // The specials after the numbered seasons, as the Library lists a show's seasons.
+        Assert.Equal(
+            [
+                ("Breaking Bad", 1, 1, "Pilot"),
+                ("Yellowstone", 1, 1, "Daybreak"),
+                ("Yellowstone", 1, 2, "Kill the Messenger"),
+                ("Yellowstone", 2, 1, "A Thundering"),
+                ("Yellowstone", 0, 1, "Behind the Story"),
+            ],
+            list.Items.Select(group =>
+            {
+                var work = group.Files.SelectMany(file => file.Works).DistinctBy(work => (work.SeriesTitle, work.Title)).Single();
+                return (work.SeriesTitle, work.Episode!.SeasonNumber, work.Episode.EpisodeNumber, work.Title);
+            }));
+    }
+
     [Fact]
     public async Task List_gives_a_member_the_groups_without_the_owners_path_problems()
     {
@@ -317,13 +387,15 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         Assert.All(items, item =>
         {
             Assert.Equal(
-                ["key", "class", "needsReview", "distinctions", "evidence", "files", "space", "recoverable"],
+                // MAM-21 — the owner's decision last, null while undecided and for every class but a possible match.
+                ["key", "class", "needsReview", "distinctions", "evidence", "files", "space", "recoverable", "decision"],
                 item!.AsObject().Select(property => property.Key));
             Assert.Matches("^[0-9a-f]{32}$", item["key"]!.GetValue<string>());
             Assert.Equal(
                 ["identity", "sha256", "identifiers", "titles", "durationsAgree"],
                 item["evidence"]!.AsObject().Select(property => property.Key));
             Assert.Equal(["sizeBytes", "fileCount", "nameCount", "unmeasuredCount"], item["space"]!.AsObject().Select(property => property.Key));
+            Assert.Null(item["decision"]);
         });
 
         var sameFile = items[0]!;
@@ -370,6 +442,8 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
 
     private static string NotAClass(string echo) =>
         $"“{echo}” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible.";
+
+    private static string NotADecision(string echo) => $"“{echo}” is not a decision. Use Confirmed or Dismissed.";
 
     private static string MoviePath(string title, int year) => $"/media/movies/{title} ({year})/{title} ({year}).mkv";
 
@@ -427,6 +501,31 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         var copyFacts = TestMedia.File(copyInode, sizeBytes, TestMedia.ModifiedUtc.AddDays(3));
         _factory.Files.AddFile(MoviePath(title, year), facts, TestMedia.Taken());
         _factory.Files.AddFile(copyPath, copyFacts, TestMedia.Taken(), hash: FakeFileInventory.HashOf(copyFacts, FakeFileInventory.DefaultSha256(facts)));
+    }
+
+    // A series item of the living room, with no file and no id: its episodes are known through their places.
+    private async Task<MediaWorkEntity> PlantSeriesAsync(IntegrationConnectionEntity library, string title)
+    {
+        var series = await _works.Create(MediaWorkKind.Series);
+        await _works.AddTitle(series.Id, title, MediaTitleKind.Display, null, library.Id, library.Name, Guid.NewGuid().ToString("N"));
+        return series;
+    }
+
+    // A SameWork group of an episode: one item of it in each library under the episode's IMDb id, at the series' season
+    // and number, each with one name.
+    private async Task PlantEpisodeCopiesAsync(MediaWorkEntity series, int season, int episode, string title, string imdbId)
+    {
+        foreach (var (library, folder) in new[] { (_livingRoom, "series"), (_bedroom, "tv") })
+        {
+            var itemId = Guid.NewGuid().ToString("N");
+            var work = await _works.Create(MediaWorkKind.Episode);
+            await _works.AddTitle(work.Id, title, MediaTitleKind.Display, null, library.Id, library.Name, itemId);
+            await _works.AddIdentifier(work.Id, MediaIdentifierScheme.Imdb, imdbId, library.Id, library.Name, itemId);
+            await _works.AddEpisodePosition(work.Id, series.Id, season, episode, library.Id, library.Name, itemId);
+            var version = await _versions.Create(work.Id, itemId, sourceConnectionId: library.Id, sourceName: library.Name);
+            await _physicalFiles.Create(
+                version.Id, $"/media/{folder}/S{season:00}E{episode:00} {title}.mkv", sourceConnectionId: library.Id, sourceName: library.Name);
+        }
     }
 
     // The title a group is ordered by, as its first file's first work shows it: every planted group's works share one.

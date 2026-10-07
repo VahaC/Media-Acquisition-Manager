@@ -5,6 +5,7 @@ import { allowedRootsApi } from '@/lib/allowed-roots-api'
 import { authApi } from '@/lib/auth-api'
 import { destinationsApi } from '@/lib/destinations-api'
 import { downloadsApi } from '@/lib/downloads-api'
+import { duplicatesApi } from '@/lib/duplicates-api'
 import { healthApi } from '@/lib/health-api'
 import { libraryApi } from '@/lib/library-api'
 import { libraryLinksApi } from '@/lib/library-links-api'
@@ -18,6 +19,7 @@ import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
 import { downloadingJob, filesPage, jobsPage } from '@/test/downloads'
+import { duplicatesPage, possibleGroupOf } from '@/test/duplicates'
 import { sourcesOf } from '@/test/library'
 import { catchUpOf, linksPage, queueOf, suggestionRunOf } from '@/test/library-links'
 import { allTabsOn, guardians, listOf, runOf } from '@/test/recommendations'
@@ -27,6 +29,7 @@ vi.mock('@/lib/allowed-roots-api')
 vi.mock('@/lib/auth-api')
 vi.mock('@/lib/destinations-api')
 vi.mock('@/lib/downloads-api')
+vi.mock('@/lib/duplicates-api')
 vi.mock('@/lib/health-api')
 vi.mock('@/lib/library-api')
 vi.mock('@/lib/library-links-api')
@@ -130,6 +133,44 @@ describe('App', () => {
     // Assert
     expect(await screen.findByRole('heading', { level: 1, name: 'TMDb links' }, { timeout: 5_000 })).toBeInTheDocument()
     expect(window.location.pathname).toBe('/library/tmdb')
+  })
+
+  it('opens the Duplicates page at its address and tab, with only its own link marked in the header', async () => {
+    // Arrange
+    vi.mocked(duplicatesApi.list).mockImplementation(async (query) => duplicatesPage(query, [possibleGroupOf()]))
+
+    // Act
+    renderAt('/library/duplicates?tab=Possible')
+
+    // Assert
+    // The page's code loads on its first visit, which on a busy machine takes past the 1 s a find
+    // waits by default.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Duplicates' }, { timeout: 5_000 })).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(nav).getByRole('link', { name: 'Duplicates' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('tab', { name: 'Possible' })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Чужі' })).toBeInTheDocument()
+    expect(duplicatesApi.list).toHaveBeenCalledExactlyOnceWith({ class: 'Possible', page: 1, pageSize: 25 })
+  })
+
+  it('opens the Duplicates page from the Library\'s Duplicates button', async () => {
+    // Arrange
+    vi.mocked(libraryApi.works).mockResolvedValue({ items: [], totalCount: 0, page: 1, pageSize: 25 })
+    vi.mocked(libraryApi.locations).mockResolvedValue({ items: [] })
+    vi.mocked(libraryApi.sources).mockResolvedValue(sourcesOf())
+    vi.mocked(duplicatesApi.list).mockImplementation(async (query) => duplicatesPage(query, []))
+    const { user } = renderAt('/library')
+    const main = await screen.findByRole('main')
+    await within(main).findByRole('heading', { level: 1, name: 'Library' }, { timeout: 5_000 })
+
+    // Act
+    await user.click(within(main).getByRole('link', { name: 'Duplicates' }))
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 1, name: 'Duplicates' }, { timeout: 5_000 })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/library/duplicates')
+    await waitFor(() => expect(duplicatesApi.list).toHaveBeenCalledExactlyOnceWith({ page: 1, pageSize: 25 }))
   })
 
   it('opens Recommendations from the header link, at its first tab', async () => {
