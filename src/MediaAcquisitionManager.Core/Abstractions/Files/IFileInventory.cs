@@ -72,4 +72,19 @@ public interface IFileInventory
     /// <param name="cancellationToken">Cancels the walk.</param>
     IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
         IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-20, ADR 0028 — the type of file system each of <paramref name="deviceIds"/> holds, as the system's mount table
+    /// names it: one answer per device asked, in the order asked. What decides whether removing a byte-identical copy
+    /// frees its room — a file system that can share blocks between files (reflinks, snapshots) may give none back.
+    /// </summary>
+    /// <remarks>
+    /// Reads the system's mount table, no file of the library, so it takes no allowed roots. An unknown type is
+    /// <c>null</c> — no mount table on this platform, none it may read, no line for the device, or lines that
+    /// disagree — never a guess, and never an exception.
+    /// </remarks>
+    /// <param name="deviceIds">The devices, as <see cref="FileFacts.DeviceId"/> gives them.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    Task<IReadOnlyList<DeviceFileSystem>> DescribeFileSystemsAsync(
+        IReadOnlyCollection<long> deviceIds, CancellationToken cancellationToken = default);
 }

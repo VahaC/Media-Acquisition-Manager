@@ -135,6 +135,8 @@ public sealed class RecommendationExclusionsHttpTests : IClassFixture<MediaAcqui
     [Theory]
     [InlineData("/media/movies/Aliens (1986)/aliens.mkv")]
     [InlineData("/media/downloads/Aliens (1986) BDRip 1080p [Hurtom].mkv")]
+    // MAM-20 — a Windows-style path claims by its folder too, since FileNameClaims splits at a backslash.
+    [InlineData(@"D:\Movies\Aliens (1986)\aliens.mkv")]
     public async Task Recompute_leaves_out_a_work_a_scan_found_files_name_claims(string path)
     {
         //Arrange

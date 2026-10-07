@@ -136,8 +136,8 @@ public sealed class LibraryMapper : ILibraryMapper
 
     // MAM-32 — the first place an episode has, by season as a series lists them (the regular ones, then the
     // specials, then none — the episodes list's order), then number (none last), then id: two sources, or
-    // two items of one episode, can place it twice.
-    private static LibraryEpisodeDto ToEpisodeDto(IReadOnlyList<MediaEpisodePositionEntity> positions) =>
+    // two items of one episode, can place it twice. MAM-20 — also the place a duplicate group's episode shows.
+    internal static LibraryEpisodeDto ToEpisodeDto(IReadOnlyList<MediaEpisodePositionEntity> positions) =>
         positions
             .OrderBy(position => position.SeasonNumber is null ? 2 : position.SeasonNumber == 0 ? 1 : 0)
             .ThenBy(position => position.SeasonNumber)

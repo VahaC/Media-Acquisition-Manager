@@ -113,3 +113,33 @@ hardlink names count their space once";
 the rest of the count, and
 `FileHashCandidatesHttpTests.Inspect_hashes_a_file_a_torrent_seeds_like_any_other_and_asks_no_download_client`
 the client left alone.
+
+## Duplicates (added 0.2.1, MAM-20)
+
+**A seeding file is classed like any other, as built.** The grouping reads the names, identities,
+sizes, hashes and ids the database holds, and `LibraryDuplicateService` is given no download client
+([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)): two byte-identical files are one group whether a torrent seeds one, both or
+neither, the seeded copy counted in the group's space and in the estimate like the other, and no
+client is asked. The Consequences' "Phase B needs no download client" holds for the grouping.
+
+**The recoverable space, with hardlinks and snapshots in mind (Vasyl's decision of 2026-10-07).**
+Every group's space counts each file once by its device and inode, with the size the app read
+(`FileSpace.Of`, as the MAM-19 section built it). Removing a hardlink name frees nothing, so a
+same-file group says `0`. A byte-identical group says every copy's size but the largest's only when
+every copy's file system is known not to share blocks — ext2 to ext4, JFS, ReiserFS, FAT, exFAT,
+NTFS, read from Linux's mount table by device — and every copy's link count equals the names the app
+knows; otherwise it gives no figure and says why: a file system that can share blocks (btrfs, ZFS,
+XFS and the like, where reflinks and snapshots may make two copies take the room of one), an unknown
+one (a network share, an overlay, a device the table doesn't name, or Windows), or a name the app
+never found. Copies of one work and possible matches give no estimate at all, as none of them is
+redundant.
+
+`LibraryDuplicatesByteIdenticalHttpTests.List_classes_a_file_a_torrent_seeds_like_any_other_and_asks_no_download_client`
+pins "a seeding file is classed like any other", with a qBittorrent that lists the torrent and is
+never asked; `LibraryDuplicatesSameFileHttpTests.List_says_removing_a_hardlink_name_frees_nothing`,
+`LibraryDuplicatesByteIdenticalHttpTests.List_groups_two_files_with_one_sha256_and_estimates_the_room_a_copy_takes_on_ext4`,
+`LibraryDuplicatesByteIdenticalHttpTests.List_gives_no_estimate_on_a_file_system_that_can_share_blocks`,
+`LibraryDuplicatesByteIdenticalHttpTests.List_gives_no_estimate_where_the_file_system_is_unknown`,
+`LibraryDuplicatesByteIdenticalHttpTests.List_gives_no_estimate_when_a_file_has_a_name_the_app_never_found`
+and `LibraryDuplicatesByteIdenticalHttpTests.List_gives_no_estimate_when_a_files_link_count_is_unknown`
+the estimate.

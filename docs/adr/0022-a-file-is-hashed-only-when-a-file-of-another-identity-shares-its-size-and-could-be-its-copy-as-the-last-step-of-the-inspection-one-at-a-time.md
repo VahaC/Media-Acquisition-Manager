@@ -210,3 +210,19 @@ Hashing only reads, inside the allowed roots; the roots are still no licence to 
 files with one SHA-256 are the same bytes and nothing more: not which copy to keep, which work they
 are, or that either may go. Grouping them and the Duplicates page are MAM-20's and MAM-21's;
 nothing is removed, in bulk or one by one.
+
+## Duplicates (added 0.2.1, MAM-20)
+
+**MAM-20 groups what this keeps, as the Consequences said.** A name's hash counts only when it was
+kept under the device, inode, size and modification time of the app's last look at that name, so a
+hash of bytes changed since never makes a group; files of two identities or more with one SHA-256 are
+a byte-identical group, each with all its names, and one file with two names is a same-file group,
+never a byte-identical one, whatever its hash ([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)). No file is read to group them. The
+Anti-consequence holds: two files with one SHA-256 are listed with the room removing all but one
+would free where that is sure, never told which to keep, and nothing is removed; the page that shows
+them is MAM-21's.
+
+`LibraryDuplicatesByteIdenticalHttpTests.List_groups_two_files_with_one_sha256_and_estimates_the_room_a_copy_takes_on_ext4`,
+`LibraryDuplicatesByteIdenticalHttpTests.List_makes_no_group_of_a_hash_kept_for_a_file_that_changed_since`
+and `LibraryDuplicatesByteIdenticalHttpTests.List_makes_no_byte_identical_group_of_one_file_with_two_names`
+pin it.

@@ -10,6 +10,8 @@ public static class MappingServiceCollectionExtensions
         services.AddSingleton<IUserMapper, UserMapper>();
         services.AddSingleton<IIntegrationMapper, IntegrationMapper>();
         services.AddSingleton<ILibraryMapper, LibraryMapper>();
+        // MAM-20 — the Duplicates list's groups, through the Library's own file and ids mapping.
+        services.AddSingleton<ILibraryDuplicateMapper, LibraryDuplicateMapper>();
         services.AddSingleton<IReleaseSearchMapper, ReleaseSearchMapper>();
         services.AddSingleton<ISearchMapper, SearchMapper>();
         services.AddSingleton<IDestinationMapper, DestinationMapper>();

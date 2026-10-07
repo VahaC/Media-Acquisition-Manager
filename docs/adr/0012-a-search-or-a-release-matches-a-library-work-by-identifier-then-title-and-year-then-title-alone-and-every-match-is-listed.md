@@ -456,3 +456,29 @@ taken the link, until a sync reads the link's key in the item, and a series' lin
 film's: Jellyfin's Identify replaces the item's title, overview and images with TMDb's, and the id the
 link leaves in the item is read back at the next sync as the library's own. The rule that a linked id is
 an identifier, and that a link replaces the guess, stands.
+
+## Duplicates (added 0.2.1, MAM-20)
+
+**The tiers are reused for duplicates, and the third left out.** The duplicates' grouping
+([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)) takes this Decision's identifier rule — a value trimmed and compared in any
+letter case — for "another copy of the same work", by registry keys that carry the number space of
+each registry, and its title key with that title's own year (`TitleMatchKey`) for a possible match,
+with no distance and no year ± 1: "Alien" and "Aliens" of 1979, or "Gone" of 2001 and of 2002, are
+never offered. A title alone offers nothing, and two works whose ids of one number space differ are
+never offered by their title. A scanned file's name is read as a release's title is
+(`ReleaseWorkClaims`, through `FileNameClaims`): its file name, then its folder's name; no year, no
+title.
+
+**A list of edition words, but not for matching.** The rejected option "Drop a list of known edition
+words" (the MAM-12 review's section) still holds for matching. MAM-20's `EditionLabels` is such a
+list, English and Ukrainian (Vasyl, 2026-10-07), and decides no match and keeps no two works apart:
+it only labels a possible distinction between copies already grouped by their ids or their title and
+year, so a word it misses costs a flag, never a wrong group or a missed one. The Anti-consequence
+holds: a possible match is always for the owner to confirm, and none authorises removing anything.
+
+`LibraryDuplicatesSameWorkHttpTests.List_never_merges_movies_with_similar_titles_or_years`,
+`LibraryDuplicatesPossibleHttpTests.List_never_offers_works_with_a_similar_title_or_another_year`,
+`LibraryDuplicatesPossibleHttpTests.List_never_offers_works_whose_ids_differ`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_different_cuts_apart_and_flags_their_editions_for_review`
+and `EditionLabelsTests.Read_never_takes_an_edition_word_inside_another_word_or_alone_where_it_needs_two`
+pin it.

@@ -18,8 +18,10 @@ MAM-19 (the room the files take, each file counted once, and the hashing of only
 could be copies) are built. MAM-33 (recommendations of the works the library doesn't have yet, from
 TMDb, with what Toloka carries of them) and MAM-34 (linking a library work to its TMDb film or show
 by hand, Jellyfin then identifying the item as it) are built and ship as release 0.2.1, with
-MAM-35 (each library work's own poster from Jellyfin on the Library and Search cards) and MAM-36 (the
-Library page's Sources card as a status bar, and Refresh all).
+MAM-35 (each library work's own poster from Jellyfin on the Library and Search cards), MAM-36 (the
+Library page's Sources card as a status bar, and Refresh all) and MAM-20 (the library's files
+grouped into the four duplicate classes of the specification, read through the API; the page is
+MAM-21's).
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -431,8 +433,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions). **Tickets:** MAM-17 to
-MAM-22 and MAM-32 to MAM-36.
+**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, built while
+0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to MAM-36.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -630,12 +632,31 @@ episode, and how much space could really be recovered — without the app guessi
   works, all 7 series, all 432 episodes), and the Library page showed the pictures at 1280 and 375 px
   wide, each fetched once and kept; the Search page's library block was not opened live
   (`SearchesLibraryPostersHttpTests` pins its `posterUrl`).
-- Separate the duplicate classes of specification §3.3: the same file or a hardlink,
-  byte-identical copies, other versions of the same work — a registry id the files share, for an
-  episode its own or its series' with its numbers (ADR 0017), a TMDb id the owner linked included
-  (MAM-34) — and possible matches. A seeding file is classed like any other (ADR 0018).
-- A Duplicates page with a filter per class and the evidence behind each grouping; a recoverable
-  space estimate only where the storage relationship is known.
+- **MAM-20 Duplicates grouped into the four classes** (built, release 0.2.1):
+  `GET /api/library/duplicates?class=&page=1&pageSize=25`, every signed-in user's, sorts the
+  library's file names into specification §3.3's classes on every read, storing nothing
+  ([ADR 0028](docs/adr/0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md);
+  ADR 0012, 0017, 0018, 0021, 0022 and 0026 amended): the names of one device and inode, counted once
+  and freeing nothing; files of two identities or more with one SHA-256; film and episode works of
+  every library and integration sharing a registry key — an IMDb id whatever the kind, a TMDb or
+  TVDB id within its kind, a series' id with the season and episode, a TMDb id or an episode-to-show
+  link the owner set (MAM-34) — in two copies or more, never called redundant; and possible matches
+  by a title and its own year that no kind, id or episode place keeps apart, a file only the scan
+  found included by its file or folder name unless either names seasons or episodes. One item's 65
+  id-less files are no copies (ADR 0017); ids that disagree stay one work flagged for review
+  (`IdentifierConflict`, `EpisodeNumbers`; Vasyl's decision 1 of 2026-10-07); different editions —
+  read from a word list in English and Ukrainian that decides no match (decision 2) — and different
+  measured dynamic ranges are flagged; a possible match always needs review, with whether the
+  measured durations agree. The room a copy frees is estimated only for byte-identical files whose
+  file systems the mount table says share no blocks, with the reason otherwise (decision 3). A
+  seeding file is classed like any other, and no download client is asked (ADR 0018). Read from the
+  reference library's development database on 2026-10-07, before the design: no file identity,
+  hash or measurement yet; 17 movies with several files, 9 of them different cuts and 3 a widescreen
+  variant; 20 Penguins of Madagascar pairs and the S03E31/S03E33 pair under one episode's IMDb id;
+  the eight Mickey Mouse Clubhouse halves; and no file the scan found. The live check is MAM-22's.
+- A Duplicates page (MAM-21) with a filter per class, the evidence behind each grouping and the
+  recoverable space MAM-20 estimates where the storage relationship is known, and confirming or
+  dismissing a group with an audit row; no removal.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
   — the names by rescanning, the hashes by the next inspection, which reads the files that could be
   copies whole again — so they need no export of their own; the series, seasons and episodes come
@@ -649,7 +670,9 @@ episode, and how much space could really be recovered — without the app guessi
   are in its backup; the suggestions and their searches rebuild themselves after the next sync.
   Identify changes Jellyfin's own data and can't be undone, so Jellyfin's data folder is worth a
   backup before **Update Jellyfin**. MAM-35's poster tags come back with the next sync, and the
-  posters in `<data>/library-posters/` are fetched again from Jellyfin when missing.
+  posters in `<data>/library-posters/` are fetched again from Jellyfin when missing. MAM-20 stores
+  nothing: the duplicate groups are worked out on every read from the names, hashes, ids and links
+  above.
 - **MAM-36 The Library's Sources card as a status bar, and Refresh all** (built, release 0.2.1): the
   card that took about 480 px at the top of the Library page is one bar — an item for each media
   library, for the media folders and for the file inspection, with an icon, when it last ran or how far
@@ -681,7 +704,10 @@ libraries' copies by a linked id (MAM-20). For MAM-35: the catalog's posters on 
 Search cards (ADR 0025); a season's picture, and pictures on the episodes of an opened season; any
 of Jellyfin's images but the item's own primary one — a backdrop, a logo, or a series' or season's
 picture lent to an episode —; uploading, setting, refreshing or deleting an image in Jellyfin; and
-pruning the posters' cache.
+pruning the posters' cache. For MAM-20: the Duplicates page and confirming or dismissing a group,
+which are MAM-21's; removal of any kind, a copy chosen to keep or one called redundant; counts per
+class in the answer; storing the groups; reading a download client; and a file system's type read
+anywhere but Linux's mount table, so Windows gives no estimate.
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -759,6 +785,20 @@ Search page's library works carry the poster of the item the card is named after
 the endpoint serves only a pair a sync stored, from disk or fetched once and kept, with every bare
 404 and the 502 for the owner and for everyone else, its key masked; and the card shows the poster
 beside the title, the placeholder without one, and fetches it once, only as it comes near the window.
+MAM-20: two hardlink names are one group whose room counts once and frees nothing, and one path two
+libraries report is no group; files of two identities with one current SHA-256 are one group, a hash
+kept for a file changed since makes none, and the estimate is given on ext4, never on btrfs, ZFS or
+XFS, on an unknown file system, with an unknown link count or with a name the app never found, each
+with its reason; a seeding file is classed like any other with no client asked; one movie in two
+libraries by its IMDb id or a TMDb id the owner linked is one work, the wrong id a link replaces
+joins nothing, and a film item linked as an episode joins the library's own episode; the 65 files of
+one id-less item are no copies, The Continental's three items are one work never called redundant,
+an episode's halves are two versions of it, and a series known by two library items is one series;
+a movie and a series sharing a TMDb number stay apart; conflicting ids, one episode's ids at two
+places, different cuts and different measured dynamic ranges require manual review; similar titles
+or years are never merged or offered; a possible match needs one title key and its year, never
+across kinds, differing ids or episode places, and a scanned file is offered by its file or folder
+name, never an episode's; and the list's access, sentences, filter, paging, order and wire names.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -791,7 +831,14 @@ For MAM-35: after a sync of the reference installation (**Sync now** or **Refres
 Library and Search pages show each work's own picture from Jellyfin — the series' on a series card,
 its own on an episode of no series, none on the episodes of an opened season and an icon where
 Jellyfin has none —, the server fetches each once and then serves it from its disk, nothing is
-written to Jellyfin, and both pages work in a browser at desktop and phone width.
+written to Jellyfin, and both pages work in a browser at desktop and phone width. For MAM-20: after
+an inspection of the allowed folders, `GET /api/library/duplicates` on the reference installation
+lists the movies with several files and the Mickey Mouse Clubhouse halves as copies of one work,
+never redundant, with the cuts flagged; the Penguins of Madagascar pairs and S03E31/S03E33 flagged
+for review; no works of similar titles or years joined, and no possible match between works whose
+ids differ; a byte-identical group only for two files that share their bytes, with no estimate
+where the file system isn't known to keep its files apart; and nothing written to the library, the
+files or any download client. The page's acceptance is MAM-21's.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify

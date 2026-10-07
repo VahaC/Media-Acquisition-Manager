@@ -207,3 +207,49 @@ movie and series items only, so a link on an episode stays in the app."; a numbe
 whose episode TMDb gives no IMDb id, or without its numbers, stays in the app too, saying why. The
 library still says what every item is. The series test named above is replaced by
 `LibraryLinkSetHttpTests.Set_of_a_show_on_a_series_is_identified_by_the_worker_through_the_series_search_with_the_shows_tmdb_id_and_the_next_sync_finds_it`.
+
+## Duplicates (added 0.2.1, MAM-20)
+
+**A shared registry id, not a shared item, makes another copy of the same work.** The grouping
+keys every film and episode work by its registry ids — its own, and an episode's series' ids with its
+season and episode — across every library and integration, never by a library's item or series item
+([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)). The 65 id-less files of the Tom & Jerry Kids item make no group; The Continental
+filed three times under one IMDb id is one group of three versions, never redundant; the two halves
+of a Mickey Mouse Clubhouse episode are one group of two versions; and an episode of The Grand Tour,
+known as two series items in one library and as one in another, is one work by the show's ids with
+its numbers. A key of TMDb or TVDB carries the work's kind, so a movie and a series sharing a TMDb
+number stay apart, while an IMDb id is one key for every kind, so a film item and the library's
+episode with one IMDb id are one work. The Decision's last sentence — MAM-20's tests pin that a
+shared registry id makes the copy — holds.
+
+**A disagreement is shown for review, never resolved (Vasyl, 2026-10-07).** The Consequences left how
+to show S03E31 and S03E33 to MAM-20: the two works are one same-work group, `needsReview`, with the
+distinction `EpisodeNumbers` — one show, one episode's ids at two places —, each file listed under
+its own work with its own place. Two works with one IMDb id and two TMDb ids are flagged
+`IdentifierConflict` the same way. Neither is merged, and the library keeps both works.
+
+**A file no library reported is a possible match only.** As the Anti-consequence left to MAM-20: by
+what its file name, then its folder's name, claims — a title with one year, read as ADR 0012 reads a
+release's —, against the title keys and years of the library's works and of other such files; never
+by a name that names seasons or episodes, which every episode of a show shares; never a copy of the
+same work, as it has no id; and always for the owner to confirm. The name still makes no file an
+episode and joins it to no work.
+
+**A linked id joins two libraries' copies.** The MAM-34 section's "inside the library whose items it
+links" was the sync's grouping; the duplicates' grouping reads a linked id as a registry key across
+every library ([ADR 0026](0026-a-tmdb-id-set-by-hand-is-the-owners-word-kept-per-library-item-and-written-into-the-library-as-ids-only.md)'s Duplicates section). An episode-to-show link with its
+numbers is the key of the show's own episode, so a film item linked as S01E01 and the library's own
+S01E01 are one work's copies; the film item stays a film and holds none of the show's ids.
+
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_the_files_of_one_item_without_ids`,
+`LibraryDuplicatesSameWorkHttpTests.List_lists_three_movie_items_with_one_imdb_id_as_one_work_never_redundant`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_the_two_halves_of_an_episode_as_versions_of_one_work`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_the_episodes_of_a_series_the_library_knows_as_two_series_items`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_a_movie_and_a_series_sharing_a_tmdb_number_apart`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_a_film_item_and_the_librarys_episode_with_one_imdb_id`,
+`LibraryDuplicatesSameWorkHttpTests.List_flags_two_episodes_with_one_episodes_ids_under_different_numbers_for_review`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_a_film_item_linked_as_an_episode_with_the_librarys_own_episode`,
+`LibraryDuplicatesPossibleHttpTests.List_offers_a_scanned_file_named_with_a_works_title_and_year`,
+`LibraryDuplicatesPossibleHttpTests.List_offers_a_scanned_file_by_its_folders_name` and
+`LibraryDuplicatesPossibleHttpTests.List_never_offers_the_episodes_of_a_show_no_library_reports_as_one_work`
+pin it.

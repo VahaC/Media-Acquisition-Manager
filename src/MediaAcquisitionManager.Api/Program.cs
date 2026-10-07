@@ -62,6 +62,7 @@ public class Program
         builder.Services.AddLibraryFeatures();
         builder.Services.AddLibraryLinkFeatures();
         builder.Services.AddFileFeatures();
+        builder.Services.AddDuplicateFeatures();
         builder.Services.AddReleaseSearchFeatures();
         builder.Services.AddSearchFeatures();
         builder.Services.AddDestinationFeatures();

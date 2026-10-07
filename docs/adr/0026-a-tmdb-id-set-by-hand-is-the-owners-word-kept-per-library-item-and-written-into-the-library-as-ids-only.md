@@ -708,3 +708,23 @@ stop a batch, and an Apply sent and not confirmed is never re-sent by the repair
 a folder, never sends an item update or a refresh, never identifies in a library that saves beside the
 media, never moves or renames anything, never sends an Apply it does not know the fate of again, and
 never changes what kind of item the library says something is.
+
+## Duplicates (added 0.2.1, MAM-20)
+
+**Joining two libraries' copies by a linked id is built.** The Consequences left it to MAM-20: the
+duplicates' grouping reads every film and episode work's ids as every reader counts them — the links
+applied through `ILibraryLinkReader`, never the raw rows — and makes works of every library and
+integration sharing a registry key one work's copies ([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)). A TMDb id the owner linked on
+one library's item joins it to another library's item that Jellyfin gave that id; a wrong id the link
+replaces, still in the raw rows while the library hasn't taken the link, joins nothing and raises no
+conflict; a linked id beside another library's id of its scheme is two values of it, flagged
+`IdentifierConflict` for the owner's review, never resolved; and an episode-to-show link with its
+season and episode joins the film item to the library's own episode at that place. Nothing of it is
+stored or written: the works stay as each sync made them, the links as the owner set them, and
+Jellyfin is never called. Members see the groups as the owner does, without the name of who set a
+link.
+
+`LibraryDuplicatesSameWorkHttpTests.List_groups_two_libraries_copies_by_a_tmdb_id_the_owner_linked`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_copies_by_a_linked_id_in_place_of_the_wrong_one_a_library_gave`
+and `LibraryDuplicatesSameWorkHttpTests.List_groups_a_film_item_linked_as_an_episode_with_the_librarys_own_episode`
+pin it.

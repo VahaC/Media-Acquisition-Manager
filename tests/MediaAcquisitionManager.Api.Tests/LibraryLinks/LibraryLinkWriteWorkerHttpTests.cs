@@ -170,7 +170,10 @@ public sealed class LibraryLinkWriteWorkerHttpTests : IClassFixture<MediaAcquisi
 
         //Assert
         var links = await _factory.LinksAsync(cancellationToken);
-        Assert.All(links, link => Assert.Equal(LibraryLinkWriteState.Written, link.WriteState));
+        // A link left not written names why: an exception the writer logged first, then each link's sentence beside its state.
+        // This test failed once in a full run (2026-10-07) with a bare "Written ≠ NotWritten", and never again in forty runs.
+        Assert.DoesNotContain(_factory.Logs.Entries, entry => entry.Level >= LogLevel.Error);
+        Assert.All(links, link => Assert.Equal((LibraryLinkWriteState.Written, (string?)null), (link.WriteState, link.WriteError)));
         // The two Applies ran at the same time: the series didn't hold the film back, nor the film the series.
         var film = _jellyfin.Applied.Single(applied => applied.ItemId == ShortId);
         var series = _jellyfin.Applied.Single(applied => applied.ItemId == PenguinsId);

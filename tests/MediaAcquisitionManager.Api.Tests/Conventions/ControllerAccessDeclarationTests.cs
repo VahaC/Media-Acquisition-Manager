@@ -58,6 +58,8 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("LibraryController.Works", actions);
         // MAM-35 — a GET outside Controllers/Library/Links: every signed-in user's, like the works it pictures.
         Assert.Contains("LibraryController.Poster", actions);
+        // MAM-20 — a GET outside Controllers/Library/Links: every signed-in user's, like the works it groups.
+        Assert.Contains("LibraryDuplicatesController.List", actions);
         Assert.Contains("LibrarySyncController.Start", actions);
         Assert.Contains("LibrarySyncController.GetRun", actions);
         Assert.Contains("AllowedRootsController.Get", actions);

@@ -93,7 +93,7 @@ public sealed partial class RecommendationRunner
                     .Where(link => read.ContainsKey(link.WorkId))
                     .Select(link => new ShowLink(read[link.WorkId], link.Value.Trim(), link.ImdbId?.Trim(), link.SeasonNumber)),
             ],
-            [.. scanned.SelectMany(FileClaims)]);
+            [.. scanned.SelectMany(FileNameClaims.Read)]);
 
         foreach (var work in library.Works)
         {
@@ -168,27 +168,6 @@ public sealed partial class RecommendationRunner
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// What a scan-found file's name claims (<see cref="ReleaseWorkClaims.Read"/>): its file name without the
-    /// extension, then its folder's name — "Aliens (1986)/aliens.mkv" names its work by the folder. A name that
-    /// names no year claims nothing.
-    /// </summary>
-    private static IEnumerable<WorkClaim> FileClaims(string path)
-    {
-        var parts = path.Split('/', '\\', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0)
-            yield break;
-
-        foreach (var name in new[] { Path.GetFileNameWithoutExtension(parts[^1]), parts.Length > 1 ? parts[^2] : null })
-        {
-            if (name is null)
-                continue;
-            var read = ReleaseWorkClaims.Read(name);
-            if (read.Titles.Count > 0 && read.Year is not null)
-                yield return new WorkClaim(read.Titles, ClaimedYears.Exactly(read.Year), []);
-        }
     }
 
     /// <summary>The title a work's Library card shows (<c>LibraryMapper</c>'s pick): a displayed title, else an

@@ -584,6 +584,65 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `SearchesLibraryPostersHttpTests`, `JellyfinAdapterPostersTests`, `LibraryPoster.test.tsx` and
   `LibraryWorkCard.poster.test.tsx` pin it.
 
+- **The library's file names are grouped into the four duplicate classes of the specification
+  (MAM-20, ADR 0028, Vasyl's decisions of 2026-10-07).** Worked out on every read from what the
+  syncs, the scan, the inspection, its hashing and the owner's TMDb links stored, nothing stored of
+  its own: the names of one file by the device and inode the app read (`SameFile`); files of two
+  identities or more with one SHA-256, each with all its names (`ByteIdentical`); film and episode
+  works of every library and integration that share a registry key — an IMDb id whatever the kind,
+  a TMDb or TVDB id within the work's kind, an episode's series' ids with its season and episode,
+  and an episode-to-show link with its numbers, so a film item linked as S01E01 and the library's
+  own S01E01 are one work — and hold two different files in two different copies (`SameWork`); and
+  works, and names only the scan found, that share a title key with its own year and that no kind,
+  id or episode place keeps apart (`Possible`), a scanned name read by its file name, then its
+  folder's name, and never when either names seasons or episodes. The 65 id-less files of one item
+  make no group, and no copy of a work is called redundant. Works whose ids disagree stay one group,
+  flagged for review with the disagreement (`IdentifierConflict` with its scheme, `ofSeries` for two
+  shows, `EpisodeNumbers` for one episode's ids at two places); copies whose edition words — sixteen,
+  English and Ukrainian, read from the file name and the library's version name, the words of the
+  work's own titles left out — or whose measured dynamic ranges differ are flagged `Edition` or
+  `DynamicRange`; a possible match always needs review and says whether the measured durations agree
+  (2 minutes or 10 %). A file a torrent seeds is classed like any other, and no download client is
+  asked (ADR 0018).
+  `GET /api/library/duplicates?class=&page=1&pageSize=25` answers `{ items, totalCount, page,
+  pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }],
+  evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme,
+  value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree }, files: [{ file,
+  readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year,
+  episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable
+  }`, by class in that order, then by the title the Library card of the group's first work shows,
+  then by `key` — 32 hex characters that name the group on every read while what makes it one stays,
+  for the Duplicates page (MAM-21) to address it by —; each class fills its part of `evidence`. A
+  `file` is the Library's own (`appPath`, `pathStatus`, `inspection`…), `space` counts each file once
+  by its identity, never with a library's size, and `recoverable` `{ sizeBytes, gap }` is `0` for a
+  same-file group, `null` for the copies of a work and for a possible match, and for a byte-identical
+  group every copy's size but the largest's only where each copy's file system, read from Linux's
+  mount table by device, is known not to share blocks and its link count is the names the app knows;
+  else no size, with `gap` `SharingFileSystem` (btrfs, ZFS, XFS…), `UnknownFileSystem` (a network
+  share, an overlay, a device the table doesn't name, and always on Windows) or `UnlistedNames`, the
+  first that applies in that order. `class` is `SameFile`, `ByteIdentical`, `SameWork` or `Possible`
+  in any letter case, never a number; 400 "Page must be 1 or more." or "Page size must be between 1
+  and 100." (checked first), or "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork
+  or Possible.", the value cut to 32 characters and "…"; a page past the end is empty with the total.
+  Every signed-in user reads it, like the Library; a file's `pathProblem` and inspection `problem`
+  and the name of who set a linked id are the owner's, `null` for everyone else. It writes no row and
+  no audit event, and removes nothing; there is no page for it yet (MAM-21).
+  `LibraryDuplicatesHttpTests`, `LibraryDuplicatesSameFileHttpTests`,
+  `LibraryDuplicatesByteIdenticalHttpTests`, `LibraryDuplicatesSameWorkHttpTests`,
+  `LibraryDuplicatesPossibleHttpTests`, `RegistryKeysTests`, `EditionLabelsTests`,
+  `FileSystemSharingTests` and `DurationAgreementTests` pin it.
+- **The file inventory names the file system a device holds (MAM-20, ADR 0028).**
+  `IFileInventory.DescribeFileSystemsAsync` answers each device asked, in order, with the type the
+  system's mount table gives it: on Linux `/proc/self/mountinfo`, read once per call, the device
+  found by its `major:minor` (the inverse of glibc's `makedev`), its type after the line's ` - `;
+  `null` for a device no line names or whose lines disagree, for every device when the table can't be
+  read, and on any other platform. It reads no library file, so it takes no allowed root, and never
+  throws. The Duplicates list asks it only for the devices of byte-identical groups, and only when
+  the list asked for is of every class or of `ByteIdentical`. `MountTableTests`,
+  `LocalFileInventoryFileSystemLinuxTests` (Linux only) and
+  `LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_of_byte_identical_groups`
+  pin it.
+
 ### Changed
 
 - **A film filed in TV/Anime or TV/Documentary is a movie, and the movie search finds it (MAM-33, ADR
@@ -721,6 +780,17 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   class `.poster-box` in `poster-box.css`, replacing `.catalog-poster` and `catalog-poster.css`), and
   looks as before.
 
+- **A file no library reported keeps a work out of the recommendations by its folder's name on a
+  Windows-style path too (MAM-20, MAM-33, ADR 0028).** The reading of a scanned file's name — its
+  file name without the extension, then its folder's name, each a title with its year — moved from
+  the recommendations to Core (`FileNameClaims`), so the Duplicates list's possible matches read a
+  name the same way. It moved with one fix: a backslash separates folders as a slash does, so a path
+  like `D:\Movies\Aliens (1986)\aliens.mkv` now claims "Aliens" of 1986 by its folder, where before
+  the whole path was read as one name and claimed nothing. A path with slashes, as the scan stores
+  on Linux, reads as before.
+  `RecommendationExclusionsHttpTests.Recompute_leaves_out_a_work_a_scan_found_files_name_claims` and
+  `FileNameClaimsTests.Read_claims_by_the_folders_name_when_the_file_name_has_no_year` pin it.
+
 ### Notes for upgraders
 
 - **Applying `AddReleaseDescription`, `AddRecommendations` and `AddRecommendationRunProgress`
@@ -804,6 +874,13 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   poster a Library or Search card has shown, about 35 KB each, and is never pruned — an older
   picture's file stays after Jellyfin's picture changes —; it needs no backup, as a missing one is
   fetched again while its Jellyfin integration is switched on.
+- **The duplicate groups need no migration and nothing switched on (MAM-20).** They are worked out
+  from what the database already holds whenever they are asked for, so no table or column is added.
+  What they can show grows with what the app has read: a same-file or byte-identical group needs the
+  files inspected — and the possible copies hashed — inside the media folders the owner allowed, a
+  name only the scan found needs a scan, and a link the owner sets counts at once. On the reference
+  installation, where no two video files share a size, the byte-identical class stays empty. The
+  Duplicates page is MAM-21's; until then the groups are read through `GET /api/library/duplicates`.
 
 ## [0.2.0] — 2026-10-04
 

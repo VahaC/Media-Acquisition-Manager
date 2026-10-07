@@ -70,6 +70,12 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     internal Action<long>? AfterHashChunk { get; init; }
 
     /// <summary>
+    /// MAM-20 — the mount table <see cref="DescribeFileSystemsAsync"/> reads on Linux: the process's own; a test points
+    /// it at a file that isn't there.
+    /// </summary>
+    internal string MountInfoPath { get; init; } = "/proc/self/mountinfo";
+
+    /// <summary>
     /// MAM-19 — 1 MiB per read: the hash reads a file from its start to its end, so a large read is one long
     /// sequential transfer from a spinning disk, eight times the Linux read-ahead window; more saves nothing
     /// measurable and holds more memory per file read.
@@ -201,6 +207,35 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     public IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
         IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default) =>
         FolderWalker.WalkAsync(UsableRoots(allowedRoots), Reader, MaximumListedFolders, MaximumListedEntries, cancellationToken);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// MAM-20, ADR 0028 — on Linux the process's own mount table, read once per call (<see cref="MountTable"/>), so a
+    /// container sees the mounts it was given. Anywhere else every type is unknown: Windows' device id is a volume's
+    /// serial number, with no mount table to look it up in, and an unknown type gives no estimate where a guess could
+    /// give a wrong one.
+    /// </remarks>
+    public async Task<IReadOnlyList<DeviceFileSystem>> DescribeFileSystemsAsync(
+        IReadOnlyCollection<long> deviceIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(deviceIds);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        string? mountInfo = null;
+        if (OperatingSystem.IsLinux() && deviceIds.Count > 0)
+        {
+            try
+            {
+                mountInfo = await File.ReadAllTextAsync(MountInfoPath, cancellationToken);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Unknown, never a failure: no estimate is the answer when the table can't be read.
+            }
+        }
+
+        return [.. deviceIds.Select(deviceId => new DeviceFileSystem(deviceId, mountInfo is null ? null : MountTable.FileSystemTypeOf(mountInfo, deviceId)))];
+    }
 
     /// <summary>
     /// Where <paramref name="appPath"/> really is, once every check has passed: inside an allowed root by its

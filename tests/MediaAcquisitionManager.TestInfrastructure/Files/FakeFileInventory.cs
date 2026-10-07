@@ -41,6 +41,10 @@ namespace MediaAcquisitionManager.TestInfrastructure.Files;
 /// byte-identical copy is always a test's deliberate choice.
 /// </para>
 /// <para>
+/// MAM-20 — every device holds <see cref="DefaultFileSystem"/> unless a test plants another
+/// (<see cref="SetFileSystem"/>), and every device asked is recorded (<see cref="DescribedDevices"/>).
+/// </para>
+/// <para>
 /// Thread-safe: a run looks at and reads two files at a time. Every call is recorded, and
 /// <see cref="MostReadsAtOnce"/> and <see cref="MostHashesAtOnce"/> keep how many reads and hashes overlapped.
 /// </para>
@@ -49,6 +53,12 @@ public sealed class FakeFileInventory : IFileInventory
 {
     /// <summary>What the inspector says about a file a test added without media facts.</summary>
     public const string UnreadableMediaError = "ffprobe couldn't read “{0}” as media: Invalid data found when processing input.";
+
+    /// <summary>
+    /// MAM-20 — the file system every device holds unless a test says otherwise (<see cref="SetFileSystem"/>): one whose
+    /// files never share blocks, so a byte-identical copy's room is estimated by default.
+    /// </summary>
+    public const string DefaultFileSystem = "ext4";
 
     private readonly ConcurrentDictionary<string, FakeFile> _files = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _described = new();
@@ -59,6 +69,8 @@ public sealed class FakeFileInventory : IFileInventory
     private readonly ConcurrentQueue<IReadOnlyList<string>> _listedRoots = new();
     private readonly ConcurrentQueue<string> _hashed = new();
     private readonly ConcurrentQueue<IReadOnlyList<string>> _hashRootsGiven = new();
+    private readonly ConcurrentDictionary<long, string?> _fileSystems = new();
+    private readonly ConcurrentQueue<long> _describedDevices = new();
     private int _readsUnderWay;
     private int _mostReadsAtOnce;
     private int _hashesUnderWay;
@@ -109,6 +121,15 @@ public sealed class FakeFileInventory : IFileInventory
 
     /// <summary>MAM-19 — the most hashes that were under way at the same moment.</summary>
     public int MostHashesAtOnce => Volatile.Read(ref _mostHashesAtOnce);
+
+    /// <summary>MAM-20 — every device whose file system was asked for, in call order, as often as asked.</summary>
+    public IReadOnlyList<long> DescribedDevices => [.. _describedDevices];
+
+    /// <summary>
+    /// MAM-20 — the device <paramref name="deviceId"/> holds a file system of <paramref name="type"/> (<c>btrfs</c>,
+    /// <c>zfs</c>), or an unknown one when <c>null</c>, instead of <see cref="DefaultFileSystem"/>.
+    /// </summary>
+    public void SetFileSystem(long deviceId, string? type) => _fileSystems[deviceId] = type;
 
     /// <summary>
     /// A regular file at <paramref name="appPath"/> the file system describes with
@@ -180,11 +201,13 @@ public sealed class FakeFileInventory : IFileInventory
         _linkedNames.TryRemove(appPath, out _);
     }
 
-    /// <summary>No files, linked names or listing problems, no recorded calls, no hooks, and identity
-    /// reported.</summary>
+    /// <summary>No files, linked names or listing problems, no recorded calls, no hooks, identity reported, and
+    /// (MAM-20) every device on <see cref="DefaultFileSystem"/>.</summary>
     public void Reset()
     {
         _files.Clear();
+        _fileSystems.Clear();
+        _describedDevices.Clear();
         _linkedNames.Clear();
         _listingProblems.Clear();
         _described.Clear();
@@ -283,6 +306,18 @@ public sealed class FakeFileInventory : IFileInventory
                     yield break;
             }
         }
+    }
+
+    /// <summary>MAM-20 — each device's file system: <see cref="DefaultFileSystem"/> unless
+    /// <see cref="SetFileSystem"/> said otherwise; every device asked is recorded.</summary>
+    public Task<IReadOnlyList<DeviceFileSystem>> DescribeFileSystemsAsync(
+        IReadOnlyCollection<long> deviceIds, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var deviceId in deviceIds)
+            _describedDevices.Enqueue(deviceId);
+        return Task.FromResult<IReadOnlyList<DeviceFileSystem>>(
+            [.. deviceIds.Select(deviceId => new DeviceFileSystem(deviceId, _fileSystems.TryGetValue(deviceId, out var type) ? type : DefaultFileSystem))]);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

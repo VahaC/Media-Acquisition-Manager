@@ -21,7 +21,10 @@ the library doesn't have yet, each with why it is there and what the release sou
 and downloads one through the Search page like any other; and the owner links a library work without
 a TMDb id to its TMDb film or show, picked from the app's suggestions, and Jellyfin identifies the
 item as it — its title, overview and images become TMDb's — in the background; and every library
-work's card shows its own poster from Jellyfin; see [ROADMAP.md](ROADMAP.md).
+work's card shows its own poster from Jellyfin; and the app sorts the library's files into the
+specification's four kinds of duplicate — one file's names, byte-identical copies, other copies of
+one movie or episode, and possible matches —, which every signed-in user reads through the API while
+the page that shows them is still to come; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -189,7 +192,27 @@ application.
   0022](docs/adr/0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md),
   [ADR
   0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
-  The hashes aren't shown yet: grouping the copies on a Duplicates page is still to come.
+  The Duplicates list groups the copies by these hashes (below); the page that shows them is still
+  to come.
+- **Duplicates, sorted as the specification sorts them.** The app works out on every read, from what
+  it already holds, which file names are one file (one device and inode), which files are
+  byte-identical (one SHA-256), which are other copies of one movie or episode — works of any
+  library or integration that share a registry id: an IMDb id, a TMDb or TVDB id of the same kind of
+  work, an episode's series' id with its season and episode, or a TMDb link the owner set, so a film
+  item linked as an episode joins the library's own episode — and which are possible matches by a
+  title and its year where no id settles it, a file only the scan found included by its file or
+  folder name. The 65 id-less files of one item are no copies, a movie and a series sharing a TMDb
+  number stay apart, and two series items of one show are one show. Nothing is called redundant and
+  nothing is merged: different cuts and editions, read from words in the file or version names in
+  English and Ukrainian, different measured dynamic ranges and ids that disagree (two TMDb ids under
+  one IMDb id, one episode's ids at two places) are flagged for review, and a possible match always
+  needs it, with whether the measured durations agree. The room removing a copy would free is given
+  for byte-identical files only, and only on a file system known not to share blocks between files,
+  read from Linux's mount table — btrfs, ZFS, XFS, a network share and Windows give none, with the
+  reason. A file a torrent seeds is classed like any other, and no download client is asked. Every
+  signed-in user reads the groups through `GET /api/library/duplicates`; nothing is stored or
+  removed, and the Duplicates page, with confirm and dismiss, is still to come (MAM-21)
+  ([ADR 0028](docs/adr/0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)).
 - **The Sources card and Refresh all.** The card at the top of the Library page is one status bar: an
   item for each media library, for the media folders and for the file inspection, with an icon, when it
   last ran or how far it has got, amber chips for what needs a look — files without an app path, files in
@@ -508,6 +531,15 @@ Not tried live yet:
 - Hardlinks and byte-identical copies (MAM-19): the reference installation has no file with a second
   name and no two video files of one size (MAM-17), so the space counted once per file and the
   hashing of the files that could be copies rest on the tests; MAM-22 does the live check.
+- The duplicate groups (MAM-20): the development database holds no file identity, link count, hash,
+  duration or dynamic range, and production no hardlink and no two video files of one size, so the
+  same-file and byte-identical classes, the dynamic-range flag and the space estimate rest on the
+  tests. A copy of the development database (Jellyfin synced on 2026-10-07, never inspected) gave,
+  through the endpoint in the test host, the 46 same-work groups the rules predict — the 17 movies
+  with several files, the 8 Mickey Mouse Clubhouse halves, S03E31/S03E33 and the 20 Penguins of
+  Madagascar pairs, 34 of them flagged for review — and no possible match. The file system of a
+  device was read from a real mount table only in a Linux container (overlayfs); MAM-22 does the
+  live check.
 - The app's checks of Toloka for the recommended works within the users' limits, its reading of
   Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
   the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
@@ -531,8 +563,10 @@ Not tried live yet:
 
 - **Link a download by hand.** Tie a job the app couldn't tell apart from the client's other
   downloads (**Needs linking**) to the right one, so it is followed like any other.
-- **Detect duplicates without conflating different editions.** Distinguish hardlinks,
-  byte-identical files, different versions of the same title, and uncertain matches.
+- **Show duplicates without conflating different editions.** The grouping into hardlinks,
+  byte-identical files, other copies of the same work and possible matches is built (above); the
+  Duplicates page, with a filter per class, the evidence behind each group and confirm or dismiss, is
+  still to come (MAM-21).
 - **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
   the specific new file, its identity, and its visibility to the media server before moving the
   specific old copy into quarantine where possible.
@@ -681,6 +715,9 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   browser sees, and following no redirect —; why a fetch failed, masked of the key, goes to the
   owner alone, and everyone else reads "The media library couldn't send this poster."
   ([ADR 0027](docs/adr/0027-a-library-works-poster-is-the-librarys-own-image-read-by-the-syncs-tag-and-served-by-the-app.md)).
+  The duplicate groups are everyone's to read as well (`GET /api/library/duplicates`, MAM-20): they
+  read only what the library, the scan and the inspection stored, never a file or a download client,
+  and a file's path or inspection problem and the name of who set a linked id stay the owner's.
 - **Linking works to TMDb is the owner's alone, reads included.** The link endpoints live in
   `Controllers/Library/Links`, and every action there is owner-only because of where it lives
   (`LibraryLinksAreOwnerOnlyConvention`), GETs too: they spend the owner's TMDb token, and say why
@@ -796,8 +833,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   computation of the recommendations writes none either, its run row recording who asked for it, and
   neither does a user's "Not interested", its undo or a save of their Profile's recommendation
   settings, which are that user's own preferences, nor a check of the release sources for a
-  recommended work, nor a preparation of the TMDb suggestions or the owner's "none fits". There is
-  no screen for it yet.
+  recommended work, nor a preparation of the TMDb suggestions or the owner's "none fits"; reading
+  the duplicate groups writes none, nor anything else. There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys, TMDb's API Read Access Token and
   the qBittorrent password are stored encrypted with AES-256-GCM under `Encryption:Key`, each sealed
   to its integration and field, so a value copied to another row or column doesn't open. The API
@@ -1066,6 +1103,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link, posterUrl }`, ordered by `sort` — `Title` by default, in Ukrainian alphabetical order (Latin titles after Cyrillic ones), `TitleDescending`, `Newest` or `Oldest` by the year the card shows (a work with none last either way), `Largest` by the sizes of its files added up (a series' episodes' files too; a work with no size last) or `Added` by when the app first saw it (a series by its latest episode), each read by name in any letter case and each falling back to the title order, so the order is total (MAM-8); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue, identified, underWay }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only, `identified` true when the work has an item `Written` or `InLibrary` and every such item has an `identifiedUtc`, and `underWay` true when any item's link is `Queued` or `Writing` (the page asks again while it is), both everyone's. `posterUrl` (MAM-35) is `/api/library/posters/{itemId}-{tag}.jpg`, the poster of the item whose title the work shows, else of the next item that has one, or `null` when Jellyfin holds no picture of any of them (ADR 0027). `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, an unknown kind ("“x” is not a kind filter. Use Movie or Series.") or an unknown sort ("“x” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added."). |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
 | `GET /api/library/posters/{fileName}` | Every signed-in user. A library work's own poster, as a work's `posterUrl` names it — `{itemId}-{tag}.jpg`, each half 1 to 64 letters and digits: 200 with the bytes, `image/jpeg`, and `Cache-Control: private, max-age=2592000, immutable`, only for an item id and tag a sync stored. The first request fetches it from the Jellyfin that reported it — `GET /Items/{id}/Images/Primary?tag=…&format=Jpg&maxWidth=342&quality=90`, the key in the header — and keeps it in `<data>/library-posters/`, which is never pruned; later ones read it from there, whatever the library's state (ADR 0027). A bare 404 for a name that is no poster file name, one no library reported (a removed library's included), one not kept while its library is switched off or of a type that can't read a library, and one Jellyfin has no image for or no longer knows. 502 when Jellyfin couldn't send it — its sentence, masked of the key, for the owner, and "The media library couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
+| `GET /api/library/duplicates?class=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows, then by `key`, 32 hex characters that name the group while what makes it one stays. `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `EpisodeNumbers`, `Edition` and `DynamicRange`, and `needsReview` is true with any, and always for `Possible`. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100." or "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible." (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
 | `GET /api/library/sources` | 200 `{ items, inspection, scan }`, each media library integration `{ integrationId, name, adapterDisplayName, isEnabled, canReadLibrary, latestRun, lastSucceededRun, filesWithoutAppPathCount, pathProblem, inspection: { inspectedCount, problemCount, notInspectedCount, problem }, space }`, by name, `inspection` `{ hasAllowedRoots, activeRun, lastFinishedRun, hasQueuedRun, space }` for the whole library, each run as `GET /api/library/inspections/{runId}` gives it, and `scan` `{ activeRun, lastFinishedRun, hasQueuedRun, files, space }` for the media folders (ADR 0021), each run as `GET /api/library/scans/{runId}` gives it; an active run is the running one, else the queued one. `files` counts the names the scans stored that no file a library reported maps to now, as each library's `inspection` counts its files, so a sync that starts reporting a path, or a fixed path mapping, takes a name off at once; a scanned name never counts in a library's row. `space` `{ sizeBytes, fileCount, nameCount, unmeasuredCount }` is the room the files take on disk (ADR 0018, ADR 0022), counted when read over the integration's file names, over every stored file name for `inspection`, and over the names `files` counts for `scan`: each file once by its device and inode, with the size the app's last look read, never the size a library reported; `nameCount` is the names that lead to those files, and `unmeasuredCount` the names with no identity or size read, left out of `sizeBytes`. `pathProblem`, `problem` and each run's `requestedByUserName`, `problem`, `hashing.problem` and `error` only for the owner, `null` for everyone else; `space` is everyone's. |
 | `POST /api/library/sources/{integrationId}/syncs` | Owner only. 202 with the queued run and its `Location`; the sync runs in the background. 404 for an unknown integration or one that isn't a media library; 409 when it is switched off, its type can't read a library, or a sync of it is under way; 503 when too many syncs are waiting. |
@@ -1489,6 +1527,40 @@ cache and security headers, served from disk, a library switched off or removed,
 `PosterBox.test.tsx`, `LibraryPoster.test.tsx`, `LibraryWorkCard.poster.test.tsx` and
 `library-api.test.ts` (the poster URL guard) cover it.
 
+The duplicate groups (MAM-20) are tested over HTTP, one class per test class, with identities and
+hashes planted through `FakeFileInventory` and an inspection, libraries synced from
+`FakeJellyfinServer` or seeded, and names the scan found. `LibraryDuplicatesHttpTests` covers 401, an empty page before
+any sync, every 400 sentence (a 500-character class cut to 32), the class in any letter case, the
+filter and the paging, the order, a member's answer without the owner's path problems, and the
+names on the wire. `LibraryDuplicatesSameFileHttpTests` covers two hardlink names counted once and
+freeing nothing, one path two libraries report, a scanned name of a library's file, a scanned name a
+library reports now, and names without an identity. `LibraryDuplicatesByteIdenticalHttpTests`
+covers the estimate on ext4, none on btrfs, ZFS or XFS, on an unknown file system, with a name the
+app never found or an unknown link count, the reason that comes first, one file with two names, a
+seeded file with a qBittorrent that is never asked, a hash kept for a file changed since, a scanned
+copy, and the file system asked only of byte-identical groups. `LibraryDuplicatesSameWorkHttpTests`
+covers one movie in two libraries by its IMDb id, a TMDb id the owner linked and the wrong id it
+replaces, The Continental's three items, the Tom & Jerry Kids item, the halves of an episode, S03E31
+and S03E33, one IMDb id with two TMDb ids, two shows' ids, The Grand Tour's two series items, a movie
+and a series — and a film, a show and its episode synced — sharing a TMDb number, a film item and an
+episode with one IMDb id, a film item linked as an episode, different cuts, a version's name, a
+title's own edition words, measured dynamic ranges, similar titles and years, and a work with one
+file, one version in parts or one file in two libraries. `LibraryDuplicatesPossibleHttpTests` covers
+two id-less works, a similar title or another year, ids that differ or share no scheme, a movie and
+an episode, a scanned file by its name, its folder's name or another scanned file's, an unreported
+season, works kept apart beside an id-less one, episodes of two shows or two places and one episode
+in two libraries, editions, a name without a year, the durations, and a work never offered with
+itself or with a work it already is. In Core, `RegistryKeysTests` (an IMDb key whatever the kind,
+the others within it, an episode's show keys), `EditionLabelsTests` (every edition, letter case, the
+apostrophes and separators, whole words, the reference library's names, a title's own words),
+`FileSystemSharingTests`, `DurationAgreementTests` and `FileNameClaimsTests` (the file name, then the
+folder's, either separator, a season or episode marker); in Infrastructure, `MountTableTests` (the
+`major:minor` of a small and a large device, the optional fields, bind mounts that agree or
+disagree, no line, an escaped space, a malformed line) and, on Linux only,
+`LocalFileInventoryFileSystemLinuxTests` (the real mount table for a temporary file's device, a
+device no mount names, the order of the answers, a table that can't be read).
+`ControllerAccessDeclarationTests` covers the new controller's gate.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -1513,8 +1585,8 @@ src/
                                                and sessions, user management, integration
                                                settings, the library and its background sync,
                                                the media folders, the file inspection with its
-                                               hashing, the room the files take, the scan of
-                                               the media folders, the
+                                               hashing, the room the files take, the duplicate
+                                               groups, the scan of the media folders, the
                                                release search, the stored searches and their
                                                library matches, the download destinations, the
                                                downloads sent to a client and their following,
@@ -1541,13 +1613,16 @@ src/
                                                catalog lookup, and the TMDb links' rules: a
                                                linked id against the library's, the suggestions'
                                                evidence and order, re-attaching by files, and
-                                               reading a pasted link; no package references
+                                               reading a pasted link, and the duplicate
+                                               classes: registry keys, edition labels, which
+                                               file systems share blocks, and the reading of a
+                                               scanned file's name; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
                                                Jellyfin, Torznab, qBittorrent and TMDb
                                                adapters, the local file inventory with its
-                                               walk of the media folders and its hash, and
-                                               ffprobe
+                                               walk of the media folders, its hash and the
+                                               mount table's file system types, and ffprobe
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
@@ -1596,7 +1671,8 @@ MAM-36).
    documentaries the library doesn't have yet, from TMDb, with what the release sources carry of
    them (built, 0.2.1), and let the owner link a work without an id to its TMDb film or show, identified
    by Jellyfin (built, 0.2.1), and show each library work's own poster from Jellyfin (built,
-   0.2.1). Label exact, same-work, and possible matches separately, for movies and episodes alike.
+   0.2.1). Group exact, same-work, and possible matches separately, for movies and episodes alike
+   (built, 0.2.1), and show them on a Duplicates page.
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different

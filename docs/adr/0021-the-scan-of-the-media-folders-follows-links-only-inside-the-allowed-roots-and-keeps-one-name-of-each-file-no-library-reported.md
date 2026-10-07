@@ -173,3 +173,27 @@ roots are still no licence to write (Phase C). A stored name says nothing about 
 belongs to no work and no version, shows in no works list, search or match, and no file or folder
 name makes it a movie or an episode (ADR 0017); how such a file becomes a possible match is MAM-20's
 to decide.
+
+## Duplicates (added 0.2.1, MAM-20)
+
+**MAM-20 reads the one table of names, as the Consequences said.** The duplicates' grouping reads
+the scan's names from `PhysicalFiles` beside the libraries', each with the identity, size and
+modification time the inspection read, and tells a name no library reports only at read time through
+`LibraryAppPaths`: a scan row whose path a library reports now is left out, so it never looks like
+a second name of its own file ([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)). A scanned name with the identity of a library's
+file is a second name of that file, and a scanned file with a library file's SHA-256 a byte-identical
+copy of it.
+
+**How a scanned name becomes a possible match, as the Anti-consequence left to MAM-20.** It is a
+subject of its own, offered beside a library work or another scanned name only by what its file name,
+then its folder's name, claims — a title with one year —, and never when either names seasons or
+episodes. It still belongs to no work and no version, is never a copy of the same work, and each
+match is for the owner to confirm.
+
+`LibraryDuplicatesSameFileHttpTests.List_leaves_out_a_scanned_name_a_library_reports_now`,
+`LibraryDuplicatesSameFileHttpTests.List_groups_a_scanned_hardlink_name_with_the_librarys_name`,
+`LibraryDuplicatesByteIdenticalHttpTests.List_groups_a_scanned_copy_with_a_library_file`,
+`LibraryDuplicatesPossibleHttpTests.List_offers_a_scanned_file_named_with_a_works_title_and_year`,
+`LibraryDuplicatesPossibleHttpTests.List_offers_a_scanned_file_by_its_folders_name`,
+`LibraryDuplicatesPossibleHttpTests.List_offers_two_scanned_files_named_with_one_title_and_year` and
+`LibraryDuplicatesPossibleHttpTests.List_never_offers_a_scanned_file_whose_name_has_no_year` pin it.
