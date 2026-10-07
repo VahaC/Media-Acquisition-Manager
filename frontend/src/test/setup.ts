@@ -1,7 +1,14 @@
 import '@testing-library/jest-dom/vitest'
+import { configure } from '@testing-library/react'
 // The app's own i18n instance with the real English resources, the way main.tsx starts it. An
 // assertion on English copy therefore also proves that its key resolves.
 import '@/lib/i18n'
+
+// findBy* and waitFor give up after one second by default. On the CI agent, with a jsdom per test
+// file and the backend tests running beside it, a render took 1.2-1.3 s and build #43 failed on two
+// tests that pass on any rerun. Four seconds still ends a test that waits for something that never
+// comes, well inside the test timeout (vitest.config.ts).
+configure({ asyncUtilTimeout: 4000 })
 
 // Browser APIs jsdom does not implement. Radix calls some of them while it mounts a dialog; the
 // rest are here so the first component that needs one doesn't fail with an unrelated TypeError.
