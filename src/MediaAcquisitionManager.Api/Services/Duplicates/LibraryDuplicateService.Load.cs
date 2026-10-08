@@ -161,7 +161,13 @@ public sealed partial class LibraryDuplicateService
                     .Order()],
                 // MAM-20 — only a name no library reported meets a work by its name; a library's says what it is. An
                 // episode's name claims its show's title and year, as all its show's episodes do: none is offered by it.
-                holders.Count == 0 ? FileNameClaims.ReadUnlessEpisode(shown.ServicePath) : []));
+                holders.Count == 0 ? FileNameClaims.ReadUnlessEpisode(shown.ServicePath) : [],
+                // MAM-37 — an episode's "a" and "b" files are no copies of each other, and only their names say which is
+                // which: Jellyfin gives both one episode's numbers and ids.
+                EpisodeSegments.Read(FileNameOf(shown.ServicePath)),
+                // MAM-37 — and a film filed under another's ids is no copy of it when the names claim other years:
+                // Jellyfin made Blade Runner 2049's file a version of the 1982 film's item.
+                FileNameYear.Read(FileNameOf(shown.ServicePath))));
         }
 
         var heldIds = names.SelectMany(name => name.Holders).Select(holder => holder.WorkId).Distinct().ToList();
@@ -219,7 +225,7 @@ public sealed partial class LibraryDuplicateService
             .Concat(positions[workId].Select(position => position.SeriesWorkId).OfType<Guid>().SelectMany(seriesId => titles[seriesId]))
             .Select(title => title.Text);
 
-    // The last name of a path in either style: where a file's name says its edition.
+    // The last name of a path in either style: where a file's name says its edition, an episode's segment and its year.
     private static string FileNameOf(string path) => path[(path.LastIndexOfAny(['/', '\\']) + 1)..];
 
     /// <summary>What one read of the library gives the grouping and the page.</summary>

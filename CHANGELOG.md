@@ -602,8 +602,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   English and Ukrainian, read from the file name and the library's version name, the words of the
   work's own titles left out — or whose measured dynamic ranges differ are flagged `Edition` or
   `DynamicRange`; a possible match always needs review and says whether the measured durations agree
-  (2 minutes or 10 %). A file a torrent seeds is classed like any other, and no download client is
-  asked (ADR 0018).
+  (2 minutes or 10 %). (MAM-37 below changes this: two episodes of one show at different places
+  are never one group, so `EpisodeNumbers` is gone, and copies whose names say different editions
+  are no copies of each other, so `Edition` flags a possible match only.) A file a torrent seeds is
+  classed like any other, and no download client is asked (ADR 0018).
   `GET /api/library/duplicates?class=&page=1&pageSize=25` answers `{ items, totalCount, page,
   pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }],
   evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme,
@@ -658,7 +660,9 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   under it —, else by the title and year a possible match offers or its first file's name, with its
   class, **Needs review** while it needs review and is undecided, **Confirmed** or **Dismissed** once
   decided, and what tells its files apart as warning badges ("TMDb ids differ", "Their shows' TVDB
-  ids differ", "Episode numbers differ", "Editions differ", "Dynamic ranges differ"). The server
+  ids differ", "Episode numbers differ", "Editions differ", "Dynamic ranges differ"; MAM-37 below
+  drops "Episode numbers differ", leaves "Editions differ" to possible matches and adds "Running
+  times differ"). The server
   lists the groups in the order of those headings: by class, then by the title the card is headed by
   — an episode's group by its series' title, then its season (the specials after the numbered
   seasons, a place without a season last) and its number —, then by key; ordered by the episode's
@@ -767,8 +771,12 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `[01] Blade Runner (1982) [The Final Cut]` with `[02] Blade Runner 2049 (2017)`, whose item
   Jellyfin gives the 1982 film's IMDb tt0083658 and TMDb 78, flagged only through The Final Cut, and
   «Ніж у воді» (1962), the film with a 26.7 min featurette under IMDb tt0056291 and TMDb 11502, not
-  flagged, as the class doesn't compare running times; MAM-37 (to do) asks for a "running times
-  differ" distinction. Ghostbusters of 1984 and 2016, RoboCop of 1987 and 2014, the two «Апгрейд»
+  flagged, as the class compared no running times then. (MAM-37 below changes this list: of these
+  46 groups it keeps 4, 1 needing review, «Ніж у воді»'s, flagged "Running times differ"; Blade
+  Runner's left by the years its file names claim, the Penguins of Madagascar pairs and the episode
+  at two places as two episodes at different places, the 8 episodes held in two halves as an
+  episode's "a" and "b" files, and the other 12 "Editions differ" groups as different editions.)
+  Ghostbusters of 1984 and 2016, RoboCop of 1987 and 2014, the two «Апгрейд»
   (Upgrade, 2018, and Upgraded, 2024), Planet Earth's Deserts, Jungles and Mountains of 2006 and
   2016, and the Penguins of Madagascar film of 2014 and the series stayed apart, and no possible
   match was offered at all, so nothing was confirmed or dismissed:
@@ -793,6 +801,68 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   the release note list both; the README's and the roadmap's MAM-19, MAM-20, MAM-21 and MAM-35
   lines no longer say MAM-22 does the live check or that the Search page's library cards weren't
   opened live, and the README's **What it will do** no longer lists the duplicates as still to come.
+- **Copies of one work whose running times differ widely are flagged "Running times differ" for
+  review (MAM-37, ADR 0028, Vasyl's decision 1 of 2026-10-08).** MAM-22 found «Ніж у воді» (1962),
+  the film beside a 26.7 min featurette under its IMDb and TMDb ids, as one same-work group with no
+  flag. A `SameWork` group now gains the distinction `RunningTimes`, and so `needsReview`, when its
+  shortest measured copy runs under three quarters of its longest, decided in whole milliseconds as
+  4 × shortest < 3 × longest, so exactly three quarters doesn't flag. A copy is what one version
+  holds, as the class counts copies: its running time is its files' measured durations summed, so a
+  film in two parts runs as long as both; two libraries' versions of one path, or of one hardlinked
+  file, are one copy, counted once; a copy with any file never inspected, or whose reading failed,
+  has no running time and decides nothing, and fewer than two copies with one give no distinction.
+  It comes beside any other distinction, never instead of one, and last in kind order, after
+  `IdentifierConflict` and `DynamicRange`; running times split no group and join none.
+  `DuplicateDistinctionKind` gains `RunningTimes` (5), written by name, and each group's `evidence`
+  gains `runningTimes`, last: `{ shortestMilliseconds, longestMilliseconds }`, the shortest and the
+  longest measured copy whenever two copies of a same-work group have a running time, flagged or
+  not, and `null` otherwise and for every other class; each part MAM-37 splits a work's copies into
+  (Changed, below) has its own. A possible match keeps `durationsAgree` (2 minutes or 10 %) and gets
+  no `RunningTimes`, and the same-file and byte-identical classes are unchanged; registry ids stay
+  the only join, nothing is written, and no copy is called redundant. On the Duplicates page the
+  warning badge reads "Running times differ", after the others, and a flagged group's card says
+  under "One work by its ids:" "The shortest copy runs 26:41, under three quarters of the longest,
+  1:35:32.", both durations as the Library page shows a file's; a group the rule doesn't flag shows
+  no sentence. It needs no migration and nothing switched on: it reads the durations the inspection
+  already measured. Rejected with decision 1: the possible matches' 2 minutes or 10 %, and "more
+  than 40 minutes apart", which no episode or short could reach. Checked on 2026-10-08, with the
+  whole of MAM-37, on a copy of production's database, not on production, which keeps running the
+  published 0.2.1 image until Vasyl publishes (his decision 5 that day): `tools/mam37/copy_db.py`,
+  new and the owner's to run, which Vasyl ran at 11:31:03 UTC, copied `mam.db` (30,281,728 B), its
+  `-wal` (7,321,272 B) and `-shm` (32,768 B), never `.secrets`, in `tools/mam22/report.py`'s one ssh
+  call, which only reads, from the container running the published image
+  (`vahac/media-acquisition-manager:latest`, digest
+  `sha256:d9c6149a3dbf0e4924ff0d889873996008425dc3b9c2592c56f373fb07cfa78e`) since 10:19:47 UTC:
+  `quick_check` ok, 20 migrations, the last `20261007173129_AddDuplicateMatchDecisions`, and 1,397
+  names, 1,396 inspected and one ffprobe couldn't read, 1,396 with a measured duration. In the copy
+  alone it removed the allowed folder `/media`, without which the local start would have queued an
+  inspection that, `/media` being no path on Windows, writes every name "outside the allowed
+  folders" and drops the durations, and pointed the four integrations at `http://127.0.0.1:9`. The
+  MAM-37 working tree on commit 27fcd79 ran on the copy with `dotnet run -c Release`, logging "No
+  migrations were applied", and Vasyl signed in himself. `GET /api/library/duplicates` as the owner
+  listed 4 groups, all `SameWork`, each under the key it had in MAM-22's list that morning and each
+  with `evidence.runningTimes`: The Gods Must Be Crazy (1980), two WEB releases of 6,545,205 and
+  6,545,206 ms; «Ніж у воді» (1962), the film's 5,731,959 ms and the featurette's 1,600,699 (27.9
+  %), flagged `RunningTimes` and needing review, the only group that does; Seksmisja (1984),
+  "Seksmisja (1984).mp4" and "Seksmisja [1983 DVDRemux].mkv", 6,980,120 and 7,005,013 ms; and Alien:
+  Romulus (2024), a 2160p remux of 7,141,927 ms and a 1080p rip of 7,140,926. No group of another
+  class was listed, and none was dismissed. The Duplicates page said "1–4 of 4": «Ніж у воді»'s card
+  "Same work", "Needs review", "Running times differ" and "The shortest copy runs 26:41, under three
+  quarters of the longest, 1:35:32.", the other three "Same work" alone, again after a reload; at
+  desktop width and 375px it didn't scroll sideways, the server logged no error, and the browser's
+  console had only the 401s of the session's refresh, before the sign-in and after the reload. Vasyl
+  looked at the page himself and found it fine. `copy_db.py --verify`, at the start and after the
+  check, found the 14 tables the duplicates are read from as copied, and the copy was then deleted.
+  Earlier that day the first version of this change had listed production's 46 groups, and the
+  second, after decision 2, 17 of films and shorts; decisions 3 and 4 (Changed, below) came from
+  those lists. Production's groups have no copy in two parts and no copy unmeasured or whose reading
+  failed beside a measured one, so those rest on the tests; production shows all of MAM-37 once
+  Vasyl publishes and deploys an image that holds it. `RunningTimeSpreadTests`,
+  `LibraryDuplicatesRunningTimesHttpTests`,
+  `LibraryDuplicatesSameWorkHttpTests.List_gives_each_segment_group_its_own_running_times`,
+  `LibraryDuplicatesHttpTests.List_writes_classes_distinctions_and_editions_by_name`,
+  `LibraryDuplicatesPossibleHttpTests.List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations`
+  and `DuplicateGroupCard.test.tsx` pin it.
 
 ### Changed
 
@@ -953,6 +1023,72 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   owner's five links take 549px, 196px as icons; the owner's search field is 227px at 1217px and
   271px from about 1261px. `AppLayout.test.tsx` and `nav-items.test.ts` pin the links and their
   order: Library, the owner's TMDb, Duplicates, Recommendations, Jobs.
+- **The Duplicates page lists only real copies of one film or episode (MAM-37, ADR 0028, Vasyl's
+  decisions 2 to 4 of 2026-10-08).** MAM-20 made one same-work group of the works sharing a registry
+  key and flagged what told their copies apart; on production that listed 46 groups, 42 of them no
+  copies of each other. Two episodes of one show at different places are never one work now,
+  whatever ids they share (decision 2, after the first list, as their file names show different
+  episodes of one season), which reverses MAM-20's decision 1 of 2026-10-07 for episodes; films keep
+  it, one IMDb id with two TMDb ids still one work flagged "TMDb ids differ". A show is every id and
+  title one place names, so a show the library knows by no id, as The Penguins of Madagascar was, is
+  one show by its title; the works are joined in id order, a join refused where two components sit
+  at different places of a show both hold or either sits at two places of one, and a film item whose
+  ids reach two such places joins neither, so no chain of ids brings two places together; a work the
+  library itself holds at two places of a show is no group; and two such episodes with one title and
+  year are never offered as a possible match. Copies of one episode under two shows' ids stay one
+  group flagged for their shows' ids ("Their shows' TVDB ids differ") — at one place when the shows
+  share an id or a title, at any places when they share neither.
+  `DuplicateDistinctionKind.EpisodeNumbers` (2) is removed, and with it "Episode numbers differ";
+  the other kinds keep their numbers, and every kind is written by name. An episode's files whose
+  names glue different segment letters to their first `SxxEyy` are no copies of each other either
+  (decision 2): `Mickey Mouse Clubhouse_S03E09a` and `_S03E09b`, which Jellyfin reads as one episode
+  and the sync makes one work of two versions, make no group, and an "a" file is a copy of another
+  "a" file only, never of a "b" or of a whole episode. The letter is a lowercase a to d standing
+  alone after the first marker (`EpisodeSegments`); a range ("S03E09a-b"), a capital letter and a
+  word glued to the number are read as none. A film's copies whose file names claim years more than
+  one apart are no copies (decision 3, that Blade Runner 2049 must not be among the duplicates at
+  all, by the year rule put to Vasyl for it): a year counts only alone in round or square brackets,
+  1880 to 2099 (`FileNameYear`) — never a bare year ("Blade Runner 2049"), a list, a span or a year
+  sharing its bracket with a word ("[1983 DVDRemux]") —, and a name claiming two different years
+  claims none. Years each within one of the next are one film's; with two runs of years or more each
+  run is a part, and the copies claiming none one more. So `[01] Blade Runner (1982) [The Final
+  Cut]` and `[02] Blade Runner 2049 (2017)`, which Jellyfin holds as one movie of two versions under
+  the 1982 film's ids, are no group, while "Seksmisja (1984).mp4" and "Seksmisja [1983
+  DVDRemux].mkv" stay one. Films only: in an episode's name a bracketed year is its show's or its
+  season's. And copies whose names say different editions are not duplicates (decision 4, on Rambo:
+  Last Blood's Theatrical and Extended Cut, which are different versions), which reverses
+  specification §3.3's reading, in its MAM-20 note, that different editions are "distinctions
+  needing review", and MAM-20's `Edition` flag for this class:
+  the whole set of editions all of a copy's names say decides — Theatrical, Extended, Director's
+  Cut, Special Edition, Unrated, Assembly, Open Matte, Widescreen, Remastered, Final Cut… —, a copy
+  that says none beside one that says one being another edition; and a hardlinked file's names say
+  one thing between them, so a file one library names by its cut and another by none is that cut.
+  `Edition` now flags a possible match only, which keeps "Editions differ" as evidence for the
+  owner, and the same-file and byte-identical classes are untouched, as their bytes are one whatever
+  their names say. The copies are split by their letters, then (films only) by their years, then by
+  their editions, each part a group with two copies and two files or more; its key adds `|Segments:`
+  when its copies carry letters, then `|Years:` and `|Editions:` when those parted something, so a
+  group with none keeps the key it had. On production's database (checked as Added, above, says) 42
+  of MAM-22's 46 groups left the page: the 20 Penguins of Madagascar pairs and Mickey Mouse
+  Clubhouse S03E31/S03E33, as episodes at different places; 8 Mickey Mouse Clubhouse episodes held
+  as "a" and "b" files; Blade Runner, by its years and editions; and 12 groups of different editions
+  — The Bourne Identity (Theatrical, Open Matte), Rambo: Last Blood, Terminator 2's three editions,
+  Terminator Salvation, Alien, Aliens, Alien³, Alien: Resurrection, AvP: Requiem, and Tom & Jerry's
+  Feedin' the Kiddie, The Egg and Jerry and Tops with Pops, plain beside Widescreen. Not tried live,
+  as production has none, and resting on the tests: a hardlinked file whose names say different
+  editions, a whole episode file beside an "a" file, a film item linked as an episode at another
+  place, the keys of a split group and a possible match. Nothing in the library, a file or a
+  download client changes, only what the list holds, and no field of the answer is removed.
+  `DuplicateWorkComponentsTests`, `EpisodeSegmentsTests`, `FileNameYearTests`,
+  `LibraryDuplicatesSameWorkHttpTests` (among them
+  `List_makes_no_group_of_two_episodes_of_one_show_at_different_places_under_one_imdb_id`,
+  `List_makes_no_group_of_an_episodes_a_and_b_files`,
+  `List_makes_no_group_of_a_films_versions_whose_names_claim_years_far_apart` and
+  `List_makes_no_group_of_the_theatrical_and_the_extended_cut_of_one_film`),
+  `LibraryDuplicatesPossibleHttpTests.List_never_offers_two_episodes_with_one_imdb_id_at_different_places_with_one_title_and_year`
+  and `List_flags_a_possible_matchs_files_whose_editions_differ`,
+  `LibraryDuplicatesHttpTests.List_writes_classes_distinctions_and_editions_by_name` and
+  `DuplicateGroupCard.test.tsx` pin it.
 
 ### Notes for upgraders
 

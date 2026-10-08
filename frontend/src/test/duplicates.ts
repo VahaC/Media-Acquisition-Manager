@@ -76,6 +76,7 @@ export const sameFileGroup: LibraryDuplicateGroup = {
     identifiers: [],
     titles: [],
     durationsAgree: null,
+    runningTimes: null,
   },
   files: [downloadedAliens, duplicateFileOf({})],
   space: { sizeBytes: 14_845_708_473, fileCount: 1, nameCount: 2, unmeasuredCount: 0 },
@@ -112,7 +113,7 @@ export function byteIdenticalGroupOf(changes: Partial<LibraryDuplicateGroup> = {
     class: 'ByteIdentical',
     needsReview: false,
     distinctions: [],
-    evidence: { identity: null, sha256: aliensSha256, identifiers: [], titles: [], durationsAgree: null },
+    evidence: { identity: null, sha256: aliensSha256, identifiers: [], titles: [], durationsAgree: null, runningTimes: null },
     files: [backedUpAliens, duplicateFileOf({ linkCount: 1, sha256: aliensSha256 })],
     space: { sizeBytes: 29_691_416_946, fileCount: 2, nameCount: 2, unmeasuredCount: 0 },
     recoverable: { sizeBytes: 14_845_708_473, gap: null },
@@ -159,6 +160,7 @@ export const sameWorkGroup: LibraryDuplicateGroup = {
     ],
     titles: [],
     durationsAgree: null,
+    runningTimes: null,
   },
   files: [
     duplicateFileOf({
@@ -223,6 +225,7 @@ export function possibleGroupOf(changes: Partial<LibraryDuplicateGroup> = {}): L
       identifiers: [],
       titles: [{ text: 'Aliens', year: 1986 }],
       durationsAgree: true,
+      runningTimes: null,
     },
     files: [
       duplicateFileOf({

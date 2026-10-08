@@ -25,7 +25,10 @@ public sealed class LibraryDuplicateMapper(ILibraryMapper library) : ILibraryDup
                 group.Sha256,
                 [.. group.Identifiers.Select(key => new DuplicateIdentifierDto(key.Scheme, key.Value, key.SeasonNumber, key.EpisodeNumber))],
                 [.. group.Titles.Select(title => new DuplicateTitleDto(title.Text, title.Year))],
-                group.DurationsAgree),
+                group.DurationsAgree,
+                group.RunningTimes is { } runningTimes
+                    ? new DuplicateRunningTimesDto(runningTimes.ShortestMilliseconds, runningTimes.LongestMilliseconds)
+                    : null),
             files,
             space,
             group.Recoverable is { } recoverable ? new DuplicateRecoverableSpaceDto(recoverable.SizeBytes, recoverable.Gap) : null,

@@ -11,7 +11,7 @@ import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { SegmentedControl } from '@/components/shared/SegmentedControl'
 import { Button } from '@/components/ui/button'
 import { editionsText, fileVersions, groupHeading, identityText, isGroupGone, type DuplicateLeaving } from '@/lib/duplicates'
-import { formatDateTime, formatFileSize, formatNumber } from '@/lib/format'
+import { formatDateTime, formatDuration, formatFileSize, formatNumber } from '@/lib/format'
 import { splitPath } from '@/lib/library-versions'
 import { useDecideDuplicate, useUndoDuplicateDecision } from '@/lib/queries'
 import type {
@@ -51,14 +51,14 @@ const MAX_TABLE_FILES = 6
  * MAM-21 — one group of the Duplicates page. Headed by its first work (an episode by its series, with
  * where the episode sits and its own title under it), with its class, "Needs review" while a possible
  * match or a copy with a distinction is undecided, the owner's decision, and what tells its files apart
- * (ids that disagree, other episode numbers, editions, dynamic ranges). Then the evidence its class gives —
- * the one file and its names, the SHA-256, the shared ids, or the shared titles and whether the running
- * times agree — the room its files take, the room removing the extra copies would free only where the
- * server gives it (or why it can't), and the decision with when it was made.
+ * (ids that disagree, editions, dynamic ranges, running times far apart). Then the evidence its class
+ * gives — the one file and its names, the SHA-256, the shared ids, or the shared titles and whether the
+ * running times agree — the room its files take, the room removing the extra copies would free only where
+ * the server gives it (or why it can't), and the decision with when it was made.
  *
  * Its files are the Library's version rows or, for two to six, its comparison table (the same switch and
  * the same choice as the Library's cards, rows always on a phone), each file named by the end of its path
- * that tells it from the others (fileVersions) — two halves of an episode by their names, a hardlink's names
+ * that tells it from the others (fileVersions) — two cuts of a film by their names, a hardlink's names
  * or two items' copies by their folders; its open row has its whole path and its own facts
  * (DuplicateFileFacts); the table has them as rows.
  *
@@ -295,7 +295,8 @@ export function DuplicateGroupCard({ group, isOwner, onLeft }: DuplicateGroupCar
 /**
  * The evidence of the group's class: the one file its names lead to and how many names the file system
  * counts; the SHA-256 the copies share; the ids that make the works one (a series' with its season and
- * episode); or the titles and years a possible match shares, with whether its running times agree.
+ * episode), with the shortest and longest copies' running times when they differ widely (MAM-37); or the
+ * titles and years a possible match shares, with whether its running times agree.
  */
 function Evidence({ group }: { group: LibraryDuplicateGroup }) {
   const { t } = useTranslation(['duplicates', 'library'])
@@ -336,20 +337,35 @@ function Evidence({ group }: { group: LibraryDuplicateGroup }) {
           <DuplicateHash value={evidence.sha256} />
         </p>
       )
-    case 'SameWork':
+    case 'SameWork': {
+      // MAM-37 — the running times back the "Running times differ" badge only: the server gives them for any
+      // two measured copies, and close ones (a remux and a rip of one cut) say nothing worth reading.
+      const { runningTimes } = evidence
+      const runningTimesDiffer = runningTimes !== null && group.distinctions.some((distinction) => distinction.kind === 'RunningTimes')
       return (
-        <p className="duplicates-evidence-line">
-          <span>{t('evidence.sameWork')}</span>
-          {evidence.identifiers.map((identifier) => (
-            <span
-              key={`${identifier.scheme}:${identifier.value}:${identifier.seasonNumber ?? ''}:${identifier.episodeNumber ?? ''}`}
-              className="ui-badge ui-badge-outline"
-            >
-              {identifierText(identifier)}
-            </span>
-          ))}
-        </p>
+        <>
+          <p className="duplicates-evidence-line">
+            <span>{t('evidence.sameWork')}</span>
+            {evidence.identifiers.map((identifier) => (
+              <span
+                key={`${identifier.scheme}:${identifier.value}:${identifier.seasonNumber ?? ''}:${identifier.episodeNumber ?? ''}`}
+                className="ui-badge ui-badge-outline"
+              >
+                {identifierText(identifier)}
+              </span>
+            ))}
+          </p>
+          {runningTimesDiffer && (
+            <p>
+              {t('evidence.runningTimes', {
+                shortest: formatDuration(runningTimes.shortestMilliseconds),
+                longest: formatDuration(runningTimes.longestMilliseconds),
+              })}
+            </p>
+          )}
+        </>
       )
+    }
     case 'Possible':
       return (
         <>

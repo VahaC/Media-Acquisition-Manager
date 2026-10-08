@@ -176,12 +176,12 @@ describe('DuplicateGroupCard', () => {
       // Arrange
       const group: LibraryDuplicateGroup = {
         ...sameWorkGroup,
+        // MAM-37 — never Edition: copies whose names say different editions are no copies of one work.
         distinctions: [
           { kind: 'IdentifierConflict', scheme: 'Tmdb', ofSeries: false },
           { kind: 'IdentifierConflict', scheme: 'Tvdb', ofSeries: true },
-          { kind: 'EpisodeNumbers', scheme: null, ofSeries: false },
-          { kind: 'Edition', scheme: null, ofSeries: false },
           { kind: 'DynamicRange', scheme: null, ofSeries: false },
+          { kind: 'RunningTimes', scheme: null, ofSeries: false },
         ],
         evidence: { ...sameWorkGroup.evidence, identifiers: [{ scheme: 'Tvdb', value: '81189', seasonNumber: 3, episodeNumber: null }] },
       }
@@ -195,11 +195,91 @@ describe('DuplicateGroupCard', () => {
         'Needs review',
         'TMDb ids differ',
         'Their shows\' TVDB ids differ',
-        'Episode numbers differ',
-        'Editions differ',
         'Dynamic ranges differ',
+        'Running times differ',
       ])
       expect(evidenceLines()[0]).toBe('One work by its ids:Show TVDB 81189, season 3')
+    })
+
+    it('says how long the shortest and the longest copy run when the shortest runs under three quarters of the longest', () => {
+      // Arrange — MAM-37: «Ніж у воді» (1962) and a 27-minute featurette that carries the film's ids, as ffprobe
+      // measured them on production.
+      const group: LibraryDuplicateGroup = {
+        ...sameWorkGroup,
+        distinctions: [{ kind: 'RunningTimes', scheme: null, ofSeries: false }],
+        evidence: {
+          ...sameWorkGroup.evidence,
+          identifiers: [
+            { scheme: 'Imdb', value: 'tt0056291', seasonNumber: null, episodeNumber: null },
+            { scheme: 'Tmdb', value: '11502', seasonNumber: null, episodeNumber: null },
+          ],
+          runningTimes: { shortestMilliseconds: 1_600_699, longestMilliseconds: 5_731_959 },
+        },
+      }
+
+      // Act
+      renderCard(group)
+
+      // Assert
+      expect(badges()).toEqual(['Same work', 'Needs review', 'Running times differ'])
+      expect(evidenceLines()).toEqual([
+        'One work by its ids:IMDb tt0056291TMDb 11502',
+        'The shortest copy runs 26:41, under three quarters of the longest, 1:35:32.',
+        `1 file · ${formatFileSize(9_663_676_416)} · 1 name not measured yet`,
+      ])
+    })
+
+    it('flags running times that differ widely beside ids that disagree, after them', () => {
+      // Arrange — MAM-37: «Ніж у воді» (1962) and the featurette under its IMDb id, the featurette's library
+      // giving it a TMDb id of its own.
+      const group: LibraryDuplicateGroup = {
+        ...sameWorkGroup,
+        distinctions: [
+          { kind: 'IdentifierConflict', scheme: 'Tmdb', ofSeries: false },
+          { kind: 'RunningTimes', scheme: null, ofSeries: false },
+        ],
+        evidence: {
+          ...sameWorkGroup.evidence,
+          identifiers: [{ scheme: 'Imdb', value: 'tt0056291', seasonNumber: null, episodeNumber: null }],
+          runningTimes: { shortestMilliseconds: 1_600_699, longestMilliseconds: 5_731_959 },
+        },
+      }
+
+      // Act
+      renderCard(group)
+
+      // Assert
+      expect(badges()).toEqual(['Same work', 'Needs review', 'TMDb ids differ', 'Running times differ'])
+      expect(evidenceLines().slice(0, 2)).toEqual([
+        'One work by its ids:IMDb tt0056291',
+        'The shortest copy runs 26:41, under three quarters of the longest, 1:35:32.',
+      ])
+    })
+
+    it('says nothing of the running times the server gives when they don\'t differ widely', () => {
+      // Arrange — MAM-37: Terminator 2 (1991) three times, nothing in the names, the shortest at 88 % of the
+      // longest: nothing to review.
+      const group: LibraryDuplicateGroup = {
+        ...sameWorkGroup,
+        needsReview: false,
+        distinctions: [],
+        evidence: {
+          ...sameWorkGroup.evidence,
+          identifiers: [{ scheme: 'Imdb', value: 'tt0103064', seasonNumber: null, episodeNumber: null }],
+          runningTimes: { shortestMilliseconds: 8_243_392, longestMilliseconds: 9_366_400 },
+        },
+      }
+
+      // Act
+      renderCard(group)
+
+      // Assert
+      expect(badges()).toEqual(['Same work'])
+      expect(evidenceLines()).toEqual([
+        'One work by its ids:IMDb tt0103064',
+        `1 file · ${formatFileSize(9_663_676_416)} · 1 name not measured yet`,
+      ])
+      expect(screen.queryByText(/The shortest copy runs/)).not.toBeInTheDocument()
     })
   })
 
@@ -218,6 +298,17 @@ describe('DuplicateGroupCard', () => {
         'Their running times agree.',
         `2 files · ${formatFileSize(34_465_781_813)}`,
       ])
+    })
+
+    it('flags it when its files\' editions differ', () => {
+      // Arrange — MAM-37: the one class flagged Editions differ; the Special Edition beside the Theatrical Cut.
+      const group = possibleGroupOf({ distinctions: [{ kind: 'Edition', scheme: null, ofSeries: false }] })
+
+      // Act
+      renderCard(group)
+
+      // Assert
+      expect(badges()).toEqual(['Possible match', 'Needs review', 'Editions differ'])
     })
 
     it.each([

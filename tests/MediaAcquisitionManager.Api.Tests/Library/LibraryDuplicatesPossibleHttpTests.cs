@@ -22,8 +22,8 @@ namespace MediaAcquisitionManager.Api.Tests.Library;
 // year claims nothing, nor a name that names seasons or episodes (each episode claims its show's title and year). Not
 // offered: a film and an episode (the library says what each is), works whose ids decide (ids of one number space
 // shared — already one work — or not shared — two works, The Continental's three items, ADR 0017), two episodes at
-// different places of their shows, and a work with itself; what may be any of several such works is offered beside each
-// of them, never in one group with them all. Each is for the owner to confirm (NeedsReview), with whether the measured
+// different places of their shows, even under one episode's ids (MAM-37), and a work with itself; what may be any of
+// several such works is offered beside each of them, never in one group with them all. Each is for the owner to confirm (NeedsReview), with whether the measured
 // durations agree as evidence, and none is redundant. The other classes are LibraryDuplicatesSameFileHttpTests',
 // LibraryDuplicatesByteIdenticalHttpTests' and LibraryDuplicatesSameWorkHttpTests'; access, paging and order
 // LibraryDuplicatesHttpTests'.
@@ -398,6 +398,40 @@ public sealed class LibraryDuplicatesPossibleHttpTests : IClassFixture<MediaAcqu
     }
 
     [Fact]
+    public async Task List_never_offers_two_episodes_with_one_imdb_id_at_different_places_with_one_title_and_year()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-37 — Mickey Mouse Clubhouse's S03E31 carries S03E33's IMDb id, and production's library titles both "Donald
+        // Hatches an Egg" of 2010: two episodes at different places, so neither one work nor a possible match.
+        const string goldenBooBooPath = "/media/cartoons/Mickey Mouse Clubhouse/Mickey Mouse Clubhouse_S03E31_-_The Golden Boo Boo [ukr_eng] WEB-DL 1080p [Hurtom].mkv";
+        const string donaldPath = "/media/cartoons/Mickey Mouse Clubhouse/Mickey Mouse Clubhouse_S03E33_-_Donald Hatches an Egg [ukr_eng] WEB-DL 1080p [Hurtom].mkv";
+        var show = await PlantSeriesAsync(_livingRoom, "Mickey Mouse Clubhouse", 2006, MediaIdentifierScheme.Tvdb, "79854");
+        var goldenBooBoo = await PlantEpisodeAsync(_livingRoom, show, 3, 31, goldenBooBooPath, "Donald Hatches an Egg", 2010, "tt5625312");
+        var donald = await PlantEpisodeAsync(_livingRoom, show, 3, 33, donaldPath, "Donald Hatches an Egg", 2010, "tt5625312");
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var list = await ReadListAsync(response, cancellationToken);
+        Assert.Equal(0, list.TotalCount);
+        Assert.Empty(list.Items);
+        // The library keeps them as it has them: two episodes, each at its place, one IMDb id between them.
+        await _factory.WithDbAsync(async db =>
+        {
+            var places = await db.MediaEpisodePositions.AsNoTracking()
+                .Where(position => position.SeriesWorkId == show.Id)
+                .Select(position => new { position.MediaWorkId, position.SeasonNumber, position.EpisodeNumber })
+                .ToListAsync(cancellationToken);
+            Assert.Equal(
+                [(goldenBooBoo.Id, (int?)3, (int?)31), (donald.Id, 3, 33)],
+                places.Select(place => (place.MediaWorkId, place.SeasonNumber, place.EpisodeNumber)).OrderBy(place => place.EpisodeNumber));
+        });
+    }
+
+    [Fact]
     public async Task List_offers_one_episode_of_a_show_without_ids_in_two_libraries()
     {
         //Arrange
@@ -494,6 +528,35 @@ public sealed class LibraryDuplicatesPossibleHttpTests : IClassFixture<MediaAcqu
     }
 
     [Fact]
+    public async Task List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(Root);
+        // MAM-37 — «Ніж у воді» and its featurette as two works without ids under one title and year: 27.9 % of the film,
+        // which would flag copies of one work. A possible match keeps its own evidence, the 2 minutes or 10 %.
+        const string filmPath = "/media/movies/Nóż w wodzie (1962)/Nóż w wodzie (1962).mkv";
+        const string featurettePath = "/media/movies/Nóż w wodzie (1962)/Polanski+Skolimowski o Noże.mkv";
+        await PlantWorkAsync(_livingRoom, filmPath, "Nóż w wodzie", 1962);
+        await PlantWorkAsync(_livingRoom, featurettePath, "Nóż w wodzie", 1962);
+        _factory.Files.AddFile(filmPath, TestMedia.File(1_048_577, 7_000_000_000), new MediaFacts(TimeSpan.FromMilliseconds(5_731_959), null, []));
+        _factory.Files.AddFile(featurettePath, TestMedia.File(1_048_579, 1_000_000_000), new MediaFacts(TimeSpan.FromMilliseconds(1_600_699), null, []));
+        await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest(PossibleUrl, _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var group = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
+        Assert.Equal((DuplicateClass.Possible, true), (group.Class, group.NeedsReview));
+        Assert.Empty(group.Distinctions);
+        Assert.False(group.Evidence.DurationsAgree);
+        Assert.Null(group.Evidence.RunningTimes);
+        Assert.Equal([filmPath, featurettePath], group.Files.Select(file => file.File.ServicePath));
+    }
+
+    [Fact]
     public async Task List_never_offers_a_work_with_itself()
     {
         //Arrange
@@ -574,12 +637,19 @@ public sealed class LibraryDuplicatesPossibleHttpTests : IClassFixture<MediaAcqu
         return series;
     }
 
-    // An episode of the series at its season and number, titled with the year it aired, without ids of its own, and
-    // one version holding the file at the path given.
+    // An episode of the series at its season and number, titled with the year it aired, with the IMDb id of its own
+    // when given, and one version holding the file at the path given.
     private async Task<MediaWorkEntity> PlantEpisodeAsync(
-        IntegrationConnectionEntity library, MediaWorkEntity series, int season, int episode, string servicePath, string title, int year)
+        IntegrationConnectionEntity library,
+        MediaWorkEntity series,
+        int season,
+        int episode,
+        string servicePath,
+        string title,
+        int year,
+        string? imdbId = null)
     {
-        var work = await PlantWorkAsync(library, servicePath, title, year, kind: MediaWorkKind.Episode);
+        var work = await PlantWorkAsync(library, servicePath, title, year, imdbId, kind: MediaWorkKind.Episode);
         await _works.AddEpisodePosition(work.Id, series.Id, season, episode, library.Id, library.Name, Guid.NewGuid().ToString("N"));
         return work;
     }

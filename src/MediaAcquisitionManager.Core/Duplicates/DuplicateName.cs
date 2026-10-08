@@ -28,6 +28,10 @@ namespace MediaAcquisitionManager.Core.Duplicates;
 /// (<see cref="EditionLabels"/>).</param>
 /// <param name="NameClaims">What its path claims (<c>FileNameClaims</c>) — read for a name no library reported only,
 /// the one way it can meet a work (a possible match); none otherwise.</param>
+/// <param name="EpisodeSegment">MAM-37 — the segment letter its file name glues to its SxxEyy
+/// (<see cref="EpisodeSegments"/>); read for every name, used by the same-work class only.</param>
+/// <param name="ClaimedYear">MAM-37 — the year its file name claims in brackets (<see cref="FileNameYear"/>); read for
+/// every name, used by the same-work class only.</param>
 public sealed record DuplicateName(
     Guid FileId,
     string PathKey,
@@ -40,7 +44,9 @@ public sealed record DuplicateName(
     long? DurationMilliseconds,
     IReadOnlyList<DynamicRange> DynamicRanges,
     IReadOnlyList<MediaEdition> Editions,
-    IReadOnlyList<WorkClaim> NameClaims)
+    IReadOnlyList<WorkClaim> NameClaims,
+    string? EpisodeSegment,
+    int? ClaimedYear)
 {
     /// <summary>Whether no library reported the name: only the folder scan found it (MAM-18, ADR 0021).</summary>
     public bool IsUnreported => Holders.Count == 0;

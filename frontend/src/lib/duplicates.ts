@@ -93,9 +93,8 @@ export interface DuplicateHeading {
 
 /**
  * What a group's card is headed by. Its first work's title with the year; for an episode its series'
- * title, with where the episode sits and its own title under it, so two halves of one episode read as
- * the episode they are. A group no library reports is headed by the title and year a possible match
- * offers, else by its first file's name.
+ * title, with where the episode sits and its own title under it. A group no library reports is headed by
+ * the title and year a possible match offers, else by its first file's name.
  */
 export function groupHeading(group: LibraryDuplicateGroup): DuplicateHeading {
   const work = firstWork(group)
@@ -160,7 +159,7 @@ export function distinctPathEnds(paths: readonly string[]): string[] {
 
 /**
  * Each file of a group as the version VersionRows and VersionTable show, named by the end of its path that
- * tells it from the group's other files (distinctPathEnds) — the two halves of an episode by their names,
+ * tells it from the group's other files (distinctPathEnds) — two cuts of a film by their names,
  * a hardlink's two names by their folders. Its whole path is in its open row and the table's Folder row.
  */
 export function fileVersions(group: LibraryDuplicateGroup): ShownVersion[] {

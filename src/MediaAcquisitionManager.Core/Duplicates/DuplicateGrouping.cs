@@ -60,13 +60,15 @@ public static partial class DuplicateGrouping
             .Where(work => work.Kind is MediaWorkKind.Movie or MediaWorkKind.Episode && namesByWork[work.WorkId].Any())
             .DistinctBy(work => work.WorkId)
             .ToList();
-        var componentOf = WorkComponents(held);
+        // MAM-37 — where each work sits in each show, once: what keeps two episodes of one show at different places apart.
+        var showPlaces = ShowPlacesOf(held);
+        var componentOf = WorkComponents(held, showPlaces);
 
         return
         [
             .. SameFileGroups(names)
                 .Concat(ByteIdenticalGroups(names, fileSystems))
-                .Concat(SameWorkGroups(held, namesByWork, componentOf))
+                .Concat(SameWorkGroups(held, namesByWork, componentOf, showPlaces))
                 .Concat(PossibleGroups(held, names, namesByWork, componentOf))
                 .OrderBy(group => group.Class)
                 .ThenBy(group => group.Key, StringComparer.Ordinal),
@@ -105,18 +107,26 @@ public static partial class DuplicateGrouping
         [.. members.SelectMany(name => name.Holders).Select(holder => holder.WorkId).Distinct()];
 
     /// <summary>
-    /// What tells the copies of one work, or a possible match's files, apart (specification §3.3): their editions when
-    /// the sets differ — a labelled file and an unlabelled one differ too — and their measured dynamic ranges when two
-    /// files' known sets differ; an unknown range differs from nothing.
+    /// What tells a possible match's files apart by their names (specification §3.3): their editions, when the sets
+    /// differ — a labelled file and an unlabelled one differ too. MAM-37 — a possible match's only: the copies of one
+    /// work in different editions are no copies of each other (Vasyl, 2026-10-08, <see cref="EditionPartsOf"/>), so
+    /// every copy in a same-work group says the same ones.
     /// </summary>
-    private static List<DuplicateDistinction> CopyDistinctions(IReadOnlyCollection<DuplicateName> members)
+    private static IEnumerable<DuplicateDistinction> EditionDistinctions(IReadOnlyCollection<DuplicateName> members)
     {
-        List<DuplicateDistinction> distinctions = [];
         if (members.Select(name => SetKeyOf(name.Editions)).Distinct(StringComparer.Ordinal).Count() > 1)
-            distinctions.Add(new DuplicateDistinction(DuplicateDistinctionKind.Edition, null, false));
+            yield return new DuplicateDistinction(DuplicateDistinctionKind.Edition, null, false);
+    }
+
+    /// <summary>
+    /// What tells the copies of one work, or a possible match's files, apart by what the media inspector measured
+    /// (specification §3.3): their dynamic ranges, when two files' known sets differ; an unknown range differs from
+    /// nothing.
+    /// </summary>
+    private static IEnumerable<DuplicateDistinction> DynamicRangeDistinctions(IReadOnlyCollection<DuplicateName> members)
+    {
         if (members.Where(name => name.DynamicRanges.Count > 0).Select(name => SetKeyOf(name.DynamicRanges)).Distinct(StringComparer.Ordinal).Count() > 1)
-            distinctions.Add(new DuplicateDistinction(DuplicateDistinctionKind.DynamicRange, null, false));
-        return distinctions;
+            yield return new DuplicateDistinction(DuplicateDistinctionKind.DynamicRange, null, false);
     }
 
     private static string SetKeyOf<T>(IEnumerable<T> values)

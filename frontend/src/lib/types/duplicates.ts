@@ -6,8 +6,12 @@ import type { LibraryEpisode, LibraryFile, LibraryIdentifier, LibrarySpace, Medi
  */
 export type DuplicateClass = 'SameFile' | 'ByteIdentical' | 'SameWork' | 'Possible'
 
-/** MAM-20 — what tells a group's files or works apart; a group with any is flagged for review. */
-export type DuplicateDistinctionKind = 'IdentifierConflict' | 'EpisodeNumbers' | 'Edition' | 'DynamicRange'
+/**
+ * MAM-20 — what tells a group's files or works apart; a group with any is flagged for review. MAM-37 —
+ * `RunningTimes`: a same-work group whose shortest measured copy runs under three quarters of its longest;
+ * `Edition` only on a possible match, as copies whose names say different editions are no copies of one work.
+ */
+export type DuplicateDistinctionKind = 'IdentifierConflict' | 'Edition' | 'DynamicRange' | 'RunningTimes'
 
 /** MAM-20 — why a byte-identical group gives no estimate of the room removing its extra copies would free. */
 export type RecoverableSpaceGap = 'UnlistedNames' | 'SharingFileSystem' | 'UnknownFileSystem'
@@ -77,6 +81,15 @@ export interface DuplicateTitle {
   year: number
 }
 
+/**
+ * MAM-37 — how long a same-work group's shortest and longest copies run, in milliseconds: a copy is what one
+ * version holds, its running time the sum of its files' measured durations (two parts of a film count as one).
+ */
+export interface DuplicateRunningTimes {
+  shortestMilliseconds: number
+  longestMilliseconds: number
+}
+
 /** MAM-20 — why a group is one: each class fills its own part, the rest is null or empty. */
 export interface DuplicateEvidence {
   /** Same file: the file its names lead to. */
@@ -89,6 +102,11 @@ export interface DuplicateEvidence {
   titles: DuplicateTitle[]
   /** Possible match: whether the measured durations agree; null when fewer than two are known, or for another class. */
   durationsAgree: boolean | null
+  /**
+   * MAM-37 — same work: the running times of the shortest and the longest measured copy, whether or not they
+   * differ widely; null when fewer than two copies have every file measured, or for another class.
+   */
+  runningTimes: DuplicateRunningTimes | null
 }
 
 /**

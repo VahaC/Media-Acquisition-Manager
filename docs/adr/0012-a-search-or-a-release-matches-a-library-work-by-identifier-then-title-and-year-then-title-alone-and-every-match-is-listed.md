@@ -482,3 +482,17 @@ holds: a possible match is always for the owner to confirm, and none authorises 
 `LibraryDuplicatesSameWorkHttpTests.List_keeps_different_cuts_apart_and_flags_their_editions_for_review`
 and `EditionLabelsTests.Read_never_takes_an_edition_word_inside_another_word_or_alone_where_it_needs_two`
 pin it.
+
+**Amended 2026-10-08 (ADR 0028's Editions section, added in 0.2.1, MAM-37).** "It only labels a
+possible distinction between copies already grouped by their ids or their title and year, so a word
+it misses costs a flag, never a wrong group or a missed one" no longer holds for copies of one work:
+different editions are not duplicates (Vasyl), so the list now also parts the copies of one work
+whose names say different editions, and a same-work group carries no `Edition`. A word it misses
+leaves two cuts one group of copies; one it reads by mistake takes a real copy off the Duplicates
+page. It still decides no match and joins nothing, and a possible match's files it only labels. The
+same change parts a film's copies whose names claim years more than one apart; that is no year ± 1
+for matching, as it only parts copies their ids made one, never joins any. The test named above,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_different_cuts_apart_and_flags_their_editions_for_review`,
+is now `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_different_cuts_of_one_film`, and
+`LibraryDuplicatesPossibleHttpTests.List_flags_a_possible_matchs_files_whose_editions_differ` pins
+the label on a possible match.

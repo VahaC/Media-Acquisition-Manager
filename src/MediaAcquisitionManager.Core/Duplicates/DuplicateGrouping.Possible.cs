@@ -17,9 +17,9 @@ public static partial class DuplicateGrouping
     /// <para>
     /// Not offered: two works the library or their ids say are different (<see cref="IsApart"/>) — a film and an
     /// episode, ids of one number space none of which is shared (The Continental's three items with three IMDb ids;
-    /// two episodes of two shows), two episodes at different places of their shows; two works already one
-    /// (<see cref="WorkComponents"/>); and two subjects with one file between them (one identity, or one hash) — the
-    /// bytes already say they are one, in the classes above.
+    /// two episodes of two shows), two episodes at different places of their shows, even under one episode's ids
+    /// (MAM-37); two works already one (<see cref="WorkComponents"/>); and two subjects with one file between them (one
+    /// identity, or one hash) — the bytes already say they are one, in the classes above.
     /// </para>
     /// <para>
     /// A group is the subjects joined by pairs, unless that would put two works that are apart in it: then each group
@@ -149,7 +149,7 @@ public static partial class DuplicateGrouping
             DuplicateClass.Possible,
             // The spec's manual confirmation: a title and a year are never proof.
             NeedsReview: true,
-            CopyDistinctions(files),
+            [.. EditionDistinctions(files), .. DynamicRangeDistinctions(files)],
             FileIdsOf(files),
             [.. members.Where(subject => subject.Work is not null).Select(subject => subject.Id)],
             null,
@@ -157,15 +157,16 @@ public static partial class DuplicateGrouping
             [],
             titles,
             DurationAgreement.Of(durations),
+            null,
             null);
     }
 
     /// <summary>
     /// Whether the library or the ids say two works are different, so a title and a year can't make them one: a film
-    /// and an episode (the library says what each is); ids of one number space and none shared, as works sharing one
-    /// are in one component (<see cref="WorkComponents"/>); two episodes whose places are known and differ — another
-    /// show's, by its titles, or another season or episode of one ("Episode 1" of two shows, the name TMDb and Jellyfin
-    /// give an episode with no title of its own).
+    /// and an episode (the library says what each is); ids of one number space, as works sharing one are in one
+    /// component (<see cref="WorkComponents"/>), or kept apart by their places (MAM-37); two episodes whose places are
+    /// known and differ — another show's, by its titles, or another season or episode of one ("Episode 1" of two shows,
+    /// the name TMDb and Jellyfin give an episode with no title of its own).
     /// </summary>
     private static bool IsApart(Subject first, Subject second, Dictionary<Guid, int> componentOf)
     {

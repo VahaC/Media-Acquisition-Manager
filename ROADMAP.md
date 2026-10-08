@@ -22,16 +22,19 @@ library work to its TMDb film or show by hand, Jellyfin then identifying the ite
 page's Sources card as a status bar, and Refresh all), MAM-20 (the library's files grouped into the
 four duplicate classes of the specification) and MAM-21 (the Duplicates page, where the owner
 confirms or dismisses a possible match). MAM-22 checked Phase B's acceptance criteria on the
-reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (to do) follows from
-that check: flagging for review the copies of one work whose measured running times differ widely.
+reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (built while 0.2.1 is
+the version, checked the same day on a copy of production's database, and in no published image
+yet) follows from that check: the Duplicates page lists only real copies of one film or episode —
+4 of the 46 groups production listed — and flags for review the copies of one work whose measured
+running times differ widely.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-36 and
-MAM-37 (to do). Releases for phases C and D are not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-37.
+Releases for phases C and D are not decided yet.
 
 ## Phases
 
@@ -435,9 +438,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20 and MAM-21,
-built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-36 and MAM-37
-(to do).
+**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21 and
+MAM-37, built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to MAM-37.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -655,9 +657,12 @@ episode, and how much space could really be recovered — without the app guessi
   (`IdentifierConflict`, `EpisodeNumbers`; Vasyl's decision 1 of 2026-10-07); different editions —
   read from a word list in English and Ukrainian that decides no match (decision 2) — and different
   measured dynamic ranges are flagged; a possible match always needs review, with whether the
-  measured durations agree. The room a copy frees is estimated only for byte-identical files whose
-  file systems the mount table says share no blocks, with the reason otherwise (decision 3). A
-  seeding file is classed like any other, and no download client is asked (ADR 0018). Read from the
+  measured durations agree. MAM-37 (below) changed two of these on 2026-10-08: two episodes of one
+  show at different places are never one work, so `EpisodeNumbers` is gone, and copies whose names
+  say different editions are no copies of each other, so `Edition` flags a possible match only. The
+  room a copy frees is estimated only for byte-identical files whose file systems the mount table
+  says share no blocks, with the reason otherwise (decision 3). A seeding file is classed like any
+  other, and no download client is asked (ADR 0018). Read from the
   reference library's development database on 2026-10-07, before the design: no file identity,
   hash or measurement yet; 17 movies with several files, 9 of them different cuts and 3 a widescreen
   variant; 20 Penguins of Madagascar pairs and the S03E31/S03E33 pair under one episode's IMDb id;
@@ -665,8 +670,11 @@ episode, and how much space could really be recovered — without the app guessi
   2026-10-08 (MAM-22), after **Refresh all**: 46 groups, all Same work, 34 flagged for review — 13
   whose editions differ, the 20 Penguins of Madagascar pairs and S03E31/S03E33 — and 12 without a
   flag; no group of another class, no possible match and no estimate. Blade Runner's group and
-  «Ніж у воді»'s are joined by the ids the library holds though their files are not one film
-  (MAM-37).
+  «Ніж у воді»'s are joined by the ids the library holds though their files are not one film.
+  (MAM-37 since: 4 groups on a copy of production's database the same day, 1 needing review,
+  «Ніж у воді»'s, for its running times; Blade Runner's left the page by the years its file names
+  claim, and with it the Penguins of Madagascar pairs, S03E31/S03E33, the eight Mickey Mouse
+  Clubhouse episodes held as "a" and "b" files and the 12 other groups of different editions.)
 - **MAM-21 Show duplicates on a Duplicates page** (built, release 0.2.1): `/library/duplicates`,
   every signed-in user's, from **Duplicates** in the header and at the top of the Library page
   (Vasyl's decision 4 of 2026-10-07), with underline tabs All, Same file (decision 3),
@@ -691,7 +699,8 @@ episode, and how much space could really be recovered — without the app guessi
   scanned file no library reports, joins or leaves gets another key and is asked about again. Only
   possible matches are decided. No delete, move or bulk action of any kind. On production on
   2026-10-08 (MAM-22) the page listed the 46 groups on two pages of 25, and at desktop width, 375
-  and 320px it had no horizontal scroll; there was no possible match to decide.
+  and 320px it had no horizontal scroll; there was no possible match to decide. (MAM-37 since: "1–4
+  of 4" on a copy of production's database the same day.)
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
   — the names by rescanning, the hashes by the next inspection, which reads the files that could be
   copies whole again — so they need no export of their own; the series, seasons and episodes come
@@ -707,8 +716,9 @@ episode, and how much space could really be recovered — without the app guessi
   backup before **Update Jellyfin**. MAM-35's poster tags come back with the next sync, and the
   posters in `<data>/library-posters/` are fetched again from Jellyfin when missing. MAM-20 stores
   nothing: the duplicate groups are worked out on every read from the names, hashes, ids and links
-  above. MAM-21's decisions on possible matches are the owner's work and live in `mam.db` alone
-  (`DuplicateMatchDecisions`, with their audit rows), so they are in its backup.
+  above, and MAM-37's running times from the durations the inspection measured. MAM-21's decisions
+  on possible matches are the owner's work and live in `mam.db` alone (`DuplicateMatchDecisions`,
+  with their audit rows), so they are in its backup.
 - **MAM-36 The Library's Sources card as a status bar, and Refresh all** (built, release 0.2.1): the
   card that took about 480 px at the top of the Library page is one bar — an item for each media
   library, for the media folders and for the file inspection, with an icon, when it last ran or how far
@@ -751,16 +761,92 @@ episode, and how much space could really be recovered — without the app guessi
   recorded as they are: Blade Runner (1982) in The Final Cut and Blade Runner 2049 (2017), whose
   item Jellyfin gives the 1982 film's IMDb and TMDb ids, flagged only by The Final Cut label; and
   «Ніж у воді» (1962), the film (95.5 min) and a featurette (26.7 min) under one IMDb and one TMDb
-  id, the TMDb id also a link the owner set, with no flag. MAM-37 (to do) is to flag such copies,
-  whose measured running times differ widely, for review. The other tickets' open items stay open:
-  a TV release sent (MAM-32); the Toloka checks within the users' limits, New on Toloka and a
-  download from a recommendation (MAM-33); Identify with Jellyfin 12.2, in «Фільми» and with
-  applies sent at the same time (MAM-34); and a Jellyfin behind a reverse proxy (MAM-35). What was
-  tried live, and what wasn't, is in the README's [Tested with](README.md#tested-with) and the release
-  note.
-- **MAM-37 Running times differ** (to do): a same-work group whose files' measured running times
-  differ widely is flagged for review, the rule decided with Vasyl first; registry ids stay the only
-  join, and nothing in the library changes.
+  id, the TMDb id also a link the owner set, with no flag. (MAM-37, below, since lists 4 of these 46
+  groups, 1 needing review: «Ніж у воді»'s, flagged "Running times differ". Blade Runner's left the
+  page by the years its file names claim, and so did the Penguins of Madagascar pairs and
+  S03E31/S03E33, as two episodes at different places, the eight Mickey Mouse Clubhouse halves, as
+  an episode's "a" and "b" files, and the 12 other groups of different editions.) The other
+  tickets' open items stay open: a TV release sent (MAM-32); the Toloka checks within the users'
+  limits, New on Toloka and a download from a recommendation (MAM-33); Identify with Jellyfin 12.2,
+  in «Фільми» and with applies sent at the same time (MAM-34); and a Jellyfin behind a reverse proxy
+  (MAM-35). What was tried live, and what wasn't, is in the README's
+  [Tested with](README.md#tested-with) and the release note.
+- **MAM-37 Running times differ, and real copies only** (built, release 0.2.1; checked on 2026-10-08
+  on a copy of production's database, in no published image yet): the Duplicates page lists only
+  real copies of one film or episode, and flags for review the copies of one work whose measured
+  running times differ widely (Vasyl's decisions 1 to 4 of 2026-10-08;
+  [ADR 0028](docs/adr/0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)
+  amended). Nothing in the library, a file or a download client changes, only what the list holds,
+  and registry ids stay the only join: a file's name can keep two copies apart, never join them. Two
+  episodes of one show at different places are never one work, whatever ids they share (decision 2,
+  after the first check: the Penguins of Madagascar pairs under one IMDb id, Mickey Mouse Clubhouse
+  S03E31 under all of S03E33's ids); this reverses MAM-20's rule of 2026-10-07 for episodes, while
+  films keep it — one IMDb id with two TMDb ids is still one work flagged "TMDb ids differ". A show
+  is every id and title one place names, so a show the library knows by no id is one show by its
+  title; the works are joined in id order, a join refused where the two sit at different places of a
+  show both hold or either at two places of one, and a film item whose ids reach two such places
+  joins neither; a work the library itself holds at two places of a show is no group, and such
+  episodes are never offered as a possible match either. `EpisodeNumbers` and "Episode numbers
+  differ" are gone; `IdentifierConflict` stays for films and for copies of one episode under two
+  shows' ids. An episode's files whose names glue different segment letters to their first `SxxEyy`
+  — `Mickey Mouse Clubhouse_S03E09a` and `_S03E09b`, one episode to Jellyfin — are no copies of each
+  other (decision 2): an "a" file is a copy of another "a" file only, never of a "b" or of a whole
+  episode, the letter a lowercase a to d standing alone. A film's copies whose file names claim
+  years more than one apart are no copies (decision 3, that Blade Runner 2049 must not be among the
+  duplicates at all, by the rule proposed to Vasyl for it): a year counts only alone in round or
+  square brackets, 1880 to 2099 — never a bare year, a list, a span or a year beside a word in its
+  bracket —, a name claiming two years claims none, years each within one of the next are one
+  film's, and beside two runs of years or more the copies claiming none are a part of their own. So
+  Blade Runner (1982) and Blade Runner 2049 (2017), one movie with two versions under the 1982
+  film's ids in Jellyfin, leave the page, while "Seksmisja (1984).mp4" beside "Seksmisja [1983
+  DVDRemux].mkv", which claims no year, stays one group; films only, as in an episode's name a
+  bracketed year is its show's or its season's. Different editions are not duplicates (decision 4,
+  on Rambo: Last Blood's Theatrical and Extended Cut; it reverses specification §3.3's reading, in
+  its MAM-20 note, that different editions are "distinctions needing review", and MAM-20's edition
+  flag for this class): copies whose names say different
+  sets of editions — Theatrical, Extended, Director's Cut, Special Edition, Unrated, Assembly, Open
+  Matte, Widescreen, Remastered, Final Cut and the rest of the word list — are no copies, and a copy
+  that says none beside one that says one is another edition; a hardlinked file's names say one
+  thing between them; a possible match keeps "Editions differ" as evidence, and same-file and
+  byte-identical groups are untouched, as their bytes are one. The copies are split by their
+  letters, then (films only) their years, then their editions, each part a group with two copies and
+  two files or more; its key adds `|Segments:` when its copies carry letters, then `|Years:` and
+  `|Editions:` when those parted something, so a group with none keeps the key it had. Last, a
+  same-work group whose shortest measured copy runs under three quarters of its longest — 4 ×
+  shortest < 3 × longest in whole milliseconds, exactly three quarters not under — gains
+  `RunningTimes` (5), the badge "Running times differ", and needs review, beside any other
+  distinction and last in kind order (decision 1); running times split nothing. Copies, not files,
+  are compared: a copy is what one version holds, its running time its files' measured durations
+  summed (a film in two parts as long as both), each distinct copy counted once, and a copy with a
+  file never inspected or whose reading failed decides nothing. The group's `evidence.runningTimes`,
+  `{ shortestMilliseconds, longestMilliseconds }`, gives the shortest and the longest measured copy
+  whenever two copies have a running time, flagged or not, `null` otherwise and for every other
+  class; the card says under "One work by its ids:" "The shortest copy runs 26:41, under three
+  quarters of the longest, 1:35:32." when the group is flagged. Rejected: the possible matches' 2
+  minutes or 10 %, made to tell another rip from another cut, and "more than 40 minutes", which no
+  episode or short could reach. Checked on 2026-10-08 with the build run on this PC on a copy of
+  production's database, production keeping the published 0.2.1 image (Vasyl's decision 5 that day):
+  `tools/mam37/copy_db.py`, which Vasyl ran at 11:31 UTC, copied the database — 1,397 names, 1,396
+  with a measured duration — and in the copy only removed the allowed folder `/media` and pointed
+  the four integrations at `http://127.0.0.1:9`; its `--verify` found the 14 tables the duplicates
+  are read from as copied at the start and after the check. `GET /api/library/duplicates` listed 4
+  groups, all same work, each under the key it had in MAM-22's list that morning and each with
+  `runningTimes`: The Gods Must Be Crazy (1980), two WEB releases; «Ніж у воді» (1962), the film and
+  the featurette at 27.9 % of it, flagged `RunningTimes`, the 1 needing review; Seksmisja (1984);
+  and Alien: Romulus (2024), a 2160p remux and a 1080p rip. The page said "1–4 of 4", with the badge
+  and the sentence on «Ніж у воді»'s card alone, and didn't scroll sideways at desktop width and
+  375px; Vasyl signed in himself and looked at it. The other 42 groups left the page: the 20
+  Penguins of Madagascar pairs and S03E31/S03E33, the eight Mickey Mouse Clubhouse episodes held as
+  "a" and "b" files, Blade Runner, and 12 groups of different editions — The Bourne Identity
+  (Theatrical and Open Matte), Rambo: Last Blood, Terminator 2's three editions, Terminator
+  Salvation, Alien, Aliens, Alien³, Alien: Resurrection, AvP: Requiem, and three Tom & Jerry shorts,
+  plain beside Widescreen. Earlier that day the first version of the change had listed the 46
+  groups, and the second, after decision 2, 17 of films and shorts; decisions 3 and 4 followed from
+  those lists. A copy in two parts, a copy unmeasured or whose reading failed beside measured ones,
+  a hardlinked file whose names say different editions, a whole episode file beside an "a" file, a
+  film item linked as an episode at another place, a part's own key and a possible match, none of
+  which production has, rest on the tests; production shows all of it once Vasyl publishes and
+  deploys an image that holds it.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -788,7 +874,13 @@ file system's type read anywhere but Linux's mount table, so Windows gives no es
 deleting, moving or renaming a file, and any bulk action; a decision on a group of another class,
 by a member, or one that follows a group whose members changed; a confirmation that joins the works
 or clears the review flag; pruning the decisions whose key no group has now; and counts on the
-tabs.
+tabs. For MAM-37: joining anything by a file's name — its segment letters, years and editions only
+keep copies apart, and registry ids stay the only join —; splitting a group, or keeping works
+apart, by their running times; a running-times distinction on a possible match, which keeps its 2
+minutes or 10 %; parting a same-file or byte-identical group by its names; reading a year in an
+episode's name, a bare year, a span or a year beside a word in its bracket; calling a copy
+redundant; and writing anything to the library, a file or a download client, or telling the owner
+to change Jellyfin's ids or his links.
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -880,6 +972,8 @@ places, different cuts and different measured dynamic ranges require manual revi
 or years are never merged or offered; a possible match needs one title key and its year, never
 across kinds, differing ids or episode places, and a scanned file is offered by its file or folder
 name, never an episode's; and the list's access, sentences, filter, paging, order and wire names.
+(MAM-37 since: an episode's "a" and "b" files, two episodes of one show at different places under
+one episode's ids and different cuts make no group, and those tests now say so, below.)
 MAM-21: the owner's confirmation and dismissal are stored by group key with an audit row whose
 target is the key, the same decision again writes nothing and a change writes a second audit row;
 a dismissed match leaves every list but the dismissed one and a confirmed one stays, still needing
@@ -895,6 +989,43 @@ heading, the path ends that tell files apart and two files of one name told apar
 folders, the rows and the table, the decisions and their failures, a 404 that says the group
 changed and asks for the list again, the short rows a dismissal and an undone dismissal leave with
 Undo and Dismiss again, a member's disabled buttons and the load and refresh failures.
+MAM-37: two episodes of one show at different places are never one work — under one IMDb id, under
+all of one episode's ids, and in a show without ids by its title — while one episode at one place
+known by two shows' ids is one, one episode's id in two shows sharing no id or title joins them, two
+films with one IMDb id and different TMDb ids stay one, a film item with one episode's IMDb id joins
+it, and copies of one episode join while another episode under its IMDb id stays out; a film item
+linked at one place and the library's episode at another stay apart, a film item with the IMDb id of
+two episodes at different places joins neither, a work the library holds at two places of a show
+joins nothing and makes no group, and two films carrying its ids are grouped without it; the
+components are the same whatever order the works come in, a chain through another show included; and
+two such episodes with one title and year are never offered as a possible match. An episode's "a"
+and "b" files make no group, each segment is grouped with its copy in another library with its own
+running times, and a whole episode file stays apart from its segment file; the letter is read only
+glued to a name's first `SxxEyy`, never from two segments or a range, a capital letter or a word
+glued to the number, a marker written otherwise or a film's name. A film's versions, or two films
+under one id, whose names claim years far apart make no group; a year sharing its bracket with a
+word, a run of years each one apart and a copy claiming no year beside the film's copy keep one
+group under the work's key; a copy whose parts claim years far apart claims none; the copies of two
+films under one id are grouped by their years, a third copy claiming none left out, or, with a copy
+of its own, a group of its own; an episode's copies are one group whatever years their names claim;
+and a year is read alone in brackets, from production's names too, never a bare year, a list, a
+span, a year among other words, two different years, one out of range or other digits. Different
+cuts — the Theatrical and the Extended Cut, three editions of one film, a cartoon and its Widescreen
+copy, and a version whose library name says a cut beside one that says none — make no group, while
+two copies of one cut keep the work's key, the copies of one cut beside another cut get a key of
+their own, those saying no edition beside another edition a "none" key, and a part whose copies say
+several editions names them in edition order; one file whose hardlinked names say different editions
+is in one group of copies; and a possible match's files whose editions differ are still flagged. A
+shortest copy at exactly three quarters of the longest is not flagged and one a millisecond under
+is, with no rounding, a longest not divisible by four deciding by the exact share; a film and a
+featurette under its ids are flagged by their running times, and beside ids that disagree, after
+them, while a shortest copy over three quarters of the longest, another cut and another rip are not;
+a copy never inspected, one whose reading failed and one with a part not measured decide nothing,
+and the measured copies beside one never inspected are still compared; a film in two parts runs as
+long as both, one path two libraries report is one copy, and the evidence is the shortest and the
+longest of three copies, flagged or not, written by name and last, and `null` for every other class;
+a possible match gets no running-times distinction whatever its durations; and the card shows the
+badge after the others and the sentence only for a flagged group.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -942,7 +1073,9 @@ where the file system isn't known to keep its files apart; and nothing written t
 files or any download client. Checked on the reference installation on 2026-10-08 (MAM-22), after
 **Refresh all**: those groups and flags, no works of similar titles or years joined, no possible
 match, no byte-identical group, as no two files share a size, no file changed, no audit row written;
-the estimate rests on the tests. For MAM-21: on the reference installation, after an inspection, the
+the estimate rests on the tests. (MAM-37 since: the Mickey Mouse Clubhouse halves, the cuts, the
+Penguins of Madagascar pairs and S03E31/S03E33 are no groups; see its part below.)
+For MAM-21: on the reference installation, after an inspection, the
 Duplicates page lists those groups under their tabs, each with its evidence, the Mickey Mouse
 Clubhouse halves told apart by their paths and the cuts flagged, with no estimate shown where
 MAM-20 gives none; the owner confirms, dismisses and undoes a possible match — where the library
@@ -956,8 +1089,25 @@ Madagascar card with its flags, a Mickey Mouse Clubhouse card (season 3, episode
 whose two halves are told apart by their file names, no estimate, and no control that removes,
 moves or renames; at desktop width, 375 and 320px the page didn't scroll sideways. Production
 offers no possible match, so Confirm, Dismiss and Undo rest on the tests and the 2026-10-07 check,
-as the bar allows; so does a member's view. MAM-36 has no bar; its **Refresh all** ran on
+as the bar allows; so does a member's view. (MAM-37 since: "1–4 of 4", no card of halves, cuts or
+Penguins of Madagascar pairs.) MAM-36 has no bar; its **Refresh all** ran on
 production on 2026-10-08 (MAM-22) and synced, scanned and inspected with no stop.
+For MAM-37: on the reference installation's measured files, `GET /api/library/duplicates` and the
+Duplicates page list only real copies of one film or episode — no two episodes of one show at
+different places, no episode's "a" and "b" files, no copies whose file names claim years more than
+one apart, no two editions — and flag "Running times differ" on the groups whose shortest copy runs
+under three quarters of the longest, with the sentence giving both running times; nothing is
+written. Checked on 2026-10-08 with the MAM-37 build run on this PC on a copy of production's
+database that `tools/mam37/copy_db.py` made, not on a published image (Vasyl's decision 5 that day):
+4 of the 46 groups production listed that morning (MAM-22), each under the key it had then and each
+with `runningTimes` — The Gods Must Be Crazy (1980), «Ніж у воді» (1962), Seksmisja (1984) and
+Alien: Romulus (2024) —; `RunningTimes` on «Ніж у воді»'s alone, the 1 group needing review; on the
+Duplicates page "1–4 of 4", and the badge and "The shortest copy runs 26:41, under three quarters of
+the longest, 1:35:32." on that card alone, with no sideways scroll at desktop width and 375px; and
+the 14 tables the duplicates are read from unchanged at the start and after the check. A copy in two
+parts, a copy unmeasured or whose reading failed beside measured ones, the keys of a split group and
+a possible match, none of which production has, rest on the tests; production shows it once an image
+that holds MAM-37 is published and deployed.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify

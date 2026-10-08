@@ -83,15 +83,16 @@
     "titles": "The same title and year:",
     "durationsAgree": "Their running times agree.",
     "durationsDiffer": "Their running times differ.",
-    "durationsUnknown": "Their running times aren't measured."
+    "durationsUnknown": "Their running times aren't measured.",
+    "runningTimes": "The shortest copy runs {{shortest}}, under three quarters of the longest, {{longest}}."
   },
   "distinction": {
     "IdentifierConflict": "{{scheme}} ids differ",
     "IdentifierConflictOfSeries": "Their shows' {{scheme}} ids differ",
     "IdentifierConflictUnnamed": "Their ids differ",
-    "EpisodeNumbers": "Episode numbers differ",
     "Edition": "Editions differ",
-    "DynamicRange": "Dynamic ranges differ"
+    "DynamicRange": "Dynamic ranges differ",
+    "RunningTimes": "Running times differ"
   },
   "recoverable": {
     "nothing": "Removing a name frees nothing while the file has another.",

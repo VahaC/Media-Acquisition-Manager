@@ -24,7 +24,9 @@ public enum DuplicateClass
 
     /// <summary>
     /// The files of works that share a registry id — another copy or version of the same work, across libraries
-    /// (ADR 0017); never called redundant.
+    /// (ADR 0017); never called redundant. Never two episodes of one show at different places, nor an episode's files
+    /// whose names carry different segment letters, nor copies whose names claim years far apart or say different
+    /// editions (MAM-37).
     /// </summary>
     SameWork = 3,
 

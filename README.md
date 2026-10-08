@@ -4,11 +4,15 @@
 
 **Status: 0.2.1 published; Phase B shipped.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05)
 and 0.2.1 (2026-10-07), the version the app now reports, are published as Docker images, and
-MAM-22 checked Phase B's acceptance bar on the reference installation on 2026-10-08; MAM-5
-(personal access tokens, Phase A) is still to do. Today the app is an API and a web app that
-report their own health, with accounts, integration settings and the library: the
-installation owner created on first run, the users the owner manages, sign-in, and a
-Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
+MAM-22 checked Phase B's acceptance bar on the reference installation on 2026-10-08; MAM-37 (the
+Duplicates page lists only real copies of one film or episode — never two episodes of one show, an
+episode's "a" and "b" files, films whose file names claim years far apart or different cuts — and
+flags for review the copies whose running times differ widely), built after it while the version is
+still 0.2.1, was checked the same day on a copy of production's database, 4 groups where there were
+46, and is in no published image yet; MAM-5 (personal access tokens, Phase A) is still to do. Today
+the app is an API and a web app that report their own health, with accounts, integration settings
+and the library: the installation owner created on first run, the users the owner manages, sign-in,
+and a Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
 source such as Prowlarr and qBittorrent, tests each connection, and imports the Jellyfin library —
 its movies, series and episodes — which every signed-in user can browse, with what each file really
 holds once the app has inspected it inside the media folders the owner allows; the owner also scans
@@ -204,29 +208,41 @@ application.
   item linked as an episode joins the library's own episode — and which are possible matches by a
   title and its year where no id settles it, a file only the scan found included by its file or
   folder name. The 65 id-less files of one item are no copies, a movie and a series sharing a TMDb
-  number stay apart, and two series items of one show are one show. Nothing is called redundant and
-  nothing is merged: different cuts and editions, read from words in the file or version names in
-  English and Ukrainian, different measured dynamic ranges and ids that disagree (two TMDb ids under
-  one IMDb id, one episode's ids at two places) are flagged for review, and a possible match always
-  needs it, with whether the measured durations agree. The room removing a copy would free is given
-  for byte-identical files only, and only on a file system known not to share blocks between files,
-  read from Linux's mount table — btrfs, ZFS, XFS, a network share and Windows give none, with the
-  reason. A file a torrent seeds is classed like any other, and no download client is asked. Every
-  signed-in user reads the groups, on the Duplicates page (below) or through
-  `GET /api/library/duplicates`; nothing is removed, and nothing but the owner's decisions on
-  possible matches is stored
+  number stay apart, and two series items of one show are one show. Only real copies of one film
+  or episode are a work's group (MAM-37, Vasyl's decisions of 2026-10-08): never two episodes of
+  one show at different season or episode numbers, whatever ids they share; nor an episode's "a"
+  and "b" files, `…_S03E09a_…` and `…_S03E09b_…`, which Jellyfin gives one episode's numbers and
+  ids; nor a film's copies whose file names claim years more than one apart, each year alone in
+  brackets — `(1982)` and `(2017)`, Blade Runner 2049 filed under the 1982 film's ids —, a year
+  apart still one film's; nor copies whose names say different cuts or editions, read from words in
+  the file or version names in English and Ukrainian — Theatrical and Extended, a Widescreen or Open
+  Matte frame, a remaster, or a labelled copy beside an unlabelled one —, which are different
+  versions, not duplicates. One file's names and byte-identical files are grouped whatever their
+  names say. Nothing is called redundant and nothing is merged: different measured dynamic ranges,
+  ids that disagree (two TMDb ids under one IMDb id, one episode's copies under two shows' ids) and
+  copies whose measured running times differ widely — the shortest copy under three quarters of the
+  longest, a copy's running time its files' durations summed, a copy with a file not measured left
+  out (MAM-37) — are flagged for review, and a possible match always needs it, with whether the
+  measured durations agree and, when its files' names say different editions, "Editions differ".
+  The room removing a copy would free is given for byte-identical files only, and only on a file
+  system known not to share blocks between files, read from Linux's mount table — btrfs, ZFS, XFS, a
+  network share and Windows give none, with the reason. A file a torrent seeds is classed like any
+  other, and no download client is asked. Every signed-in user reads the groups, on the Duplicates
+  page (below) or through `GET /api/library/duplicates`; nothing is removed, and nothing but the
+  owner's decisions on possible matches is stored
   ([ADR 0028](docs/adr/0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)).
 - **The Duplicates page, where the owner confirms or dismisses a possible match.** **Duplicates** in
   the header, and at the top of the Library page, opens it for every signed-in user, with a tab for
   each class — All, Same file, Byte-identical, Same work and Possible — and Dismissed last, the tab
   kept in the address, filtered and paged on the server. Each group is headed by its movie, or by
   its show with the season and episode, and shows its class, what flags it for review, the evidence
-  behind it — the one file's device and inode, the shared SHA-256, the shared ids, or the shared
-  title and year with whether the running times agree —, the room its files take and, only where
-  the server can say, the room removing all but one copy would free, or why it can't. Its files are
+  behind it — the one file's device and inode, the shared SHA-256, the shared ids and, beside a
+  "Running times differ" flag (MAM-37), how long the shortest and the longest copy run, or the shared
+  title and year with whether the running times agree —, the room its files take and, only where the
+  server can say, the room removing all but one copy would free, or why it can't. Its files are
   listed as the Library lists a movie's versions, rows or a comparison table, each named by the end
-  of its path that tells it from the group's other files — its file name, which tells the halves of
-  an episode apart, or, where another file has that name, the nearest folder that differs, as for a
+  of its path that tells it from the group's other files — its file name, which tells two cuts of a
+  film apart, or, where another file has that name, the nearest folder that differs, as for a
   hardlink's two names —, with its folder, identity, hash, editions and the works that hold it. Only
   the installation owner confirms or dismisses a possible match, or undoes either (Vasyl's decisions
   of 2026-10-07), each with an audit row; others see the decision and when, with the buttons
@@ -382,7 +398,8 @@ The integrations were tried against the reference installation, whose recorded a
 adapters' test samples. Phase A's checks, MAM-15's of its acceptance bar on 2026-10-03 among them,
 ran through the app run from this repository. MAM-22 checked Phase B's acceptance bar on 2026-10-08
 on production itself, the app's container on the installation's host running the published 0.2.1
-image. The other tickets' live checks are listed too, each with where it ran when that was recorded.
+image; MAM-37's check, the same day, ran its build on this PC on a copy of production's database.
+The other tickets' live checks are listed too, each with where it ran when that was recorded.
 
 | Service | Version tried | Used as |
 | --- | --- | --- |
@@ -391,7 +408,7 @@ image. The other tickets' live checks are listed too, each with where it ran whe
 | qBittorrent | 5.2.4 | Download client |
 | TMDb | API v3, read on 2026-10-05 | Metadata catalog |
 | ffprobe | 6.1.1-3ubuntu5, Ubuntu's package in the 0.2.1 image, read on 2026-10-08 (MAM-22's inspections took every reading from the cache and ran it on no file) | File inspection |
-| Media Acquisition Manager | 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22) | The app checked |
+| Media Acquisition Manager | 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22); the MAM-37 change built on top of commit 27fcd79, on Windows on a copy of production's database (MAM-37) | The app checked |
 
 - **Jellyfin:** the connection test, and syncs of all its movies, collections included (876 items
   on 2026-10-03). The header search "Sherlock Holmes (2009)" found the movie inside
@@ -584,8 +601,11 @@ image. The other tickets' live checks are listed too, each with where it ran whe
   IMDb tt0083658 and TMDb 78, so it joins `[01] Blade Runner (1982) [The Final Cut]`, flagged only
   through The Final Cut's label; and the featurette `Polanski+Skolimowski o Noże.mkv` (26.7 min)
   shares IMDb tt0056291 and TMDb 11502 — the TMDb id also a link Vasyl set — with the film `Nóż w
-  wodzie (1962).mkv` (95.5 min). The same-work class compares no running times, so both are recorded
-  as they are; MAM-37 (to do) is the app's follow-up, a distinction for running times that differ.
+  wodzie (1962).mkv` (95.5 min). The same-work class compared no running times then, so both are
+  recorded as they are. (MAM-37 since: 4 of these 46 groups stay — The Gods Must Be Crazy, «Ніж у
+  воді», now flagged "Running times differ", Seksmisja and Alien: Romulus —, the other 42 off the
+  page as episodes at different places, an episode's "a" and "b" files, films whose names claim
+  years far apart or different editions; below.)
   No group is flagged "Dynamic ranges differ": where one copy's range is measured, as Romulus's
   Dolby Vision, the other's isn't — 778 video tracks have none measured —, and an unmeasured file
   decides nothing. None of the near misses is in any group — Ghostbusters (1984), (2016) and
@@ -603,12 +623,57 @@ image. The other tickets' live checks are listed too, each with where it ran whe
   files apart by their names (`…_S03E09a_…`, `…_S03E09b_…`); a Penguins card said "Same work",
   "Needs review", "TVDB ids differ" and "Episode numbers differ", its opened file row "Device 2081 ·
   inode 164632817 · 1 link" and "Not hashed", and at desktop width **Table** switched its files to
-  the comparison table. At about 1545 px, 375 px and 320 px wide the page didn't scroll sideways — its
-  tab row does, and at phone width the files show as rows —, no control on it deletes, moves or
-  renames a file, and it says "Nothing here removes, moves or renames a file: confirming a possible
-  match only records that the owner checked it." The header search "Alien (1979)" showed under
-  **In your library** «Чужий» (1979), matched by title and year, and «Чужий³» (1992), each with
-  Jellyfin's own poster, a 342x513 JPEG the app served, possibly from its disk cache.
+  the comparison table (MAM-37 since: neither card is on the page, which says "1–4 of 4", below).
+  At about 1545 px, 375 px and 320 px wide the page didn't scroll sideways — its tab row does, and
+  at phone width the files show as rows —, no control on it deletes, moves or renames a file, and it
+  says "Nothing here removes, moves or renames a file: confirming a possible match only records that
+  the owner checked it." The header search "Alien (1979)" showed under **In your library** «Чужий»
+  (1979), matched by title and year, and «Чужий³» (1992), each with Jellyfin's own poster, a 342x513
+  JPEG the app served, possibly from its disk cache.
+- **A copy of production's database for MAM-37 (2026-10-08):** Vasyl decided that day that MAM-37's
+  check runs its build locally on a fresh copy of production's database rather than a published
+  image, so production kept running the published 0.2.1 image. He ran `tools/mam37/copy_db.py` at
+  11:31:03 UTC: one ssh call, `tools/mam22/report.py`'s, reading only, copied `mam.db`
+  (30,281,728 B), its `-wal` (7,321,272 B) and `-shm` (32,768 B), never `.secrets`. Production then
+  ran `vahac/media-acquisition-manager:latest` at digest `sha256:d9c6149a3dbf…` (0.2.1), its
+  container running since 10:19:47 UTC, on kernel Linux 7.0.14-22-pve. The database passed
+  `quick_check`, had 20 migrations, the last `20261007173129_AddDuplicateMatchDecisions`, and 1,397
+  names — 1,396 `Inspected`, each with a measured duration, and 1 `MediaUnreadable`. In the copy
+  only, the script removed the allowed folder `/media` — else the local start would inspect every
+  name under it, `/media` being no path on Windows, and write each "outside the allowed folders",
+  dropping the durations — and set the four integrations' addresses to `http://127.0.0.1:9`. The
+  MAM-37 working tree on top of commit 27fcd79 ran on this PC (Windows) with `dotnet run -c Release`
+  and `--Storage:DataDirectory` set to the copy, on port 5080 with the Vite dev server on 5173, and
+  logged "No migrations were applied"; Vasyl signed in himself as VahaC in the browser pane.
+  `copy_db.py --verify`, at the start and again after the check, found the 14 tables the duplicates
+  are read from unchanged and no migration applied. Both servers were then stopped and the copy
+  deleted, its `baseline.json` and `facts.txt` kept in `.claude/mam37-check`, which git ignores.
+- **The duplicates on that copy (MAM-37, 2026-10-08):** `GET /api/library/duplicates` as the owner
+  listed 4 groups, all `SameWork`, each under the key it had in production's list that morning
+  (MAM-22), every one with `evidence.runningTimes`, and 1 of them needing review: The Gods Must Be
+  Crazy (1980), two WEB releases of 6,545,205 and 6,545,206 ms (`d891061157cb9fb4ead8cc9aeb1d8904`);
+  «Ніж у воді» (1962), the film's 5,731,959 ms and the featurette's 1,600,699 (27.9 %), flagged
+  `RunningTimes` alone (`1d1e5bb583b2abf9447473cd72b51e97`) — Vasyl: "це дубль"; Seksmisja (1984),
+  `Seksmisja (1984).mp4` and `Seksmisja [1983 DVDRemux].mkv` — whose name claims no year, its 1983
+  sharing a bracket with a word —, 6,980,120 and 7,005,013 ms (`3e4489b5421b7029fe748b6fde41f420`);
+  and Alien: Romulus (2024), the 2160p remux's 7,141,927 ms and the 1080p rip's 7,140,926
+  (`42549f6096483661d4733a72561c4b9b`). No group of another class, and none dismissed. Of MAM-22's
+  46 groups these 42 left the page: the 20 Penguins of Madagascar pairs and Mickey Mouse Clubhouse
+  S03E31/S03E33, episodes at different places; the 8 Mickey Mouse Clubhouse episodes held as "a" and
+  "b" files; Blade Runner, by the years its names claim and by their editions; and 12 groups of
+  different editions — The Bourne Identity (Theatrical and Open Matte), Rambo: Last Blood,
+  Terminator 2 (three editions), Terminator Salvation, Alien, Aliens, Alien³, Alien: Resurrection,
+  Aliens vs Predator: Requiem, and Tom & Jerry's Feedin' the Kiddie, The Egg and Jerry and Tops with
+  Pops (plain and Widescreen). Two earlier versions of MAM-37, run that morning on a copy taken at
+  10:31 UTC and on this one, listed 46 groups and 17; Vasyl's decisions on what each showed made the
+  final rules, and both are superseded.
+- **The Duplicates page on that copy (MAM-37, 2026-10-08):** `/library/duplicates` said "1–4 of 4";
+  «Ніж у воді»'s card carried "Same work", "Needs review" and "Running times differ" and the
+  sentence "The shortest copy runs 26:41, under three quarters of the longest, 1:35:32.", and the
+  other three "Same work" only. The page was reloaded, and at desktop width and at 375 px it didn't
+  scroll sideways; the server logged no error, and the browser console's only errors were the 401s
+  of the session refresh, before Vasyl signed in and after the reload. He looked through it and said
+  "ніби ок".
 
 Not tried live yet:
 
@@ -640,10 +705,11 @@ Not tried live yet:
   46 same-work groups the rules predict — the 17 movies with several files, the 8 Mickey Mouse
   Clubhouse halves, S03E31/S03E33 and the 20 Penguins of Madagascar pairs, 34 of them flagged for
   review — and no possible match; production gave 46 on 2026-10-08 too, 34 of them flagged for
-  review, and no possible match (above). The file system of a device was read from a real mount
-  table only in a Linux container (overlayfs): production's list, with no byte-identical group,
-  never asked, though its `/media` is ext4, which the app counts as keeping copies apart, so a
-  byte-identical pair there would get an estimate (`FileSystemSharingTests`, `MountTableTests`).
+  review, and no possible match (above; MAM-37 since: 4 groups on a copy of its database, 1
+  flagged). The file system of a device was read from a real mount table only in a Linux container
+  (overlayfs): production's list, with no byte-identical group, never asked, though its `/media` is
+  ext4, which the app counts as keeping copies apart, so a byte-identical pair there would get an
+  estimate (`FileSystemSharingTests`, `MountTableTests`).
 - Confirm, Dismiss and Undo on a live library, and the Duplicates page as a member (MAM-21): on
   2026-10-07 the page was opened in Chrome against a throwaway database seeded with groups of every
   class — a hardlink, byte-identical copies, two cuts of one film, an episode in two halves,
@@ -654,6 +720,34 @@ Not tried live yet:
   (MAM-20) nor production (MAM-22, opened as the owner on 2026-10-08) offers a possible match, and
   no member account was used on production, so the decisions and a member's view rest on that check
   and the tests (`LibraryDuplicateDecisionsHttpTests`, `LibraryWritesAreOwnerOnlyHttpTests`).
+  (MAM-37 since: two cuts whose names say different editions, and an episode's "a" and "b" files,
+  make no same-work group.)
+- Some of MAM-37's cases (2026-10-08): its check on a copy of production's database exercised none
+  of them, so they rest on the tests. For the "Running times differ" flag, a copy in two parts, a
+  copy never inspected or with a part not measured beside measured ones, and a copy whose reading
+  failed (`LibraryDuplicatesRunningTimesHttpTests`:
+  `List_counts_a_copy_in_two_parts_as_the_sum_of_their_durations`,
+  `List_takes_no_running_time_from_a_copy_with_a_part_not_measured`,
+  `List_takes_no_running_time_from_a_copy_never_inspected`,
+  `List_compares_the_measured_copies_beside_one_never_inspected` and
+  `List_takes_no_running_time_from_a_copy_whose_reading_failed`). In the same-work class, a
+  hardlinked file whose names say different editions, an episode's whole file beside its "a" file,
+  and the `|Years:` and `|Editions:` keys of a work whose copies split into two groups or more,
+  which no work on production does (`LibraryDuplicatesSameWorkHttpTests`:
+  `List_puts_one_file_whose_hardlinked_names_say_different_editions_in_one_group_of_copies`,
+  `List_keeps_an_episodes_whole_file_apart_from_its_segment_file`,
+  `List_groups_copies_by_the_years_their_names_claim_and_leaves_one_claiming_none_out`,
+  `List_groups_the_copies_claiming_no_year_beside_two_clusters_as_a_part_of_their_own`,
+  `List_groups_the_copies_of_one_cut_apart_from_another_cut_under_a_key_of_their_own` and
+  `List_groups_the_copies_saying_no_edition_beside_another_edition_under_a_none_key`); a film item
+  linked as an episode at another place than the library's episode
+  (`DuplicateWorkComponentsTests.WorkComponents_a_film_item_linked_at_one_place_and_the_librarys_episode_at_another_are_apart`);
+  and a possible match, of which production offers none, flagged "Editions differ" and never for
+  its running times (`LibraryDuplicatesPossibleHttpTests`:
+  `List_flags_a_possible_matchs_files_whose_editions_differ` and
+  `List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations`). Nor has
+  production itself shown MAM-37: the published 0.2.1 image doesn't have it, and production shows
+  it once Vasyl publishes and deploys an image that does.
 - The app's checks of Toloka for the recommended works within the users' limits, its reading of
   Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
   the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
@@ -1232,7 +1326,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link, posterUrl }`, ordered by `sort` — `Title` by default, in Ukrainian alphabetical order (Latin titles after Cyrillic ones), `TitleDescending`, `Newest` or `Oldest` by the year the card shows (a work with none last either way), `Largest` by the sizes of its files added up (a series' episodes' files too; a work with no size last) or `Added` by when the app first saw it (a series by its latest episode), each read by name in any letter case and each falling back to the title order, so the order is total (MAM-8); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue, identified, underWay }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only, `identified` true when the work has an item `Written` or `InLibrary` and every such item has an `identifiedUtc`, and `underWay` true when any item's link is `Queued` or `Writing` (the page asks again while it is), both everyone's. `posterUrl` (MAM-35) is `/api/library/posters/{itemId}-{tag}.jpg`, the poster of the item whose title the work shows, else of the next item that has one, or `null` when Jellyfin holds no picture of any of them (ADR 0027). `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, an unknown kind ("“x” is not a kind filter. Use Movie or Series.") or an unknown sort ("“x” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added."). |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
 | `GET /api/library/posters/{fileName}` | Every signed-in user. A library work's own poster, as a work's `posterUrl` names it — `{itemId}-{tag}.jpg`, each half 1 to 64 letters and digits: 200 with the bytes, `image/jpeg`, and `Cache-Control: private, max-age=2592000, immutable`, only for an item id and tag a sync stored. The first request fetches it from the Jellyfin that reported it — `GET /Items/{id}/Images/Primary?tag=…&format=Jpg&maxWidth=342&quality=90`, the key in the header — and keeps it in `<data>/library-posters/`, which is never pruned; later ones read it from there, whatever the library's state (ADR 0027). A bare 404 for a name that is no poster file name, one no library reported (a removed library's included), one not kept while its library is switched off or of a type that can't read a library, and one Jellyfin has no image for or no longer knows. 502 when Jellyfin couldn't send it — its sentence, masked of the key, for the owner, and "The media library couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
-| `GET /api/library/duplicates?class=&decision=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028; MAM-21, ADR 0029). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable, decision }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows — an episode's group by its series' title, then its season (the specials after the numbered seasons, a place without a season last) and its number (MAM-21) —, then by `key`, 32 hex characters that name the group while what makes it one stays. `decision` is `Confirmed` or `Dismissed`, read in any letter case, never as a number, and lists only the possible matches the owner decided so; without it every group is listed but the dismissed possible matches, which leave every class and the totals. A group's `decision` is `null` while undecided and for every other class, else `{ decision, decidedUtc, decidedByUserName }`, the name the owner's only; `needsReview` stays true on a decided possible match. `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `EpisodeNumbers`, `Edition` and `DynamicRange`, and `needsReview` is true with any, and always for `Possible`. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100.", "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible." or "“x” is not a decision. Use Confirmed or Dismissed.", checked in that order (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client. |
+| `GET /api/library/duplicates?class=&decision=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028; MAM-21, ADR 0029). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree, runningTimes: { shortestMilliseconds, longestMilliseconds } }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }] }], space, recoverable, decision }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more; never, since MAM-37, two episodes of one show at different places, whatever ids they share, an episode's files whose names carry different segment letters glued to their `SxxEyy` — its "a" and "b" files —, a film's copies whose file names claim years more than one apart, each alone in brackets, or copies whose names say different editions, a labelled one beside an unlabelled one included: a work's copies are split by their letters, then a film's by their years, then by their editions, each part with two copies or more a group, under a key of its own when its copies carry segment letters or a split by years or editions made it, and one file's names and byte-identical files are grouped whatever their names say) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows — an episode's group by its series' title, then its season (the specials after the numbered seasons, a place without a season last) and its number (MAM-21) —, then by `key`, 32 hex characters that name the group while what makes it one stays. `decision` is `Confirmed` or `Dismissed`, read in any letter case, never as a number, and lists only the possible matches the owner decided so; without it every group is listed but the dismissed possible matches, which leave every class and the totals. A group's `decision` is `null` while undecided and for every other class, else `{ decision, decidedUtc, decidedByUserName }`, the name the owner's only; `needsReview` stays true on a decided possible match. `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `Edition` (`Possible` only since MAM-37), `DynamicRange` and `RunningTimes` (MAM-37, `SameWork` only: the shortest measured copy runs under three quarters of the longest, beside any other distinction), and `needsReview` is true with any, and always for `Possible`. `runningTimes` (MAM-37) is, for `SameWork`, the running times of the shortest and the longest copy whenever two copies or more have one, flagged or not — a copy is what one version holds, its running time the sum of its files' measured durations, and a copy with a file not measured has none —; `null` otherwise and for every other class. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100.", "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible." or "“x” is not a decision. Use Confirmed or Dismissed.", checked in that order (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client. |
 | `PUT /api/library/duplicates/{key}/decision` with `{ decision }` | Owner only (MAM-21, ADR 0029). Confirms or dismisses the possible match `key` names now — worked out as the list does —, `decision` being `Confirmed` or `Dismissed` by name, in any letter case, never a number: one row per group key with who decided and when, and an audit row `DuplicateMatchConfirmed` or `DuplicateMatchDismissed` whose target is the key, named by the first title and year the group was offered by. 204, also when it was already decided so, which writes nothing; a change of decision rewrites the row with its own audit row. 400 "A decision is needed: Confirmed or Dismissed.", "“x” is not a decision. Use Confirmed or Dismissed." (the value cut to 32 characters and "…") or, for a body that isn't JSON with a decision as text, "The body must be JSON with a decision, such as { "decision": "Confirmed" }.", checked first; then a bare 404 for a key that isn't 32 lowercase hex characters or that no group has now — a group whose members changed has another key —, and 400 "Only a possible match is confirmed or dismissed: this group is one by its files' identity, bytes or registry ids, which no one has to confirm." for a group of another class. A decision never joins the works, changes `needsReview` or touches the library, a file or a download client. |
 | `DELETE /api/library/duplicates/{key}/decision` | Owner only (MAM-21, ADR 0029). **Undo**: forgets the decision on the possible match `key` names now, deleting its row with an audit row `DuplicateMatchDecisionUndone` in one transaction, so the group is undecided and back on the list. 204, also when there was none, which writes nothing; a bare 404 and the 400 for another class as for `PUT`. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
@@ -1660,33 +1754,34 @@ cache and security headers, served from disk, a library switched off or removed,
 
 The duplicate groups (MAM-20) are tested over HTTP, one class per test class, with identities and
 hashes planted through `FakeFileInventory` and an inspection, libraries synced from
-`FakeJellyfinServer` or seeded, and names the scan found. `LibraryDuplicatesHttpTests` covers 401, an empty page before
-any sync, every 400 sentence (a 500-character class cut to 32), the class in any letter case, the
-filter and the paging, the order, a member's answer without the owner's path problems, and the
-names on the wire. `LibraryDuplicatesSameFileHttpTests` covers two hardlink names counted once and
-freeing nothing, one path two libraries report, a scanned name of a library's file, a scanned name a
-library reports now, and names without an identity. `LibraryDuplicatesByteIdenticalHttpTests`
-covers the estimate on ext4, none on btrfs, ZFS or XFS, on an unknown file system, with a name the
-app never found or an unknown link count, the reason that comes first, one file with two names, a
-seeded file with a qBittorrent that is never asked, a hash kept for a file changed since, a scanned
-copy, and the file system asked only of byte-identical groups. `LibraryDuplicatesSameWorkHttpTests`
-covers one movie in two libraries by its IMDb id, a TMDb id the owner linked and the wrong id it
-replaces, The Continental's three items, the Tom & Jerry Kids item, the halves of an episode, S03E31
-and S03E33, one IMDb id with two TMDb ids, two shows' ids, The Grand Tour's two series items, a movie
-and a series — and a film, a show and its episode synced — sharing a TMDb number, a film item and an
-episode with one IMDb id, a film item linked as an episode, different cuts, a version's name, a
-title's own edition words, measured dynamic ranges, similar titles and years, and a work with one
-file, one version in parts or one file in two libraries. `LibraryDuplicatesPossibleHttpTests` covers
-two id-less works, a similar title or another year, ids that differ or share no scheme, a movie and
-an episode, a scanned file by its name, its folder's name or another scanned file's, an unreported
+`FakeJellyfinServer` or seeded, and names the scan found. `LibraryDuplicatesHttpTests` covers 401,
+an empty page before any sync, every 400 sentence (a 500-character class cut to 32), the class in
+any letter case, the filter and the paging, the order, a member's answer without the owner's path
+problems, and the names on the wire. `LibraryDuplicatesSameFileHttpTests` covers two hardlink names
+counted once and freeing nothing, one path two libraries report, a scanned name of a library's file,
+a scanned name a library reports now, and names without an identity.
+`LibraryDuplicatesByteIdenticalHttpTests` covers the estimate on ext4, none on btrfs, ZFS or XFS, on
+an unknown file system, with a name the app never found or an unknown link count, the reason that
+comes first, one file with two names, a seeded file with a qBittorrent that is never asked, a hash
+kept for a file changed since, a scanned copy, and the file system asked only of byte-identical
+groups. `LibraryDuplicatesSameWorkHttpTests` covers one movie in two libraries by its IMDb id, a
+TMDb id the owner linked and the wrong id it replaces, The Continental's three items, the Tom &
+Jerry Kids item, one IMDb id with two TMDb ids, two shows' ids, The Grand Tour's two series items, a
+movie and a series — and a film, a show and its episode synced — sharing a TMDb number, a film item
+and an episode with one IMDb id, a film item linked as an episode, a version's name, a title's own
+edition words, measured dynamic ranges, similar titles and years, and a work with one file, one
+version in parts or one file in two libraries; an episode's "a" and "b" files, S03E31 and S03E33,
+and different cuts are MAM-37's cases now (below). `LibraryDuplicatesPossibleHttpTests` covers two
+id-less works, a similar title or another year, ids that differ or share no scheme, a movie and an
+episode, a scanned file by its name, its folder's name or another scanned file's, an unreported
 season, works kept apart beside an id-less one, episodes of two shows or two places and one episode
 in two libraries, editions, a name without a year, the durations, and a work never offered with
 itself or with a work it already is. In Core, `RegistryKeysTests` (an IMDb key whatever the kind,
 the others within it, an episode's show keys), `EditionLabelsTests` (every edition, letter case, the
 apostrophes and separators, whole words, the reference library's names, a title's own words),
-`FileSystemSharingTests`, `DurationAgreementTests` and `FileNameClaimsTests` (the file name, then the
-folder's, either separator, a season or episode marker); in Infrastructure, `MountTableTests` (the
-`major:minor` of a small and a large device, the optional fields, bind mounts that agree or
+`FileSystemSharingTests`, `DurationAgreementTests` and `FileNameClaimsTests` (the file name, then
+the folder's, either separator, a season or episode marker); in Infrastructure, `MountTableTests`
+(the `major:minor` of a small and a large device, the optional fields, bind mounts that agree or
 disagree, no line, an escaped space, a malformed line) and, on Linux only,
 `LocalFileInventoryFileSystemLinuxTests` (the real mount table for a temporary file's device, a
 device no mount names, the order of the answers, a table that can't be read).
@@ -1727,7 +1822,65 @@ heading and a group's name, the path ends that tell files apart, the facts' word
 `LibraryPage.test.tsx` for the ways in cover it. The page was checked in Chrome on 2026-10-07 at
 desktop width, 375px and 320px against a throwaway database seeded with groups of every class, as
 the owner and as a member, and in Chromium on 2026-10-08 on production as the owner, where all 46
-groups were same-work ones (see [Tested with](#tested-with)).
+groups were same-work ones (4 since MAM-37, on a copy of its database; see
+[Tested with](#tested-with)).
+
+MAM-37's rules (Vasyl's decisions of 2026-10-08) are tested over HTTP with production's file names,
+ids and durations, as read from its database that day, wherever it holds the case, each duration
+measured by an inspection through `FakeFileInventory`. `LibraryDuplicatesSameWorkHttpTests` covers
+the episodes — an episode's "a" and "b" files (`List_makes_no_group_of_an_episodes_a_and_b_files`),
+S03E31 under S03E33's ids, a Penguins of Madagascar pair under one IMDb id
+(`List_makes_no_group_of_two_episodes_of_one_show_at_different_places_under_one_imdb_id`), one
+episode's copies grouped beside another episode under its IMDb id, a film item with two episodes'
+IMDb id joining neither, one work the library holds at two places of a show and two film items with
+its ids, each segment grouped with its copy in another library, with its own running times, and an
+episode's whole file kept apart from its "a" file —; the years — Blade Runner and Blade Runner 2049
+as one work's two versions
+(`List_makes_no_group_of_a_films_versions_whose_names_claim_years_far_apart`) and as two items under
+one id, a year sharing its bracket with a word, a run of years one apart, a copy whose parts claim
+years far apart, «Ніж у воді»'s featurette, which claims none, kept with the film under the work's
+key (`List_keeps_a_copy_whose_name_claims_no_year_with_the_films_copy_under_its_key`), the `|Years:`
+parts beside a copy claiming none and beside two clusters, and an episode's copies never split by
+years —; and the editions — two cuts, Rambo: Last Blood's Theatrical and Extended Cut
+(`List_makes_no_group_of_the_theatrical_and_the_extended_cut_of_one_film`), Terminator 2's three
+editions, a Tom & Jerry cartoon and its Widescreen copy, a version name's cut beside none, two
+copies of one cut under the work's key, the `|Editions:` parts and their `none` key, a part named by
+several editions in `MediaEdition`'s order, and one hardlinked file whose names say different
+editions put in one group of copies
+(`List_puts_one_file_whose_hardlinked_names_say_different_editions_in_one_group_of_copies`).
+`LibraryDuplicatesRunningTimesHttpTests` covers the running times: a film and a featurette under its
+ids flagged by them alone, a member's answer the owner's
+(`List_flags_a_film_and_a_featurette_under_its_ids_for_review_by_their_running_times`), the flag
+after TMDb ids that disagree, Alien³'s two copies at 79.3 % unflagged with their running times given
+all the same, a copy never inspected, one whose reading failed and one with a part not measured
+giving no running time, the measured copies still compared beside one never inspected, a film in two
+parts counted as their sum, one path two libraries report counted as one copy, and the shortest and
+the longest of three copies of Terminator 2. `LibraryDuplicatesPossibleHttpTests` covers two
+episodes with one IMDb id at different places never offered by their one title and year
+(`List_never_offers_two_episodes_with_one_imdb_id_at_different_places_with_one_title_and_year`) and
+a possible match given no running-times distinction whatever its durations
+(`List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations`), its editions
+still flagged (`List_flags_a_possible_matchs_files_whose_editions_differ`); and
+`LibraryDuplicatesHttpTests.List_writes_classes_distinctions_and_editions_by_name` covers
+`RunningTimes` and `runningTimes` on the wire, `null` for the other classes, and `Edition` on a
+possible match. In Core, `DuplicateWorkComponentsTests` (two episodes of one show at different
+places kept apart under one IMDb id, under all of one episode's ids or by a show's title alone; one
+episode at one place known by two shows' ids, and one episode id in two shows sharing no id or
+title, joined; a film item linked at one place and the library's episode at another apart; a film
+item with one episode's IMDb id joining it, and with two episodes' joining neither; a work at two
+places of a show joining nothing, nor an episode of another show; two films with one IMDb id and
+different TMDb ids one; one episode's copies joined and another episode under its IMDb id apart; and
+the same components whatever order the works come in, through a chain via another show too),
+`EpisodeSegmentsTests` (a letter glued to a file's first marker; none for a first marker without
+one, two segments or a range, a capital letter or a word glued to the number, a marker not written
+`SxxEyy`, a film's name or a blank one), `FileNameYearTests` (production's names, a year alone in
+round or square brackets, and none for a name with no year in brackets, a bare year, a list, a span
+or a year among other words, two different years, a year out of range or other digits, or a blank
+name) and `RunningTimeSpreadTests` (exactly three quarters, a millisecond under, a longest not
+divisible by four, a featurette and another film under a work's ids wide, and production's cuts and
+Alien: Romulus's two rips not); in the web app, `DuplicateGroupCard.test.tsx` (the "Running times
+differ" badge after the others, the sentence with both durations, none for running times that don't
+differ widely, and "Editions differ" on a possible match).
 
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
@@ -1785,7 +1938,9 @@ src/
                                                reading a pasted link, and the duplicate
                                                classes: registry keys, edition labels, which
                                                file systems share blocks, the reading of a
-                                               scanned file's name, and what a decision on a
+                                               scanned file's name, an episode's segment
+                                               letter and a year in brackets, how far apart
+                                               running times may be, and what a decision on a
                                                possible match may be; no package references
   MediaAcquisitionManager.Infrastructure/      DbContext, SQLite pragmas, first-run secrets,
                                                password hashing, credential encryption, the
@@ -1827,8 +1982,8 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22, MAM-32 to
-MAM-36 and MAM-37, to do).
+of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32 to
+MAM-37).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -1843,7 +1998,10 @@ MAM-36 and MAM-37, to do).
    by Jellyfin (built, 0.2.1), and show each library work's own poster from Jellyfin (built,
    0.2.1). Group exact, same-work, and possible matches separately, for movies and episodes alike
    (built, 0.2.1), and show them on a Duplicates page where the owner confirms or dismisses a
-   possible match (built, 0.2.1).
+   possible match (built, 0.2.1), listing there only real copies of one film or episode — never two
+   episodes of one show, an episode's "a" and "b" files, films whose names claim years far apart or
+   different cuts — and flagging for review the copies whose running times differ widely (built,
+   0.2.1; checked on a copy of production's database on 2026-10-08, in no published image yet).
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
    selection, checks, audit log, and quarantine where a safe atomic move is possible.
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different

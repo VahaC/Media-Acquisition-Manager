@@ -8,9 +8,13 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Titles">A possible match: the titles and years two subjects or more share.</param>
 /// <param name="DurationsAgree">A possible match: whether the measured durations agree (2 minutes or 10 % of the
 /// longest); <c>null</c> when fewer than two are known, or for another class.</param>
+/// <param name="RunningTimes">MAM-37 — copies of one work: the running times of the shortest and the longest measured
+/// copy, whether or not they differ widely; <c>null</c> when fewer than two copies have one, or for another
+/// class.</param>
 public sealed record DuplicateEvidenceDto(
     DuplicateIdentityDto? Identity,
     string? Sha256,
     IReadOnlyList<DuplicateIdentifierDto> Identifiers,
     IReadOnlyList<DuplicateTitleDto> Titles,
-    bool? DurationsAgree);
+    bool? DurationsAgree,
+    DuplicateRunningTimesDto? RunningTimes);

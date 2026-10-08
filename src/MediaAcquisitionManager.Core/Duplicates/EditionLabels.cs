@@ -10,10 +10,12 @@ namespace MediaAcquisitionManager.Core.Duplicates;
 /// <remarks>
 /// <para>
 /// ADR 0012 rejected a list of edition words for <em>matching</em> — the list never ends, and uploaders write them in
-/// Ukrainian too — and that still holds: this list decides no match and keeps no two works apart. It only labels a
-/// possible distinction between copies already grouped by their ids or by their title and year (specification §3.3), so
-/// a word it misses costs a flag, never a wrong group (ADR 0028). A word of the work's own title is no label
-/// (<see cref="Read(string?, IEnumerable{string})"/>).
+/// Ukrainian too — and that still holds: this list decides no match and keeps no two works apart. It labels a possible
+/// distinction between the files of a possible match, grouped by their title and year (specification §3.3), and —
+/// MAM-37 (Vasyl, 2026-10-08: different cuts are not duplicates) — parts the copies of one work, grouped by their ids,
+/// whose names say different editions. So a word it misses costs a flag, or leaves two cuts one group; a word it reads
+/// by mistake takes a copy off the Duplicates page; neither ever joins two works (ADR 0028). A word of the work's own
+/// title is no label (<see cref="Read(string?, IEnumerable{string})"/>).
 /// </para>
 /// <para>
 /// A label is a whole word or phrase, between characters that are neither letters nor digits (the

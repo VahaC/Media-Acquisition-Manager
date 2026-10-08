@@ -2,8 +2,9 @@ namespace MediaAcquisitionManager.Core.Enums;
 
 /// <summary>
 /// MAM-20 — a cut or presentation of a film a file's name or a library's version name says it is
-/// (<c>EditionLabels</c>): a possible distinction between copies of one work (specification §3.3), never a match. An
-/// enum, not the text, so the page says it in the user's language (ADR 0001). Written by name.
+/// (<c>EditionLabels</c>): the sets of them part a work's copies — MAM-37 (Vasyl, 2026-10-08: different cuts are not
+/// duplicates) — and tell a possible match's files apart (specification §3.3); never a match. An enum, not the text, so
+/// the page says it in the user's language (ADR 0001). Written by name.
 /// </summary>
 public enum MediaEdition
 {

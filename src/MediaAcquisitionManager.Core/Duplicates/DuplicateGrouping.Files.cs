@@ -32,6 +32,7 @@ public static partial class DuplicateGrouping
                 [],
                 [],
                 null,
+                null,
                 new DuplicateRecoverableSpace(0, null));
         }
     }
@@ -59,6 +60,7 @@ public static partial class DuplicateGrouping
                 set.Sha256,
                 [],
                 [],
+                null,
                 null,
                 RecoverableOf(set, byIdentity, fileSystems));
         }

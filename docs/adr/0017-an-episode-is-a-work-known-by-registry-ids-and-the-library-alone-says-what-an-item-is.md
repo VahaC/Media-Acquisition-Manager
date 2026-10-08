@@ -253,3 +253,45 @@ S01E01 are one work's copies; the film item stays a film and holds none of the s
 `LibraryDuplicatesPossibleHttpTests.List_offers_a_scanned_file_by_its_folders_name` and
 `LibraryDuplicatesPossibleHttpTests.List_never_offers_the_episodes_of_a_show_no_library_reports_as_one_work`
 pin it.
+
+## Duplicates of episodes (added 0.2.1, MAM-37)
+
+**Two episodes at different places are never one duplicate group, and an episode's `a` and `b` files
+are no copies of each other (Vasyl, 2026-10-08).** The Duplicates section above made S03E31 and
+S03E33 one same-work group flagged `EpisodeNumbers`, and an episode's `a` and `b` files one group of
+two versions; MAM-37 reverses both
+([ADR 0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)'s
+Episodes at different places and Segments sections). Two episodes of one show at different places —
+another season or another number — are never one work of the Duplicates list, whatever ids they
+share: the 20 Penguins of Madagascar pairs under one IMDb id each, S03E31 under every id of S03E33.
+A show is its ids and its titles, so one the library knows by no id still keeps its places apart; a
+work a sync made of two such episodes, for want of the show's ids, is a copy of nothing; and a film
+item carrying the IMDb id of two episodes is a copy of neither, as the sync joins an item that fits
+two works to neither. `EpisodeNumbers` is gone. One episode's copies at one place still group, and
+copies of one episode at its place under two shows' ids are still flagged `IdentifierConflict`. Two
+episodes the library places apart are no possible match either, whatever title and year they share.
+
+**The library is unchanged.** The Decision holds: the sync still makes an episode's `a` and `b`
+items one episode work with two versions, as Jellyfin gives both the episode's numbers and ids, and
+the Library page still shows one episode with two versions, as Jellyfin does; S03E31 and S03E33 stay
+two works, each at its place. Only the Duplicates list leaves them out.
+
+**A segment letter may keep two files from being copies, and never joins anything.** The letter a
+file name glues to its first `SxxEyy` — the `a` of `Mickey Mouse Clubhouse_S03E09a_-_Road Rally …`,
+a lowercase `a` to `d` that `EpisodeSegments` reads narrowly — parts an episode's copies: an `a`
+file is a copy of another `a` file only, never of the `b` file or of the whole episode. It makes no
+item an episode, joins no work and moves no place: the rejected option "Read `SxxEyy` from a file
+name to make an item an episode" and the MAM-34 section's "A name is a hint, never a decision" hold.
+Nor does a year in an episode's name part its copies: it is its show's or its season's.
+
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_an_episodes_a_and_b_files` replaces the
+Duplicates section's `LibraryDuplicatesSameWorkHttpTests.List_groups_the_two_halves_of_an_episode_as_versions_of_one_work`,
+and `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_episodes_with_one_episodes_ids_under_different_numbers`
+its `LibraryDuplicatesSameWorkHttpTests.List_flags_two_episodes_with_one_episodes_ids_under_different_numbers_for_review`;
+with `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_episodes_of_one_show_at_different_places_under_one_imdb_id`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_one_work_the_library_holds_at_two_places_of_a_show`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_each_segment_of_an_episode_with_its_copy_in_another_library`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_an_episodes_whole_file_apart_from_its_segment_file`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_an_episodes_copies_one_group_whatever_years_their_names_claim`,
+`LibraryDuplicatesPossibleHttpTests.List_never_offers_two_episodes_with_one_imdb_id_at_different_places_with_one_title_and_year`,
+`DuplicateWorkComponentsTests` and `EpisodeSegmentsTests`, they pin it.

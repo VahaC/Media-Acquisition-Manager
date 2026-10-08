@@ -265,6 +265,22 @@ and `LocalFileInventoryFileSystemLinuxTests.DescribeFileSystems_names_every_devi
 `LibraryDuplicatesHttpTests` pins the endpoint: who reads it, the sentences, the filter, the paging,
 the order and the names on the wire.
 
+**Amended 2026-10-08 (MAM-37).** Four rules added below narrow **Same work** to copies of one film
+or episode: two episodes of one show at different places are never one component (**Episodes at
+different places**), and a component's copies split by the segment letters of an episode's file
+names, by the years a film's names claim and by the editions all their names say, each part a group
+with a key of its own (**Segments**, **Years, films only**, **Editions**, **Parts and their keys**).
+So the list under **A disagreement stays one work, flagged for review** loses `EpisodeNumbers`,
+keeps `Edition` for possible matches only and gains `RunningTimes` (**Running times**); and
+**Edition words label a distinction and decide no match** still decides no match, but its words now
+part copies. Of the tests above,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_the_two_halves_of_an_episode_as_versions_of_one_work`
+is now `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_an_episodes_a_and_b_files`,
+`LibraryDuplicatesSameWorkHttpTests.List_flags_two_episodes_with_one_episodes_ids_under_different_numbers_for_review`
+is now `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_episodes_with_one_episodes_ids_under_different_numbers`,
+and `LibraryDuplicatesSameWorkHttpTests.List_keeps_different_cuts_apart_and_flags_their_editions_for_review`
+is now `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_different_cuts_of_one_film`.
+
 ## Consequences
 
 **The owner sees every copy and every disagreement, and decides nothing yet.** By these rules each
@@ -280,7 +296,11 @@ pairs by `IdentifierConflict` (TVDB) and `EpisodeNumbers`, S03E31/S03E33 by `Epi
 no group of another class; MAM-22 does the live check on production, after an inspection. The
 halves' `a`/`b` carry no word the rules read, so those groups show no distinction and the owner
 tells them by their paths; the misfiled Blade Runner 2049 is flagged only because its neighbour's
-name says "The Final Cut".
+name says "The Final Cut". (MAM-37 since: the Penguins pairs and S03E31/S03E33 make no group by
+their places, the `a` and `b` files none by their letters, Blade Runner none by its years and
+editions, and the cuts and widescreen variants none by their editions; a copy of production's
+database listed 4 groups on 2026-10-08, one flagged by its running times — **Production's copy**
+below.)
 
 **Every request reads the whole library.** A group can join any two names, so the list loads every
 name, version, work, title, position and link (one query each) and groups them in memory, then reads
@@ -301,7 +321,8 @@ a nested btrfs subvolume's own `st_dev` —, no byte-identical group there has a
 no possible match by its name; its bytes still group it. A work every title of which names an
 edition ("Apocalypse Now Redux") loses that label from its copies' names. A link's show has no
 titles in the library, so its place keeps no two episodes apart in the possible matches. A word the
-list doesn't know, or a cut no name states, gives no `Edition` flag.
+list doesn't know, or a cut no name states, gives no `Edition` flag (MAM-37 since: it leaves two
+cuts one group of copies, as **Editions** below).
 
 ## Anti-consequence
 
@@ -354,3 +375,413 @@ order; `LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_o
 also asks for `decision=Dismissed`, `decision=Confirmed` and `class=ByteIdentical&decision=Confirmed`
 and finds no file system asked for them; `LibraryDuplicateDecisionsHttpTests` pins the decisions
 (ADR 0029 names its tests).
+
+## Episodes at different places (added 0.2.1, MAM-37)
+
+MAM-22's check of production on 2026-10-08 listed 46 groups, all same-work: 34 flagged for review —
+13 whose editions differ, the 20 Penguins of Madagascar pairs and Mickey Mouse Clubhouse
+S03E31/S03E33 — and 12 without a flag, the eight Mickey Mouse Clubhouse episodes kept in an `a` and
+a `b` file among them; that is what **Consequences** above foresaw. MAM-37 began with the running
+times (**Running times** below). Shown the list that build gave on a copy of production's database,
+still those 46 groups, Vasyl rejected the Penguins pairs: "з назви файлів видно що різні серії
+одного сезону" — the file names show different episodes of one season. Decision 1 above kept two
+episodes carrying one episode's ids at two places one group, flagged `EpisodeNumbers`; the sync
+keeps them two works already (ADR 0008, ADR 0017), and only the grouping's union-find made them one
+again. This section and the three after it take his corrections of that day in the order the
+grouping applies them.
+
+**Two episodes of one show at different places — another season or another episode — are never one
+work of the Duplicates list, whatever ids they share, and neither is a work the library itself holds
+at two places of one show; films keep decision 1 (Vasyl's decision of 2026-10-08, reversing decision
+1 for episodes).**
+
+- **A show is its ids and its titles.** `ShowPlacesOf` gives each work its places, show by show,
+  once per read. A show is every series id and every title (by `TitleMatchKey`) one place names,
+  joined across all the works: a series' TVDB, TMDb and IMDb ids and its titles are one show, a
+  link's TMDb show is that show when the series holds its id, and a show the library knows by no id
+  is still one show by its title — The Penguins of Madagascar's series once had none. Two shows of
+  one title are one show here, which can only keep works apart, never join them. An episode is
+  placed by its positions; a film only when the owner linked it as an episode (MAM-34), at the
+  link's place.
+- **No join puts one show's two places together.** `WorkComponents` is now a union-find with
+  refusals, so the order of the joins decides who is with whom: the works go in id order, never in
+  the order the loader read them. First every pair of placed works sharing a key — every pair, not
+  each holder with the first, as a refused first holder must not keep the copies behind it apart —,
+  a join refused when the two components hold one show at different sets of places, or either holds
+  a show at two; so every placed work of a component holds the component's places, and two places of
+  one show never meet, whatever chain of ids runs between them. Then the unplaced works among
+  themselves, as before. Last, each unplaced component joins every placed component it shares a key
+  with, or none of them when two of those disagree or one is at two places: a film item carrying the
+  IMDb id of two episodes may be either, so it is a copy of neither, as the sync's
+  `LibraryWorkGrouping` joins an item that fits two works to neither. When nothing disagrees and no
+  work is at two places, the components are a plain union-find's.
+- **A work at two places is a copy of nothing.** With no show ids to tell them apart, a sync makes
+  two episodes one work at two places — S03E31 carrying every id of S03E33 in a show the library
+  knows by no id. Such a work joins nothing and nothing joins it, so its component is itself alone,
+  and **Same work** drops it without dropping anyone else's copies: two film items carrying its ids
+  are still each other's copies.
+- **One episode's copies still group, and films are unchanged.** Copies of one episode at one place
+  in two libraries are one work, while another episode under its IMDb id stays out. Copies of one
+  episode under two shows' ids are at one place when the shows share an id or a title, being one
+  show; when they share neither, nothing says they are one show, and they join at any places: one
+  group flagged `IdentifierConflict` with `ofSeries`, as before. Two films with one IMDb id and two
+  TMDb ids stay one work, flagged.
+- **`EpisodeNumbers` is gone.** No group can hold one show's two places, so the distinction, its
+  value 2 and the page's label for it are removed; `IdentifierConflict` (1), `Edition` (3) and
+  `DynamicRange` (4) keep their values, and the wire writes distinctions by name.
+- **Possible matches follow.** Two works kept apart by their places are never offered by one title
+  and year (`IsApart`): S03E31 and S03E33, which production's library titles "Donald Hatches an
+  Egg", of 2010 both, are neither one work nor a possible match.
+
+The 20 Penguins of Madagascar pairs and S03E31/S03E33 left production's list, and with the three
+rules below it went from MAM-22's 46 groups to 4 (**Production's copy** below).
+
+| Rejected option | Why not |
+| --- | --- |
+| Keep such pairs one group, flagged `EpisodeNumbers` (decision 1, 2026-10-07) | Vasyl: the file names show two episodes of one season; the sync keeps them two works already |
+| Know a show by its ids alone | A show the library knows by no id would keep none of its episodes apart |
+| Join in the order the loader reads the works | With refusals the order decides the components: the list would hang on a query's order |
+| Join each holder of a key to its first holder only | A refused first holder — another episode under the key — would keep the copies behind it apart |
+| Drop the whole component a work at two places ends in | Other works' real copies would go with it |
+| Join a film item carrying two episodes' id to one of them | It may be either; the sync joins such an item to neither |
+
+`DuplicateWorkComponentsTests` pins the components on production's ids, among them
+`DuplicateWorkComponentsTests.WorkComponents_two_episodes_of_one_show_at_different_places_under_one_imdb_id_are_apart`,
+`DuplicateWorkComponentsTests.WorkComponents_episodes_of_a_show_without_ids_at_different_places_are_apart_by_its_title`,
+`DuplicateWorkComponentsTests.WorkComponents_one_episode_id_in_two_shows_sharing_no_id_or_title_joins_them`,
+`DuplicateWorkComponentsTests.WorkComponents_a_film_item_linked_at_one_place_and_the_librarys_episode_at_another_are_apart`,
+`DuplicateWorkComponentsTests.WorkComponents_two_films_with_one_imdb_id_and_different_tmdb_ids_stay_one`
+and `DuplicateWorkComponentsTests.WorkComponents_gives_the_same_components_whatever_order_the_works_come_in`;
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_episodes_with_one_episodes_ids_under_different_numbers`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_episodes_of_one_show_at_different_places_under_one_imdb_id`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_one_episodes_copies_and_leaves_another_episode_under_its_imdb_id_out`,
+`LibraryDuplicatesSameWorkHttpTests.List_joins_a_film_item_carrying_the_imdb_id_of_two_episodes_to_neither`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_one_work_the_library_holds_at_two_places_of_a_show`
+and `LibraryDuplicatesSameWorkHttpTests.List_groups_two_films_carrying_the_ids_of_a_work_at_two_places_without_it`
+the list, beside
+`LibraryDuplicatesSameWorkHttpTests.List_flags_two_episodes_whose_shows_ids_differ_for_review`,
+unchanged; and `LibraryDuplicatesPossibleHttpTests.List_never_offers_two_episodes_with_one_imdb_id_at_different_places_with_one_title_and_year`
+the possible matches.
+
+## Segments (added 0.2.1, MAM-37)
+
+The same correction took in the Mickey Mouse Clubhouse episodes kept in two files,
+`Mickey Mouse Clubhouse_S03E09a_-_Road Rally …` and `Mickey Mouse Clubhouse_S03E09b_-_Road Rally …`.
+Jellyfin gives both one episode's numbers and ids, so the sync makes them one work of two versions
+(ADR 0017), and **Same work** listed each such episode as a group of two copies with no flag, the
+owner left to tell them by their paths (**Consequences** above). Vasyl, 2026-10-08: the `a` and `b`
+files are not duplicates.
+
+**An episode's files whose names carry different segment letters are no copies of each other: a
+component's copies split by the letter their files' names glue to the first `SxxEyy`, so an `a` file
+is a copy of another `a` file only — never of the `b` file, nor of the whole episode —, while the
+Library still shows the episode as one work of two versions, as Jellyfin does (Vasyl's decision of
+2026-10-08).**
+
+- **Read narrowly.** `EpisodeSegments.Read` takes a lowercase `a` to `d` glued to the file name's
+  first `SxxEyy` — season up to three digits, episode up to four, as `EpisodeMarker` reads them —,
+  standing on its own: no letter or digit after it ("S03E09a1080p"), and no range or pair, a joiner
+  and then another letter, an episode number or a marker ("S03E09a-b", "S03E09a-10",
+  "S03E09a-S03E09b"). Not `e`, a multi-episode name's next marker ("S01E01e02"); not a capital,
+  likelier a title's first letter ("S01E05A Day at the Beach"); "S03 E09a", "1x09a" and "E08a" are
+  read as nothing, and a later marker says nothing. A letter read by mistake can only keep two
+  copies apart, never make a group.
+- **A copy's letters are its files'.** Every name's letter is read as the list loads it, from its
+  file name alone, and only this class uses it; a copy carries the letters of all its files' names,
+  and each set of letters is a part. A whole episode's file carries none, so it is no copy of an `a`
+  file.
+- **A name still decides nothing about an item.** ADR 0017's rejected "Read `SxxEyy` from a file
+  name to make an item an episode" holds: the letter makes no item an episode, joins no work and
+  changes nothing the Library shows; it only parts copies their ids made one.
+
+The eight Mickey Mouse Clubhouse episodes left production's list. A copy of a segment in another
+library is still its copy: a group per letter, each with its own files and running times (**Running
+times** below) under a key of its own (**Parts and their keys** below).
+
+| Rejected option | Why not |
+| --- | --- |
+| Keep the `a` and `b` files one group of two versions, unflagged | Vasyl: they are not duplicates |
+| `EpisodeMarker`, MAM-34's prefill reader | Its boundary rejects a letter glued to the number |
+| A capital letter, an `e`, or a range | A title's first letter, a multi-episode name's next marker, two segments in one file |
+
+`EpisodeSegmentsTests` pins the reading;
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_an_episodes_a_and_b_files`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_each_segment_of_an_episode_with_its_copy_in_another_library`,
+`LibraryDuplicatesSameWorkHttpTests.List_gives_each_segment_group_its_own_running_times` and
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_an_episodes_whole_file_apart_from_its_segment_file`
+the list.
+
+## Years, films only (added 0.2.1, MAM-37)
+
+Production's «Той, хто біжить по лезу» is one movie item of two versions,
+`[01] Blade Runner (1982) [The Final Cut] UHD-BDRip 1080p H.265 …` at 7,051,384 ms and
+`[02] Blade Runner 2049 (2017) [US Transfer] BDRip 1080p H.265 …` at 9,827,808 ms, under the 1982
+film's IMDb tt0083658 and TMDb 78: Jellyfin made the sequel's file a version of the first film's
+item. Decision 1 rightly makes one work of it by its ids, and MAM-22's list showed it flagged by
+"The Final Cut" alone. After the next local check Vasyl said "Blade Runner 2049 взагалі не має бути
+в дублікатах" — it must not be among the duplicates at all —, and of «Ніж у воді»'s film and
+featurette, "це дубль": that one is. What tells the two apart is the years their names claim: a rule
+put to him with the change, not his words.
+
+**A film's copies whose file names claim years more than one apart are no copies of each other: a
+component's copies split by the clusters of the years their names claim alone in brackets, and
+copies that claim none are copies of the others only while the claimed years make one cluster; an
+episode's copies are never split by years (the rule for Vasyl's decision of 2026-10-08).**
+
+- **A year alone in brackets.** `FileNameYear.Read` takes four ASCII digits from 1880 to 2099 alone
+  in round or square brackets — "(1982)", "[1962]", "( 1962 )" — and nothing else. Not a year that
+  shares its bracket with a word or a number: a release's, a remaster's or a cut's as often as the
+  film's ("[2001 Redux]" of a 1979 film, "[2019 Remaster]", "[1997 Special Edition]"), a title's
+  ("(2001 A Space Odyssey)") or a resolution's ("[1920 x 1080]"), so production's
+  `Seksmisja [1983 DVDRemux].mkv` claims none. Not a bare year, a title's as often as a release's
+  ("Blade Runner 2049", "1917"), as the header search takes only a bracketed one (ADR 0015); not a
+  list or a span, "(2004, 2007)", "(1940-1967)", a collection's; and a name whose brackets claim two
+  different years claims none. The bounds are fixed, not the clock's year and one: the grouping
+  reads no clock, so a name reads the same every year, and a group the years split keeps its key
+  from one New Year to the next.
+- **A run of years one apart is one film.** A copy's years are those its files' names claim — a copy
+  in parts normally claims one —, and a copy whose names claim years further apart than one is taken
+  as claiming none. The years the copies claim are sorted and cut where two neighbours are more than
+  one apart, a festival and a release, a year's end and the next being one film's: 1982, 1983 and
+  1984 are one cluster, as a cut anywhere in that run would part two copies a year apart. One
+  cluster or none splits nothing, so a copy whose name claims no year — «Ніж у воді»'s featurette —
+  stays a copy of the film, key and all. With two clusters or more, each is a part, its years in its
+  key, and the copies that claim none, which neither can take, a part of their own, "none".
+- **Films only.** In an episode's name a year alone in brackets is its show's or its season's —
+  "S01E01. MobLand (2025). …", Sonarr's `{Series TitleYear}` —, never its own, and its place and
+  letters already say which episode it is: a component holding an episode, or a film linked as one,
+  is never split by years.
+- **Not ADR 0012's year ± 1.** That refuses a match by title and year; here the ids made the match,
+  and a year apart only fails to part it.
+
+Blade Runner left production's list by its years, and by its editions too, The Final Cut beside none
+(**Editions** below). Seksmisja (1984) stays one group: `Seksmisja (1984).mp4` claims 1984 and the
+remux none.
+
+| Rejected option | Why not |
+| --- | --- |
+| `ReleaseWorkClaims.Read`, which `FileNameClaims` reads a name by | It too takes a year alone in brackets, but without one it reads a bare year the scene way: "Blade.Runner.2049.1080p" would be of 2049 |
+| A year beside a word or a number in its bracket | A release's, a remaster's or a resolution's year would part one film's copies: "[2001 Redux]" of a 1979 film |
+| Copies whose years are equal only | A festival and a release, a year's end and the next, are one film's |
+| Windows from the first year claimed | A cut anywhere in 1982, 1983 and 1984 would part two copies a year apart |
+| The clock's year and one as the last year | The grouping reads no clock: a name would read otherwise next year, and a key change at New Year |
+| Episodes too | An episode's bracketed year is its show's or its season's |
+
+`FileNameYearTests` pins the reading, production's names among its cases;
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_a_films_versions_whose_names_claim_years_far_apart`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_films_under_one_id_whose_names_claim_years_far_apart`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_a_films_versions_one_group_when_a_year_shares_its_bracket_with_a_word`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_copies_whose_names_claim_a_run_of_years_one_apart_one_group_under_its_key`,
+`LibraryDuplicatesSameWorkHttpTests.List_takes_a_copy_whose_parts_claim_years_far_apart_as_claiming_none`,
+`LibraryDuplicatesSameWorkHttpTests.List_keeps_a_copy_whose_name_claims_no_year_with_the_films_copy_under_its_key`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_copies_by_the_years_their_names_claim_and_leaves_one_claiming_none_out`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_the_copies_claiming_no_year_beside_two_clusters_as_a_part_of_their_own`
+and `LibraryDuplicatesSameWorkHttpTests.List_keeps_an_episodes_copies_one_group_whatever_years_their_names_claim`
+the list.
+
+## Editions (added 0.2.1, MAM-37)
+
+Last that day, of `[05.1] Rambo. Last Blood (2019) [Theatrical Cut …]` and
+`[05.2] Rambo. Last Blood (2019) [Extended Cut …]` "та інші схожі" — and others like them —, Vasyl:
+"це НЕ ДУБЛІ!!!!! бо різні версії", not duplicates, different versions. Specification §3.3 asks for
+cuts to be shown as distinctions and never treated as junk, and decision 2 above flagged a same-work
+group `Edition` when its files' sets differed: 13 of MAM-22's 46 were flagged so.
+
+**Different editions are not duplicates: a component's copies split by the set of editions their
+names say, so a same-work group holds copies of one cut only and never carries `Edition`, while a
+possible match still shows "Editions differ" and one file's names and byte-identical files are
+untouched (Vasyl's decision of 2026-10-08, reversing decision 2's flag, and specification §3.3's
+reading that different editions need review, for copies of one work).**
+
+- **The whole set decides.** A copy's editions are all its names say — its files' names and the
+  libraries' names of its version, read by `EditionLabels` as decision 2 reads them, over all its
+  files —, so Terminator 2's "UK Remastered, Theatrical Cut" is not another copy's "Theatrical Cut".
+  Widescreen, FullScreen, Open Matte, IMAX and Remastered are editions too, so Tom & Jerry's
+  "Feedin' the Kiddie" and its Widescreen copy are no copies of each other; and a copy that says
+  none beside one that says one is another edition, as the `Edition` flag always took it: nothing
+  says it is that cut. These edges were stated to Vasyl with the rule.
+- **One file says one thing.** The names of one file say one thing between them, all that any of
+  them says: a hardlink one library names by its cut and another by none is that cut through both,
+  so its names never land one file in two parts. The letters and years above are read the same way,
+  once per file.
+- **One set splits nothing.** Two copies of one cut, said two ways, are one group under the key the
+  works always had; with two sets or more, each set is a part, named by its editions in
+  `MediaEdition`'s order, or "none".
+- **Bytes are bytes.** One file's names and byte-identical files are other classes, untouched: their
+  bytes are one, whatever their names say. A possible match keeps `Edition` beside `DynamicRange`:
+  there it is evidence for the owner deciding whether two works are one.
+- **The words now part copies.** `EditionLabels` still decides no match (ADR 0012) and joins
+  nothing, but a word it misses now leaves two cuts one group of copies, and one it reads by mistake
+  takes a real copy off the page.
+
+12 groups left production's list by their editions alone — The Bourne Identity (Theatrical / Open
+Matte), Rambo: Last Blood, Terminator 2 (three editions), Terminator Salvation, Alien, Aliens,
+Alien³, Alien: Resurrection, AvP: Requiem, and Tom & Jerry's "Feedin' the Kiddie", "The Egg and
+Jerry" and "Tops with Pops" (plain / Widescreen) —, and Blade Runner by its editions as well as its
+years.
+
+| Rejected option | Why not |
+| --- | --- |
+| Keep the cuts one group, flagged `Edition` (decision 2, §3.3's distinctions) | Vasyl: different versions, not duplicates |
+| An unlabelled copy as a copy of the labelled one | Nothing says it is that cut |
+| Copies sharing one edition of their sets as copies | "UK Remastered, Theatrical Cut" is not "Theatrical Cut" |
+| Part one file's names, or byte-identical files, by their names | Their bytes are one |
+| Drop `Edition` from the possible matches too | It is evidence for the owner deciding whether two works are one |
+
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_different_cuts_of_one_film`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_the_theatrical_and_the_extended_cut_of_one_film`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_three_editions_of_one_film`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_a_cartoon_and_its_widescreen_copy`,
+`LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_a_copy_whose_version_name_says_a_cut_beside_one_that_says_none`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_two_copies_of_one_cut_under_the_works_key`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_the_copies_of_one_cut_apart_from_another_cut_under_a_key_of_their_own`,
+`LibraryDuplicatesSameWorkHttpTests.List_groups_the_copies_saying_no_edition_beside_another_edition_under_a_none_key`,
+`LibraryDuplicatesSameWorkHttpTests.List_names_a_part_whose_copies_say_several_editions_by_them_in_edition_order`,
+`LibraryDuplicatesSameWorkHttpTests.List_reads_an_edition_from_the_name_a_library_gives_a_version`,
+`LibraryDuplicatesSameWorkHttpTests.List_reads_no_edition_from_the_words_of_a_works_title` and
+`LibraryDuplicatesSameWorkHttpTests.List_puts_one_file_whose_hardlinked_names_say_different_editions_in_one_group_of_copies`
+pin it;
+`LibraryDuplicatesPossibleHttpTests.List_flags_a_possible_matchs_files_whose_editions_differ` and
+`LibraryDuplicatesHttpTests.List_writes_classes_distinctions_and_editions_by_name` the possible
+match's `Edition`, and, in the web app, `DuplicateGroupCard.test.tsx`'s "flags it when its files'
+editions differ" its badge.
+
+## Parts and their keys (added 0.2.1, MAM-37)
+
+**A component's copies split in the order of the sections above — by segment letters, then, for
+films only, by clusters of years, then by sets of editions, each split within the parts of the one
+before: which segment, which film, then which cut —, and a part is a group when it holds two copies
+and two files.** Copies and files are counted as **Same work** above counts them, and what a file's
+names say is worked out once per file, so every version holding it reads it alike. A part's works
+are those holding its copies; its distinctions are worked out on its own works and files, and its
+running times on its own copies. Its key is the hash of `SameWork|` and its sorted work ids, as
+before, then `|Segments:` and its letters when its copies carry letters, then `|Years:` and its
+years ("1982", or "none") and `|Editions:` and its editions ("Theatrical,Remastered", or "none")
+only when those parted something. A component whose copies carry no segment letter and that
+nothing splits is one part, the whole of it, so its group, key and all, is what it was before
+MAM-37 — production's four groups kept the keys MAM-22's list gave them —, and two libraries' `a` and `b` groups of the same works keep a key each. The
+groups are still worked out on every read and stored nowhere; the list reads nothing more, as every
+name's path was loaded already.
+
+## Running times (added 0.2.1, MAM-37)
+
+MAM-22's check recorded two same-work groups that are one work only by the ids the library gives, as
+**Consequences** above foresaw for one of them: «Ніж у воді» (1962), `Nóż w wodzie (1962).mkv`,
+5,731,959 ms by ffprobe, beside the featurette `Polanski+Skolimowski o Noże.mkv`, 1,600,699 ms, both
+under IMDb tt0056291 and TMDb 11502, with no flag; and Blade Runner, off the list now by its years
+(**Years, films only** above). The ids are right to make each one work (decision 1), but nothing
+told the owner to look. This was MAM-37's first rule, and «Ніж у воді», which Vasyl later called "це
+дубль", is the group it flags.
+
+**A same-work group whose shortest measured copy runs under three quarters of its longest gets the
+distinction `RunningTimes`, beside any other — and so `needsReview` —, and every same-work group in
+which two copies or more have a running time carries the shortest and the longest as evidence,
+flagged or not (Vasyl's decision of 2026-10-08).**
+
+- **Copies, not files.** A copy is what one version holds, the set of its files, as **Same work**
+  above counts copies: two libraries' versions of one path, or of one hardlinked file, are one copy,
+  and each distinct set counts once. Its running time is the sum of its files' measured durations,
+  so a film stacked as CD1 and CD2 runs as long as both; a file's duration is the longest any of its
+  names was measured at, as the names of one file read one file.
+- **Each part its own.** The copies compared are one part's (**Parts and their keys** above): an `a`
+  file's 11 minutes beside a `b` file's 7 would flag both segments' groups, and each group's running
+  times are its own letter's.
+- **An unknown decides nothing.** A copy with any file not measured — never inspected, or a reading
+  that failed — has no running time, and fewer than two copies with one give no distinction and no
+  evidence.
+- **Under three quarters, in whole milliseconds.** `RunningTimeSpread.IsWide` is
+  `4 × shortest < 3 × longest`, so no floating point rounds a boundary either way; exactly three
+  quarters is not under.
+- **Beside any other distinction, last.** The list under **A disagreement stays one work, flagged
+  for review** above gains `RunningTimes`, and the distinctions stay in kind order, `RunningTimes`
+  (5) after `IdentifierConflict` and `DynamicRange`: a featurette given a TMDb id of its own under
+  the film's IMDb id is `["IdentifierConflict", "RunningTimes"]`.
+- **Copies of one work only.** A possible match keeps `durationsAgree`, 2 minutes or 10 %, and its
+  distinctions stay `Edition` and `DynamicRange` (**Possible matches** above); same-file and
+  byte-identical groups are unchanged. Running times split nothing and join nothing, nothing is
+  written, and no copy is called redundant.
+
+`evidence` gains `runningTimes`, last: `{ shortestMilliseconds, longestMilliseconds }`, `null` with
+fewer than two copies that have a running time and for every other class. The Duplicates page shows
+"Running times differ" among the warning badges and, under "One work by its ids:", only when the
+group has `RunningTimes`, "The shortest copy runs 26:41, under three quarters of the longest,
+1:35:32.", both durations as the Library page shows a file's. The list reads nothing more: every
+name's measured duration was loaded already.
+
+| Rejected option | Why not |
+| --- | --- |
+| The possible matches' tolerance, 2 minutes or 10 % of the longest (`DurationAgreement`) | It tells another rip from another cut, and a cut no name states is still a copy here: Alien³'s theatrical cut runs 79.3 % of its Special Assembly Cut, Terminator 2's three 88.0 % at the widest |
+| More than 40 minutes apart | Never fires on episodes and shorts, which run less than that whole |
+| Leave it out where another distinction flags the group already | Ids that disagree say a library is wrong; the running times say what sits under them |
+| Join, split or keep works apart by their running times | Out of scope: the registry ids stay §3.3's reliable evidence, and what they hide is the owner's to read |
+| Compare files rather than copies | A film in two parts would be flagged beside its single file, each part half of it |
+| Compare every copy of a component, across its parts | An `a` file's group would be flagged for the `b` file's running time |
+
+**The margin.** Three quarters comes from production's own copies: the featurette runs 27.9 % of its
+film; Blade Runner 2049, before the years took it off the list, made the Final Cut 71.7 % of it; and
+no cut ran shorter than Alien³'s theatrical one, 79.3 % of the Special Assembly Cut. With the years
+and the editions parting such copies first, the flag meets copies whose names say nothing to tell
+them apart: a featurette, another film under the first one's ids whose name claims no year, a cut no
+name states. A featurette at three quarters of its film or more, or a second film nearly as long as
+the first, stays unflagged by this rule.
+
+`RunningTimeSpreadTests` pins the boundary — exactly three quarters, a millisecond under, a longest
+not divisible by four — and production's ratios on either side;
+`LibraryDuplicatesRunningTimesHttpTests.List_flags_a_film_and_a_featurette_under_its_ids_for_review_by_their_running_times`,
+`LibraryDuplicatesRunningTimesHttpTests.List_flags_running_times_that_differ_widely_beside_ids_that_disagree`
+and `LibraryDuplicatesRunningTimesHttpTests.List_flags_nothing_when_the_shortest_copy_runs_over_three_quarters_of_the_longest`
+the rule;
+`LibraryDuplicatesRunningTimesHttpTests.List_takes_no_running_time_from_a_copy_never_inspected`,
+`LibraryDuplicatesRunningTimesHttpTests.List_compares_the_measured_copies_beside_one_never_inspected`,
+`LibraryDuplicatesRunningTimesHttpTests.List_takes_no_running_time_from_a_copy_whose_reading_failed`,
+`LibraryDuplicatesRunningTimesHttpTests.List_counts_a_copy_in_two_parts_as_the_sum_of_their_durations`,
+`LibraryDuplicatesRunningTimesHttpTests.List_takes_no_running_time_from_a_copy_with_a_part_not_measured`,
+`LibraryDuplicatesRunningTimesHttpTests.List_counts_one_path_two_libraries_report_as_one_copy`,
+`LibraryDuplicatesRunningTimesHttpTests.List_gives_the_shortest_and_the_longest_of_three_copies` and
+`LibraryDuplicatesSameWorkHttpTests.List_gives_each_segment_group_its_own_running_times` the copies
+and their evidence; `LibraryDuplicatesPossibleHttpTests.List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations`
+the possible matches left as they were;
+`LibraryDuplicatesHttpTests.List_writes_classes_distinctions_and_editions_by_name` `runningTimes`
+and `RunningTimes` on the wire; and, in the web app, `DuplicateGroupCard.test.tsx`'s "says how long
+the shortest and the longest copy run when the shortest runs under three quarters of the longest",
+"flags running times that differ widely beside ids that disagree, after them" and "says nothing of
+the running times the server gives when they don't differ widely" the badge and the sentence.
+
+## Production's copy (added 0.2.1, MAM-37)
+
+**What a copy of production's database showed.** "Checked against production" here means the build
+run locally on a fresh copy of production's database, not a publish: production keeps running the
+published 0.2.1 image until Vasyl publishes. On 2026-10-08 at 11:31:03 UTC he ran
+`tools/mam37/copy_db.py`, whose one read-only ssh call is `tools/mam22/report.py`'s: `mam.db`
+(30,281,728 bytes) with its `-wal` (7,321,272) and `-shm` (32,768), never `.secrets`, from the
+container of `vahac/media-acquisition-manager:latest`, digest
+`sha256:d9c6149a3dbf0e4924ff0d889873996008425dc3b9c2592c56f373fb07cfa78e` (0.2.1), running since
+10:19:47 UTC. The copy passed `quick_check`, held 20 migrations, the last
+`20261007173129_AddDuplicateMatchDecisions`, and 1,397 names, 1,396 inspected and measured and one
+unreadable as media; in the copy alone the allowed folder `/media` was removed and the four
+integrations' addresses set to `http://127.0.0.1:9`. The MAM-37 working tree on top of 27fcd79, run
+with `dotnet run -c Release` on the copy, applied no migration; Vasyl signed in himself and looked:
+"ніби ок". `copy_db.py --verify`, at the start and after the check, found the 14 tables the
+duplicates are read from unchanged; the copy was deleted afterwards.
+
+`GET /api/library/duplicates` as the owner listed 4 groups, all Same work, each under the key
+MAM-22's list gave it that morning: The Gods Must Be Crazy (1980), two WEB releases at 6,545,205 and
+6,545,206 ms; «Ніж у воді» (1962), the film at 5,731,959 ms and the featurette at 1,600,699
+(27.9 %), `RunningTimes`, the one needing review; Seksmisja (1984), `Seksmisja (1984).mp4` and
+`Seksmisja [1983 DVDRemux].mkv`, 6,980,120 and 7,005,013 ms; and Alien: Romulus (2024), a 2160p
+remux at 7,141,927 ms and a 1080p rip at 7,140,926. All four had `runningTimes`; no group of another
+class appeared, and none was dismissed. The page showed "1–4 of 4", «Ніж у воді»'s card with "Same
+work", "Needs review", "Running times differ" and "The shortest copy runs 26:41, under three
+quarters of the longest, 1:35:32.", the other three "Same work" alone; after a reload too, at
+desktop width and at 375 px, with no horizontal scroll and no server error, the console's only
+errors the session refresh's 401s before the sign-in and after the reload.
+
+Of MAM-22's 46 groups, the 42 that left are the 20 Penguins of Madagascar pairs and S03E31/S03E33
+(**Episodes at different places**), the eight Mickey Mouse Clubhouse episodes kept in `a` and `b`
+files (**Segments**), Blade Runner (**Years, films only** and **Editions**) and the 12 cuts and
+widescreen copies of **Editions**. Nothing in the library, a file or a download client changed: only
+what the Duplicates page lists. Production exercises none of these, so they rest on the tests above:
+a copy in two parts, an unmeasured copy or a failed reading beside measured ones, a hardlinked file
+whose names say different editions, a whole episode file beside an `a` file, a film item linked as
+an episode at another place, the `|Years:` and `|Editions:` keys — no production component splits
+into two groups —, and possible matches, of which production has none.

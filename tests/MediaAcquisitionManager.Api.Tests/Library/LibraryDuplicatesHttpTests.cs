@@ -367,9 +367,22 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         await _roots.Allow(Root);
         await PlantHardlinksAsync("Memento", 2000, 1_048_601, 1_000_000_001);
         await PlantByteIdenticalCopiesAsync("Brazil", 1985, 1_048_603, 1_048_605, 1_000_000_003);
-        // One IMDb id, two TMDb ids, and the bedroom's copy the Final Cut by its file name.
-        await PlantMovieAsync(_livingRoom, "Blade Runner", 1982, MoviePath("Blade Runner", 1982), BladeRunnerImdbId, "78");
-        await PlantMovieAsync(_bedroom, "Blade Runner", 1982, "/media/backup/Blade Runner (1982) Final Cut.mkv", BladeRunnerImdbId, "79");
+        // One IMDb id, two TMDb ids, and both copies the Final Cut by their file names.
+        const string finalCutPath = "/media/movies/Blade Runner (1982)/Blade Runner (1982) Final Cut.mkv";
+        const string finalCutCopyPath = "/media/backup/Blade Runner (1982) Final Cut.mkv";
+        await PlantMovieAsync(_livingRoom, "Blade Runner", 1982, finalCutPath, BladeRunnerImdbId, "78");
+        await PlantMovieAsync(_bedroom, "Blade Runner", 1982, finalCutCopyPath, BladeRunnerImdbId, "79");
+        // MAM-37 — and running times that differ widely: the living room's copy runs as long as Blade Runner 2049, which
+        // a library gave the 1982 film's ids, though its name claims 1982 and the Final Cut as the bedroom's does — names
+        // claiming years far apart, or saying another cut, would make no group.
+        _factory.Files.AddFile(
+            finalCutPath, TestMedia.File(1_048_607, 1_000_000_007), TestMedia.Taken() with { Duration = TimeSpan.FromMilliseconds(9_827_808) });
+        _factory.Files.AddFile(
+            finalCutCopyPath, TestMedia.File(1_048_609, 1_000_000_009), TestMedia.Taken() with { Duration = TimeSpan.FromMilliseconds(7_051_384) });
+        // A possible match, one title and year and no id, whose names say two cuts: since MAM-37 the only class flagged
+        // for its editions.
+        await PlantMovieAsync(_livingRoom, "Alien", 1979, "/media/movies/Alien (1979) [Theatrical Cut].mkv");
+        await PlantMovieAsync(_bedroom, "Alien", 1979, "/media/backup/Alien (1979) [Director's Cut].mkv");
         // On a file system that can share blocks, so the estimate's gap shows.
         _factory.Files.SetFileSystem(TestMedia.DeviceId, "btrfs");
         await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
@@ -383,7 +396,7 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))!;
         Assert.Equal(["items", "totalCount", "page", "pageSize"], body.AsObject().Select(property => property.Key));
         var items = body["items"]!.AsArray();
-        Assert.Equal(["SameFile", "ByteIdentical", "SameWork"], items.Select(item => item!["class"]!.GetValue<string>()));
+        Assert.Equal(["SameFile", "ByteIdentical", "SameWork", "Possible"], items.Select(item => item!["class"]!.GetValue<string>()));
         Assert.All(items, item =>
         {
             Assert.Equal(
@@ -392,7 +405,7 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
                 item!.AsObject().Select(property => property.Key));
             Assert.Matches("^[0-9a-f]{32}$", item["key"]!.GetValue<string>());
             Assert.Equal(
-                ["identity", "sha256", "identifiers", "titles", "durationsAgree"],
+                ["identity", "sha256", "identifiers", "titles", "durationsAgree", "runningTimes"],
                 item["evidence"]!.AsObject().Select(property => property.Key));
             Assert.Equal(["sizeBytes", "fileCount", "nameCount", "unmeasuredCount"], item["space"]!.AsObject().Select(property => property.Key));
             Assert.Null(item["decision"]);
@@ -412,30 +425,47 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         var sameWork = items[2]!;
         Assert.True(sameWork["needsReview"]!.GetValue<bool>());
         Assert.Equal(
-            new (string, string?, bool)[] { ("IdentifierConflict", "Tmdb", false), ("Edition", null, false) },
+            new (string, string?, bool)[] { ("IdentifierConflict", "Tmdb", false), ("RunningTimes", null, false) },
             sameWork["distinctions"]!.AsArray().Select(distinction => (
                 distinction!["kind"]!.GetValue<string>(),
                 distinction["scheme"]?.GetValue<string>(),
                 distinction["ofSeries"]!.GetValue<bool>())));
+        var runningTimes = sameWork["evidence"]!["runningTimes"]!;
+        Assert.Equal(["shortestMilliseconds", "longestMilliseconds"], runningTimes.AsObject().Select(property => property.Key));
+        Assert.Equal(
+            (7_051_384L, 9_827_808L),
+            (runningTimes["shortestMilliseconds"]!.GetValue<long>(), runningTimes["longestMilliseconds"]!.GetValue<long>()));
+        // Only copies of one work have running times as evidence.
+        Assert.All(new[] { items[0], items[1], items[3] }, item => Assert.Null(item!["evidence"]!["runningTimes"]));
         var identifier = Assert.Single(sameWork["evidence"]!["identifiers"]!.AsArray())!;
         Assert.Equal(["scheme", "value", "seasonNumber", "episodeNumber"], identifier.AsObject().Select(property => property.Key));
         Assert.Equal(("Imdb", BladeRunnerImdbId), (identifier["scheme"]!.GetValue<string>(), identifier["value"]!.GetValue<string>()));
         Assert.Null(sameWork["recoverable"]);
 
-        // The files in path order: the bedroom's Final Cut first, the living room's unlabelled one after.
+        // The files in path order, the bedroom's first, each the Final Cut by its name.
         var files = sameWork["files"]!.AsArray();
         Assert.All(files, file =>
             Assert.Equal(
                 ["file", "readSizeBytes", "deviceId", "inode", "linkCount", "sha256", "editions", "works"],
                 file!.AsObject().Select(property => property.Key)));
-        Assert.Equal(["FinalCut"], files[0]!["editions"]!.AsArray().Select(edition => edition!.GetValue<string>()));
-        Assert.Empty(files[1]!["editions"]!.AsArray());
+        Assert.All(files, file => Assert.Equal(["FinalCut"], file!["editions"]!.AsArray().Select(edition => edition!.GetValue<string>())));
         var work = Assert.Single(files[0]!["works"]!.AsArray())!;
         Assert.Equal(
             ["id", "kind", "title", "year", "episode", "seriesTitle", "versionId", "editionLabel", "sourceName", "identifiers"],
             work.AsObject().Select(property => property.Key));
         Assert.Equal(("Movie", "Blade Runner", "Bedroom"), (work["kind"]!.GetValue<string>(), work["title"]!.GetValue<string>(), work["sourceName"]!.GetValue<string>()));
         Assert.Equal(["Imdb", "Tmdb"], work["identifiers"]!.AsArray().Select(id => id!["scheme"]!.GetValue<string>()));
+
+        var possible = items[3]!;
+        Assert.Equal(
+            new (string, string?, bool)[] { ("Edition", null, false) },
+            possible["distinctions"]!.AsArray().Select(distinction => (
+                distinction!["kind"]!.GetValue<string>(),
+                distinction["scheme"]?.GetValue<string>(),
+                distinction["ofSeries"]!.GetValue<bool>())));
+        Assert.Equal(
+            [["DirectorsCut"], ["Theatrical"]],
+            possible["files"]!.AsArray().Select(file => file!["editions"]!.AsArray().Select(edition => edition!.GetValue<string>()).ToList()));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
