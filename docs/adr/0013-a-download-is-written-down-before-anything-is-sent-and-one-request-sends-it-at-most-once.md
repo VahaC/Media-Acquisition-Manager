@@ -151,3 +151,16 @@ no screen, and Cancel is the only way to dismiss one.
 `DownloadJobRecoveryHttpTests.Poll_finds_a_hybrid_torrent_qBittorrent_renamed_after_its_magnet_through_its_destination`
 and `DownloadsCancelHttpTests.Cancel_lets_the_release_be_sent_again_once_qBittorrent_no_longer_has_it`
 pin it.
+
+## The overwrite check (added 0.2.1, MAM-38)
+
+**On 2026-10-08 one step joined the sending, after the client's list is read for the torrent and
+before the one `torrents/add`: the check for files the download would write over
+([ADR 0034](0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).**
+The job is still written, with its request id and audit row, before anything is fetched or sent,
+and its hashes are stored before the check, so a send interrupted there is found or failed by the
+following as before. A send the check refuses ends `Failed` with the app's own sentence —
+everyone's, as a torrent the client already has is — and reaches nothing, so the next Send in the
+dialog is a new request, as after any failure. A send that goes ahead first records on the job how
+it was checked (`OverwriteCheck`). One request still sends at most once, and the check licenses no
+second call to the client's add.

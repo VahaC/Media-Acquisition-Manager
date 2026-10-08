@@ -96,6 +96,7 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
                 Hash(middle),
                 Error: null,
                 MissingReason,
+                OverwriteCheck: null,
                 middle.CreatedUtc,
                 middle.StatusChangedUtc),
             list.Items[1],
@@ -287,7 +288,7 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
         Assert.Equal(
             [
                 "id", "releaseId", "releaseTitle", "sourceName", "downloadClientName", "destinationName", "clientDestinationKey", "status",
-                "progress", "clientJobId", "error", "blockReason", "createdUtc", "statusChangedUtc",
+                "progress", "clientJobId", "error", "blockReason", "overwriteCheck", "createdUtc", "statusChangedUtc",
             ],
             item.EnumerateObject().Select(property => property.Name));
         Assert.Equal("NeedsLinking", item.GetProperty("status").GetString());

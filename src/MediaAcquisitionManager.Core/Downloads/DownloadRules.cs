@@ -34,4 +34,8 @@ public static class DownloadRules
     /// <summary>The sentence saying the release is missing, or <c>null</c>.</summary>
     public static string? ValidateReleaseId(Guid? releaseId) =>
         releaseId is null || releaseId == Guid.Empty ? ReleaseMissingError : null;
+
+    /// <summary>MAM-38 — the destination the Download dialog asks about: present, or the sentence why not.</summary>
+    public static string? ValidateDestinationId(Guid? destinationId) =>
+        destinationId is null || destinationId == Guid.Empty ? DestinationMissingError : null;
 }

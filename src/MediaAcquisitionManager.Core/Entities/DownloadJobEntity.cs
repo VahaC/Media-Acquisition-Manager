@@ -123,4 +123,11 @@ public class DownloadJobEntity : AuditableEntity
     /// client's own goes to the owner only, as it can name the client's address; <c>null</c> without a
     /// reason.</summary>
     public DownloadJobErrorOrigin? BlockReasonOrigin { get; set; }
+
+    /// <summary>
+    /// MAM-38, ADR 0034 — how the release was checked, before it was sent, for files it would write over: checked,
+    /// or sent unchecked and why. <c>null</c> for a job sent before the check existed, or one the check didn't let
+    /// through — a refused one fails with its reason. A job whose submission failed after the check keeps it.
+    /// </summary>
+    public DownloadOverwriteCheck? OverwriteCheck { get; set; }
 }

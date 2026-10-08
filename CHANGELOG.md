@@ -863,6 +863,107 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `LibraryDuplicatesHttpTests.List_writes_classes_distinctions_and_editions_by_name`,
   `LibraryDuplicatesPossibleHttpTests.List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations`
   and `DuplicateGroupCard.test.tsx` pin it.
+- **Phase C's replacement is decided before any code can move a file (MAM-23, ADR 0030 to ADR 0033,
+  Vasyl's decisions of 2026-10-08).** Specification §7 questions 3, 4 and 6 are answered for
+  replacement; nothing of it is built, and nothing in this release writes to the media folders. A
+  replacement will be the installation owner's alone and off until the owner mounts the media
+  folders read-write, runs the app as their owner (`APP_USER_ID`, `APP_GROUP_ID`), switches it on in
+  the app and ticks the library folders it may touch. It may target a film, one or more episodes or
+  the held episodes of whole seasons. A Toloka release, which lists no ids, may be scheduled on the
+  owner's confirmation of the work, but the old copy moves only once Jellyfin has given the new file
+  the old copy's own work by its ids — never on the owner's word after the download —, each old copy
+  paired with one new file and every unclear pair left to the owner; a `.torrent` that would land on
+  an existing file, and a magnet, are never sent as a replacement. The old copy and its own
+  companion files then move by one atomic rename per name that never replaces and never copies
+  (`renameat2(RENAME_NOREPLACE)`: .NET's `File.Move` copies and deletes when a rename fails) into
+  `.mam-quarantine` at the top of the allowed folder, which neither Jellyfin nor the app's folder
+  scan reads, and stay there until the owner restores them or deletes them for good after a second
+  confirmation; there is no automatic cleanup, and where the move can't be atomic nothing is
+  deleted, a departure from §3.4. The app never writes to a download client: an old copy any torrent
+  lists — 823 of the 1394 library video files on 2026-10-04 — waits until the owner removes that
+  torrent in qBittorrent without its files, since moving a seeding torrent's only copy goes
+  unnoticed by qBittorrent until a restart stops the torrent, and a recheck would then download the
+  old copy back into the library. Jellyfin is only asked to look at the moved paths.
+  `tools/mam23/facts.py`, new and read-only, measured the media host: every file and all but four
+  folders (root's) belong to qBittorrent's user, 1000 and group 100, and the app's uid 10001 may
+  write in none of them, so for replacement the app will run as that owner, and no folder's owner or
+  mode changes. `docker-compose.yml` now runs the app as `APP_USER_ID`:`APP_GROUP_ID`, 10001 for
+  both unless `.env` says otherwise, so nothing changes by default; `.env.example` says how to hand
+  the data volume to other ids once and what that costs. ROADMAP's Phase C now lists MAM-23 to
+  MAM-28; the specification, the README and the compose file's comments say the same.
+- **A download whose files would land on a different file already in the destination's folder is
+  refused before anything reaches the client (MAM-38, ADR 0034, Vasyl's decisions of 2026-10-08).**
+  qBittorrent 5.2.4 keeps every file it finds at a new torrent's paths, and libtorrent 2.0 checks it
+  and downloads the pieces that don't match into it, in place: another release under a name already
+  in the library is written over, and stays a mix of both if the swarm stalls. On the reference
+  installation every category saves straight into a Jellyfin library folder, and the app can't stop
+  a torrent once sent. Right before the one submission, after the client is asked whether it already
+  has the torrent, the sender now reads the .torrent's list of files — v1, v2 or hybrid, pad files
+  left out, each name cleaned as libtorrent 2.0's `sanitize_append_path_element` cleans it on Linux,
+  ported byte for byte: a broken UTF-8 sequence one `_` for the length its lead byte claims, a name
+  past 240 bytes ended after the character that reaches them with an extension from its last 9
+  bytes, `.`, `..` and an empty path element `_`, the torrent's folder `_` for an empty name and the
+  v1 info hash for one cleaning drops — and works out every place each file may be written below the
+  category's folder under qBittorrent's three content layouts, Original, Subfolder and NoSubfolder,
+  as the app never reads `app/preferences`; then it looks there inside the Media folders. It refuses
+  the send when a place holds a file of another size; a file of the same size whose sampled pieces —
+  up to three wholly inside it, the first, one in the middle and the last, hashed with SHA-1 for v1
+  or as a SHA-256 tree for v2, a chunk at a time so a piece never sits in memory whole — don't hash
+  as the torrent says; something that isn't a file; a file it can't read, or one that changed while
+  it was compared; or a place a torrent the client already has in the category will write. Such a
+  torrent's files end up below its save path, so it is compared there by its content or its name,
+  and, for at most 20 torrents that may write one of the places, by its files — one still in
+  qBittorrent's folder for incomplete torrents included. The job is still written first (ADR 0013)
+  and ends `Failed` with the app's sentence, which everyone who sent the release reads, and nothing
+  is handed to the client: "“qBittorrent” would write over “Film.2001.mkv” in the folder of the
+  category “Movies”: a file of another size is already there, so nothing was sent.", the file named
+  by its path below the folder, with how many more of the release's files land on a file already
+  there, each counted once. Files already there with the same bytes don't stop it, so a Toloka
+  update that re-adds a series' old episodes still goes through, and a folder that is only the same
+  folder passes. What can't be looked at is sent as before and said so: a magnet, a .torrent whose
+  list the app can't read (a piece longer than libtorrent takes, or a lone file with no usable name,
+  among them), a destination folder with no path in the app or outside the Media folders, a place
+  behind a link that leads out of them, a file name with a character the app's paths refuse (DEL or
+  a C1 control, which libtorrent keeps), and a client that can't tell its torrents in the category
+  or their files, or holds one still fetching its metadata. A place that can't be looked at never
+  hides one that refuses the send, and a check that breaks on a bug ends the job `Failed` with "The
+  app couldn't check whether this release would write over a file in the folder of the category
+  “Movies”, so nothing was sent. The app's log says why.", nothing sent. Each job gains
+  `overwriteCheck`, written by name: `Checked`, `NotCheckedMagnet`, `NotCheckedFileList`,
+  `NotCheckedFolderUnknown`, `NotCheckedFolderOutsideMediaFolders`, `NotCheckedClientJobs` or
+  `NotCheckedFileName`, and `null` for a job sent before the check existed or one it refused; the
+  Jobs page and a job's own page show an unchecked job's reason as an amber line under its status,
+  such as "Not checked for files it would write over: a magnet link names its files only once the
+  client has fetched them.", but not on a failed job. The new
+  `GET /api/downloads/overwrite-check?destinationId=` answers every signed-in user
+  `{ notCheckedReason }`: `null`, `NotCheckedFolderUnknown` (no path in the app, or a client that is
+  switched off or can't say where the category saves) or `NotCheckedFolderOutsideMediaFolders`,
+  never a path; 400 "Pick the destination to send it to." and 404 "The destination you picked no
+  longer exists. Reload the page and pick one again.". The Download dialog asks it whenever a
+  destination is picked, holds **Send** until that first answer arrives ("Checking the destination's
+  folder…" on hover), never after a failed question, and, for a folder that can't be checked, warns
+  above the summary that a release sent there goes without the check, the warning read with **Send**
+  by a screen reader; its summary now reads "Kept: this version of the app never replaces or removes
+  a file, and doesn't send a release it finds would write over a different one." The check only
+  reads — a few pieces of a file already there, the client's torrents in the category and the files
+  of those that may write there —, and it suggests nothing about the file it found: the client's one
+  write is still the submission. It needs migration `AddDownloadJobOverwriteCheck` (Notes for
+  upgraders, below) and nothing switched on. Not tried against qBittorrent or the reference
+  installation: what qBittorrent and libtorrent do with a file already there was read from their
+  source, and the check rests on the tests. `DownloadsSendOverwriteHttpTests` (another size, the
+  same size with other bytes, a file the app can't read or that changed while it was compared, a
+  lone file in a folder of its name, something that isn't a file, several collisions and one file
+  colliding under two layouts counted once, a collision found beside a place that can't be looked
+  at, a torrent qBittorrent already has — its file, a file in its folder, one still in the folder
+  for incomplete torrents, one listed after more than 20 others —, the member's sentence, the check
+  after "already has this torrent", a check that throws, the same bytes sent as checked for v1 with
+  pad files and for v2, a folder that is only the same folder, each unchecked case, and no write to
+  qBittorrent but the sign-in and the one add), `DownloadsOverwriteCheckHttpTests` (the dialog's
+  question, a member's included, and a client that can't list its categories or no longer lists the
+  destination's), `TorrentContentReaderTests`, `TorrentTargetPathsTests`, `TorrentPathElementTests`,
+  `TorrentPieceHashTests`, `BencodeParserTests`, `DownloadRulesTests`,
+  `LocalFileInventoryPieceHashTests`, `QBittorrentAdapterJobsTests`, `DownloadDialog.test.tsx` and
+  `JobsPage.test.tsx` pin it.
 
 ### Changed
 
@@ -1184,6 +1285,12 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   It only creates `DuplicateMatchDecisions` and its two indexes. The owner's decisions on possible
   matches live there alone, with their audit rows, so they are in a backup of `mam.db` and nowhere
   else; nothing needs switching on, and a group the owner never decided shows as before.
+- **Applying `AddDownloadJobOverwriteCheck` rebuilds no table, so it logs no warning 20410
+  (MAM-38).** It only adds the nullable column `DownloadJobs.OverwriteCheck`; the jobs sent before
+  the upgrade keep `null` there and show no line about the check. The check needs nothing switched
+  on, but it looks only inside the Media folders (the user menu → **Media folders**): a destination
+  whose category saves outside them, or whose folder has no path in the app (ADR 0003's path
+  mappings), is sent unchecked, and the Download dialog says so before **Send**.
 
 ## [0.2.0] — 2026-10-04
 

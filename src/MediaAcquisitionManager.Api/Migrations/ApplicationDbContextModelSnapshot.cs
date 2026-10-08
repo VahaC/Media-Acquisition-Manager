@@ -743,6 +743,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OverwriteCheck")
+                        .HasMaxLength(48)
+                        .HasColumnType("TEXT");
+
                     b.Property<double?>("Progress")
                         .HasColumnType("REAL");
 

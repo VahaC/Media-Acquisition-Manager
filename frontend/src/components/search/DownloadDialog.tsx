@@ -7,7 +7,7 @@ import { ErrorState } from '@/components/shared/ErrorState'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useDownloadOptions, useSendDownload } from '@/lib/queries'
+import { useDownloadOptions, useDownloadOverwriteCheck, useSendDownload } from '@/lib/queries'
 import { newRequestId } from '@/lib/request-id'
 import type { DownloadClientOption, DownloadDestinationOption, DownloadJobStatus, SearchRelease } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
@@ -41,8 +41,11 @@ interface DownloadDialogProps {
  * MAM-13 — sends one release to a download client: a client that can take it, one of its
  * destinations (a category of the client, which decides the folder), and a summary of what goes
  * where, existing copies included — this version adds a download and never replaces or removes a
- * file. Every signed-in user may send (MAM-13's decision 1). The parent mounts it only while it is
- * open, so every opening is a new submission with its own request id.
+ * file. Every signed-in user may send (MAM-13's decision 1). MAM-38 — the server refuses a release
+ * whose files would land on a different file already in the destination's folder (a Failed job, its
+ * sentence naming the file); where it can't look into that folder, a warning says so before Send,
+ * and Send waits for the first answer about the folder picked. The parent mounts it only while it
+ * is open, so every opening is a new submission with its own request id.
  *
  * It opens on the default destination and the client that owns it; otherwise on the only client and
  * its only destination; otherwise on the placeholders. MAM-32 — the server now names the destination
@@ -62,6 +65,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const clientFieldId = useId()
   const destinationFieldId = useId()
   const destinationHintId = useId()
+  const warningId = useId()
   // One id per submission, made when the dialog opens. A resend after a thrown error (the network, a
   // refusal) keeps it: a request that did reach the server is then answered with the job it made
   // instead of becoming a second download. Only a Failed job replaces it, as nothing reached the
@@ -85,6 +89,23 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const destination = client?.destinations.find((candidate) => candidate.id === destinationId)
   const sending = send.isPending
   const ready = client !== undefined && destination !== undefined
+  // MAM-38 — asked once a destination is picked; a question that failed warns of nothing, as the send
+  // checks again whatever the dialog showed.
+  const overwrite = useDownloadOverwriteCheck(destination?.id ?? '')
+  const notCheckedReason = ready ? (overwrite.data?.notCheckedReason ?? null) : null
+  // Send waits for the first answer about the folder picked, so the warning is there before anyone can
+  // send — a dialog opened on a suggested destination asks only once the options are in, and the
+  // server asks the client in turn. Never once the question has failed, which warns of nothing: the
+  // send checks again anyway, and a Send held for a question that keeps failing would never let go.
+  const checking = ready && overwrite.isFetching && overwrite.data === undefined && overwrite.errorUpdateCount === 0
+
+  /** Why Send is disabled, shown on hover; none while it is sending, which the button itself says. */
+  const disabledReason = () => {
+    if (sending) return undefined
+    if (clients.length > 0 && !ready) return t('pickFirst')
+    if (checking) return t('checkingFolder')
+    return undefined
+  }
 
   /** Another client has other destinations: the last client's pick goes, the new client's own preselection comes. */
   const pickClient = (next: string) => {
@@ -204,14 +225,23 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
           <form className="settings-dialog-form" noValidate onSubmit={(event) => void submit(event)}>
             <div className="settings-dialog-body">
               {fields}
+              {notCheckedReason && <Banner tone="warning" id={warningId}>{t(`overwrite.${notCheckedReason}`)}</Banner>}
               {clients.length > 0 && <SendSummary release={release} client={client} destination={destination} />}
             </div>
             {/* MAM-16 — outside the scrolling body, above the buttons; the picks stay to send again. */}
             {error && <Banner>{error}</Banner>}
             {/* Primary first, Cancel last — the order every dialog in the app uses. */}
             <DialogFooter>
-              <DisabledReason reason={clients.length > 0 && !ready && !sending ? t('pickFirst') : undefined}>
-                <Button type="submit" disabled={!ready || sending}>{sending ? t('sending') : t('send')}</Button>
+              <DisabledReason reason={disabledReason()}>
+                {/* MAM-38 — focusing Send reads the warning: a live region inserted already filled often
+                    isn't read out, and the warning is meant to be heard before Send. */}
+                <Button
+                  type="submit"
+                  disabled={!ready || sending || checking}
+                  aria-describedby={notCheckedReason ? warningId : undefined}
+                >
+                  {sending ? t('sending') : t('send')}
+                </Button>
               </DisabledReason>
               <Button type="button" variant="outline" onClick={onClose}>{t('common:cancel')}</Button>
             </DialogFooter>

@@ -153,3 +153,16 @@ only bring the same rows back, so both numbers move together (`DownloadJobTracke
 qBittorrent's own Web UI asks every 1.5 s. Refused credentials are still never sent again, so a
 faster pass doesn't feed qBittorrent's ban. The rest of the decision stands, the interval included
 being a constant rather than a setting.
+
+## The overwrite check (added 0.2.1, MAM-38)
+
+**On 2026-10-08 `ListDestinationJobsAsync` and `ListJobFilesAsync` gained a second reader: the
+check, right before a send, for files the download would write over
+([ADR 0034](0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).**
+The sender lists the torrents the client already has in the destination's category, and the files of
+those whose folder one of the new torrent's files would land in, for at most 20 torrents, so that a
+place such a torrent will write refuses the send. Both stay reads, as here: the check writes nothing
+to the client, whose one write is still the submission (ADR 0013), and a client that can't list its
+torrents lets the release go unchecked rather than refused. The following, its passes and Cancel are
+unchanged, and the anti-consequence stands: nothing here or there licenses removing, stopping or
+pausing a torrent.

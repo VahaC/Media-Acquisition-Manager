@@ -3,7 +3,8 @@ namespace MediaAcquisitionManager.Core.Abstractions.Files;
 /// <summary>
 /// The app's own read-only look at files on its mounts (MAM-9, Phase B) — local, so not an
 /// integration connection. MAM-9 reads a file's identity and its streams, MAM-18 walks the allowed roots
-/// for their media files, MAM-19 hashes a file's bytes; Phase C adds the quarantine.
+/// for their media files, MAM-19 hashes a file's bytes, MAM-38 hashes a few of its pieces; Phase C's
+/// quarantine writes through a contract of its own (ADR 0030).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -60,6 +61,21 @@ public interface IFileInventory
     /// <param name="cancellationToken">Cancels the read.</param>
     Task<FileInventoryResult<FileContentHash>> HashAsync(
         string appPath, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-38, ADR 0034 — reads the pieces <paramref name="pieces"/> name of the file at <paramref name="appPath"/>,
+    /// after the checks of <see cref="DescribeAsync"/>, and hashes each the way a torrent does
+    /// (<see cref="FilePieceHashing"/>): what tells a file already where a download would write from the
+    /// download's own bytes, without reading it whole. The file facts that come with the hashes were read before
+    /// and after the pieces and agreed, and every piece was there to read; anything else is
+    /// <see cref="FileInventoryStatus.ChangedWhileReading"/>.
+    /// </summary>
+    /// <param name="appPath">The file's absolute path inside the app.</param>
+    /// <param name="allowedRoots">The folders it may read inside, in canonical form.</param>
+    /// <param name="pieces">The pieces to hash, each inside the file.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    Task<FileInventoryResult<FilePieceHashes>> HashPiecesAsync(
+        string appPath, IReadOnlyList<string> allowedRoots, IReadOnlyList<FilePieceRange> pieces, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Walks every one of <paramref name="allowedRoots"/>, in their order, and yields each media file name

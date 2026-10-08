@@ -103,6 +103,7 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
             [
                 "GET api/downloads",
                 "GET api/downloads/options",
+                "GET api/downloads/overwrite-check",
                 "GET api/downloads/{id:guid}",
                 "GET api/downloads/{id:guid}/files",
                 "POST api/downloads",
@@ -183,6 +184,10 @@ public sealed class DownloadsSecretsHttpTests : IClassFixture<MediaAcquisitionMa
             reads.Add(await _factory.GetHttpRequest(response.Headers.Location!.AbsolutePath, user.AccessToken));
             reads.Add(await _factory.GetHttpRequest($"{response.Headers.Location!.AbsolutePath}/files", user.AccessToken));
         }
+
+        // MAM-38 — and the dialog's question whether the destination's folder is checked, by each of them.
+        reads.Add(await _factory.GetHttpRequest($"{BaseUrl}/overwrite-check?destinationId={_destination.Id}", _owner.AccessToken));
+        reads.Add(await _factory.GetHttpRequest($"{BaseUrl}/overwrite-check?destinationId={_destination.Id}", _member.AccessToken));
 
         var ownerList = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
         var memberList = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);

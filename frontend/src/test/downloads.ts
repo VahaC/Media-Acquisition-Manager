@@ -85,6 +85,7 @@ export function jobOf(changes: Partial<DownloadJob>): DownloadJob {
     clientJobId: '8a2f1c0e9b7d6a5f4e3d2c1b0a9f8e7d6c5b4a39',
     error: null,
     blockReason: null,
+    overwriteCheck: 'Checked',
     createdUtc: '2026-10-02T09:00:00Z',
     statusChangedUtc: '2026-10-02T09:00:01Z',
     ...changes,

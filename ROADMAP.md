@@ -26,15 +26,20 @@ reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (b
 the version, checked the same day on a copy of production's database, and in no published image
 yet) follows from that check: the Duplicates page lists only real copies of one film or episode —
 4 of the 46 groups production listed — and flags for review the copies of one work whose measured
-running times differ widely.
+running times differ widely. MAM-38 (built the same day while 0.2.1 is the version, resting on the
+tests, and in no published image yet) refuses a download whose files would land on a different file
+already in the destination's folder before anything reaches qBittorrent, which would otherwise
+download into that file in place. MAM-23 settled on 2026-10-08 what a Phase C replacement may touch
+— specification §7 questions 3, 4 and 6, the write access and the gates (ADR 0030 to ADR 0033) —;
+nothing of Phase C is built yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-37.
-Releases for phases C and D are not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
+Phase C as MAM-23 to MAM-28. Releases for phases C and D are not decided yet.
 
 ## Phases
 
@@ -438,8 +443,9 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
-**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21 and
-MAM-37, built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to MAM-37.
+**Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21,
+MAM-37 and MAM-38, built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to
+MAM-38.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -847,6 +853,56 @@ episode, and how much space could really be recovered — without the app guessi
   film item linked as an episode at another place, a part's own key and a possible match, none of
   which production has, rest on the tests; production shows all of it once Vasyl publishes and
   deploys an image that holds it.
+- **MAM-38 Downloads that would write over a file** (built, release 0.2.1; not tried against
+  qBittorrent or the reference installation, in no published image yet): a release whose files would
+  land on a different file already in the destination's folder is refused before anything reaches
+  the client (Vasyl's decisions of 2026-10-08;
+  [ADR 0034](docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).
+  qBittorrent 5.2.4 keeps every file it finds at a new torrent's paths and refuses only an info hash
+  it already has, and libtorrent 2.0.15 checks such a file and downloads the pieces that don't match
+  into it, in place — read from their source while MAM-23 was decided, with no live test —; on the
+  reference installation every category saves straight into a Jellyfin library folder, and the app
+  can't stop a torrent once sent (ADR 0014, ADR 0031). Right before the one submission, after the
+  client is asked whether it already has the torrent, `DownloadSender` asks
+  `IDownloadOverwriteGuard`: `TorrentContentReader` reads the .torrent's files (v1 `files` or
+  `length`, `name.utf-8` and `path.utf-8` first, pad files left out as BEP 47 has them, a hybrid by
+  its v1 metadata, a v2 torrent by its file tree), each name cleaned as libtorrent 2.0's
+  `sanitize_append_path_element` cleans it on Linux (`TorrentPathElement`, a byte-for-byte port:
+  every path element kept as one, the folder `_` or the v1 info hash for a name that is empty or
+  dropped), and `TorrentTargetPaths` gives each file's places below the category's folder under all
+  three content layouts — Original, Subfolder (a lone file in a folder of its name without the
+  extension) and NoSubfolder —, as the app never reads `app/preferences`, which carries the Web UI's
+  key. A place inside the Media folders that holds a file of another size, a file of the same size
+  whose sampled pieces — up to three wholly inside it, the first, one in the middle and the last,
+  SHA-1 for v1 or a SHA-256 tree for v2 (`IFileInventory.HashPiecesAsync`) — don't hash as the
+  torrent says, something that isn't a file, a file the app can't read or one that changed while it
+  was compared, or a place a torrent the client already has in the category will write — compared
+  below its save path (`ListDestinationJobsAsync`), by its content or its name first and then, for
+  at most 20 torrents that may write there, by its files (`ListJobFilesAsync`), one still in
+  qBittorrent's folder for incomplete torrents included —, refuses the send: the job, written first
+  as ever (ADR 0013), ends `Failed` with the app's sentence naming the first file and counting the
+  release's other files that land on one, each once — "“qBittorrent” would write over
+  “Film.2001.mkv” in the folder of the category “Movies”: a file of another size is already there,
+  so nothing was sent." —, everyone's to read, and nothing is handed to the client. A release whose
+  files already there have the same bytes is sent (a Toloka update re-adding a series' old
+  episodes), an empty file is no place, and a folder that is only the same folder passes. A magnet,
+  a .torrent whose list can't be read or that libtorrent refuses, a folder with no path in the app
+  or outside the Media folders, a place behind a link leading out of them, a file name the app can't
+  look up (DEL or a C1 control, which libtorrent keeps), and a client that can't tell its torrents
+  or their files are sent as before, unless another place refuses the send, and the job's
+  `OverwriteCheck` (migration `AddDownloadJobOverwriteCheck`; `Checked` or one of six `NotChecked…`
+  reasons, by name, `null` for older jobs and refused ones) says why, which the Jobs pages show in
+  an amber line, but not on a failed job. A check that breaks on a bug fails the job with the app's
+  sentence, nothing sent. The Download dialog asks
+  `GET /api/downloads/overwrite-check?destinationId=` when a destination is picked, holds Send until
+  that first answer arrives (never after a failed one), and warns before Send when its folder can't
+  be checked, the warning read with Send, for every signed-in user, with a reason and never a path;
+  its summary now says the app "doesn't send a release it finds would write over a different one".
+  Rejected: refusing any file already there, comparing sizes alone, hashing whole files, adding the
+  torrent stopped to let qBittorrent check, sending a content layout or a save path of the app's,
+  reading qBittorrent's preferences, and fetching a magnet's files first. The cost is two reads of
+  the client more per send and one question when a destination is picked, never a write; Phase C's
+  replacement will use the same check, the same bytes refused too (ADR 0032).
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -880,7 +936,10 @@ apart, by their running times; a running-times distinction on a possible match, 
 minutes or 10 %; parting a same-file or byte-identical group by its names; reading a year in an
 episode's name, a bare year, a span or a year beside a word in its bracket; calling a copy
 redundant; and writing anything to the library, a file or a download client, or telling the owner
-to change Jellyfin's ids or his links.
+to change Jellyfin's ids or their links. For MAM-38: any write to a download client — stopping,
+removing or re-adding a torrent —; a content layout or a save path the app picks; reading
+qBittorrent's preferences; fetching a magnet's files before sending it; and doing anything to, or
+suggesting anything about, the file already there.
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -1025,7 +1084,33 @@ and the measured copies beside one never inspected are still compared; a film in
 long as both, one path two libraries report is one copy, and the evidence is the shortest and the
 longest of three copies, flagged or not, written by name and last, and `null` for every other class;
 a possible match gets no running-times distinction whatever its durations; and the card shows the
-badge after the others and the sentence only for a flagged group.
+badge after the others and the sentence only for a flagged group. MAM-38: a send whose file would
+land on a file of another size, on one of the same size with other bytes, on something that isn't a
+file, on a file the app can't read or that changed while it was compared, or where a torrent
+qBittorrent already has will write — its own file, a file in its folder, one still in its folder
+for incomplete torrents, or one listed after more than 20 others, found without asking any files —
+fails with the app's sentence, the same for the member who sent it, several collisions naming the
+first and counting the release's other files once each, a later file of the same size counted
+unread, with no add reaching qBittorrent and no write but the sign-in and the one add; a lone file
+in a folder of its name fails under the Subfolder layout; a collision still refuses beside a link
+leading out or a name that can't be looked up; the check runs after "already has this torrent", and
+one that throws fails the job with the app's sentence and logs the type, never the message; the
+same bytes are sent as checked, for v1 with pad files and for v2, and so are a folder that is only
+the same folder and a torrent's folder holding other files; and a folder outside the Media folders,
+where no file is looked at, a place behind a link leading out of them, a category folder without a
+path in the app, a file name the app can't look up, a magnet, a file list the app can't read, and a
+client that can't list its torrents, holds one without metadata, can't list or throws on a
+torrent's files, or has more than 20 to ask (20 asked) are sent unchecked with their reason. The
+dialog's question gives no reason for a folder inside the Media folders, says so for one outside
+them to a member too, says unknown for a folder without a path, a switched-off client, which it
+doesn't ask, a client that can't list its categories and a category it no longer lists, and is 400
+without a destination, 404 for one that no longer exists and 401 signed out. The .torrent reader,
+the places under the three layouts, libtorrent's name cleaning, the v1 and v2 piece hashes and tree
+widths, the bencode parser, the destination rule, the save path's read and the hashing of pieces on
+real files, a chunk at a time, have their own tests; the dialog holds Send until the first answer
+about the folder, never after a failed one, warns before Send, read with it, and still sends, and
+takes a warning away for a folder that can be checked; and a job sent unchecked shows its amber
+line for every reason, never on a failed job.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -1150,41 +1235,95 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 ### Phase C — Safe replacement
 
-**Complexity:** High
-**Value:** upgrade a copy you own in one step: the old file moves aside only after the new one is
-downloaded, verified and visible in Jellyfin, and you can get it back.
+**Release:** not decided. **Tickets:** MAM-23 to MAM-28.
+
+**Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
+copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
+a quarantine until you delete it for good, and you can put it back.
 
 **Scope:**
 
-- A persisted replacement state machine (`Scheduled` → … → `Completed`, plus `NeedsReview`,
-  `Paused`, `Failed` and `Cancelled`) with idempotent steps and safe recovery after a restart.
-- Every check of specification §3.4 before an old file is touched, and the audit trail of each
-  transition.
-- Quarantine by an atomic move on the same filesystem; otherwise manual confirmation after the
-  checks.
-- The download dialog offers `Keep both` (default) or `Replace after verification` of specific,
-  listed old files; the Jobs page can cancel a pending removal, retry verification and resolve
-  ambiguity.
-- **Backup/restore:** replacement jobs and the audit trail live in the database; quarantined files
-  stay on disk in the quarantine directory, outside the database backup.
+- **MAM-23 What a replacement may touch** (decided 2026-10-08): specification §7 questions 3, 4 and
+  6 answered, with the write access and the gates (Vasyl's decisions).
+  - *Quarantine:* the old copy the owner picked, with its own companion files (`Alien.srt`,
+    `Alien.nfo`), moves into `.mam-quarantine` at the top of the allowed folder that holds it —
+    `/media/.mam-quarantine/<job>/movies/…` here —, by one atomic rename per name that never
+    replaces and never copies (`renameat2(RENAME_NOREPLACE)`, never .NET's `File.Move`), on one
+    mount; never a folder, another video, another video's companions or a disc's clip. It stays
+    there, out of Jellyfin's sight and outside the app's own folder scan, until the owner restores
+    it or deletes it for good after a second confirmation; no timer and no automatic cleanup. Where
+    the move can't be atomic, nothing is deleted: the job stops for review, a departure from §3.4; a
+    restart halfway is found again by device and inode and stops for review too. After every move
+    and restore the app asks Jellyfin to look at the paths, and writes nothing else into it ([ADR
+    0030](docs/adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).
+  - *Seeding copies:* the app never writes to a download client. An old copy any torrent lists, in
+    any state, stops the job before the move with "Still held by the torrent <torrent>: remove that
+    torrent in qBittorrent without its files, then press Retry"; the dialog warns of it when the
+    copy is picked. That was 823 of the 1394 library video files on 2026-10-04 (one of them still
+    downloading); the 571 no torrent holds move without it. Removing a pack's torrent also ends the
+    seeding of its other files ([ADR
+    0031](docs/adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)).
+  - *Targets and matching:* films, one or more episodes (a range within a season counts as its
+    episodes) and the held episodes of whole seasons. A release that matched by identifier, or by
+    title and year once the owner confirms the work in the dialog (Toloka lists no ids), may be
+    scheduled; a title alone or conflicting ids never; nor a `.torrent` that would land on a file
+    already there, nor a magnet. The old copy moves only once Jellyfin, after refreshing the new
+    file's item, has given it the old copy's work — the same TMDb or IMDb id, or the same series,
+    season and episode —, each ticked old copy paired with exactly one new file of its work;
+    anything else stops for the owner, who can correct the new item in Jellyfin and Retry, drop the
+    copy or cancel, but never confirm the work by hand after the download. A new episode no ticked
+    copy pairs with is simply added ([ADR
+    0032](docs/adr/0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)).
+  - *Gates:* off by default. Replacement moves nothing until the media folders are mounted
+    read-write, the app runs as their owner (`APP_USER_ID` and `APP_GROUP_ID`, 1000 and 100 here, as
+    `tools/mam23/facts.py` measured; no folder's owner or mode changes, and the data volume is
+    handed over once), the owner has switched it on (a setting in the app) and has ticked the
+    library folder that holds the old copy, on the Media folders page. Only the owner schedules,
+    retries, resolves, restores and deletes for good; members keep **Keep both** ([ADR
+    0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
+- **MAM-24 Scheduling in the Download dialog** (to do): the master switch and the per-folder ticks,
+  stored in the database and set by the owner on the Media folders page (off by default, its one
+  Save, an audit row). **Keep both** (default) or **Replace after verification** for the owner, with
+  the matched film's copies or the held episodes the release claims to tick, the confirmation of a
+  title-and-year match, the seeding warning, and every reason replacement is unavailable (switch
+  off, folder unticked, no app path, not inspected, a title alone, conflicting ids, a destination
+  outside the libraries, a magnet, a `.torrent` that would write over an existing file, a member). A
+  replacement job written
+  with its download job and an audit row before anything is sent, holding each ticked file's
+  identity; it follows the download through MAM-14's passes, survives a restart and waits at
+  `Downloaded`.
+- **MAM-25 Verifying the new files** (to do): checks 1 to 4 of §3.4 — the client's job and each file
+  complete, each new file inside the allowed folders and readable by ffprobe with the expected video
+  and duration, Jellyfin asked to look, listing it and done refreshing it within a bounded wait, its
+  item the old copy's work by the ids Jellyfin gave it, every ticked old copy paired with one new
+  file of its work, and a file that spans several episodes (Jellyfin's end number, or a range in its
+  name) stopping for review — ending
+  `Verified`, or `NeedsReview` / `Failed` with the reason and the evidence stored.
+- **MAM-26 The quarantine** (to do): check 5 and the torrent listing of check 6 right before the
+  move; the switch and the ticks rechecked before every write, and the Media folders page's hint of
+  whether a rename can work in each ticked folder; the write contract with its atomic rename and its
+  recovery after a restart; the folder scan skipping every `.mam-quarantine`; the quarantine kept
+  within the allowed folders; Restore and Delete for good; `Quarantined` → `Completed`, each step
+  with an audit row.
+- **MAM-27 Replacements on the Jobs page** (to do): each replacement's state, its old copies, its
+  pairs, the evidence and the reason for any block; Cancel a pending removal, Retry (after the owner
+  has corrected a new item in Jellyfin, say), settle a pair, drop a copy from the job — the owner's
+  alone, each with an audit row.
+- **MAM-28 Live check** (to do): the acceptance bar on the reference installation.
+- **Backup/restore:** replacement jobs, the switch, the ticks and the audit trail live in the
+  database; quarantined files stay on disk in the quarantine folder, outside the database backup.
 
 **Out of scope:** automatic quarantine cleanup (it needs retention and disk-space policies first),
-Jellyfin's `DELETE /Items/{id}`, and deleting a torrent or its data from the client.
-
-**Open questions (specification §7, for MAM-23):**
-
-- Question 3: can a replacement target an episode or a season, or only a movie?
-- Question 4: which quarantine mode and retention period, and is a second manual approval needed
-  before a quarantined file is finally deleted?
-- Question 6, for replacement: what replacing means when the old copy is a seeding torrent's own
-  data, which a replacement must leave untouched (specification §3.4, check 6). MAM-17 measured how
-  often that is: 822 of the 1394 video files in the library folders (4.07 of 7.31 TiB) are a
-  seeding torrent's own data, 571 belong to no torrent, and no file has a second name
-  ([ADR 0018](docs/adr/0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
+deletion without a quarantine, Jellyfin's `DELETE /Items/{id}`, any write to a download client —
+stopping, removing or moving a torrent included —, copying watched state or collections to the new
+copy in Jellyfin, and replacing a disc folder.
 
 **Tests:** each failure case of the acceptance bar ends in `NeedsReview` or `Failed` with the old
-file untouched; a successful replacement writes the audit trail and leaves a restorable
-quarantined copy.
+file untouched; so do a held old copy, an unclear pair, a multi-episode file, the switch off, an
+unticked folder, another mount and a restart halfway through a move; a `.torrent` that would land on
+an existing file is refused before anything is sent; a member is refused on every replacement route
+and no replacement job is written; a successful replacement writes the audit trail and leaves a
+restorable quarantined copy, and Restore and Delete for good each write theirs.
 
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an

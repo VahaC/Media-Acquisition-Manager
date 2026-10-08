@@ -242,3 +242,17 @@ mounts the same folder at `/downloads`, uses qBittorrent's `/downloads/movies` a
 and has never imported a file. So most library files here are a seeding torrent's data; what
 replacing one means is MAM-23's decision. The figures, and why seeding plays no part in a
 duplicate, are in [ADR 0018](0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md).
+
+## Replacement (added Phase C, MAM-23)
+
+MAM-23 settled the two Phase C consequences above on 2026-10-08. **The quarantine** sits at the top
+of the allowed folder that holds the old copy
+([ADR 0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)):
+`/media/.mam-quarantine` here, outside every library location as planned; only where an allowed
+folder is itself a library folder does it sit inside that library's location, where Jellyfin, which
+skips every dot name, still never lists it. **A torrent's data:** "moving it makes qBittorrent report
+missing files and stop seeding it" was never measured, and doesn't hold while the client runs.
+qBittorrent 5.2.4 shows nothing until a restart turns the torrent into `missingFiles`, and a recheck
+then downloads the old copy back into the library. So the app never moves a file a torrent lists:
+the owner removes the torrent first
+([ADR 0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)).

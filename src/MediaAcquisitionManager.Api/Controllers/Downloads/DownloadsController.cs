@@ -45,6 +45,24 @@ public class DownloadsController(IDownloadService downloads) : ControllerBase
     }
 
     /// <summary>
+    /// MAM-38 — whether a release sent to the destination is checked for files it would write over, or why its
+    /// folder can't be: the dialog warns of it before Send. Its client is asked where the category saves.
+    /// </summary>
+    [HttpGet("overwrite-check")]
+    public async Task<ActionResult<DownloadOverwriteCheckResponse>> OverwriteCheck(
+        [FromQuery] DownloadOverwriteCheckRequest request, CancellationToken cancellationToken)
+    {
+        var result = await downloads.GetOverwriteCheckAsync(request.DestinationId, cancellationToken);
+        return result.Status switch
+        {
+            DownloadOverwriteCheckStatus.Answered => Ok(result.Answer),
+            DownloadOverwriteCheckStatus.Invalid => this.BadRequestError(result.Error),
+            // A destination id in the query, not the addressed row, so the dialog gets the sentence.
+            _ => this.NotFoundError(result.Error),
+        };
+    }
+
+    /// <summary>
     /// Sends the release once per request id: 201 with the new job, 200 with the job the same request made
     /// before. A POST: it writes a job and sends a download, so nothing may repeat it but the request id.
     /// </summary>

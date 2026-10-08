@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 
@@ -71,6 +72,7 @@ public sealed class FakeFileInventory : IFileInventory
     private readonly ConcurrentQueue<IReadOnlyList<string>> _hashRootsGiven = new();
     private readonly ConcurrentDictionary<long, string?> _fileSystems = new();
     private readonly ConcurrentQueue<long> _describedDevices = new();
+    private readonly ConcurrentQueue<string> _piecesHashed = new();
     private int _readsUnderWay;
     private int _mostReadsAtOnce;
     private int _hashesUnderWay;
@@ -98,6 +100,12 @@ public sealed class FakeFileInventory : IFileInventory
     /// </summary>
     public Func<string, CancellationToken, Task>? DuringHash { get; set; }
 
+    /// <summary>
+    /// MAM-38 — runs inside each hash of some pieces before it answers: a test throws there, as a bug nobody foresaw
+    /// would, to see the send still finish its job.
+    /// </summary>
+    public Func<string, CancellationToken, Task>? DuringPiecesHash { get; set; }
+
     /// <summary>Every path looked at, in call order.</summary>
     public IReadOnlyList<string> DescribedPaths => [.. _described];
 
@@ -121,6 +129,9 @@ public sealed class FakeFileInventory : IFileInventory
 
     /// <summary>MAM-19 — the most hashes that were under way at the same moment.</summary>
     public int MostHashesAtOnce => Volatile.Read(ref _mostHashesAtOnce);
+
+    /// <summary>MAM-38 — every path some of whose pieces were hashed, in call order.</summary>
+    public IReadOnlyList<string> PiecesHashedPaths => [.. _piecesHashed];
 
     /// <summary>MAM-20 — every device whose file system was asked for, in call order, as often as asked.</summary>
     public IReadOnlyList<long> DescribedDevices => [.. _describedDevices];
@@ -151,7 +162,21 @@ public sealed class FakeFileInventory : IFileInventory
             read ?? (media is null
                 ? new FileInventoryResult<MediaInspection>(FileInventoryStatus.MediaUnreadable, null, string.Format(UnreadableMediaError, appPath))
                 : new FileInventoryResult<MediaInspection>(FileInventoryStatus.Found, new MediaInspection(facts, media), null)),
-            hash ?? HashOf(facts, DefaultSha256(facts)));
+            hash ?? HashOf(facts, DefaultSha256(facts)),
+            null);
+
+    /// <summary>
+    /// MAM-38 — a regular file at <paramref name="appPath"/> holding <paramref name="content"/>: described with
+    /// <paramref name="facts"/>, or with facts of its length when <c>null</c>, and its pieces hashed from those
+    /// bytes. Read by the inspector or hashed whole like a file <see cref="AddFile"/> planted without media facts.
+    /// </summary>
+    public void AddContent(string appPath, byte[] content, FileFacts? facts = null)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var described = facts ?? new FileFacts(content.LongLength, new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), 2049, 9_000_000 + _files.Count, 1);
+        AddFile(appPath, described);
+        _files[appPath] = _files[appPath] with { Content = content };
+    }
 
     /// <summary>A path the file inventory answers <paramref name="status"/> and <paramref name="error"/>
     /// for, looked at, read or hashed alike (a locked file, a folder, a link leading out of the roots).</summary>
@@ -159,7 +184,8 @@ public sealed class FakeFileInventory : IFileInventory
         _files[appPath] = new FakeFile(
             new FileInventoryResult<FileFacts>(status, null, error),
             new FileInventoryResult<MediaInspection>(status, null, error),
-            new FileInventoryResult<FileContentHash>(status, null, error));
+            new FileInventoryResult<FileContentHash>(status, null, error),
+            null);
 
     /// <summary>MAM-19 — the answer of a whole read of a file with <paramref name="facts"/> whose bytes hash to
     /// <paramref name="sha256"/>: what <see cref="AddFile"/> takes to plant a byte-identical copy.</summary>
@@ -216,11 +242,13 @@ public sealed class FakeFileInventory : IFileInventory
         _listedRoots.Clear();
         _hashed.Clear();
         _hashRootsGiven.Clear();
+        _piecesHashed.Clear();
         Volatile.Write(ref _mostReadsAtOnce, 0);
         Volatile.Write(ref _mostHashesAtOnce, 0);
         DuringRead = null;
         DuringListing = null;
         DuringHash = null;
+        DuringPiecesHash = null;
         Capabilities = new FileInventoryCapabilities(ReportsFileIdentity: true);
     }
 
@@ -283,6 +311,38 @@ public sealed class FakeFileInventory : IFileInventory
         {
             Interlocked.Decrement(ref _hashesUnderWay);
         }
+    }
+
+    /// <summary>
+    /// MAM-38 — the pieces' hashes worked out from the bytes <see cref="AddContent"/> planted; a file planted without
+    /// bytes is unreadable to it, and a piece past the planted bytes is a file that changed while it was read.
+    /// </summary>
+    public async Task<FileInventoryResult<FilePieceHashes>> HashPiecesAsync(
+        string appPath, IReadOnlyList<string> allowedRoots, IReadOnlyList<FilePieceRange> pieces, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _piecesHashed.Enqueue(appPath);
+        _rootsGiven.Enqueue(allowedRoots);
+        if (DuringPiecesHash is { } duringPiecesHash)
+            await duringPiecesHash(appPath, cancellationToken);
+
+        var described = Answer(appPath, allowedRoots, file => file.Describe);
+        if (described.Value is not { } facts)
+            return new FileInventoryResult<FilePieceHashes>(described.Status, null, described.Error);
+
+        var target = _linkedNames.GetValueOrDefault(appPath) ?? appPath;
+        if (_files[target].Content is not { } content)
+            return new FileInventoryResult<FilePieceHashes>(FileInventoryStatus.Unreadable, null, $"The test planted no bytes at “{appPath}”.");
+        if (pieces.Any(piece => piece.Offset < 0 || piece.Offset + piece.Length > content.LongLength))
+        {
+            return new FileInventoryResult<FilePieceHashes>(
+                FileInventoryStatus.ChangedWhileReading, null, $"“{appPath}” changed while the app was reading some of its pieces.");
+        }
+
+        var hashes = pieces
+            .Select(piece => TorrentPieceHash.Of(content.AsSpan((int)piece.Offset, piece.Length), piece.Hashing, piece.TreeLeafCount))
+            .ToList();
+        return new FileInventoryResult<FilePieceHashes>(FileInventoryStatus.Found, new FilePieceHashes(facts, hashes), null);
     }
 
     public async IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
@@ -367,5 +427,8 @@ public sealed class FakeFileInventory : IFileInventory
 
     /// <summary>What the inventory answers for one path.</summary>
     private sealed record FakeFile(
-        FileInventoryResult<FileFacts> Describe, FileInventoryResult<MediaInspection> Read, FileInventoryResult<FileContentHash> Hash);
+        FileInventoryResult<FileFacts> Describe,
+        FileInventoryResult<MediaInspection> Read,
+        FileInventoryResult<FileContentHash> Hash,
+        byte[]? Content);
 }

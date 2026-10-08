@@ -23,6 +23,13 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// submission.
 /// </para>
 /// <para>
+/// MAM-38, ADR 0034 — and just before the submission, whether any of the release's files would land on a
+/// different file already in the destination's folder (<see cref="IDownloadOverwriteGuard"/>): the client would
+/// write the torrent's pieces into it, and nothing sent afterwards could stop it. Such a job fails with the
+/// app's sentence naming the file; any other is sent, and told how it was checked. A check that breaks on a bug
+/// fails the job too, with nothing sent.
+/// </para>
+/// <para>
 /// A submission is never sent again (house rule 8). When its answer leaves open whether the client took it —
 /// no answer in time, the connection lost, a server error, an answer the app can't read — the client's job
 /// list is read for the torrent instead: there, it was taken; not there, the job fails with the client's
@@ -34,6 +41,7 @@ public sealed class DownloadSender(
     IIntegrationAdapterRegistry adapters,
     IIntegrationSettingsFactory settingsFactory,
     IDestinationChecker destinations,
+    IDownloadOverwriteGuard overwrites,
     IEncryptionService encryption,
     TimeProvider time,
     ILogger<DownloadSender> logger) : IDownloadSender
@@ -114,7 +122,8 @@ public sealed class DownloadSender(
                 ? SendOutcome.Failed(listed.Error!, DownloadJobErrorOrigin.DownloadClient)
                 : SendOutcome.Failed(listed.Error!);
         }
-        if (!listed.Destinations.Any(candidate => string.Equals(candidate.Destination.Key, key, StringComparison.Ordinal)))
+        if (listed.Destinations.FirstOrDefault(candidate => string.Equals(candidate.Destination.Key, key, StringComparison.Ordinal))
+            is not { } destination)
         {
             return SendOutcome.Failed(
                 $"“{client.Name}” has no category “{key}” any more, so nothing was sent: it would have created one in its default folder. Create the category again in “{client.Name}”, or the owner edits the destination.");
@@ -133,6 +142,14 @@ public sealed class DownloadSender(
             if (ClientJobCorrelation.Match(held.Value!, hashes).Status != ClientJobMatchStatus.None)
                 return SendOutcome.Failed($"“{client.Name}” already has this torrent, so nothing was sent.");
         }
+
+        // ── what it would write over (MAM-38) ──
+        var overwrite = await CheckOverwritesAsync(jobId, payload, destination, client, downloadClient, clientSettings);
+        if (overwrite is null)
+            return SendOutcome.Failed(OverwriteCheckFailedError(key));
+        if (overwrite.Refusal is { } refusal)
+            return SendOutcome.Failed(refusal);
+        await db.DownloadJobs.RecordOverwriteCheckAsync(jobId, overwrite.Check!.Value);
 
         // ── the one submission ──
         var submitted = await CallAsync(
@@ -205,6 +222,41 @@ public sealed class DownloadSender(
             }
         }
     }
+
+    /// <summary>
+    /// MAM-38 — the overwrite check, which never throws but for a bug: one nobody foresaw — a file too odd to read,
+    /// memory a piece couldn't get — costs this job its send, never the request, and the job must still be finished.
+    /// <c>null</c> then, and nothing is sent: a check that couldn't run can't say the release lands on nothing.
+    /// Error, with the type and the stack, never the message, which can quote a path or what the client sent.
+    /// </summary>
+    private async Task<DownloadOverwriteVerdict?> CheckOverwritesAsync(
+        Guid jobId,
+        ReleasePayload payload,
+        CheckedClientDestination destination,
+        IntegrationConnectionEntity client,
+        IDownloadClient downloadClient,
+        IntegrationConnectionSettings settings)
+    {
+        try
+        {
+            return await overwrites.CheckAsync(payload, destination, client, downloadClient, settings, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                "The overwrite check of download job {JobId} to integration {IntegrationId} ({AdapterType}) threw {ExceptionType} {StackTrace}",
+                jobId,
+                client.Id,
+                client.AdapterType,
+                exception.GetType().FullName,
+                exception.StackTrace);
+            return null;
+        }
+    }
+
+    /// <summary>MAM-38 — the app's sentence for a send whose overwrite check broke: nothing reached the client.</summary>
+    private static string OverwriteCheckFailedError(string key) =>
+        $"The app couldn't check whether this release would write over a file in the folder of the category “{key}”, so nothing was sent. The app's log says why.";
 
     private Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> FindAsync(
         IntegrationConnectionEntity client, IDownloadClient downloadClient, IntegrationConnectionSettings settings, TorrentInfoHashes hashes) =>

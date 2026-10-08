@@ -12,6 +12,11 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 /// submission by these, never by its name (specification §3.2, step 6). Empty for a job that isn't a
 /// torrent.
 /// </param>
+/// <param name="ServiceSavePath">
+/// MAM-38 — the folder its files end up in, as the client sees it (qBittorrent's <c>save_path</c>), which its
+/// files' relative paths are below; <c>null</c> when the client doesn't say. Unlike
+/// <paramref name="ServiceContentPath"/>, never the folder an unfinished download is kept in meanwhile.
+/// </param>
 public sealed record ClientJob(
     string ClientJobId,
     string Name,
@@ -19,4 +24,5 @@ public sealed record ClientJob(
     double? Progress,
     string? DestinationKey,
     string? ServiceContentPath,
-    IReadOnlyList<string> InfoHashes);
+    IReadOnlyList<string> InfoHashes,
+    string? ServiceSavePath = null);

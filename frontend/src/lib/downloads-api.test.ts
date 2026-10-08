@@ -53,6 +53,20 @@ describe('downloadsApi', () => {
     expect(api.getUri(requests[0])).toBe(`/api/downloads/options?releaseId=${tolokaRemux.id}`)
   })
 
+  it('asks whether a destination\'s folder is checked for files a download would write over, by its id', async () => {
+    // Arrange
+    const requests = respondWith(200, { notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+
+    // Act
+    const answer = await downloadsApi.overwriteCheck('d1e50000-0000-4000-8000-000000000001')
+
+    // Assert
+    expect(answer).toEqual({ notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe('/api/downloads/overwrite-check?destinationId=d1e50000-0000-4000-8000-000000000001')
+  })
+
   it('sends a release and answers the new job (201), whatever its outcome', async () => {
     // Arrange
     const failed = jobOf({ status: 'Failed', clientJobId: null, error: '“Local qBittorrent” already has this torrent, so nothing was sent.' })

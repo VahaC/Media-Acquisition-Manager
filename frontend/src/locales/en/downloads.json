@@ -20,11 +20,16 @@
     "destinationValue": "{{name}} — category “{{category}}”",
     "notPicked": "Not picked yet",
     "existingCopies": "Existing copies",
-    "kept": "Kept: this version of the app never replaces or removes a file."
+    "kept": "Kept: this version of the app never replaces or removes a file, and doesn't send a release it finds would write over a different one."
+  },
+  "overwrite": {
+    "NotCheckedFolderUnknown": "The app can't check whether this release would write over a file already there: the destination's folder has no path in the app, or its download client can't say where it is. A release sent there goes without that check.",
+    "NotCheckedFolderOutsideMediaFolders": "The app can't check whether this release would write over a file already there: the destination's folder isn't under Media folders, which the installation owner sets in the user menu. A release sent there goes without that check."
   },
   "send": "Send",
   "sending": "Sending…",
   "pickFirst": "Pick a download client and a destination first.",
+  "checkingFolder": "Checking the destination's folder…",
   "failed": "Could not send the release.",
   "failedNoReason": "The release wasn't sent.",
   "outcome": {

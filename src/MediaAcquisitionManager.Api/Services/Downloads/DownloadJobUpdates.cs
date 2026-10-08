@@ -38,6 +38,12 @@ public static class DownloadJobUpdates
                     .SetProperty(job => job.InfoHashV2, hashes.V2),
                 CancellationToken.None);
 
+    /// <summary>MAM-38 — records how the release was checked for files it would write over, before it is
+    /// sent.</summary>
+    public static Task<int> RecordOverwriteCheckAsync(this IQueryable<DownloadJobEntity> jobs, Guid jobId, DownloadOverwriteCheck check) =>
+        jobs.Where(job => job.Id == jobId && job.Status == DownloadJobStatus.Created)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(job => job.OverwriteCheck, check), CancellationToken.None);
+
     /// <summary>
     /// Writes the job's outcome at <paramref name="changedUtc"/>: its status, the client's id of the
     /// download, and the error, cut to fit its column, with whose sentence it is; how many jobs it wrote (0

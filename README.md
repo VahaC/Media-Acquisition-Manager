@@ -2,36 +2,38 @@
 
 # Media Acquisition Manager
 
-**Status: 0.2.1 published; Phase B shipped.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05)
-and 0.2.1 (2026-10-07), the version the app now reports, are published as Docker images, and
-MAM-22 checked Phase B's acceptance bar on the reference installation on 2026-10-08; MAM-37 (the
-Duplicates page lists only real copies of one film or episode — never two episodes of one show, an
-episode's "a" and "b" files, films whose file names claim years far apart or different cuts — and
-flags for review the copies whose running times differ widely), built after it while the version is
-still 0.2.1, was checked the same day on a copy of production's database, 4 groups where there were
-46, and is in no published image yet; MAM-5 (personal access tokens, Phase A) is still to do. Today
-the app is an API and a web app that report their own health, with accounts, integration settings
-and the library: the installation owner created on first run, the users the owner manages, sign-in,
-and a Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
-source such as Prowlarr and qBittorrent, tests each connection, and imports the Jellyfin library —
-its movies, series and episodes — which every signed-in user can browse, with what each file really
-holds once the app has inspected it inside the media folders the owner allows; the owner also scans
-those folders for the files no library reported, which the app then inspects too — saying how much
-room the files take, each file counted once however many names lead to it, and hashing the files
-that could be copies of each other —, and maps download destinations to qBittorrent's categories,
-and a release source's tracker sections to destinations. Every signed-in user searches the library
-and the release sources together on the Search page, for movies and TV, sends a release found there
-to qBittorrent, and sees its download on the Jobs page until it finishes. Once the owner connects
-TMDb, every signed-in user also gets recommendations of the films, series, cartoons and documentaries
-the library doesn't have yet, each with why it is there and what the release sources carry of it,
-and downloads one through the Search page like any other; and the owner links a library work without
-a TMDb id to its TMDb film or show, picked from the app's suggestions, and Jellyfin identifies the
-item as it — its title, overview and images become TMDb's — in the background; and every library
-work's card shows its own poster from Jellyfin; and the app sorts the library's files into the
-specification's four kinds of duplicate — one file's names, byte-identical copies, other copies of
-one movie or episode, and possible matches —, which every signed-in user sees on the Duplicates
-page, where the owner confirms or dismisses a possible match and nothing is removed; see
-[ROADMAP.md](ROADMAP.md).
+**Status: 0.2.1 published; Phase B shipped.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05) and
+0.2.1 (2026-10-07), the version the app now reports, are published as Docker images, and MAM-22
+checked Phase B's acceptance bar on the reference installation on 2026-10-08; MAM-37 (the Duplicates
+page lists only real copies of one film or episode — never two episodes of one show, an episode's
+"a" and "b" files, films whose file names claim years far apart or different cuts — and flags for
+review the copies whose running times differ widely), built after it while the version is still
+0.2.1, was checked the same day on a copy of production's database, 4 groups where there were 46,
+and is in no published image yet; MAM-38 (a download whose files would land on a different file
+already in the destination's folder is refused before anything reaches qBittorrent), built after it
+the same day, rests on the tests and is in no published image either; MAM-5 (personal access tokens,
+Phase A) is still to do. Today the app is an API and a web app that report their own health, with
+accounts, integration settings and the library: the installation owner created on first run, the
+users the owner manages, sign-in, and a Profile page where everyone changes their own password; the
+owner connects Jellyfin, a Torznab source such as Prowlarr and qBittorrent, tests each connection,
+and imports the Jellyfin library — its movies, series and episodes — which every signed-in user can
+browse, with what each file really holds once the app has inspected it inside the media folders the
+owner allows; the owner also scans those folders for the files no library reported, which the app
+then inspects too — saying how much room the files take, each file counted once however many names
+lead to it, and hashing the files that could be copies of each other —, and maps download
+destinations to qBittorrent's categories, and a release source's tracker sections to destinations.
+Every signed-in user searches the library and the release sources together on the Search page, for
+movies and TV, sends a release found there to qBittorrent, and sees its download on the Jobs page
+until it finishes. Once the owner connects TMDb, every signed-in user also gets recommendations of
+the films, series, cartoons and documentaries the library doesn't have yet, each with why it is
+there and what the release sources carry of it, and downloads one through the Search page like any
+other; and the owner links a library work without a TMDb id to its TMDb film or show, picked from
+the app's suggestions, and Jellyfin identifies the item as it — its title, overview and images
+become TMDb's — in the background; and every library work's card shows its own poster from Jellyfin;
+and the app sorts the library's files into the specification's four kinds of duplicate — one file's
+names, byte-identical copies, other copies of one movie or episode, and possible matches —, which
+every signed-in user sees on the Duplicates page, where the owner confirms or dismisses a possible
+match and nothing is removed; see [ROADMAP.md](ROADMAP.md).
 
 Media Acquisition Manager is a self-hosted application for people who prefer to choose media
 releases themselves. It brings your existing library and available releases into one search view,
@@ -333,6 +335,20 @@ application.
   left for linking by hand rather than guessed. A release already sent to that client is refused,
   unless its job failed or was cancelled. Its download is then followed on the Jobs page (below)
   ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+  Right before that one submission, the server refuses a release whose files would land on a
+  different file already in the category's folder — another size, or the same size with sampled
+  pieces that don't hash as the torrent says, under any of qBittorrent's content layouts and with
+  each name cleaned as libtorrent 2.0 cleans it, or a file a torrent the client already has there
+  will write, even one still in its folder for incomplete torrents —, as qBittorrent would
+  download into that file in place: the job fails with the app's sentence naming the file, and
+  nothing reaches the client. Files already there with the same bytes don't stop it, so a Toloka
+  update that re-adds a series' old episodes still goes through. A folder the app can't look into —
+  outside the Media folders, or with no path in the app — is sent unchecked after a warning in the
+  dialog, which holds Send until it has asked; a magnet, a place behind a link leading out of the
+  Media folders, a file name the app can't look up and a client that can't tell its torrents are
+  sent unchecked too, unless another place refuses the send, and the Jobs page says why a job went
+  unchecked (MAM-38, Vasyl's decisions of 2026-10-08,
+  [ADR 0034](docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).
 - **Follow each download until it finishes.** The Jobs page (**Jobs** in the header, last, for every
   signed-in user) lists the caller's own jobs — the owner's too: a job stays its sender's — newest
   first, filtered by status and paged on the server: each with its status, a bar of its progress,
@@ -748,6 +764,14 @@ Not tried live yet:
   `List_gives_a_possible_match_no_running_times_distinction_whatever_its_durations`). Nor has
   production itself shown MAM-37: the published 0.2.1 image doesn't have it, and production shows
   it once Vasyl publishes and deploys an image that does.
+- The check for files a send would write over (MAM-38, 2026-10-08): built after MAM-22's and
+  MAM-37's checks, it hasn't met qBittorrent or the reference installation's library. What
+  qBittorrent 5.2.4 and libtorrent 2.0.15 do with a file already at a new torrent's path was read
+  from their source, not tried, and a send refused, a Toloka update sent over the same old episodes,
+  the Download dialog's warning and a job's unchecked line rest on the tests
+  (`DownloadsSendOverwriteHttpTests`, `DownloadsOverwriteCheckHttpTests`,
+  `DownloadDialog.test.tsx`, `JobsPage.test.tsx`). Nor has production shown it: the published 0.2.1
+  image doesn't have it.
 - The app's checks of Toloka for the recommended works within the users' limits, its reading of
   Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
   the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
@@ -780,9 +804,11 @@ Not tried live yet:
 
 - **Link a download by hand.** Tie a job the app couldn't tell apart from the client's other
   downloads (**Needs linking**) to the right one, so it is followed like any other.
-- **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
-  the specific new file, its identity, and its visibility to the media server before moving the
-  specific old copy into quarantine where possible.
+- **Replace a selected copy safely.** Offer `Keep both` by default. If the installation owner
+  chooses replacement — of a film, an episode or the episodes of whole seasons —, verify each
+  specific new file, its identity, and its visibility to the media server before moving the specific
+  old copy into a quarantine, where it stays until the owner restores it or deletes it for good
+  (MAM-23, ADR 0030 to ADR 0033).
 - **Respect existing libraries and seeding.** Work with nested collection/trilogy folders and
   multifile torrents without requiring a library-wide rename or interrupting active torrents.
 
@@ -805,6 +831,26 @@ These rules apply to any future implementation:
 - Ambiguity, failed checks, or uncertain container path mappings stop the replacement and request
   review.
 - Record every state transition and make recovery after a process restart safe.
+
+Decided for Phase C on 2026-10-08 (MAM-23):
+
+- **Off until the owner turns it on.** The media folders mounted read-write, the app running as
+  their owner (`APP_USER_ID`, `APP_GROUP_ID`), the owner's switch in the app and the owner's tick on
+  each library folder replacement may touch; only the owner schedules, restores and deletes for good
+  ([ADR
+  0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
+- **A quarantine, never a deletion.** The old copy and its own subtitles move, by one atomic rename
+  per name that never copies, into `.mam-quarantine` at the top of the allowed folder, outside
+  Jellyfin, and stay there until the owner restores them or deletes them for good after a second
+  confirmation; where the move can't be atomic, nothing is deleted ([ADR
+  0030](docs/adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).
+- **Torrents are the owner's.** The app never writes to a download client; an old copy a torrent
+  lists waits until the owner removes that torrent without its files ([ADR
+  0031](docs/adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)).
+- **The library's ids decide.** A Toloka release, which lists no ids, may be scheduled on the
+  owner's confirmation of the work, but the old copy moves only once Jellyfin has given the new file
+  the old copy's own work ([ADR
+  0032](docs/adr/0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)).
 
 ## Quick start (Docker Compose)
 
@@ -974,6 +1020,12 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   are everyone's. A release already sent to a client is refused whoever sent it, as the client is
   the household's, and a torrent the client already has is never taken over
   ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+  A release refused because it would write over a file already in the destination's folder reads
+  the app's own sentence too, everyone's: it names the release's own file by its path below the
+  category's folder, and the category, never the folder's path. The dialog's question whether a
+  destination's folder can be checked gives every signed-in user a reason, never a path, as the
+  Media folders describe the host (MAM-38,
+  [ADR 0034](docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).
   The jobs list, a job's files and Cancel keep the rule (MAM-14's decision 1): each answers the
   caller's own jobs, the installation owner's included, and another user's job is the same bare 404.
   Why a followed job isn't moving on follows the error's rule: qBittorrent's own sentence, which can
@@ -1107,6 +1159,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
 - **The container runs unprivileged.** The app runs as user `mam` (uid 10001), its own files belong
   to root and are read-only to it, and the only persistent place it can write is `/data` (besides
   the usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
+  `APP_USER_ID` and `APP_GROUP_ID` run it under other ids, which Phase C's replacement, not released
+  yet, will need: the media folders' owner's (ADR 0033).
 - **Security headers on every response:** `X-Content-Type-Options: nosniff`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a Content Security Policy that
   forbids inline scripts and allows images only from the app itself and `data:` URLs, the
@@ -1143,6 +1197,7 @@ explains each one. Every other variable in `.env` is passed to the app (see
 | `APP_TAG` | `latest` | The image tag to run. Pin a release to update only when you choose to. |
 | `APP_BIND_ADDRESS` | `127.0.0.1` | The host address the port is published on. `0.0.0.0` opens the app to your network, over plain HTTP: create the owner account first, and keep to a network you trust or a reverse proxy that adds HTTPS. |
 | `APP_PORT` | `8118` | The host port. The app listens on 8118 inside the container too. |
+| `APP_USER_ID`, `APP_GROUP_ID` | `10001`, `10001` | The ids the app runs as. Phase C's replacement, not released yet, will need the media folders' owner's (qBittorrent's PUID and PGID); hand the data volume to them once first, as [.env.example](.env.example) shows. With them the app may write wherever that owner may. |
 
 **Updating.** Keep [deploy.sh](deploy.sh) next to `docker-compose.yml` and run it from that
 directory:
@@ -1360,9 +1415,10 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/searches/{id}` | Every signed-in user, for their own searches. 200 as for `POST`: the sources as stored, never asked again, and the library matched again as it is now. A bare 404 for a search that doesn't exist, is someone else's (asked for by the owner too) or is more than a day old, whether or not it has been removed yet. |
 | `GET /api/searches/{id}/releases?source=&kind=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, description, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year, lastYear, episodes }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes, heldEpisodeCount }] }`: `description` and `kind` as for the release search, `description` `null` on a release stored before 0.2.1; `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (no title when nothing says where it ends: no year, and for TV no season marker either), a TV title's span ending in `lastYear` and its seasons in `episodes` `{ firstSeason, lastSeason, firstEpisode, lastEpisode }`, `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words` — a series for a TV release, a movie for a movie release (ADR 0020) —, with `heldEpisodeCount` on a TV match: how many of the series' episodes are in the seasons or episodes claimed, `null` when none are claimed; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `kind` `Movie` or `Tv` in any letter case; `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“Show” is not a kind filter. Use Movie or Tv.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
 | `GET /api/downloads/options?releaseId=` | Every signed-in user, for a release of their own searches. The Download dialog's choices, read from the database without asking any client: 200 `{ clients, suggestedDestinationId }`, by name, each `{ id, name, typeName, destinations: [{ id, name, clientDestinationKey, isDefault }] }` with its destinations by name — every switched-on download client of a type this version can send to that can take the release's payload (one whose kind the listing didn't state needs a client that takes a .torrent file or a magnet link) and has a destination; `typeName` is what it is ("qBittorrent"). `suggestedDestinationId` is the destination the dialog picks first (ADR 0020): among those offered, the one the release's stored categories are mapped to, its source's own section before a standard category; `null` when two different destinations tie at that rank; else the default when it is offered, else `null`. No address, folder or path mapping. 400 `{ "error": "Pick the release to send." }` without a well-formed `releaseId`; 404 `{ "error": "This release isn't available any more: a search keeps what it found for a day. Search again." }` for a release that isn't one of the caller's searches' from the last day. |
-| `POST /api/downloads` with `{ requestId, releaseId, downloadClientId, destinationId }` | Every signed-in user, for a release of their own searches. Sends it at most once per request id (ADR 0013): the request id is looked up first, and the caller's same id for the same release, client and destination answers 200 with the job it made, nothing fetched, sent or audited again; otherwise the job is written with an audit row before anything is fetched or sent, and the answer is 201 with the job and its `Location` whatever came of the sending — `Submitted`, `NeedsLinking`, or `Failed` with its sentence. 400 with the broken rule's sentence: "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the destination to send it to.", "“Movies” is a destination of another download client. Pick one of “qBittorrent”’s.", "“qBittorrent” can't take NZB files, which this release is."; 404 with "This release isn't available any more: a search keeps what it found for a day. Search again.", "The download client you picked no longer exists. Reload the page and pick one again." (also for an integration that isn't a download client) or "The destination you picked no longer exists. Reload the page and pick one again."; 409 with "This request id was already used to send a different download. Reload the page and try again.", "“qBittorrent” is switched off. The owner can switch it on under Integrations.", "This version of the app can't send downloads to “…”.", "The source that listed this release has been removed, so the release can't be fetched. Search again.", "“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.", "This version of the app can't fetch releases from “…”." or, when a job that didn't fail already sent the release to that client, "This release was already sent to “qBittorrent”, so it isn't sent twice.". A refused request writes and sends nothing. |
+| `GET /api/downloads/overwrite-check?destinationId=` | Every signed-in user (MAM-38, ADR 0034). Whether a release sent to the destination will be checked for files it would write over, for the Download dialog's warning before Send: 200 `{ notCheckedReason }` — `null` when the destination's folder can be looked into, `NotCheckedFolderUnknown` when it has no path in the app or its client is switched off or can't say where the category saves, `NotCheckedFolderOutsideMediaFolders` when it isn't under the Media folders; a reason, never a path. The client is asked for its categories as the destinations' listing asks it; nothing is written, and the send checks again whatever the dialog showed. 400 `{ "error": "Pick the destination to send it to." }` without a well-formed `destinationId`; 404 `{ "error": "The destination you picked no longer exists. Reload the page and pick one again." }` for a destination that doesn't exist. |
+| `POST /api/downloads` with `{ requestId, releaseId, downloadClientId, destinationId }` | Every signed-in user, for a release of their own searches. Sends it at most once per request id (ADR 0013): the request id is looked up first, and the caller's same id for the same release, client and destination answers 200 with the job it made, nothing fetched, sent or audited again; otherwise the job is written with an audit row before anything is fetched or sent, and the answer is 201 with the job and its `Location` whatever came of the sending — `Submitted`, `NeedsLinking`, or `Failed` with its sentence, among them, since MAM-38 (ADR 0034), a release whose files would land on a different file already in the destination's folder, refused before anything reaches the client with "“qBittorrent” would write over “Film.2001.mkv” in the folder of the category “Movies”: a file of another size is already there, so nothing was sent." (how many more of the release's files land on a file already there follows, each file once), and one whose check broke on a bug, with "The app couldn't check whether this release would write over a file in the folder of the category “Movies”, so nothing was sent. The app's log says why.". 400 with the broken rule's sentence: "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the destination to send it to.", "“Movies” is a destination of another download client. Pick one of “qBittorrent”’s.", "“qBittorrent” can't take NZB files, which this release is."; 404 with "This release isn't available any more: a search keeps what it found for a day. Search again.", "The download client you picked no longer exists. Reload the page and pick one again." (also for an integration that isn't a download client) or "The destination you picked no longer exists. Reload the page and pick one again."; 409 with "This request id was already used to send a different download. Reload the page and try again.", "“qBittorrent” is switched off. The owner can switch it on under Integrations.", "This version of the app can't send downloads to “…”.", "The source that listed this release has been removed, so the release can't be fetched. Search again.", "“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.", "This version of the app can't fetch releases from “…”." or, when a job that didn't fail already sent the release to that client, "This release was already sent to “qBittorrent”, so it isn't sent twice.". A refused request writes and sends nothing. |
 | `GET /api/downloads?status=&page=1&pageSize=25` | Every signed-in user, for their own jobs, the installation owner's included. 200 `{ items, totalCount, page, pageSize }`, each item a job as `GET /api/downloads/{id}` answers it, newest first (by when it was sent, then by id); no client is asked. `status` is a job status by name in any letter case; blank lists every status. 400 for a page below 1, a page size outside 1–100, or "“x” is not a download status. Use Created, Submitted, Downloading, Paused, Downloaded, Failed, NeedsLinking or Cancelled." |
-| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, progress, clientJobId, error, blockReason, createdUtc, statusChangedUtc }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Failed`, `NeedsLinking` or `Cancelled`; `progress` from 0 to 1 as the client last reported it, `null` until it has; `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; `blockReason` why a followed job isn't moving on (the client reports an error, no longer lists it, or can't be asked), `null` when nothing blocks it, a client's own sentence for the owner only; the client's and the destination's names and the category as they were when it was sent. A bare 404 for another user's job or one that doesn't exist. |
+| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, progress, clientJobId, error, blockReason, overwriteCheck, createdUtc, statusChangedUtc }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Failed`, `NeedsLinking` or `Cancelled`; `progress` from 0 to 1 as the client last reported it, `null` until it has; `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; `blockReason` why a followed job isn't moving on (the client reports an error, no longer lists it, or can't be asked), `null` when nothing blocks it, a client's own sentence for the owner only; `overwriteCheck` (MAM-38, ADR 0034) how it was checked, before it was sent, for files it would write over — `Checked`, or the reason it was sent without the check: `NotCheckedMagnet`, `NotCheckedFileList` (a list the app can't read, or one libtorrent refuses: a piece longer than 536,854,528 bytes, a lone file with no usable name), `NotCheckedFolderUnknown`, `NotCheckedFolderOutsideMediaFolders` (the folder, or a link on the way to one of the release's places, leads outside the Media folders), `NotCheckedClientJobs` (the client couldn't list its torrents in the category or their files, one of them is still fetching its metadata, or more than 20 may write there) or `NotCheckedFileName` (a file's name holds a character the app's paths refuse, such as DEL or a C1 control, which libtorrent keeps), by name —, `null` for a job sent before the check existed or one it refused, while a job whose submission failed after the check keeps its value; the client's and the destination's names and the category as they were when it was sent. A bare 404 for another user's job or one that doesn't exist. |
 | `GET /api/downloads/{id}/files?page=1&pageSize=25` | Every signed-in user, for their own jobs. 200 `{ items, totalCount, page, pageSize }`: the job's files as its client last listed them, in the client's order, each `{ position, path, sizeBytes, progress, isWanted }` — `path` relative to the job's folder exactly as the client names it, `isWanted` `false` for a file the client skips — and no items until the client has listed them. A bare 404 for another user's job or one that doesn't exist, checked before the paging; 400 for a page below 1 or a page size outside 1–100. |
 | `POST /api/downloads/{id}/cancel` | Every signed-in user, for their own jobs. Stops following the job and sends the client nothing, so the torrent and its files stay there (ADR 0014): 200 with the job, now `Cancelled` with no `blockReason`, and an audit row. Only a job still followed or one that needs linking: 409 "This download is already finished, so there's nothing to stop following.", "This download has already failed, so there's nothing to stop following." or "This download is already cancelled, so there's nothing to stop following.", changing nothing; a `Created` job younger than 5 minutes, whose send may still be under way, is 409 "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.", changing nothing. A bare 404 for another user's job or one that doesn't exist. |
 | `GET /api/recommendations?tab=&reason=&available=&genreId=&decade=&kind=&sort=Score&page=1&pageSize=25` | Every signed-in user, for their own lists (ADR 0023). One tab of the recommendations, filtered, sorted and paged on the server, without asking the catalog or a source: 200 `{ items, totalCount, page, pageSize, facets, catalogConnected, lastRun }`, the items ordered by `sort`, each `{ id, kind, catalogId, title, originalTitle, year, genres, rating, voteCount, posterUrl, reasons, availability, downloading, searchText, searchTmdbId }` — `id` the catalog work's, `kind` `Movie` or `Series`, `catalogId` TMDb's id, `title` in Ukrainian where TMDb has it, `genres` the names in alphabetical order, `rating` `null` when nobody rated it, `posterUrl` `/api/recommendations/posters/<file>` or `null`; `reasons` strongest first, each `{ kind, name, held, total, titles, seasons, dateUtc }`, `kind` being `MissingSeasons`, `Collection`, `Director`, `Creator`, `Recommended`, `NewAtSource` or `TopRated`, `name` the collection, person or source, `held` and `total` a collection's released parts held and released, a person's catalog works in the library, or how many of the library's catalog works recommend it, all of them (a work the library holds several times counts once), `titles` at most 5 of those works' titles, `seasons` the missing season numbers; `availability` `{ checkedUtc, found, releaseCount, bestResolution, hasUkrainianAudio, maxSeeders }` or `null` before the first check (ADR 0024); `downloading` while a followed download job's release is the work; `searchText` the title the sources are searched by and the year in brackets, and `searchTmdbId` a film's TMDb id as text (`null` for a show), what **Releases** opens the Search page with. `tab` is `Movies`, `Series`, `Cartoons` or `Documentaries` and the rest optional, in any letter case: `reason` a reason kind; `available=true` keeps the works a release source carries (`false` keeps all); `genreId` a catalog genre id; `decade` a decade's first year (`1990`); `kind` `Movie` or `Series`; `sort` `Score` by default — the score, then votes, title (ordinal) and catalog id —, `Rating` (the weighted rating `(votes × rating + 50 × 5.0) / (votes + 50)`, so a 10.0 of three votes doesn't top it), `Votes`, `Newest` or `Oldest` (by release date, a work of no known date last), `Title` (in Ukrainian alphabetical order, as the library's works) or `Releases` (the availability check's release count, the works found first, then those not found, then those never checked), ties falling back to the score's order; `pageSize` 1 to 100, 25 by default. `facets` `{ reasons: [{ kind, count }], genres: [{ id, name, count }], decades: [{ decade, count }], kinds: [{ kind, count }] }` count the caller's whole list of the tab before the request's filters, whatever the sort — the reasons in a card's order, the genres by name in Ukrainian alphabetical order, the decades and kinds in order —; `catalogConnected` says whether a metadata catalog is; `lastRun` as `GET /api/recommendations/runs/latest` answers it, or `null`. The caller's "Not interested" works are left out, and so is a fallback work until a check found it at a source. Every user's download jobs count, matched to a work by its kind and by an id the release gives or the title and year its title or description claims, and for a held series by a missing season or none named: a followed job (`Created`, `Submitted`, `Downloading`, `Paused`) makes a work `downloading`, one that ended without failing (`Downloaded`, `NeedsLinking`, `Cancelled`) leaves it out, winning over a followed one, and a failed one changes nothing. 400 with the first broken rule's sentence, the value repeated trimmed and cut at 32 characters with "…": "Choose a tab: Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation tab. Use Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation reason. Use Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.", "“x” is not an availability filter. Use true or false.", "“x” is not a genre id, which is a number such as 18.", "“x” is not a decade. Use its first year, such as 1990.", "“x” is not a kind of work. Use Movie or Series.", "“x” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or Releases.", "Page must be 1 or more.", "Page size must be between 1 and 100.", and "This tab is switched off in your profile." for a tab the caller has off. A page past the last is empty. |
@@ -1516,12 +1572,31 @@ way a send fails, with exactly what reached qBittorrent: an add answered 500 but
 was taken, two jobs listed for one hash need linking) and `DownloadsSecretsHttpTests` (no planted
 key, link token, password, session or tracker passkey in any answer, log line, job error or audit
 row) and `DownloadsErrorVisibilityHttpTests` (a member reads the app's sentence naming the source or
-the client, the owner the service's own words, and everyone the app's own sentences). The adapter's submission is tested on its own against every answer
-(`QBittorrentAdapterSubmitTests`), the core's hashes, matching and rules in
+the client, the owner the service's own words, and everyone the app's own sentences). The check for
+files a send would write over (MAM-38) is tested over HTTP in `DownloadsSendOverwriteHttpTests`,
+with real .torrent files `TestTorrent` builds from planted bytes — v1, with pad files or without,
+and v2 — and files `FakeFileInventory` plants in the category's folder: another size, the same size
+with other bytes, a file the app can't read or that changed while it was compared, a lone file in a
+folder of its name, something that isn't a file, several collisions and one file colliding under two
+layouts counted once, a later file of the same size counted unread, a collision beside a link
+leading out or a name that can't be looked up, a torrent qBittorrent already has (its file, a file
+in its folder, one still in the folder for incomplete torrents, one listed after more than 20
+others), the member's sentence, the check after "already has this torrent", a check that throws, the
+same bytes sent as checked, a folder that is only the same folder, and each unchecked case — a
+torrent without metadata, files that can't be listed or throw, more than 20 torrents to ask —, every
+refusal with no add reaching qBittorrent and no write but the sign-in and the one add;
+`DownloadsOverwriteCheckHttpTests` covers the dialog's question, a client that can't list its
+categories or no longer lists the destination's included. The adapter's submission is tested on its
+own against every answer (`QBittorrentAdapterSubmitTests`), the core's hashes, matching and rules in
 `TorrentInfoHashReaderTests`, `ClientJobCorrelationTests` and `DownloadRulesTests`, the unique
-request id per user in `DownloadJobPersistenceTests`, and the Download dialog — a double click sends
-once, a retry keeps its request id, a failed job's next try gets a new one — in
-`DownloadDialog.test.tsx`.
+request id per user in `DownloadJobPersistenceTests`, the overwrite check's parts in
+`TorrentContentReaderTests`, `TorrentTargetPathsTests`, `TorrentPathElementTests`,
+`TorrentPieceHashTests`, `BencodeParserTests`, `QBittorrentAdapterJobsTests` (the save path) and, on
+real files, a piece read a chunk at a time included, `LocalFileInventoryPieceHashTests`, and the
+Download dialog — a double click sends once, a retry keeps its request id, a failed job's next try
+gets a new one, a folder that can't be checked warns before Send and is read with Send, Send waits
+for the first answer but not after a failed one, and a warning goes when the next destination can be
+checked — in `DownloadDialog.test.tsx`.
 
 Following the downloads is tested over HTTP by driving the background passes one at a time
 (`PollDownloadJobsAsync`) against `FakeQBittorrentServer`, which now also answers
@@ -1547,8 +1622,10 @@ scanned every member. The adapter's reads are tested against the recorded files 
 pack and the recorded torrent list, and hand-written answers for the rest
 (`QBittorrentAdapterFilesTests`, `QBittorrentAdapterDestinationJobsTests`), the new rows and indexes
 in `DownloadJobPersistenceTests`, and the Jobs pages — rows, filter, pager, cancel, every empty and
-failed state, and polling only while a followed job is shown — in `JobsPage.test.tsx`,
-`JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and `JobProgress.test.tsx`.
+failed state, polling only while a followed job is shown, and, since MAM-38, the amber line of a job
+sent without the overwrite check, for every reason and never on a failed job — in
+`JobsPage.test.tsx`, `JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and
+`JobProgress.test.tsx`.
 
 The file inspection is tested in two halves. The local file inventory runs against real folders in
 a temporary directory — allowed roots, links that stay inside or lead out, hardlinks, unreadable
@@ -1982,8 +2059,8 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32 to
-MAM-37).
+of each, and the tickets of Phase A (MAM-1 to MAM-16), Phase B (MAM-17 to MAM-22 and MAM-32 to
+MAM-38) and Phase C (MAM-23 to MAM-28).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -2002,8 +2079,13 @@ MAM-37).
    episodes of one show, an episode's "a" and "b" files, films whose names claim years far apart or
    different cuts — and flagging for review the copies whose running times differ widely (built,
    0.2.1; checked on a copy of production's database on 2026-10-08, in no published image yet).
+   Refuse a download whose files would land on a different file already in the destination's
+   folder before anything reaches the client, as qBittorrent would download into it in place
+   (built, 0.2.1, MAM-38; in no published image yet).
 3. **Phase C: safe replacement.** Implement the persisted replacement state machine, explicit file
-   selection, checks, audit log, and quarantine where a safe atomic move is possible.
+   selection, checks, audit log, and quarantine where a safe atomic move is possible — for films,
+   episodes and seasons, the owner's alone, off until switched on, never touching a torrent
+   (decided by MAM-23 on 2026-10-08; tickets MAM-24 to MAM-28).
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different
    capabilities without rewriting the core replacement workflow. Add other media servers when
    needed.
@@ -2012,7 +2094,7 @@ MAM-37).
 
 - [Development specification](docs/Media_Acquisition_Manager_Spec.md) — requirements, the data
   model, acceptance criteria for each phase, and the open questions (§7), answered against the
-  real installation by MAM-6 in Phase A and MAM-17 in Phase B.
+  real installation by MAM-6 in Phase A, MAM-17 in Phase B and MAM-23 for Phase C.
 - [Roadmap](ROADMAP.md) and [Changelog](CHANGELOG.md).
 - [Publishing](PUBLISHING.md) — the Jenkins pipeline, the image tags and how to cut a release.
 - [Release notes](frontend/src/release-notes/) — the user-facing What's new, one file per

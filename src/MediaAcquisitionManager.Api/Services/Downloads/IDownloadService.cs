@@ -21,6 +21,13 @@ public interface IDownloadService
     Task<DownloadOptionsResult> GetOptionsAsync(string? releaseId, Guid callerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// MAM-38, ADR 0034 — whether a release sent to the destination <paramref name="destinationId"/> is checked for
+    /// files it would write over, or why its folder can't be: the destination's client is asked where its category
+    /// saves, and the Media folders are read. Every signed-in user's, as the dialog is; a reason, never a path.
+    /// </summary>
+    Task<DownloadOverwriteCheckResult> GetOverwriteCheckAsync(string? destinationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sends the release to the client's destination at most once per request id (ADR 0013): the same
     /// request again answers the job it made, sending nothing; a new request is checked — the release the
     /// caller's, the client a switched-on download client that takes the payload, the destination the

@@ -1138,6 +1138,7 @@ describe('SearchPage', () => {
   it('opens the Download dialog for the release whose Download was clicked, and closes it again', async () => {
     // Arrange
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: null })
     const { user } = openStored()
     const row = await screen.findByRole('article', { name: otherUhd.title })
 

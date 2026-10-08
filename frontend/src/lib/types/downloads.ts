@@ -70,6 +70,34 @@ export interface SendDownloadRequest {
 }
 
 /**
+ * MAM-38, ADR 0034 — how a sent release was checked for files it would write over: checked, or one of
+ * the reasons it went without the check.
+ */
+export type DownloadOverwriteCheck =
+  | 'Checked'
+  | 'NotCheckedMagnet'
+  | 'NotCheckedFileList'
+  | 'NotCheckedFolderUnknown'
+  | 'NotCheckedFolderOutsideMediaFolders'
+  | 'NotCheckedClientJobs'
+  | 'NotCheckedFileName'
+
+/** MAM-38 — the reasons a destination's folder can't be checked, which the Download dialog warns of. */
+export type DownloadFolderNotCheckedReason = Extract<
+  DownloadOverwriteCheck,
+  'NotCheckedFolderUnknown' | 'NotCheckedFolderOutsideMediaFolders'
+>
+
+/**
+ * MAM-38 — `GET /api/downloads/overwrite-check?destinationId=`: whether a release sent to the
+ * destination is checked for files it would write over.
+ */
+export interface DownloadOverwriteCheckAnswer {
+  /** Why the destination's folder can't be checked; null when it can. A reason, never a path. */
+  notCheckedReason: DownloadFolderNotCheckedReason | null
+}
+
+/**
  * A download job: `POST /api/downloads` and `GET /api/downloads/{id}`. The names are copied when the
  * job is made, so the job still reads after the client or the destination is removed.
  */
@@ -95,6 +123,13 @@ export interface DownloadJob {
    * client's own sentence reaches the installation owner only; anyone else reads the app's.
    */
   blockReason: string | null
+  /**
+   * MAM-38 — how the release was checked, before it was sent, for files it would write over in the
+   * destination's folder: `Checked`, or why it was sent without the check; null for a job sent before
+   * the check existed, or one the check didn't let through (a refused one fails with its reason). A
+   * job whose submission failed after the check keeps its value, which the Jobs page doesn't show.
+   */
+  overwriteCheck: DownloadOverwriteCheck | null
   /** UTC with a trailing `Z`. */
   createdUtc: string
   /** UTC with a trailing `Z`. */

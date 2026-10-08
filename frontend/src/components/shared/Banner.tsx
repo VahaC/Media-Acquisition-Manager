@@ -14,6 +14,11 @@ interface BannerProps {
   action?: ReactNode
   /** Adds the Dismiss button, for news the person may clear once read (a refused action). */
   onDismiss?: () => void
+  /**
+   * MAM-38 — the banner's id, for a control that points at it with `aria-describedby`: a live region
+   * inserted already filled is often not read out, so the Download dialog's Send reads its warning.
+   */
+  id?: string
 }
 
 const TONE_ICONS: Record<BannerTone, LucideIcon> = {
@@ -30,12 +35,12 @@ const TONE_ICONS: Record<BannerTone, LucideIcon> = {
  * wait their turn (`status`). The colours live in ui-primitives.css, where the error tone is the
  * banner without a `data-tone`.
  */
-export function Banner({ tone = 'error', children, action, onDismiss }: BannerProps) {
+export function Banner({ tone = 'error', children, action, onDismiss, id }: BannerProps) {
   const { t } = useTranslation('common')
   const Icon = TONE_ICONS[tone]
 
   return (
-    <div className="ui-banner" data-tone={tone === 'error' ? undefined : tone} role={tone === 'error' ? 'alert' : 'status'}>
+    <div id={id} className="ui-banner" data-tone={tone === 'error' ? undefined : tone} role={tone === 'error' ? 'alert' : 'status'}>
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       <span className="ui-banner-text">{children}</span>
       {(action || onDismiss) && (

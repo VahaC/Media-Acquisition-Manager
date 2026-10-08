@@ -12,6 +12,8 @@ public static class DownloadServiceCollectionExtensions
         // context's save. The adapters they call are singletons.
         services.AddScoped<IDownloadService, DownloadService>();
         services.AddScoped<IDownloadSender, DownloadSender>();
+        // MAM-38 — scoped with the sender: it reads the Media folders through the request's DbContext.
+        services.AddScoped<IDownloadOverwriteGuard, DownloadOverwriteGuard>();
         // MAM-14 — scoped like the runners: one pass, one DbContext, opened by the tracker (a singleton, in
         // AddMediaAcquisitionManagerHostedServices) for each pass.
         services.AddScoped<IDownloadJobPoller, DownloadJobPoller>();

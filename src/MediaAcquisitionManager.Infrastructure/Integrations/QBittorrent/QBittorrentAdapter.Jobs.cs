@@ -155,9 +155,10 @@ internal sealed partial class QBittorrentAdapter
     /// </summary>
     /// <remarks>
     /// Read as an allowlist, property by property: the id (<c>hash</c>), the hashes, the name, the state, the
-    /// progress, the category and where the content is. A torrent without a usable <c>hash</c> is left out
-    /// rather than failing the rest: a job is followed by its id, and one without can't be. The trackers,
-    /// the comment and the magnet link, which can carry the owner's passkey, go no further.
+    /// progress, the category, where the content is and (MAM-38) the folder it saves to. A torrent without a
+    /// usable <c>hash</c> is left out rather than failing the rest: a job is followed by its id, and one
+    /// without can't be. The trackers, the comment and the magnet link, which can carry the owner's passkey,
+    /// go no further.
     /// </remarks>
     private static List<ClientJob>? ReadJobs(JsonElement root, string?[] secrets)
     {
@@ -187,7 +188,10 @@ internal sealed partial class QBittorrentAdapter
                 Text(torrent, "category") is { Length: > 0 } category ? category : null,
                 // Exactly as sent: it names a folder or file. "" before a magnet's metadata has arrived.
                 Text(torrent, "content_path") is { Length: > 0 } contentPath ? contentPath : null,
-                [.. new[] { id, v1, v2 }.OfType<string>().Distinct(StringComparer.Ordinal)]));
+                [.. new[] { id, v1, v2 }.OfType<string>().Distinct(StringComparer.Ordinal)],
+                // MAM-38 — exactly as sent, as the content path is: where the files end up, while content_path
+                // follows an unfinished download into qBittorrent's folder for incomplete torrents.
+                Text(torrent, "save_path") is { Length: > 0 } savePath ? savePath : null));
         }
 
         return jobs;

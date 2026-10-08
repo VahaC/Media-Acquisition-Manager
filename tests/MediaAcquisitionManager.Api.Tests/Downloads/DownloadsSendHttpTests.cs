@@ -115,7 +115,8 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         // qBittorrent 5.2 names the torrent it added: its v1 info hash.
         Assert.Equivalent(
             new DownloadJobDto(
-                job.Id, release.Id, SampleTitle, "Toloka", "qBittorrent", "Movies", "Movies", DownloadJobStatus.Submitted, null, SampleInfoHash, null, null, now, now),
+                job.Id, release.Id, SampleTitle, "Toloka", "qBittorrent", "Movies", "Movies", DownloadJobStatus.Submitted, null, SampleInfoHash, null, null,
+                DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders, now, now),
             job,
             strict: true);
         Assert.Equal($"/api/downloads/{job.Id}", response.Headers.Location?.AbsolutePath);

@@ -106,6 +106,8 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
                 SampleTorrentHash,
                 Error: null,
                 BlockReason: null,
+                // MAM-38 — sent with no Media folder allowed, so its folder couldn't be looked into.
+                OverwriteCheck: DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders,
                 now,
                 now),
             body,
@@ -145,7 +147,7 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
         Assert.Equal(
             [
                 "id", "releaseId", "releaseTitle", "sourceName", "downloadClientName", "destinationName", "clientDestinationKey", "status",
-                "progress", "clientJobId", "error", "blockReason", "createdUtc", "statusChangedUtc",
+                "progress", "clientJobId", "error", "blockReason", "overwriteCheck", "createdUtc", "statusChangedUtc",
             ],
             root.EnumerateObject().Select(property => property.Name));
         Assert.Equal("Submitted", root.GetProperty("status").GetString());

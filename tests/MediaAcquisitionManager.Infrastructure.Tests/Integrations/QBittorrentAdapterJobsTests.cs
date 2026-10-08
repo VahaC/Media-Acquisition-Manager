@@ -495,6 +495,33 @@ public sealed class QBittorrentAdapterJobsTests : IDisposable
             result.Value!.Select(job => $"{job.DestinationKey ?? "(none)"} | {job.ServiceContentPath ?? "(none)"}"));
     }
 
+    [Fact]
+    public async Task FindJobs_reads_the_save_path_exactly_apart_from_the_content_path_and_an_empty_or_missing_one_as_none()
+    {
+        //Arrange
+        var noSavePath = Torrent(MovieHash);
+        noSavePath.Remove("save_path");
+        AnswerTorrents(
+            Torrent(PackHash, contentPath: "/downloads/incomplete/Taken (2008)", savePath: "/downloads/movies-4k "),
+            noSavePath,
+            Torrent("e40455cf36e8520a156762368034a98b91ddad5c", savePath: ""));
+
+        //Act
+        var result = await Client.FindJobsAsync(
+            Saved, [PackHash, MovieHash, "e40455cf36e8520a156762368034a98b91ddad5c"], TestContext.Current.CancellationToken);
+
+        //Assert
+        // MAM-38 — where the files end up, while the content path follows an unfinished torrent into the folder for
+        // incomplete torrents; it names a folder, so it isn't trimmed either.
+        Assert.Equal(
+            [
+                "/downloads/incomplete/Taken (2008) | /downloads/movies-4k ",
+                "/downloads/movies/Taken (2008) | (none)",
+                "/downloads/movies/Taken (2008) | (none)",
+            ],
+            result.Value!.Select(job => $"{job.ServiceContentPath ?? "(none)"} | {job.ServiceSavePath ?? "(none)"}"));
+    }
+
     [Theory]
     [InlineData(404, IntegrationCallStatus.UnexpectedResponse,
         "qBittorrent's Web API wasn't found at this address (404 Not Found). Use the address of qBittorrent's Web UI, such as http://192.168.1.10:8080.")]
@@ -644,7 +671,8 @@ public sealed class QBittorrentAdapterJobsTests : IDisposable
         string? v1 = null,
         string? v2 = "",
         string category = "Movies",
-        string contentPath = "/downloads/movies/Taken (2008)") => new()
+        string contentPath = "/downloads/movies/Taken (2008)",
+        string savePath = "/downloads/movies") => new()
     {
         ["auto_tmm"] = true,
         ["category"] = category,
@@ -656,7 +684,7 @@ public sealed class QBittorrentAdapterJobsTests : IDisposable
         ["magnet_uri"] = $"magnet:?xt=urn:btih:{hash}",
         ["name"] = name,
         ["progress"] = 1,
-        ["save_path"] = "/downloads/movies",
+        ["save_path"] = savePath,
         ["state"] = state,
         ["tracker"] = "http://bt.toloka.test/REDACTED",
     };

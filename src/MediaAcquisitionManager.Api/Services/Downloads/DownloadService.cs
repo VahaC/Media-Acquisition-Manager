@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
+using MediaAcquisitionManager.Api.Services.Destinations;
 using MediaAcquisitionManager.Api.Services.Releases;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
@@ -26,6 +27,8 @@ public sealed class DownloadService(
     ApplicationDbContext db,
     IIntegrationAdapterRegistry adapters,
     IDownloadSender sender,
+    IDestinationChecker destinations,
+    IDownloadOverwriteGuard overwrites,
     IAuditTrail auditTrail,
     IDownloadMapper mapper,
     TimeProvider time,
@@ -102,6 +105,28 @@ public sealed class DownloadService(
             offered.Select(destination => destination.Id).ToHashSet(),
             offered.FirstOrDefault(destination => destination.IsDefault)?.Id);
         return DownloadOptionsResult.Listed(new DownloadOptionsResponse(options, suggested));
+    }
+
+    public async Task<DownloadOverwriteCheckResult> GetOverwriteCheckAsync(string? destinationId, CancellationToken cancellationToken = default)
+    {
+        Guid? id = Guid.TryParse(destinationId, out var parsed) ? parsed : null;
+        if (DownloadRules.ValidateDestinationId(id) is { } error)
+            return DownloadOverwriteCheckResult.Invalid(error);
+        if (await db.DestinationMappings.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, cancellationToken) is not { } destination)
+            return DownloadOverwriteCheckResult.DestinationMissing(DestinationGoneError);
+
+        // MAM-38 — through the Destinations' own listing, as the send reads it: a client that is switched off or
+        // can't be asked leaves the folder unknown, never a guess.
+        CheckedClientDestination? listed = null;
+        if (await FindDownloadClientAsync(destination.DownloadClientConnectionId, cancellationToken) is { } client
+            && await destinations.ListAsync(client, cancellationToken) is { Status: ClientDestinationsStatus.Listed } listing)
+        {
+            listed = listing.Destinations.FirstOrDefault(candidate =>
+                string.Equals(candidate.Destination.Key, destination.ClientDestinationKey, StringComparison.Ordinal));
+        }
+
+        return DownloadOverwriteCheckResult.Answered(
+            new DownloadOverwriteCheckResponse(await overwrites.FolderReasonAsync(listed, cancellationToken)));
     }
 
     public async Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default)

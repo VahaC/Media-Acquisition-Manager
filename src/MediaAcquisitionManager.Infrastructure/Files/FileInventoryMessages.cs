@@ -64,6 +64,10 @@ internal static class FileInventoryMessages
     public static string ChangedWhileHashing(string appPath) =>
         $"{Quote(appPath)} changed while the app was reading it for its hash, so the hash can't be said to belong to either version.";
 
+    /// <summary>MAM-38 — the file changed, or ended early, while the app read some of its pieces.</summary>
+    public static string ChangedWhileHashingPieces(string appPath) =>
+        $"{Quote(appPath)} changed while the app was reading some of its pieces, so they can't be said to belong to either version.";
+
     /// <param name="appPath">The file.</param>
     /// <param name="reason">A clause from <see cref="MediaProbeResult.Reason"/>: "it said “…”", "it didn't
     /// finish within 2 minutes".</param>

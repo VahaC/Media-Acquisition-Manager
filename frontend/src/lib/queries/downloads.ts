@@ -29,6 +29,26 @@ export const useDownloadOptions = (releaseId: string) =>
   })
 
 /**
+ * MAM-38 — whether a release sent to the destination is checked for files it would write over, for the
+ * Download dialog's warning before Send. Asked once a destination is picked, and not retried: the
+ * warning is a hint, the send checks again, and a failed question shows nothing rather than a wrong
+ * warning.
+ *
+ * Asked even while the browser says it is offline (`networkMode: 'always'`), as the options and the
+ * send are: a question TanStack held back would leave the dialog with no data and no error, so a
+ * folder that can't be checked would go without its warning while Send still goes out. Asked, it
+ * either answers or fails into warning of nothing.
+ */
+export const useDownloadOverwriteCheck = (destinationId: string) =>
+  useQuery({
+    queryKey: qk.downloads.overwriteCheck(destinationId),
+    queryFn: () => downloadsApi.overwriteCheck(destinationId),
+    enabled: destinationId !== '',
+    retry: false,
+    networkMode: 'always',
+  })
+
+/**
  * Sends a release to a download client. Never retried on its own (mutations aren't by default): the
  * request id keeps a resend from becoming a second download, but only the person's own Send resends.
  * MAM-14 — the Jobs page lists the new job, so every list is asked for again once a send answers.

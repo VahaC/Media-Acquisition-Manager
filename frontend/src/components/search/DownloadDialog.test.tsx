@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { DownloadDialog } from '@/components/search/DownloadDialog'
 import { downloadsApi } from '@/lib/downloads-api'
 import { qk } from '@/lib/queries'
-import type { DownloadClientOption, DownloadJob, DownloadOptions } from '@/lib/types'
+import type { DownloadClientOption, DownloadJob, DownloadOptions, DownloadOverwriteCheckAnswer } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
 import {
   cartoonsOption,
@@ -37,8 +37,22 @@ const clientSelect = (dialog: HTMLElement) => within(dialog).getByRole('combobox
 const destinationSelect = (dialog: HTMLElement) => within(dialog).getByRole('combobox', { name: 'Destination' })
 const sendButton = (dialog: HTMLElement) => within(dialog).getByRole('button', { name: 'Send' })
 
-/** Waits for the options to arrive: the client picker is on screen. */
-const optionsLoaded = (dialog: HTMLElement) => within(dialog).findByRole('combobox', { name: 'Download client' })
+/** Why Send waits while the picked destination's folder is asked about (MAM-38), as its hover title. */
+const CHECKING = 'Checking the destination\'s folder…'
+
+/** MAM-38 — the two warnings, as the dialog shows them before Send. */
+const OUTSIDE_WARNING = 'The app can\'t check whether this release would write over a file already there: the destination\'s folder isn\'t under Media folders, which the installation owner sets in the user menu. A release sent there goes without that check.'
+const UNKNOWN_WARNING = 'The app can\'t check whether this release would write over a file already there: the destination\'s folder has no path in the app, or its download client can\'t say where it is. A release sent there goes without that check.'
+
+/**
+ * Waits for the options to arrive — the client picker is on screen — and, when a destination is
+ * picked, for the answer about its folder, which Send waits for (MAM-38).
+ */
+async function optionsLoaded(dialog: HTMLElement) {
+  const picker = await within(dialog).findByRole('combobox', { name: 'Download client' })
+  await vi.waitFor(() => expect(within(dialog).queryByTitle(CHECKING)).not.toBeInTheDocument())
+  return picker
+}
 
 /** The options of a select as the person reads them, the placeholder included. */
 const optionTexts = (select: HTMLElement) => [...select.querySelectorAll('option')].map((option) => option.textContent)
@@ -61,6 +75,8 @@ describe('DownloadDialog', () => {
     vi.resetAllMocks()
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient, seedboxClient))
     vi.mocked(downloadsApi.send).mockResolvedValue(jobOf({}))
+    // MAM-38 — a folder the app can check: no warning, so the outcome lines below are the only status.
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: null })
   })
 
   it('is named by the action and the release, and says what a destination is', () => {
@@ -367,8 +383,99 @@ describe('DownloadDialog', () => {
       ['Release', tolokaRemux.title],
       ['Download client', 'Local qBittorrent'],
       ['Destination', 'Movies — category “Movies”'],
-      ['Existing copies', 'Kept: this version of the app never replaces or removes a file.'],
+      ['Existing copies', 'Kept: this version of the app never replaces or removes a file, and doesn\'t send a release it finds would write over a different one.'],
     ])
+  })
+
+  it('warns before Send, read with Send, when the destination\'s folder is outside the Media folders, and still sends', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+    const banner = (await within(dialog).findByText(OUTSIDE_WARNING)).closest('.ui-banner')
+    const readWithSend = sendButton(dialog).getAttribute('aria-describedby')
+
+    // Act
+    await user.click(sendButton(dialog))
+
+    // Assert
+    expect(banner).toHaveAttribute('data-tone', 'warning')
+    // Focusing Send reads the warning: a live region inserted already filled is often not read out.
+    expect(readWithSend).not.toBeNull()
+    expect(banner).toHaveAttribute('id', readWithSend)
+    expect(downloadsApi.overwriteCheck).toHaveBeenCalledWith(moviesOption.id)
+    await vi.waitFor(() => expect(downloadsApi.send).toHaveBeenCalledOnce())
+    expect(downloadsApi.send).toHaveBeenCalledWith(expect.objectContaining({ destinationId: moviesOption.id }))
+  })
+
+  it('warns before Send when the destination\'s folder has no path in the app', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderUnknown' })
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(await within(dialog).findByText(UNKNOWN_WARNING)).toBeInTheDocument()
+    expect(sendButton(dialog)).toHaveAccessibleDescription(UNKNOWN_WARNING)
+  })
+
+  it('asks about the folder of each destination picked, and takes the warning away when the next one\'s folder can be checked', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.overwriteCheck).mockImplementation(async (destinationId) => ({
+      notCheckedReason: destinationId === moviesOption.id ? 'NotCheckedFolderOutsideMediaFolders' : null,
+    }))
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+    await within(dialog).findByText(OUTSIDE_WARNING)
+
+    // Act
+    await user.selectOptions(destinationSelect(dialog), cartoonsOption.id)
+
+    // Assert
+    await vi.waitFor(() => expect(within(dialog).queryByRole('status')).not.toBeInTheDocument())
+    expect(vi.mocked(downloadsApi.overwriteCheck).mock.calls).toEqual([[moviesOption.id], [cartoonsOption.id]])
+    expect(sendButton(dialog)).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('warns of nothing and leaves Send enabled when the question about the folder fails', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.overwriteCheck).mockRejectedValue(networkError())
+
+    // Act
+    const { dialog } = renderDialog()
+
+    // Assert
+    // Send waits only for a first answer: a failed question lets it go, and the send checks again anyway.
+    await within(dialog).findByRole('combobox', { name: 'Download client' })
+    await vi.waitFor(() => expect(sendButton(dialog)).toBeEnabled())
+    expect(within(dialog).queryByRole('status')).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    expect(downloadsApi.overwriteCheck).toHaveBeenCalledOnce()
+  })
+
+  it('holds Send, and says why, until the first answer about the picked destination\'s folder arrives', async () => {
+    // Arrange
+    let answer: (check: DownloadOverwriteCheckAnswer) => void = () => {}
+    vi.mocked(downloadsApi.overwriteCheck).mockReturnValue(new Promise((resolve) => {
+      answer = resolve
+    }))
+    const { dialog } = renderDialog()
+    await within(dialog).findByRole('combobox', { name: 'Download client' })
+    const whileChecking = {
+      sendDisabled: (sendButton(dialog) as HTMLButtonElement).disabled,
+      reason: within(dialog).queryByTitle(CHECKING) !== null,
+    }
+
+    // Act
+    await act(async () => answer({ notCheckedReason: 'NotCheckedFolderUnknown' }))
+
+    // Assert
+    expect(whileChecking).toEqual({ sendDisabled: true, reason: true })
+    expect(await within(dialog).findByText(UNKNOWN_WARNING)).toBeInTheDocument()
+    expect(sendButton(dialog)).toBeEnabled()
+    expect(within(dialog).queryByTitle(CHECKING)).not.toBeInTheDocument()
   })
 
   it('sends the release once, with its request id, the release, the client and the destination', async () => {

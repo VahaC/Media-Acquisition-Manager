@@ -22,6 +22,12 @@ services:
     env_file:
       - path: .env
         required: false
+    # The user and group the app runs as: the image's own, 10001, unless .env says otherwise. Phase
+    # C's replacement, not released yet, renames files in the media folders and so needs their
+    # owner's ids (1000 and 100 on the reference installation, qBittorrent's PUID and PGID); the data
+    # volume then has to change hands once. .env.example has the commands and the trade-off,
+    # docs/adr/0033 says why.
+    user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"
     environment:
       # Pinned here as well as in the image, because environment beats env_file: a
       # MAM_Storage__DataDirectory left in .env from a local run can't point the database away from
@@ -32,7 +38,11 @@ services:
       # The whole state of the installation: mam.db and the generated secrets in .secrets/. Back
       # them up together.
       - mam-data:/data
-      # Media folders, for reading only: nothing in Phase A writes to them, and :ro makes sure of it.
+      # Media folders, for reading only: nothing in this release writes to them, and :ro makes sure of
+      # it. Phase C's replacement, not released yet, will need them read-write, each allowed folder as
+      # one mount that holds its libraries (the quarantine sits at the top of each allowed folder, and a
+      # move into it across two mounts would be a copy), and it stays off until the owner also switches
+      # it on and ticks its folders in the app; docs/adr/0033 says why.
       # Mount them at the path Jellyfin sees them at. A download client that sees them elsewhere
       # (qBittorrent at /downloads, say) gets a path mapping under Integrations → the client → Path
       # mappings, not a second mount; docs/adr/0003 says why. The app reads files only inside the

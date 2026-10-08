@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { downloadsApi } from '@/lib/downloads-api'
 import { formatDateTime } from '@/lib/format'
-import type { CurrentUser, DownloadJob, DownloadJobStatus } from '@/lib/types'
+import type { CurrentUser, DownloadJob, DownloadJobStatus, DownloadOverwriteCheck } from '@/lib/types'
 import { JobsPage } from '@/pages/JobsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
@@ -122,6 +122,64 @@ describe('JobsPage', () => {
     const reason = row.getByText(blockedJob.blockReason!).closest('p')
     expect(reason).toHaveClass('library-source-warning')
     expect(rowOf(blockedJob.releaseTitle).querySelector('td[data-label="Status"]')).toHaveClass('jobs-stacked-cell')
+  })
+
+  it.each<[Exclude<DownloadOverwriteCheck, 'Checked'>, string]>([
+    ['NotCheckedMagnet', 'Not checked for files it would write over: a magnet link names its files only once the client has fetched them.'],
+    ['NotCheckedFileList', 'Not checked for files it would write over: the app couldn\'t read the .torrent\'s list of files.'],
+    ['NotCheckedFolderUnknown', 'Not checked for files it would write over: the destination\'s folder had no path in the app.'],
+    ['NotCheckedFolderOutsideMediaFolders', 'Not checked for files it would write over: the destination\'s folder wasn\'t under Media folders, or a link in it led out of them.'],
+    ['NotCheckedClientJobs', 'Not checked for files it would write over: the download client couldn\'t list the torrents it already had there, or their files.'],
+    ['NotCheckedFileName', 'Not checked for files it would write over: a file\'s name held characters the app couldn\'t look up.'],
+  ])('says, as a warning line under the status, why a job was sent without the check for files it would write over: %s', async (overwriteCheck, sentence) => {
+    // Arrange
+    const uncheckedJob = jobOf({ id: 'd0b10000-0000-4000-8000-000000000005', releaseTitle: 'Heat (1995) WEBRip', overwriteCheck })
+    listing([uncheckedJob, downloadingJob])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText(uncheckedJob.releaseTitle, asTitle)
+    const note = within(rowOf(uncheckedJob.releaseTitle)).getByText(sentence)
+    expect(note.closest('p')).toHaveClass('library-source-warning')
+    expect(within(rowOf(downloadingJob.releaseTitle)).queryByText(/Not checked for files/)).not.toBeInTheDocument()
+  })
+
+  it('says nothing of the check for a job sent before it existed', async () => {
+    // Arrange
+    const olderJob = jobOf({ id: 'd0b10000-0000-4000-8000-000000000006', releaseTitle: 'Heat (1995) WEBRip', overwriteCheck: null })
+    listing([olderJob])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText(olderJob.releaseTitle, asTitle)
+    expect(within(rowOf(olderJob.releaseTitle)).queryByText(/Not checked for files/)).not.toBeInTheDocument()
+    expect(within(rowOf(olderJob.releaseTitle)).queryByText(/^overwriteCheck\./)).not.toBeInTheDocument()
+  })
+
+  it('says nothing of the check for a failed job, though its submission failed after it', async () => {
+    // Arrange
+    const refusedJob = jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000007',
+      releaseTitle: 'Heat (1995) WEBRip',
+      status: 'Failed',
+      clientJobId: null,
+      error: 'qBittorrent answered 500 Internal Server Error. Its own log says why.',
+      overwriteCheck: 'NotCheckedMagnet',
+    })
+    listing([refusedJob])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText(refusedJob.releaseTitle, asTitle)
+    const row = within(rowOf(refusedJob.releaseTitle))
+    expect(row.getByText(refusedJob.error!).closest('p')).toHaveAttribute('data-status', 'Failed')
+    expect(row.queryByText(/Not checked for files/)).not.toBeInTheDocument()
   })
 
   it('shows a failed job\'s sentence as a red line under its status, with no Cancel', async () => {

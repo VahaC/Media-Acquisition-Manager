@@ -21,6 +21,7 @@ public sealed class DownloadMapper : IDownloadMapper
             job.ClientJobId,
             ErrorFor(job, sourceName, forOwner),
             BlockReasonFor(job, forOwner),
+            job.OverwriteCheck,
             job.CreatedUtc,
             job.StatusChangedUtc);
 

@@ -5,6 +5,14 @@
     "label": "Status",
     "all": "All statuses"
   },
+  "overwriteCheck": {
+    "NotCheckedMagnet": "Not checked for files it would write over: a magnet link names its files only once the client has fetched them.",
+    "NotCheckedFileList": "Not checked for files it would write over: the app couldn't read the .torrent's list of files.",
+    "NotCheckedFolderUnknown": "Not checked for files it would write over: the destination's folder had no path in the app.",
+    "NotCheckedFolderOutsideMediaFolders": "Not checked for files it would write over: the destination's folder wasn't under Media folders, or a link in it led out of them.",
+    "NotCheckedClientJobs": "Not checked for files it would write over: the download client couldn't list the torrents it already had there, or their files.",
+    "NotCheckedFileName": "Not checked for files it would write over: a file's name held characters the app couldn't look up."
+  },
   "status": {
     "Created": "Sending",
     "Submitted": "Submitted",

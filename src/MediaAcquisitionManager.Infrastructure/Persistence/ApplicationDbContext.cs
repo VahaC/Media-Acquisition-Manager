@@ -478,6 +478,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
             e.Property(x => x.ErrorOrigin).HasConversion<string>().HasMaxLength(32);
+            // MAM-38 — by name, like every status; the longest is 35 characters.
+            e.Property(x => x.OverwriteCheck).HasConversion<string>().HasMaxLength(48);
             // Restrict: the release snapshot is the job's evidence of what was sent; it can't go
             // while a job points at it.
             e.HasOne<ReleaseEntity>().WithMany()

@@ -101,6 +101,7 @@ to a download client
 - Matching priority: reliable identifier first; then original/localized title plus year; then a candidate requiring manual review. A title or year match alone never authorizes replacement.
 - Preserve the provenance of every identifier and title. Conflicting IDs or different editions/versions prevent automatic matching for removal.
 - *Added 2026-10-05 (MAM-34):* an id the owner links by hand counts as a reliable identifier of the library work, keeps its own provenance (who set it and when) beside the media server's, and conflicts with a different id the server reports rather than replacing it. A TMDb or IMDb link or id can be pasted in the owner's link dialog; the search field doesn't read links yet.
+- *Added 2026-10-08 (MAM-23):* a title and year match may be scheduled for replacement once the owner confirms the work in the Download dialog — Toloka lists no ids, so none of its releases could otherwise ever replace a copy —, but it still authorizes nothing on its own: the old copy moves only after the media server has given the downloaded file the old copy's own work by its ids (§3.4, check 3). A title alone, or conflicting ids, never ([ADR 0032](adr/0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)).
 
 ### 3.2 “Download” action
 
@@ -112,6 +113,8 @@ to a download client
 6. If the client or source does not immediately return a reliable ID, correlate cautiously using the info hash/NZB ID and the client's job list; require manual linking if ambiguous.
 
 **Destinations:** logical choices such as `Movies` and `Movies 4K` map to a specific client's configuration. For qBittorrent, check that the selected category exists and has the expected path. The UI must not override the category with a conflicting `savePath`. If the destination path cannot be determined, disable automatic replacement.
+
+**Note (2026-10-08, MAM-38):** the category's folder is where qBittorrent writes, and qBittorrent takes over any file already at a new torrent's path — it checks that file and downloads the pieces that don't match into it, in place, so another release under the same name is written over. Before the one submission the app now works out every place each of a `.torrent`'s files may land below the destination's folder, under each of qBittorrent's content layouts, and refuses the send — a failed job with the app's sentence naming the file, nothing handed to the client — when one of those places holds a file of another size, a file of the same size whose sampled pieces don't hash as the torrent says, something that isn't a file, or a file a torrent the client already has in that category will write; files already there with the same bytes don't stop it, so a series update that re-adds its old episodes is sent (Vasyl's decisions). A magnet, a file list the app can't read, a destination folder the app can't look into (no path in the app, or outside the Media folders), a place behind a link leading out of the Media folders, a file name the app can't look up and a client that can't tell its torrents or their files are sent unchecked, unless another place refuses the send, the job saying why, and the Download dialog warns before submission when the destination's folder can't be checked. The check only reads, and the app still never sends a `savePath` or a content layout of its own. ([ADR 0034](adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md).)
 
 ### 3.3 Duplicate detection
 
@@ -146,6 +149,8 @@ Before removing any old file, verify **all** of the following:
 For the MVP, **move the selected media-library copy into quarantine** instead of irreversibly deleting it, but only if the quarantine directory is on the same filesystem and the move is atomic. Otherwise, offer manual confirmation of deletion after the checks. Implement automatic quarantine cleanup separately, after defining retention and disk-space policies. Moving a hardlinked media copy leaves seeding data in place, but **does not** reclaim its file size until the last hardlink is gone; verify the actual mount paths.
 
 Do not indiscriminately call Jellyfin's `DELETE /Items/{id}`: one item may represent multiple versions, and API permissions and semantics depend on the version. Removal must target a specific file inside authorized storage and be recorded in an audit trail. Never remove the old file because a timer expired or the download reached 100%.
+
+**Note (2026-10-08, MAM-23):** Vasyl's decisions for Phase C. *Quarantine:* the picked old copy and its own companion files (subtitles, an `.nfo` of the same name) move into `.mam-quarantine` at the top of the allowed folder that holds them, one atomic rename per name that never replaces and never copies, on one mount; never a folder, another video or a disc's clip. A quarantined copy stays until the owner restores it or deletes it for good after a second confirmation; no timer, no automatic cleanup. Where the move can't be atomic nothing is deleted: the job stops at `NeedsReview` — this replaces "otherwise, offer manual confirmation of deletion after the checks" above, so the chain's `Removed` step no longer occurs ([ADR 0030](adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)). *Check 6:* on the reference installation a seeding copy is the torrent's own data under its one name, so no move of it leaves the seed intact; an old copy any torrent lists, in any state, stops the job before the move until the owner removes the torrent in the client without its files, and the app never writes to a download client ([ADR 0031](adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)). *Checks 1 and 3 for several files:* a replacement may target films, one or more episodes and whole seasons; each picked old copy is paired, after the media server has read and identified the new files, with exactly one new file of its work, every unclear pair waits for the owner, and only the media server's ids — never the owner's word after the download — let a copy move; a `.torrent` whose files would land on an existing file, and a magnet, are never sent as a replacement ([ADR 0032](adr/0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)). After every move and restore the app asks the media server to look at the paths, and writes nothing else into it.
 
 ### 3.5 Recommendations
 
@@ -182,7 +187,7 @@ Application-level contracts (interfaces/ports) with explicit capabilities:
 | `IMediaLibraryProvider` | List works, IDs, versions, and physical paths; read an item's poster image, resized by the library (MAM-35); request a scan; optional version capabilities; optionally identify an item as a catalog film or show and nothing else, on the kinds of item it names (`IMediaLibraryItemIdentifier`, MAM-34; Jellyfin: films and series) | Jellyfin |
 | `IReleaseSearchProvider` | Search and normalize results; retrieve a payload separately for client submission | Torznab (Jackett) |
 | `IDownloadClient` | Supported payload types, destination validation, submission, status, file list/status, job correlation | qBittorrent |
-| `IFileInventory` | Scan only allowed roots; file identity, size/hash, ffprobe, quarantine | Local/container mount |
+| `IFileInventory` | Scan only allowed roots; file identity, size/hash, ffprobe. Read-only: the quarantine's renames and deletions go through a write contract of their own beside it (MAM-23, [ADR 0030](adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md), [ADR 0033](adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)) | Local/container mount |
 | `IMetadataResolver` | Authoritative IDs/titles and matching without silent guesses | TMDb (MAM-33), for recommendations only; a search matches against the library snapshot instead |
 | `IMetadataCatalog` | Details, collections, people, genres, search, discovery and posters of works the library may not have; an episode of a show with its own IMDb id | TMDb (MAM-33); also the suggestions, searches, pasted ids and episodes of the owner's links (MAM-34) |
 
@@ -194,11 +199,15 @@ Minimum `ReplacementJob` fields: internal ID, source/release reference or snapsh
 
 **Security:** authenticate the UI, keep client API access on a private network, supply secrets through environment variables/secret mounts, protect state-changing actions against CSRF, and grant minimal filesystem permissions. Read-only search needs read access, whereas managed replacement requires separately configured write access limited to authorized roots. Submitting a magnet or URL must not let an indexer trigger arbitrary backend HTTP requests to internal addresses; allowlist providers and validate destinations after redirects.
 
+**Note (2026-10-08, MAM-23):** the write access of replacement is four gates, all off by default: the media folders mounted read-write, the app running as their owner (1000 and 100 on the reference installation, measured by a read-only script; no folder's owner or mode changes), the owner's master switch in the app, and the owner's tick on each library folder replacement may touch. Only the installation owner schedules, restores and deletes for good. The app's only writes to the media folders are the quarantine's folders, the renames into and out of it and the deletions in it ([ADR 0033](adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
+
 ## 5. User interface
 
 **Search:** query field plus `In your library` and `Available releases` sections. Library results show separate physical versions, not just a work title. Each release offers `Details`, `Open source`, and `Download`. Mark unknown quality properties as unknown. Comparison shows verified facts about the existing file beside the release's claimed properties.
 
 **Download dialog:** release → client → logical destination → `Keep both` or a list of specific old copies to replace → final submission confirmation. If the match is not reliable, scheduling removal is disabled; downloading without replacement remains possible.
+
+**Download dialog (MAM-23):** `Replace after verification` is the installation owner's, and only while replacement is switched on and the old copy lies in a ticked folder. It lists the matched film's copies, or the held episodes a TV release claims — its episode or range within a season, or every held episode of each whole season —, for the owner to tick; a title and year match also needs the owner's confirmation of the work ("This release is Alien (1979)"), which is enough to schedule but not to move anything (§3.1); a copy a torrent holds is marked with what the owner will have to do in the client first. Members see `Keep both` with the reason.
 
 **Library:** search existing works, versions, and paths; indicate missing IDs. Allow manual linking once that workflow is implemented.
 
@@ -260,9 +269,18 @@ These are not assumptions about the current setup. Resolve the answers at the st
    documentaries included; an episode is a work of its own (ADR 0017). Built in release 0.2.0
    (MAM-32): series, seasons and episodes in the library, and TV releases searched, matched and sent
    (ADR 0019, ADR 0020).*
+   *For replacement, answered 2026-10-08 (MAM-23): films, one or more episodes and whole seasons,
+   each old copy paired with one new file of its work after the media server has read them (ADR 0032).*
 4. What quarantine mode and retention period should be used? Is additional manual approval required before final deletion?
+   *Answered 2026-10-08 (MAM-23): an atomic rename into `.mam-quarantine` on the old copy's own
+   mount, never a copy; kept until the owner deletes it for good, which asks a second time; no
+   automatic cleanup; no deletion where the move can't be atomic (ADR 0030).*
 5. Which indexing route actually works with the Toloka account? Is an additional Jackett or Prowlarr container acceptable?
 6. Are the old files to be replaced original seeding files, hardlinks, or independent copies?
+   *Answered 2026-10-04 (MAM-17): 822 of the 1394 library video files are a seeding torrent's own
+   data, 571 belong to no torrent, and no file has a second name (ADR 0018). For replacement,
+   answered 2026-10-08 (MAM-23): a copy any torrent lists waits until the owner removes the torrent
+   without its files; the app never writes to a download client (ADR 0031).*
 7. How will the service be exposed: only through LAN/VPN or through a reverse proxy? How will users authenticate?
 
 ## 8. Starting prompt for the next Codex session

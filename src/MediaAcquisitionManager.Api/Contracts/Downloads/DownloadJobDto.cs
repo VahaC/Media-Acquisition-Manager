@@ -29,6 +29,10 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Error">Why it failed, every secret masked; <c>null</c> unless it failed.</param>
 /// <param name="BlockReason">MAM-14 — why a followed job isn't moving on, every secret masked, with
 /// <paramref name="Error"/>'s rule for a client's own sentence; <c>null</c> when nothing blocks it.</param>
+/// <param name="OverwriteCheck">MAM-38 — how it was checked, before it was sent, for files it would write over:
+/// <c>Checked</c>, or one of the <c>NotChecked…</c> reasons it was sent without; <c>null</c> for a job sent before
+/// the check existed or one the check didn't let through. A job whose submission failed after the check keeps its
+/// value; the Jobs page shows it only for a job that didn't fail.</param>
 /// <param name="CreatedUtc">When it was sent.</param>
 /// <param name="StatusChangedUtc">When <paramref name="Status"/> last changed.</param>
 public sealed record DownloadJobDto(
@@ -44,5 +48,6 @@ public sealed record DownloadJobDto(
     string? ClientJobId,
     string? Error,
     string? BlockReason,
+    DownloadOverwriteCheck? OverwriteCheck,
     DateTime CreatedUtc,
     DateTime StatusChangedUtc);

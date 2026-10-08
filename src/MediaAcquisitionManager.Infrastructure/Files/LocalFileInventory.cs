@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Security.Cryptography;
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 
@@ -202,6 +203,61 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// MAM-38, ADR 0034 — the pieces come from the file the checks approved and the reader opened, as the hash's
+    /// bytes do; each is hashed a chunk at a time as it is read (<see cref="HashChunkSize"/>, in whole 16 KiB blocks),
+    /// and nothing is kept.
+    /// </remarks>
+    public async Task<FileInventoryResult<FilePieceHashes>> HashPiecesAsync(
+        string appPath, IReadOnlyList<string> allowedRoots, IReadOnlyList<FilePieceRange> pieces, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pieces);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var located = Locate(appPath, allowedRoots);
+        if (located.Value is not { } path)
+            return FileSystemFailure.Relay<NormalizedPath, FilePieceHashes>(located);
+
+        var systemPath = SystemPath.For(path);
+        var opened = Reader.Open(systemPath, appPath);
+        if (opened.Value is not { } file)
+            return FileSystemFailure.Relay<IOpenedFile, FilePieceHashes>(opened);
+
+        using var _ = file;
+        var facts = file.Facts;
+        var hashes = new List<byte[]>(pieces.Count);
+        var complete = true;
+        try
+        {
+            foreach (var piece in pieces)
+            {
+                if (await ReadPieceAsync(file, piece, cancellationToken) is not { } hash)
+                {
+                    complete = false;
+                    break;
+                }
+
+                hashes.Add(hash);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return FileSystemFailure.For<FilePieceHashes>(exception, appPath, systemPath);
+        }
+
+        // Asked again after the read, as after a hash: pieces read from a file being written can't be said to be
+        // either version's, and a piece that wasn't all there means the file got shorter meanwhile.
+        var after = file.ReadFactsAgain(appPath);
+        if (!complete || after.Value is not { } factsAfter || !IsSameVersion(facts, factsAfter))
+        {
+            return FileSystemFailure.Refused<FilePieceHashes>(
+                FileInventoryStatus.ChangedWhileReading, FileInventoryMessages.ChangedWhileHashingPieces(appPath));
+        }
+
+        return new FileInventoryResult<FilePieceHashes>(FileInventoryStatus.Found, new FilePieceHashes(facts, hashes), null);
+    }
+
+    /// <inheritdoc/>
     /// <remarks>The roots are trusted as for a look at one file: only those that parse as this platform's paths
     /// are walked.</remarks>
     public IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
@@ -304,6 +360,68 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
             }
 
             return (Convert.ToHexStringLower(sha256.GetHashAndReset()), length);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    /// <summary>
+    /// MAM-38 — the hash of one piece of <paramref name="file"/>, read from where it starts a chunk at a time and hashed
+    /// as it is read: SHA-1 over the bytes, or each 16 KiB block's SHA-256 as a leaf of the tree. A piece can be up to
+    /// 512 MiB (libtorrent's largest), so it is never held whole: memory stays one chunk, and the tree's leaves, 32
+    /// bytes a block. <c>null</c> when the file ends before the piece does.
+    /// </summary>
+    private async Task<byte[]?> ReadPieceAsync(IOpenedFile file, FilePieceRange piece, CancellationToken cancellationToken)
+    {
+        // Whole blocks per chunk, so no leaf of the tree straddles two chunks.
+        var chunkSize = Math.Max(1, HashChunkSize / TorrentPieceHash.BlockSize) * TorrentPieceHash.BlockSize;
+        var blocks = (piece.Length + TorrentPieceHash.BlockSize - 1) / TorrentPieceHash.BlockSize;
+        if (piece.Hashing is not (FilePieceHashing.Sha1 or FilePieceHashing.Sha256Tree))
+            throw new ArgumentOutOfRangeException(nameof(piece), piece.Hashing, "Not a way to hash a piece.");
+        if (piece.Hashing == FilePieceHashing.Sha256Tree && piece.TreeLeafCount < blocks)
+            throw new ArgumentException("A tree's leaves are no fewer than its blocks.", nameof(piece));
+
+        using var sha1 = piece.Hashing == FilePieceHashing.Sha1 ? IncrementalHash.CreateHash(HashAlgorithmName.SHA1) : null;
+        // Zero bytes are the zero leaves past the piece's last block.
+        var leaves = piece.Hashing == FilePieceHashing.Sha256Tree ? new byte[piece.TreeLeafCount * SHA256.HashSizeInBytes] : null;
+        var buffer = ArrayPool<byte>.Shared.Rent(chunkSize);
+        try
+        {
+            var hashed = 0;
+            while (hashed < piece.Length)
+            {
+                var wanted = Math.Min(chunkSize, piece.Length - hashed);
+                var filled = 0;
+                while (filled < wanted
+                    && await file.ReadAsync(buffer.AsMemory(filled, wanted - filled), piece.Offset + hashed + filled, cancellationToken) is var count and > 0)
+                {
+                    filled += count;
+                }
+
+                if (filled < wanted)
+                    return null;
+
+                if (sha1 is not null)
+                {
+                    sha1.AppendData(buffer, 0, wanted);
+                }
+                else
+                {
+                    for (var start = 0; start < wanted; start += TorrentPieceHash.BlockSize)
+                    {
+                        var leaf = (hashed + start) / TorrentPieceHash.BlockSize;
+                        SHA256.HashData(
+                            buffer.AsSpan(start, Math.Min(TorrentPieceHash.BlockSize, wanted - start)),
+                            leaves!.AsSpan(leaf * SHA256.HashSizeInBytes, SHA256.HashSizeInBytes));
+                    }
+                }
+
+                hashed += wanted;
+            }
+
+            return sha1 is not null ? sha1.GetHashAndReset() : TorrentPieceHash.RootOf(leaves!, piece.TreeLeafCount);
         }
         finally
         {

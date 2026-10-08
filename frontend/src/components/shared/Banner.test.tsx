@@ -23,6 +23,23 @@ describe('Banner', () => {
     expect(within(banner).queryByRole('button')).not.toBeInTheDocument()
   })
 
+  it('describes the control that points at it by its id, as the Download dialog\'s Send reads its warning', () => {
+    // Arrange
+    const sentence = 'The app can\'t check whether this release would write over a file already there.'
+
+    // Act
+    render(
+      <>
+        <Banner tone="warning" id="overwrite-warning">{sentence}</Banner>
+        <Button type="button" aria-describedby="overwrite-warning">Send</Button>
+      </>,
+    )
+
+    // Assert
+    expect(screen.getByRole('status')).toHaveAttribute('id', 'overwrite-warning')
+    expect(screen.getByRole('button', { name: 'Send' })).toHaveAccessibleDescription(sentence)
+  })
+
   it.each([
     ['ok', 'Password reset. Give Olena the new password yourself.'],
     ['warning', 'Synced with a warning: 3 movies have no file.'],

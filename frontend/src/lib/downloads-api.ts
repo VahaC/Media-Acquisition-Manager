@@ -6,6 +6,7 @@ import type {
   DownloadJobList,
   DownloadJobsQuery,
   DownloadOptions,
+  DownloadOverwriteCheckAnswer,
   SendDownloadRequest,
 } from './types'
 
@@ -28,6 +29,15 @@ export const downloadsApi = {
    */
   options: async (releaseId: string): Promise<DownloadOptions> =>
     (await api.get<DownloadOptions>(`${BASE_URL}/options`, { params: { releaseId } })).data,
+
+  /**
+   * MAM-38 — `GET /api/downloads/overwrite-check?destinationId=`. 200 with why the destination's folder
+   * can't be checked for files a download would write over — it has no path in the app, or lies
+   * outside the Media folders —, or no reason when it can be: the destination's client is asked where
+   * its category saves. 400 `{ error }` without a destination; 404 `{ error }` when it no longer exists.
+   */
+  overwriteCheck: async (destinationId: string): Promise<DownloadOverwriteCheckAnswer> =>
+    (await api.get<DownloadOverwriteCheckAnswer>(`${BASE_URL}/overwrite-check`, { params: { destinationId } })).data,
 
   /**
    * `POST /api/downloads`. 201 with the new job (Location `/api/downloads/{id}`) whatever its outcome:

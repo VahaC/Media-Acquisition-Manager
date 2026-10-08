@@ -60,4 +60,21 @@ public sealed class DownloadRulesTests
         //Assert
         Assert.Equal(expected, error);
     }
+
+    // MAM-38 — the destination the Download dialog asks about before Send.
+    [Theory]
+    [InlineData(null, DestinationMissingError)]
+    [InlineData("00000000-0000-0000-0000-000000000000", DestinationMissingError)]
+    [InlineData("8b0e6a4c-2d1f-4e3a-9b5c-7d6e5f4a3b21", null)]
+    public void ValidateDestinationId_is_the_rule(string? destinationId, string? expected)
+    {
+        //Arrange
+        Guid? id = destinationId is null ? null : Guid.Parse(destinationId);
+
+        //Act
+        var error = DownloadRules.ValidateDestinationId(id);
+
+        //Assert
+        Assert.Equal(expected, error);
+    }
 }

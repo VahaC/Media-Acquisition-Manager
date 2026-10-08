@@ -111,6 +111,8 @@ export const qk = {
   downloads: {
     /** MAM-13 — the download clients and destinations one release can be sent to. */
     options: (releaseId: string) => ['downloads', 'options', releaseId] as const,
+    /** MAM-38 — whether a destination's folder is checked for files a download would write over. */
+    overwriteCheck: (destinationId: string) => ['downloads', 'overwrite-check', destinationId] as const,
     /**
      * MAM-14 — the caller's own jobs, under `jobs` rather than beside `options`: a job's id would
      * otherwise sit where `options` does, and invalidating jobs would reach the options too.

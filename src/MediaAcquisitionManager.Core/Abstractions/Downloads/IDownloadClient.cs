@@ -70,7 +70,8 @@ public interface IDownloadClient
     /// MAM-14 — every job the client has in the destination <paramref name="destinationKey"/> (a
     /// <see cref="ClientDestination.Key"/>), each with every info hash the client lists for it, as
     /// <see cref="FindJobsAsync"/> gives them. For a job its stored hashes no longer find, never to read a
-    /// whole client.
+    /// whole client. MAM-38 — and, with <see cref="ListJobFilesAsync"/>, for the check before a send that no
+    /// torrent already in the destination will write where the release's files go (ADR 0034).
     /// </summary>
     Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> ListDestinationJobsAsync(IntegrationConnectionSettings settings, string destinationKey, CancellationToken cancellationToken = default);
 }
