@@ -2,10 +2,12 @@
 
 # Media Acquisition Manager
 
-**Status: Phase A in progress — not usable yet.** Version 0.1.0 is being built, and Phase B
-(releases 0.2.0 and 0.2.1, the version the app now reports) has started. Today the app is an
-API and a web shell that report their own health, with accounts, integration settings and the
-library: the installation owner created on first run, the users the owner manages, sign-in, and a
+**Status: 0.2.1 published; Phase B shipped.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05)
+and 0.2.1 (2026-10-07), the version the app now reports, are published as Docker images, and
+MAM-22 checked Phase B's acceptance bar on the reference installation on 2026-10-08; MAM-5
+(personal access tokens, Phase A) is still to do. Today the app is an API and a web app that
+report their own health, with accounts, integration settings and the library: the
+installation owner created on first run, the users the owner manages, sign-in, and a
 Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
 source such as Prowlarr and qBittorrent, tests each connection, and imports the Jellyfin library —
 its movies, series and episodes — which every signed-in user can browse, with what each file really
@@ -377,15 +379,19 @@ application.
 ### Tested with
 
 The integrations were tried against the reference installation, whose recorded answers are the
-adapters' test samples, through the app run from this repository. MAM-15 checked Phase A's
-acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed too.
+adapters' test samples. Phase A's checks, MAM-15's of its acceptance bar on 2026-10-03 among them,
+ran through the app run from this repository. MAM-22 checked Phase B's acceptance bar on 2026-10-08
+on production itself, the app's container on the installation's host running the published 0.2.1
+image. The other tickets' live checks are listed too, each with where it ran when that was recorded.
 
 | Service | Version tried | Used as |
 | --- | --- | --- |
-| Jellyfin | 12.1.0 | Media library |
+| Jellyfin | 12.1.0, and 12.2.0 (read on 2026-10-08) for MAM-22's sync | Media library |
 | Prowlarr, serving the Toloka.to indexer over Torznab | 2.6.5, read on 2026-09-29 (a Torznab feed doesn't say its version) | Release source |
 | qBittorrent | 5.2.4 | Download client |
 | TMDb | API v3, read on 2026-10-05 | Metadata catalog |
+| ffprobe | 6.1.1-3ubuntu5, Ubuntu's package in the 0.2.1 image, read on 2026-10-08 (MAM-22's inspections took every reading from the cache and ran it on no file) | File inspection |
+| Media Acquisition Manager | 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22) | The app checked |
 
 - **Jellyfin:** the connection test, and syncs of all its movies, collections included (876 items
   on 2026-10-03). The header search "Sherlock Holmes (2009)" found the movie inside
@@ -535,6 +541,74 @@ acceptance bar there on 2026-10-03; the earlier tickets' live checks are listed 
   1280 and 375 px wide — posters, frames of the video shown whole, the placeholder for none — each
   fetched once and kept (25 files, 1.4 MB, for a page of 25 cards), and the Recommendations page's
   posters were unchanged.
+- **Phase B's acceptance bar on production (MAM-22, 2026-10-08):** with Vasyl signed in on
+  production, MAM-36's **Refresh all** ran from his page: the button went through "Syncing
+  libraries…", "Scanning folders…" and "Inspecting files…" back to **Refresh all**, with no
+  "Refreshing stopped" line. The sync read 1,360 items from Jellyfin 12.2.0
+  into 1,291 works and 7 series, 1,384 versions and 1,380 files in 5.8 s, and the scan found 1,397
+  files, 17 in no library, in 1.6 s with no problem. **Refresh all**'s own inspection joined the run
+  already queued, so two ran, not three — the one the sync queued and the one the scan queued —, and
+  each checked 1,397 files, ran ffprobe on none, every reading answered from the cache by the file's
+  identity, size and modification time, and had nothing to hash. The room the files take added up to
+  the byte: Jellyfin's 1,380 files 7,974,593,521,562 B, the size Jellyfin reported for each being
+  the size the app read; the 17 in no library — 6 Toy Story and 6 Alien shorts, 4 Blu-ray streams
+  and a software disc image, the one file ffprobe couldn't read — 93,092,661,375 B; and all 1,397
+  files 8,067,686,182,937 B, the two added up. The Library page said "Takes 7.25 TiB on disk: 1,380
+  files.", "Takes 86.7 GiB on disk: 17 files." and "All files take 7.34 TiB on disk: 1,397 files.",
+  and `GET /api/library/sources` counted as many names as files in each row and in total.
+- **No second names, no shared sizes and no file changed (MAM-22, 2026-10-08):** each of the 1,397
+  files had a link count of 1, no two shared a size and the database held no hash, so no file was a
+  candidate for hashing or read whole, and the Library page said "No file needed a hash: no two
+  files of one size could be copies of each other." On production `/media` is a read-write bind
+  mount of an ext4 disk, not read-only as the compose file's example mounts it, so that the check
+  changed no file rests on the app's own code, which opens every file read-only, and on
+  `tools/mam22/report.py`, which Vasyl ran before and after it: one ssh call copies production's
+  database, which the script opens read-only, and reads the container's mounts, mount table and
+  ffprobe version. The two reports agreed on all 1,397 names — 0 changed in the library's size, the
+  size read, the modification time, the device, the inode or the link count, none appeared or
+  went —, and the check added 1 sync, 1 scan, 2 inspections and 0 audit rows; the TMDb links'
+  states and the 0 duplicate decisions stayed as they were.
+- **The duplicates on production (MAM-22, 2026-10-08):** `GET /api/library/duplicates` listed the
+  same 46 groups after **Refresh all** as before it, all Same work and 34 of them needing review: no
+  same file, byte-identical copies or possible match, no decision, and no room a removal would free,
+  which a same-work group never gives. "Editions differ" flags 13: a theatrical cut beside other
+  cuts of Alien, Aliens, Alien³, Alien: Resurrection, Aliens vs Predator: Requiem, Terminator 2
+  (three files), Terminator Salvation, Rambo: Last Blood and The Bourne Identity (open matte); three
+  Tom & Jerry shorts with a Widescreen file; and Blade Runner (below). "TVDB ids differ" and
+  "Episode numbers differ" flag 20 pairs of The Penguins of Madagascar episodes, each one IMDb id
+  under two TVDB ids and two numbers, and "Episode numbers differ" Mickey Mouse Clubhouse S03E31 and
+  S03E33, one episode's ids at two places. Without a flag: the 8 Mickey Mouse Clubhouse episodes
+  held in two halves, Alien: Romulus (a 2160p Dolby Vision remux and a 1080p rip, 119.0 min each),
+  The Gods Must Be Crazy, Seksmisja and «Ніж у воді» (1962). Two groups are one work by the
+  library's ids alone: Jellyfin gives the item of `[02] Blade Runner 2049 (2017)` the 1982 film's
+  IMDb tt0083658 and TMDb 78, so it joins `[01] Blade Runner (1982) [The Final Cut]`, flagged only
+  through The Final Cut's label; and the featurette `Polanski+Skolimowski o Noże.mkv` (26.7 min)
+  shares IMDb tt0056291 and TMDb 11502 — the TMDb id also a link Vasyl set — with the film `Nóż w
+  wodzie (1962).mkv` (95.5 min). The same-work class compares no running times, so both are recorded
+  as they are; MAM-37 (to do) is the app's follow-up, a distinction for running times that differ.
+  No group is flagged "Dynamic ranges differ": where one copy's range is measured, as Romulus's
+  Dolby Vision, the other's isn't — 778 video tracks have none measured —, and an unmeasured file
+  decides nothing. None of the near misses is in any group — Ghostbusters (1984), (2016) and
+  Ghostbusters II, Planet of the Apes (1968) and (2001), RoboCop (1987) and (2014), Predator,
+  Predator 2 and The Predator (2018), «Апгрейд» (Upgrade, 2018, and Upgraded, 2024), «Зв'язок»
+  (Bound, 1996, and Coherence, 2014), Planet Earth's Deserts, Jungles and Mountains of 2006 and
+  2016, the film Penguins of Madagascar (2014) and the series, and sequels such as John Wick 1–4 —,
+  and no possible match was offered at all, so nothing was confirmed or dismissed.
+- **The Duplicates and Search pages on production (MAM-22, 2026-10-08):** opened from the header as
+  the owner, the Duplicates page showed its six tabs with `?tab=` in the address and the 46 groups
+  on two pages of 25 ("26–46 of 46"); the empty tabs said "No file has two names the app found.",
+  "No two files have the same bytes, as far as the app has hashed them.", "No possible match is left
+  to check." and "No possible match is dismissed." The card "Mickey Mouse Clubhouse · Season 3 ·
+  Episode 9 · Road Rally" gave the episode's and its show's ids as its evidence and told its two
+  files apart by their names (`…_S03E09a_…`, `…_S03E09b_…`); a Penguins card said "Same work",
+  "Needs review", "TVDB ids differ" and "Episode numbers differ", its opened file row "Device 2081 ·
+  inode 164632817 · 1 link" and "Not hashed", and at desktop width **Table** switched its files to
+  the comparison table. At about 1545 px, 375 px and 320 px wide the page didn't scroll sideways — its
+  tab row does, and at phone width the files show as rows —, no control on it deletes, moves or
+  renames a file, and it says "Nothing here removes, moves or renames a file: confirming a possible
+  match only records that the owner checked it." The header search "Alien (1979)" showed under
+  **In your library** «Чужий» (1979), matched by title and year, and «Чужий³» (1992), each with
+  Jellyfin's own poster, a 342x513 JPEG the app served, possibly from its disk cache.
 
 Not tried live yet:
 
@@ -552,53 +626,66 @@ Not tried live yet:
   reference installation met no link leading out and its disk was mounted, so a link followed or
   refused, a loop and the names kept for a disk that is away rest on the tests.
 - Hardlinks and byte-identical copies (MAM-19): the reference installation has no file with a second
-  name and no two video files of one size (MAM-17), so the space counted once per file and the
-  hashing of the files that could be copies rest on the tests; MAM-22 does the live check.
+  name and no two video files of one size (MAM-17), and MAM-22 measured it again on 2026-10-08 —
+  a link count of 1 for all 1,397 files, no two of one size, no hash, and an inspection that read no
+  file whole —, so the space counted once per file and the hashing of the files that could be
+  copies rest on the tests (`LibrarySpaceHttpTests`, `FileHashCandidatesHttpTests`).
 - The duplicate groups (MAM-20): the development database holds no file identity, link count, hash,
-  duration or dynamic range, and production no hardlink and no two video files of one size, so the
-  same-file and byte-identical classes, the dynamic-range flag and the space estimate rest on the
-  tests. A copy of the development database (Jellyfin synced on 2026-10-07, never inspected) gave,
-  through the endpoint in the test host, the 46 same-work groups the rules predict — the 17 movies
-  with several files, the 8 Mickey Mouse Clubhouse halves, S03E31/S03E33 and the 20 Penguins of
-  Madagascar pairs, 34 of them flagged for review — and no possible match. The file system of a
-  device was read from a real mount table only in a Linux container (overlayfs); MAM-22 does the
-  live check.
-- The Duplicates page and its decisions against the reference library or production (MAM-21): on
-  2026-10-07 the page was opened in Chrome only against a throwaway database seeded with groups of
-  every class — a hardlink, byte-identical copies, two cuts of one film, an episode in two halves,
+  duration or dynamic range, and production no file with a second name and no two files of one size
+  (MAM-22), so the same-file and byte-identical classes and the space estimate rest on the tests
+  (`LibraryDuplicatesSameFileHttpTests`, `LibraryDuplicatesByteIdenticalHttpTests`); so does the
+  "Dynamic ranges differ" flag (`List_flags_copies_whose_measured_dynamic_ranges_differ`), as no
+  group on production has both copies' ranges measured. A copy of the development database
+  (Jellyfin synced on 2026-10-07, never inspected) gave, through the endpoint in the test host, the
+  46 same-work groups the rules predict — the 17 movies with several files, the 8 Mickey Mouse
+  Clubhouse halves, S03E31/S03E33 and the 20 Penguins of Madagascar pairs, 34 of them flagged for
+  review — and no possible match; production gave 46 on 2026-10-08 too, 34 of them flagged for
+  review, and no possible match (above). The file system of a device was read from a real mount
+  table only in a Linux container (overlayfs): production's list, with no byte-identical group,
+  never asked, though its `/media` is ext4, which the app counts as keeping copies apart, so a
+  byte-identical pair there would get an estimate (`FileSystemSharingTests`, `MountTableTests`).
+- Confirm, Dismiss and Undo on a live library, and the Duplicates page as a member (MAM-21): on
+  2026-10-07 the page was opened in Chrome against a throwaway database seeded with groups of every
+  class — a hardlink, byte-identical copies, two cuts of one film, an episode in two halves,
   possible matches with a scanned file among them —, as the owner and as a member, at desktop width,
   375px and 320px: the tabs and `?tab=` across a reload, the rows and the table, Confirm, Dismiss
   with its short row and Undo, Undo on Dismissed with Dismiss again, a member's disabled buttons
-  with the reason, and the Library page's Duplicates button. The development database offers no
-  possible match (MAM-20), so Confirm, Dismiss and Undo have nothing to act on there; MAM-22 does
-  the live check.
+  with the reason, and the Library page's Duplicates button. Neither the development database
+  (MAM-20) nor production (MAM-22, opened as the owner on 2026-10-08) offers a possible match, and
+  no member account was used on production, so the decisions and a member's view rest on that check
+  and the tests (`LibraryDuplicateDecisionsHttpTests`, `LibraryWritesAreOwnerOnlyHttpTests`).
 - The app's checks of Toloka for the recommended works within the users' limits, its reading of
   Toloka's newest releases for "New on Toloka", and a download sent from a recommendation (MAM-33):
   the catalog, a computation of the recommendations, Toloka's newest releases read by hand and the
   films in TV/Anime and TV/Documentary were checked live, the rest rests on the tests.
-- The app's own TMDb links against the reference installation (MAM-34): the dialog, the TMDb links
-  page, an **Update Jellyfin** run, **Accept all confident** and a sync afterwards wait for Vasyl's
-  run of the repair, as does how many works of each library get a confident suggestion. Jellyfin's
-  Identify itself was tried live (above), but not on an item of a library with a preferred language,
-  «Фільми», where the app hands the language to the search and Jellyfin's source says Apply uses the
-  library's; Applies sent at the same time, which the worker's two film lanes and its series lane
-  do, were never run; "Replace all metadata", Jellyfin 12.2 and an item with watch history other
-  than the series were not tried. A 403 for a key that isn't an administrator's was never met, as
-  Jellyfin's API keys are. Nor was an item a parental limit hides from the administrator met:
-  Jellyfin answers its read 404, and the app asks the user-less list whether it is still there.
+- The app's own TMDb links against the reference installation (MAM-34): by 2026-10-08 production's
+  database held 216 `LibraryItemIdentified` audit rows and **Update Jellyfin** had nothing left to
+  identify — 220 links in the library, 8 kept in the app and 1 not identified, The Continental's
+  season 1 episode 2 —, and that day's sync left them as they were; MAM-22 didn't record when or how
+  the repair ran, so the dialog, the TMDb links page, an **Update Jellyfin** run, **Accept all
+  confident** and how many works of each library get a confident suggestion have no live record
+  here. Jellyfin's Identify itself was tried live (above), but not on an item of a library with a
+  preferred language, «Фільми», where the app hands the language to the search and Jellyfin's
+  source says Apply uses the library's; Applies sent at the same time, which the worker's two film
+  lanes and its series lane do, were never run; "Replace all metadata", Jellyfin 12.2 and an item
+  with watch history other than the series were not tried. A 403 for a key that isn't an
+  administrator's was never met, as Jellyfin's API keys are. Nor was an item a parental limit
+  hides from the administrator met: Jellyfin answers its read 404, and the app asks the user-less
+  list whether it is still there.
 - The Library's posters from a Jellyfin other than 12.1.0, or behind a reverse proxy that wants
   Jellyfin's key (MAM-35): the image route was read on 12.1.0 alone, with nothing in front of it.
-  The Search page's **In your library** cards with their posters were not opened live: they are the
-  Library page's cards with the same `posterUrl` (`SearchesLibraryPostersHttpTests`).
+  The Search page's **In your library** cards were opened on production with their posters on
+  2026-10-08 (above), but the app may have served those from its disk cache, fetched once and kept,
+  so Jellyfin 12.2.0's image route is still not proven; they are the Library page's cards with the
+  same `posterUrl` (`SearchesLibraryPostersHttpTests`).
+- **Refresh all** and the hashing with `/media` mounted read-only, as the compose file's example
+  mounts it: production mounts it read-write (MAM-22), and of the app's runs recorded here only
+  MAM-18's scan and the inspection it queued, beside production, ran on a read-only mount.
 
 ### What it will do
 
 - **Link a download by hand.** Tie a job the app couldn't tell apart from the client's other
   downloads (**Needs linking**) to the right one, so it is followed like any other.
-- **Show duplicates without conflating different editions.** The grouping into hardlinks,
-  byte-identical files, other copies of the same work and possible matches, and the Duplicates page
-  with a tab per class, the evidence behind each group and the owner's confirm or dismiss, are built
-  (above); what is left is the live check on the reference installation (MAM-22).
 - **Replace a selected copy safely.** Offer `Keep both` by default. If replacement is chosen, verify
   the specific new file, its identity, and its visibility to the media server before moving the
   specific old copy into quarantine where possible.
@@ -1639,7 +1726,8 @@ heading and a group's name, the path ends that tell files apart, the facts' word
 `duplicates-api.test.ts`, and `nav-items.test.ts`, `AppLayout.test.tsx`, `App.test.tsx` and
 `LibraryPage.test.tsx` for the ways in cover it. The page was checked in Chrome on 2026-10-07 at
 desktop width, 375px and 320px against a throwaway database seeded with groups of every class, as
-the owner and as a member (see [Tested with](#tested-with)).
+the owner and as a member, and in Chromium on 2026-10-08 on production as the owner, where all 46
+groups were same-work ones (see [Tested with](#tested-with)).
 
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
@@ -1739,8 +1827,8 @@ no known context), the startup skips both.
 ## Planned features
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22 and MAM-32 to
-MAM-36).
+of each, and the tickets of Phase A (MAM-1 to MAM-16) and Phase B (MAM-17 to MAM-22, MAM-32 to
+MAM-36 and MAM-37, to do).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent

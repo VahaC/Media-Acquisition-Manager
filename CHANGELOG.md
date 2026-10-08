@@ -740,6 +740,59 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `DuplicateMatchDecisionPersistenceTests`, `AuditTrailTests`, `LibraryWritesAreOwnerOnlyHttpTests`,
   `ControllerAccessDeclarationTests`, `DuplicateGroupCard.decisions.test.tsx` and
   `DuplicatesPage.decisions.test.tsx` pin it.
+- **Phase B's acceptance bar holds on the reference installation, and the README and the release
+  note say what was tried live and what wasn't (MAM-22, Vasyl's decisions of 2026-10-08).** Checked
+  on 2026-10-08 on production rather than a copy beside it, the published 0.2.1 image (digest
+  `sha256:d9c6149a3dbf0e4924ff0d889873996008425dc3b9c2592c56f373fb07cfa78e`), against Jellyfin
+  12.2.0, with ffprobe 6.1.1-3ubuntu5; Vasyl signed in himself. **Refresh all** (MAM-36) went
+  through "Syncing libraries…", "Scanning folders…" and "Inspecting files…" with no "Refreshing
+  stopped" line: the sync read 1,360 items into 1,291 works and 7 series, 1,384
+  versions and 1,380 files in 5.8 s, the scan found 1,397 files, 17 in no library and no problem, in
+  1.6 s, and two inspections ran, not three: the one the sync queued, and the one the scan queued,
+  still waiting when Refresh all's own inspection step joined it. Each checked 1,397 files, ran
+  ffprobe on none and had no file to hash. The space added up to the byte: the 1,380 files of
+  Jellyfin's libraries took 7,974,593,521,562 B (7.25 TiB), the size the app read equal to
+  Jellyfin's for every one, and the 17 only the scan found — 12 shorts, 4 Blu-ray streams and an ISO
+  image, the one file ffprobe couldn't read — 93,092,661,375 B (86.7 GiB), together
+  8,067,686,182,937 B, the bar's "1,397 files · 7.34 TiB"; `GET /api/library/sources` counted as
+  many names as files in every row. Each of the 1,397 files had a link count of 1 and no two shared
+  a size, so `FileHashes` held no row and neither inspection read a file whole.
+  `GET /api/library/duplicates` then listed 46 groups, all of class `SameWork` and the same 46 keys
+  as before the refresh, 34 of them needing review: 13 "Editions differ" (Alien (1979) Theatrical
+  and Director's Cut, Terminator 2's three files, three Tom & Jerry shorts with a Widescreen file
+  beside the plain one…), 20 pairs of The Penguins of Madagascar episodes with "TVDB ids differ" and
+  "Episode numbers differ", and one Mickey Mouse Clubhouse episode at two places; 12, among them 8
+  of that show's episodes held in two halves, had no flag. Two groups are each one work by the ids
+  the library gives, not by their titles, and are recorded as they are:
+  `[01] Blade Runner (1982) [The Final Cut]` with `[02] Blade Runner 2049 (2017)`, whose item
+  Jellyfin gives the 1982 film's IMDb tt0083658 and TMDb 78, flagged only through The Final Cut, and
+  «Ніж у воді» (1962), the film with a 26.7 min featurette under IMDb tt0056291 and TMDb 11502, not
+  flagged, as the class doesn't compare running times; MAM-37 (to do) asks for a "running times
+  differ" distinction. Ghostbusters of 1984 and 2016, RoboCop of 1987 and 2014, the two «Апгрейд»
+  (Upgrade, 2018, and Upgraded, 2024), Planet Earth's Deserts, Jungles and Mountains of 2006 and
+  2016, and the Penguins of Madagascar film of 2014 and the series stayed apart, and no possible
+  match was offered at all, so nothing was confirmed or dismissed:
+  `LibraryDuplicateDecisionsHttpTests`, `LibraryWritesAreOwnerOnlyHttpTests` and the 2026-10-07
+  browser check against a throwaway database stand for **Confirm**, **Dismiss**, **Undo** and a
+  member's view. The Duplicates page showed the 46 groups on two pages of 25, the empty tabs'
+  sentences, a card's "One work by its ids: …" and an open file row's "Device 2081 · inode 164632817
+  · 1 link" and "Not hashed", and no control that deletes, moves or renames a file; at desktop
+  width, 375px and 320px the page didn't scroll sideways, only its tab row did, and at phone width
+  the files showed as rows. The header search "Alien (1979)" showed «Чужий» (1979) and «Чужий³»
+  (1992) under **In your library** with Jellyfin's own posters. `tools/mam22/report.py`, new and
+  read-only, read a copy of production's database and the container's mounts before and after: none
+  of the 1,397 names changed its library size, read size, modification time, device, inode or link
+  count, none came or went, no audit row was added and the TMDb links stayed as they were.
+  Production mounts `/media` read-write, not `:ro`, so that comparison, with the app opening files
+  read-only, is what shows no file changed. Not tried live yet: a file with two names and two files
+  with the same bytes, which the reference installation doesn't have, and with them the space
+  counted once per file, the hashing, the `SameFile` and `ByteIdentical` classes and the space
+  estimate; the "Dynamic ranges differ" flag; **Confirm**, **Dismiss** and **Undo** on production
+  and a member's view of a decision; a read-only `/media`; and Identify with, and a poster fetched
+  from, Jellyfin 12.2.0; the other tickets' open items stay open. The README (**Tested with**) and
+  the release note list both; the README's and the roadmap's MAM-19, MAM-20, MAM-21 and MAM-35
+  lines no longer say MAM-22 does the live check or that the Search page's library cards weren't
+  opened live, and the README's **What it will do** no longer lists the duplicates as still to come.
 
 ### Changed
 

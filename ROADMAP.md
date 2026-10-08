@@ -1,35 +1,37 @@
 # Roadmap
 
-**Status:** Phase A in progress, targeting release 0.1.0. MAM-1 (the scaffold), MAM-2 (UI
-localisation), MAM-3 (the Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live
-environment facts), MAM-7 (the core model and integration settings), MAM-8 (the Jellyfin
-library inventory), MAM-9 (the ffprobe inspection of the library's files), MAM-10 (the Torznab
-release search), MAM-11 (qBittorrent's categories and the download destinations), MAM-12 (the
-search page of library copies and releases), MAM-13 (sending a release to qBittorrent), MAM-14
-(following each download in qBittorrent until it finishes) and MAM-16 (the approved layout: the
-search field in the header, numbered pages, versions as rows or a table, one error state per kind of
-failure, and a Profile page where every user changes their own password) are built, and MAM-15
-checked Phase A's acceptance bar against the live installation on 2026-10-03. MAM-5 (personal
-access tokens) is still to do; no phase has shipped yet. Phase B, releases 0.2.0 and 0.2.1, has
-started: MAM-17 answered specification §7 questions 3 and 6 against the live installation on
-2026-10-04, and MAM-32 (series and episodes in the library, and searching, matching and sending
-their releases), MAM-18 (the scan of the media folders for the files no library reported) and
-MAM-19 (the room the files take, each file counted once, and the hashing of only the files that
-could be copies) are built. MAM-33 (recommendations of the works the library doesn't have yet, from
-TMDb, with what Toloka carries of them) and MAM-34 (linking a library work to its TMDb film or show
-by hand, Jellyfin then identifying the item as it) are built and ship as release 0.2.1, with
-MAM-35 (each library work's own poster from Jellyfin on the Library and Search cards), MAM-36 (the
-Library page's Sources card as a status bar, and Refresh all), MAM-20 (the library's files grouped
-into the four duplicate classes of the specification) and MAM-21 (the Duplicates page, where the
-owner confirms or dismisses a possible match).
+**Status:** Release 0.1.0, published on 2026-10-04, holds all of Phase A but MAM-5 (personal
+access tokens), which is still to do: MAM-1 (the scaffold), MAM-2 (UI localisation), MAM-3 (the
+Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live environment facts), MAM-7 (the
+core model and integration settings), MAM-8 (the Jellyfin library inventory), MAM-9 (the ffprobe
+inspection of the library's files), MAM-10 (the Torznab release search), MAM-11 (qBittorrent's
+categories and the download destinations), MAM-12 (the search page of library copies and
+releases), MAM-13 (sending a release to qBittorrent), MAM-14 (following each download in
+qBittorrent until it finishes) and MAM-16 (the approved layout: the search field in the header,
+numbered pages, versions as rows or a table, one error state per kind of failure, and a Profile
+page where every user changes their own password), and MAM-15 checked Phase A's acceptance bar
+against the live installation on 2026-10-03. Phase B was published as release 0.2.0 on 2026-10-05
+and release 0.2.1 on 2026-10-07. MAM-17 answered specification §7 questions 3 and 6 against the
+live installation on 2026-10-04; 0.2.0 holds MAM-32 (series and episodes in the library, and
+searching, matching and sending their releases), MAM-18 (the scan of the media folders for the
+files no library reported) and MAM-19 (the room the files take, each file counted once, and the
+hashing of only the files that could be copies); 0.2.1 adds MAM-33 (recommendations of the works
+the library doesn't have yet, from TMDb, with what Toloka carries of them), MAM-34 (linking a
+library work to its TMDb film or show by hand, Jellyfin then identifying the item as it), MAM-35
+(each library work's own poster from Jellyfin on the Library and Search cards), MAM-36 (the Library
+page's Sources card as a status bar, and Refresh all), MAM-20 (the library's files grouped into the
+four duplicate classes of the specification) and MAM-21 (the Duplicates page, where the owner
+confirms or dismisses a possible match). MAM-22 checked Phase B's acceptance criteria on the
+reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (to do) follows from
+that check: flagging for review the copies of one work whose measured running times differ widely.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-36.
-Releases for phases C and D are not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-36 and
+MAM-37 (to do). Releases for phases C and D are not decided yet.
 
 ## Phases
 
@@ -431,10 +433,11 @@ an explicit source-specific error; retrying the same command does not create dup
 category determines the expected destination without an overriding path. Met on the reference
 installation on 2026-10-03 (MAM-15), with no existing file moved, changed or removed.
 
-### Phase B — Scanner and duplicates
+### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
 **Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20 and MAM-21,
-built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to MAM-36.
+built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-36 and MAM-37
+(to do).
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -511,6 +514,9 @@ episode, and how much space could really be recovered — without the app guessi
   0022](docs/adr/0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md),
   [ADR
   0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
+  Checked on production on 2026-10-08 (MAM-22): the 1,397 files, each with one link and a size no
+  other file shares, take 7.34 TiB, the 7.25 TiB of Jellyfin's libraries and the 86.7 GiB only the
+  scan found adding up to it to the byte, and the inspections hashed nothing.
 - **MAM-33 Recommendations** (built, release 0.2.1): a Recommendations page in the header suggests
   the films, series, cartoons and documentaries the library doesn't have yet, in four tabs — Movies,
   Series, Cartoons, Documentaries — by their catalog genres (Vasyl's decision 2), each with every
@@ -630,8 +636,10 @@ episode, and how much space could really be recovered — without the app guessi
   16 episodes of «Документалки»; and all 8 series and 140 episodes of «Серіали». Checked end to end
   on 2026-10-07: a sync of the reference installation stored 1,315 poster tags (843 of the 858 movie
   works, all 7 series, all 432 episodes), and the Library page showed the pictures at 1280 and 375 px
-  wide, each fetched once and kept; the Search page's library block was not opened live
-  (`SearchesLibraryPostersHttpTests` pins its `posterUrl`).
+  wide, each fetched once and kept. On 2026-10-08 (MAM-22) the header search "Alien (1979)" on
+  production showed «Чужий» (1979) and «Чужий³» (1992) under **In your library** with Jellyfin's own
+  posters, 342x513 JPEGs the app served, perhaps from its disk cache, so Jellyfin 12.2.0's image
+  route is still unproven (`SearchesLibraryPostersHttpTests` pins the Search page's `posterUrl`).
 - **MAM-20 Duplicates grouped into the four classes** (built, release 0.2.1):
   `GET /api/library/duplicates?class=&page=1&pageSize=25`, every signed-in user's, sorts the
   library's file names into specification §3.3's classes on every read, storing nothing
@@ -653,7 +661,12 @@ episode, and how much space could really be recovered — without the app guessi
   reference library's development database on 2026-10-07, before the design: no file identity,
   hash or measurement yet; 17 movies with several files, 9 of them different cuts and 3 a widescreen
   variant; 20 Penguins of Madagascar pairs and the S03E31/S03E33 pair under one episode's IMDb id;
-  the eight Mickey Mouse Clubhouse halves; and no file the scan found. The live check is MAM-22's.
+  the eight Mickey Mouse Clubhouse halves; and no file the scan found. Checked on production on
+  2026-10-08 (MAM-22), after **Refresh all**: 46 groups, all Same work, 34 flagged for review — 13
+  whose editions differ, the 20 Penguins of Madagascar pairs and S03E31/S03E33 — and 12 without a
+  flag; no group of another class, no possible match and no estimate. Blade Runner's group and
+  «Ніж у воді»'s are joined by the ids the library holds though their files are not one film
+  (MAM-37).
 - **MAM-21 Show duplicates on a Duplicates page** (built, release 0.2.1): `/library/duplicates`,
   every signed-in user's, from **Duplicates** in the header and at the top of the Library page
   (Vasyl's decision 4 of 2026-10-07), with underline tabs All, Same file (decision 3),
@@ -676,7 +689,9 @@ episode, and how much space could really be recovered — without the app guessi
   authorises removal; a dismissed one leaves every tab for Dismissed, a short row with **Undo**
   taking its card's place, and can be undone there too (decision 2); a group another work, or a
   scanned file no library reports, joins or leaves gets another key and is asked about again. Only
-  possible matches are decided. No delete, move or bulk action of any kind.
+  possible matches are decided. No delete, move or bulk action of any kind. On production on
+  2026-10-08 (MAM-22) the page listed the 46 groups on two pages of 25, and at desktop width, 375
+  and 320px it had no horizontal scroll; there was no possible match to decide.
 - **Backup/restore:** the scan inventory and the hash cache live in the database and can be rebuilt
   — the names by rescanning, the hashes by the next inspection, which reads the files that could be
   copies whole again — so they need no export of their own; the series, seasons and episodes come
@@ -704,6 +719,48 @@ episode, and how much space could really be recovered — without the app guessi
   a refused start or a failed run (Vasyl's decision of the same day: from the browser, not an endpoint).
   A chain that survives a closed tab would need an endpoint that queues the three steps; it is not
   planned. No API changed.
+- **MAM-22 Phase B acceptance** (done): the acceptance bar's four criteria below, with MAM-20's and
+  MAM-21's parts, checked on 2026-10-08 on production — the MAM container on the media host,
+  running the published 0.2.1 image (`vahac/media-acquisition-manager:latest`) — with Jellyfin
+  12.2.0 and ffprobe 6.1.1-3ubuntu5, Vasyl signed in as the owner. **Refresh all** synced Jellyfin
+  in 5.8 s (1,360 items into 1,291 works and 7 series, 1,384 versions, 1,380 files), scanned the
+  media folders in 1.6 s (1,397 files, 17 in no library, 0 problems) and inspected the files in two
+  runs, the sync's and the scan's, each checking the 1,397 files from the app's cache of readings,
+  ffprobe running on none, and finding no file to hash. The 1,397 files take 8,067,686,182,937 B
+  (7.34 TiB): the 1,380 of Jellyfin's libraries 7,974,593,521,562 B (7.25 TiB), each read at the
+  size Jellyfin reports, and the 17 only the scan found 93,092,661,375 B (86.7 GiB), adding up to
+  the total exactly; every file has one link, no two share a size, and no hash is stored.
+  `GET /api/library/duplicates` then listed 46 groups, all Same work, 34 needing review — 13 whose
+  editions differ; the 20 Penguins of Madagascar pairs, each one episode IMDb id under two TVDB ids
+  and two numbers; and Mickey Mouse Clubhouse S03E31/S03E33, one episode's IMDb and TVDB ids under
+  two numbers — and 12 without a flag, the eight Mickey Mouse Clubhouse halves among them. Works
+  of similar titles or years — Ghostbusters (1984), Ghostbusters (2016) and Ghostbusters II,
+  RoboCop of 1987 and of 2014, Upgrade (2018) and Upgraded (2024), and more — joined no group, the
+  Penguins of Madagascar film (2014) was joined to none of the series' episodes, and no possible
+  match was offered. The Duplicates page listed the groups on two pages of 25 and didn't scroll
+  sideways at desktop width, 375 and 320px; it has no control that deletes, moves or renames.
+  `tools/mam22/report.py`, which Vasyl ran before and after, read production's database and
+  container: no file's size, modification time, device, inode or link count changed, none
+  appeared or went, and no audit row was written; `/media` is mounted read-write there, so this
+  rests on that comparison and on the app opening files read-only. Production has no hardlink, no
+  byte-identical pair, no group with both copies' dynamic ranges measured and no possible match, so
+  the space counted once per file, the hashing, the Same file and Byte-identical classes, the space
+  estimate and the "Dynamic ranges differ" flag rest on the tests, and Confirm, Dismiss and Undo,
+  with a member's view of them, on the tests and MAM-21's browser check of 2026-10-07 against a
+  throwaway database. Two groups are joined by the ids the library holds, not by title, and are
+  recorded as they are: Blade Runner (1982) in The Final Cut and Blade Runner 2049 (2017), whose
+  item Jellyfin gives the 1982 film's IMDb and TMDb ids, flagged only by The Final Cut label; and
+  «Ніж у воді» (1962), the film (95.5 min) and a featurette (26.7 min) under one IMDb and one TMDb
+  id, the TMDb id also a link the owner set, with no flag. MAM-37 (to do) is to flag such copies,
+  whose measured running times differ widely, for review. The other tickets' open items stay open:
+  a TV release sent (MAM-32); the Toloka checks within the users' limits, New on Toloka and a
+  download from a recommendation (MAM-33); Identify with Jellyfin 12.2, in «Фільми» and with
+  applies sent at the same time (MAM-34); and a Jellyfin behind a reverse proxy (MAM-35). What was
+  tried live, and what wasn't, is in the README's [Tested with](README.md#tested-with) and the release
+  note.
+- **MAM-37 Running times differ** (to do): a same-work group whose files' measured running times
+  differ widely is flagged for review, the rule decided with Vasyl first; registry ids stay the only
+  join, and nothing in the library changes.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -843,8 +900,11 @@ Undo and Dismiss again, a member's disabled buttons and the load and refresh fai
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
 require manual review. The reference installation has no hardlinks and no two video files of one
 size (MAM-17), so there the first criterion and a byte-identical pair of videos rest on the tests,
-MAM-19's for the space and the hashing; the live check (MAM-22) can show the space adding up and an
-inspection that reads no file whole. For MAM-32: a sync of the reference installation lists each
+MAM-19's for the space and the hashing. Met on the reference installation on 2026-10-08 (MAM-22),
+with no file moved, changed or removed; the first criterion and the byte-identical pair rest on the
+tests as said, and their absence was measured again there: one link for each of the 1,397 files, no
+two files of one size, the space adding up to the byte, and inspections that read no file whole, as
+no file was a candidate for hashing. For MAM-32: a sync of the reference installation lists each
 show once with its seasons; a search for a series through Toloka lists its TV releases matched to it
 with the episodes held; and a TV release sent from there lands in the destination its section is
 mapped to. For MAM-18: a scan of the reference installation's `/media` finds the video files MAM-17
@@ -870,14 +930,19 @@ For MAM-35: after a sync of the reference installation (**Sync now** or **Refres
 Library and Search pages show each work's own picture from Jellyfin — the series' on a series card,
 its own on an episode of no series, none on the episodes of an opened season and an icon where
 Jellyfin has none —, the server fetches each once and then serves it from its disk, nothing is
-written to Jellyfin, and both pages work in a browser at desktop and phone width. For MAM-20: after
+written to Jellyfin, and both pages work in a browser at desktop and phone width; on production on
+2026-10-08 (MAM-22) the header search "Alien (1979)" showed «Чужий» and «Чужий³» under **In your
+library** with Jellyfin's own posters. For MAM-20: after
 an inspection of the allowed folders, `GET /api/library/duplicates` on the reference installation
 lists the movies with several files and the Mickey Mouse Clubhouse halves as copies of one work,
 never redundant, with the cuts flagged; the Penguins of Madagascar pairs and S03E31/S03E33 flagged
 for review; no works of similar titles or years joined, and no possible match between works whose
 ids differ; a byte-identical group only for two files that share their bytes, with no estimate
 where the file system isn't known to keep its files apart; and nothing written to the library, the
-files or any download client. For MAM-21: on the reference installation, after an inspection, the
+files or any download client. Checked on the reference installation on 2026-10-08 (MAM-22), after
+**Refresh all**: those groups and flags, no works of similar titles or years joined, no possible
+match, no byte-identical group, as no two files share a size, no file changed, no audit row written;
+the estimate rests on the tests. For MAM-21: on the reference installation, after an inspection, the
 Duplicates page lists those groups under their tabs, each with its evidence, the Mickey Mouse
 Clubhouse halves told apart by their paths and the cuts flagged, with no estimate shown where
 MAM-20 gives none; the owner confirms, dismisses and undoes a possible match — where the library
@@ -885,7 +950,14 @@ offers none, the tests stand for it —, each with its audit row, and a member s
 without the buttons working; nothing is written to the library, the files or any download client;
 and the page works in a browser at desktop and phone width — checked on 2026-10-07 in Chrome at
 desktop width, 375 and 320px against a throwaway database seeded with groups of every class, as the
-owner and as a member; the reference installation's part is MAM-22's.
+owner and as a member; the reference installation's part was checked on 2026-10-08 (MAM-22), as the
+owner: the 46 groups on two pages of 25, the empty tabs with their sentences, a Penguins of
+Madagascar card with its flags, a Mickey Mouse Clubhouse card (season 3, episode 9, Road Rally)
+whose two halves are told apart by their file names, no estimate, and no control that removes,
+moves or renames; at desktop width, 375 and 320px the page didn't scroll sideways. Production
+offers no possible match, so Confirm, Dismiss and Undo rest on the tests and the 2026-10-07 check,
+as the bar allows; so does a member's view. MAM-36 has no bar; its **Refresh all** ran on
+production on 2026-10-08 (MAM-22) and synced, scanned and inspected with no stop.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify
@@ -918,6 +990,13 @@ removed before publishing and those 33 links stay as they are. Verification: the
 about 213 to 216 `LibraryItemIdentified` audit rows; "no file or folder touched" rests on the
 refusal of libraries that save beside the media and on the live check's identical folder listings,
 and a before-and-after listing script is added only if the owner asks.
+
+What production showed on 2026-10-08 (MAM-22): 216 `LibraryItemIdentified` audit rows in its
+database; **Update Jellyfin** with nothing left to identify; and of the links, 220 in the library, 8
+kept in the app and 1 not identified — The Continental, season 1 episode 2 —, none queued. MAM-22
+read the state production's database was in, which includes the owner's own removing, setting and
+identifying of The Continental's links on 2026-10-07 (15:37 to 15:55 UTC), and did not observe the
+repair's run itself; MAM-34's bar, which expects four refused links, was not checked by MAM-22.
 
 ### Phase C — Safe replacement
 
