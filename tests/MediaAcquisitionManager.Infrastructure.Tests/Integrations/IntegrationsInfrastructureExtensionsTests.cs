@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Abstractions.Search;
+using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.Infrastructure.Integrations;
@@ -356,6 +357,35 @@ public sealed class IntegrationsInfrastructureExtensionsTests
             entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
         Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(FakeQBittorrentServer.DefaultPassword, StringComparison.Ordinal));
         Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains("a1b2c3d4e5f6a7b8", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_whole_listing_of_torrents_with_their_files_logs_nothing_from_the_http_client()
+    {
+        //Arrange
+        // MAM-24 — every level recorded; qBittorrent lists a torrent with its files, so the call sends everything it
+        // sends: the sign-in, the version read and the one torrents/info?includeFiles=true.
+        using var harness = new IntegrationAdapterHarness();
+        var qBittorrent = new FakeQBittorrentServer("http://service.test:8080");
+        qBittorrent.AddTorrent(FakeQBittorrentTorrent.Of(new TorrentInfoHashes("4a3c1931c85c9c568c39a8eb947ed382824b1cdd", null), "Im Westen nichts Neues.mkv", "Movies") with
+        {
+            Files = [new FakeQBittorrentFile("Im Westen nichts Neues.mkv", 9663676416, 1)],
+        });
+        qBittorrent.Arm(harness.QBittorrentHttp);
+        var settings = new IntegrationConnectionSettings(
+            Guid.NewGuid(), qBittorrent.BaseUrl, FakeQBittorrentServer.DefaultUserName, FakeQBittorrentServer.DefaultPassword, null);
+        var client = harness.Adapter<IDownloadClient>("qbittorrent");
+
+        //Act
+        var listing = await client.ListJobsWithFilesAsync(settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Single(Assert.Single(listing.Value!).Files!);
+        Assert.Equal(3, harness.QBittorrentHttp.Requests.Count);
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(FakeQBittorrentServer.DefaultPassword, StringComparison.Ordinal));
     }
 
     [Fact]

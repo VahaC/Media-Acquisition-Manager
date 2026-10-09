@@ -107,7 +107,7 @@ internal sealed partial class QBittorrentAdapter
         string? category,
         CancellationToken cancellationToken)
     {
-        var (call, failure) = await OpenCheckedSessionAsync(client, settings, sessionSecrets, cancellationToken);
+        var (call, _, _, failure) = await OpenCheckedSessionAsync(client, settings, sessionSecrets, cancellationToken);
         if (failure is not null)
             return Failed<IReadOnlyList<ClientJob>>(failure);
 
@@ -154,11 +154,8 @@ internal sealed partial class QBittorrentAdapter
     /// array of objects, which is how every version answers.
     /// </summary>
     /// <remarks>
-    /// Read as an allowlist, property by property: the id (<c>hash</c>), the hashes, the name, the state, the
-    /// progress, the category, where the content is and (MAM-38) the folder it saves to. A torrent without a
-    /// usable <c>hash</c> is left out rather than failing the rest: a job is followed by its id, and one
-    /// without can't be. The trackers, the comment and the magnet link, which can carry the owner's passkey,
-    /// go no further.
+    /// Read through <see cref="ReadJob"/>. A torrent without a usable <c>hash</c> is left out rather than failing
+    /// the rest: a job is followed by its id, and one without can't be.
     /// </remarks>
     private static List<ClientJob>? ReadJobs(JsonElement root, string?[] secrets)
     {
@@ -171,30 +168,47 @@ internal sealed partial class QBittorrentAdapter
             if (torrent.ValueKind != JsonValueKind.Object)
                 return null;
 
-            var hash = Text(torrent, "hash");
-            if ((LowerHex(hash, V1HashLength) ?? LowerHex(hash, V2HashLength)) is not { } id)
-                continue;
-
-            // 5.2 lists a hash a torrent doesn't have as "" (infohash_v2 of a v1 torrent).
-            var v1 = LowerHex(Text(torrent, "infohash_v1"), V1HashLength);
-            var v2 = LowerHex(Text(torrent, "infohash_v2"), V2HashLength);
-            jobs.Add(new ClientJob(
-                id,
-                RemoteText.Clean(Text(torrent, "name"), JobNameMaximumLength, secrets),
-                StateOf(Text(torrent, "state")),
-                Progress(torrent),
-                // Exactly as qBittorrent names it, never trimmed: it is matched against a destination's key.
-                // "" is qBittorrent's "no category".
-                Text(torrent, "category") is { Length: > 0 } category ? category : null,
-                // Exactly as sent: it names a folder or file. "" before a magnet's metadata has arrived.
-                Text(torrent, "content_path") is { Length: > 0 } contentPath ? contentPath : null,
-                [.. new[] { id, v1, v2 }.OfType<string>().Distinct(StringComparer.Ordinal)],
-                // MAM-38 — exactly as sent, as the content path is: where the files end up, while content_path
-                // follows an unfinished download into qBittorrent's folder for incomplete torrents.
-                Text(torrent, "save_path") is { Length: > 0 } savePath ? savePath : null));
+            if (ReadJob(torrent, secrets) is { } job)
+                jobs.Add(job);
         }
 
         return jobs;
+    }
+
+    /// <summary>
+    /// One torrent of a <c>torrents/info</c> answer as a job — or <c>null</c> when it has no usable <c>hash</c>,
+    /// for the caller to leave out (<see cref="ReadJobs"/>) or, MAM-24, to fail the whole answer by
+    /// (<see cref="ListJobsWithFilesAsync"/>).
+    /// </summary>
+    /// <remarks>
+    /// Read as an allowlist, property by property: the id (<c>hash</c>), the hashes, the name, the state, the
+    /// progress, the category, where the content is and (MAM-38) the folder it saves to. The trackers, the comment
+    /// and the magnet link, which can carry the owner's passkey, go no further. MAM-24 — one helper for both
+    /// listings, so the whole client's jobs read exactly as the job lookup's do.
+    /// </remarks>
+    private static ClientJob? ReadJob(JsonElement torrent, string?[] secrets)
+    {
+        var hash = Text(torrent, "hash");
+        if ((LowerHex(hash, V1HashLength) ?? LowerHex(hash, V2HashLength)) is not { } id)
+            return null;
+
+        // 5.2 lists a hash a torrent doesn't have as "" (infohash_v2 of a v1 torrent).
+        var v1 = LowerHex(Text(torrent, "infohash_v1"), V1HashLength);
+        var v2 = LowerHex(Text(torrent, "infohash_v2"), V2HashLength);
+        return new ClientJob(
+            id,
+            RemoteText.Clean(Text(torrent, "name"), JobNameMaximumLength, secrets),
+            StateOf(Text(torrent, "state")),
+            Progress(torrent),
+            // Exactly as qBittorrent names it, never trimmed: it is matched against a destination's key.
+            // "" is qBittorrent's "no category".
+            Text(torrent, "category") is { Length: > 0 } category ? category : null,
+            // Exactly as sent: it names a folder or file. "" before a magnet's metadata has arrived.
+            Text(torrent, "content_path") is { Length: > 0 } contentPath ? contentPath : null,
+            [.. new[] { id, v1, v2 }.OfType<string>().Distinct(StringComparer.Ordinal)],
+            // MAM-38 — exactly as sent, as the content path is: where the files end up, while content_path
+            // follows an unfinished download into qBittorrent's folder for incomplete torrents.
+            Text(torrent, "save_path") is { Length: > 0 } savePath ? savePath : null);
     }
 
     /// <summary>

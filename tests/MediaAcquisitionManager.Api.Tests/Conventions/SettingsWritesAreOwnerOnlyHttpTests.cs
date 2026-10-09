@@ -101,6 +101,9 @@ public sealed class SettingsWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcq
             Assert.Equal(0, await db.AllowedRoots.CountAsync(cancellationToken));
             // MAM-11 — and no destination.
             Assert.Equal(0, await db.DestinationMappings.CountAsync(cancellationToken));
+            // MAM-24 — and neither the replacement switch nor a tick: they are saved with the media folders.
+            Assert.Equal(0, await db.ReplacementSettings.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.ReplacementFolders.CountAsync(cancellationToken));
         });
     }
 

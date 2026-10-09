@@ -29,11 +29,18 @@ public interface IDownloadOverwriteGuard
     /// files would land on a different file already there, or on one a torrent the client already has will
     /// write; sent, and the job told how it was checked, otherwise.
     /// </summary>
+    /// <param name="anyFileRefuses">
+    /// MAM-24, ADR 0032 — a replacement's strict check: any file already at one of its places refuses it, the same bytes
+    /// included — a file replaced by itself is no replacement —, told by being there, its pieces never read; and every
+    /// way the check couldn't look at each place refuses it too, where a Keep both send goes unchecked: a replacement is
+    /// sent only when the check looked everywhere (Vasyl's decision of 2026-10-09, never downgraded).
+    /// </param>
     Task<DownloadOverwriteVerdict> CheckAsync(
         ReleasePayload payload,
         CheckedClientDestination destination,
         IntegrationConnectionEntity client,
         IDownloadClient downloadClient,
         IntegrationConnectionSettings settings,
+        bool anyFileRefuses = false,
         CancellationToken cancellationToken = default);
 }

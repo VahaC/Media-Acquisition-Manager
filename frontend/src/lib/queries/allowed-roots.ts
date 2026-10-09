@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { allowedRootsApi } from '../allowed-roots-api'
+import type { UpdateAllowedRootsRequest } from '../types'
 import { qk } from './keys'
 
 /**
@@ -18,14 +19,19 @@ export const useAllowedRoots = () =>
  * Saves the whole list of media folders. It resolves once the folders are read again, so the form
  * settles onto the stored (canonical) paths. The Library's sources are asked for again too: whether
  * any folder is allowed is part of their answer, and turns the file inspection on or off.
+ *
+ * MAM-24 — the save carries the replacement switch and ticks, which decide every reason the Download
+ * dialog gives for a copy (switched off, folder not ticked), and the media folders decide which ticks
+ * count: every answer about what a release may replace is asked for again.
  */
 export const useUpdateAllowedRoots = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (paths: string[]) => allowedRootsApi.update(paths),
+    mutationFn: (request: UpdateAllowedRootsRequest) => allowedRootsApi.update(request),
     onSuccess: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: qk.settings.allowedRoots }),
       queryClient.invalidateQueries({ queryKey: qk.library.sources }),
+      queryClient.invalidateQueries({ queryKey: qk.replacements.all }),
     ]),
   })
 }

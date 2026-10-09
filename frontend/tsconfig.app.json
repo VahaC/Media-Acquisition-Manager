@@ -26,7 +26,7 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  /* Reads the stylesheets from disk with node:fs, so it needs Node's types; tsconfig.node.json
-     checks it, which keeps those types out of the browser code. */
-  "exclude": ["src/styles/design-tokens.test.ts"]
+  /* They read the stylesheets from disk with node:fs, so they need Node's types; tsconfig.node.json
+     checks them, which keeps those types out of the browser code. */
+  "exclude": ["src/styles/design-tokens.test.ts", "src/styles/downloads.test.ts"]
 }

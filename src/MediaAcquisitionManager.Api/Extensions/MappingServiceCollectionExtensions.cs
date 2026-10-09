@@ -19,6 +19,8 @@ public static class MappingServiceCollectionExtensions
         services.AddSingleton<IRecommendationMapper, RecommendationMapper>();
         services.AddSingleton<ILibraryLinkMapper, LibraryLinkMapper>();
         services.AddSingleton<ILibraryLinkSuggestionMapper, LibraryLinkSuggestionMapper>();
+        // MAM-24 — the Download dialog's answer about old copies; their files come mapped by the Library's own mapper.
+        services.AddSingleton<IReplacementMapper, ReplacementMapper>();
         return services;
     }
 }

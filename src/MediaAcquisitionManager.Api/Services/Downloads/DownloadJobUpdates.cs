@@ -38,6 +38,15 @@ public static class DownloadJobUpdates
                     .SetProperty(job => job.InfoHashV2, hashes.V2),
                 CancellationToken.None);
 
+    /// <summary>
+    /// MAM-24 — records what the release turned out to be once fetched — a .torrent file or a magnet link —, the payload
+    /// type specification §4 asks a replacement to keep, which a gateway's link names only now. Every send's, Keep both
+    /// too: it is a fact of the download, whatever it carries.
+    /// </summary>
+    public static Task<int> RecordPayloadKindAsync(this IQueryable<DownloadJobEntity> jobs, Guid jobId, ReleasePayloadKind kind) =>
+        jobs.Where(job => job.Id == jobId && job.Status == DownloadJobStatus.Created)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(job => job.PayloadKind, kind), CancellationToken.None);
+
     /// <summary>MAM-38 — records how the release was checked for files it would write over, before it is
     /// sent.</summary>
     public static Task<int> RecordOverwriteCheckAsync(this IQueryable<DownloadJobEntity> jobs, Guid jobId, DownloadOverwriteCheck check) =>

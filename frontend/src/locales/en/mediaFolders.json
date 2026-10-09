@@ -13,5 +13,21 @@
   "saved": "Saved.",
   "saveFailed": "Could not save the media folders.",
   "loadFailed": "Could not load the media folders.",
-  "refreshFailed": "Refresh failed, showing the last loaded folders."
+  "refreshFailed": "Refresh failed, showing the last loaded folders.",
+  "replace": {
+    "title": "Replacing copies",
+    "description": "Whether a release you download may replace a copy you already have, and in which library folders. Saved with the folders above.",
+    "switch": "Replace copies after verification",
+    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. In this version a replacement is only scheduled; moving old copies comes in a later version and will also need the media folders mounted read-write.",
+    "folders": "Library folders replacement may touch",
+    "foldersHint": "The folders of your Jellyfin libraries, as the app sees them. None is ticked by default, and the ticks are kept while replacement is off. A tick counts only inside the media folders as saved: a folder under one you add above can be ticked once you save it.",
+    "libraries_one": "In the library {{names, list}}",
+    "libraries_other": "In the libraries {{names, list}}",
+    "outside": "Outside the Media folders.",
+    "outsideTicked": "Outside the Media folders: this tick has no effect until the folder is inside one.",
+    "noLonger": "No longer a library folder the app knows, so a tick here has no effect. Saved unticked, it leaves this list.",
+    "noFolders": "No library folders yet: sync a library first.",
+    "unmapped_one": "{{value}} library folder has no path in this app: add a path mapping to the Jellyfin integration.",
+    "unmapped_other": "{{value}} library folders have no path in this app: add path mappings to the Jellyfin integration."
+  }
 }

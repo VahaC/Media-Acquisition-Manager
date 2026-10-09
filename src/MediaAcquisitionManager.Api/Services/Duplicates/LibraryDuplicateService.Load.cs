@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Services.Files;
+using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Duplicates;
@@ -143,7 +144,7 @@ public sealed partial class LibraryDuplicateService
             // are taken out of the names before their words are read as labels ("Uncut.Gems.2019.mkv" is no Uncut cut).
             List<string> ownTitles = holders.Count == 0
                 ? [.. FileNameClaims.Read(shown.ServicePath).SelectMany(claim => claim.Titles)]
-                : [.. holders.SelectMany(holder => TitlesOfWork(holder.WorkId, titles, positions))];
+                : [.. holders.SelectMany(holder => CopyEditions.TitlesOfWork(holder.WorkId, titles, positions))];
             names.Add(new DuplicateName(
                 shown.Id,
                 pathKey,
@@ -155,19 +156,16 @@ public sealed partial class LibraryDuplicateService
                 holders,
                 reading?.DurationMilliseconds,
                 reading is null ? [] : [.. dynamicRanges[reading.Id].Distinct().Order()],
-                [.. EditionLabels.Read(FileNameOf(shown.ServicePath), ownTitles)
-                    .Concat(holders.SelectMany(holder => EditionLabels.Read(versions[holder.VersionId].EditionLabel, ownTitles)))
-                    .Distinct()
-                    .Order()],
+                CopyEditions.Of(shown.ServicePath, holders.Select(holder => versions[holder.VersionId].EditionLabel), ownTitles),
                 // MAM-20 — only a name no library reported meets a work by its name; a library's says what it is. An
                 // episode's name claims its show's title and year, as all its show's episodes do: none is offered by it.
                 holders.Count == 0 ? FileNameClaims.ReadUnlessEpisode(shown.ServicePath) : [],
                 // MAM-37 — an episode's "a" and "b" files are no copies of each other, and only their names say which is
                 // which: Jellyfin gives both one episode's numbers and ids.
-                EpisodeSegments.Read(FileNameOf(shown.ServicePath)),
+                EpisodeSegments.Read(CopyEditions.FileNameOf(shown.ServicePath)),
                 // MAM-37 — and a film filed under another's ids is no copy of it when the names claim other years:
                 // Jellyfin made Blade Runner 2049's file a version of the 1982 film's item.
-                FileNameYear.Read(FileNameOf(shown.ServicePath))));
+                FileNameYear.Read(CopyEditions.FileNameOf(shown.ServicePath))));
         }
 
         var heldIds = names.SelectMany(name => name.Holders).Select(holder => holder.WorkId).Distinct().ToList();
@@ -217,16 +215,6 @@ public sealed partial class LibraryDuplicateService
             .Select(link => new DuplicateEpisodePlace(
                 [new MediaIdentifier(link.Scheme, link.Value)], [], link.SeasonNumber!.Value, link.EpisodeNumber!.Value)),
     ];
-
-    // The titles a work goes by, every source's, and its shows': the words a name of it holds that are no edition.
-    private static IEnumerable<string> TitlesOfWork(
-        Guid workId, ILookup<Guid, MediaWorkTitleEntity> titles, ILookup<Guid, MediaEpisodePositionEntity> positions) =>
-        titles[workId]
-            .Concat(positions[workId].Select(position => position.SeriesWorkId).OfType<Guid>().SelectMany(seriesId => titles[seriesId]))
-            .Select(title => title.Text);
-
-    // The last name of a path in either style: where a file's name says its edition, an episode's segment and its year.
-    private static string FileNameOf(string path) => path[(path.LastIndexOfAny(['/', '\\']) + 1)..];
 
     /// <summary>What one read of the library gives the grouping and the page.</summary>
     /// <param name="Names">Every name, one per path.</param>

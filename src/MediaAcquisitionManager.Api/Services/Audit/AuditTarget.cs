@@ -40,8 +40,18 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     public static AuditTarget DuplicateMatch(string key, string name) =>
         new(AuditTargetKind.DuplicateMatch, Guid.ParseExact(key, "N"), Cut(name));
 
-    /// <summary>The audit row's <c>TargetName</c> column.</summary>
-    private const int TargetNameMaximumLength = 200;
+    /// <summary>
+    /// MAM-24 — a scheduled replacement, named by the release whose download brings the new copy, as its download job is
+    /// — or, on the owner's confirmation of a work matched by title and year, by the words he ticked ("This release is
+    /// Alien (1979)"). The job's rows keep which copies and works. Cut to the column with an ellipsis, as a release
+    /// title runs to 1000 characters.
+    /// </summary>
+    public static AuditTarget ReplacementJob(ReplacementJobEntity job, string name) =>
+        new(AuditTargetKind.ReplacementJob, job.Id, Cut(name));
+
+    /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
+    /// what tells two works apart within it.</summary>
+    public const int TargetNameMaximumLength = 200;
 
     private static string Cut(string name) =>
         name.Length <= TargetNameMaximumLength ? name : string.Concat(name.AsSpan(0, TargetNameMaximumLength - 1), "…");

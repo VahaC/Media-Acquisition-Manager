@@ -48,21 +48,29 @@ internal sealed partial class QBittorrentAdapter
     /// destinations read it. A version the app doesn't work with is refused before anything else is sent.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The read is what a submission stands on: it renews a kept session qBittorrent has forgotten, so the
     /// write after it goes out on a session qBittorrent has just accepted — and since the write is never sent
     /// again (<see cref="SendPostAsync"/>), a session left to expire would otherwise lose the submission to a
     /// 403 nobody may answer by sending it twice.
+    /// </para>
+    /// <para>
+    /// MAM-24 — the version comes back too, as qBittorrent reported it and as compared
+    /// (<see cref="ComparableVersion"/>, never <c>null</c> once the gate has passed), for a call that needs a later
+    /// version than <see cref="MinimumVersion"/> (<see cref="ListJobsWithFilesAsync"/>) to gate on without a second
+    /// <c>app/version</c> read.
+    /// </para>
     /// </remarks>
-    private async Task<(CallSession? Session, ConnectionTestResult? Failure)> OpenCheckedSessionAsync(
+    private async Task<(CallSession? Session, string? ReportedVersion, Version? Version, ConnectionTestResult? Failure)> OpenCheckedSessionAsync(
         HttpClient client, IntegrationConnectionSettings settings, ICollection<string> sessionSecrets, CancellationToken cancellationToken)
     {
         var (call, signInFailure) = await OpenSessionAsync(client, settings, sessionSecrets, cancellationToken);
         if (signInFailure is not null)
-            return (null, signInFailure);
+            return (null, null, null, signInFailure);
 
         var (answer, failure) = await GetAsync(client, settings, call!, "api/v2/app/version", sessionSecrets, cancellationToken);
         if (failure is not null)
-            return (null, failure);
+            return (null, null, null, failure);
 
         string body;
         using (answer)
@@ -71,10 +79,11 @@ internal sealed partial class QBittorrentAdapter
         }
 
         if (ReportedVersion(body) is not { } reported)
-            return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotAVersionError));
+            return (null, null, null, ConnectionTestResult.Failed(IntegrationCallStatus.UnexpectedResponse, NotAVersionError));
         if (UnsupportedVersionError(reported) is { } unsupported)
-            return (null, ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported));
-        return (call, null);
+            return (null, null, null, ConnectionTestResult.Failed(IntegrationCallStatus.UnsupportedVersion, unsupported));
+        // The gate refuses a version it can't compare, so this one compares.
+        return (call, reported, ComparableVersion(reported)!, null);
     }
 
     /// <summary>

@@ -81,7 +81,7 @@ internal sealed partial class QBittorrentAdapter
                 sessionSecrets.Add(address);
         }
 
-        var (call, failure) = await OpenCheckedSessionAsync(client, settings, sessionSecrets, cancellationToken);
+        var (call, _, _, failure) = await OpenCheckedSessionAsync(client, settings, sessionSecrets, cancellationToken);
         if (failure is not null)
             return Failed<SubmissionReceipt>(failure);
 

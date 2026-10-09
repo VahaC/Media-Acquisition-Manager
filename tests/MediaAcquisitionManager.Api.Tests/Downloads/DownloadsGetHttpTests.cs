@@ -148,6 +148,8 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
             [
                 "id", "releaseId", "releaseTitle", "sourceName", "downloadClientName", "destinationName", "clientDestinationKey", "status",
                 "progress", "clientJobId", "error", "blockReason", "overwriteCheck", "createdUtc", "statusChangedUtc",
+                // MAM-24 — the replacement it carries; null for a Keep both send.
+                "replacement",
             ],
             root.EnumerateObject().Select(property => property.Name));
         Assert.Equal("Submitted", root.GetProperty("status").GetString());
@@ -155,6 +157,7 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
         // MAM-14 — not read from the client yet, and nothing blocks it.
         Assert.Equal(JsonValueKind.Null, root.GetProperty("progress").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("blockReason").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("replacement").ValueKind);
         Assert.EndsWith("Z", root.GetProperty("createdUtc").GetString(), StringComparison.Ordinal);
         Assert.EndsWith("Z", root.GetProperty("statusChangedUtc").GetString(), StringComparison.Ordinal);
         Assert.DoesNotContain(ReleaseSeeder.PlantedLinkToken, text, StringComparison.Ordinal);

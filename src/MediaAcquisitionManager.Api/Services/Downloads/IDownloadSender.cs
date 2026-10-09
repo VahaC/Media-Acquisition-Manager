@@ -21,10 +21,17 @@ public interface IDownloadSender
     /// <paramref name="jobId"/> while it is still <c>Created</c>. Never throws on a failure of either
     /// service: that is the job's outcome. <paramref name="client"/> is read with its path mappings.
     /// </summary>
+    /// <param name="replacement">
+    /// MAM-24 — the job carries a replacement of old copies, sent in strict mode (ADR 0032, decision 7): a release that
+    /// turns out a magnet link once fetched, a category whose folder isn't inside a library the app knows, and a check for
+    /// files already there that finds any file at all, or couldn't look at every place, each fail the whole job with the
+    /// app's sentence, nothing handed to the client — never a quiet Keep both.
+    /// </param>
     Task SendAsync(
         Guid jobId,
         ReleaseEntity release,
         IntegrationConnectionEntity source,
         IntegrationConnectionEntity client,
-        string clientDestinationKey);
+        string clientDestinationKey,
+        bool replacement = false);
 }

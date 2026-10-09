@@ -163,3 +163,46 @@ the save path; `DownloadDialog.test.tsx` and `JobsPage.test.tsx` the dialog and 
 This licenses no write: not to a download client, not to the media folders. The check reads a few
 pieces of a file already there and nothing else of it, and it decides only whether this download is
 sent — never what happens to the file it would have written over.
+
+## Strict mode for a replacement (added 0.3.0, MAM-24)
+
+**A replacement's send runs this check strictly
+(`IDownloadOverwriteGuard.CheckAsync(…, anyFileRefuses: true)`): a file at any place refuses it, the
+same bytes included, told by being there and its pieces never read (the collision `AlreadyThere`),
+and every way the check couldn't look at a place refuses it instead of sending it unchecked.** The
+refusal is this Decision's `Failed` job with nothing handed to the client: "“qBittorrent” would
+write over “Alien (1979).mkv” in the folder of the category “Movies”: a file is already there, and a
+replacement never lands on a file already there, so nothing was sent.", and for each unchecked case
+"The app couldn't check every place this release would write in the folder of the category “Movies”
+(<why>), so nothing was sent and no copy will be replaced. Pick Keep both to download it." — a
+magnet naming no files, a list of files that can't be read, a folder with no path in the app, a
+folder or a link on the way to a place outside the Media folders, a client that couldn't list its
+torrents in the category or their files, a name the app can't look up. Before the check, the strict
+sender also fails a gateway link that turns out a magnet and a category whose folder isn't inside a
+library the app knows. A Keep both send is unchanged: the same bytes go through, and what can't be
+looked at is sent and said so. A strict refusal leaves `OverwriteCheck` `null`, as every refusal
+does, so the replacement's following sees no `Checked` and fails the replacement (ADR 0014's MAM-24
+section).
+
+**The dialog asks first.** The replacement read refuses a destination whose folder this check can't
+look into (`FolderReasonAsync`), or that isn't confirmed inside a library, as
+`DestinationNotUsable`, so Replace can't be picked there, and in Replace mode **Send**'s reason
+takes the place of Keep both's warning; the send checks again, whatever the dialog showed.
+
+**An accepted gap: the category's scope.** A place nothing is at yet is compared, as for every send,
+with the torrents the client already has in the destination's own category; a torrent of another
+category whose files would land there isn't seen. For a replacement the gap is accepted (MAM-24's
+design review): such a torrent writing there later is MAM-25's to catch when it reads the new files,
+before anything moves, and closing it here would mean reading every torrent of the client at every
+replacement's send.
+
+`ReplacementScheduleSendHttpTests.Schedule_whose_file_would_land_on_the_same_bytes_already_there_fails_and_hands_qbittorrent_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_whose_gateway_link_turns_out_a_magnet_fails_and_asks_qbittorrent_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_to_a_destination_outside_every_library_fails_and_hands_qbittorrent_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_to_a_library_outside_the_media_folders_fails_and_hands_qbittorrent_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_whose_file_lies_behind_a_link_leading_out_of_the_media_folders_fails_and_hands_qbittorrent_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_whose_file_name_holds_a_character_the_app_can_not_look_up_fails_and_hands_qbittorrent_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_of_a_torrent_whose_files_the_app_can_not_read_fails_and_hands_qbittorrent_nothing`
+and
+`ReplacementScheduleSendHttpTests.Schedule_when_qbittorrent_can_not_list_the_categorys_torrents_fails_and_hands_it_nothing`
+pin it, and `DownloadsSendOverwriteHttpTests` holds as it was for Keep both.

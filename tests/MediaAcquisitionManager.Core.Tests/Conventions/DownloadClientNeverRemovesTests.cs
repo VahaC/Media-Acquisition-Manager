@@ -42,6 +42,8 @@ public sealed partial class DownloadClientNeverRemovesTests
         [
             nameof(IDownloadClient.Capabilities), nameof(IDownloadClient.ListDestinationsAsync), nameof(IDownloadClient.SubmitAsync),
             nameof(IDownloadClient.FindJobsAsync), nameof(IDownloadClient.ListJobFilesAsync), nameof(IDownloadClient.ListDestinationJobsAsync),
+            // MAM-24 — the whole listing with every job's files (ADR 0031): a read, scanned like the rest.
+            nameof(IDownloadClient.ListJobsWithFilesAsync),
         ];
 
         //Act
@@ -60,6 +62,7 @@ public sealed partial class DownloadClientNeverRemovesTests
     [InlineData("CancelJobAsync", true)]
     [InlineData("ListDestinationsAsync", false)]
     [InlineData("ListDestinationJobsAsync", false)]
+    [InlineData("ListJobsWithFilesAsync", false)]
     [InlineData("FindJobsAsync", false)]
     [InlineData("SubmitAsync", false)]
     [InlineData("Capabilities", false)]

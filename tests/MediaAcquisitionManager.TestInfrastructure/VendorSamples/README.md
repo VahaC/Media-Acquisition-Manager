@@ -228,6 +228,18 @@ The four movies in `movies-page.json`:
   `torrents/info` reads `hashes` as TorrentIDs joined by `|`. A TorrentID is the v1 info hash, or the
   v2 hash cut to 40 characters; a hybrid torrent gets the v2 one on libtorrent 2
   (`info_hash_t::get_best`).
+- **`torrents/info?includeFiles=true` has no recorded sample yet** (MAM-24). Its shape was read from
+  qBittorrent 5.2's source (Web API 2.15.1; `includeFiles` came with 2.11.8, and 5.1 ignores it
+  without a word): each torrent `torrents/info` lists, with a `files` array whose entries are what
+  `torrents/files` gives (`index`, `name`, `size`, `progress`, `priority`, `availability`,
+  `piece_range`), emitted only for a torrent whose metadata qBittorrent has, so a missing `files`
+  means not known yet, never no files. `FakeQBittorrentServer` follows it — `files` only from 5.2 on
+  and only for a torrent with `HasMetadata`, `has_metadata` on every torrent —, and
+  `QBittorrentAdapterJobsWithFilesTests` reads hand-written answers of that shape. A live read on
+  2026-10-09 of the reference installation's qBittorrent, 5.2 or later, through the app's own
+  adapter confirmed it without recording the answer: 358 torrents, every one with `files`, 848
+  files, each `name` relative to the save path with the torrent's folder first, as `torrents/files`
+  names them.
 - **Prowlarr's download link carries its API key** (`/1/download?apikey=…&link=…`), and a Toloka
   topic link can carry the owner's forum session (`?sid=…`): every one in the `t=search` answer did,
   none in the `t=movie` answer taken seconds later. Toloka's movie search takes only `q`, so it

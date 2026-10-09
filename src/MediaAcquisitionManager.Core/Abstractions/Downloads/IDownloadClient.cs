@@ -4,7 +4,8 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 
 /// <summary>
 /// A client that downloads a release the owner picked. First implemented for qBittorrent by MAM-11, as
-/// a further interface of its <see cref="IIntegrationAdapter"/> class. Phase A members only.
+/// a further interface of its <see cref="IIntegrationAdapter"/> class. Phase A's members, and MAM-24's whole listing
+/// behind the replacement gates (see the remarks).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -33,6 +34,13 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 /// more: no member removes, deletes, stops or pauses a job or its files, so cancelling a job in the app only
 /// stops following it and can't reach the client (ADR 0014; <c>DownloadClientNeverRemovesTests</c> keeps it
 /// so). The one write is still <see cref="SubmitAsync"/>.
+/// </para>
+/// <para>
+/// MAM-24 — one more read, <see cref="ListJobsWithFilesAsync"/>: every job of the client with its files, the one
+/// member that answers with a whole client. ADR 0031 decides it: an old copy a job lists is held by that job, so the
+/// Download dialog marks it before the owner schedules its replacement. It is used only behind the replacement gates
+/// (the owner's switch and ticked folders, ADR 0033), never to follow a job, which keeps its own reads (ADR 0014).
+/// Still no member that removes, stops or moves anything; the one write is still <see cref="SubmitAsync"/>.
 /// </para>
 /// </remarks>
 public interface IDownloadClient
@@ -69,9 +77,25 @@ public interface IDownloadClient
     /// <summary>
     /// MAM-14 — every job the client has in the destination <paramref name="destinationKey"/> (a
     /// <see cref="ClientDestination.Key"/>), each with every info hash the client lists for it, as
-    /// <see cref="FindJobsAsync"/> gives them. For a job its stored hashes no longer find, never to read a
-    /// whole client. MAM-38 — and, with <see cref="ListJobFilesAsync"/>, for the check before a send that no
-    /// torrent already in the destination will write where the release's files go (ADR 0034).
+    /// <see cref="FindJobsAsync"/> gives them. For a job its stored hashes no longer find — one destination's
+    /// jobs, not the whole client, which only MAM-24's <see cref="ListJobsWithFilesAsync"/> answers with, and only
+    /// behind the replacement gates. MAM-38 — and, with <see cref="ListJobFilesAsync"/>, for the check before a send
+    /// that no torrent already in the destination will write where the release's files go (ADR 0034).
     /// </summary>
     Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> ListDestinationJobsAsync(IntegrationConnectionSettings settings, string destinationKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-24 — every job the client has, in any state and any destination, each with its files
+    /// (<see cref="ClientJobWithFiles"/>): the jobs as <see cref="FindJobsAsync"/> reads them, and the files as
+    /// <see cref="ListJobFilesAsync"/> reads them, or <c>null</c> for a job whose files the client doesn't know yet.
+    /// The one member that answers with a whole client (ADR 0031): only for telling which job holds a library copy, and
+    /// only behind the replacement gates (ADR 0033) — never to follow a job.
+    /// </summary>
+    /// <remarks>
+    /// Read whole or not at all: a job the answer can't name, or a file list it can't read, fails the call rather
+    /// than being left out, since a job missing from the list could hide a held copy. A client too old to list
+    /// the files with the jobs is <see cref="IntegrationCallStatus.UnsupportedVersion"/> — never an answer of
+    /// jobs without files, which would read as nothing held.
+    /// </remarks>
+    Task<IntegrationCallResult<IReadOnlyList<ClientJobWithFiles>>> ListJobsWithFilesAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default);
 }

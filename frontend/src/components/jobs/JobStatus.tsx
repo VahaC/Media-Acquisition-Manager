@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, CirclePause, CircleSlash, CircleX, Clock, Loader2, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { ReplacementLine } from '@/components/jobs/ReplacementLine'
 import type { DownloadJob, DownloadJobStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import '@/styles/library.css' // .library-source-status, .library-source-warning — the status, reason and error lines
@@ -23,7 +24,8 @@ const STATUS_ICONS: Record<DownloadJobStatus, LucideIcon> = {
  * its status meanwhile, MAM-14's decisions 2 and 3), then why it failed (a red line). Both sentences
  * are the server's, shown as they are. MAM-38 — then, for a job sent without the check for files it
  * would write over, why it went unchecked (an amber line, from the locale) — never on a Failed job,
- * though one whose submission failed after the check still carries the reason.
+ * though one whose submission failed after the check still carries the reason. MAM-24 — after the
+ * error, the replacement the job carries, if any (ReplacementLine).
  *
  * The colours follow the Library's status lines: a green icon for Downloaded, a red line for
  * Failed, an amber icon for a job that needs linking; amber never colours text (contrast).
@@ -63,6 +65,7 @@ export function JobStatus({ job }: { job: DownloadJob }) {
           <span>{job.error}</span>
         </p>
       )}
+      {job.replacement && <ReplacementLine replacement={job.replacement} downloadFailed={job.status === 'Failed'} />}
       {notChecked && (
         <p className="library-source-warning">
           <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />

@@ -8,19 +8,32 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// installation reads nothing until the owner names a folder. Expected failures come back as result
 /// statuses, never as exceptions.
 /// </summary>
+/// <remarks>
+/// MAM-24 — the same page's one Save also holds the owner's replacement gates (ADR 0033): the master switch, off by
+/// default, and a tick per library folder, none by default.
+/// </remarks>
 public interface IAllowedRootsService
 {
     /// <summary>Every allowed root in canonical form, in the order the owner entered them.</summary>
     Task<IReadOnlyList<string>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Replaces the allowed roots with <paramref name="paths"/> and records an audit row for
-    /// <paramref name="actorUserId"/> in the same save; a list that is the stored one in canonical form
-    /// writes nothing. <see cref="AllowedRootsUpdateStatus.Invalid"/>, writing nothing, when the list breaks a
-    /// rule of <see cref="Core.Files.AllowedRootRules"/>. Saving starts no inspection: the owner does that
-    /// from the Library page.
+    /// Replaces the allowed roots with <paramref name="paths"/>, the replacement switch with
+    /// <paramref name="replacementEnabled"/> and the ticked library folders with <paramref name="replacementFolders"/>,
+    /// in one transaction, with one audit row for <paramref name="actorUserId"/> per part that changed:
+    /// <c>AllowedRootsChanged</c>, <c>ReplacementSwitchedOn</c> or <c>ReplacementSwitchedOff</c>, and
+    /// <c>ReplacementFoldersChanged</c>. A save that is the stored state in canonical form — the ticks in any order —
+    /// writes nothing. <see cref="AllowedRootsUpdateStatus.Invalid"/>, writing nothing, when the roots break a rule of
+    /// <see cref="Core.Files.AllowedRootRules"/>, the ticks one of <see cref="Core.Files.ReplacementFolderRules"/>, or
+    /// a tick is neither a library folder the mappings bring into the app nor a tick already stored. Saving starts no
+    /// inspection: the owner does that from the Library page.
     /// </summary>
-    Task<AllowedRootsUpdateResult> UpdateAsync(IReadOnlyList<string?> paths, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<AllowedRootsUpdateResult> UpdateAsync(
+        IReadOnlyList<string?> paths,
+        bool replacementEnabled,
+        IReadOnlyList<string?> replacementFolders,
+        Guid actorUserId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>The response the settings page reads.</summary>
     Task<AllowedRootsResponse> GetAsync(CancellationToken cancellationToken = default);

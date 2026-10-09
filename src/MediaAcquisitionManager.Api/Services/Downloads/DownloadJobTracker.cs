@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Api.Services.Replacements;
+
 namespace MediaAcquisitionManager.Api.Services.Downloads;
 
 /// <summary>
@@ -49,11 +51,16 @@ public sealed class DownloadJobTracker(
     /// Runs one pass over the followed jobs, in a scope of its own, and returns once it is over. The loop above
     /// calls it; tests drive it directly, as the test host runs no hosted services.
     /// </summary>
+    /// <remarks>
+    /// MAM-24 — then, in the same scope, the scheduled replacements are brought in line with what the pass wrote
+    /// (<see cref="IReplacementJobFollower"/>): after the poller and outside it, so a pass that wrote nothing — or ended
+    /// early — still settles them, and each in a try of its own, so a bug in either never stops the other.
+    /// </remarks>
     public async Task PollOnceAsync(CancellationToken stoppingToken)
     {
+        await using var scope = scopes.CreateAsyncScope();
         try
         {
-            await using var scope = scopes.CreateAsyncScope();
             await scope.ServiceProvider.GetRequiredService<IDownloadJobPoller>().PollAsync(stoppingToken);
         }
         // A shutdown is not an error: the rows are as the last write left them, and the next start's first
@@ -61,6 +68,19 @@ public sealed class DownloadJobTracker(
         catch (Exception exception) when (!(exception is OperationCanceledException && stoppingToken.IsCancellationRequested))
         {
             logger.LogError(exception, "A pass over the followed download jobs threw; the next pass runs as usual.");
+        }
+
+        try
+        {
+            await scope.ServiceProvider.GetRequiredService<IReplacementJobFollower>().SyncAsync(stoppingToken);
+        }
+        // The shutdown's rule as above. Error, with the type and the stack, never the message.
+        catch (Exception exception) when (!(exception is OperationCanceledException && stoppingToken.IsCancellationRequested))
+        {
+            logger.LogError(
+                "A pass over the scheduled replacements threw {ExceptionType} {StackTrace}; the next pass runs as usual.",
+                exception.GetType().FullName,
+                exception.StackTrace);
         }
     }
 }

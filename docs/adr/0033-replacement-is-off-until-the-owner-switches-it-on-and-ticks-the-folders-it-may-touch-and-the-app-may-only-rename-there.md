@@ -138,3 +138,78 @@ rows.
 The switch and the ticks open renames of the copies the owner picks, nothing else: no bulk action,
 no replacement the owner didn't schedule, and no write outside the ticked folders and the
 quarantine.
+
+## The switch, the ticks and the owner's routes, as built (added 0.3.0, MAM-24)
+
+**Storage.** The switch is the one row of `ReplacementSettings`, keyed like the installation's row,
+and none until the owner first switches it on: no row is off, the state of a fresh installation and
+of an upgraded one, so an upgrade opens no gate. The ticks are `ReplacementFolders`, keyed by the
+folder's canonical path in the app, never by a library-folder row, which every sync deletes and adds
+again. Whether a tick counts is worked out when asked — the path must still be a library folder the
+mappings bring into the app, inside an allowed folder —, so "a folder that leaves the libraries or
+the allowed folders loses its tick's effect" holds without the row being touched, and the effect
+comes back if the folder does. Both are read fresh for every page, dialog read, schedule and list of
+jobs, never cached (`IReplacementGates`).
+
+**Every library folder holding a copy must be ticked.** A copy lies in a ticked folder only when
+some library folder holds it and every library folder that holds it is ticked and inside the Media
+folders: `/media/movies` ticked and `/media/movies/kids`, a library of its own, unticked keeps the
+kids' copies out of reach. A library folder outside the allowed folders — an ancestor of the one
+allowed — can't be ticked on the page, and a tick it has counts for nothing (`OutsideMediaFolders`),
+so a copy under it stays out of reach too: fail closed.
+
+**Fail closed on a save.** The Media folders page's one Save sends the folders, the switch and the
+ticks in one request, saved in one transaction. A missing switch is off and a missing list of ticks
+none, as a missing list of folders allows nothing, so a page of 0.2.1 that sends `{ paths }` alone
+switches replacement off. A tick must be a library folder the mappings bring into the app or one
+already stored — a stale tick may stay until unticked, but no new arbitrary path can be added —, at
+most 50, each once; the membership rule and the change check run inside the transaction, on a read
+made there.
+
+**Three audit actions.** `ReplacementSwitchedOn` or `ReplacementSwitchedOff` when the switch
+changed, one `ReplacementFoldersChanged` for a changed set of ticks, beside `AllowedRootsChanged`,
+each with no target — the switch and the ticks are the installation's —, and none for a Save that
+changes nothing (MAM-4's rule).
+
+**The page.** A second card, **Replacing copies**, inside the same form: the switch **Replace copies
+after verification**, with a hint that this version only schedules, and **Library folders
+replacement may touch**, each folder with its libraries. An unticked folder outside the Media
+folders is disabled, a ticked one says its tick has no effect until it is inside them, a stored tick
+that is no longer a library folder is listed ticked so it can be unticked, and the folders the
+mappings leave without a path are counted. The ticks stay editable while the switch is off. The
+per-folder hint of whether a rename can work there is MAM-26's.
+
+**The owner's alone, by where the routes live.** Every action under `Controllers/Replacements`,
+reads included, gets the owner filter from `ReplacementsAreOwnerOnlyConvention`, the
+`Controllers/Library/Links` way, not from an attribute each action must remember; the dialog's read
+shows the owner's ticks, paths and torrents, so it is the owner's too. A member's dialog never asks,
+and its Replace is disabled with "Only the installation owner can replace a copy.".
+`ReplacementsAreOwnerOnlyHttpTests` is the test that discovers the routes this Decision asked for:
+it finds every endpoint in that namespace in the routing table, holds today's two among them, and
+sends each as a member (403, nothing written, nothing asked of qBittorrent) and without a token
+(401).
+
+**Off is said on the Jobs page.** A job's `replacement` carries whether replacement is switched off
+now and how many of its copies lie in no ticked folder now, worked out from the gates once per page,
+and while its download goes on the Jobs line says "Replacement scheduled, but replacement is
+switched off: nothing will move while it is off." or how many copies won't move — the "say so" of
+jobs already scheduled.
+
+**The mount, for this version.** Scheduling writes nothing to the media folders, so it needs only
+the switch and the ticks: the compose file keeps `:ro`, and the read-write mount and `APP_USER_ID`
+and `APP_GROUP_ID` are needed once MAM-26 moves files.
+
+`ReplacementSettingsHttpTests.Get_on_a_fresh_installation_is_off_with_no_library_folders`,
+`ReplacementSettingsHttpTests.Update_switching_on_and_ticking_folders_is_204_and_writes_the_rows_and_one_audit_row_per_change`,
+`ReplacementSettingsHttpTests.Update_that_changes_nothing_is_204_and_records_nothing`,
+`ReplacementSettingsHttpTests.Update_without_the_replacement_fields_switches_off_and_unticks_every_folder`,
+`ReplacementSettingsHttpTests.Update_ticking_a_path_the_page_never_lists_is_400_and_changes_nothing`,
+`ReplacementSettingsHttpTests.Get_lists_a_stored_tick_that_is_no_longer_a_library_folder_ticked_so_it_can_be_unticked`,
+`ReplacementSettingsHttpTests.Update_racing_another_first_switch_on_writes_one_switch_row_and_both_are_204`,
+`ReplacementOptionsHttpTests.Options_keeps_a_copy_in_an_unticked_library_nested_in_a_ticked_one_out_of_reach`,
+`ReplacementOptionsHttpTests.Options_with_replacement_switched_off_is_SwitchedOff_and_reads_no_client_no_work_and_no_disk`,
+`ReplacementsAreOwnerOnlyHttpTests.Discovery_finds_every_replacement_endpoint_of_today`,
+`ReplacementsAreOwnerOnlyHttpTests.Every_replacement_endpoint_as_a_signed_in_non_owner_is_403_with_the_owner_sentence`
+and
+`ReplacementFollowingHttpTests.Get_of_a_job_says_when_replacement_is_off_and_its_copies_are_no_longer_in_a_ticked_folder`
+pin it, and `MediaFoldersPage.test.tsx` the page.

@@ -22,16 +22,19 @@ library work to its TMDb film or show by hand, Jellyfin then identifying the ite
 page's Sources card as a status bar, and Refresh all), MAM-20 (the library's files grouped into the
 four duplicate classes of the specification) and MAM-21 (the Duplicates page, where the owner
 confirms or dismisses a possible match). MAM-22 checked Phase B's acceptance criteria on the
-reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (built while 0.2.1 is
+reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (built while 0.2.1 was
 the version, checked the same day on a copy of production's database, and in no published image
 yet) follows from that check: the Duplicates page lists only real copies of one film or episode —
 4 of the 46 groups production listed — and flags for review the copies of one work whose measured
-running times differ widely. MAM-38 (built the same day while 0.2.1 is the version, resting on the
+running times differ widely. MAM-38 (built the same day while 0.2.1 was the version, resting on the
 tests, and in no published image yet) refuses a download whose files would land on a different file
 already in the destination's folder before anything reaches qBittorrent, which would otherwise
 download into that file in place. MAM-23 settled on 2026-10-08 what a Phase C replacement may touch
-— specification §7 questions 3, 4 and 6, the write access and the gates (ADR 0030 to ADR 0033) —;
-nothing of Phase C is built yet.
+— specification §7 questions 3, 4 and 6, the write access and the gates (ADR 0030 to ADR 0033) —,
+and MAM-24 (built on 2026-10-09 while 0.3.0 is the version, resting on the tests and a read-only
+live read of qBittorrent's torrents with their files, and in no published image yet) lets the owner
+schedule, in the Download dialog, the replacement of specific old copies, which follows its download
+to `Downloaded` and waits there: nothing of Phase C verifies or moves a file yet.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -39,7 +42,8 @@ follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28. Releases for phases C and D are not decided yet.
+Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24; the release of the rest of Phase C, and
+of Phase D, is not decided yet.
 
 ## Phases
 
@@ -172,7 +176,8 @@ existing file untouched.
   Each destination shows where its category saves — qBittorrent's folder, through its path mappings —
   and whether that lies inside a Jellyfin library folder, which the library sync now stores; a folder
   outside every library, one that can't be determined, and libraries not synced yet are flagged with
-  the reason, and will keep automatic replacement off in Phase C
+  the reason, and will keep automatic replacement off in Phase C (MAM-24 since: such a destination
+  takes no replacement in the Download dialog)
   ([ADR 0003](docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)). The
   qBittorrent adapter (4.4.1 or later) lists the categories and works each one's folder out the way
   qBittorrent does, a Windows host's network folders included, keeping one session per integration
@@ -444,7 +449,7 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
 **Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21,
-MAM-37 and MAM-38, built while 0.2.1 is the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to
+MAM-37 and MAM-38, built while 0.2.1 was the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to
 MAM-38.
 
 **Complexity:** Medium
@@ -902,7 +907,10 @@ episode, and how much space could really be recovered — without the app guessi
   torrent stopped to let qBittorrent check, sending a content layout or a save path of the app's,
   reading qBittorrent's preferences, and fetching a magnet's files first. The cost is two reads of
   the client more per send and one question when a destination is picked, never a write; Phase C's
-  replacement will use the same check, the same bytes refused too (ADR 0032).
+  replacement will use the same check, the same bytes refused too (ADR 0032). (MAM-24 since: a
+  replacement is sent with the check made strict — any file already there, and any place it can't
+  look at, refuses it —, and the dialog's summary now reads "Kept: nothing is replaced or removed,
+  and a release that would write over a different file isn't sent.")
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -1235,7 +1243,7 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 ### Phase C — Safe replacement
 
-**Release:** not decided. **Tickets:** MAM-23 to MAM-28.
+**Release:** 0.3.0 holds MAM-24; the rest of Phase C not decided. **Tickets:** MAM-23 to MAM-28.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
 copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
@@ -1281,17 +1289,73 @@ a quarantine until you delete it for good, and you can put it back.
     library folder that holds the old copy, on the Media folders page. Only the owner schedules,
     retries, resolves, restores and deletes for good; members keep **Keep both** ([ADR
     0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
-- **MAM-24 Scheduling in the Download dialog** (to do): the master switch and the per-folder ticks,
-  stored in the database and set by the owner on the Media folders page (off by default, its one
-  Save, an audit row). **Keep both** (default) or **Replace after verification** for the owner, with
-  the matched film's copies or the held episodes the release claims to tick, the confirmation of a
-  title-and-year match, the seeding warning, and every reason replacement is unavailable (switch
-  off, folder unticked, no app path, not inspected, a title alone, conflicting ids, a destination
-  outside the libraries, a magnet, a `.torrent` that would write over an existing file, a member). A
-  replacement job written
-  with its download job and an audit row before anything is sent, holding each ticked file's
-  identity; it follows the download through MAM-14's passes, survives a restart and waits at
-  `Downloaded`.
+- **MAM-24 Scheduling in the Download dialog** (built, release 0.3.0; tried live only for
+  qBittorrent's whole listing, read only, on 2026-10-09; in no published image yet): the owner
+  schedules the replacement of specific old copies with a download, and the replacement follows that
+  download to `Downloaded` and waits there; nothing is verified or moved, and nothing is written to
+  the media folders (Vasyl's decisions of 2026-10-08 and 2026-10-09; the MAM-24 sections of [ADR
+  0031](docs/adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md),
+  [ADR
+  0032](docs/adr/0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md),
+  [ADR
+  0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)
+  and [ADR
+  0034](docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md),
+  and of ADR 0005, ADR 0012, ADR 0013 and ADR 0014). *Gates:* the master switch
+  (`ReplacementSettings`, one row, and none — off — after the upgrade) and the per-folder ticks
+  (`ReplacementFolders`, keyed by the folder's path in the app, never by a row a sync rebuilds) are
+  the Media folders page's second card, **Replacing copies**, saved by its one Save with the allowed
+  folders in one transaction, with `ReplacementSwitchedOn` or `ReplacementSwitchedOff` and
+  `ReplacementFoldersChanged` audit rows; a missing switch or tick list is off and none, a tick must
+  be a library folder the mappings bring into the app or one already stored, and a copy counts as
+  inside a ticked folder only when every library folder holding it is ticked and inside the Media
+  folders. *The dialog:* **Keep both** (the default, changed only by a click) or **Replace after
+  verification**, the owner's alone — a member reads "Only the installation owner can replace a
+  copy." —, from `GET /api/replacements/options?releaseId=&destinationId=&holdings=`: the matched
+  film's every file of every version, or the held episodes a TV release claims at their first place
+  within the claim, each version tied to its own library item's place; the release's reasons
+  (`SwitchedOff`, `Magnet`, `DestinationNotUsable` with the server's sentence — no category, a
+  folder not confirmed inside a library, or one MAM-38's check can't look into —, `NoMatchedWork`),
+  a work's (`TitleOnly`, `ConflictingIds`, `NoClaimedSeason`, `NoClaimedEpisodes`) and a copy's
+  (`NoAppPath`, `FolderNotTicked`, `OutsideTheClaim`, `AlreadyScheduled`, `NotInspected`,
+  `SharedWithUnavailableWork`, then from a fresh read of the disk `Missing`, `Unreadable` and
+  `ChangedSinceInspection`), one copy per path whatever works list it, with the strictest reason;
+  edition words and the measured dynamic range per copy, and the edition words of the release's
+  title; a copy with another name marked as freeing no room from the first read, in either mode;
+  nothing pre-ticked, a season's "Tick every copy that can be replaced"; the title-and-year
+  confirmation in the server's words ("This release is Alien (1979)"; twins told apart by their
+  libraries, then by their first copy's name, else "(1 of 2)"); Send held, with its reason, until
+  every needed tick is there; the summary by work with the paths and the conditions. *Held marks:*
+  only once Replace is picked (`holdings=true`) and while a copy can be ticked, every download
+  client's whole listing through the new `IDownloadClient.ListJobsWithFilesAsync` (qBittorrent 5.2
+  or later, one `torrents/info?includeFiles=true`; an older one is reported as not checked), each
+  torrent file mapped by its path and confirmed by device and inode: "Held by the torrent …" (told
+  apart by torrent id), a second name of a torrent's file, and the clients not read or read in part
+  — nothing uncertain read as "not held", and scheduling still allowed. *The schedule:*
+  `POST /api/replacements`, one core with `POST /api/downloads`; the plan reads only the database
+  and the disk before the job is written (ADR 0013), each ticked copy read on the disk again; the
+  job, the `ReplacementJob` with each ticked file's identity then (device, inode, size, modification
+  time, link count), its matched works with their registry ids and the owner's confirmations, and
+  the `ReplacementScheduled` and `ReplacementWorkConfirmed` audit rows in one save; a replay
+  compared as sets across both routes, a request id one route used refused by the other. *Strict
+  send:* a gateway link that turns out a magnet, a category outside every library, any file already
+  at a place the release would write — the same bytes included — and every case MAM-38's check
+  couldn't look at fail the whole job, nothing handed to qBittorrent; the dialog keeps the form and
+  the owner picks Keep both himself. *Following:* after each pass of MAM-14's following, mirrored
+  past `Scheduled` only for a download whose check passed (`OverwriteCheck` `Checked`) —
+  `Submitted`, `Downloading`, `Paused`, `Downloaded` —; a failed, refused or interrupted send
+  `Failed`, a download that needs linking `NeedsReview`, a cancel `Cancelled` with a
+  `ReplacementCancelled` row; every job's answer carries `replacement`, and the Jobs page shows one
+  line (the full view stays MAM-27's). Every send now records what its release turned out to be
+  (`DownloadJobs.PayloadKind`). Migrations `AddReplacementSettings` and `AddReplacementJobs` rebuild
+  no table. Accepted gaps: strict mode compares a place nothing is at yet only with the torrents of
+  the destination's own category, as MAM-38 does, so a torrent of another category writing there
+  later is MAM-25's to catch; and "already scheduled" is checked before the save, not atomically, so
+  two different schedules racing for one copy at the same instant can both pass — ADR 0013's kind of
+  gap —, the second then finding the copy gone when it comes to move. Tried live: the reference
+  installation's qBittorrent answered the whole listing in 355 ms, 358 torrents with 848 files,
+  every path mapped into the app through `/downloads` → `/media`; no replacement was scheduled, and
+  no mark met a real file.
 - **MAM-25 Verifying the new files** (to do): checks 1 to 4 of §3.4 — the client's job and each file
   complete, each new file inside the allowed folders and readable by ffprobe with the expected video
   and duration, Jellyfin asked to look, listing it and done refreshing it within a bounded wait, its
@@ -1323,7 +1387,19 @@ file untouched; so do a held old copy, an unclear pair, a multi-episode file, th
 unticked folder, another mount and a restart halfway through a move; a `.torrent` that would land on
 an existing file is refused before anything is sent; a member is refused on every replacement route
 and no replacement job is written; a successful replacement writes the audit trail and leaves a
-restorable quarantined copy, and Restore and Delete for good each write theirs.
+restorable quarantined copy, and Restore and Delete for good each write theirs. MAM-24's tests prove
+the scheduling half and nothing of the move: a member refused on both replacement routes with
+nothing written or asked of qBittorrent; the switch off, an unticked or nested folder, a title
+alone, conflicting ids, a missing confirmation, a copy changed or gone since the dialog read it and
+each other reason refusing a schedule with nothing written; the job, its replacement, the fresh
+identities, the works' ids and the audit rows written in one save before the `.torrent` is fetched;
+the strict send failing on any file already there, the same bytes included, and on every unchecked
+case, with nothing handed to qBittorrent; the held marks read only when asked, confirmed by
+identity, and uncertain whenever a client or a torrent can't be read; and the replacement following
+its download to `Downloaded` and stopping there, across a restart (`ReplacementOptionsHttpTests`,
+`ReplacementOptionsEpisodesHttpTests`, `ReplacementOptionsHoldingsHttpTests`,
+`ReplacementScheduleHttpTests`, `ReplacementScheduleSendHttpTests`, `ReplacementFollowingHttpTests`,
+`ReplacementsAreOwnerOnlyHttpTests`, `ReplacementSettingsHttpTests`).
 
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an

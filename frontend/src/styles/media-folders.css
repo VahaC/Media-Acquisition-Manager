@@ -2,19 +2,21 @@
    mappings of the integration dialog (integrations.css), which pair two paths in a row instead of one.
    Tokens only, so dark mode needs nothing of its own. Imported by the page. */
 
-/* Add folder and the Save row keep their own width under the rows. */
+/* MAM-24 — the form holds both cards, then a refused save and the Save row. MAM-16 — a refused
+   save spans the cards above it, as a form's banner spans the form elsewhere, rather than shrinking to
+   its sentence: grid items stretch. */
 .media-folders-form {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* Add folder keeps its own width under the rows. */
+.media-folders-roots {
   display: grid;
   justify-items: start;
   gap: 0.75rem;
   min-width: 0;
-}
-
-/* MAM-16 — a refused save spans the rows above it, as a form's banner spans the form elsewhere,
-   rather than shrinking to its sentence. */
-.media-folders-form > .ui-banner {
-  justify-self: stretch;
-  max-width: 36rem;
 }
 
 /* The rows take the card's width up to what a path needs; a phone gets all of it. */
@@ -41,6 +43,59 @@
 
 .media-folders-row > .ui-button {
   flex-shrink: 0;
+}
+
+/* MAM-24 — the Replacing copies card: the switch with its hint, then the library folders it may
+   touch. */
+.media-folders-replace {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+/* A box at the first line of words that wrap — the switch on a phone, a folder's path, its libraries
+   and its note — rather than beside their middle (the reason of .destinations-sections .settings-check). */
+.media-folders-replace .settings-check {
+  align-items: flex-start;
+}
+
+.media-folders-replace .settings-check input {
+  flex-shrink: 0;
+  margin-top: 0.1875rem;
+}
+
+/* `min-width: 0`: a fieldset is at least as wide as its content by default, so a long path would
+   widen the page past a phone (the reason of .integrations-mappings). Its legend is no grid item, so
+   it is spaced on its own. */
+.media-folders-library {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.media-folders-library > legend {
+  margin-bottom: 0.375rem;
+}
+
+.media-folders-library-list {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+  margin-top: 0.25rem;
+}
+
+/* The path, then the libraries that list it and why a tick there doesn't count, under one another. */
+.media-folders-library-body {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* A path has few spaces: it breaks anywhere rather than widening the card past the screen. */
+.media-folders-path {
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
 
 /* Save with "Saved." beside it, wrapping under it if a translation runs long. */

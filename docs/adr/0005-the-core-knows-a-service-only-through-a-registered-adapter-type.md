@@ -609,3 +609,40 @@ a JPEG.
 and `LibraryPosterNamesTests.TryParse_refuses_any_other_name` pin it;
 `LibraryItemIdentifierIdentifiesOnlyTests.No_member_is_named_for_refreshing_images_titles_locks_deleting_replacing_or_editing`
 holds as it was.
+
+## A download client's whole listing (added 0.3.0, MAM-24)
+
+**`IDownloadClient` gains one read, `ListJobsWithFilesAsync(settings)`: every job the client has, in
+any state and destination, each with its files
+(`ClientJobWithFiles(ClientJob Job, IReadOnlyList<ClientJobFile>? Files)`, `Files` `null` while the
+client doesn't know them yet).** It is the one member that answers with a whole client, and [ADR
+0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)
+says why: the Download dialog marks an old copy a torrent lists before the owner schedules its
+replacement. It is used only behind the replacement gates (ADR 0033), never to follow a job, which
+keeps its own reads (ADR 0014). A member of the kind contract, not an optional capability: every
+download client implements it, today the qBittorrent adapter alone. Read whole or not at all — a job
+the answer can't name, or files it can't read, fail the call, as one left out could hide a held copy
+—, and a client too old to list the files with the jobs answers `UnsupportedVersion`, never jobs
+without files, which would read as nothing held.
+
+**The vendor's words stay in Infrastructure.** The qBittorrent adapter sends the sign-in,
+`app/version` and one `GET /api/v2/torrents/info?includeFiles=true`, with no filter and never
+`includeTrackers`, and refuses a qBittorrent older than 5.2.0 (`HoldingsMinimumVersion`:
+`includeFiles` came with Web API 2.11.8 and 5.2.0 ships 2.15.1; an older one ignores the parameter
+without a word). Its checked session now hands back the version it read, as reported and as
+compared, so the gate costs no second `app/version` read; the job lookup, the files read and the
+submission pass it by. An answer over the 4 MiB cap fails with the adapter's own sentence, passed to
+`HttpIntegrationAdapter.CallAsync` as its optional oversize error. `FakeQBittorrentServer` lists
+`has_metadata` and emits `files` only from 5.2 on; no Core name names the product
+(`CoreIsVendorNeutralTests`).
+
+`DownloadClientNeverRemovesTests` scans the new member with the others — still no member named for
+removing, deleting, stopping or pausing —, and
+`QBittorrentAdapterJobsWithFilesTests.ListJobsWithFiles_signs_in_reads_the_version_and_asks_once_for_every_torrent_with_its_files_with_the_session`,
+`QBittorrentAdapterJobsWithFilesTests.ListJobsWithFiles_of_a_qbittorrent_older_than_5_2_is_an_unsupported_version_and_asks_for_no_torrents`,
+`QBittorrentAdapterJobsWithFilesTests.ListJobsWithFiles_of_a_torrent_without_metadata_has_its_files_unknown_never_none`,
+`QBittorrentAdapterJobsWithFilesTests.ListJobsWithFiles_of_a_torrent_without_a_usable_hash_fails_the_whole_answer`,
+`QBittorrentAdapterJobsWithFilesTests.ListJobsWithFiles_of_an_answer_larger_than_the_app_reads_fails_in_its_own_words`
+and
+`IntegrationsInfrastructureExtensionsTests.A_whole_listing_of_torrents_with_their_files_logs_nothing_from_the_http_client`
+pin it.

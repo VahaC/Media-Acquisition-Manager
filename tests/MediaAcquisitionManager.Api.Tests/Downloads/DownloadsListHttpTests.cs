@@ -289,6 +289,8 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
             [
                 "id", "releaseId", "releaseTitle", "sourceName", "downloadClientName", "destinationName", "clientDestinationKey", "status",
                 "progress", "clientJobId", "error", "blockReason", "overwriteCheck", "createdUtc", "statusChangedUtc",
+                // MAM-24 — the replacement it carries; null for a Keep both send.
+                "replacement",
             ],
             item.EnumerateObject().Select(property => property.Name));
         Assert.Equal("NeedsLinking", item.GetProperty("status").GetString());

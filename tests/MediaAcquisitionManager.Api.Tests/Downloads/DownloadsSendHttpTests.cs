@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
@@ -23,7 +24,8 @@ namespace MediaAcquisitionManager.Api.Tests.Downloads;
 // job is named by the client: 5.2's id, a lookup by info hash before 5.2 (once more when the torrent is
 // listed late), no id when it is never listed, NeedsLinking when there is no hash to look for. Who may send
 // it: every signed-in user (decision 1). Failures are DownloadsSendFailuresHttpTests; repeats and decision 3
-// are DownloadsIdempotencyHttpTests.
+// are DownloadsIdempotencyHttpTests. MAM-24 — every send records what its release turned out to be, and one sent as
+// Keep both carries no replacement and never reads the client's whole list of torrents, replacement on or not.
 public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/downloads";
@@ -50,6 +52,12 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
 
     private const string HybridV1Hash = "aaeeecd05bc4058a5dd980de3cd8c7c1794034bc";
     private const string HybridV2Hash = "b29a07ddcde6736c607836fc557abceaaaf64a860607c374fbc2d9de02ffc274";
+
+    // MAM-24 — a film of the library, its copy in a folder ticked for replacement.
+    private const string JellyfinApiKey = "0123456789abcdef0123456789abcdef";
+    private const string AlienImdbId = "tt0078748";
+    private const string FilmsFolder = "/media/movies";
+    private const string TheatricalPath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv";
 
     // qBittorrent's requests as the fake records them.
     private const string SignIn = "POST /api/v2/auth/login";
@@ -579,6 +587,41 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         Assert.Contains($"apikey={ApiKey}", fetch.Uri.Query, StringComparison.Ordinal);
         Assert.Equal(CallsThroughTheAdd(Lookup(SampleInfoHash)), QBittorrentCalls());
         Assert.Equal(TorznabSamples.TorrentFile(), Assert.Single(_qbittorrent.AddRequests).TorrentFile);
+    }
+
+    [Fact]
+    public async Task Create_records_what_the_release_turned_out_to_be_and_never_reads_the_whole_client()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-24 — replacement on, and a copy of the release's film in a ticked folder: a Keep both send still carries no
+        // replacement.
+        var jellyfin = await _integrations.Create("jellyfin", "Living room", apiKey: JellyfinApiKey);
+        var films = await new LibraryLocationSeeder(_factory.Scope).Create(jellyfin, "Фільми", FilmsFolder);
+        var works = new MediaWorkSeeder(_factory.Scope);
+        var alien = await works.CreateMovie(jellyfin, "Alien", 1979, imdbId: AlienImdbId);
+        await works.AddVersion(jellyfin, alien, Guid.NewGuid().ToString("N"), films, "Theatrical Cut", TheatricalPath);
+        _factory.Files.AddFile(TheatricalPath, TestMedia.File(inode: 1), TestMedia.Taken());
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        await _factory.InspectFilesAsync(_owner.AccessToken, cancellationToken);
+        await new ReplacementSettingsSeeder(_factory.Scope).SwitchOn(FilmsFolder);
+        var release = await _releases.CreateFoundBySearch(_owner.User, _toloka, "Alien", 1979, "Alien (1979) Director's Cut BDRemux 2160p HDR", imdbId: AlienImdbId);
+
+        //Act
+        var response = await SendAsync(_owner, release);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var job = await ReadJobAsync(response, cancellationToken);
+        Assert.Equal((DownloadJobStatus.Submitted, (DownloadJobReplacementDto?)null), (job.Status, job.Replacement));
+        await _factory.WithDbAsync(async db =>
+        {
+            // R5 — every send keeps what its release turned out to be, Keep both too.
+            Assert.Equal(ReleasePayloadKind.TorrentFile, (await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken)).PayloadKind);
+            Assert.Equal(0, await db.ReplacementJobs.CountAsync(cancellationToken));
+        });
+        // R2 — a Keep both send never reads qBittorrent's whole list of torrents.
+        Assert.DoesNotContain(_factory.QBittorrentHttp.Requests, request => request.Uri.Query.Contains("includeFiles", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

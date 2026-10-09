@@ -31,29 +31,46 @@ describe('allowedRootsApi', () => {
 
   it('reads the media folders', async () => {
     // Arrange
-    const requests = respondWith(200, { paths: ['/media', '/data/films'] })
+    const stored = {
+      paths: ['/media', '/data/films'],
+      replacementEnabled: true,
+      libraryFolders: [
+        { appPath: '/media/movies', libraryNames: ['Фільми'], ticked: true, status: 'Available' },
+        { appPath: '/config/data/collections', libraryNames: ['Колекції'], ticked: false, status: 'OutsideMediaFolders' },
+      ],
+      unmappedLibraryFolderCount: 1,
+    }
+    const requests = respondWith(200, stored)
 
     // Act
     const roots = await allowedRootsApi.get()
 
     // Assert
-    expect(roots).toEqual({ paths: ['/media', '/data/films'] })
+    expect(roots).toEqual(stored)
     expect(requests[0].method).toBe('get')
     expect(api.getUri(requests[0])).toBe('/api/settings/allowed-roots')
   })
 
-  it('replaces the media folders with the whole list it is given (204)', async () => {
+  it('replaces the media folders, the replacement switch and the ticks with what it is given, in one request (204)', async () => {
     // Arrange
     const requests = respondWith(204, '')
 
     // Act
-    await allowedRootsApi.update(['/media', '/data/films'])
+    await allowedRootsApi.update({
+      paths: ['/media', '/data/films'],
+      replacementEnabled: true,
+      replacementFolders: ['/media/movies', '/media/tv-shows'],
+    })
 
     // Assert
     expect(requests).toHaveLength(1)
     expect(requests[0].method).toBe('put')
     expect(api.getUri(requests[0])).toBe('/api/settings/allowed-roots')
-    expect(JSON.parse(requests[0].data as string)).toEqual({ paths: ['/media', '/data/films'] })
+    expect(JSON.parse(requests[0].data as string)).toEqual({
+      paths: ['/media', '/data/films'],
+      replacementEnabled: true,
+      replacementFolders: ['/media/movies', '/media/tv-shows'],
+    })
   })
 
   it('rejects a refused list with the API sentence in the body (400)', async () => {
@@ -61,7 +78,7 @@ describe('allowedRootsApi', () => {
     respondWith(400, { error: '“/media/films” is inside “/media”, which already allows it. Keep only “/media”.' })
 
     // Act
-    const result = allowedRootsApi.update(['/media', '/media/films'])
+    const result = allowedRootsApi.update({ paths: ['/media', '/media/films'], replacementEnabled: false, replacementFolders: [] })
 
     // Assert
     await expect(result).rejects.toMatchObject({

@@ -50,4 +50,45 @@ public interface IMediaWorkSeeder
         MediaWorkEntity series,
         int season,
         long? sizeBytes = null);
+
+    /// <summary>
+    /// MAM-24 — an episode of <paramref name="series"/> titled <paramref name="title"/>, placed at
+    /// <paramref name="season"/> and <paramref name="number"/> by the item <paramref name="itemId"/> of
+    /// <paramref name="source"/>, which reports its title too; no version until one is added with that item
+    /// (<see cref="AddVersion"/>).
+    /// </summary>
+    Task<MediaWorkEntity> AddEpisodeAt(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity series,
+        string title,
+        int? season,
+        int? number,
+        string itemId);
+
+    /// <summary>
+    /// MAM-24 — one more place of <paramref name="episode"/>: the item <paramref name="itemId"/> of <paramref name="source"/>
+    /// places it in <paramref name="series"/> at <paramref name="season"/> and <paramref name="number"/> (two items of one
+    /// episode, two places).
+    /// </summary>
+    Task<MediaEpisodePositionEntity> PlaceEpisode(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity episode,
+        MediaWorkEntity series,
+        int? season,
+        int? number,
+        string itemId);
+
+    /// <summary>
+    /// MAM-24 — a version of <paramref name="work"/> as the item <paramref name="itemId"/> of <paramref name="source"/>
+    /// reports it, labelled <paramref name="editionLabel"/> when given, with a file at each of
+    /// <paramref name="servicePaths"/> held by <paramref name="library"/> when given — as a sync stores them, so with no
+    /// identity until an inspection reads them.
+    /// </summary>
+    Task<MediaVersionEntity> AddVersion(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity work,
+        string itemId,
+        LibraryLocationEntity? library,
+        string? editionLabel,
+        params string[] servicePaths);
 }

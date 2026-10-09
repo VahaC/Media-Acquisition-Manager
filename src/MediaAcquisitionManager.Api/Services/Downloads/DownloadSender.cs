@@ -30,6 +30,14 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// fails the job too, with nothing sent.
 /// </para>
 /// <para>
+/// MAM-24 — what the release turned out to be is recorded on the job right after the fetch, every send's. A job that
+/// carries a replacement of old copies is sent in strict mode (ADR 0032, Vasyl's decision of 2026-10-09): a release
+/// that turns out a magnet link, whose files nothing can check before the client has them; a category whose folder
+/// isn't inside a library the app knows; and an overwrite check that finds any file at a place, or couldn't look at
+/// every place, each fail the whole job with the app's sentence and hand the client nothing. The owner picks Keep both
+/// himself: a replacement is never quietly sent as a plain download.
+/// </para>
+/// <para>
 /// A submission is never sent again (house rule 8). When its answer leaves open whether the client took it —
 /// no answer in time, the connection lost, a server error, an answer the app can't read — the client's job
 /// list is read for the torrent instead: there, it was taken; not there, the job fails with the client's
@@ -57,14 +65,20 @@ public sealed class DownloadSender(
     private const string LocatorUnreadableError =
         "The release's download link can't be read with this installation's encryption key, so nothing was sent. Search again.";
 
+    /// <summary>MAM-24 — a replacement whose gateway link turned out a magnet once fetched: its files can't be checked
+    /// before the client has them (ADR 0032).</summary>
+    private const string ReplacementMagnetError =
+        "This release turned out to be a magnet link, whose files the app can't check before sending, so nothing was sent and no copy will be replaced. Pick Keep both to download it.";
+
     public async Task SendAsync(
         Guid jobId,
         ReleaseEntity release,
         IntegrationConnectionEntity source,
         IntegrationConnectionEntity client,
-        string clientDestinationKey)
+        string clientDestinationKey,
+        bool replacement = false)
     {
-        var outcome = await RunAsync(jobId, release, source, client, clientDestinationKey);
+        var outcome = await RunAsync(jobId, release, source, client, clientDestinationKey, replacement);
         await db.DownloadJobs.FinishAsync(
             jobId, outcome.Status, outcome.ClientJobId, outcome.Error, outcome.ErrorOrigin, time.GetUtcNow().UtcDateTime);
         // Information: the status only — never the sentence, which can quote what a service answered.
@@ -81,7 +95,8 @@ public sealed class DownloadSender(
         ReleaseEntity release,
         IntegrationConnectionEntity source,
         IntegrationConnectionEntity client,
-        string key)
+        string key,
+        bool replacement)
     {
         // The service checked both types before writing the job; the registry doesn't change while the
         // app runs.
@@ -104,6 +119,10 @@ public sealed class DownloadSender(
         if (!fetched.IsSuccess)
             return Failed(source, DownloadJobErrorOrigin.ReleaseSource, "payload fetch", fetched.Status, fetched.Error!, fetchSettings);
         var payload = fetched.Value!;
+        // MAM-24 — what a gateway's link turned out to be is known only now: the payload type a replacement keeps.
+        await db.DownloadJobs.RecordPayloadKindAsync(jobId, payload.Kind);
+        if (replacement && payload.Kind == ReleasePayloadKind.Magnet)
+            return SendOutcome.Failed(ReplacementMagnetError);
         if (!downloadClient.Capabilities.PayloadKinds.Contains(payload.Kind))
             return SendOutcome.Failed($"“{client.Name}” can't take {KindOf(payload.Kind)}, which this release turned out to be, so nothing was sent.");
 
@@ -129,6 +148,11 @@ public sealed class DownloadSender(
                 $"“{client.Name}” has no category “{key}” any more, so nothing was sent: it would have created one in its default folder. Create the category again in “{client.Name}”, or the owner edits the destination.");
         }
 
+        // MAM-24 — a replacement lands only inside a library the app knows: the new file must be one the library reads,
+        // or nothing could ever verify it (ADR 0032).
+        if (replacement && destination.Check.Status != DestinationPathStatus.InLibrary)
+            return SendOutcome.Failed(ReplacementOutsideLibrariesError(key));
+
         var clientSettingsResult = settingsFactory.Create(client);
         if (clientSettingsResult.Settings is not { } clientSettings)
             return SendOutcome.Failed(clientSettingsResult.Error!);
@@ -144,7 +168,7 @@ public sealed class DownloadSender(
         }
 
         // ── what it would write over (MAM-38) ──
-        var overwrite = await CheckOverwritesAsync(jobId, payload, destination, client, downloadClient, clientSettings);
+        var overwrite = await CheckOverwritesAsync(jobId, payload, destination, client, downloadClient, clientSettings, replacement);
         if (overwrite is null)
             return SendOutcome.Failed(OverwriteCheckFailedError(key));
         if (overwrite.Refusal is { } refusal)
@@ -235,11 +259,13 @@ public sealed class DownloadSender(
         CheckedClientDestination destination,
         IntegrationConnectionEntity client,
         IDownloadClient downloadClient,
-        IntegrationConnectionSettings settings)
+        IntegrationConnectionSettings settings,
+        bool replacement)
     {
         try
         {
-            return await overwrites.CheckAsync(payload, destination, client, downloadClient, settings, CancellationToken.None);
+            return await overwrites.CheckAsync(
+                payload, destination, client, downloadClient, settings, anyFileRefuses: replacement, cancellationToken: CancellationToken.None);
         }
         catch (Exception exception)
         {
@@ -253,6 +279,11 @@ public sealed class DownloadSender(
             return null;
         }
     }
+
+    /// <summary>MAM-24 — the app's sentence for a replacement whose category's folder isn't inside a library the app
+    /// knows: nothing reached the client.</summary>
+    private static string ReplacementOutsideLibrariesError(string key) =>
+        $"The folder of the category “{key}” isn't inside a library the app knows, so nothing was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the destination.";
 
     /// <summary>MAM-38 — the app's sentence for a send whose overwrite check broke: nothing reached the client.</summary>
     private static string OverwriteCheckFailedError(string key) =>

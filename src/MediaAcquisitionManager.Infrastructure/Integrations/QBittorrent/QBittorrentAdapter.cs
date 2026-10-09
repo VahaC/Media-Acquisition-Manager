@@ -16,7 +16,8 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 /// adds the submission of a release in <c>QBittorrentAdapter.Submissions.cs</c>, and the lookup of the
 /// torrents that hold its info hashes in <c>QBittorrentAdapter.Jobs.cs</c>. MAM-14 adds what following a job
 /// reads: the torrents of a category, next to the lookup, and a torrent's files in
-/// <c>QBittorrentAdapter.Files.cs</c>.
+/// <c>QBittorrentAdapter.Files.cs</c>. MAM-24 adds the whole listing — every torrent with its files, for telling
+/// which one holds a library copy (ADR 0031) — in <c>QBittorrentAdapter.Holdings.cs</c>.
 /// </summary>
 /// <remarks>
 /// The sign-in and GETs, plus — MAM-13 — one write: <c>torrents/add</c>, sent once on a session a read has

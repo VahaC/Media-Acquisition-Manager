@@ -1,21 +1,48 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { CircleCheck, TriangleAlert } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
+import { ReplacementLine } from '@/components/jobs/ReplacementLine'
+import { ReplacementWorks } from '@/components/search/ReplacementWorks'
 import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { useDownloadOptions, useDownloadOverwriteCheck, useSendDownload } from '@/lib/queries'
+import { useAuthStore } from '@/lib/auth-store'
+import { formatNumber } from '@/lib/format'
+import {
+  useDownloadOptions,
+  useDownloadOverwriteCheck,
+  useReplacementOptions,
+  useScheduleReplacement,
+  useSendDownload,
+} from '@/lib/queries'
+import {
+  holdingClients,
+  replacementGroups,
+  tickableIds,
+  tickedInOrder,
+  worksToConfirm,
+  type ReplacementGroup,
+} from '@/lib/replacements'
 import { newRequestId } from '@/lib/request-id'
-import type { DownloadClientOption, DownloadDestinationOption, DownloadJobStatus, SearchRelease } from '@/lib/types'
+import type {
+  DownloadClientOption,
+  DownloadDestinationOption,
+  DownloadJob,
+  DownloadJobReplacement,
+  DownloadJobStatus,
+  SearchRelease,
+} from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
-import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import { cn, getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every form dialog lays them out
-import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body and the buttons under it
-import '@/styles/library.css' // .library-source-status, .library-source-warning — the outcome line and its icon
+import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the one scrolling body, the buttons under it, the radios
+import '@/styles/library.css' // .library-source-status, -warning, .library-file-app-path, .library-link — the lines, the paths, the link
 import '@/styles/search.css' // .search-details-* — the title that wraps clear of the close button, the summary
+import '@/styles/downloads.css' // .download-dialog-wide, .download-mode*, .download-summary-* — the old copies
 
 /**
  * What the dialog says once a job comes back that isn't Failed: its status, with Submitted told
@@ -32,6 +59,25 @@ type Outcome = Exclude<DownloadJobStatus, 'Failed'> | 'SubmittedUnlisted'
  */
 const WARNING_OUTCOMES: ReadonlySet<Outcome> = new Set<Outcome>(['Created', 'NeedsLinking', 'Paused', 'Cancelled'])
 
+/** MAM-24 — what a send does with the copies the library already holds: keeps them, or replaces the ticked ones. */
+type CopiesMode = 'KeepBoth' | 'Replace'
+
+/**
+ * MAM-24 — the summary's Existing copies: kept, or the ticked copies by film or season with the clients
+ * the conditions name. Frozen into the sent view as it was sent, so a later answer can't change it.
+ */
+type CopiesSummary =
+  | { mode: 'KeepBoth' }
+  | { mode: 'Replace'; groups: ReplacementGroup[]; clientName: string }
+
+/** What the sent view shows: the job's outcome and its replacement, and what was sent. */
+interface Sent {
+  outcome: Outcome
+  clientName: string
+  replacement: DownloadJobReplacement | null
+  copies: CopiesSummary
+}
+
 interface DownloadDialogProps {
   release: SearchRelease
   onClose: () => void
@@ -40,12 +86,12 @@ interface DownloadDialogProps {
 /**
  * MAM-13 — sends one release to a download client: a client that can take it, one of its
  * destinations (a category of the client, which decides the folder), and a summary of what goes
- * where, existing copies included — this version adds a download and never replaces or removes a
- * file. Every signed-in user may send (MAM-13's decision 1). MAM-38 — the server refuses a release
- * whose files would land on a different file already in the destination's folder (a Failed job, its
- * sentence naming the file); where it can't look into that folder, a warning says so before Send,
- * and Send waits for the first answer about the folder picked. The parent mounts it only while it
- * is open, so every opening is a new submission with its own request id.
+ * where, existing copies included. Every signed-in user may send (MAM-13's decision 1). MAM-38 — the
+ * server refuses a release whose files would land on a different file already in the destination's
+ * folder (a Failed job, its sentence naming the file); where it can't look into that folder, a
+ * warning under the destination says so before Send, and Send waits for the first answer about the
+ * folder picked. The parent mounts it only while it is open, so every opening is a new submission
+ * with its own request id.
  *
  * It opens on the default destination and the client that owns it; otherwise on the only client and
  * its only destination; otherwise on the placeholders. MAM-32 — the server now names the destination
@@ -56,16 +102,32 @@ interface DownloadDialogProps {
  * else none. Every rule is the server's, shown as its
  * sentence in the form; a job that failed shows its sentence there too and keeps the form, so the
  * person can pick again and send. Any other job replaces the form with what happened, and Close.
+ *
+ * MAM-24 — Existing copies: Keep both, the default, or Replace after verification, the installation
+ * owner's alone (ADR 0033; a member reads why, and nothing is asked). Once a destination is picked,
+ * the owner's copies of the matched works are listed with why each can or can't be replaced, read-only
+ * under Keep both; picked, Replace reads the torrents holding them too (ADR 0031), and Send schedules
+ * the replacement of the copies ticked, with the title-and-year matches confirmed (ADR 0032). The mode
+ * is the person's click alone: an answer that takes Replace away keeps it picked, with Send disabled
+ * and the reason, and never falls back to Keep both on its own (Vasyl's decision 7 of 2026-10-09).
+ * The ticks that count are worked out during render from the latest answer, so a destination's copies
+ * never carry another's ticks, and a copy that can't be replaced any more is never sent.
  */
 export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const { t } = useTranslation(['downloads', 'common'])
+  const isOwner = useAuthStore((state) => state.user?.isOwner === true)
   const options = useDownloadOptions(release.id)
   const optionsLoad = useLoadRetry(options)
   const send = useSendDownload()
+  const schedule = useScheduleReplacement()
   const clientFieldId = useId()
   const destinationFieldId = useId()
   const destinationHintId = useId()
   const warningId = useId()
+  const modeName = useId()
+  const replaceHintId = useId()
+  const replacementErrorId = useId()
+  const clientWarningId = useId()
   // One id per submission, made when the dialog opens. A resend after a thrown error (the network, a
   // refusal) keeps it: a request that did reach the server is then answered with the job it made
   // instead of becoming a second download. Only a Failed job replaces it, as nothing reached the
@@ -75,8 +137,13 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   // during render, never copied in by an effect.
   const [pickedClientId, setPickedClientId] = useState<string>()
   const [pickedDestinationId, setPickedDestinationId] = useState<string>()
+  // MAM-24 — Keep both until the person picks Replace, and never back on its own. The picks are kept
+  // across both modes and every answer; what is sent is worked out from them during render.
+  const [mode, setMode] = useState<CopiesMode>('KeepBoth')
+  const [pickedFiles, setPickedFiles] = useState<ReadonlySet<string>>(new Set())
+  const [pickedConfirmations, setPickedConfirmations] = useState<ReadonlySet<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<{ outcome: Outcome; clientName: string } | null>(null)
+  const [sent, setSent] = useState<Sent | null>(null)
   // A second click before the button shows it is sending must not send again: isPending reaches the
   // screen only once the mutation has told React, after the click that started it.
   const inFlight = useRef(false)
@@ -87,8 +154,9 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const client = clients.find((candidate) => candidate.id === (pickedClientId ?? preselected.clientId))
   const destinationId = pickedDestinationId ?? preselected.destinationId
   const destination = client?.destinations.find((candidate) => candidate.id === destinationId)
-  const sending = send.isPending
+  const sending = send.isPending || schedule.isPending
   const ready = client !== undefined && destination !== undefined
+  const replace = mode === 'Replace'
   // MAM-38 — asked once a destination is picked; a question that failed warns of nothing, as the send
   // checks again whatever the dialog showed.
   const overwrite = useDownloadOverwriteCheck(destination?.id ?? '')
@@ -99,13 +167,119 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   // send checks again anyway, and a Send held for a question that keeps failing would never let go.
   const checking = ready && overwrite.isFetching && overwrite.data === undefined && overwrite.errorUpdateCount === 0
 
+  // MAM-24 — the owner's copies through the destination picked; never asked for a member, whose route
+  // it isn't. The held marks (every client's torrents) only once Replace is picked.
+  const replacement = useReplacementOptions(release.id, destination?.id ?? '', replace, isOwner && ready)
+  const replacementLoad = useLoadRetry(replacement)
+  // Another answer standing in while this one loads (another destination's, the one without the held
+  // marks) still lists its copies, but decides nothing: Replace and Send wait for the answer asked.
+  const answer = isOwner && ready ? replacement.data : undefined
+  const tickable = tickableIds(answer)
+  const ticked: ReadonlySet<string> = new Set([...pickedFiles].filter((fileId) => tickable.has(fileId)))
+  const works = answer !== undefined && answer.unavailable === null ? answer.works : []
+  const toConfirm = answer === undefined ? [] : worksToConfirm(answer, ticked)
+  const confirmedWorkIds = toConfirm.filter((work) => pickedConfirmations.has(work.workId)).map((work) => work.workId)
+  const unconfirmed = toConfirm.find((work) => !pickedConfirmations.has(work.workId))
+  const clientWarnings = answer === undefined || works.length === 0 ? [] : answer.clients.filter((check) => check.status !== 'Read')
+
+  /**
+   * Why Replace can't be picked, or — picked — can't go yet, as a sentence: the member's, the missing
+   * destination, the answer on its way, the release's reason, or no copy to tick. Null when nothing
+   * stands in the way, and while the first answer failed, which its error state says.
+   */
+  const replaceReason = ((): { text: string; node: ReactNode } | null => {
+    const plain = (text: string) => ({ text, node: text })
+    if (!isOwner) return plain(t('replace.notOwner'))
+    if (!ready) return plain(t('replace.pickDestination'))
+    if (replacementLoad.error) return null
+    if (answer === undefined || replacement.isPlaceholderData) return plain(t('replace.checking'))
+    switch (answer.unavailable) {
+      case null:
+        return tickable.size === 0 ? plain(t('replace.noneAvailable')) : null
+      case 'SwitchedOff':
+        // The page where it is switched on, a link in the sentence; Send's hover reads it plain. The tag
+        // is <page>, not <link>: Trans reads <link> as HTML's empty element and drops the words in it.
+        return {
+          text: t('replace.unavailable.SwitchedOff'),
+          node: (
+            <Trans
+              t={t}
+              i18nKey="replace.switchedOffLinked"
+              components={{ page: <Link className="library-link" to="/settings/media-folders" /> }}
+            />
+          ),
+        }
+      case 'DestinationNotUsable':
+        return plain(answer.destinationProblem ?? t('replace.unavailable.DestinationNotUsable'))
+      default:
+        return plain(t(`replace.unavailable.${answer.unavailable}`))
+    }
+  })()
+  // Disabled only while it isn't picked: picked, it stays so, and Send says why it waits.
+  const replaceDisabled = !replace && (replaceReason !== null || replacementLoad.error !== null)
+
+  /**
+   * MAM-24 — why a replacement can't be sent yet, in this order: the copies are being checked, the
+   * check failed, the folder's first answer is on its way, the release's reason, a folder the app
+   * can't check for files already there (a replacement goes only after that check), no copy to tick,
+   * none ticked, a match by title and year not confirmed.
+   */
+  const replaceSendReason = (): string | undefined => {
+    if (replacement.isFetching) return t('replace.checking')
+    if (replacement.error) return t('replace.optionsFailed')
+    if (answer === undefined || replacement.isPlaceholderData) return t('replace.checking')
+    if (checking) return t('checkingFolder')
+    if (answer.unavailable !== null) return replaceReason?.text
+    if (notCheckedReason) return t('replace.notChecked')
+    if (tickable.size === 0) return t('replace.noneAvailable')
+    if (ticked.size === 0) return t('replace.noneTicked')
+    if (unconfirmed) return t('replace.confirmFirst', { text: unconfirmed.confirmationText })
+    return undefined
+  }
+
   /** Why Send is disabled, shown on hover; none while it is sending, which the button itself says. */
   const disabledReason = () => {
     if (sending) return undefined
     if (clients.length > 0 && !ready) return t('pickFirst')
+    if (replace) return replaceSendReason()
     if (checking) return t('checkingFolder')
     return undefined
   }
+  const replaceHeld = replace && ready && replaceSendReason() !== undefined
+
+  /** Ticks or unticks copies; a pick the answer no longer lets be ticked simply doesn't count. */
+  const tick = (fileIds: readonly string[], on: boolean) => {
+    setPickedFiles((current) => {
+      const next = new Set(current)
+      for (const fileId of fileIds) {
+        if (on) next.add(fileId)
+        else next.delete(fileId)
+      }
+      return next
+    })
+  }
+
+  const confirm = (workId: string, on: boolean) => {
+    setPickedConfirmations((current) => {
+      const next = new Set(current)
+      if (on) next.add(workId)
+      else next.delete(workId)
+      return next
+    })
+  }
+
+  /**
+   * The summary's Existing copies for the form as it stands. Its conditions name the clients whose
+   * torrents hold ticked copies, where the owner removes them; while none does, the client sent to.
+   */
+  const holders = answer === undefined ? [] : holdingClients(answer, ticked)
+  const copiesSummary: CopiesSummary = replace
+    ? {
+        mode: 'Replace',
+        groups: answer === undefined ? [] : replacementGroups(answer, ticked),
+        clientName: holders.length > 0 ? holders.join(t('common:separator')) : client?.name ?? '',
+      }
+    : { mode: 'KeepBoth' }
 
   /** Another client has other destinations: the last client's pick goes, the new client's own preselection comes. */
   const pickClient = (next: string) => {
@@ -116,15 +290,19 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!client || !destination || inFlight.current) return
+    // Enter in a field submits the form whatever Send shows: a replacement goes only as Send allows it.
+    if (replace && (answer === undefined || replaceSendReason() !== undefined)) return
     inFlight.current = true
     setError(null)
+    const download = { requestId, releaseId: release.id, downloadClientId: client.id, destinationId: destination.id }
+    // What the summary showed at Send, kept for the sent view.
+    const copies = copiesSummary
     try {
-      const job = await send.mutateAsync({
-        requestId,
-        releaseId: release.id,
-        downloadClientId: client.id,
-        destinationId: destination.id,
-      })
+      // The ticks, the radios and the confirmations are disabled while it goes, so a resend under the
+      // same request id carries the same body.
+      const job: DownloadJob = replace && answer !== undefined
+        ? await schedule.mutateAsync({ ...download, fileIds: tickedInOrder(answer, ticked), confirmedWorkIds })
+        : await send.mutateAsync(download)
       inFlight.current = false
       if (job.status === 'Failed') {
         setRequestId(newRequestId())
@@ -134,12 +312,98 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
       setSent({
         outcome: job.status === 'Submitted' && job.clientJobId === null ? 'SubmittedUnlisted' : job.status,
         clientName: job.downloadClientName,
+        replacement: job.replacement,
+        copies,
       })
     } catch (e: unknown) {
       inFlight.current = false
       setError(getApiErrorMessage(e, t('failed')))
     }
   }
+
+  // MAM-24 — Keep both or Replace, why Replace can't be picked, the copies' read failing, the clients
+  // whose torrents couldn't be read, and the copies. Plain lines, no live region: only a failure
+  // interrupts (ErrorState, Banner), and Send reads the warnings it is held for or warned of.
+  const existingCopies = (
+    <>
+      <fieldset className="download-mode">
+        <legend className="ui-label">{t('replace.legend')}</legend>
+        <div className="download-mode-options">
+          <label className="settings-check">
+            <input
+              type="radio"
+              name={modeName}
+              value="KeepBoth"
+              checked={!replace}
+              disabled={sending}
+              onChange={() => setMode('KeepBoth')}
+            />
+            <span>{t('replace.keepBoth')}</span>
+          </label>
+          <label className="settings-check">
+            <input
+              type="radio"
+              name={modeName}
+              value="Replace"
+              checked={replace}
+              disabled={sending || replaceDisabled}
+              aria-describedby={replaceReason !== null ? replaceHintId : replacementLoad.error ? replacementErrorId : undefined}
+              onChange={() => setMode('Replace')}
+            />
+            <span>{t('replace.replace')}</span>
+          </label>
+        </div>
+        {replaceReason !== null && <p id={replaceHintId} className="auth-hint">{replaceReason.node}</p>}
+      </fieldset>
+      {replacementLoad.error && (
+        // A 404 for a release that expired or a destination removed won't change on a second try.
+        <div id={replacementErrorId}>
+          <ErrorState
+            title={t('replace.optionsFailed')}
+            onRetry={retryCanHelp(replacementLoad.error) ? replacementLoad.retry : undefined}
+            retrying={replacementLoad.retrying}
+          >
+            {getApiErrorMessage(replacementLoad.error)}
+          </ErrorState>
+        </div>
+      )}
+      {/* A failed refresh keeps the copies last listed on screen, with a banner saying so. */}
+      {answer !== undefined && replacement.error && (
+        <Banner action={retryCanHelp(replacement.error) ? <RetryButton onRetry={() => replacement.refetch()} /> : undefined}>
+          {t('replace.optionsRefreshFailed')}{' '}{getApiErrorMessage(replacement.error)}
+        </Banner>
+      )}
+      {clientWarnings.map((check, at) => (
+        <p key={check.clientName} id={`${clientWarningId}-${at}`} className="library-source-warning">
+          <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>
+            {check.status === 'Partial'
+              ? t('replace.clientPartial', { count: check.unplacedTorrents, value: formatNumber(check.unplacedTorrents), client: check.clientName })
+              : check.error === null
+                ? t('replace.clientNotReadNoReason', { client: check.clientName })
+                : t('replace.clientNotRead', { client: check.clientName, error: check.error })}
+          </span>
+        </p>
+      ))}
+      {answer !== undefined && works.length > 0 && (
+        <ReplacementWorks
+          release={release}
+          options={answer}
+          ticked={ticked}
+          confirmed={pickedConfirmations}
+          readOnly={!replace || sending}
+          onTick={tick}
+          onConfirm={confirm}
+        />
+      )}
+    </>
+  )
+  // In Replace mode Send reads what it is warned of: the folder that can't be checked, and the clients
+  // whose torrents couldn't be read for the held marks.
+  const sendDescribedBy = [
+    ...(notCheckedReason ? [warningId] : []),
+    ...(replace ? clientWarnings.map((_, at) => `${clientWarningId}-${at}`) : []),
+  ].join(' ')
 
   // The body while the form is up: the options' state, or the two pickers.
   const fields = (() => {
@@ -197,14 +461,24 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
             {client?.destinations.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
           </select>
           {!client && <p id={destinationHintId} className="auth-hint">{t('destinationNeedsClient')}</p>}
+          {/* MAM-38 — under the destination it is about. MAM-24 — a replacement never goes without the
+              check, so in Replace mode it says so rather than that the release goes without it. */}
+          {notCheckedReason && (
+            <Banner tone="warning" id={warningId}>
+              {replace ? t('replace.notChecked') : t(`overwrite.${notCheckedReason}`)}
+            </Banner>
+          )}
         </div>
+        {existingCopies}
       </>
     )
   })()
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="settings-dialog">
+      {/* MAM-24 — wider once the owner's copies are listed: on the answer, not on the radio, so the
+          radios never move under the pointer. */}
+      <DialogContent className={cn('settings-dialog', works.length > 0 && 'download-dialog-wide')}>
         <DialogHeader>
           <DialogTitle className="search-details-title">{t('dialog.title', { title: release.title })}</DialogTitle>
           <DialogDescription>{t('dialog.description')}</DialogDescription>
@@ -214,7 +488,8 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
           <div className="settings-dialog-form">
             <div className="settings-dialog-body">
               <OutcomeLine outcome={sent.outcome} client={sent.clientName} />
-              <SendSummary release={release} client={client} destination={destination} />
+              {sent.replacement && <ReplacementLine replacement={sent.replacement} downloadFailed={false} />}
+              <SendSummary release={release} client={client} destination={destination} copies={sent.copies} />
             </div>
             <DialogFooter>
               <Button type="button" autoFocus onClick={onClose}>{t('common:close')}</Button>
@@ -225,8 +500,9 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
           <form className="settings-dialog-form" noValidate onSubmit={(event) => void submit(event)}>
             <div className="settings-dialog-body">
               {fields}
-              {notCheckedReason && <Banner tone="warning" id={warningId}>{t(`overwrite.${notCheckedReason}`)}</Banner>}
-              {clients.length > 0 && <SendSummary release={release} client={client} destination={destination} />}
+              {clients.length > 0 && (
+                <SendSummary release={release} client={client} destination={destination} copies={copiesSummary} />
+              )}
             </div>
             {/* MAM-16 — outside the scrolling body, above the buttons; the picks stay to send again. */}
             {error && <Banner>{error}</Banner>}
@@ -237,8 +513,8 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
                     isn't read out, and the warning is meant to be heard before Send. */}
                 <Button
                   type="submit"
-                  disabled={!ready || sending || checking}
-                  aria-describedby={notCheckedReason ? warningId : undefined}
+                  disabled={!ready || sending || checking || replaceHeld}
+                  aria-describedby={sendDescribedBy === '' ? undefined : sendDescribedBy}
                 >
                   {sending ? t('sending') : t('send')}
                 </Button>
@@ -315,12 +591,13 @@ function OutcomeLine({ outcome, client }: { outcome: Outcome; client: string }) 
 /**
  * What Send sends, as the Details dialog lists a release's facts: the source and the release, the
  * client and the destination with its category (the client's own name for it), and the existing
- * copies, which stay.
+ * copies — kept, or, MAM-24, the ones replaced after verification.
  */
-function SendSummary({ release, client, destination }: {
+function SendSummary({ release, client, destination, copies }: {
   release: SearchRelease
   client: DownloadClientOption | undefined
   destination: DownloadDestinationOption | undefined
+  copies: CopiesSummary
 }) {
   const { t } = useTranslation('downloads')
   const titleId = useId()
@@ -343,8 +620,37 @@ function SendSummary({ release, client, destination }: {
             : notPicked}
         </dd>
         <dt>{t('summary.existingCopies')}</dt>
-        <dd>{t('summary.kept')}</dd>
+        <dd><ExistingCopiesSummary copies={copies} /></dd>
       </dl>
     </section>
+  )
+}
+
+/**
+ * MAM-24 — the Existing copies row: kept, nothing ticked yet, or the copies replaced by film or season
+ * with their paths in the app, then the conditions, worded for what this version does: it schedules
+ * the replacement, and nothing is checked or moved until a later version.
+ */
+function ExistingCopiesSummary({ copies }: { copies: CopiesSummary }) {
+  const { t } = useTranslation('downloads')
+
+  if (copies.mode === 'KeepBoth') return t('summary.kept')
+  if (copies.groups.length === 0) return t('summary.notPicked')
+  return (
+    <>
+      <p>{t('summary.replaced')}</p>
+      <ul className="download-summary-groups">
+        {/* A fixed order, and two groups may read alike: keyed by place. */}
+        {copies.groups.map((group, at) => (
+          <li key={at}>
+            {t('summary.replacedGroup', { group: group.name, count: group.paths.length, value: formatNumber(group.paths.length) })}
+            <ul className="download-summary-paths">
+              {group.paths.map((path) => <li key={path} className="library-file-app-path">{path}</li>)}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <p>{t('summary.conditions', { client: copies.clientName })}</p>
+    </>
   )
 }

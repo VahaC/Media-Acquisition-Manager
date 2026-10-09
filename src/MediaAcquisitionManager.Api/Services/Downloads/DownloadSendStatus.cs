@@ -35,4 +35,12 @@ public enum DownloadSendStatus
 
     /// <summary>The release was already sent to the client by a job that didn't fail (MAM-13's decision 3).</summary>
     AlreadySent = 10,
+
+    /// <summary>MAM-24 — a schedule's ticks don't fit the release's works: no copy, one twice or too many, a copy that
+    /// isn't one of theirs, or a confirmation missing, not needed or with no copy ticked.</summary>
+    ReplacementInvalid = 11,
+
+    /// <summary>MAM-24 — a ticked copy can't be replaced now: replacement is off, the release is a magnet link or matches
+    /// no work any more, or the copy's work or the copy itself stands in the way.</summary>
+    ReplacementUnavailable = 12,
 }

@@ -33,9 +33,23 @@ public interface IDownloadService
     /// caller's, the client a switched-on download client that takes the payload, the destination the
     /// client's, the source still there to fetch from, the release not already sent to the client — and then
     /// written as a job with its audit row before anything is fetched or sent, and sent
-    /// (<see cref="IDownloadSender"/>). A refused request writes and sends nothing.
+    /// (<see cref="IDownloadSender"/>). A refused request writes and sends nothing. MAM-24 — a request id that scheduled
+    /// a replacement answers a plain send as used for something else.
     /// </summary>
     Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-24 — sends the release as <see cref="SendAsync"/> does, scheduling the replacement of the old copies the owner
+    /// ticked (ADR 0030–0034): the same checks, then the ticks planned against the release's works from the database
+    /// and the disk alone (<c>IReplacementPlanner</c>) — <see cref="DownloadSendStatus.ReplacementInvalid"/> or
+    /// <see cref="DownloadSendStatus.ReplacementUnavailable"/>, nothing written, when they don't fit or can't be replaced
+    /// —, then the job, the replacement with its copies' fresh identities and its works' ids, and their audit rows in one
+    /// save before anything is fetched or sent, then the send in strict mode, and the replacement brought in line with
+    /// how it went. The same request id answers its job only with the same ticks, as sets; a request id a Keep both send
+    /// used, or the other way round, is <see cref="DownloadSendStatus.RequestIdReused"/>. Who may call it is the route's
+    /// to decide: the installation owner alone.
+    /// </summary>
+    Task<DownloadSendResult> ScheduleReplacementAsync(ScheduleReplacementRequest request, Guid callerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>The caller's job <paramref name="jobId"/>; <c>null</c> when there is none or it is another
     /// user's.</summary>

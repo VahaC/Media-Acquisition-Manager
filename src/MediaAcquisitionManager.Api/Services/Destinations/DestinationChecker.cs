@@ -1,10 +1,10 @@
+using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Integrations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
-using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +49,7 @@ public sealed class DestinationChecker(
             .Include(client => client.PathMappings)
             .Where(client => clientIds.Contains(client.Id))
             .ToListAsync(cancellationToken);
-        var folders = await ReadLibraryFoldersAsync(cancellationToken);
+        var folders = await LibraryFolderReader.LoadAsync(db, cancellationToken);
 
         // MAM-11 — each client once, however many destinations on the page it holds, and all of them at
         // once: the slowest client sets the wait, not their sum, and one that fails can't hold the others
@@ -77,7 +77,7 @@ public sealed class DestinationChecker(
             return ClientDestinationsResult.NotListed(answer.Status, answer.Error!);
 
         // Read after the client answered: one that couldn't be asked needs no folders.
-        var folders = await ReadLibraryFoldersAsync(cancellationToken);
+        var folders = await LibraryFolderReader.LoadAsync(db, cancellationToken);
         var pairs = PairsOf(client);
         return ClientDestinationsResult.Listed(
         [
@@ -173,60 +173,8 @@ public sealed class DestinationChecker(
             ? result with { Problem = LibraryFoldersUnmappedError }
             : result;
 
-    /// <summary>
-    /// Every root folder the media library syncs stored (MAM-11), each mapped into the app through its own
-    /// integration's current path mappings (ADR 0003) — a folder they give no app path is left out, as it
-    /// can't hold anything the app can name — and how many were stored in all.
-    /// </summary>
-    private async Task<LibraryFolders> ReadLibraryFoldersAsync(CancellationToken cancellationToken)
-    {
-        // By library name, then the library, then the server's order of its folders: the order a
-        // destination's library names come in (DestinationPathCheck takes the first match of each).
-        var stored = await db.LibraryLocationFolders
-            .AsNoTracking()
-            .Join(
-                db.LibraryLocations.Where(location => location.SourceKind == ProvenanceSourceKind.MediaLibrary && location.SourceConnectionId != null),
-                folder => folder.LibraryLocationId,
-                location => location.Id,
-                (folder, location) => new
-                {
-                    LibraryName = location.Name,
-                    LibraryId = location.Id,
-                    IntegrationId = location.SourceConnectionId!.Value,
-                    folder.Position,
-                    folder.ServicePath,
-                })
-            .OrderBy(folder => folder.LibraryName)
-            .ThenBy(folder => folder.LibraryId)
-            .ThenBy(folder => folder.Position)
-            .ToListAsync(cancellationToken);
-        if (stored.Count == 0)
-            return new LibraryFolders([], 0);
-
-        // Batched, no N+1: the mappings of every integration that reported a library, in one query.
-        var integrationIds = stored.Select(folder => folder.IntegrationId).Distinct().ToList();
-        var pairsByIntegration = (await db.PathMappings
-                .AsNoTracking()
-                .Where(mapping => integrationIds.Contains(mapping.IntegrationConnectionId))
-                .ToListAsync(cancellationToken))
-            .GroupBy(mapping => mapping.IntegrationConnectionId)
-            .ToDictionary(group => group.Key, group => ToPairs(group));
-
-        var mapped = new List<LibraryFolder>();
-        foreach (var folder in stored)
-        {
-            var pairs = pairsByIntegration.TryGetValue(folder.IntegrationId, out var found) ? found : [];
-            if (PathMapper.Map(folder.ServicePath, pairs) is { HasAppPath: true } result)
-                mapped.Add(new LibraryFolder(folder.LibraryName, result.AppPath!));
-        }
-
-        return new LibraryFolders(mapped, stored.Count);
-    }
-
-    private static List<PathMappingPair> PairsOf(IntegrationConnectionEntity client) => ToPairs(client.PathMappings);
-
-    private static List<PathMappingPair> ToPairs(IEnumerable<PathMappingEntity> mappings) =>
-        [.. mappings.OrderBy(mapping => mapping.Position).Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))];
+    private static List<PathMappingPair> PairsOf(IntegrationConnectionEntity client) =>
+        [.. client.PathMappings.OrderBy(mapping => mapping.Position).Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))];
 
     private static string DisabledError(IntegrationConnectionEntity client) =>
         $"“{client.Name}” is switched off. Switch it on under Integrations to use it for destinations.";
@@ -237,7 +185,4 @@ public sealed class DestinationChecker(
     /// <summary>What one client said, before any destination is checked against it. Its
     /// <c>ToString</c> prints the list as its type name; the error is masked.</summary>
     private sealed record ClientAnswer(ClientDestinationsStatus Status, IReadOnlyList<ClientDestination> Destinations, string? Error);
-
-    /// <summary>The stored library folders that map into the app, and how many were stored in all.</summary>
-    private sealed record LibraryFolders(IReadOnlyList<LibraryFolder> Mapped, int StoredCount);
 }

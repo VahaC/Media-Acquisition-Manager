@@ -148,3 +148,77 @@ A confirmed title match is consent to schedule, not evidence of the work: it nev
 never writes an id and never lets a copy move before the library has identified the new file. And a
 possible match the owner confirmed on the Duplicates page is still no reason to replace anything
 (ADR 0029).
+
+## What the dialog offers and keeps, as built (added 0.3.0, MAM-24)
+
+**What it lists.** For a film release every file of every version of each matched film, in the
+Library's order; for a TV release each held episode the claim holds, at its first place in the
+Library's order among the places the claim holds — an episode two items place in two seasons is
+listed in the one claimed —, by season, number and title. Each version is tied to its own library
+item's place: a version whose own item places the episode outside the claim, or under another
+series, is `OutsideTheClaim`, and each file row keeps that version's own season and number. A TV
+title naming no season is `NoClaimedSeason`, one claiming nothing held `NoClaimedEpisodes`.
+
+**One file, one copy.** A file the mappings bring to one path is one copy however many works list it
+— one folder under two libraries is two works —, with one id, and the strictest status of every work
+listing it: a work that can't be replaced makes the copy unavailable under the others too
+(`SharedWithUnavailableWork`, a ninth copy reason added while building, as none of the eight said
+why), and a work needing confirmation makes its tick required whichever listing the owner ticked.
+
+**A copy's reasons, in order:** `NoAppPath`, `FolderNotTicked` (ADR 0033), `OutsideTheClaim`,
+`AlreadyScheduled` (a replacement not yet ended holds its path, or its device and inode),
+`NotInspected` (not inspected, or without an identity), `SharedWithUnavailableWork`, then, for a
+copy that passed those, a fresh look at the disk: `Missing`, `Unreadable`, `ChangedSinceInspection`
+(device, inode, size or modification time unlike its inspection's). A reading that failed only drops
+the dynamic-range chip.
+
+**The confirmation, in the server's words.** `ConfirmationText` is built by the server — "This
+release is Alien (1979)", "This release is Alien" without a year, a series' with its year and what
+the release claims of it (", season 2", ", seasons 1–5", ", season 2, episodes 1–5", ", season 2,
+episode 3") — and is the one source of the tick's label, of the 400's sentence and of the stored and
+audited words. Two works that would read the same are told apart by their libraries (" in
+“Фільми”"); two that still do — two works of one title and year in one library, one without an id,
+the duplicates MAM-20 finds — by the file name of each one's first copy (" (the copy
+“Halloween.2018.1080p.mkv”)") when those differ and fit the audit row's name, else by their place in
+the dialog (" (1 of 2)"). As built, Replace can be picked before the tick: **Send** waits for every
+confirmation a ticked copy's work needs, and the plan refuses a schedule without it (400).
+
+**The strict refusal, the same bytes included.** A replacement is sent only when MAM-38's check
+could look at every place and found no file there: a file at a place refuses it whatever its bytes,
+told by being there, its pieces never read ("… a file is already there, and a replacement never
+lands on a file already there, so nothing was sent."), and each `NotChecked…` outcome refuses it
+too, where a Keep both send goes unchecked — a magnet, a list of files that can't be read, a folder
+with no path or outside the Media folders, a place behind a link leading out, a name the app can't
+look up, a client that couldn't list its torrents or their files. The job ends `Failed`, nothing is
+handed to the client, the dialog keeps the form, and the owner picks Keep both himself (Vasyl's
+decision of 2026-10-09): never a quiet downgrade. The scope is [ADR
+0034](0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)'s
+MAM-24 section's.
+
+**Magnets.** A release stored as a magnet offers Keep both only (`Magnet`). A gateway's link, whose
+kind the listing doesn't state, may turn out a magnet once fetched, after the job is written: the
+strict send then fails it ("This release turned out to be a magnet link, whose files the app can't
+check before sending, so nothing was sent and no copy will be replaced. Pick Keep both to download
+it."), and every send now records the kind it turned out to be (`DownloadJobs.PayloadKind`).
+
+**What is kept.** Each ticked file's identity read from the disk when the owner scheduled — device,
+inode, size, modification time to the tick, link count —, read again by the plan, so a copy changed
+since the dialog's read is refused by its name; the matched works with their title, year, evidence,
+the confirmation's words and whether the owner ticked them, and their registry ids then
+(`ReplacementJobWorkIdentifiers`; the owner's TMDb links count as the old work's, ADR 0026, marked
+`SetByOwner`; a series' are its show's own), kept whatever a later sync does; and the edition words
+of the release's title (`ReleaseEditions`), check 3's "intended edition". The rows are a snapshot
+keyed to nothing a sync rebuilds.
+
+`ReplacementOptionsHttpTests.Options_gives_each_copy_the_first_reason_that_keeps_it_from_being_ticked`,
+`ReplacementOptionsHttpTests.Options_lists_one_file_two_libraries_report_as_one_copy_of_both_works_told_apart_by_their_libraries`,
+`ReplacementOptionsHttpTests.Options_tells_two_works_of_one_title_and_year_in_one_library_apart_by_their_copies`,
+`ReplacementOptionsHttpTests.Options_tells_two_works_their_copies_names_can_not_tell_apart_by_their_place_in_the_dialog`,
+`ReplacementOptionsEpisodesHttpTests.Options_lists_an_episode_two_items_place_once_at_the_place_the_claim_holds_and_refuses_the_other_items_copy`,
+`ReplacementScheduleHttpTests.Schedule_of_a_file_two_works_list_with_only_one_of_their_confirmations_is_400_naming_the_other`,
+`ReplacementScheduleHttpTests.Schedule_keeps_the_works_ids_the_owners_link_included_after_a_library_sync_replaces_its_rows`,
+`ReplacementScheduleHttpTests.Schedule_of_a_copy_that_changed_after_the_dialog_read_it_is_409_naming_the_file_and_writes_nothing`,
+`ReplacementScheduleSendHttpTests.Schedule_whose_file_would_land_on_the_same_bytes_already_there_fails_and_hands_qbittorrent_nothing`
+and
+`ReplacementScheduleSendHttpTests.Schedule_whose_gateway_link_turns_out_a_magnet_fails_and_asks_qbittorrent_nothing`
+pin it.

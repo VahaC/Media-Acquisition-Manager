@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Destinations;
 using MediaAcquisitionManager.Api.Services.Releases;
+using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Search;
@@ -12,6 +13,8 @@ using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paging;
+using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Replacements;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,9 +22,17 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 
 /// <inheritdoc cref="IDownloadService"/>
 /// <remarks>
+/// <para>
 /// This service decides what may be sent and writes the job; <see cref="IDownloadSender"/> talks to the
 /// source and the client. MAM-14 — it reads and cancels jobs without talking to anyone: what the client says
 /// about a job is <see cref="IDownloadJobPoller"/>'s to read.
+/// </para>
+/// <para>
+/// MAM-24 — a replacement of old copies is a send with more to it, never a second copy of the send: both routes run one
+/// private core, which plans the replacement (<see cref="IReplacementPlanner"/>, the database and the disk alone) after
+/// the send's own checks, writes it with the job in the job's one save, sends in strict mode, and brings the replacement
+/// in line with how the send went (<see cref="IReplacementJobFollower"/>). Every job it answers carries its replacement.
+/// </para>
 /// </remarks>
 public sealed class DownloadService(
     ApplicationDbContext db,
@@ -29,19 +40,15 @@ public sealed class DownloadService(
     IDownloadSender sender,
     IDestinationChecker destinations,
     IDownloadOverwriteGuard overwrites,
+    IReplacementPlanner planner,
+    IReplacementJobFollower replacements,
+    IReplacementGates gates,
     IAuditTrail auditTrail,
     IDownloadMapper mapper,
     TimeProvider time,
     ILogger<DownloadService> logger) : IDownloadService
 {
-    /// <summary>Another user's release and a forgotten one answer alike: nothing confirms a release exists
-    /// in someone else's search (ADR 0011).</summary>
-    private const string ReleaseMissingError =
-        "This release isn't available any more: a search keeps what it found for a day. Search again.";
-
     private const string ClientGoneError = "The download client you picked no longer exists. Reload the page and pick one again.";
-
-    private const string DestinationGoneError = "The destination you picked no longer exists. Reload the page and pick one again.";
 
     private const string RequestIdReusedError =
         "This request id was already used to send a different download. Reload the page and try again.";
@@ -60,13 +67,16 @@ public sealed class DownloadService(
     // under way, and only an interrupted one can be cancelled.
     private const string StillBeingSentError = "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.";
 
+    // MAM-24 — why a replacement ends when its download is cancelled from the Jobs page (R6).
+    private const string ReplacementCancelledReason = "You cancelled the download, so nothing will be replaced.";
+
     public async Task<DownloadOptionsResult> GetOptionsAsync(string? releaseId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         Guid? id = Guid.TryParse(releaseId, out var parsed) ? parsed : null;
         if (DownloadRules.ValidateReleaseId(id) is { } error)
             return DownloadOptionsResult.Invalid(error);
         if (await FindReleaseAsync(id!.Value, callerUserId, cancellationToken) is not { } release)
-            return DownloadOptionsResult.ReleaseMissing(ReleaseMissingError);
+            return DownloadOptionsResult.ReleaseMissing(DownloadErrors.ReleaseMissing);
 
         // MAM-13 — read from the database alone: the dialog opens without asking any client, and the
         // category is confirmed with the client when the release is sent. A switched-off client is left
@@ -113,7 +123,7 @@ public sealed class DownloadService(
         if (DownloadRules.ValidateDestinationId(id) is { } error)
             return DownloadOverwriteCheckResult.Invalid(error);
         if (await db.DestinationMappings.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, cancellationToken) is not { } destination)
-            return DownloadOverwriteCheckResult.DestinationMissing(DestinationGoneError);
+            return DownloadOverwriteCheckResult.DestinationMissing(DownloadErrors.DestinationGone);
 
         // MAM-38 — through the Destinations' own listing, as the send reads it: a client that is switched off or
         // can't be asked leaves the folder unknown, never a guess.
@@ -129,31 +139,57 @@ public sealed class DownloadService(
             new DownloadOverwriteCheckResponse(await overwrites.FolderReasonAsync(listed, cancellationToken)));
     }
 
-    public async Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
+    public Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        return SendAsync(request, callerUserId, replacement: null, cancellationToken);
+    }
 
+    public Task<DownloadSendResult> ScheduleReplacementAsync(
+        ScheduleReplacementRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        // A missing list is an empty one, which the rules refuse (fail closed): nothing is ticked by default.
+        return SendAsync(
+            new SendDownloadRequest(request.RequestId, request.ReleaseId, request.DownloadClientId, request.DestinationId),
+            callerUserId,
+            new ReplacementRequest(request.FileIds ?? [], request.ConfirmedWorkIds ?? []),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// The one send both routes make: <paramref name="replacement"/> is <c>null</c> for a Keep both send, and otherwise
+    /// the copies to replace, planned and written with the job and sent in strict mode (MAM-24).
+    /// </summary>
+    private async Task<DownloadSendResult> SendAsync(
+        SendDownloadRequest request, Guid callerUserId, ReplacementRequest? replacement, CancellationToken cancellationToken)
+    {
         // MAM-13 — checked in this order: the ids present; this very request sent before; the release the
         // caller's; the client and the destination there and belonging together; the client usable and
         // able to take the payload; the source still there to fetch from; the release not already sent to
         // the client. One sentence per answer, the first one broken, and nothing written or sent for any.
+        // MAM-24 — and for a replacement, its ticks by their shape with the ids, and planned last, right before the job
+        // is written.
         if (DownloadRules.Validate(request.RequestId, request.ReleaseId, request.DownloadClientId, request.DestinationId) is { } error)
             return DownloadSendResult.Refused(DownloadSendStatus.Invalid, error);
+        if (replacement is not null && ReplacementRules.ValidateFiles(replacement.FileIds) is { } filesError)
+            return DownloadSendResult.Refused(DownloadSendStatus.ReplacementInvalid, filesError);
 
         var requestId = request.RequestId!.Value;
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         // First, before anything else is read: a retry is answered with the job its request made even after
         // the release, the client or the destination changed or went (ADR 0013).
         if (await FindRequestAsync(callerUserId, requestId, cancellationToken) is { } earlier)
-            return Replay(earlier, request, forOwner);
+            return await ReplayAsync(earlier, request, replacement, forOwner, cancellationToken);
 
-        if (await FindReleaseAsync(request.ReleaseId!.Value, callerUserId, cancellationToken) is not { } release)
-            return DownloadSendResult.Refused(DownloadSendStatus.ReleaseMissing, ReleaseMissingError);
+        if (await CallerSearches.FindReleaseAsync(db, request.ReleaseId!.Value, callerUserId, time, cancellationToken) is not { } found)
+            return DownloadSendResult.Refused(DownloadSendStatus.ReleaseMissing, DownloadErrors.ReleaseMissing);
+        var release = found.Release;
         if (await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken) is not { } client)
             return DownloadSendResult.Refused(DownloadSendStatus.ClientMissing, ClientGoneError);
         if (await db.DestinationMappings.AsNoTracking().SingleOrDefaultAsync(row => row.Id == request.DestinationId, cancellationToken)
             is not { } destination)
-            return DownloadSendResult.Refused(DownloadSendStatus.DestinationMissing, DestinationGoneError);
+            return DownloadSendResult.Refused(DownloadSendStatus.DestinationMissing, DownloadErrors.DestinationGone);
         if (destination.DownloadClientConnectionId != client.Id)
         {
             return DownloadSendResult.Refused(
@@ -176,7 +212,7 @@ public sealed class DownloadService(
             // that job is the one found here: the copy is answered with it, as the unique index answers a copy
             // that gets as far as the save (ADR 0013), never refused as a release already sent.
             if (await FindRequestAsync(callerUserId, requestId, cancellationToken) is { } racing)
-                return Replay(racing, request, forOwner);
+                return await ReplayAsync(racing, request, replacement, forOwner, cancellationToken);
 
             // Decision 3 — the release is recognised by its source's id for it (or its info hash), not by
             // the row: every search stores its own copy of a listing (ADR 0006, MAM-10).
@@ -184,13 +220,38 @@ public sealed class DownloadService(
                 DownloadSendStatus.AlreadySent, $"This release was already sent to “{client.Name}”, so it isn't sent twice.");
         }
 
-        var job = await CreateJobAsync(requestId, callerUserId, forOwner, release, client, destination, cancellationToken);
+        // MAM-24, R1 — the replacement planned from the database and the disk alone, the ticks read against the works and
+        // copies as they are now: no client is asked before the job is written (ADR 0013). What only the client can say —
+        // where the category saves, what the release turns out to be — is the strict send's, on a written job.
+        ReplacementPlan? plan = null;
+        if (replacement is not null)
+        {
+            var planned = await planner.PlanAsync(found, replacement, cancellationToken);
+            if (planned.Plan is null)
+            {
+                // A copy of this very request may have written its job and replacement since the WasSent check above:
+                // its copies then read as already scheduled — by that copy's own replacement. The copy is answered with
+                // that job, as in the WasSent branch (ADR 0013), never refused as held by another download.
+                if (await FindRequestAsync(callerUserId, requestId, cancellationToken) is { } racing)
+                    return await ReplayAsync(racing, request, replacement, forOwner, cancellationToken);
+
+                return DownloadSendResult.Refused(
+                    planned.Status == ReplacementPlanStatus.Invalid ? DownloadSendStatus.ReplacementInvalid : DownloadSendStatus.ReplacementUnavailable,
+                    planned.Error!);
+            }
+
+            plan = planned.Plan;
+        }
+
+        var job = await CreateJobAsync(requestId, callerUserId, forOwner, release, client, destination, replacement, plan, cancellationToken);
         if (job.Refusal is not null)
             return job.Refusal;
 
         // The job and its audit row are committed: from here the request is sent once, and its retries
         // answer this job.
-        await sender.SendAsync(job.Id, release, source!, client, destination.ClientDestinationKey);
+        await sender.SendAsync(job.Id, release, source!, client, destination.ClientDestinationKey, replacement: plan is not null);
+        if (plan is not null)
+            await FollowReplacementAsync(job.Id);
 
         var sent = await FindJobAsync(job.Id, forOwner, cancellationToken);
         return DownloadSendResult.Created(sent!);
@@ -199,7 +260,7 @@ public sealed class DownloadService(
     // Another user's job answers as none, like their searches: nothing confirms it exists.
     public async Task<DownloadJobDto?> GetAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default) =>
         await JobRows(job => job.Id == jobId && job.RequestedByUserId == callerUserId).SingleOrDefaultAsync(cancellationToken) is { } row
-            ? ToDto(row, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken))
+            ? await ToDtoAsync(row, await db.IsInstallationOwnerAsync(callerUserId, cancellationToken), cancellationToken)
             : null;
 
     public async Task<DownloadJobListResult> ListAsync(
@@ -233,10 +294,11 @@ public sealed class DownloadService(
             .Take(pageSize)
             .Select(job => job.Id)
             .ToListAsync(cancellationToken);
-        var rows = (await JobRows(job => ids.Contains(job.Id)).ToListAsync(cancellationToken)).ToDictionary(row => row.Job.Id);
+        var rows = await JobRows(job => ids.Contains(job.Id)).ToListAsync(cancellationToken);
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
+        var answered = (await ToDtosAsync(rows, forOwner, cancellationToken)).ToDictionary(job => job.Id);
         return DownloadJobListResult.Listed(
-            new DownloadJobListResponse([.. ids.Select(id => ToDto(rows[id], forOwner))], totalCount, page, pageSize));
+            new DownloadJobListResponse([.. ids.Select(id => answered[id])], totalCount, page, pageSize));
     }
 
     public async Task<DownloadJobFileListResult> ListFilesAsync(
@@ -280,12 +342,29 @@ public sealed class DownloadService(
             // click racing this one — is left as it is, and nothing is recorded; so is a Created job whose send
             // may still be under way. A pass of the poller that moved it on meanwhile doesn't stop it: it is as
             // cancellable as before.
-            if (await db.DownloadJobs.Where(job => job.RequestedByUserId == callerUserId).CancelAsync(jobId, time.GetUtcNow().UtcDateTime) == 1)
+            var now = time.GetUtcNow().UtcDateTime;
+            if (await db.DownloadJobs.Where(job => job.RequestedByUserId == callerUserId).CancelAsync(jobId, now) == 1)
             {
                 var actor = await ActorAsync(callerUserId, cancellationToken);
                 auditTrail.Record(AuditAction.DownloadCancelled, actor, AuditTarget.DownloadJob(row.Job, row.ReleaseTitle));
+                // MAM-24, R6 — its replacement ends with it, in the same transaction and with a row of its own, from any
+                // state still followed — a review included, which nothing else would end. Conditional, as the follower's
+                // writes are: one that ended meanwhile is left as it is.
+                var replacementCancelled = row.Replacement is { } replacement
+                    && await db.ReplacementJobs.CancelAsync(replacement.Id, ReplacementCancelledReason, now) == 1;
+                if (replacementCancelled)
+                    auditTrail.Record(AuditAction.ReplacementCancelled, actor, AuditTarget.ReplacementJob(row.Replacement!, row.ReleaseTitle));
                 await db.SaveChangesAsync(cancellationToken);
                 logger.LogInformation("{ActorUserName} stopped following download job {JobId}.", actor.UserName, jobId);
+                if (replacementCancelled)
+                {
+                    logger.LogInformation(
+                        "{ActorUserName} cancelled replacement job {ReplacementJobId} with download job {JobId}.",
+                        actor.UserName,
+                        row.Replacement!.Id,
+                        jobId);
+                }
+
                 cancelled = true;
             }
 
@@ -399,19 +478,12 @@ public sealed class DownloadService(
 
     /// <summary>
     /// The release, when it is one of <paramref name="callerUserId"/>'s searches' from the last day — the
-    /// lookup <c>SearchService</c> makes, through the release's search source. A release a plain release
-    /// search found (MAM-10) belongs to no search, and one whose search was removed to none any more.
+    /// lookup <c>SearchService</c> makes, through the release's search source (<see cref="CallerSearches"/>, MAM-24's
+    /// one copy of the rule). A release a plain release search found (MAM-10) belongs to no search, and one whose
+    /// search was removed to none any more.
     /// </summary>
-    private Task<ReleaseEntity?> FindReleaseAsync(Guid releaseId, Guid callerUserId, CancellationToken cancellationToken)
-    {
-        var cutoff = time.GetUtcNow().UtcDateTime - ReleaseStore.UnusedReleaseLifetime;
-        return (
-            from release in db.Releases.AsNoTracking()
-            join searchSource in db.SearchSources.AsNoTracking() on release.SearchSourceId equals (Guid?)searchSource.Id
-            join search in db.Searches.AsNoTracking() on searchSource.SearchId equals search.Id
-            where release.Id == releaseId && search.UserId == callerUserId && search.CreatedUtc >= cutoff
-            select release).SingleOrDefaultAsync(cancellationToken);
-    }
+    private async Task<ReleaseEntity?> FindReleaseAsync(Guid releaseId, Guid callerUserId, CancellationToken cancellationToken) =>
+        (await CallerSearches.FindReleaseAsync(db, releaseId, callerUserId, time, cancellationToken))?.Release;
 
     /// <summary>
     /// MAM-32 — the mapped sections of the release's source that hold it: the rows of the categories the
@@ -443,41 +515,108 @@ public sealed class DownloadService(
         JobRows(job => job.RequestedByUserId == callerUserId && job.RequestId == requestId).SingleOrDefaultAsync(cancellationToken);
 
     private async Task<DownloadJobDto?> FindJobAsync(Guid jobId, bool forOwner, CancellationToken cancellationToken) =>
-        await JobRows(job => job.Id == jobId).SingleOrDefaultAsync(cancellationToken) is { } row ? ToDto(row, forOwner) : null;
+        await JobRows(job => job.Id == jobId).SingleOrDefaultAsync(cancellationToken) is { } row
+            ? await ToDtoAsync(row, forOwner, cancellationToken)
+            : null;
 
     /// <summary>
-    /// The jobs <paramref name="which"/> picks, each with its release's title and source. Filtered before the
-    /// join: EF Core can't see through the <see cref="JobRow"/> it projects into, so a filter on the row after
-    /// it fails to translate. The release can't be gone while a job points at it (Restrict), so the inner join
-    /// loses no job.
+    /// The jobs <paramref name="which"/> picks, each with its release's title and source — and (MAM-24) the replacement
+    /// it carries, if any, by a left join: one per job, by its unique index. Filtered before the joins: EF Core can't see
+    /// through the <see cref="JobRow"/> it projects into, so a filter on the row after it fails to translate. The release
+    /// can't be gone while a job points at it (Restrict), so the inner join loses no job.
     /// </summary>
     private IQueryable<JobRow> JobRows(Expression<Func<DownloadJobEntity, bool>> which) =>
-        db.DownloadJobs
-            .AsNoTracking()
-            .Where(which)
-            .Join(
-                db.Releases.AsNoTracking(),
-                job => job.ReleaseId,
-                release => release.Id,
-                (job, release) => new JobRow(job, release.Title, release.SourceName));
+        from job in db.DownloadJobs.AsNoTracking().Where(which)
+        join release in db.Releases.AsNoTracking() on job.ReleaseId equals release.Id
+        from replacement in db.ReplacementJobs.AsNoTracking().Where(replacement => replacement.DownloadJobId == job.Id).DefaultIfEmpty()
+        select new JobRow(job, release.Title, release.SourceName, replacement);
 
     /// <summary>
     /// The answer to a request id sent again: its job when it asks for what the job was made for, a refusal
     /// when it asks for something else. A client or destination removed since reads as the one asked for:
     /// the job no longer names it, and the retry is still the same request.
     /// </summary>
-    private DownloadSendResult Replay(JobRow earlier, SendDownloadRequest request, bool forOwner)
+    /// <remarks>
+    /// MAM-24, R4 — what it was made for includes its replacement: a Keep both send is answered with a job that carries
+    /// none, and a schedule with one whose copies and confirmations are the ones it ticks, as sets. A request id one route
+    /// used is something else to the other. Every place a request id is answered goes through here — the first lookup,
+    /// the copy that wrote its job after it, and the one that lost the save to it — so none can tell them apart.
+    /// </remarks>
+    private async Task<DownloadSendResult> ReplayAsync(
+        JobRow earlier, SendDownloadRequest request, ReplacementRequest? replacement, bool forOwner, CancellationToken cancellationToken)
     {
         var job = earlier.Job;
         var same = job.ReleaseId == request.ReleaseId
             && (job.DownloadClientConnectionId is null || job.DownloadClientConnectionId == request.DownloadClientId)
-            && (job.DestinationMappingId is null || job.DestinationMappingId == request.DestinationId);
+            && (job.DestinationMappingId is null || job.DestinationMappingId == request.DestinationId)
+            && await IsSameReplacementAsync(earlier.Replacement, replacement, cancellationToken);
         return same
-            ? DownloadSendResult.Replayed(ToDto(earlier, forOwner))
+            ? DownloadSendResult.Replayed(await ToDtoAsync(earlier, forOwner, cancellationToken))
             : DownloadSendResult.Refused(DownloadSendStatus.RequestIdReused, RequestIdReusedError);
     }
 
+    /// <summary>MAM-24 — whether <paramref name="scheduled"/>, the replacement an earlier job carries, is the one
+    /// <paramref name="asked"/> asks for: none for none, or the same copies and confirmations.</summary>
+    private async Task<bool> IsSameReplacementAsync(ReplacementJobEntity? scheduled, ReplacementRequest? asked, CancellationToken cancellationToken)
+    {
+        if (scheduled is null || asked is null)
+            return scheduled is null && asked is null;
+
+        var fileIds = await db.ReplacementJobFiles.AsNoTracking()
+            .Where(file => file.ReplacementJobId == scheduled.Id)
+            .Select(file => file.PhysicalFileId)
+            .ToListAsync(cancellationToken);
+        var confirmedWorkIds = await db.ReplacementJobWorks.AsNoTracking()
+            .Where(work => work.ReplacementJobId == scheduled.Id && work.ConfirmedByOwner)
+            .Select(work => work.MediaWorkId)
+            .ToListAsync(cancellationToken);
+        return asked.IsSameAs(fileIds, confirmedWorkIds);
+    }
+
+    private async Task<DownloadJobDto> ToDtoAsync(JobRow row, bool forOwner, CancellationToken cancellationToken) =>
+        (await ToDtosAsync([row], forOwner, cancellationToken))[0];
+
+    /// <summary>
+    /// The jobs as the dialog and the Jobs page show them, in <paramref name="rows"/>' order, each with its replacement.
+    /// MAM-24, R10 — a replacement's counts read in a batch, never per job: one query for the copies of every replacement
+    /// among the rows and one read of the gates — and neither for rows that carry none, as a page of Keep both sends does.
+    /// </summary>
+    private async Task<IReadOnlyList<DownloadJobDto>> ToDtosAsync(IReadOnlyList<JobRow> rows, bool forOwner, CancellationToken cancellationToken)
+    {
+        List<Guid> replacementIds = [.. rows.Select(row => row.Replacement?.Id).OfType<Guid>()];
+        if (replacementIds.Count == 0)
+            return [.. rows.Select(row => ToDto(row, forOwner))];
+
+        // One JSON parameter (EF.Parameter) rather than one per id, the house rule against SQLite's limit.
+        var appPaths = (await db.ReplacementJobFiles.AsNoTracking()
+                .Where(file => EF.Parameter(replacementIds).Contains(file.ReplacementJobId))
+                .Select(file => new { file.ReplacementJobId, file.AppPath })
+                .ToListAsync(cancellationToken))
+            .ToLookup(file => file.ReplacementJobId, file => file.AppPath);
+        // Read fresh, never cached (ADR 0033): what the page says about the switch and the ticks is what they are now.
+        var gate = await gates.ReadAsync(cancellationToken);
+        return
+        [
+            .. rows.Select(row => row.Replacement is { } replacement
+                ? ToDto(row, forOwner) with { Replacement = ReplacementOf(replacement, [.. appPaths[replacement.Id]], gate) }
+                : ToDto(row, forOwner)),
+        ];
+    }
+
     private DownloadJobDto ToDto(JobRow row, bool forOwner) => mapper.ToDto(row.Job, row.ReleaseTitle, row.SourceName ?? "", forOwner);
+
+    /// <summary>
+    /// MAM-24, R10 — <paramref name="replacement"/> as the Jobs page shows it: whether replacement is switched off now,
+    /// and how many of its copies, at <paramref name="appPaths"/>, no longer lie in a ticked folder — every library folder
+    /// holding one ticked and inside the Media folders, as the plan required. A stored path that no longer parses lies in
+    /// none: it can't move.
+    /// </summary>
+    private DownloadJobReplacementDto ReplacementOf(ReplacementJobEntity replacement, IReadOnlyList<string> appPaths, ReplacementGateState gate) =>
+        mapper.ToDto(
+            replacement,
+            appPaths.Count,
+            !gate.IsEnabled,
+            appPaths.Count(path => !NormalizedPath.TryParse(path, out var parsed, out _) || !gate.IsInTickedFolder(parsed)));
 
     /// <summary>MAM-14 — why a job of <paramref name="status"/>, which ended, can't be cancelled.</summary>
     private static string NothingToStopError(DownloadJobStatus status) => status switch
@@ -493,6 +632,8 @@ public sealed class DownloadService(
     /// Writes the job, still <see cref="DownloadJobStatus.Created"/>, with its audit row, in one save: the
     /// row a retry finds, written before anything is fetched or sent (specification §3.2, step 5). The
     /// job's id, or the answer to a save the database refused because another request got there first.
+    /// MAM-24 — with <paramref name="plan"/>, the replacement it carries is written in the same save
+    /// (<see cref="AddReplacement"/>): a job and its replacement exist together or not at all.
     /// </summary>
     private async Task<(Guid Id, DownloadSendResult? Refusal)> CreateJobAsync(
         Guid requestId,
@@ -501,6 +642,8 @@ public sealed class DownloadService(
         ReleaseEntity release,
         IntegrationConnectionEntity client,
         DestinationMappingEntity destination,
+        ReplacementRequest? replacement,
+        ReplacementPlan? plan,
         CancellationToken cancellationToken)
     {
         var actor = await ActorAsync(callerUserId, cancellationToken);
@@ -524,6 +667,7 @@ public sealed class DownloadService(
         db.DownloadJobs.Add(job);
         // One row per request, whatever the sending makes of it: who asked for which release to go where.
         auditTrail.Record(AuditAction.DownloadRequested, actor, AuditTarget.DownloadJob(job, release.Title));
+        var scheduled = plan is null ? null : AddReplacement(job, plan, actor, release.Title, now);
 
         try
         {
@@ -531,7 +675,7 @@ public sealed class DownloadService(
         }
         catch (DbUpdateException exception)
         {
-            if (await LostRaceAsync(exception, requestId, callerUserId, forOwner, release, client, destination, cancellationToken) is { } lost)
+            if (await LostRaceAsync(exception, requestId, callerUserId, forOwner, release, client, destination, replacement, cancellationToken) is { } lost)
                 return (Guid.Empty, lost);
             throw;
         }
@@ -547,7 +691,109 @@ public sealed class DownloadService(
             client.Id,
             client.AdapterType,
             job.Id);
+        if (scheduled is not null)
+        {
+            // The ids and how many, never a path or a title.
+            logger.LogInformation(
+                "{ActorUserName} scheduled replacement job {ReplacementJobId} of {CopyCount} copies of {WorkCount} works with download job {JobId}.",
+                actor.UserName,
+                scheduled.Id,
+                plan!.Files.Count,
+                plan.Works.Count,
+                job.Id);
+        }
+
         return (job.Id, null);
+    }
+
+    /// <summary>
+    /// MAM-24 — adds the replacement <paramref name="plan"/> describes to <paramref name="job"/>'s save, unsaved: the
+    /// replacement, still <see cref="ReplacementJobState.Scheduled"/>, with the edition the release claims; each ticked
+    /// copy as the plan read it from the disk; each matched work with its ids then; and its audit rows — the schedule's,
+    /// named by the release, and one per work the owner confirmed, named by the words he ticked (ADR 0032's consent).
+    /// </summary>
+    private ReplacementJobEntity AddReplacement(DownloadJobEntity job, ReplacementPlan plan, AuditActor actor, string releaseTitle, DateTime now)
+    {
+        var scheduled = new ReplacementJobEntity
+        {
+            DownloadJobId = job.Id,
+            RequestedByUserId = actor.UserId,
+            RequestedByUserName = actor.UserName,
+            State = ReplacementJobState.Scheduled,
+            StateChangedUtc = now,
+            // By name, as the enum is stored everywhere: a value added later never shifts what was kept.
+            ReleaseEditions = string.Join(',', plan.ReleaseEditions),
+            CreatedUtc = now,
+        };
+        db.ReplacementJobs.Add(scheduled);
+        db.ReplacementJobFiles.AddRange(plan.Files.Select((file, position) => new ReplacementJobFileEntity
+        {
+            ReplacementJobId = scheduled.Id,
+            Position = position,
+            PhysicalFileId = file.PhysicalFileId,
+            MediaVersionId = file.MediaVersionId,
+            MediaWorkId = file.MediaWorkId,
+            MatchedWorkId = file.MatchedWorkId,
+            SeasonNumber = file.SeasonNumber,
+            EpisodeNumber = file.EpisodeNumber,
+            ServicePath = file.ServicePath,
+            AppPath = file.AppPath,
+            DeviceId = file.DeviceId,
+            Inode = file.Inode,
+            SizeBytes = file.SizeBytes,
+            ModifiedUtc = file.ModifiedUtc,
+            LinkCount = file.LinkCount,
+            EditionLabel = file.EditionLabel,
+        }));
+        foreach (var work in plan.Works)
+        {
+            var row = new ReplacementJobWorkEntity
+            {
+                ReplacementJobId = scheduled.Id,
+                MediaWorkId = work.WorkId,
+                Kind = work.Kind,
+                Title = work.Title,
+                Year = work.Year,
+                Evidence = work.Evidence,
+                ConfirmedByOwner = work.ConfirmedByOwner,
+                ConfirmationText = work.ConfirmationText,
+            };
+            db.ReplacementJobWorks.Add(row);
+            db.ReplacementJobWorkIdentifiers.AddRange(work.Identifiers.Select(identifier => new ReplacementJobWorkIdentifierEntity
+            {
+                ReplacementJobWorkId = row.Id,
+                Scheme = identifier.Scheme,
+                Value = identifier.Value,
+                SetByOwner = identifier.SetByOwner,
+            }));
+        }
+
+        auditTrail.Record(AuditAction.ReplacementScheduled, actor, AuditTarget.ReplacementJob(scheduled, releaseTitle));
+        foreach (var work in plan.Works.Where(work => work.ConfirmedByOwner))
+            auditTrail.Record(AuditAction.ReplacementWorkConfirmed, actor, AuditTarget.ReplacementJob(scheduled, work.ConfirmationText));
+        return scheduled;
+    }
+
+    /// <summary>
+    /// MAM-24, R4 — brings the replacement just sent in line with how its send went, so the answer already says it (a
+    /// strict refusal: Failed). A bug here costs the answer that, never the request: the job is sent, and the next pass
+    /// of the following catches up. Error, with the type and the stack, never the message. Not cancelled, as the send
+    /// isn't: the state is written whether or not the browser is still there.
+    /// </summary>
+    private async Task FollowReplacementAsync(Guid jobId)
+    {
+        try
+        {
+            await replacements.SyncAsync(jobId, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                "Following the replacement of download job {JobId} after its send threw {ExceptionType} {StackTrace}",
+                jobId,
+                exception.GetType().FullName,
+                exception.StackTrace);
+        }
     }
 
     /// <summary>
@@ -565,6 +811,7 @@ public sealed class DownloadService(
         ReleaseEntity release,
         IntegrationConnectionEntity client,
         DestinationMappingEntity destination,
+        ReplacementRequest? replacement,
         CancellationToken cancellationToken)
     {
         db.ChangeTracker.Clear();
@@ -572,15 +819,16 @@ public sealed class DownloadService(
         {
             logger.LogInformation(
                 exception, "A concurrent copy of request {RequestId} made download job {JobId} first; this one answered it.", requestId, winner.Job.Id);
-            return Replay(winner, new SendDownloadRequest(requestId, release.Id, client.Id, destination.Id), forOwner);
+            return await ReplayAsync(
+                winner, new SendDownloadRequest(requestId, release.Id, client.Id, destination.Id), replacement, forOwner, cancellationToken);
         }
 
         if (!await db.Releases.AnyAsync(row => row.Id == release.Id, cancellationToken))
-            return DownloadSendResult.Refused(DownloadSendStatus.ReleaseMissing, ReleaseMissingError);
+            return DownloadSendResult.Refused(DownloadSendStatus.ReleaseMissing, DownloadErrors.ReleaseMissing);
         if (!await db.IntegrationConnections.AnyAsync(row => row.Id == client.Id, cancellationToken))
             return DownloadSendResult.Refused(DownloadSendStatus.ClientMissing, ClientGoneError);
         if (!await db.DestinationMappings.AnyAsync(row => row.Id == destination.Id, cancellationToken))
-            return DownloadSendResult.Refused(DownloadSendStatus.DestinationMissing, DestinationGoneError);
+            return DownloadSendResult.Refused(DownloadSendStatus.DestinationMissing, DownloadErrors.DestinationGone);
         return null;
     }
 
@@ -591,6 +839,6 @@ public sealed class DownloadService(
             .Select(user => new AuditActor(user.Id, user.UserName))
             .SingleAsync(cancellationToken);
 
-    /// <summary>A job with its release's title and source, read together.</summary>
-    private sealed record JobRow(DownloadJobEntity Job, string ReleaseTitle, string? SourceName);
+    /// <summary>A job with its release's title and source, and (MAM-24) the replacement it carries, read together.</summary>
+    private sealed record JobRow(DownloadJobEntity Job, string ReleaseTitle, string? SourceName, ReplacementJobEntity? Replacement);
 }

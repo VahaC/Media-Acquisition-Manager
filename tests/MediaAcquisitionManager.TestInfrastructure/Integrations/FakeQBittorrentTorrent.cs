@@ -4,7 +4,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 
 /// <summary>
 /// One torrent a <see cref="FakeQBittorrentServer"/> has (MAM-13): what <c>torrents/info</c> lists for it, in
-/// qBittorrent's own terms — and, MAM-14, what <c>torrents/files</c> lists (<see cref="Files"/>).
+/// qBittorrent's own terms — and, MAM-14, what <c>torrents/files</c> lists (<see cref="Files"/>); MAM-24, whether
+/// <c>torrents/info?includeFiles=true</c> lists those files with it (<see cref="HasMetadata"/>).
 /// </summary>
 /// <param name="Hash">Its TorrentID, lower-case (<see cref="IdOf"/>).</param>
 /// <param name="InfoHashV1">The v1 info hash; <c>""</c> when it has none, as qBittorrent lists it.</param>
@@ -33,6 +34,15 @@ public sealed record FakeQBittorrentTorrent(
     /// as for a magnet still fetching its metadata.
     /// </summary>
     public IReadOnlyList<FakeQBittorrentFile> Files { get; init; } = [];
+
+    /// <summary>
+    /// MAM-24 — whether qBittorrent has the torrent's metadata, listed as <c>has_metadata</c>: 5.2 lists <c>files</c>
+    /// with a torrent in <c>torrents/info?includeFiles=true</c> only when it has, so <c>false</c> is a magnet still
+    /// fetching it — no <c>files</c> at all, which <see cref="Files"/> empty can't tell from a list of none. True
+    /// unless a test says otherwise (<c>with { HasMetadata = false }</c>), or the torrent came from a magnet sent
+    /// through <c>torrents/add</c>.
+    /// </summary>
+    public bool HasMetadata { get; init; } = true;
 
     /// <summary>
     /// A torrent named by <paramref name="hashes"/>, which must name at least one, and saved to

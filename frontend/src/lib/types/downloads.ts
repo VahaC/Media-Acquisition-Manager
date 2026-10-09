@@ -1,3 +1,5 @@
+import type { DownloadJobReplacement } from './replacements'
+
 // MAM-13 — sending a release to a download client through `/api/downloads`. Every signed-in user may
 // send one (MAM-13's decision 1), so the dialog reads its clients and destinations here, by name
 // only, rather than from the owner-only settings.
@@ -130,6 +132,11 @@ export interface DownloadJob {
    * job whose submission failed after the check keeps its value, which the Jobs page doesn't show.
    */
   overwriteCheck: DownloadOverwriteCheck | null
+  /**
+   * MAM-24 — the replacement of old copies the installation owner scheduled with this download, and
+   * where it stands; null for a download sent with Keep both.
+   */
+  replacement: DownloadJobReplacement | null
   /** UTC with a trailing `Z`. */
   createdUtc: string
   /** UTC with a trailing `Z`. */

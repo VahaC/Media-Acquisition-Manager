@@ -75,18 +75,25 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
     /// that needs its own timeout: an <see cref="HttpClient"/>'s timeout can't change once it has been used, so a call that
     /// may legitimately run for minutes (Jellyfin's Apply) takes a client registered with that timeout instead of the
     /// shared one's. The timeout sentence reports that client's.</param>
+    /// <param name="oversizeError">MAM-24 — the sentence for an answer larger than the client buffers
+    /// (<see cref="IntegrationsInfrastructureExtensions.MaximumResponseBytes"/>), for a call whose answer may honestly
+    /// outgrow it: the default sentence says that no answer of the service is that large and points at the address,
+    /// which misleads where a big installation's whole list is that large. Still
+    /// <see cref="IntegrationCallStatus.UnexpectedResponse"/>: the call read nothing it can answer with.</param>
     protected Task<IntegrationCallResult<T>> CallAsync<T>(
         IntegrationConnectionSettings settings,
         Func<HttpClient, ICollection<string>, CancellationToken, Task<IntegrationCallResult<T>>> call,
         CancellationToken cancellationToken,
-        string? clientName = null) where T : class =>
+        string? clientName = null,
+        string? oversizeError = null) where T : class =>
         RunAsync(
             settings,
             call,
             IntegrationCallResult<T>.Failed,
             (result, secrets) => result.Error is null ? result : result with { Error = SecretRedaction.Redact(result.Error, secrets) },
             clientName ?? httpClientName,
-            cancellationToken);
+            cancellationToken,
+            oversizeError);
 
     /// <summary>
     /// Every secret of the call so far: the connection's, and each session value the adapter has put
@@ -168,7 +175,8 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         Func<IntegrationCallStatus, string, TResult> failed,
         Func<TResult, string?[], TResult> redact,
         string clientName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? oversizeError = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -181,7 +189,7 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
         }
         catch (HttpRequestException exception)
         {
-            var (status, message) = DescribeTransportFailure(exception, settings);
+            var (status, message) = DescribeTransportFailure(exception, settings, oversizeError);
             result = failed(status, message);
         }
         catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
@@ -219,7 +227,8 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
             $"{display} answered {StatusText(response)}, which it doesn't send for this request. Check the address.");
     }
 
-    private (IntegrationCallStatus Status, string Message) DescribeTransportFailure(HttpRequestException exception, IntegrationConnectionSettings settings)
+    private (IntegrationCallStatus Status, string Message) DescribeTransportFailure(
+        HttpRequestException exception, IntegrationConnectionSettings settings, string? oversizeError)
     {
         var display = Descriptor.DisplayName;
         var address = settings.BaseUrl;
@@ -234,10 +243,11 @@ internal abstract class HttpIntegrationAdapter(IHttpClientFactory httpClients, s
             HttpRequestError.SecureConnectionError => (
                 IntegrationCallStatus.Unreachable,
                 $"Couldn't reach {display} at {address}: the secure (HTTPS) connection failed, for example because its certificate isn't trusted."),
-            // The answer outgrew the client's buffer limit (MaximumResponseBytes).
+            // The answer outgrew the client's buffer limit (MaximumResponseBytes) — MAM-24: in the call's own words
+            // when it gave some.
             HttpRequestError.ConfigurationLimitExceeded => (
                 IntegrationCallStatus.UnexpectedResponse,
-                $"The answer from {address} is far larger than anything {display} sends. Check the address."),
+                oversizeError ?? $"The answer from {address} is far larger than anything {display} sends. Check the address."),
             _ => (
                 IntegrationCallStatus.Unreachable,
                 $"Couldn't reach {display} at {address}: the connection failed before it answered."),

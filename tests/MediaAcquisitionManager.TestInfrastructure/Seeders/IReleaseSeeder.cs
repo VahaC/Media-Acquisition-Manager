@@ -36,4 +36,22 @@ public interface IReleaseSeeder
         string? infoHash = null,
         ReleasePayloadKind? payloadKind = null,
         string? categoryIds = null);
+
+    /// <summary>
+    /// MAM-24 — a release titled <paramref name="title"/>, listed as <paramref name="kind"/> with the IMDb and TMDb ids
+    /// given, that <paramref name="user"/>'s search for <paramref name="searchText"/> of <paramref name="searchYear"/> (by
+    /// those ids too) found a moment ago through <paramref name="source"/>: the search the release is matched to the
+    /// library through, as the search page and the Download dialog match it. A magnet when <paramref name="payloadKind"/>
+    /// says so.
+    /// </summary>
+    Task<ReleaseEntity> CreateFoundBySearch(
+        UserEntity user,
+        IntegrationConnectionEntity source,
+        string searchText,
+        int? searchYear,
+        string title,
+        ReleaseKind kind = ReleaseKind.Movie,
+        string? imdbId = null,
+        string? tmdbId = null,
+        ReleasePayloadKind? payloadKind = null);
 }

@@ -116,6 +116,9 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("LibraryLinkReviewController.StartRun", actions);
         Assert.Contains("LibraryLinkCatchUpController.Read", actions);
         Assert.Contains("LibraryLinkCatchUpController.Start", actions);
+        // MAM-24 — under Controllers/Replacements: the owner's alone, every action, by the namespace's convention (ADR 0033).
+        Assert.Contains("ReplacementsController.Options", actions);
+        Assert.Contains("ReplacementsController.Schedule", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

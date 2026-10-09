@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
+using MediaAcquisitionManager.Core.Replacements;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -122,6 +123,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<MediaWorkPosterEntity> MediaWorkPosters => Set<MediaWorkPosterEntity>();
 
     public DbSet<DuplicateMatchDecisionEntity> DuplicateMatchDecisions => Set<DuplicateMatchDecisionEntity>();
+
+    public DbSet<ReplacementSettingsEntity> ReplacementSettings => Set<ReplacementSettingsEntity>();
+
+    public DbSet<ReplacementFolderEntity> ReplacementFolders => Set<ReplacementFolderEntity>();
+
+    public DbSet<ReplacementJobEntity> ReplacementJobs => Set<ReplacementJobEntity>();
+
+    public DbSet<ReplacementJobFileEntity> ReplacementJobFiles => Set<ReplacementJobFileEntity>();
+
+    public DbSet<ReplacementJobWorkEntity> ReplacementJobWorks => Set<ReplacementJobWorkEntity>();
+
+    public DbSet<ReplacementJobWorkIdentifierEntity> ReplacementJobWorkIdentifiers => Set<ReplacementJobWorkIdentifierEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -480,6 +493,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.ErrorOrigin).HasConversion<string>().HasMaxLength(32);
             // MAM-38 — by name, like every status; the longest is 35 characters.
             e.Property(x => x.OverwriteCheck).HasConversion<string>().HasMaxLength(48);
+            // MAM-24 — by name; a column added at the end, so the upgrade rebuilds nothing.
+            e.Property(x => x.PayloadKind).HasConversion<string>().HasMaxLength(32);
             // Restrict: the release snapshot is the job's evidence of what was sent; it can't go
             // while a job points at it.
             e.HasOne<ReleaseEntity>().WithMany()
@@ -911,6 +926,75 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.DecidedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // MAM-24 — the owner's replacement switch and per-folder ticks (ADR 0033). The switch is one row keyed by its
+        // SingletonId, which already settles two first saves racing; it needs no configuration of its own.
+        modelBuilder.Entity<ReplacementFolderEntity>(e =>
+        {
+            // A case-sensitive backstop for two saves racing, as AllowedRoots' path is; the rules already refuse one
+            // folder ticked twice in any letter case a Windows path ignores. No key into LibraryLocationFolders: a sync
+            // replaces those rows, and a tick is the owner's word on a path, kept whatever the libraries say.
+            e.HasIndex(x => x.Path).IsUnique();
+        });
+
+        // MAM-24 — the owner's scheduled replacements (ADR 0030–0034): new tables beside the download jobs, so the
+        // upgrade rebuilds none.
+        modelBuilder.Entity<ReplacementJobEntity>(e =>
+        {
+            e.Property(x => x.State).HasConversion<string>().HasMaxLength(32);
+            // One replacement per download, which the send's request id already settles; this settles it for any code
+            // path that forgets. Also the key's index.
+            e.HasIndex(x => x.DownloadJobId).IsUnique();
+            // Restrict: the download is the replacement's evidence of what was sent; a job can't go while a replacement
+            // points at it, as its release can't while a job does.
+            e.HasOne<DownloadJobEntity>().WithMany()
+                .HasForeignKey(x => x.DownloadJobId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // SetNull: the replacement outlives the account that scheduled it; RequestedByUserName keeps who.
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // "Every replacement still following its download", which the following pass reads on every pass of the
+            // download jobs. Partial, so it holds the few still going and never the history; its filter is the core's
+            // list (ReplacementJobStates.Followed), as IX_DownloadJobs_Followed's is DownloadJobFollowing's, so a state
+            // added to the list changes the model and can't drift from the rule unnoticed.
+            e.HasIndex(x => x.State, "IX_ReplacementJobs_Followed")
+                .HasFilter($"\"State\" IN ({string.Join(", ", ReplacementJobStates.Followed.Select(state => $"'{state}'"))})");
+        });
+
+        modelBuilder.Entity<ReplacementJobFileEntity>(e =>
+        {
+            // One file per place in the job's list; leading with the job, so it also serves the foreign key and "this
+            // job's files in order".
+            e.HasIndex(x => new { x.ReplacementJobId, x.Position }).IsUnique();
+            // Cascade: the files are part of their job. No key into PhysicalFiles, MediaVersions or MediaWorks: a sync
+            // replaces those rows, and a key there would rebuild their tables (ADR 0009) — the entity keeps a snapshot.
+            e.HasOne<ReplacementJobEntity>().WithMany()
+                .HasForeignKey(x => x.ReplacementJobId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReplacementJobWorkEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.Evidence).HasConversion<string>().HasMaxLength(32);
+            // A matched work once per job; leading with the job, for the foreign key. No key into MediaWorks (the entity
+            // says why).
+            e.HasIndex(x => new { x.ReplacementJobId, x.MediaWorkId }).IsUnique();
+            // Cascade: part of its job.
+            e.HasOne<ReplacementJobEntity>().WithMany()
+                .HasForeignKey(x => x.ReplacementJobId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReplacementJobWorkIdentifierEntity>(e =>
+        {
+            e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
+            // Cascade: part of its work row, and so of its job. The key's index is EF's own.
+            e.HasOne<ReplacementJobWorkEntity>().WithMany()
+                .HasForeignKey(x => x.ReplacementJobWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

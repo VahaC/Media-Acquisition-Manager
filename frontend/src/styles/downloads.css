@@ -1,0 +1,226 @@
+/* MAM-24 — the Download dialog's old copies: Keep both or Replace after verification, and the works,
+   seasons, episodes and copies the owner ticks. What the shared sheets don't have — settings-dialog.css
+   gives the dialog, its body and `.settings-check`, library.css the warning lines and the chips.
+   Tokens only, so dark mode needs nothing of its own. Imported by each component that uses it. */
+
+/* Wider than a settings dialog once the owner's copies are listed: a copy's name, folder and chips
+   need the room. Three classes, so it wins over `.ui-dialog-content.settings-dialog` whichever sheet
+   loads first (the reason of .search-details-dialog). It widens on the answer, not on the radio, so
+   the radios never jump under the pointer between Keep both and Replace. */
+.ui-dialog-content.settings-dialog.download-dialog-wide {
+  max-width: 48rem;
+}
+
+/* `min-width: 0`: a fieldset is at least as wide as its content by default, so a long path would
+   widen the dialog past a phone (the reason of .destinations-sections-group). No border of its own,
+   which its legend would sit across; the lists below draw the lines. Its legend is no grid item, so
+   it is spaced on its own. `overflow-wrap: anywhere`, inherited by every line in it: a reason can
+   quote a path or a scene name with no space to break at (the path mapper's sentence under a copy,
+   the destination's under Replace), and `anywhere`, unlike `break-word`, lets it shrink a grid
+   track too, so the body never scrolls sideways. */
+.download-mode,
+.download-work,
+.download-season {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow-wrap: anywhere;
+}
+
+.download-mode > legend,
+.download-work > legend,
+.download-season > legend {
+  margin-bottom: 0.375rem;
+  padding: 0;
+}
+
+/* The two radios side by side, wrapping under each other where the line is short. */
+.download-mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
+}
+
+/* The copies under the release's claim. Every line breaks a long path anywhere, as in the fieldsets
+   above. */
+.download-replacement {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* One work after another, parted by a line. */
+.download-works {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.download-works > li + li {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.download-work-name,
+.download-episode-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.download-confirm {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* A series' seasons framed with a line between two, as a release source's sections are in the
+   destination dialog (.destinations-sources). */
+.download-seasons {
+  display: grid;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.download-seasons > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.download-season {
+  padding: 0.5rem 0.75rem;
+}
+
+.download-season-name {
+  font-weight: 600;
+}
+
+/* The chevron and the season's name; the name opens it. */
+.download-season-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.download-season-toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.download-season-toggle svg {
+  color: var(--muted-foreground);
+}
+
+/* How many are ticked, and the button that ticks them all. */
+.download-season-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+}
+
+.download-season-episodes {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.download-episode {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.download-copies {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+/* A copy's box at the first line of its name, which wraps, the marks under the name past the box
+   (the reason of .destinations-sections .settings-check). */
+.download-copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.download-copy .settings-check,
+.download-confirm .settings-check {
+  align-items: flex-start;
+}
+
+.download-copy .settings-check input,
+.download-confirm .settings-check input {
+  flex-shrink: 0;
+  margin-top: 0.1875rem;
+}
+
+.download-copy-body {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* A path has few spaces: it breaks anywhere rather than widening the dialog past the screen. */
+.download-copy-name {
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.download-copy-facts {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+/* The marks and the reason line up with the name, past the box and the gap after it. */
+.download-copy-mark {
+  padding-left: 1.5rem;
+}
+
+/* The summary's replaced copies: a group per film or season, its paths under it. */
+.download-summary-groups {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.25rem 0;
+}
+
+.download-summary-paths {
+  display: grid;
+  gap: 0.125rem;
+  padding-left: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  /* A phone stacks a season's count over its button, and the marks need every pixel: they start under
+     the box rather than past it. */
+  .download-season-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .download-copy-mark {
+    padding-left: 0;
+  }
+
+  .download-season {
+    padding: 0.5rem;
+  }
+
+  /* A copy's chips stay last, after its folder and facts, as on a wider screen: library.css's phone
+     rule gives a version row's chips a row of their own (row 2), and the class is the same. Two
+     classes, so this wins whichever sheet loads first; library.css keeps its rule for the Library and
+     the Duplicates page. */
+  .download-copy-body .library-version-chips {
+    grid-row: auto;
+    grid-column: auto;
+  }
+}

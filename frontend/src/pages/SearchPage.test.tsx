@@ -5,12 +5,14 @@ import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { downloadsApi } from '@/lib/downloads-api'
 import { qk } from '@/lib/queries'
+import { replacementsApi } from '@/lib/replacements-api'
 import { searchApi } from '@/lib/search-api'
 import type { CurrentUser, SearchResponse, SearchReleasesQuery } from '@/lib/types'
 import { SearchPage } from '@/pages/SearchPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { localClient, optionsOf } from '@/test/downloads'
+import { optionsUnavailable } from '@/test/replacements'
 import {
   aliensMatch,
   aliensSearch,
@@ -30,6 +32,8 @@ import {
 
 vi.mock('@/lib/search-api')
 vi.mock('@/lib/downloads-api')
+// MAM-24 — the owner's Download dialog asks which copies the release may replace.
+vi.mock('@/lib/replacements-api')
 
 /** The query of the last request for releases. */
 const lastQuery = () => vi.mocked(searchApi.releases).mock.lastCall?.[1]
@@ -154,6 +158,7 @@ describe('SearchPage', () => {
     vi.mocked(searchApi.create).mockResolvedValue(aliensSearch)
     vi.mocked(searchApi.get).mockResolvedValue(aliensSearch)
     vi.mocked(searchApi.releases).mockImplementation(async (_, query) => releasesPage(query, [tolokaRemux, otherUhd]))
+    vi.mocked(replacementsApi.options).mockResolvedValue(optionsUnavailable('SwitchedOff'))
   })
 
   it('shows how to start a search at a bare /search, and asks nothing', async () => {

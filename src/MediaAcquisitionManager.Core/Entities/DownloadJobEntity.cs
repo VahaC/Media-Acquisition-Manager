@@ -130,4 +130,12 @@ public class DownloadJobEntity : AuditableEntity
     /// through — a refused one fails with its reason. A job whose submission failed after the check keeps it.
     /// </summary>
     public DownloadOverwriteCheck? OverwriteCheck { get; set; }
+
+    /// <summary>
+    /// MAM-24 — what the release turned out to be when the sender fetched it (a .torrent file, a magnet link): the
+    /// payload type specification §4 asks a replacement to keep, which a gateway's link names only once fetched (the
+    /// release's own <see cref="ReleaseEntity.PayloadKind"/> is <c>null</c> for it). <c>null</c> before the fetch, for a
+    /// job sent before it was kept, and for one whose payload couldn't be fetched.
+    /// </summary>
+    public ReleasePayloadKind? PayloadKind { get; set; }
 }

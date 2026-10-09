@@ -747,6 +747,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(48)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PayloadKind")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<double?>("Progress")
                         .HasColumnType("REAL");
 
@@ -2371,6 +2375,233 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("Releases");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementFolderEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Path")
+                        .IsUnique();
+
+                    b.ToTable("ReplacementFolders");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DownloadJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReleaseEditions")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByUserName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StateChangedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DownloadJobId")
+                        .IsUnique();
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex(new[] { "State" }, "IX_ReplacementJobs_Followed")
+                        .HasFilter("\"State\" IN ('Scheduled', 'Submitted', 'Downloading', 'Paused', 'NeedsReview')");
+
+                    b.ToTable("ReplacementJobs");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobFileEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppPath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EditionLabel")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EpisodeNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Inode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("LinkCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("MatchedWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MediaVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MediaWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ModifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PhysicalFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ReplacementJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SeasonNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServicePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacementJobId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("ReplacementJobFiles");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobWorkEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfirmationText")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ConfirmedByOwner")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Evidence")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MediaWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReplacementJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacementJobId", "MediaWorkId")
+                        .IsUnique();
+
+                    b.ToTable("ReplacementJobWorks");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobWorkIdentifierEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReplacementJobWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Scheme")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SetByOwner")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacementJobWorkId");
+
+                    b.ToTable("ReplacementJobWorkIdentifiers");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementSettingsEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ReplacementSettings");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SearchEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3112,6 +3343,47 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .WithMany()
                         .HasForeignKey("SourceConnectionId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.DownloadJobEntity", null)
+                        .WithMany()
+                        .HasForeignKey("DownloadJobId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobFileEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobWorkEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobWorkIdentifierEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementJobWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.SearchEntity", b =>

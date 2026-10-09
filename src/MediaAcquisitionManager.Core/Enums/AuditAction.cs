@@ -133,4 +133,42 @@ public enum AuditAction
     /// again. Written with the delete; never when there was no decision to undo.
     /// </summary>
     DuplicateMatchDecisionUndone = 26,
+
+    /// <summary>
+    /// MAM-24 — the owner switched replacement on from the Media folders page (ADR 0033). Written with the switch, by the
+    /// page's one Save, and never for a Save that leaves it on. No target: the switch belongs to the installation.
+    /// </summary>
+    ReplacementSwitchedOn = 27,
+
+    /// <summary>
+    /// MAM-24 — the owner switched replacement off from the Media folders page, or saved the page without the switch,
+    /// which means off. Written with the switch; never for a Save that leaves it off. No target.
+    /// </summary>
+    ReplacementSwitchedOff = 28,
+
+    /// <summary>
+    /// MAM-24 — the owner changed which library folders are ticked for replacement on the Media folders page (ADR 0033):
+    /// one row for the whole new set, written with it, and never for a Save that leaves the set as it was. No target.
+    /// </summary>
+    ReplacementFoldersChanged = 29,
+
+    /// <summary>
+    /// MAM-24 — the owner scheduled the replacement of the old copies he ticked by a download (ADR 0032): written with
+    /// the download job, its <see cref="DownloadRequested"/> row and the replacement's rows, in their one save, before
+    /// anything is fetched or sent. Its target is the replacement job, named by the release.
+    /// </summary>
+    ReplacementScheduled = 30,
+
+    /// <summary>
+    /// MAM-24 — the owner confirmed, for a replacement he scheduled, that the release is a work it matched only by title
+    /// and year (ADR 0032): one row per work confirmed, written with <see cref="ReplacementScheduled"/>, its target the
+    /// replacement job, named by the confirmation's own words ("This release is Alien (1979)").
+    /// </summary>
+    ReplacementWorkConfirmed = 31,
+
+    /// <summary>
+    /// MAM-24 — a replacement ended because its sender cancelled its download from the Jobs page: written with the
+    /// download's <see cref="DownloadCancelled"/> row, its target the replacement job.
+    /// </summary>
+    ReplacementCancelled = 32,
 }

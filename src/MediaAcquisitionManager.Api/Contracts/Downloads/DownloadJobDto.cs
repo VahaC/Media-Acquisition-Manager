@@ -35,6 +35,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// value; the Jobs page shows it only for a job that didn't fail.</param>
 /// <param name="CreatedUtc">When it was sent.</param>
 /// <param name="StatusChangedUtc">When <paramref name="Status"/> last changed.</param>
+/// <param name="Replacement">MAM-24 — the replacement of old copies the owner scheduled with it, and where it stands;
+/// <c>null</c> for a download sent with Keep both.</param>
 public sealed record DownloadJobDto(
     Guid Id,
     Guid ReleaseId,
@@ -50,4 +52,5 @@ public sealed record DownloadJobDto(
     string? BlockReason,
     DownloadOverwriteCheck? OverwriteCheck,
     DateTime CreatedUtc,
-    DateTime StatusChangedUtc);
+    DateTime StatusChangedUtc,
+    DownloadJobReplacementDto? Replacement = null);

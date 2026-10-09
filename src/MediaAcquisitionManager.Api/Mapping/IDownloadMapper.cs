@@ -18,6 +18,14 @@ public interface IDownloadMapper
     /// <summary>MAM-14 — a file of a job as its details page lists it.</summary>
     DownloadJobFileDto ToDto(DownloadJobFileEntity file);
 
+    /// <summary>
+    /// MAM-24 — the replacement a job carries, as the Jobs page shows it under the job: its state and why it stopped,
+    /// with what the caller counted — its <paramref name="copyCount"/> copies, whether replacement is
+    /// <paramref name="switchedOff"/> now, and how many copies lie outside a ticked folder now
+    /// (<paramref name="copiesOutsideTickedFolders"/>).
+    /// </summary>
+    DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, int copyCount, bool switchedOff, int copiesOutsideTickedFolders);
+
     /// <summary>A client the dialog offers: its name, what it is (<paramref name="typeName"/>) and its
     /// <paramref name="destinations"/>, in the order given.</summary>
     DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations);

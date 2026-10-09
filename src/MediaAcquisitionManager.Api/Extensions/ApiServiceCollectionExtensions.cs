@@ -7,8 +7,8 @@ namespace MediaAcquisitionManager.Api.Extensions;
 
 public static class ApiServiceCollectionExtensions
 {
-    /// <summary>Controllers with the house JSON shape and the owner-only Settings and TMDb links conventions, and the
-    /// global <c>{ error }</c> exception handler.</summary>
+    /// <summary>Controllers with the house JSON shape and the owner-only Settings, TMDb links and replacements conventions,
+    /// and the global <c>{ error }</c> exception handler.</summary>
     public static IServiceCollection AddMediaAcquisitionManagerApi(this IServiceCollection services)
     {
         services.AddControllers(options =>
@@ -18,6 +18,8 @@ public static class ApiServiceCollectionExtensions
             options.Conventions.Add(new SettingsWritesAreOwnerOnlyConvention());
             // MAM-34 — the same for every action under Controllers/Library/Links, its reads too (R19).
             options.Conventions.Add(new LibraryLinksAreOwnerOnlyConvention());
+            // MAM-24 — the same for every action under Controllers/Replacements, its reads too (ADR 0033).
+            options.Conventions.Add(new ReplacementsAreOwnerOnlyConvention());
         })
         .ConfigureApiBehaviorOptions(options =>
             // MAM-4 — a bare NotFound() answers a 404 with no body, which is what "the same bare 404

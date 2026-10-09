@@ -12,7 +12,8 @@ public interface IDownloadJobDataFactory
     /// history keeps them. MAM-13 — given a user, sent by them, under the request id given or one of its
     /// own, with the info hashes worked out from what it sent. MAM-14 — and as a previous run of the app left
     /// it: the client's id of it, how far the client said it had come, and why it wasn't moving on. Created and
-    /// changed at the test clock's now; advance the clock to age it.
+    /// changed at the test clock's now; advance the clock to age it. MAM-24 — and how the overwrite check let it
+    /// through before it was sent, when it did.
     /// </summary>
     Task<DownloadJobEntity> Create(
         Guid releaseId,
@@ -27,7 +28,8 @@ public interface IDownloadJobDataFactory
         string? clientJobId = null,
         double? progress = null,
         string? blockReason = null,
-        DownloadJobErrorOrigin? blockReasonOrigin = null);
+        DownloadJobErrorOrigin? blockReasonOrigin = null,
+        DownloadOverwriteCheck? overwriteCheck = null);
 
     /// <summary>
     /// MAM-14 — gives the job <paramref name="downloadJobId"/> <paramref name="files"/> as its client last listed

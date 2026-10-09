@@ -95,6 +95,52 @@ public sealed class MediaWorkSeeder(IServiceProvider services) : SeederBase(serv
         return await CreateEpisode(source, series, seriesTitle, season, sizeBytes);
     }
 
+    public async Task<MediaWorkEntity> AddEpisodeAt(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity series,
+        string title,
+        int? season,
+        int? number,
+        string itemId)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(series);
+        var episode = await Works.Create(MediaWorkKind.Episode);
+        await Works.AddTitle(episode.Id, title, MediaTitleKind.Display, null, source.Id, source.Name, itemId);
+        await Works.AddEpisodePosition(episode.Id, series.Id, season, number, source.Id, source.Name, itemId);
+        return episode;
+    }
+
+    public async Task<MediaEpisodePositionEntity> PlaceEpisode(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity episode,
+        MediaWorkEntity series,
+        int? season,
+        int? number,
+        string itemId)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(episode);
+        ArgumentNullException.ThrowIfNull(series);
+        return await Works.AddEpisodePosition(episode.Id, series.Id, season, number, source.Id, source.Name, itemId);
+    }
+
+    public async Task<MediaVersionEntity> AddVersion(
+        IntegrationConnectionEntity source,
+        MediaWorkEntity work,
+        string itemId,
+        LibraryLocationEntity? library,
+        string? editionLabel,
+        params string[] servicePaths)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(work);
+        var version = await Versions.Create(work.Id, itemId, editionLabel: editionLabel, sourceConnectionId: source.Id, sourceName: source.Name);
+        foreach (var servicePath in servicePaths)
+            await Files.Create(version.Id, servicePath, sourceConnectionId: source.Id, sourceName: source.Name, libraryLocationId: library?.Id);
+        return version;
+    }
+
     private async Task<MediaWorkEntity> CreateEpisode(
         IntegrationConnectionEntity source,
         MediaWorkEntity series,

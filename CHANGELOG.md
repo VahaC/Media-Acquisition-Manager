@@ -5,6 +5,332 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 [semantic versioning](https://semver.org/) — released as tags of the Docker image
 `vahac/media-acquisition-manager`.
 
+## [0.3.0] — 2026-10-09
+
+### Added
+
+- **The owner switches replacement on, and ticks the library folders it may touch, on the Media
+  folders page (MAM-24, ADR 0033, Vasyl's decisions of 2026-10-08).** The page (user menu → **Media
+  folders**) gains a second card, **Replacing copies**, inside the same form and saved by its one
+  **Save** in one request and one transaction: the switch **Replace copies after verification**, off
+  by default ("Off by default. When on, the Download dialog offers Replace after verification for
+  copies in the folders ticked below, to you alone. In this version a replacement is only scheduled;
+  moving old copies comes in a later version and will also need the media folders mounted
+  read-write."), and **Library folders replacement may touch**: every library folder the Jellyfin
+  integration's path mappings bring into the app, by its path in the app, with the libraries that
+  list it ("In the library Фільми"), none ticked by default. An unticked folder outside the Media
+  folders can't be ticked ("Outside the Media folders."), a ticked one says its tick "has no effect
+  until the folder is inside one", and a stored tick that is no longer any library folder the app
+  knows is listed ticked so the owner can untick it ("No longer a library folder the app knows, so a
+  tick here has no effect. Saved unticked, it leaves this list."); with nothing stored the card says
+  "No library folders yet: sync a library first.", and it counts the library folders the mappings
+  leave without a path ("3 library folders have no path in this app: add path mappings to the
+  Jellyfin integration."). The ticks stay while the switch is off. The switch is the one row of the
+  new `ReplacementSettings`, none until the owner first switches it on, and no row is off; the ticks
+  are `ReplacementFolders`, keyed by the folder's path in the app, never by a library-folder row,
+  which every sync rebuilds, so a folder that leaves the libraries or the Media folders loses its
+  tick's effect and gets it back if it returns. Both are read fresh on every request, never cached.
+  A copy lies in a ticked folder only when every library folder that holds it is ticked and inside
+  the Media folders: `/media/movies` ticked and `/media/movies/kids` not keeps the kids' copies out
+  of reach. `GET /api/settings/allowed-roots` now answers
+  `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount }`, each folder
+  `{ appPath, libraryNames, ticked, status }` with `status` `Available`, `OutsideMediaFolders` or
+  `NoLongerALibraryFolder`; `PUT` takes `{ paths, replacementEnabled, replacementFolders }`, a
+  missing switch off and a missing list of ticks none, as a missing list of paths allows nothing.
+  Each tick must be a full path in either style, given once, at most 50, and a library folder the
+  mappings bring into the app or a tick already stored: otherwise 400, such as "“/srv/films” isn't a
+  library folder the app knows, so it can't be ticked for replacement.", and nothing is saved, the
+  folders and the switch included. A Save writes `ReplacementSwitchedOn` or `ReplacementSwitchedOff`
+  when the switch changed and one `ReplacementFoldersChanged` when the set of ticks changed, beside
+  `AllowedRootsChanged`, none of them with a target, and a Save that changes nothing writes none;
+  the log says on or off and how many folders are ticked, never a path.
+  `ReplacementSettingsHttpTests` (a fresh installation, the sample library's folders with `/media`
+  mapped to the platform's own folder, a folder two libraries share, every status, a stale tick kept
+  or removed, a path the page never lists, the rules, a member's 403, two first switch-ons at once,
+  the log), `ReplacementSettingsPersistenceTests`, `SettingsWritesAreOwnerOnlyHttpTests` (a member's
+  Save writes neither table), `ReplacementOptionsHttpTests` (the nested folders),
+  `MediaFoldersPage.test.tsx` and `allowed-roots-api.test.ts` pin it.
+- **The owner picks, in the Download dialog, the specific old copies a release should replace
+  (MAM-24, ADR 0032, Vasyl's decisions of 2026-10-08 and 2026-10-09).** Under **Existing copies**
+  the dialog now has two choices: **Keep both**, picked by default and changed only by a click, and
+  **Replace after verification**. A member's is disabled with "Only the installation owner can
+  replace a copy.", and the dialog asks the server nothing more for it. The owner's, once a
+  destination is picked, asks
+  `GET /api/replacements/options?releaseId=&destinationId=&holdings=false` and lists, in both modes
+  — read-only under Keep both, so the owner sees why before picking —, the works the release
+  matched, as the Search page matches them for the owner, strongest evidence first: for a film
+  release every file of every version of each matched film, in the Library's order; for a TV release
+  the held episodes its title claims — its one episode, those of a range within one season, or every
+  held episode of each whole season —, by season, then number, each at its first place the claim
+  holds, with its versions. Each copy shows its file name, told apart from the others' as the
+  Duplicates page tells them, its folder, its version's label or "Version 2", the edition words
+  MAM-37 reads in its name and label, the resolution and dynamic-range chips the Library shows, and
+  its size; above them, the edition words of the release's own title. Nothing is ticked in advance;
+  each season has "Tick every copy that can be replaced (18)" or "Untick all" and "3 of 18 ticked",
+  folded when there are several. Replace can't be picked, with the reason under it, before a
+  destination is picked, while the copies are read ("Checking your copies…"), and when nothing of
+  the release can be replaced: replacement switched off ("Replacement is switched off. Switch it on,
+  and tick the folders it may touch, on the Media folders page.", linked); a magnet link ("This
+  release is a magnet link: the app can't check its files before sending."); a destination that
+  can't take one — its client can't say where the category saves or no longer has it, its folder
+  isn't confirmed inside a library the app knows, or it lies outside the Media folders or has no
+  path in the app, so ADR 0034's check can't look into it ("The destination's folder lies outside
+  the Media folders or has no path in the app, so the app can't check it for files already there,
+  and a replacement is sent only after that check.") —; or no matched work ("This release matches no
+  film or held episodes of yours."). A work can't be replaced when it was matched by its title alone
+  ("Matched by title alone, which never allows a replacement."), when its ids conflict with the
+  release's ("Its ids conflict (TMDb), so it can't be replaced."), when a TV title names no season,
+  or claims none of the episodes held. A copy can't be ticked, the first that applies: no path in
+  the app, or outside the Media folders; a library folder holding it isn't ticked; a TV version its
+  own library item places outside the claim or under another series; a replacement not yet ended
+  already holds it, by its path or its device and inode; not inspected, or inspected without an
+  identity; the same file is also a copy of a work that can't be replaced — one file is one copy
+  however many works list it, and the strictest reason holds —; then, read fresh from the disk,
+  gone, unreadable, or "Changed since the app inspected it." (device, inode, size or modification
+  time). A copy whose reading failed stays tickable, without its dynamic-range chip. A work matched
+  by title and year — every Toloka release's — asks the owner to tick the server's own words, "This
+  release is Alien (1979)", or for a series what the release claims of it, "This release is The
+  Penguins of Madagascar (2008), season 2", "…, seasons 1–5", "…, season 2, episodes 1–5", with the
+  hint "Matched by title and year only. Your tick lets the app schedule this; nothing moves unless
+  Jellyfin later gives the new file this work's id."; two works whose words would read the same are
+  told apart by their libraries ("… in “Фільми”"), else by the name of each one's first copy ("…
+  (the copy “Halloween.2018.1080p.mkv”)"), else by their place ("… (1 of 2)"), in the dialog and in
+  what is kept. **Send** in Replace mode waits, saying why, while the copies are read or couldn't
+  be, for a reason the whole release has, for a destination folder MAM-38's check can't look into
+  ("The app can't check this destination's folder for files already there, and a replacement is sent
+  only after that check. Pick another destination, or Keep both."), for a copy that can be ticked,
+  for one ticked ("Tick the copies to replace.") and for every confirmation a ticked copy's work
+  needs ("Tick “This release is Alien (1979)” first."). The summary's **Existing copies** then lists
+  the ticked copies by work — "Alien (1979): 1 copy" — with their paths in the app, and "Conditions:
+  the old copy would move aside only after the new one is downloaded, checked and shown in Jellyfin
+  as the same work; a copy held by a torrent waits until you remove that torrent in qBittorrent.
+  This version only schedules the replacement: once the download is done it waits, and nothing is
+  checked or moved until a later version.", frozen in the sent view. A refused schedule reads the
+  copies again, so the list shows what changed. The dialog widens to 48rem while it lists works and
+  stacks the copies at phone width, long names wrapped. `DownloadDialog.replace.test.tsx`,
+  `DownloadDialog.test.tsx` (the member's view), `replacements.test.ts`, `replacements-api.test.ts`,
+  `queries/replacements.test.tsx`, `styles/downloads.test.ts`, `ReplacementOptionsHttpTests` and
+  `ReplacementOptionsEpisodesHttpTests` pin it.
+- **The dialog marks the copies a torrent holds, from a new read of every torrent with its files
+  (MAM-24, ADR 0031, ADR 0005).** Once the owner picks Replace after verification, the dialog asks
+  the options again with `holdings=true`, and only then, and only while a copy can be ticked, the
+  server reports on every download client, switched off or not, and asks each one it may ask once,
+  all at once, through the client contract's new `ListJobsWithFilesAsync`: for qBittorrent the
+  sign-in, `app/version` and one `GET /api/v2/torrents/info?includeFiles=true`, every torrent in
+  every state and category, never `includeTrackers`. It needs qBittorrent 5.2 or later, whose Web
+  API (2.15.1) lists the files with the torrents; an older one ignores `includeFiles` without a
+  word, which would read as nothing held, so it is asked nothing more and answers "This is
+  qBittorrent 5.1.4; telling which torrents hold a library file needs qBittorrent 5.2 or later.". A
+  torrent without a usable hash, or files the app can't read, fail the whole answer; a torrent still
+  fetching its metadata comes without files, never with none; an answer over the 4 MiB cap is
+  "qBittorrent's list of every torrent with its files is larger than the app reads (4 MiB), so the
+  app couldn't tell which torrents hold these copies.". Each torrent file's path — its save path
+  joined with its path in the torrent — is mapped through that client's path mappings as a whole,
+  and only a file of a tickable copy's size inside the Media folders is looked at on the disk, once
+  per path: the copy's own device and inode make it a hold, "Held by the torrent
+  “Alien.1979.Remastered.1080p” in “qBittorrent”: before this copy can move you'll remove that
+  torrent there without its files — which also stops seeding its other files." — said once per
+  torrent of a work, with how many of its copies, each copy then marked "Held by “…”" —, and the
+  copy's data under another name a torrent lists marks it "This file has another name, so moving it
+  frees no space. It is the torrent “…”'s file."; a copy with more than one name gets the first
+  sentence whether or not a torrent was found — the other name usually lies outside the Media
+  folders —, and from the first read on in either mode, as it needs only the disk. Holds are told
+  apart by client and torrent id, so two torrents of one name, a cross-seed, are two. A hold never
+  keeps a copy from being ticked: the owner may remove the torrent while the new copy downloads. A
+  client the dialog didn't read is reported with the app's short sentence after the dialog's own
+  words — "Couldn't check whether a torrent in “seedbox” holds these copies: “seedbox” is switched
+  off.", "… This version of the app can't read “transmission”.", a secret it can't open, the
+  client's own failure masked of its secrets, or "The app couldn't read what “qBittorrent”
+  answered." for an answer that broke the reader, logged with its type and stack and never its
+  message —, and one some of whose torrents couldn't be placed — no save path, no metadata yet, a
+  path no mapping covers or two cover differently, an unknown size, a file of the copy's size the
+  disk doesn't show — as "Couldn't check 3 torrents in “qBittorrent”: their files couldn't be placed
+  in the app's folders."; a screen reader reads these with **Send**. Nothing uncertain reads as "not
+  held", and scheduling stays allowed. A Keep both send never reads a whole client, and the schedule
+  doesn't read the torrents again: the read that decides comes right before a move, a later
+  version's. The log names a client by its id, with counts, never a torrent's name or a path. Tried
+  against the reference installation's qBittorrent on 2026-10-09, read only, by the app's own
+  adapter and sealed settings, booted on the development PC over a copy of its data directory: it
+  answered in 355 ms with 358 torrents — 353 seeding, 4 errored, 1 downloading —, every one with its
+  files, 848 files, each path below its save path with the torrent's folder first, as the adapter
+  reads it, and each one mapped into the app through the client's `/downloads` → `/media` pair, none
+  left uncovered; that qBittorrent passed the 5.2 gate. The marks themselves met no real file: that
+  PC reaches none of the media. `QBittorrentAdapterJobsWithFilesTests` (the requests, every torrent
+  whatever its state, the files read exactly, no metadata, the version gate at 5.1.4 and 5.2.0, the
+  bodies that fail the whole answer, a renewed session, transport errors, the size cap, the timeout
+  and a cancel), `ReplacementOptionsHoldingsHttpTests` (holds in any state, a cross-seed, a
+  same-size file that is another file, a second name, other names, unplaced torrents, each way a
+  client isn't read, a qBittorrent too old, nothing read without `holdings` or while no copy can be
+  ticked), `DownloadsSendHttpTests` (a Keep both send never reads the whole client),
+  `DownloadClientNeverRemovesTests` and `IntegrationsInfrastructureExtensionsTests` pin it.
+- **A scheduled replacement is written with its download before anything is sent, and sent strictly
+  (MAM-24, ADR 0013, ADR 0032, ADR 0034, Vasyl's decisions of 2026-10-09).** **Send** in Replace
+  mode posts `POST /api/replacements` with
+  `{ requestId, releaseId, downloadClientId, destinationId, fileIds, confirmedWorkIds }`, ids only:
+  the server reads every path and identity itself. It runs `POST /api/downloads`'s send — the same
+  rules, request id, release, client, destination and "already sent" checks, one core for both — and
+  then plans the replacement from the database and the disk alone, asking no client before the job
+  is written: replacement on, the release's stored payload not a magnet, a matched work, 1 to 500
+  copies each ticked once, every ticked id a copy the release offers (400 "One of the ticked copies
+  isn't a copy of a work this release matched. The list was read again: check the ticks and send
+  again."), every confirmation one a matched work needs and with a copy of it ticked (400), every
+  ticked copy's work and the copy itself able to be replaced, each copy read on the disk again (409
+  naming the file, such as "“Alien (1979).mkv” changed since the app inspected it, so it can't be
+  replaced. Inspect the library again, or pick Keep both."), and every title-and-year work with a
+  ticked copy confirmed (400 "Tick “This release is Alien (1979)” to replace a copy of it. …"). A
+  refusal writes and sends nothing. Then, in the job's one save, beside the job and its
+  `DownloadRequested` row: the replacement job, `Scheduled`, with who scheduled it, when, and the
+  edition words of the release's title; one row per ticked copy — its file, version, work and
+  matched work, an episode's season and number as its own library item places it, the library's path
+  and the app's, and the identity read from the disk then: device, inode, size, modification time to
+  the tick and link count, with the version's label —; one row per matched work with a ticked copy —
+  its kind, title, year, evidence, the confirmation's words and whether the owner ticked them — with
+  its registry ids then, the owner's TMDb links counted and a series' its show's own; a
+  `ReplacementScheduled` audit row, its target the replacement job named by the release; and one
+  `ReplacementWorkConfirmed` row per confirmed work, named by the words he ticked. All of it is a
+  snapshot keyed to no row a sync rebuilds; the release, the payload kind, the client, the
+  destination, the client's job id and the info hashes are its download job's. The send is then
+  strict: a gateway link that turns out a magnet once fetched ("This release turned out to be a
+  magnet link, whose files the app can't check before sending, so nothing was sent and no copy will
+  be replaced. Pick Keep both to download it."); a category whose folder isn't inside a library the
+  app knows ("The folder of the category “Movies” isn't inside a library the app knows, so nothing
+  was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the
+  destination."); any file already at a place the release would write, the same bytes included, told
+  by being there and its pieces never read ("“qBittorrent” would write over “Alien (1979).mkv” in
+  the folder of the category “Movies”: a file is already there, and a replacement never lands on a
+  file already there, so nothing was sent."); and every place MAM-38's check couldn't look at ("The
+  app couldn't check every place this release would write in the folder of the category “Movies”
+  (the folder, or a link on the way to one of its places, lies outside the Media folders), so
+  nothing was sent and no copy will be replaced. Pick Keep both to download it.", with the reason of
+  each unchecked case) — each ends the job `Failed`, and its replacement with it, nothing handed to
+  qBittorrent. The dialog keeps the form with the sentence, and the owner picks Keep both himself: a
+  replacement is never sent as a plain download on its own. The answer is 201 with the job and its
+  `Location` under `/api/downloads/`, its replacement on it; the same request id with the same
+  copies and confirmations, compared as sets, answers 200 with that job and sends nothing, and with
+  other ticks, or a request id a Keep both send used — or the other way round —, 409 "This request
+  id was already used to send a different download. Reload the page and try again.". Two copies of
+  one request at once make one job, one replacement and one add, and a copy whose twin wrote its job
+  while it planned is answered with that job, not refused as already scheduled. Left open: two
+  different schedules racing for one copy at the same instant can both pass the "already scheduled"
+  check, ADR 0013's kind of gap. `ReplacementScheduleHttpTests` (everything written before the
+  `.torrent` is fetched, the fresh identities to the bit, a confirmation and its row, an episode's
+  place, the ids kept after a sync, every 400 and 409 with nothing written, a file two works list,
+  twins, a copy another replacement holds, the camel-case answer, every replay and race) and
+  `ReplacementScheduleSendHttpTests` (the same bytes already there, a gateway link that turns out a
+  magnet, a destination outside every library, a library outside the Media folders, a link leading
+  out, a name the app can't look up, a list of files it can't read, a qBittorrent that can't list
+  the category's torrents, and an add qBittorrent refused after the check) pin it.
+- **A scheduled replacement follows its download to `Downloaded` and waits there, and the Jobs page
+  says where it stands (MAM-24, ADR 0014, Vasyl's decision of 2026-10-09).** After every pass of the
+  downloads' following, in the same scope and its own try, the replacements still followed are
+  brought in line with their downloads — `Scheduled` → `Submitted` → `Downloading` (↔ `Paused`) →
+  `Downloaded`, where they wait, as nothing verifies or moves anything in this version —, but only
+  for a download whose check before the send passed (`overwriteCheck` `Checked`, strict mode's only
+  passing verdict). A download that failed after it fails its replacement ("The download failed, so
+  nothing will be replaced."), one refused before it was sent too ("The download was refused before
+  it was sent, so nothing will be replaced."), and so does a send the app stopped during, which the
+  following adopted with nothing checked ("The app stopped while sending this download, before it
+  checked where the new files would land, so nothing will be replaced."); a download that needs
+  linking puts it at `NeedsReview` ("qBittorrent's downloads couldn't be told apart for this
+  release, so the app can't follow it to verify the new file."). **Cancel job** cancels it in the
+  same transaction, from any state still followed, `NeedsReview` included, with a
+  `ReplacementCancelled` audit row ("You cancelled the download, so nothing will be replaced.").
+  Each write is conditional on the state it read, the mirrored steps write no audit row, a bug on
+  one replacement costs only that one the pass, and everything is rows, so a restart goes on where
+  they stand. Every job the API answers — the list, a job, a send, a schedule, a cancel — carries
+  `replacement` `{ state, copyCount, reason, switchedOff, copiesOutsideTickedFolders }`, `null` for
+  a Keep both job, read in one batch per page. The Jobs pages and the dialog's sent view show a line
+  under such a job: "Replacement scheduled: 2 copies, kept until the new one is verified.",
+  "Replacement waits for verification: 1 copy. This version doesn't verify or move anything yet." or
+  "Replacement stopped: <reason>" — only "Replacement stopped." on a failed job, whose error already
+  says why —; while the download goes on and the gates say so now, "Replacement scheduled, but
+  replacement is switched off: nothing will move while it is off." and "1 copy is no longer in a
+  ticked folder and won't move.". `ReplacementFollowingHttpTests` (to `Downloaded` and no further
+  with nothing sent, a restart, a send still under way, a cancel with its row, the review a cancel
+  ends, a failed download, an adopted interrupted send, a follower that throws, the gates on a job's
+  answer), `ReplacementJobPersistenceTests` and `JobsPage.test.tsx` pin it.
+- **Replacing copies is the installation owner's alone, by where its routes live (MAM-24, ADR 0033,
+  Vasyl's decision of 2026-10-08).** `GET /api/replacements/options` and `POST /api/replacements`
+  live in `Controllers/Replacements`, and every action there, reads included, is owner-only by
+  `ReplacementsAreOwnerOnlyConvention`, not by an attribute each action has to remember: a member
+  gets 403 "Only the installation owner can do this." before anything is read, written or asked of
+  qBittorrent, and keeps Keep both. `ReplacementsAreOwnerOnlyHttpTests` discovers every endpoint in
+  that namespace and sends each as a member (403, no job, replacement or audit row written, nothing
+  asked of qBittorrent) and without a token (401), and `ControllerAccessDeclarationTests` lists both
+  actions. The options route answers 200
+  `{ unavailable, destinationProblem, releaseEditions, works, clients }` (the README's API table has
+  each shape), 400 "Pick the release to send.", "Pick the destination to send it to." or "Say true
+  or false for whether the download clients' torrents are read.", and 404 as a send does for a
+  release of no search of the caller's from the last day or a destination that is gone; it writes
+  nothing. Nothing of it but qBittorrent's read above was tried live: no replacement was scheduled,
+  the development database has no Media folder and no inspected file, and production runs no build
+  with MAM-24. The pages were looked at in a browser at 1280 px and 375 px on that development
+  database: the Media folders page and its save, and the dialog's two reasons for a real Toloka
+  release (`SwitchedOff`, then `DestinationNotUsable`); the list of copies, the marks, the
+  confirmation, Send's reasons, the summaries, a member's view and the Jobs page's line only with
+  answers made up in the page.
+
+### Changed
+
+- **The Download dialog's summary of existing copies (MAM-24).** "Kept: this version of the app
+  never replaces or removes a file, and doesn't send a release it finds would write over a different
+  one." now reads "Kept: nothing is replaced or removed, and a release that would write over a
+  different file isn't sent.", since a replacement can now be scheduled. MAM-38's warning about a
+  destination folder the check can't look into now sits right under the destination, and in Replace
+  mode gives way to the replacement's own sentence, as such a destination takes no replacement.
+- **The Media folders API answers and takes the replacement gates (MAM-24).**
+  `GET /api/settings/allowed-roots` answers
+  `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount }` where it answered
+  `{ paths }`, and `PUT` takes `{ paths, replacementEnabled, replacementFolders }`. A `PUT` with
+  `{ paths }` alone, as 0.2.1's page sends it, switches replacement off and unticks every folder.
+- **A download job carries its replacement (MAM-24).** `DownloadJobDto` gains a trailing
+  `replacement`, after `statusChangedUtc`: `null` for a job sent with Keep both, else
+  `{ state, copyCount, reason, switchedOff, copiesOutsideTickedFolders }`, `state` by name.
+- **Every send records what the release turned out to be (MAM-24).** Right after the fetch, a job
+  keeps its payload's kind, `TorrentFile` or `Magnet`, by name, Keep both sends included
+  (`DownloadJobs.PayloadKind`, not in the API): the payload type specification §4 asks a replacement
+  to keep, which a gateway's link names only once fetched. It stays `null` for a job sent before the
+  upgrade and one whose payload couldn't be fetched.
+- **qBittorrent's checked session now hands back the version it read (MAM-24).** The adapter's one
+  `app/version` read before each call returns the version as reported and as compared, so the whole
+  listing gates on 5.2 without a second read; the job lookup, the files read and the submission pass
+  it by unchanged. `HttpIntegrationAdapter.CallAsync` takes an optional sentence for an answer over
+  the 4 MiB cap, which only the whole listing passes.
+- **The release matching, a caller's release lookup and the edition words are shared, not copied
+  (MAM-24).** `IReleaseMatchReader` holds the per-release matching `SearchService` did,
+  `CallerSearches` the rule that a release is one of the caller's searches' from the last day (the
+  search, the send and the replacement read), `CopyEditions` the Duplicates page's edition words of
+  a copy, `LibraryFolderReader` the Destinations page's library folders, and `FileChips` the
+  Library's chips of a file; the behaviour of each is unchanged, and their own suites pass as they
+  were.
+
+### Notes for upgraders
+
+- **Applying `AddReplacementSettings` and `AddReplacementJobs` rebuilds no table, so it logs no
+  warning 20410 (MAM-24).** `AddReplacementSettings` only creates `ReplacementSettings` and
+  `ReplacementFolders`, with the unique index on a tick's path; `AddReplacementJobs` adds one
+  nullable column, `DownloadJobs.PayloadKind`, and creates `ReplacementJobs`, `ReplacementJobFiles`,
+  `ReplacementJobWorks` and `ReplacementJobWorkIdentifiers` with their six indexes, one of them the
+  partial `IX_ReplacementJobs_Followed`. Every job sent before the upgrade keeps `null` there and
+  carries no replacement.
+- **Replacement is off, and no folder ticked, after the upgrade (MAM-24).** Members send as before,
+  with Keep both, and so does the owner until he turns it on; the owner's dialog says why Replace
+  can't be picked. To turn it on: user menu → **Media folders** → **Replacing copies**, tick
+  **Replace copies after verification** and the library folders it may touch, then **Save**. A copy
+  can then be ticked only once the app has inspected it inside the Media folders, and only through a
+  destination whose category saves inside a library folder under them.
+- **Nothing moves in this version (MAM-24).** Scheduling reads the download clients' torrents and
+  the old copies' identities, and writes nothing to the media folders, nor to qBittorrent but the
+  one add every send makes; a replacement waits at `Downloaded` until a later version verifies the
+  new file and moves the old copy. Keep the media folders mounted `:ro` and the app's own ids: the
+  read-write mount and `APP_USER_ID`/`APP_GROUP_ID` will be needed only once a later version moves
+  files (MAM-26). The scheduled replacements live in `mam.db` alone; back it up with `.secrets/`.
+- **The marks of torrents that hold a copy need qBittorrent 5.2 or later (MAM-24).** An older one —
+  the app still sends to and follows 4.4.1 and later — is reported in the dialog as not checked,
+  "Couldn't check whether a torrent in “qBittorrent” holds these copies: This is qBittorrent 5.1.4;
+  telling which torrents hold a library file needs qBittorrent 5.2 or later.", and scheduling stays
+  allowed.
+
 ## [0.2.1] — 2026-10-05
 
 ### Added

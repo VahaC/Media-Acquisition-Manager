@@ -132,6 +132,19 @@ export const qk = {
       files: (id: string, query: DownloadJobFilesQuery) => ['downloads', 'jobs', id, 'files', query] as const,
     },
   },
+  replacements: {
+    /**
+     * MAM-24 — every answer about what a release may replace: what saving the Media folders (the
+     * switch and the ticked folders decide every reason) invalidates.
+     */
+    all: ['replacements'] as const,
+    /**
+     * What one release may replace through one destination; with the held marks (`holdings`, every
+     * download client's torrents read) or without, each cached apart.
+     */
+    options: (releaseId: string, destinationId: string, holdings: boolean) =>
+      ['replacements', 'options', releaseId, destinationId, holdings] as const,
+  },
   search: {
     /** MAM-12 — every stored search and its releases: the prefix of the keys below. */
     all: ['searches'] as const,

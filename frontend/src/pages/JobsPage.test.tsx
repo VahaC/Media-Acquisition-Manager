@@ -5,11 +5,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { downloadsApi } from '@/lib/downloads-api'
 import { formatDateTime } from '@/lib/format'
-import type { CurrentUser, DownloadJob, DownloadJobStatus, DownloadOverwriteCheck } from '@/lib/types'
+import type { CurrentUser, DownloadJob, DownloadJobReplacement, DownloadJobStatus, DownloadOverwriteCheck } from '@/lib/types'
 import { JobsPage } from '@/pages/JobsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { downloadedJob, downloadingJob, jobOf, jobsPage, sentMinutesAgo } from '@/test/downloads'
+import { replacementOf } from '@/test/replacements'
 
 vi.mock('@/lib/downloads-api')
 
@@ -180,6 +181,54 @@ describe('JobsPage', () => {
     const row = within(rowOf(refusedJob.releaseTitle))
     expect(row.getByText(refusedJob.error!).closest('p')).toHaveAttribute('data-status', 'Failed')
     expect(row.queryByText(/Not checked for files/)).not.toBeInTheDocument()
+  })
+
+  it.each<[string, Partial<DownloadJobReplacement>, DownloadJobStatus, string, string]>([
+    ['scheduled', { state: 'Scheduled', copyCount: 1 }, 'Created', 'Replacement scheduled: 1 copy, kept until the new one is verified.', 'library-source-status'],
+    ['downloading, of several copies', { state: 'Downloading', copyCount: 18 }, 'Downloading', 'Replacement scheduled: 18 copies, kept until the new one is verified.', 'library-source-status'],
+    ['scheduled while replacement is switched off', { state: 'Submitted', copyCount: 2, switchedOff: true }, 'Submitted', 'Replacement scheduled, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
+    ['paused, with copies no longer in a ticked folder', { state: 'Paused', copyCount: 3, copiesOutsideTickedFolders: 2 }, 'Paused', 'Replacement scheduled: 3 copies, kept until the new one is verified. 2 copies are no longer in a ticked folder and won\'t move.', 'library-source-status'],
+    ['waiting at Downloaded', { state: 'Downloaded', copyCount: 1 }, 'Downloaded', 'Replacement waits for verification: 1 copy. This version doesn\'t verify or move anything yet.', 'library-source-status'],
+    ['stopped for review', { state: 'NeedsReview', reason: 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.' }, 'NeedsLinking', 'Replacement stopped: qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.', 'library-source-warning'],
+    ['cancelled', { state: 'Cancelled', reason: 'You cancelled the download, so nothing will be replaced.' }, 'Cancelled', 'Replacement stopped: You cancelled the download, so nothing will be replaced.', 'library-source-warning'],
+  ])('says under the status where the replacement a job carries stands: %s', async (_, replacement, status, sentence, tone) => {
+    // Arrange
+    const replacing = jobOf({ id: 'd0b10000-0000-4000-8000-000000000008', releaseTitle: 'Alien (1979) 2160p Remux', status, replacement: replacementOf(replacement) })
+    listing([replacing, downloadingJob])
+
+    // Act
+    renderPage(owner)
+
+    // Assert
+    await screen.findByText(replacing.releaseTitle, asTitle)
+    const line = within(rowOf(replacing.releaseTitle)).getByText(sentence).closest('p')
+    expect(line).toHaveClass(tone)
+    expect(line).not.toHaveAttribute('role')
+    expect(line?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(rowOf(downloadingJob.releaseTitle)).queryByText(/Replacement/)).not.toBeInTheDocument()
+  })
+
+  it('says only that the replacement stopped on a failed job, whose red line says why', async () => {
+    // Arrange
+    const refused = jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000009',
+      releaseTitle: 'Alien (1979) 2160p Remux',
+      status: 'Failed',
+      clientJobId: null,
+      error: 'This release turned out to be a magnet link, whose files the app can\'t check before sending, so nothing was sent and no copy will be replaced. Pick Keep both to download it.',
+      replacement: replacementOf({ state: 'Failed', reason: 'The download was refused before it was sent, so nothing will be replaced.' }),
+    })
+    listing([refused])
+
+    // Act
+    renderPage(owner)
+
+    // Assert
+    await screen.findByText(refused.releaseTitle, asTitle)
+    const row = within(rowOf(refused.releaseTitle))
+    expect(row.getByText(refused.error!).closest('p')).toHaveAttribute('data-status', 'Failed')
+    expect(row.getByText('Replacement stopped.').closest('p')).toHaveClass('library-source-warning')
+    expect(row.queryByText(/nothing will be replaced\.$/)).not.toBeInTheDocument()
   })
 
   it('shows a failed job\'s sentence as a red line under its status, with no Cancel', async () => {

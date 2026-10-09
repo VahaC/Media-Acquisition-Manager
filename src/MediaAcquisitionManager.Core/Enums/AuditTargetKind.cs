@@ -23,4 +23,7 @@ public enum AuditTargetKind
     /// by.
     /// </summary>
     DuplicateMatch = 6,
+
+    /// <summary>MAM-24 — a scheduled replacement of old copies, named by the release that brings the new one.</summary>
+    ReplacementJob = 7,
 }

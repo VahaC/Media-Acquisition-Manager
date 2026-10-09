@@ -15,6 +15,7 @@ import { recommendationsApi } from '@/lib/recommendations-api'
 import { searchApi } from '@/lib/search-api'
 import { setupApi } from '@/lib/setup-api'
 import { usersApi } from '@/lib/users-api'
+import { allowedRootsOf } from '@/test/allowed-roots'
 import { apiError } from '@/test/api-error'
 import { member, owner, resetAuthStore, sessionFor } from '@/test/auth-session'
 import { destinationsPage, movies } from '@/test/destinations'
@@ -268,7 +269,7 @@ describe('App', () => {
 
   it('opens Media folders from the user menu of the owner', async () => {
     // Arrange
-    vi.mocked(allowedRootsApi.get).mockResolvedValue({ paths: ['/media'] })
+    vi.mocked(allowedRootsApi.get).mockResolvedValue(allowedRootsOf(['/media']))
     const { user } = renderAt('/')
     await user.click(await screen.findByRole('button', { name: 'Signed in as vasyl' }))
 

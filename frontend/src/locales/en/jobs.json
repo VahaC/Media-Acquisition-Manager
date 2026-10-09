@@ -13,6 +13,17 @@
     "NotCheckedClientJobs": "Not checked for files it would write over: the download client couldn't list the torrents it already had there, or their files.",
     "NotCheckedFileName": "Not checked for files it would write over: a file's name held characters the app couldn't look up."
   },
+  "replacement": {
+    "scheduled_one": "Replacement scheduled: {{value}} copy, kept until the new one is verified.",
+    "scheduled_other": "Replacement scheduled: {{value}} copies, kept until the new one is verified.",
+    "switchedOff": "Replacement scheduled, but replacement is switched off: nothing will move while it is off.",
+    "outsideTickedFolders_one": "{{value}} copy is no longer in a ticked folder and won't move.",
+    "outsideTickedFolders_other": "{{value}} copies are no longer in a ticked folder and won't move.",
+    "waiting_one": "Replacement waits for verification: {{value}} copy. This version doesn't verify or move anything yet.",
+    "waiting_other": "Replacement waits for verification: {{value}} copies. This version doesn't verify or move anything yet.",
+    "stopped": "Replacement stopped: {{reason}}",
+    "stoppedNoReason": "Replacement stopped."
+  },
   "status": {
     "Created": "Sending",
     "Submitted": "Submitted",

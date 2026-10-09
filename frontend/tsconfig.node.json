@@ -21,5 +21,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "src/styles/design-tokens.test.ts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "src/styles/design-tokens.test.ts", "src/styles/downloads.test.ts"]
 }

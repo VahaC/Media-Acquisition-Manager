@@ -28,6 +28,11 @@ public sealed class DownloadMapper : IDownloadMapper
     public DownloadJobFileDto ToDto(DownloadJobFileEntity file) =>
         new(file.Position, file.RelativePath, file.SizeBytes, file.Progress, file.IsWanted);
 
+    // MAM-24 — the reason is the app's own sentence, naming nothing of a service's, and the job is its sender's — the
+    // owner's, as only he schedules —, so it is shown as is.
+    public DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, int copyCount, bool switchedOff, int copiesOutsideTickedFolders) =>
+        new(replacement.State, copyCount, replacement.Reason, switchedOff, copiesOutsideTickedFolders);
+
     public DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations) =>
         new(
             client.Id,

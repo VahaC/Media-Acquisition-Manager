@@ -42,7 +42,9 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// <para>
 /// Known gap, left on purpose: a send interrupted between recording its hashes and asking the client whether it
 /// already had the torrent (MAM-13's decision 4) is adopted when the client has it — the poller can't tell a
-/// torrent it took from one it already had. Rare, and written down rather than handled (ADR 0014).
+/// torrent it took from one it already had. Rare, and written down rather than handled (ADR 0014). MAM-24 — a
+/// replacement never follows such a job: nothing checked where its files land, so <c>IReplacementJobFollower</c> fails
+/// the replacement it carries (R6).
 /// </para>
 /// <para>
 /// Information: a job's id and its statuses, and per client what can't be followed — never a title, a path, an

@@ -166,3 +166,47 @@ to the client, whose one write is still the submission (ADR 0013), and a client 
 torrents lets the release go unchecked rather than refused. The following, its passes and Cancel are
 unchanged, and the anti-consequence stands: nothing here or there licenses removing, stopping or
 pausing a torrent.
+
+## A replacement follows its download (added 0.3.0, MAM-24)
+
+**A scheduled replacement is followed by reading its download job, never the client: after every
+pass, in the same scope and its own try, `IReplacementJobFollower` brings each replacement still
+followed in line with its download, and it waits at `Downloaded`.** It runs from
+`DownloadJobTracker.PollOnceAsync` after `IDownloadJobPoller.PollAsync` and outside it, so a pass
+that wrote nothing, or ended early, still settles the replacements, and a bug in either never stops
+the other. Each replacement is followed in its own try, the type and stack of a failure logged and
+never its message; each write is a conditional update on the state it read, as `DownloadJobUpdates`'
+are, so a cancel that got there first wins; and the mirrored steps write no audit row, as nobody
+started them. Everything is rows, so a restart goes on where they stand;
+`IX_ReplacementJobs_Followed` holds the followed states, `Scheduled`, `Submitted`, `Downloading`,
+`Paused` and `NeedsReview`.
+
+**Mirrored only after the strict check passed.** A replacement moves past `Scheduled` only for a
+download whose `OverwriteCheck` is `Checked`, strict mode's only passing verdict, written before the
+submission. Then `Submitted`, `Downloading`, `Paused` and `Downloaded` are mirrored, a download that
+fails fails it ("The download failed, so nothing will be replaced."), and `NeedsLinking` puts it at
+`NeedsReview` ("qBittorrent's downloads couldn't be told apart for this release, so the app can't
+follow it to verify the new file."). Without that verdict a `Created` download leaves it
+`Scheduled`, a `Failed` one fails it as refused before it was sent, and any other — a send the app
+stopped during, which this Decision's following adopted with nothing checked — fails it: "The app
+stopped while sending this download, before it checked where the new files would land, so nothing
+will be replaced.". A download `Cancelled` cancels it from any followed state, and one waiting for
+review ends `Failed` when its download fails.
+
+**Cancel still only stops the following.** **Cancel job** cancels the replacement in the same
+transaction as the job's cancel, from any followed state, `NeedsReview` included, with a
+`ReplacementCancelled` audit row of its own ("You cancelled the download, so nothing will be
+replaced."); the torrent and its files stay in the client. The Anti-consequence stands: nothing here writes to a client, and a
+replacement's states are the app's words only.
+
+`ReplacementFollowingHttpTests.Pass_follows_the_download_to_downloaded_and_leaves_the_replacement_waiting_there_with_nothing_sent`,
+`ReplacementFollowingHttpTests.Pass_after_a_restart_goes_on_from_the_rows_a_previous_run_left`,
+`ReplacementFollowingHttpTests.Pass_leaves_a_replacement_scheduled_while_its_download_is_still_being_sent`,
+`ReplacementFollowingHttpTests.Cancel_of_the_download_cancels_its_replacement_with_a_row_of_its_own`,
+`ReplacementFollowingHttpTests.Pass_that_finds_two_downloads_for_the_hash_needs_review_and_a_cancel_then_ends_it`,
+`ReplacementFollowingHttpTests.Pass_over_a_download_that_failed_after_the_check_fails_its_replacement_as_a_failed_download`,
+`ReplacementFollowingHttpTests.Pass_that_adopts_an_interrupted_send_fails_its_replacement_as_never_checked`,
+`ReplacementFollowingHttpTests.Pass_whose_following_of_one_replacement_throws_follows_the_others_and_logs_the_type_never_the_message`
+and
+`ReplacementFollowingHttpTests.Pass_whose_following_of_the_replacements_throws_still_followed_the_downloads`
+pin it.

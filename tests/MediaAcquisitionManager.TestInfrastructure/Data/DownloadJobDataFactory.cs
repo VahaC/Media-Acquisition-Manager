@@ -21,7 +21,8 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
         string? clientJobId = null,
         double? progress = null,
         string? blockReason = null,
-        DownloadJobErrorOrigin? blockReasonOrigin = null)
+        DownloadJobErrorOrigin? blockReasonOrigin = null,
+        DownloadOverwriteCheck? overwriteCheck = null)
     {
         // Read from the mapping itself, so the copied values are the ones a test can later see
         // outliving it.
@@ -46,6 +47,7 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
             Progress = progress,
             BlockReason = blockReason,
             BlockReasonOrigin = blockReasonOrigin,
+            OverwriteCheck = overwriteCheck,
             ReleaseId = releaseId,
             DownloadClientConnectionId = downloadClientConnectionId,
             DownloadClientName = downloadClientName,

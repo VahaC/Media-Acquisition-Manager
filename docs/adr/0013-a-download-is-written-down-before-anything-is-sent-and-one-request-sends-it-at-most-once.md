@@ -164,3 +164,50 @@ everyone's, as a torrent the client already has is — and reaches nothing, so t
 dialog is a new request, as after any failure. A send that goes ahead first records on the job how
 it was checked (`OverwriteCheck`). One request still sends at most once, and the check licenses no
 second call to the client's add.
+
+## A replacement is written with its job (added 0.3.0, MAM-24)
+
+**A schedule is a send with more to it, never a second copy of the send: `POST /api/replacements`
+and `POST /api/downloads` run one private core, and the replacement is written in the job's one
+save, before anything is fetched or sent.** The core runs this Decision's steps — the rules, the
+request id looked up, the release, client and destination, the client's and the source's refusals,
+"already sent" — and then, for a replacement, plans it from the database and the disk alone
+(`IReplacementPlanner`): no client is asked before the job exists. What only the client can tell —
+where the category saves, what a gateway's link turns out to be — is the strict send's, on a written
+job ([ADR
+0034](0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)'s
+MAM-24 section). The save adds to the job and its `DownloadRequested` row the replacement job, its
+file rows with each copy's identity read from the disk, its work rows with their ids and
+confirmations, the `ReplacementScheduled` row and one `ReplacementWorkConfirmed` row per confirmed
+work: a job and its replacement exist together or not at all. The sender also records on every job
+what the release turned out to be (`PayloadKind`), conditional on `Created` as its other early
+writes are.
+
+**What a request was made for includes its replacement.** The replay compares the earlier job's
+replacement — its file ids and its confirmed works, as sets — with what the retry asks: a Keep both
+request is answered only with a job that carries none, a schedule only with one whose sets are the
+same, and anything else is 409 "This request id was already used to send a different download.
+Reload the page and try again.", so a request id one route used is something else to the other.
+Every place a request id is answered goes through that one comparison: the first lookup, the racing
+branch after "already sent", and the loser of the unique index's save. A refused plan also looks the
+request id up again: a copy of the same request that wrote its job meanwhile makes its own copies
+read as already scheduled, and the copy is answered with that job, not refused.
+
+**Left open, as decision 4's race is.** "Already scheduled" — a copy a replacement not yet ended
+holds — is checked by the plan before the save, under no lock or index: two different schedules, of
+other request ids or releases, racing to tick one copy at the same instant can both pass. It is rare
+and the owner's alone, and the second would find the copy gone when a later version comes to move
+it.
+
+`ReplacementScheduleHttpTests.Schedule_writes_the_job_and_the_replacement_with_fresh_identities_before_anything_is_fetched_and_answers_201`,
+`ReplacementScheduleHttpTests.Schedule_of_a_title_and_year_match_keeps_the_owners_confirmation_with_its_audit_row`,
+`ReplacementScheduleHttpTests.Schedule_again_with_its_request_id_and_the_same_ticks_answers_its_job_and_sends_once`,
+`ReplacementScheduleHttpTests.Schedule_again_with_its_request_id_and_other_ticks_is_409_and_writes_nothing_more`,
+`ReplacementScheduleHttpTests.Schedule_with_the_request_id_of_a_keep_both_send_is_409_and_writes_nothing_more`,
+`ReplacementScheduleHttpTests.Send_with_the_request_id_of_a_schedule_is_409_and_writes_nothing_more`,
+`ReplacementScheduleHttpTests.Schedule_twice_at_once_with_one_request_id_makes_one_job_and_one_replacement_and_sends_once`
+and
+`ReplacementScheduleHttpTests.Schedule_whose_copy_wrote_its_job_while_it_planned_answers_that_job_rather_than_already_scheduled`
+pin it, and
+`DownloadsSendHttpTests.Create_records_what_the_release_turned_out_to_be_and_never_reads_the_whole_client`
+the payload kind of a Keep both send.

@@ -30,6 +30,12 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// their files. A place that can't be looked at never hides one that can: the loop always runs to its end, and any
 /// collision refuses the send. A refusal is the app's own sentence, read by everyone who sent the release.
 /// </para>
+/// <para>
+/// MAM-24, ADR 0032 — a replacement's check is strict (<c>anyFileRefuses</c>): a file already at a place refuses it
+/// whatever its bytes, and each of the ways above the check couldn't look refuses it instead of sending it unchecked.
+/// Its scope is MAM-38's (R7): a place nothing is at yet is compared with the torrents of the destination's own
+/// category, and a torrent of another category writing there later is MAM-25's to catch.
+/// </para>
 /// </remarks>
 public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInventory files, ILogger<DownloadOverwriteGuard> logger) : IDownloadOverwriteGuard
 {
@@ -51,20 +57,27 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
         IntegrationConnectionEntity client,
         IDownloadClient downloadClient,
         IntegrationConnectionSettings settings,
+        bool anyFileRefuses = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(payload);
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(client);
 
+        // MAM-24 — what the check couldn't look at: sent and said so, or, strict, refused with why.
+        DownloadOverwriteVerdict Unchecked(DownloadOverwriteCheck check) =>
+            anyFileRefuses
+                ? DownloadOverwriteVerdict.Refuse(UncheckedRefusalOf(destination.Destination.Key, check))
+                : DownloadOverwriteVerdict.Send(check);
+
         if (payload.Kind == ReleasePayloadKind.Magnet)
-            return DownloadOverwriteVerdict.Send(DownloadOverwriteCheck.NotCheckedMagnet);
+            return Unchecked(DownloadOverwriteCheck.NotCheckedMagnet);
         if (payload.TorrentFile is not { } torrent || TorrentContentReader.Read(torrent) is not { } content)
-            return DownloadOverwriteVerdict.Send(DownloadOverwriteCheck.NotCheckedFileList);
+            return Unchecked(DownloadOverwriteCheck.NotCheckedFileList);
 
         var (folder, roots, reason) = await FolderAsync(destination, cancellationToken);
         if (reason is { } notChecked)
-            return DownloadOverwriteVerdict.Send(notChecked);
+            return Unchecked(notChecked);
 
         var collisions = new List<Collision>();
         var vacant = new List<TorrentTarget>();
@@ -86,6 +99,11 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
             var described = await files.DescribeAsync(path, roots, cancellationToken);
             switch (described.Status)
             {
+                case FileInventoryStatus.Found when anyFileRefuses:
+                    // MAM-24 — a replacement never lands on a file already there, the same bytes included: being there
+                    // refuses it, and its pieces are never read.
+                    collisions.Add(new Collision(target, CollisionReason.AlreadyThere, null));
+                    break;
                 case FileInventoryStatus.Found:
                     // Once one collision refuses the send, the others are told by their size alone: reading more
                     // pieces changes nothing.
@@ -118,11 +136,11 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
             return DownloadOverwriteVerdict.Refuse(RefusalOf(client, destination.Destination.Key, folder!, [collision]));
 
         if (behindLinkOut)
-            return DownloadOverwriteVerdict.Send(DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders);
+            return Unchecked(DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders);
         if (nameNotLookedUp)
-            return DownloadOverwriteVerdict.Send(DownloadOverwriteCheck.NotCheckedFileName);
+            return Unchecked(DownloadOverwriteCheck.NotCheckedFileName);
         if (!queued.Complete)
-            return DownloadOverwriteVerdict.Send(DownloadOverwriteCheck.NotCheckedClientJobs);
+            return Unchecked(DownloadOverwriteCheck.NotCheckedClientJobs);
         return DownloadOverwriteVerdict.Send(DownloadOverwriteCheck.Checked);
     }
 
@@ -329,6 +347,7 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
             CollisionReason.NotAFile => "something that isn't a file is already there",
             CollisionReason.Changed => "the file already there changed while the app compared it",
             CollisionReason.QueuedTorrent => $"the torrent “{first.JobName}” it already has will write there",
+            CollisionReason.AlreadyThere => "a file is already there, and a replacement never lands on a file already there",
             _ => "a file the app couldn't read to compare is already there",
         };
         var more = collisions.Select(collision => (object)collision.Target.File).Distinct(ReferenceEqualityComparer.Instance).Count() - 1;
@@ -339,6 +358,25 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
             _ => $" {more} more of the release's files would land on files already there too.",
         };
         return $"“{client.Name}” would write over “{name}” in the folder of the category “{key}”: {why}, so nothing was sent.{others}";
+    }
+
+    /// <summary>
+    /// MAM-24 — the sentence a replacement's strict check refuses with when it couldn't look at every place the release
+    /// would write: nothing reached the client, and the owner picks Keep both himself (Vasyl's decision of 2026-10-09).
+    /// </summary>
+    private static string UncheckedRefusalOf(string key, DownloadOverwriteCheck check)
+    {
+        var why = check switch
+        {
+            DownloadOverwriteCheck.NotCheckedMagnet => "a magnet link names no files until the client has fetched them",
+            DownloadOverwriteCheck.NotCheckedFileList => "the .torrent's list of files can't be read",
+            DownloadOverwriteCheck.NotCheckedFolderUnknown => "the folder has no path in the app",
+            DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders =>
+                "the folder, or a link on the way to one of its places, lies outside the Media folders",
+            DownloadOverwriteCheck.NotCheckedClientJobs => "the client couldn't list its torrents in the category, or their files",
+            _ => "a file's name holds characters the app can't look up",
+        };
+        return $"The app couldn't check every place this release would write in the folder of the category “{key}” ({why}), so nothing was sent and no copy will be replaced. Pick Keep both to download it.";
     }
 
     /// <summary>Why a place one of the release's files would be written isn't free.</summary>
@@ -354,6 +392,9 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
         /// <summary>A file of the torrent's size met once a collision already refuses the send: already there,
         /// its bytes left unread. Never the first collision, so never the sentence's reason.</summary>
         NotCompared = 7,
+
+        /// <summary>MAM-24 — a replacement's strict check: a file is there, whatever its bytes.</summary>
+        AlreadyThere = 8,
     }
 
     /// <summary>One place a release's file would be written over: the place, why, and the torrent that will write

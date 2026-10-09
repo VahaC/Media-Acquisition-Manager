@@ -8,8 +8,8 @@ namespace MediaAcquisitionManager.Api.Auth;
 /// <summary>
 /// Lets a request through only when the signed-in user is the installation owner; anyone else gets
 /// 403 <c>{ "error": "Only the installation owner can do this." }</c>. Applied by
-/// <see cref="RequireInstallationOwnerAttribute"/>, by <see cref="SettingsWritesAreOwnerOnlyConvention"/> and — MAM-34 —
-/// by <see cref="LibraryLinksAreOwnerOnlyConvention"/>.
+/// <see cref="RequireInstallationOwnerAttribute"/>, by <see cref="SettingsWritesAreOwnerOnlyConvention"/>, — MAM-34 —
+/// by <see cref="LibraryLinksAreOwnerOnlyConvention"/> and — MAM-24 — by <see cref="ReplacementsAreOwnerOnlyConvention"/>.
 /// </summary>
 /// <remarks>
 /// <para>

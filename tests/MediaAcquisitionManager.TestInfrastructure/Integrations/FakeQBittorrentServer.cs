@@ -48,6 +48,13 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// recorded, so a test sees it was sent.
 /// </para>
 /// <para>
+/// MAM-24 — <c>torrents/info</c> also takes <c>includeFiles=true</c> (any letter case, as qBittorrent's
+/// <c>parseBool</c> reads it), as 5.2 does and only when <see cref="Version"/> is 5.2 or later — an older one ignores
+/// it, as qBittorrent before 5.2 does: each torrent whose metadata it has (<see cref="FakeQBittorrentTorrent.HasMetadata"/>)
+/// then carries <c>files</c>, built as 5.2's <c>getFiles</c> builds them, and one without carries none. Every
+/// torrent lists <c>has_metadata</c>.
+/// </para>
+/// <para>
 /// Sessions as qBittorrent keeps them: a good sign-in answers 204 with a new <c>QBT_SID_8080</c> cookie, and
 /// every other request needs a session it handed out and still knows — otherwise it answers what
 /// qBittorrent answered a forgotten one (<c>expired-session-response.txt</c>, a recorded
@@ -88,6 +95,10 @@ public sealed class FakeQBittorrentServer
 
     /// <summary>The recorded answer to a session qBittorrent doesn't know.</summary>
     public const string ExpiredSessionResponseFile = "QBittorrent/expired-session-response.txt";
+
+    /// <summary>MAM-24 — the piece size a file's <c>piece_range</c> is counted in: 16 MiB, what a movie's torrent is
+    /// usually cut into. Nothing the app reads.</summary>
+    private const long PieceSize = 16 * 1024 * 1024;
 
     // qBittorrent sends its text as UTF-8, not as \u escapes.
     private static readonly JsonSerializerOptions Json = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -418,7 +429,7 @@ public sealed class FakeQBittorrentServer
             }
         }
 
-        if (!AnswersAsOf52())
+        if (!IsAtLeast52())
             return Text(added.Count > 0 ? "Ok." : "Fails.", "text/plain");
         if (added.Count == 0)
             return Text("Conflict", "text/plain", HttpStatusCode.Conflict);
@@ -447,7 +458,10 @@ public sealed class FakeQBittorrentServer
         var savePath = automatic && categoryFolder is not null ? categoryFolder : DefaultSavePath;
         // A magnet's metadata is still being fetched; a .torrent starts downloading.
         return FakeQBittorrentTorrent.Of(
-            hashes, name ?? FakeQBittorrentTorrent.IdOf(hashes), category, isMagnet ? "metaDL" : "downloading", 0, savePath, automatic);
+            hashes, name ?? FakeQBittorrentTorrent.IdOf(hashes), category, isMagnet ? "metaDL" : "downloading", 0, savePath, automatic) with
+        {
+            HasMetadata = !isMagnet,
+        };
     }
 
     /// <summary>The folder <paramref name="category"/> saves to, after creating it with no folder of its own
@@ -468,12 +482,15 @@ public sealed class FakeQBittorrentServer
     /// MAM-13 — <c>torrents/info</c>: every torrent, or those whose id is one of <c>hashes</c> (TorrentIDs
     /// joined by <c>|</c>, any letter case — a 64-character v2 hash names none), leaving out the ones still
     /// unlisted after their add (<see cref="AddedTorrentsUnlistedForLookups"/>). MAM-14 — and only those in
-    /// <c>category</c> when it is given, compared exactly.
+    /// <c>category</c> when it is given, compared exactly. MAM-24 — each with its files when <c>includeFiles</c> is
+    /// <c>true</c> and the server is 5.2 or later.
     /// </summary>
     private HttpResponseMessage TorrentsInfo(Uri uri)
     {
         var ids = QueryValue(uri, "hashes")?.Split('|', StringSplitOptions.RemoveEmptyEntries);
         var category = QueryValue(uri, "category");
+        // Utils::String::parseBool: "true" in any letter case; before 5.2 the parameter is never read.
+        var includeFiles = string.Equals(QueryValue(uri, "includeFiles"), "true", StringComparison.OrdinalIgnoreCase) && IsAtLeast52();
         var listed = new JsonArray();
         lock (_torrentsLock)
         {
@@ -487,7 +504,7 @@ public sealed class FakeQBittorrentServer
 
                 if ((ids is null || ids.Contains(torrent.Hash, StringComparer.OrdinalIgnoreCase))
                     && (category is null || string.Equals(torrent.Category, category, StringComparison.Ordinal)))
-                    listed.Add(Describe(torrent));
+                    listed.Add(includeFiles ? DescribeWithFiles(torrent) : Describe(torrent));
             }
         }
 
@@ -540,6 +557,7 @@ public sealed class FakeQBittorrentServer
         ["auto_tmm"] = torrent.AutoTmm,
         ["category"] = torrent.Category,
         ["content_path"] = torrent.ContentPath,
+        ["has_metadata"] = torrent.HasMetadata,
         ["hash"] = torrent.Hash,
         ["infohash_v1"] = torrent.InfoHashV1,
         ["infohash_v2"] = torrent.InfoHashV2,
@@ -548,6 +566,41 @@ public sealed class FakeQBittorrentServer
         ["save_path"] = torrent.SavePath,
         ["state"] = torrent.State,
     };
+
+    /// <summary>
+    /// MAM-24 — a torrent as 5.2's <c>torrents/info?includeFiles=true</c> lists it: as
+    /// <see cref="Describe(FakeQBittorrentTorrent)"/>, plus <c>files</c> when qBittorrent has its metadata, each built
+    /// as 5.2's <c>getFiles</c> builds one — index, name, size, progress, priority, availability and piece_range, and
+    /// no <c>is_seed</c>, which only <c>torrents/files</c> adds.
+    /// </summary>
+    private static JsonObject DescribeWithFiles(FakeQBittorrentTorrent torrent)
+    {
+        var described = Describe(torrent);
+        if (!torrent.HasMetadata)
+            return described;
+
+        var files = new JsonArray();
+        long offset = 0;
+        for (var index = 0; index < torrent.Files.Count; index++)
+        {
+            var file = torrent.Files[index];
+            files.Add(new JsonObject
+            {
+                ["availability"] = -1,
+                ["index"] = index,
+                ["name"] = file.Name,
+                // The first and last piece the file spans.
+                ["piece_range"] = new JsonArray(offset / PieceSize, (offset + Math.Max(file.Size, 1) - 1) / PieceSize),
+                ["priority"] = file.Priority,
+                ["progress"] = file.Progress,
+                ["size"] = file.Size,
+            });
+            offset += file.Size;
+        }
+
+        described["files"] = files;
+        return described;
+    }
 
     /// <summary>
     /// MAM-14 — a torrent's file as 5.2's <c>torrents/files</c> lists it, these properties only: <c>is_seed</c>
@@ -570,8 +623,9 @@ public sealed class FakeQBittorrentServer
         return described;
     }
 
-    /// <summary>Whether <see cref="Version"/> answers <c>torrents/add</c> the way 5.2 does.</summary>
-    private bool AnswersAsOf52()
+    /// <summary>Whether <see cref="Version"/> is 5.2 or later: it answers <c>torrents/add</c> the way 5.2 does, and —
+    /// MAM-24 — reads <c>includeFiles</c> on <c>torrents/info</c>.</summary>
+    private bool IsAtLeast52()
     {
         var parts = Version.TrimStart('v').Split('.');
         return parts.Length >= 2

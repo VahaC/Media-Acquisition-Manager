@@ -496,3 +496,35 @@ for matching, as it only parts copies their ids made one, never joins any. The t
 is now `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_different_cuts_of_one_film`, and
 `LibraryDuplicatesPossibleHttpTests.List_flags_a_possible_matchs_files_whose_editions_differ` pins
 the label on a possible match.
+
+## A confirmed match may be scheduled for replacement (added 0.3.0, MAM-24)
+
+**The Anti-consequence above now reads with [ADR
+0032](0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md):
+a match by title and year may be scheduled for replacement on the owner's explicit confirmation of
+the work, and still lets nothing move.** "A title and year match, let alone a title alone, never
+authorises a replacement" stays true of the match itself, evidence for a person to read; what the
+owner may do with it changed on 2026-10-08 (Vasyl's decision), and MAM-24 builds it. The Download
+dialog's replacement read matches the release exactly as the Search page does, through the
+per-release matching moved out of `SearchService` into `IReleaseMatchReader` with its behaviour
+unchanged, the works read for the owner (his TMDb links counted, ADR 0026). By this Decision's
+tiers: an identifier match without a conflicting scheme offers its copies; a title-and-year match
+without a conflict offers them only with the owner's tick of the server's own words, "This release
+is Alien (1979)", kept with the job and audited as his consent; a title alone (`TitleOnly`) and any
+conflicting scheme (`ConflictingIds`) offer none, with the reason; and every work the release
+matches is listed, as here, each with its own reason.
+
+**A file two works list is one copy under both,** the strictest reason holding: one folder under two
+libraries makes two works, and a file can't be scheduled through an identifier match while it is
+also the copy of a work matched by its title alone (`SharedWithUnavailableWork`). The match still
+links nothing and writes no id; ADR 0032 says what decides after the download.
+
+`ReplacementOptionsHttpTests.Options_for_a_film_matched_by_its_id_lists_every_file_of_every_version_in_the_library_order`,
+`ReplacementOptionsHttpTests.Options_for_a_film_matched_by_title_and_year_needs_the_owners_confirmation`,
+`ReplacementOptionsHttpTests.Options_for_a_film_matched_by_its_title_alone_can_not_be_replaced_and_reads_none_of_its_copies`,
+`ReplacementOptionsHttpTests.Options_for_a_film_whose_ids_conflict_with_the_release_can_not_be_replaced`,
+`ReplacementOptionsHttpTests.Options_refuses_a_file_two_works_share_when_one_matched_by_its_title_alone`,
+`ReplacementScheduleHttpTests.Schedule_without_the_confirmation_a_title_and_year_match_needs_is_400_and_writes_nothing`
+and
+`ReplacementScheduleHttpTests.Schedule_of_a_work_matched_by_its_title_alone_is_409_naming_the_file`
+pin it; the Search suites pass unchanged over the moved matching.

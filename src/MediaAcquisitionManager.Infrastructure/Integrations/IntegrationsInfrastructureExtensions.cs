@@ -35,7 +35,10 @@ internal static class IntegrationsInfrastructureExtensions
     /// whole, streams and people included, is about 6 to 15 KB (VendorSamples' <c>item.json</c> and
     /// <c>episode-movie-after-identify.json</c>), and a search answers a few hundred bytes a result. MAM-35 — a library
     /// poster is asked for as a JPEG at most 342 pixels wide, about 35 KB (recorded live), and a page of the sync carries one
-    /// image tag more per item.
+    /// image tag more per item. MAM-24 — qBittorrent's whole list with every torrent's files is about 2 KB a torrent plus
+    /// about 300 bytes a file: the reference installation's 352 torrents (ADR 0003) with a few thousand files come to about
+    /// 2 MB, so only one several times bigger outgrows it — a failed read in its own words, which the Download dialog reports
+    /// as copies it couldn't check (ADR 0031), never a list cut short.
     /// </summary>
     public const long MaximumResponseBytes = 4 * 1024 * 1024;
 
@@ -60,7 +63,9 @@ internal static class IntegrationsInfrastructureExtensions
     /// a second; each request is bounded on its own, a 429's wait (at most 10 s) included in none of them.
     /// MAM-34 — an identification is reads (the users, the item, the libraries), one search and the item read again, each
     /// bounded on its own and answered from Jellyfin's memory or one provider's answer in well under a second; the
-    /// one call that is not is Apply, which has a client of its own (<see cref="IdentifyTimeout"/>).
+    /// one call that is not is Apply, which has a client of its own (<see cref="IdentifyTimeout"/>). MAM-24 — the whole list
+    /// with every torrent's files is the same version read and one <c>torrents/info</c>, answered from qBittorrent's memory:
+    /// a couple of megabytes on a LAN, well within 15 s.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 

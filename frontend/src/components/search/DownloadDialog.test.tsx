@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { DownloadDialog } from '@/components/search/DownloadDialog'
 import { downloadsApi } from '@/lib/downloads-api'
 import { qk } from '@/lib/queries'
-import type { DownloadClientOption, DownloadJob, DownloadOptions, DownloadOverwriteCheckAnswer } from '@/lib/types'
+import { replacementsApi } from '@/lib/replacements-api'
+import type { CurrentUser, DownloadClientOption, DownloadJob, DownloadOptions, DownloadOverwriteCheckAnswer } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
+import { member, signInAs } from '@/test/auth-session'
 import {
   cartoonsOption,
   jobOf,
@@ -16,13 +18,22 @@ import {
   seedboxClient,
   suggestedOf,
 } from '@/test/downloads'
+import { optionsUnavailable } from '@/test/replacements'
 import { tolokaRemux } from '@/test/search'
 
 vi.mock('@/lib/downloads-api')
+// MAM-24 — the owner's copies: never asked here, where a member sends; the owner's Replace is in
+// DownloadDialog.replace.test.tsx.
+vi.mock('@/lib/replacements-api')
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
-function renderDialog() {
+/**
+ * The dialog for the Toloka release, signed in as `user`: a member by default, who may send but never
+ * replace (MAM-24), so the owner's read of the copies is never asked.
+ */
+function renderDialog({ user = member }: { user?: CurrentUser } = {}) {
+  signInAs(user)
   const onClose = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
@@ -77,6 +88,7 @@ describe('DownloadDialog', () => {
     vi.mocked(downloadsApi.send).mockResolvedValue(jobOf({}))
     // MAM-38 — a folder the app can check: no warning, so the outcome lines below are the only status.
     vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: null })
+    vi.mocked(replacementsApi.options).mockResolvedValue(optionsUnavailable('SwitchedOff'))
   })
 
   it('is named by the action and the release, and says what a destination is', () => {
@@ -383,8 +395,44 @@ describe('DownloadDialog', () => {
       ['Release', tolokaRemux.title],
       ['Download client', 'Local qBittorrent'],
       ['Destination', 'Movies — category “Movies”'],
-      ['Existing copies', 'Kept: this version of the app never replaces or removes a file, and doesn\'t send a release it finds would write over a different one.'],
+      ['Existing copies', 'Kept: nothing is replaced or removed, and a release that would write over a different file isn\'t sent.'],
     ])
+  })
+
+  it('offers a member Keep both, picked, and Replace disabled with why, and never asks for the copies', async () => {
+    // Arrange
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    const modes = within(dialog).getByRole('group', { name: 'Existing copies' })
+    expect(within(modes).getByRole('radio', { name: 'Keep both' })).toBeChecked()
+    const replace = within(modes).getByRole('radio', { name: 'Replace after verification' })
+    expect(replace).toBeDisabled()
+    expect(replace).not.toBeChecked()
+    expect(replace).toHaveAccessibleDescription('Only the installation owner can replace a copy.')
+    expect(within(dialog).queryByRole('region', { name: 'Your copies' })).not.toBeInTheDocument()
+    expect(dialog).not.toHaveClass('download-dialog-wide')
+    expect(replacementsApi.options).not.toHaveBeenCalled()
+  })
+
+  it('sends a member\'s release as a download that keeps the existing copies, never as a replacement', async () => {
+    // Arrange
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+
+    // Act
+    await user.click(sendButton(dialog))
+
+    // Assert
+    await within(dialog).findByRole('status')
+    expect(downloadsApi.send).toHaveBeenCalledOnce()
+    expect(replacementsApi.schedule).not.toHaveBeenCalled()
+    expect(replacementsApi.options).not.toHaveBeenCalled()
+    expect(summary(dialog)).toContainEqual(
+      ['Existing copies', 'Kept: nothing is replaced or removed, and a release that would write over a different file isn\'t sent.'])
   })
 
   it('warns before Send, read with Send, when the destination\'s folder is outside the Media folders, and still sends', async () => {

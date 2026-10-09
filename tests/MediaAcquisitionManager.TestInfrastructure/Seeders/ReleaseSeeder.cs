@@ -56,4 +56,32 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
             payloadKind,
             categoryIds);
     }
+
+    public async Task<ReleaseEntity> CreateFoundBySearch(
+        UserEntity user,
+        IntegrationConnectionEntity source,
+        string searchText,
+        int? searchYear,
+        string title,
+        ReleaseKind kind = ReleaseKind.Movie,
+        string? imdbId = null,
+        string? tmdbId = null,
+        ReleasePayloadKind? payloadKind = null)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(source);
+        var search = await Searches.Create(user.Id, searchText, searchYear, imdbId, tmdbId);
+        var searchSource = await Searches.AddSource(search.Id, source.Id, source.Name);
+        return await Releases.Create(
+            source.Id,
+            source.Name,
+            title,
+            $"{TorznabSamples.DownloadBaseFor(source.BaseUrl)}download?apikey={TorznabLinks.ApiKeyPlaceholder}&link={PlantedLinkToken}",
+            searchSource.Id,
+            $"https://toloka.to/t{Guid.NewGuid():N}",
+            payloadKind: payloadKind,
+            kind: kind,
+            tmdbId: tmdbId,
+            imdbId: imdbId);
+    }
 }
