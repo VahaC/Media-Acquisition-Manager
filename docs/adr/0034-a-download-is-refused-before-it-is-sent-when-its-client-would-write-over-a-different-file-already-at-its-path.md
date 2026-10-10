@@ -206,3 +206,34 @@ replacement's send.
 and
 `ReplacementScheduleSendHttpTests.Schedule_when_qbittorrent_can_not_list_the_categorys_torrents_fails_and_hands_it_nothing`
 pin it, and `DownloadsSendOverwriteHttpTests` holds as it was for Keep both.
+
+## The accepted gap, closed after the download (added 0.3.0, MAM-25)
+
+**The MAM-24 section's accepted gap — a torrent of another category whose files land at a
+replacement's place — is closed where it said, when the new files are read and before anything
+moves: once every new file passed checks 1 and 2, the check of the new files reads the client's
+every torrent with its files, and another torrent listing a new file, by its path or by its device
+and inode, stops the replacement for the owner's review ([ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)).**
+"“qBittorrent”'s download “Alien remux” also writes
+“/media/movies/Alien.1979.Directors.Cut.2160p.mkv”, so the app can't tell the new file is this
+download's own." The read is the whole listing the Download dialog's marks use
+(`ListJobsWithFilesAsync`, qBittorrent 5.2 or later), each torrent's files placed in the app the
+same way (`ClientFilePlaces`), a hard link at another path found by its device and inode. A torrent
+the app can't place — no metadata yet, a save path or a file no mapping places, a file inside the
+Media folders whose size or identity can't be read — can't clear the file either, as the Download
+dialog's marks count it unplaced: the check waits for it, and stops once its hour runs out ("The app
+can't place “qBittorrent”'s download “Alien magnet” in its folders, so it can't tell whether that
+download writes the new files."). A client that can't give the listing can't clear the file: one too
+old for it stops the job at once ("This version of “qBittorrent” can't list the files of its other
+downloads, so the app can't tell whether another one writes the new files."), one out of reach is
+asked again until the check's hour runs out. It stays a read. The send is unchanged, and a torrent
+added after the check isn't seen by it; MAM-26 reads the old copy's torrents again before the move.
+
+`ReplacementVerificationFilesHttpTests.Verify_of_a_new_file_another_download_also_writes_stops_for_review_without_asking_jellyfin`,
+`ReplacementVerificationFilesHttpTests.Verify_of_a_new_file_another_download_reaches_by_a_link_at_another_path_stops_for_review_without_asking_jellyfin`,
+`ReplacementVerificationFilesHttpTests.Verify_of_a_new_file_another_download_holds_a_file_of_its_size_of_another_identity_passes_the_files_checks`,
+`ReplacementVerificationFilesHttpTests.Verify_where_another_download_cant_be_placed_keeps_checking_until_the_hour_runs_out_then_stops_for_review`
+and
+`ReplacementVerificationFilesHttpTests.Verify_where_qbittorrent_is_too_old_to_list_its_other_downloads_stops_for_review`
+pin it.

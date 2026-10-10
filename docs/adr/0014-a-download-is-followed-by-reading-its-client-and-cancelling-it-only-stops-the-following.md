@@ -210,3 +210,28 @@ replacement's states are the app's words only.
 and
 `ReplacementFollowingHttpTests.Pass_whose_following_of_the_replacements_throws_still_followed_the_downloads`
 pin it.
+
+## A done download's replacement is checked in a loop of its own (added 0.3.0, MAM-25)
+
+**A replacement no longer waits at `Downloaded`: `ReplacementVerificationTracker`, a background loop
+of its own, takes it up within 15 s and checks its new files ([ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)),
+never a third step of this pass.** A check reads every new file with the media inspector and asks
+the library, which would hold the downloads' 2 s following up for as long, and a bug in either must
+not stop the other. The following is unchanged: `Inspecting` and `Verified` are not among its
+states, so it never mirrors them back to `Downloaded`, and `IX_ReplacementJobs_Followed` keeps the
+five it had; the check reads `IX_ReplacementJobs_Verifying`, `Downloaded` and `Inspecting`. The
+check reads the client afresh — `FindJobsAsync`, `ListJobFilesAsync`, and `ListJobsWithFilesAsync`
+for the other torrents —, as the following's rows stop at the finish; all are reads, and the
+Anti-consequence stands. Unlike the mirrored steps, each of the check's moves writes an audit row,
+with no actor: they are the app's own decisions about the owner's files. **Cancel job** still
+refuses a done download, so a replacement being checked or verified can't be cancelled through it;
+cancelling a pending removal is MAM-27's. The Jobs pages ask again every 2 s while a job's
+replacement is `Downloaded` or `Inspecting`, as for a followed download (`JOBS_POLL_MS`), though the
+check passes every 15 s.
+
+`ReplacementFollowingHttpTests.Pass_never_touches_a_replacement_whose_new_files_are_being_checked_or_verified`,
+`ReplacementVerificationHttpTests.Tracker_runs_a_pass_as_soon_as_it_starts_and_stops_without_an_error`,
+`ReplacementVerificationHttpTests.Verify_whose_check_of_a_job_throws_logs_the_type_never_the_message_and_the_next_pass_goes_on`,
+`ReplacementVerificationLibraryHttpTests.Verify_on_later_passes_goes_on_from_the_rows_never_asking_the_library_or_reading_the_file_again`,
+`ReplacementJobStatesTests` and `JobsPage.polling.test.tsx` pin it.

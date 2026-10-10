@@ -629,7 +629,8 @@ function SendSummary({ release, client, destination, copies }: {
 /**
  * MAM-24 — the Existing copies row: kept, nothing ticked yet, or the copies replaced by film or season
  * with their paths in the app, then the conditions, worded for what this version does: it schedules
- * the replacement, and nothing is checked or moved until a later version.
+ * the replacement and, once the download is done, checks the new file (MAM-25), and nothing is moved
+ * until a later version (MAM-26).
  */
 function ExistingCopiesSummary({ copies }: { copies: CopiesSummary }) {
   const { t } = useTranslation('downloads')

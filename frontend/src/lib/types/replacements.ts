@@ -147,8 +147,10 @@ export interface ScheduleReplacementRequest {
 
 /**
  * Where a scheduled replacement stands. It follows its download — Scheduled while it is being sent,
- * then Submitted, Downloading (or Paused) and Downloaded, where this version leaves it waiting —
- * and stops at NeedsReview, Failed or Cancelled, with the reason.
+ * then Submitted, Downloading (or Paused) and Downloaded —, then (MAM-25) its new files are checked:
+ * Inspecting while the app reads them, nothing touched, and Verified once every ticked copy is paired
+ * with a checked new file of its work, where this version leaves it (moving is MAM-26's). It stops at
+ * NeedsReview, Failed (a new file that isn't readable media) or Cancelled, with the reason.
  */
 export type ReplacementJobState =
   | 'Scheduled'
@@ -156,6 +158,8 @@ export type ReplacementJobState =
   | 'Downloading'
   | 'Paused'
   | 'Downloaded'
+  | 'Inspecting'
+  | 'Verified'
   | 'NeedsReview'
   | 'Failed'
   | 'Cancelled'

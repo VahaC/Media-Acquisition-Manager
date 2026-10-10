@@ -16,9 +16,17 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// <para>
 /// No <c>CreatedUtc</c>: a file row is part of its job, written with it and never alone.
 /// </para>
+/// <para>
+/// MAM-25 — the last four columns are the verifier's (ADR 0035), written on each of its passes: what the library and
+/// the app's own readings said of the copy, the new file it was paired with, and why it stopped the job. Nullable
+/// columns added in place, with no key, so the upgrade rebuilds no table.
+/// </para>
 /// </remarks>
 public class ReplacementJobFileEntity : BaseEntity
 {
+    /// <summary>The longest <see cref="Problem"/> kept, as the job's own reason; a longer sentence is cut to it.</summary>
+    public const int ProblemMaximumLength = ReplacementJobEntity.ReasonMaximumLength;
+
     /// <summary>The job; the row is removed with it.</summary>
     public Guid ReplacementJobId { get; set; }
 
@@ -71,4 +79,30 @@ public class ReplacementJobFileEntity : BaseEntity
     /// <summary>The version's own edition label then; <c>null</c> when the library gave none.</summary>
     [MaxLength(MediaVersionEntity.EditionLabelMaximumLength)]
     public string? EditionLabel { get; set; }
+
+    /// <summary>
+    /// MAM-25 — the <see cref="ReplacementJobNewFileEntity"/> the copy is paired with: set once the job is verified, on
+    /// the copies that paired before the job stopped for another, and on a copy whose pair itself stopped it (another
+    /// edition, too short), beside its <see cref="Problem"/>; <c>null</c> otherwise. No key: a key added to this table
+    /// would rebuild it, and the new file rows are replaced whole on every check of the files.
+    /// </summary>
+    public Guid? PairedNewFileId { get; set; }
+
+    /// <summary>
+    /// MAM-25 — the last episode the copy's own library item covers, as the library last reported it (a file of two
+    /// episodes ends one after <see cref="EpisodeNumber"/>); <c>null</c> for a film, before the library is read, and when
+    /// the library gives none. ADR 0032: a copy of several episodes is never replaced by one new file.
+    /// </summary>
+    public int? EpisodeNumberEnd { get; set; }
+
+    /// <summary>
+    /// MAM-25 — the copy's measured running time in milliseconds, from the media inspector's cached reading of its
+    /// identity when it was checked; <c>null</c> when it was never read, which leaves the new file's running time
+    /// uncompared (Vasyl, 2026-10-10).
+    /// </summary>
+    public long? DurationMilliseconds { get; set; }
+
+    /// <summary>MAM-25 — why this copy stopped the job, one readable sentence; <c>null</c> when it didn't.</summary>
+    [MaxLength(ProblemMaximumLength)]
+    public string? Problem { get; set; }
 }

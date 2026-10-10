@@ -3,6 +3,7 @@ using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
+using MediaAcquisitionManager.Api.Services.Replacements;
 
 namespace MediaAcquisitionManager.Api.Extensions;
 
@@ -55,7 +56,7 @@ public static class HostedServiceCollectionExtensions
         // enqueued a second time by it, and finds the worker there to take it. The availability check needs nothing
         // settled — every pass reads what is due and each user's budget from the rows — and sits with the reader as
         // the other half of the recommendations' background work. Two loops, so a source that hangs one holds up only
-        // that one. Before the download tracker, which stays last.
+        // that one. Before the download tracker and the replacements' check, which stay last.
         services.AddSingleton<RecommendationAvailabilityChecker>();
         services.AddHostedService(provider => provider.GetRequiredService<RecommendationAvailabilityChecker>());
         services.AddSingleton<RecommendationFeedReader>();
@@ -63,7 +64,7 @@ public static class HostedServiceCollectionExtensions
         // MAM-34 — the same order for the links' background writer: the reconciler turns a link a stop left Writing into
         // NotWritten and signals the queued ones before the worker starts, so the worker never finds a link the stop cut
         // still claimed, and takes the queued ones at once. Independent of the runs above: a write reads its link and
-        // its library from the rows. Before the download tracker, which stays last.
+        // its library from the rows. Before the download tracker and the replacements' check, which stay last.
         services.AddSingleton<LibraryLinkWriteReconciler>();
         services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkWriteReconciler>());
         services.AddSingleton<LibraryLinkWriteWorker>();
@@ -72,17 +73,22 @@ public static class HostedServiceCollectionExtensions
         // the queued one again before the worker takes any, so the worker never claims a run while a dead one still holds
         // the running slot (IX_LibraryLinkSuggestionRuns_OneRunPerActiveStatus). After the links' writer: nothing either
         // settles at the start depends on the other — a run reads the links as it finds them. Before the download
-        // tracker, which stays last.
+        // tracker and the replacements' check, which stay last.
         services.AddSingleton<LibraryLinkSuggestionRunReconciler>();
         services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkSuggestionRunReconciler>());
         services.AddSingleton<LibraryLinkSuggestionRunWorker>();
         services.AddHostedService(provider => provider.GetRequiredService<LibraryLinkSuggestionRunWorker>());
-        // MAM-14 — the download jobs' tracker, last: it needs nothing settled before it, as every pass reads the
+        // MAM-14 — the download jobs' tracker: it needs nothing settled before it, as every pass reads the
         // followed jobs from the rows (a restart resumes where they are), and a start that only enters its loop
         // holds up nothing after it. No reconciler: a send a stop interrupted is the tracker's own to settle,
         // once it is old enough (DownloadJobPoller.InterruptedSendAge).
         services.AddSingleton<DownloadJobTracker>();
         services.AddHostedService(provider => provider.GetRequiredService<DownloadJobTracker>());
+        // MAM-25 — the check of the replacements' new files, last, after the tracker whose follower makes a replacement
+        // Downloaded: it reads the jobs being checked from the rows on every pass and keeps every wait as a time on the
+        // job, so it needs nothing settled before it, and no reconciler — a check a stop cut goes on from its rows.
+        services.AddSingleton<ReplacementVerificationTracker>();
+        services.AddHostedService(provider => provider.GetRequiredService<ReplacementVerificationTracker>());
         return services;
     }
 }

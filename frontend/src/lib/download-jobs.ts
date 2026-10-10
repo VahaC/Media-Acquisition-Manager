@@ -1,4 +1,4 @@
-import type { DownloadJob, DownloadJobStatus } from './types'
+import type { DownloadJob, DownloadJobStatus, ReplacementJobState } from './types'
 
 /**
  * MAM-14 — every job status, in the order the API lists them: the Jobs page's status filter offers
@@ -30,6 +30,31 @@ const FOLLOWED_STATUSES: ReadonlySet<DownloadJobStatus> = new Set<DownloadJobSta
 /** Whether the app still follows a job in `status`, so it can change without anyone acting. */
 export function isJobFollowed(status: DownloadJobStatus): boolean {
   return FOLLOWED_STATUSES.has(status)
+}
+
+/**
+ * MAM-25 — the replacement states the check of the new files moves on by itself once the download
+ * is done: Downloaded until the next check pass takes the job up, then Inspecting while its new files
+ * are read, until the check ends it Verified, NeedsReview or Failed.
+ */
+const CHECKED_REPLACEMENT_STATES: ReadonlySet<ReplacementJobState> = new Set<ReplacementJobState>([
+  'Downloaded',
+  'Inspecting',
+])
+
+/** Whether a replacement in `state` has its new files checked, now or at the next check pass. */
+export function isReplacementBeingChecked(state: ReplacementJobState): boolean {
+  return CHECKED_REPLACEMENT_STATES.has(state)
+}
+
+/**
+ * Whether the app is still working on `job` — following its download, or checking the new files of
+ * the replacement it carries — so it can change without anyone acting, and a page that shows it asks
+ * again. The download stays Downloaded while the check runs, so its status alone would stop the
+ * polling before the page could show how the check ended.
+ */
+export function isJobWorkedOn(job: Pick<DownloadJob, 'status' | 'replacement'>): boolean {
+  return isJobFollowed(job.status) || (job.replacement !== null && isReplacementBeingChecked(job.replacement.state))
 }
 
 /**

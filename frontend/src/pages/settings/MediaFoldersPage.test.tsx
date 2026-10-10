@@ -345,7 +345,7 @@ describe('MediaFoldersPage', () => {
 
   // MAM-24 — the replacement gates of ADR 0033, saved by the same Save as the folders.
   describe('replacing copies', () => {
-    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. In this version a replacement is only scheduled; moving old copies comes in a later version and will also need the media folders mounted read-write.'
+    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. In this version a replacement is scheduled and its new file checked once downloaded, but nothing is moved; moving old copies comes in a later version and will also need the media folders mounted read-write.'
     const outside = 'Outside the Media folders.'
     const outsideTicked = 'Outside the Media folders: this tick has no effect until the folder is inside one.'
     const noLonger = 'No longer a library folder the app knows, so a tick here has no effect. Saved unticked, it leaves this list.'

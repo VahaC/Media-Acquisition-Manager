@@ -15,7 +15,8 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// <remarks>
 /// MAM-24 — moved here unchanged from <c>DestinationChecker</c>, the folders' first reader, when the Media folders
 /// page's replacement ticks came to need the same list. Worked out when asked, never stored with a sync: a fixed
-/// mapping counts at once.
+/// mapping counts at once. MAM-25 — each folder also says which integration reported it and its path in the library's
+/// own terms, which the check of a replacement's new files asks the library by (ADR 0035); the other readers ignore both.
 /// </remarks>
 public static class LibraryFolderReader
 {
@@ -62,7 +63,7 @@ public static class LibraryFolderReader
         {
             var pairs = pairsByIntegration.TryGetValue(folder.IntegrationId, out var found) ? found : [];
             if (PathMapper.Map(folder.ServicePath, pairs) is { HasAppPath: true } result)
-                mapped.Add(new LibraryFolder(folder.LibraryName, result.AppPath!));
+                mapped.Add(new LibraryFolder(folder.LibraryName, result.AppPath!, folder.IntegrationId, folder.ServicePath));
         }
 
         return new LibraryFolders(mapped, stored.Count);

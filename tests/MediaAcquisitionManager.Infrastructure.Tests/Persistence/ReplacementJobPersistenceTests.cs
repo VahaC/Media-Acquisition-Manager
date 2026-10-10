@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using MediaAcquisitionManager.Api.Services.Audit;
+using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
@@ -19,7 +20,10 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 // download, and a download a replacement points at kept; its files, works and their ids part of it, gone with it; every
 // state, kind and match evidence stored by name, the audit actions and target too; an old copy's identity kept to the bit
 // and the tick; the following pass's index over the replacements still following only; and the payload kind the sender
-// learns kept on the download job by name.
+// learns kept on the download job by name. MAM-25 (ADR 0035) — the verification evidence: a job's new files and their ids
+// part of it, gone with it, one per place in the client's list; their kind, the new states and the check's audit actions
+// stored by name; the evidence kept to the bit and the tick; no key into the library's integrations or works, nor from an
+// old copy to its new file; and the verifier's index over the jobs being checked only.
 public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
 {
     private static readonly IEncryptionService Encryption = new AesGcmEncryptionService(
@@ -215,6 +219,213 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
             .SqlQueryRaw<string>("SELECT \"PayloadKind\" AS \"Value\" FROM \"DownloadJobs\"")
             .SingleAsync(cancellationToken);
         Assert.Equal("TorrentFile", stored);
+    }
+
+    [Fact]
+    public async Task Deleting_a_replacement_deletes_its_new_files_and_their_ids_and_no_others()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var gone = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        var kept = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        foreach (var job in new[] { gone, kept })
+            await Replacements(db).AddNewFile(job.Id, 0, "Alien.1979.2160p.mkv", LibraryFileKind.Movie, [(MediaIdentifierScheme.Tmdb, "348", false)]);
+
+        //Act
+        await db.ReplacementJobs.Where(row => row.Id == gone.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // Cascade: the evidence is part of its job, and says nothing once it is gone.
+        await using var check = CreateContext();
+        var file = await check.ReplacementJobNewFiles.SingleAsync(cancellationToken);
+        Assert.Equal(kept.Id, file.ReplacementJobId);
+        Assert.Equal(file.Id, (await check.ReplacementJobNewFileIdentifiers.SingleAsync(cancellationToken)).ReplacementJobNewFileId);
+    }
+
+    [Fact]
+    public async Task A_second_new_file_at_one_place_of_a_jobs_download_is_refused()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        await Replacements(db).AddNewFile(job.Id, 3, "Pack/Alien.1979.mkv");
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => Replacements(db).AddNewFile(job.Id, 3, "Pack/Aliens.1986.mkv"));
+
+        //Assert
+        // One row per place in the client's list: the rows are replaced whole, never added to.
+        var sqlite = Assert.IsType<SqliteException>(Assert.IsType<DbUpdateException>(exception).InnerException);
+        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Contains(
+            "UNIQUE constraint failed: ReplacementJobNewFiles.ReplacementJobId, ReplacementJobNewFiles.Position", sqlite.Message, StringComparison.Ordinal);
+        await using var check = CreateContext();
+        Assert.Equal(1, await check.ReplacementJobNewFiles.CountAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task The_verification_states_kinds_and_schemes_are_stored_by_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var checking = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        var verified = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Verified);
+        await Replacements(db).AddNewFile(checking.Id, 0, "Extras/Making of.mkv", LibraryFileKind.Other);
+        await Replacements(db).AddNewFile(
+            verified.Id, 0, "Penguins.S02E05.mkv", LibraryFileKind.Episode, [(MediaIdentifierScheme.TmdbTv, "1044", true), (MediaIdentifierScheme.Imdb, "tt1", false)]);
+
+        //Act
+        var stored = await db.Database
+            .SqlQueryRaw<string>(
+                """
+                SELECT "State" || '/' || "Kind" || '/' || COALESCE("Scheme", '-') || '/' || COALESCE("OfSeries", '-') AS "Value"
+                FROM "ReplacementJobs"
+                JOIN "ReplacementJobNewFiles" ON "ReplacementJobNewFiles"."ReplacementJobId" = "ReplacementJobs"."Id"
+                LEFT JOIN "ReplacementJobNewFileIdentifiers" ON "ReplacementJobNewFileIdentifiers"."ReplacementJobNewFileId" = "ReplacementJobNewFiles"."Id"
+                ORDER BY 1
+                """)
+            .ToListAsync(cancellationToken);
+
+        //Assert
+        // By name, like every other enum: a member added later never changes what a stored row means.
+        Assert.Equal(["Inspecting/Other/-/-", "Verified/Episode/Imdb/0", "Verified/Episode/TmdbTv/1"], stored);
+    }
+
+    [Fact]
+    public async Task The_verification_audit_actions_are_stored_by_name_with_no_actor()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        var auditTrail = new AuditTrail(db, TimeProvider.System);
+        // Nobody clicked: the app's own check moved the job.
+        auditTrail.Record(AuditAction.ReplacementCheckStarted, null, AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementVerified, null, AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementNeedsReview, null, AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementFailed, null, AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        await db.SaveChangesAsync(cancellationToken);
+
+        //Act
+        var rows = await db.Database
+            .SqlQueryRaw<string>(
+                "SELECT \"Action\" || '/' || COALESCE(\"ActorUserName\", '-') || '/' || \"TargetKind\" AS \"Value\" FROM \"AuditEvents\" ORDER BY \"Action\"")
+            .ToListAsync(cancellationToken);
+
+        //Assert
+        Assert.Equal(
+            [
+                "ReplacementCheckStarted/-/ReplacementJob",
+                "ReplacementFailed/-/ReplacementJob",
+                "ReplacementNeedsReview/-/ReplacementJob",
+                "ReplacementVerified/-/ReplacementJob",
+            ],
+            rows);
+    }
+
+    [Fact]
+    public async Task The_verifying_index_holds_only_the_replacements_whose_new_files_are_being_checked()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+
+        //Act
+        var definition = await db.Database
+            .SqlQueryRaw<string>("SELECT \"sql\" AS \"Value\" FROM \"sqlite_master\" WHERE \"name\" = 'IX_ReplacementJobs_Verifying'")
+            .SingleAsync(cancellationToken);
+
+        //Assert
+        // Partial: the few being checked, never the history. The states by name — exactly ReplacementJobStates.Verifying.
+        Assert.Equal(
+            "CREATE INDEX \"IX_ReplacementJobs_Verifying\" ON \"ReplacementJobs\" (\"State\") WHERE \"State\" IN ('Downloaded', 'Inspecting')",
+            definition);
+    }
+
+    [Fact]
+    public async Task The_verification_evidence_is_kept_to_the_bit_and_the_tick()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        var oldCopy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien.mkv", TestMedia.File(inode: 1));
+        var newFile = await Replacements(db).AddNewFile(job.Id, 0, "Alien.1979.2160p.mkv", LibraryFileKind.Movie);
+        var startedUtc = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
+        var askedUtc = startedUtc.AddMinutes(2).AddTicks(1);
+        var problem = new string('x', ReplacementJobFileEntity.ProblemMaximumLength);
+
+        //Act
+        await db.ReplacementJobs.Where(row => row.Id == job.Id).ExecuteUpdateAsync(
+            setters => setters.SetProperty(row => row.InspectionStartedUtc, startedUtc).SetProperty(row => row.LibraryAskedUtc, askedUtc), cancellationToken);
+        await db.ReplacementJobFiles.Where(row => row.Id == oldCopy.Id).ExecuteUpdateAsync(
+            setters => setters
+                .SetProperty(row => row.PairedNewFileId, newFile.Id)
+                .SetProperty(row => row.EpisodeNumberEnd, 6)
+                .SetProperty(row => row.DurationMilliseconds, 6_990_000L)
+                .SetProperty(row => row.Problem, problem),
+            cancellationToken);
+        // A device past long.MaxValue as an unsigned st_dev, a size past 4 GiB and a time with sub-millisecond ticks.
+        await db.ReplacementJobNewFiles.Where(row => row.Id == newFile.Id).ExecuteUpdateAsync(
+            setters => setters
+                .SetProperty(row => row.DeviceId, TestMedia.DeviceId)
+                .SetProperty(row => row.Inode, 42L)
+                .SetProperty(row => row.SizeBytes, 5_000_000_000L)
+                .SetProperty(row => row.ModifiedUtc, TestMedia.ModifiedUtc)
+                .SetProperty(row => row.ClientProgress, 0.999_999_9)
+                .SetProperty(row => row.Refreshed, true)
+                .SetProperty(row => row.EpisodeNumberEnd, 6)
+                .SetProperty(row => row.ReadUtc, askedUtc),
+            cancellationToken);
+
+        //Assert
+        await using var check = CreateContext();
+        var storedJob = await check.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal((startedUtc.Ticks, askedUtc.Ticks), (storedJob.InspectionStartedUtc!.Value.Ticks, storedJob.LibraryAskedUtc!.Value.Ticks));
+        var storedCopy = await check.ReplacementJobFiles.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal(
+            ((Guid?)newFile.Id, (int?)6, (long?)6_990_000, problem),
+            (storedCopy.PairedNewFileId, storedCopy.EpisodeNumberEnd, storedCopy.DurationMilliseconds, storedCopy.Problem));
+        var storedFile = await check.ReplacementJobNewFiles.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal(
+            ((long?)TestMedia.DeviceId, (long?)42, (long?)5_000_000_000, TestMedia.ModifiedUtc.Ticks, (double?)0.999_999_9, true, (int?)6, askedUtc.Ticks),
+            (storedFile.DeviceId, storedFile.Inode, storedFile.SizeBytes, storedFile.ModifiedUtc!.Value.Ticks, storedFile.ClientProgress, storedFile.Refreshed,
+                storedFile.EpisodeNumberEnd, storedFile.ReadUtc!.Value.Ticks));
+    }
+
+    [Fact]
+    public async Task The_verification_evidence_keeps_no_key_into_the_library_or_from_an_old_copy_to_its_new_file()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Inspecting);
+        var oldCopy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien.mkv", TestMedia.File(inode: 1));
+        var newFile = await Replacements(db).AddNewFile(job.Id, 0, "Alien.1979.2160p.mkv", LibraryFileKind.Movie);
+
+        //Act
+        // Snapshot ids of an integration and a work no row holds, and a pair whose new file the next check replaced.
+        var exception = await Record.ExceptionAsync(async () =>
+        {
+            await db.ReplacementJobNewFiles.Where(row => row.Id == newFile.Id).ExecuteUpdateAsync(
+                setters => setters.SetProperty(row => row.LibraryIntegrationId, Guid.NewGuid()).SetProperty(row => row.MediaWorkId, Guid.NewGuid()),
+                cancellationToken);
+            await db.ReplacementJobFiles.Where(row => row.Id == oldCopy.Id).ExecuteUpdateAsync(
+                setters => setters.SetProperty(row => row.PairedNewFileId, Guid.NewGuid()), cancellationToken);
+        });
+
+        //Assert
+        // A key from ReplacementJobFiles would rebuild that table; keys into the library would lose the evidence to a sync.
+        Assert.Null(exception);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

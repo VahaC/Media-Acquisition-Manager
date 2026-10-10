@@ -16,7 +16,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   by default ("Off by default. When on, the Download dialog offers Replace after verification for
   copies in the folders ticked below, to you alone. In this version a replacement is only scheduled;
   moving old copies comes in a later version and will also need the media folders mounted
-  read-write."), and **Library folders replacement may touch**: every library folder the Jellyfin
+  read-write."; MAM-25 below rewords its last sentence), and **Library folders replacement may
+  touch**: every library folder the Jellyfin
   integration's path mappings bring into the app, by its path in the app, with the libraries that
   list it ("In the library Фільми"), none ticked by default. An unticked folder outside the Media
   folders can't be ticked ("Outside the Media folders."), a ticked one says its tick "has no effect
@@ -105,7 +106,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   the old copy would move aside only after the new one is downloaded, checked and shown in Jellyfin
   as the same work; a copy held by a torrent waits until you remove that torrent in qBittorrent.
   This version only schedules the replacement: once the download is done it waits, and nothing is
-  checked or moved until a later version.", frozen in the sent view. A refused schedule reads the
+  checked or moved until a later version.", frozen in the sent view (MAM-25 below rewords its last
+  sentence, as the new file is now checked). A refused schedule reads the
   copies again, so the list shows what changed. The dialog widens to 48rem while it lists works and
   stacks the copies at phone width, long names wrapped. `DownloadDialog.replace.test.tsx`,
   `DownloadDialog.test.tsx` (the member's view), `replacements.test.ts`, `replacements-api.test.ts`,
@@ -224,16 +226,16 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   says where it stands (MAM-24, ADR 0014, Vasyl's decision of 2026-10-09).** After every pass of the
   downloads' following, in the same scope and its own try, the replacements still followed are
   brought in line with their downloads — `Scheduled` → `Submitted` → `Downloading` (↔ `Paused`) →
-  `Downloaded`, where they wait, as nothing verifies or moves anything in this version —, but only
-  for a download whose check before the send passed (`overwriteCheck` `Checked`, strict mode's only
-  passing verdict). A download that failed after it fails its replacement ("The download failed, so
-  nothing will be replaced."), one refused before it was sent too ("The download was refused before
-  it was sent, so nothing will be replaced."), and so does a send the app stopped during, which the
-  following adopted with nothing checked ("The app stopped while sending this download, before it
-  checked where the new files would land, so nothing will be replaced."); a download that needs
-  linking puts it at `NeedsReview` ("qBittorrent's downloads couldn't be told apart for this
-  release, so the app can't follow it to verify the new file."). **Cancel job** cancels it in the
-  same transaction, from any state still followed, `NeedsReview` included, with a
+  `Downloaded`, where the following leaves them for the check of their new files (MAM-25 below) —,
+  but only for a download whose check before the send passed (`overwriteCheck` `Checked`, strict
+  mode's only passing verdict). A download that failed after it fails its replacement ("The download
+  failed, so nothing will be replaced."), one refused before it was sent too ("The download was
+  refused before it was sent, so nothing will be replaced."), and so does a send the app stopped
+  during, which the following adopted with nothing checked ("The app stopped while sending this
+  download, before it checked where the new files would land, so nothing will be replaced."); a
+  download that needs linking puts it at `NeedsReview` ("qBittorrent's downloads couldn't be told
+  apart for this release, so the app can't follow it to verify the new file."). **Cancel job**
+  cancels it in the same transaction, from any state still followed, `NeedsReview` included, with a
   `ReplacementCancelled` audit row ("You cancelled the download, so nothing will be replaced.").
   Each write is conditional on the state it read, the mirrored steps write no audit row, a bug on
   one replacement costs only that one the pass, and everything is rows, so a restart goes on where
@@ -245,7 +247,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   "Replacement stopped: <reason>" — only "Replacement stopped." on a failed job, whose error already
   says why —; while the download goes on and the gates say so now, "Replacement scheduled, but
   replacement is switched off: nothing will move while it is off." and "1 copy is no longer in a
-  ticked folder and won't move.". `ReplacementFollowingHttpTests` (to `Downloaded` and no further
+  ticked folder and won't move.". (MAM-25 below takes a `Downloaded` replacement on to the check of
+  its new files, and the line with it: "Replacement checks the new file: 1 copy, kept until it is
+  verified.", then "New file verified: …" or "Replacement needs review: <reason>".)
+  `ReplacementFollowingHttpTests` (to `Downloaded` and no further
   with nothing sent, a restart, a send still under way, a cancel with its row, the review a cancel
   ends, a failed download, an adopted interrupted send, a follower that throws, the gates on a job's
   answer), `ReplacementJobPersistenceTests` and `JobsPage.test.tsx` pin it.
@@ -269,6 +274,174 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   release (`SwitchedOff`, then `DestinationNotUsable`); the list of copies, the marks, the
   confirmation, Send's reasons, the summaries, a member's view and the Jobs page's line only with
   answers made up in the page.
+- **Once its download is done, a replacement checks each new file before anything is touched, and
+  ends `Verified`, or stops with the reason, both copies staying (MAM-25, ADR 0035, ADR 0032, ADR
+  0034, Vasyl's decisions of 2026-10-10).** A background loop of its own,
+  `ReplacementVerificationTracker`, runs a pass when the app starts and 15 s after each pass ends,
+  apart from the downloads' 2 s following and whatever the replacement switch and the ticks say (ADR
+  0033): it claims a `Downloaded` replacement — `Inspecting`, with a `ReplacementCheckStarted` audit
+  row — and takes it a step on every pass from its rows, so a restart goes on where it stood. *Check
+  1:* qBittorrent is asked again, never the stored rows, which stop at the finish: the download
+  seeding or complete at a progress of 1, its content in its save folder, and each file it downloads
+  with a video file's extension complete by its own word — "“qBittorrent” hasn't finished
+  “Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.Bonus.1080p.mkv” (73 % done)." —; a download it
+  reports an error for ("“qBittorrent” reports an error for this download, so the app can't confirm
+  its files are complete."), no longer has, or that holds no such file stops for review, and one
+  still moving its files waits. *Check 2:* each new file is placed in the app through the client's
+  path mappings ("The app can't tell where the new file “Alien.1979.Directors.Cut.2160p.mkv” is: No
+  path mapping of this integration covers “/srv/elsewhere/Alien.1979.Directors.Cut.2160p.mkv”.") and
+  in the one library folder holding it, the deepest where folders nest ("The new file
+  “/media/elsewhere/…” is in no library folder the app knows, so no library can be asked to confirm
+  it."), then read by the media inspector inside the Media folders. `Failed` is for a bad file only
+  — one ffprobe can't read as media, not a regular file,
+  "“/media/movies/Alien.1979.Directors.Cut.2160p.mkv” is empty.", "… has no video stream." and "The
+  media inspector found no running time in “…”." —; a file of another size than qBittorrent
+  downloaded, one whose identity the platform doesn't give, and "The new file “…” is the old copy
+  itself." stop it for review. Then qBittorrent's whole listing (5.2 or later) must show no other
+  download writing a new file, by path or by device and inode, which closes MAM-24's accepted gap:
+  "“qBittorrent”'s download “Alien remux” also writes
+  “/media/movies/Alien.1979.Directors.Cut.2160p.mkv”, so the app can't tell the new file is this
+  download's own."; another download the app can't place — a magnet still fetching its metadata, a
+  save path or a file no mapping places, a file inside the Media folders whose size or identity
+  can't be read — leaves that unclear: the check waits, and once the hour runs out stops ("The app
+  can't place “qBittorrent”'s download “Alien magnet” in its folders, so it can't tell whether that
+  download writes the new files."); and a qBittorrent too old to list them stops it at once ("This
+  version of “qBittorrent” can't list the files of its other downloads, so the app can't tell
+  whether another one writes the new files."). *Check 4:* once every file passed, each library
+  holding new files is sent `POST /Library/Media/Updated` with their paths in its own terms, at most
+  500 to a request (`IMediaLibraryFileLookup.MaximumPaths`, the reads batched alike, so a pack of
+  any size is asked and read whole), and asked again on the next pass while it doesn't take it;
+  `LibraryAskedUtc` is the moment it took it, after the files' checks. A call the adapter refuses as
+  the app's own mistake stops the job at once ("The app refused its own request to “Living room”
+  about the new files as one it should never make, so they can't be confirmed."). From then on a
+  pass only looks at each file's identity again ("The new file “…” changed after it was checked.",
+  or "Nothing is at “…”." for one gone) and reads, by the id each path computes, the item Jellyfin
+  made of it — a hidden alternate version included, a trailer read like any extra as no work — and
+  of each ticked episode copy, until each is listed and read: a running time on it, and an episode's
+  number. *Check 3 and the pairs* (ADR 0032's MAM-25 section): a film's item must carry the old
+  work's TMDb or IMDb id, the owner's TMDb link counted, and no other value of a scheme the work
+  has; an episode's series must be the show by its ids, ADR 0017's way, at the ticked copy's season
+  and number, and the ticked episode's own item, as Jellyfin reads it now, still the show's at the
+  number it had when scheduled; each ticked copy pairs with exactly one new file of its work, and a
+  new file no copy pairs with is simply added — so is a film Jellyfin identifies as another work,
+  another value in a scheme both carry, once every ticked copy found its new file: a collection
+  pack's other film, as Vasyl decided on 2026-10-10. Another work while a ticked copy has found
+  none, as that film may be its new file misidentified ("“Living room” identified “…” as another
+  work (IMDb tt0090605), not Alien (1979)."), a new episode in another series whatever paired,
+  conflicting ids ("… conflicting ids: IMDb tt0078748 is Alien (1979)'s, TMDb 679 is not."), ids for
+  a work the app holds no TMDb or IMDb id of ("“Living room” gave “…” IMDb tt0078748 and TMDb 348,
+  but Alien (1979) has no TMDb or IMDb id here to compare them with."), a film item for an episode
+  copy or the other way round, a ticked episode Jellyfin now numbers otherwise ("“Living room” now
+  numbers the old copy “…” season 2, episode 3, not season 2, episode 1 as when it was scheduled.")
+  or places in another series ("“Living room” placed the old copy “…” in another series (…), not
+  …"), two new files of one work ("Two new files are Alien (1979): “…” and “…”; the app can't tell
+  which one replaces the old copy."), none ("No new file is Yellowstone (2018), season 2, episode 2,
+  so “…” has nothing to replace it."), a ticked copy that is one half of an episode ("… (its name
+  gives the episode the letter “a”), so it can't be replaced on its own."), a file covering a ticked
+  episode and the next, by Jellyfin's end number or a range in its name ("… covers episodes 2–3 of
+  season 2, so it can't replace “…” alone."), a name claiming another edition than the release, once
+  every title the work goes by — and an episode's own — is taken out of it ("… claims Extended cut,
+  while the release claimed Director's cut.") and a paired file under three quarters of the old
+  copy's measured running time ("… runs 1:06:40, less than three quarters of the old copy's
+  1:33:24.") stop it for review; a longer cut, and an old copy never measured, pass. *The hour*,
+  Vasyl's: what can't be settled yet keeps the job `Inspecting` an hour — from the check's start for
+  qBittorrent and the files, from the moment Jellyfin took the request to look for Jellyfin —, the
+  owner free to fix the new item in Jellyfin meanwhile, then stops it with what is still missing:
+  "“Living room” gave “…” no TMDb or IMDb id within an hour, so it can't be told to be Alien
+  (1979).", "“Living room” gave “…” TMDb 348 within an hour, but Alien (1979) is known here only by
+  IMDb tt0078748." (ids only of schemes the work has none of), "“Living room” gave the old copy “…”
+  no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode of …",
+  "“Living room” didn't list “…” within an hour of being asked to look.", "“Living room” hadn't
+  finished reading “…” within an hour.", "The app couldn't read “Living room” within an hour of
+  asking it to look at the new files: Jellyfin answered 503 Service Unavailable. Its own log says
+  why." or "The app couldn't ask “qBittorrent” about this download within an hour: …". An
+  unavailable Jellyfin never lets a file pass, and a wrong or conflicting id stops at once once
+  every file is read. A library of a type that can't be asked to look stops the job at once ("This
+  version of the app can't ask “…” to look at a file, so the new files can't be confirmed."). Each
+  reason names an integration by its name under Integrations, quoted, except one whose type this
+  build can't use, named by its type. *The end:* `Verified`, `NeedsReview` or `Failed`, a
+  conditional move — another writer that got there first wins — in one transaction with the evidence
+  and a `ReplacementVerified`, `ReplacementNeedsReview` or `ReplacementFailed` row, no actor, its
+  target the replacement job named by the release: the app's own decisions, where the following's
+  mirrored steps write none. *The evidence*, kept with the job for MAM-27 to show:
+  `ReplacementJobNewFiles`, a row per new file in the client's order — its name, size and progress
+  by qBittorrent, its path in the app, its library and its path there, its device, inode, size,
+  modification time, running time, video codec and frame size as read, its item, kind, whether read,
+  series item, season, episode and end number, when last read, the work it was identified as and why
+  it stopped the job —, with `ReplacementJobNewFileIdentifiers`, its item's and its series' ids; and
+  on each ticked copy its pair, its end number by Jellyfin, its measured running time and its
+  problem. Nothing moves: a `Verified` job holds both copies until MAM-26. qBittorrent is only read,
+  and Jellyfin hears only the request to look, every other call a read (`System/Info` before each,
+  `Users`, `Items/{id}`, `Items?ids=`). The log names ids, states and counts, never a path, a title
+  or a sentence, and a check that throws costs its job that pass, logged with its type and stack.
+  Tried live only as a read: on 2026-10-10 a probe on the development PC read the reference
+  installation's Jellyfin 12.2.0 with the app's stored settings, GETs only, and found the facts the
+  check stands on (the next entry) — `LibraryMonitorDelay` 60 s, the real-time monitor on in all
+  four media libraries, no file with an end number or a half's letter —; the check itself and its
+  pages ran against fakes only, and no replacement was downloaded on any installation, which
+  MAM-28's check is for. `ReplacementVerificationHttpTests` (a passing film with its evidence and
+  its paths in the app and in Jellyfin, by IMDb id or by the owner's TMDb link alone, three quarters
+  exactly and a longer cut, an old copy never measured, no edition read from any title the work goes
+  by, replacement switched off, a collection pack's other film simply added, another work — the
+  pack's film of the ticked copy among them —, conflicting ids, ids sharing no scheme with the
+  film's, two new files, another edition, too short, a check that throws, the loop),
+  `ReplacementVerificationFilesHttpTests` (an error and a download gone, a file not finished,
+  qBittorrent unreachable or switched off for the hour, its client removed, two downloads of the
+  release, a path no mapping places, a file in no library folder or in folders of two libraries, a
+  file ffprobe can't read, empty, without video or a running time, the old copy itself, another
+  download writing it at its path or by a link at another, one the app can't place, a qBittorrent
+  too old), `ReplacementVerificationEpisodesHttpTests` (a season pack with an extra episode, a pack
+  of more files than one request takes, files of two episodes by end number and by name, a ticked
+  copy of two episodes or one half, a ticked episode Jellyfin now numbers otherwise, a missing
+  episode, two files of one, film and episode crossed, conflicting series ids) and
+  `ReplacementVerificationLibraryHttpTests` (Jellyfin unavailable, or switched off or failing its
+  item reads after taking the request, no id, not listed, not read, the request not taken — each
+  until the hour, then review —, the request taken late and the hour reckoned from then, the owner's
+  fix within the hour, a type that can't be asked, a library removed, a file changed or gone, later
+  passes going on from the rows, a verified job never read again), all over TestInfrastructure's
+  `ReplacementVerificationHarness`, whose Jellyfin knows the app's `/media` as `/data`, with
+  `ReplacementLibraryPlacesTests` (a file's path in its library's terms),
+  `ReplacementFollowingHttpTests` (the following never touches `Inspecting` or `Verified`),
+  `ReplacementOptionsHttpTests` (both hold their copies), `NewFileCompletenessTests`,
+  `NewFileReadabilityTests`, `EpisodeRangeNamesTests`, `ReplacementPairingFilmsTests`,
+  `ReplacementPairingEpisodesTests`, `ReplacementPairingVerdictTests`,
+  `ReplacementVerificationRulesTests`, `ReplacementJobStatesTests`, `ReplacementJobPersistenceTests`
+  and `AddReplacementVerificationMigrationTests` pin it.
+- **The media library contract learns to look at new files and to read the item each became, as an
+  optional capability (MAM-25, ADR 0005, ADR 0030, ADR 0035).** `IMediaLibraryFileLookup` — never a
+  member of `IMediaLibraryProvider` — is found by the adapter registry as
+  `IMediaLibraryItemIdentifier` is, and Jellyfin's adapter implements it. `RequestScanAsync` sends
+  `POST /Library/Media/Updated` with `{"Updates":[{"Path":…,"UpdateType":"Created"}]}`, every path
+  in one body, once, whatever comes of it: 204, which Jellyfin answers before it looks, is the one
+  answer taken; 401 and 403 are the key's — "Jellyfin accepted the key but won't let it ask the
+  library to look at new files (403 Forbidden). Use a key from Dashboard → API Keys, not a user's
+  access token." —, a 5xx the server's, and anything else, a 200 included, an answer Jellyfin
+  doesn't send for it. `ReadFilesAsync` reads `GET /Users` for the first enabled administrator, then
+  for each path `GET /Items/{id}?userId=` for the id the path computes as a film's, an episode's, a
+  plain video's and a trailer's, in that order — a 404 tries the next, and an answer whose `Path`
+  isn't exactly the path asked is another file's; Jellyfin 12.2 gives a trailer a type of its own,
+  and it reads, like any extra, as no work —, and gives per path whether Jellyfin lists it, its item
+  and kind, whether Jellyfin has finished reading it (a running time, and an episode's
+  `IndexNumber`), its ids by the sync's rules, an episode's season, number and end number
+  (`IndexNumberEnd`, which the sync still doesn't read), and its series' ids, one
+  `GET /Items?ids=…&fields=ProviderIds` per series; any failed call fails the whole read with its
+  status and sentence, so an odd Jellyfin never lets a file pass. A caller's mistake — no path, more
+  than `IMediaLibraryFileLookup.MaximumPaths` (500), a path blank, not absolute, with a `.` or `..`
+  folder, a control character or over 4096 characters — throws before anything is sent; the check
+  sends its paths in batches of at most that many. Ids are computed, not listed, because `/Items`
+  has no path filter and leaves alternate versions out — the usual replacement, a second version of
+  a film the owner has —: the read-only check of the reference installation's Jellyfin 12.2.0 on
+  2026-10-10 found `new Guid(MD5(UTF-16 of the type's full name + the path))` right for 880 of 880
+  movies and 440 of 440 episode files, the 29 episodes it missed virtual and without a path, and
+  `GET /Items/{id}?userId=` answering a hidden alternate version whole while `GET /Items?ids=` of
+  the same id answered nothing; that alternate is the new vendor sample
+  `Jellyfin/episode-alternate-version-item.json`. `FakeJellyfinServer` answers the request to look —
+  recording each request's paths, 204 at once or a status a test sets, and a hook that makes
+  Jellyfin's items when asked — and plants films and episodes under the ids their paths compute,
+  read or not yet; `JellyfinItemIds` repeats the formula on purpose, pinned against every recorded
+  movie and episode file. `JellyfinAdapterFilesScanTests`, `JellyfinAdapterFilesReadTests`,
+  `JellyfinAdapterFilesReadFailureTests`, `FakeJellyfinServerFilesTests` and `VendorSamplesTests`
+  pin it.
 
 ### Changed
 
@@ -303,6 +476,43 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   a copy, `LibraryFolderReader` the Destinations page's library folders, and `FileChips` the
   Library's chips of a file; the behaviour of each is unchanged, and their own suites pass as they
   were.
+- **A replacement's state gains `Inspecting` and `Verified` (MAM-25).** `replacement.state` on every
+  job the API answers may now also be `Inspecting` (its new files being checked) or `Verified`
+  (every ticked copy paired with a checked new file), by name; `NeedsReview` and `Failed` may now
+  come from the check, with its reason. A replacement in either still holds its copies, so another
+  download can't tick them (`AlreadyScheduled`) until MAM-26 has moved them.
+- **The Jobs line follows the check, and the pages keep asking while it runs (MAM-25).** Under a job
+  whose download is done, "Replacement waits for verification: 1 copy. This version doesn't verify
+  or move anything yet." gives way to "Replacement checks the new file: 1 copy, kept until it is
+  verified." while it is `Downloaded` or `Inspecting`; then "New file verified: 1 copy will be
+  replaced by it in a later version; nothing is moved yet.", its icon green as a downloaded job's;
+  or "Replacement needs review: <reason>" — MAM-24's review of a download that needs linking now
+  reads so too, where it read "Replacement stopped: …" —; `Failed` and `Cancelled` keep "Replacement
+  stopped: <reason>". The switched-off and unticked-folder notes now show while it is scheduled,
+  checked or verified, `Scheduled` to `Verified`, and on no stopped replacement — needing review,
+  failed or cancelled —, which goes no further until the owner acts, though one in review still
+  holds its copies: "Replacement checks the new file, but replacement is switched off: nothing will
+  move while it is off." and "New file verified, but replacement is switched off: nothing will move
+  while it is off.". The Jobs page and a job's page ask again every 2 s while a job's download is
+  followed or its replacement is `Downloaded` or `Inspecting`, so the verdict shows without a
+  reload. `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`, `JobDetailsPage.test.tsx` and
+  `download-jobs.test.ts` pin it.
+- **The Download dialog and the Media folders page say the new file is checked (MAM-25).** The
+  summary's conditions end "Once the download is done, the app checks that the new file is complete,
+  readable and identified by Jellyfin as the old copy's work, but nothing is moved in this version:
+  moving comes in a later version." where they ended "This version only schedules the replacement:
+  once the download is done it waits, and nothing is checked or moved until a later version.", and
+  the switch's hint says "In this version a replacement is scheduled and its new file checked once
+  downloaded, but nothing is moved; moving old copies comes in a later version and will also need
+  the media folders mounted read-write." `DownloadDialog.replace.test.tsx` and
+  `MediaFoldersPage.test.tsx` pin them.
+- **The library folders carry their library and path, and a client file is placed in one place
+  (MAM-25).** `LibraryFolderReader` now gives each library folder its integration and its path in
+  the library's own terms beside its path in the app, which the check needs to ask the right library
+  about a new file; and the mapping of a client's file into the app, which MAM-24's marks did inside
+  `ReplacementHoldingReader`, is `ClientFilePlaces`, shared by the marks and the check. The
+  Destinations page, the replacement gates and the marks behave as they did, and their suites pass
+  unchanged.
 
 ### Notes for upgraders
 
@@ -313,23 +523,40 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `ReplacementJobWorks` and `ReplacementJobWorkIdentifiers` with their six indexes, one of them the
   partial `IX_ReplacementJobs_Followed`. Every job sent before the upgrade keeps `null` there and
   carries no replacement.
+- **Applying `AddReplacementVerification` rebuilds no table, so it logs no warning 20410 (MAM-25).**
+  It adds nullable columns — `ReplacementJobs.InspectionStartedUtc` and `LibraryAskedUtc`, and
+  `ReplacementJobFiles.PairedNewFileId`, `EpisodeNumberEnd`, `DurationMilliseconds` and `Problem` —
+  and creates `ReplacementJobNewFiles` and `ReplacementJobNewFileIdentifiers`, with no key into a
+  table a sync rebuilds, and three indexes, one of them the partial `IX_ReplacementJobs_Verifying`.
+  A replacement already `Downloaded` is checked by the first pass after the start.
 - **Replacement is off, and no folder ticked, after the upgrade (MAM-24).** Members send as before,
   with Keep both, and so does the owner until he turns it on; the owner's dialog says why Replace
   can't be picked. To turn it on: user menu → **Media folders** → **Replacing copies**, tick
   **Replace copies after verification** and the library folders it may touch, then **Save**. A copy
   can then be ticked only once the app has inspected it inside the Media folders, and only through a
   destination whose category saves inside a library folder under them.
-- **Nothing moves in this version (MAM-24).** Scheduling reads the download clients' torrents and
-  the old copies' identities, and writes nothing to the media folders, nor to qBittorrent but the
-  one add every send makes; a replacement waits at `Downloaded` until a later version verifies the
-  new file and moves the old copy. Keep the media folders mounted `:ro` and the app's own ids: the
-  read-write mount and `APP_USER_ID`/`APP_GROUP_ID` will be needed only once a later version moves
-  files (MAM-26). The scheduled replacements live in `mam.db` alone; back it up with `.secrets/`.
+- **Nothing moves in this version (MAM-24, MAM-25).** Scheduling reads the download clients'
+  torrents and the old copies' identities, and writes nothing to the media folders, nor to
+  qBittorrent but the one add every send makes. The check of the new files only reads too:
+  qBittorrent's download, its files and its whole listing, the new files on the disk with the media
+  inspector, and Jellyfin's items, with `POST /Library/Media/Updated` to each library naming the new
+  files' paths — the one kind of request it sends Jellyfin, which makes Jellyfin look at them and
+  nothing more. A replacement ends `Verified` at most, both copies kept, until a later version moves
+  the old copy (MAM-26). Keep the media folders mounted `:ro` and the app's own ids: the read-write
+  mount and `APP_USER_ID`/`APP_GROUP_ID` will be needed only once a later version moves files. The
+  replacements and the evidence of their checks live in `mam.db` alone; back it up with `.secrets/`.
 - **The marks of torrents that hold a copy need qBittorrent 5.2 or later (MAM-24).** An older one —
   the app still sends to and follows 4.4.1 and later — is reported in the dialog as not checked,
   "Couldn't check whether a torrent in “qBittorrent” holds these copies: This is qBittorrent 5.1.4;
   telling which torrents hold a library file needs qBittorrent 5.2 or later.", and scheduling stays
-  allowed.
+  allowed. The check of the new files needs it too (MAM-25): it can't tell whether another download
+  writes a new file without the whole listing, so with an older qBittorrent every replacement stops
+  for review there ("This version of “qBittorrent” can't list the files of its other downloads, so
+  the app can't tell whether another one writes the new files."). So does any other torrent of it
+  the app can't place in its folders — a magnet still fetching its metadata, one saving where no
+  path mapping of the qBittorrent integration reaches —, once the check's hour has run out ("The app
+  can't place “qBittorrent”'s download “…” in its folders, so it can't tell whether that download
+  writes the new files."): map every folder qBittorrent saves to.
 
 ## [0.2.1] — 2026-10-05
 

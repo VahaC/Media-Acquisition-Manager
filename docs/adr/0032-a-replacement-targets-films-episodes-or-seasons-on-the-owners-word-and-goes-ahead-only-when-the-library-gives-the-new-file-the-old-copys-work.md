@@ -222,3 +222,116 @@ keyed to nothing a sync rebuilds.
 and
 `ReplacementScheduleSendHttpTests.Schedule_whose_gateway_link_turns_out_a_magnet_fails_and_asks_qbittorrent_nothing`
 pin it.
+
+## Check 3 and the pairs, as built (added 0.3.0, MAM-25)
+
+**The new file's work is read from the item Jellyfin made of it, compared with the matched works'
+ids kept with the job, and each ticked copy is paired by its place, never by a name; the check waits
+for Jellyfin as [ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)
+says (Vasyl's decisions of 2026-10-10).** The Decision's "bounded time" is an hour from the moment
+the library took the request to look, and "finished refreshing" an item that carries a running time
+— and, for an episode, its number.
+
+**A film.** The new item must carry a TMDb or IMDb id of exactly one matched film — among the ids
+kept at scheduling, the owner's TMDb link counted — and, in every scheme both carry, no other value;
+ids are compared trimmed and in any letter case. Sharing one id and differing in another is a
+conflict ("“Living room” gave “…Alien.1979.Directors.Cut.2160p.mkv” conflicting ids: IMDb tt0078748
+is Alien (1979)'s, TMDb 679 is not."), and ids fitting two matched films an unclear work; both stop
+at once. Ids differing from every matched film's in a scheme they share make the item another work
+("“Living room” identified “…” as another work (IMDb tt0090605), not Alien (1979)."). The matched
+films are only those a copy is ticked of, so a collection pack's other film is such another work;
+Vasyl's decision of 2026-10-10 settles it by the pairs. Once every ticked copy found its new file,
+another work's film is simply added, as a season pack's extra episode is — even when a pair then
+stops the job for its own reason, its edition or its length —; while a ticked copy has found none,
+the film may be that copy's new file misidentified, so it stops the job at once, its sentence the
+reason. An item without a TMDb or IMDb id waits, then stops ("… gave “…” no TMDb or IMDb id within
+an hour, so it can't be told to be Alien (1979)."). Ids only of schemes the film has none of are
+compared with nothing — no work is shown, and none disproved —, so the item waits as one without an
+id does, the owner free to identify it, then stops: "“Living room” gave “…” TMDb 348 within an hour,
+but Alien (1979) is known here only by IMDb tt0078748." A film confirmed by its title and year with
+no TMDb or IMDb id at all can't be compared with any id, so an item with ids stops at once: "“Living
+room” gave “…” IMDb tt0078748 and TMDb 348, but Alien (1979) has no TMDb or IMDb id here to compare
+them with."
+
+**An episode.** Its series item's ids must be one matched show's by ADR 0017's rule — an IMDb id
+among the show's ids, TMDb TV and TVDB within their kind; a film scheme on a series is no id —, with
+the same conflict and other-work rules ("… gave the series of “…” conflicting ids: IMDb tt4236770 is
+Yellowstone (2018)'s, TMDb TV 99999 is not.") and the same comparison with nothing — but an episode
+of another series ("“Living room” placed “…” in another series (…), not …") stops the job even once
+every ticked episode is paired, as a season pack is one show's where a collection holds several
+films —; no series item, a series without ids, or an item without a season and episode number waits,
+then stops. The item's own end number, else a range its name gives (Jellyfin 12.2's ten
+multi-episode expressions, ported), widens the episodes it covers, never narrows them.
+
+**The library says what each item is.** A film item in a job of episodes ("… made “…” a film, while
+the old copies are episodes of Yellowstone (2018).") and an episode item in a job of films stop it;
+so does a ticked episode Jellyfin now lists as a film ("… lists the old copy “…” as a film, while
+its new file would be an episode, so the two can't be paired.") or as neither. The ticked episode's
+item is read on every pass, as the owner may re-identify or renumber it while the download runs, and
+it must still be the show's by a new episode's rules, at the season and number it had when
+scheduled: another series ("… placed the old copy “…” in another series (…), not …"), conflicting
+series ids, and other numbers ("“Living room” now numbers the old copy “…” season 2, episode 3, not
+season 2, episode 1 as when it was scheduled.", or "now gives the old copy “…” no season and episode
+number, not …") stop at once; a series without an id waits, then stops ("“Living room” gave the old
+copy “…” no series with a TMDb, TVDB or IMDb id within an hour, so it can't be told to be an episode
+of …"). A plain video or a trailer, an extra, is no work and holds nothing up. A film copy's old
+item isn't read: its work is the matched film's.
+
+**The pairs.** A ticked film pairs with the one new file of its work; a ticked episode with the one
+new episode of its show whose season is its own and whose episodes cover its number. A ticked
+episode the library numbers past itself (`IndexNumberEnd`) or whose name holds a range "covers
+episodes 2–3 of season 2, so one new episode can't replace it."; one whose name glues `a` or `b` to
+its first `SxxEyy` "is one half of an episode (its name gives the episode the letter “a”), so it
+can't be replaced on its own."; one Jellyfin gives no number can't be paired. A new file covering a
+ticked episode and the next "covers episodes 2–3 of season 2, so it can't replace “…” alone.", a
+half of one can't replace it either, two new files of one ticked work are "Two new files are … the
+app can't tell which one replaces the old copy.", and none is "No new file is Yellowstone (2018),
+season 2, episode 2, so “…” has nothing to replace it." — held back while another new file is still
+unread or has its own problem, a collection's other film identified as another work among them,
+which is then the reason. A new file of a ticked work no ticked copy pairs with — the extra episode
+of a pack, a file of two episodes beside no ticked one — is simply added, and so is a collection's
+other film once every ticked copy is paired.
+
+**The pair's edition and length.** The edition words of the new file's name (MAM-37's
+`EditionLabels`, with every title the work goes by left out — its titles as the library sync keeps
+them, else the one the Download dialog showed, should a sync have dropped them — and an episode's
+own titles too) must all be among the release's: "“…” claims Extended cut, while the release claimed
+Director's cut." (or "claimed none"). A paired file running under three quarters of its old copy's
+measured running time — MAM-37's `RunningTimeSpread`, one way only — stops: "“…” runs 1:06:40, less
+than three quarters of the old copy's 1:33:24."; exactly three quarters, a longer cut and an old
+copy never measured pass. Such a copy keeps its pair beside its reason.
+
+**What review allows is unchanged**, but for its buttons: Retry, dropping a copy and settling a pair
+are MAM-27's. Until then the owner reads the reason on the Jobs page, and a check that waits can be
+helped within its hour by identifying the new item in Jellyfin. Nothing checks a release's claim of
+a season or a range against the files; the ticked copies alone decide what must pair.
+
+`ReplacementVerificationHttpTests.Verify_of_a_film_whose_new_item_carries_only_the_tmdb_id_the_owner_linked_verifies_it`,
+`ReplacementVerificationHttpTests.Verify_of_a_new_file_jellyfin_identifies_as_another_work_stops_for_review_at_once`,
+`ReplacementVerificationHttpTests.Verify_of_a_collection_pack_whose_ticked_film_paired_simply_adds_the_film_jellyfin_identifies_as_another_work`,
+`ReplacementVerificationHttpTests.Verify_of_a_collection_pack_whose_alien_file_jellyfin_identifies_as_another_film_stops_for_review_at_once`,
+`ReplacementVerificationHttpTests.Verify_of_a_new_file_whose_ids_conflict_with_the_films_stops_for_review_at_once`,
+`ReplacementVerificationHttpTests.Verify_of_a_new_file_whose_ids_share_no_scheme_with_the_films_keeps_checking_until_the_hour_runs_out_then_stops_for_review`,
+`ReplacementVerificationHttpTests.Verify_of_a_download_holding_two_new_files_of_the_film_stops_for_review_as_an_unclear_pair`,
+`ReplacementVerificationHttpTests.Verify_of_a_new_file_whose_name_claims_another_edition_than_the_release_stops_for_review`,
+`ReplacementVerificationHttpTests.Verify_of_a_new_file_running_under_three_quarters_of_the_old_copy_stops_for_review`,
+`ReplacementVerificationHttpTests.Verify_of_a_new_file_running_at_least_three_quarters_of_the_old_copy_verifies_it`,
+`ReplacementVerificationHttpTests.Verify_reads_no_edition_from_any_title_the_work_goes_by_in_the_new_files_name`,
+`ReplacementVerificationHttpTests.Verify_of_a_work_whose_titles_a_sync_dropped_reads_no_edition_from_the_title_the_dialog_showed`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_season_pack_pairs_each_ticked_episode_and_simply_adds_the_extra_one_keeping_the_evidence`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_new_file_covering_a_ticked_episode_and_the_next_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_copy_jellyfin_numbers_as_two_episodes_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_copy_that_is_one_half_of_an_episode_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_episode_the_pack_holds_no_new_file_of_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_two_new_files_of_one_ticked_episode_stops_for_review_as_an_unclear_pair`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_new_file_jellyfin_makes_a_film_for_an_episode_copy_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_episode_jellyfin_now_numbers_otherwise_stops_for_review`,
+`ReplacementPairingFilmsTests.Pair_of_a_new_item_with_ids_for_a_work_without_any_stops_for_review_at_once`,
+`ReplacementPairingFilmsTests.Pair_of_a_collection_pack_where_one_ticked_film_of_two_found_no_new_file_stops_with_the_other_films_sentence`,
+`ReplacementPairingFilmsTests.Pair_of_a_collection_pack_whose_pair_stops_for_its_edition_still_simply_adds_the_film_of_another_work`,
+`ReplacementPairingEpisodesTests.Pair_of_a_season_pack_whose_extra_episode_is_of_another_series_stops_for_review_though_every_ticked_episode_paired`,
+`ReplacementPairingEpisodesTests.Pair_of_an_old_copy_the_library_now_places_in_another_series_stops_for_review`,
+`ReplacementPairingEpisodesTests.Pair_of_an_old_copy_whose_series_has_no_id_waits_keeping_its_pair_and_stops_once_the_hour_ran_out`,
+`ReplacementPairingFilmsTests`, `ReplacementPairingEpisodesTests`,
+`ReplacementPairingVerdictTests` and `EpisodeRangeNamesTests` pin it.

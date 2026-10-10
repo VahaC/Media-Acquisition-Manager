@@ -171,4 +171,30 @@ public enum AuditAction
     /// download's <see cref="DownloadCancelled"/> row, its target the replacement job.
     /// </summary>
     ReplacementCancelled = 32,
+
+    /// <summary>
+    /// MAM-25 — the app started checking a replacement's new files after its download finished (Downloaded to
+    /// Inspecting, ADR 0035). No actor: nobody clicked, the app's own check did it — unlike ADR 0014's mirrored steps,
+    /// which write no row, these are the app's own decisions. Its target is the replacement job, named by the release.
+    /// </summary>
+    ReplacementCheckStarted = 33,
+
+    /// <summary>
+    /// MAM-25 — every ticked copy of a replacement was paired with a checked new file of its work (Inspecting to
+    /// Verified). No actor; its target the replacement job, named by the release. Nothing was moved.
+    /// </summary>
+    ReplacementVerified = 34,
+
+    /// <summary>
+    /// MAM-25 — the check of a replacement's new files stopped for the owner's review, the job's reason saying why
+    /// (Inspecting to NeedsReview). No actor; its target the replacement job, named by the release. Both copies stay.
+    /// </summary>
+    ReplacementNeedsReview = 35,
+
+    /// <summary>
+    /// MAM-25 — a replacement's new file is not a usable media file (empty, not a regular file, no video stream or no
+    /// running time, or unreadable as media), so nothing will be replaced (Inspecting to Failed). No actor; its target
+    /// the replacement job, named by the release.
+    /// </summary>
+    ReplacementFailed = 36,
 }

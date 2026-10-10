@@ -10,6 +10,7 @@ import { JobDetailsPage } from '@/pages/JobDetailsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { downloadedJob, downloadingJob, fileOf, filesPage, jobOf, sentMinutesAgo } from '@/test/downloads'
+import { replacementOf } from '@/test/replacements'
 
 vi.mock('@/lib/downloads-api')
 
@@ -446,6 +447,45 @@ describe('JobDetailsPage', () => {
       // Assert
       expect(downloadsApi.get).toHaveBeenCalledOnce()
       expect(downloadsApi.files).toHaveBeenCalledOnce()
+    })
+
+    // MAM-25 — the download no longer moves, but the check of its replacement's new files ends by itself.
+    it('asks for a downloaded job every 2 s while its replacement\'s new files are checked, nothing more once verified, and never for its files again', async () => {
+      // Arrange
+      const checked = { ...downloadedJob, replacement: replacementOf({ state: 'Inspecting' }) }
+      serve(checked)
+      renderAt(`/jobs/${checked.id}`)
+      await filesTable()
+      await screen.findByText('Replacement checks the new file: 1 copy, kept until it is verified.')
+
+      // Act
+      await nextPoll()
+      serve({ ...checked, replacement: replacementOf({ state: 'Verified' }) })
+      await nextPoll()
+      await screen.findByText('New file verified: 1 copy will be replaced by it in a later version; nothing is moved yet.')
+      await nextPoll()
+      await nextPoll()
+
+      // Assert
+      expect(downloadsApi.get).toHaveBeenCalledTimes(3)
+      expect(downloadsApi.files).toHaveBeenCalledOnce()
+    })
+
+    it('asks nothing more for a downloaded job whose replacement needs review', async () => {
+      // Arrange
+      const reason = 'No new file is Alien (1979), so “/media/movies/Alien (1979)/Alien (1979).mkv” has nothing to replace it.'
+      const reviewed = { ...downloadedJob, replacement: replacementOf({ state: 'NeedsReview', reason }) }
+      serve(reviewed)
+      renderAt(`/jobs/${reviewed.id}`)
+      await filesTable()
+
+      // Act
+      await nextPoll()
+      await nextPoll()
+
+      // Assert
+      expect(screen.getByText(`Replacement needs review: ${reason}`)).toBeInTheDocument()
+      expect(downloadsApi.get).toHaveBeenCalledOnce()
     })
 
     it('keeps the files\' failed load on screen through the poll that asks again, without reading Retrying…', async () => {

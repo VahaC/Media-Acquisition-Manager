@@ -510,8 +510,11 @@ public sealed class ReplacementOptionsHttpTests : IClassFixture<MediaAcquisition
     [InlineData(ReplacementJobState.Submitted, true)]
     [InlineData(ReplacementJobState.Downloading, true)]
     [InlineData(ReplacementJobState.Paused, true)]
-    // 0.3.0's resting state: a finished download's replacement waits here for MAM-25, and still holds its copies.
+    // A finished download's replacement waits here for MAM-25's check, and still holds its copies.
     [InlineData(ReplacementJobState.Downloaded, true)]
+    // MAM-25: being checked, and verified, it still holds them: they move only in MAM-26.
+    [InlineData(ReplacementJobState.Inspecting, true)]
+    [InlineData(ReplacementJobState.Verified, true)]
     [InlineData(ReplacementJobState.NeedsReview, true)]
     [InlineData(ReplacementJobState.Failed, false)]
     [InlineData(ReplacementJobState.Cancelled, false)]

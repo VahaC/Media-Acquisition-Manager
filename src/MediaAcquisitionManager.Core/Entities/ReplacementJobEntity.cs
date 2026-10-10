@@ -7,8 +7,8 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// <summary>
 /// MAM-24 — the installation owner's scheduled replacement of specific old copies by a download (ADR 0030–0034):
 /// written with its download job, in the same save, before anything is fetched or sent (ADR 0013), and only from the
-/// owner's own ticks in the Download dialog. This version schedules and follows it; verifying the new file and moving
-/// the old copies aside are later tickets'.
+/// owner's own ticks in the Download dialog. MAM-24 schedules and follows it, MAM-25 verifies its new files (ADR 0035);
+/// moving the old copies aside is MAM-26's.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,8 +23,10 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// old files and their identities are its <see cref="ReplacementJobFileEntity"/> rows; the explicit consent is the row
 /// itself with <see cref="RequestedByUserId"/>, <see cref="AuditableEntity.CreatedUtc"/> and its
 /// <c>ReplacementScheduled</c> audit row — per work matched by title and year, <see cref="ReplacementJobWorkEntity.ConfirmedByOwner"/>
-/// and a <c>ReplacementWorkConfirmed</c> audit row; the verification evidence is MAM-25's to add; the state, its
-/// reason and its time are below.
+/// and a <c>ReplacementWorkConfirmed</c> audit row; the verification evidence is MAM-25's
+/// <see cref="ReplacementJobNewFileEntity"/> rows with their ids, the pair and problem columns of its
+/// <see cref="ReplacementJobFileEntity"/> rows, <see cref="InspectionStartedUtc"/> and <see cref="LibraryAskedUtc"/>; the
+/// state, its reason and its time are below.
 /// </para>
 /// <para>
 /// Its rows carry no key into the library's rows a sync rebuilds (works, versions, files): they are a snapshot, as
@@ -68,4 +70,18 @@ public class ReplacementJobEntity : AuditableEntity
     /// </summary>
     [Required, MaxLength(ReleaseEditionsMaximumLength)]
     public string ReleaseEditions { get; set; } = "";
+
+    /// <summary>
+    /// MAM-25 — when the job entered <see cref="ReplacementJobState.Inspecting"/>; <c>null</c> before. The client's word
+    /// and the files' look must be settled within <c>ReplacementVerificationRules.FilesWait</c> of it. Its own column
+    /// rather than <see cref="StateChangedUtc"/>, which a later move of the state would take away.
+    /// </summary>
+    public DateTime? InspectionStartedUtc { get; set; }
+
+    /// <summary>
+    /// MAM-25 — when the app asked the library to look at the new files' paths, the request having been taken;
+    /// <c>null</c> before, which is also what tells the verifier the files' checks are still to pass. The library must
+    /// list, refresh and identify every new file within <c>ReplacementVerificationRules.LibraryWait</c> of it.
+    /// </summary>
+    public DateTime? LibraryAskedUtc { get; set; }
 }

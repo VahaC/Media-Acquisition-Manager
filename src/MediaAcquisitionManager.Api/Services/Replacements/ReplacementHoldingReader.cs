@@ -170,15 +170,11 @@ public sealed class ReplacementHoldingReader(
             || job.Files is not { } jobFiles)
             return false;
 
-        var pairs = client.PathMappings
-            .OrderBy(mapping => mapping.Position)
-            .Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))
-            .ToList();
+        var pairs = ClientFilePlaces.PairsOf(client);
         var placed = true;
         foreach (var file in jobFiles)
         {
-            // Joined as the client names it and mapped whole: a ".." in a name maps to nothing rather than somewhere else.
-            var mapped = PathMapper.Map(savePath.Append(file.RelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries)).ToString(), pairs);
+            var mapped = ClientFilePlaces.Map(savePath, file.RelativePath, pairs);
             if (mapped is not { HasAppPath: true, AppPath: { } appText } || !NormalizedPath.TryParse(appText, out var appPath, out _))
             {
                 placed = false;

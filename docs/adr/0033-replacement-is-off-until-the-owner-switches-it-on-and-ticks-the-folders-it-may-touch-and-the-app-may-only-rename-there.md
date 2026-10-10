@@ -213,3 +213,22 @@ and `APP_GROUP_ID` are needed once MAM-26 moves files.
 and
 `ReplacementFollowingHttpTests.Get_of_a_job_says_when_replacement_is_off_and_its_copies_are_no_longer_in_a_ticked_folder`
 pin it, and `MediaFoldersPage.test.tsx` the page.
+
+## The checks run while switched off (added 0.3.0, MAM-25)
+
+**The check of a replacement's new files runs whatever the switch and the ticks say: "jobs already
+scheduled keep their downloads and their checks but move … nothing, and say so" ([ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)).**
+A job checked with replacement off ends `Verified` as it would with it on, and its line says so
+while it is scheduled, checked or verified — "Replacement checks the new file, but replacement is
+switched off: nothing will move while it is off." and "New file verified, but replacement is
+switched off: nothing will move while it is off." —, with the count of copies no longer in a ticked
+folder on these states too; a stopped replacement (needs review, failed or cancelled) goes no
+further until the owner acts, so it says none of it, though one in review still holds its copies.
+The check only reads the media folders, so the compose file's `:ro` stays right and neither the
+read-write mount nor `APP_USER_ID` and `APP_GROUP_ID` are needed yet; Jellyfin hears only
+`POST /Library/Media/Updated`, as the Decision says. MAM-26 reads the switch and the ticks again
+before each write.
+
+`ReplacementVerificationHttpTests.Verify_while_replacement_is_switched_off_still_verifies_and_moves_nothing`
+pins it, and `JobsPage.test.tsx` the lines.

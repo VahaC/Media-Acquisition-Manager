@@ -2409,6 +2409,12 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<Guid>("DownloadJobId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("InspectionStartedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LibraryAskedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Reason")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
@@ -2444,6 +2450,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasIndex(new[] { "State" }, "IX_ReplacementJobs_Followed")
                         .HasFilter("\"State\" IN ('Scheduled', 'Submitted', 'Downloading', 'Paused', 'NeedsReview')");
 
+                    b.HasIndex(new[] { "State" }, "IX_ReplacementJobs_Verifying")
+                        .HasFilter("\"State\" IN ('Downloaded', 'Inspecting')");
+
                     b.ToTable("ReplacementJobs");
                 });
 
@@ -2461,11 +2470,17 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<long>("DeviceId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("DurationMilliseconds")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("EditionLabel")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("EpisodeNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("EpisodeNumberEnd")
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("Inode")
@@ -2486,11 +2501,18 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<DateTime>("ModifiedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PairedNewFileId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("PhysicalFileId")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Position")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Problem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
 
                     b.Property<Guid>("ReplacementJobId")
                         .HasColumnType("TEXT");
@@ -2512,6 +2534,139 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("ReplacementJobFiles");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNewFileEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppPath")
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CheckedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("ClientProgress")
+                        .HasColumnType("REAL");
+
+                    b.Property<long?>("ClientSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("DurationMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("EpisodeNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("EpisodeNumberEnd")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("Inode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("LibraryIntegrationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LibraryItemId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LibraryPath")
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("MediaWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ModifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Problem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReadUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Refreshed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReplacementJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SeasonNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SeriesItemId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VideoCodec")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacementJobId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("ReplacementJobNewFiles");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNewFileIdentifierEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("OfSeries")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ReplacementJobNewFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Scheme")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacementJobNewFileId");
+
+                    b.ToTable("ReplacementJobNewFileIdentifiers");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobWorkEntity", b =>
@@ -3364,6 +3519,24 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", null)
                         .WithMany()
                         .HasForeignKey("ReplacementJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNewFileEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNewFileIdentifierEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobNewFileEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementJobNewFileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

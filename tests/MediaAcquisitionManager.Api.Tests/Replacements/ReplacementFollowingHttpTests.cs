@@ -23,8 +23,9 @@ using Microsoft.Extensions.Logging;
 namespace MediaAcquisitionManager.Api.Tests.Replacements;
 
 // MAM-24, ADR 0014, R6 — a scheduled replacement follows its download on every pass of the download jobs, and the Jobs page
-// reads where it stands: Submitted, Downloading, Paused, then Downloaded, where this version leaves it waiting, nothing sent
-// on any pass. It stops when its download is cancelled from the Jobs page — with a ReplacementCancelled row, a review
+// reads where it stands: Submitted, Downloading, Paused, then Downloaded, where the following leaves it — MAM-25's check
+// takes it up from there (ReplacementVerificationHttpTests), and the following never touches a job being checked or
+// verified —, nothing sent on any pass. It stops when its download is cancelled from the Jobs page — with a ReplacementCancelled row, a review
 // included —, fails or can't be told apart in qBittorrent. A state past Scheduled is mirrored only for a download the strict
 // check let through: a send the poller adopted after the app stopped before the check fails its replacement. Everything is
 // rows, so a pass after a restart goes on from them. One replacement that breaks never stops the others, nor the
@@ -181,6 +182,27 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         //Assert
         var row = await ReplacementAsync(cancellationToken, replacement.Id);
         Assert.Equal((ReplacementJobState.Scheduled, (string?)null, replacement.StateChangedUtc), (row.State, row.Reason, row.StateChangedUtc));
+    }
+
+    [Theory]
+    [InlineData(ReplacementJobState.Inspecting)]
+    [InlineData(ReplacementJobState.Verified)]
+    public async Task Pass_never_touches_a_replacement_whose_new_files_are_being_checked_or_verified(ReplacementJobState state)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-25 — as a previous run left them: the download done, its replacement taken up by the check of its new files.
+        // Were it followed, a done download would mirror it back to Downloaded on every pass.
+        var (_, replacement) = await PlantAsync(DownloadJobStatus.Downloaded, DownloadOverwriteCheck.Checked, state, progress: 1);
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        await PassAsync(cancellationToken);
+
+        //Assert
+        var row = await ReplacementAsync(cancellationToken, replacement.Id);
+        Assert.Equal((state, (string?)null, replacement.StateChangedUtc), (row.State, row.Reason, row.StateChangedUtc));
+        await _factory.WithDbAsync(async db => Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken)));
     }
 
     // ── stopped ─────────────────────────────────────────────────────────────────────────────────

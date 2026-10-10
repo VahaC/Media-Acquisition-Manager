@@ -1,12 +1,13 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
-/// <summary>Creates scheduled replacements, and the old copies they hold, directly in the database (MAM-24): as a
-/// previous run left them.</summary>
+/// <summary>Creates scheduled replacements, the old copies they hold and — MAM-25 — the new files their check found,
+/// directly in the database (MAM-24): as a previous run left them.</summary>
 public interface IReplacementJobDataFactory
 {
     /// <summary>
@@ -48,4 +49,17 @@ public interface IReplacementJobDataFactory
         bool confirmedByOwner,
         string confirmationText,
         IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool SetByOwner)>? identifiers = null);
+
+    /// <summary>
+    /// MAM-25 — a saved new file of <paramref name="replacementJobId"/>'s download at <paramref name="position"/> in the
+    /// client's list, named <paramref name="relativePath"/> there, as a check of it left it: the library's
+    /// <paramref name="kind"/> for it (<c>null</c> while unlisted) and the registry ids it read, an episode's series' ones
+    /// marked so. Every other piece of evidence is unset.
+    /// </summary>
+    Task<ReplacementJobNewFileEntity> AddNewFile(
+        Guid replacementJobId,
+        int position,
+        string relativePath,
+        LibraryFileKind? kind = null,
+        IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool OfSeries)>? identifiers = null);
 }

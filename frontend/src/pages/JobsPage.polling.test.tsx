@@ -3,15 +3,22 @@ import { act, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { downloadsApi } from '@/lib/downloads-api'
-import type { DownloadJob, DownloadJobStatus } from '@/lib/types'
+import type { DownloadJob, DownloadJobStatus, ReplacementJobState } from '@/lib/types'
 import { JobsPage } from '@/pages/JobsPage'
 import { member, signInAs } from '@/test/auth-session'
 import { downloadedJob, downloadingJob, jobOf, jobsPage, sentMinutesAgo } from '@/test/downloads'
+import { replacementOf } from '@/test/replacements'
 
 vi.mock('@/lib/downloads-api')
 
 // MAM-14 — the Jobs page asks for its list again every 2 s while it shows a job the app still
-// follows (Created, Submitted, Downloading, Paused), and stops once every job on it has ended.
+// follows (Created, Submitted, Downloading, Paused), and stops once every job on it has ended. MAM-25 —
+// and while it shows a downloaded job whose replacement's new files are still checked (Downloaded,
+// Inspecting), as the check ends by itself.
+
+/** A downloaded job carrying a replacement in `state`. */
+const replacingJob = (state: ReplacementJobState) =>
+  jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state }) })
 
 /** The server lists `items` for every request from now on. */
 function listing(...items: DownloadJob[]) {
@@ -110,6 +117,51 @@ describe('JobsPage while a job is followed', () => {
 
     // Assert
     expect(downloadsApi.list).toHaveBeenCalledOnce()
+  })
+
+  it.each<ReplacementJobState>(['Downloaded', 'Inspecting'])('asks again every 2 s while a downloaded job\'s replacement is %s', async (state) => {
+    // Arrange
+    listing(replacingJob(state), downloadedJob)
+    renderPage()
+    await screen.findByText(downloadedJob.releaseTitle, { selector: '.settings-name-text' })
+
+    // Act
+    await nextPoll()
+    await nextPoll()
+
+    // Assert
+    expect(downloadsApi.list).toHaveBeenCalledTimes(3)
+  })
+
+  it.each<ReplacementJobState>(['Verified', 'NeedsReview', 'Failed', 'Cancelled'])('asks nothing more while a downloaded job\'s replacement is %s', async (state) => {
+    // Arrange
+    listing(replacingJob(state), downloadedJob)
+    renderPage()
+    await screen.findByText(downloadedJob.releaseTitle, { selector: '.settings-name-text' })
+
+    // Act
+    await nextPoll()
+    await nextPoll()
+
+    // Assert
+    expect(downloadsApi.list).toHaveBeenCalledOnce()
+  })
+
+  it('follows a replacement\'s check from Inspecting until its new file is verified, then asks nothing more', async () => {
+    // Arrange
+    listing(replacingJob('Inspecting'))
+    renderPage()
+    await screen.findByText('Replacement checks the new file: 1 copy, kept until it is verified.')
+    listing(replacingJob('Verified'))
+
+    // Act
+    await nextPoll()
+    await screen.findByText('New file verified: 1 copy will be replaced by it in a later version; nothing is moved yet.')
+    await nextPoll()
+    await nextPoll()
+
+    // Assert
+    expect(downloadsApi.list).toHaveBeenCalledTimes(2)
   })
 
   it('asks nothing more while the list is empty', async () => {

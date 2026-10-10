@@ -1,8 +1,24 @@
-import { canCancelJob, DOWNLOAD_JOB_STATUSES, isJobFollowed } from '@/lib/download-jobs'
+import { canCancelJob, DOWNLOAD_JOB_STATUSES, isJobFollowed, isJobWorkedOn, isReplacementBeingChecked } from '@/lib/download-jobs'
+import type { ReplacementJobState } from '@/lib/types'
 import { jobOf } from '@/test/downloads'
+import { replacementOf } from '@/test/replacements'
 
 /** 5 minutes, the server's InterruptedSendAge, in ms. */
 const INTERRUPTED_SEND_AGE_MS = 5 * 60_000
+
+/** Every state a replacement can be in, spelled out in the order of its chain. */
+const REPLACEMENT_JOB_STATES: readonly ReplacementJobState[] = [
+  'Scheduled',
+  'Submitted',
+  'Downloading',
+  'Paused',
+  'Downloaded',
+  'Inspecting',
+  'Verified',
+  'NeedsReview',
+  'Failed',
+  'Cancelled',
+]
 
 describe('download job statuses', () => {
   it('lists every status once, in the order the API lists them', () => {
@@ -25,6 +41,55 @@ describe('download job statuses', () => {
 
     // Assert
     expect(followed).toEqual(['Created', 'Submitted', 'Downloading', 'Paused'])
+  })
+
+  it('counts every followed job as worked on, whether or not it carries a replacement', () => {
+    // Arrange
+    const jobs = DOWNLOAD_JOB_STATUSES.flatMap((status) => [
+      jobOf({ status }),
+      jobOf({ status, replacement: replacementOf({ state: 'Scheduled' }) }),
+    ])
+
+    // Act
+    const workedOn = jobs.filter(isJobWorkedOn).map((job) => job.status)
+
+    // Assert
+    expect(workedOn).toEqual(['Created', 'Created', 'Submitted', 'Submitted', 'Downloading', 'Downloading', 'Paused', 'Paused'])
+  })
+
+  // MAM-25 — the download stops moving once it is Downloaded, while the check of its replacement's new
+  // files goes on by itself until it ends Verified, NeedsReview or Failed.
+  it('counts a downloaded job as worked on while its replacement is Downloaded or Inspecting, and in no other replacement state', () => {
+    // Arrange
+    const jobs = REPLACEMENT_JOB_STATES.map((state) => jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state }) }))
+
+    // Act
+    const workedOn = jobs.filter(isJobWorkedOn).map((job) => job.replacement?.state)
+
+    // Assert
+    expect(workedOn).toEqual(['Downloaded', 'Inspecting'])
+  })
+
+  it('counts a replacement as being checked only while it is Downloaded or Inspecting', () => {
+    // Arrange
+    const states = REPLACEMENT_JOB_STATES
+
+    // Act
+    const checked = states.filter(isReplacementBeingChecked)
+
+    // Assert
+    expect(checked).toEqual(['Downloaded', 'Inspecting'])
+  })
+
+  it('counts no ended job without a replacement as worked on', () => {
+    // Arrange
+    const jobs = (['Downloaded', 'Failed', 'NeedsLinking', 'Cancelled'] as const).map((status) => jobOf({ status }))
+
+    // Act
+    const workedOn = jobs.filter(isJobWorkedOn)
+
+    // Assert
+    expect(workedOn).toEqual([])
   })
 
   it('offers Cancel for a followed job and for one that needs linking, never for one that ended', () => {

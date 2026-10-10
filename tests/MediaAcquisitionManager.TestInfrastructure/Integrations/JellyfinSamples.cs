@@ -11,6 +11,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// read whole, the users, and — from the live check of Jellyfin's Identify (2026-10-06) — its search results and Apply
 /// answers, the three items read again after they were identified, and an episode Jellyfin lists as a film. MAM-35 adds the
 /// sampled movies, series and episodes read again with their primary image's tag (2026-10-07), and the image route's answers.
+/// MAM-25 adds an episode Jellyfin 12.2.0 holds as a hidden alternate version, read by its id (2026-10-10), and the film and
+/// episode items Jellyfin makes of a file at a path, under the id that path computes, refreshed or not yet.
 /// </summary>
 /// <remarks>
 /// Every call returns fresh nodes, parsed anew, so a test can change what it got (a path, a media
@@ -206,6 +208,14 @@ public static class JellyfinSamples
     /// <inheritdoc cref="MoviesWithImagesPageFile"/>
     public const string EpisodesWithImagesPageFile = "Jellyfin/episodes-page-with-images.json";
 
+    /// <summary>
+    /// MAM-25 — "02. Toys Will Be Toys  Droopy Delivers  My Pal" of the Tom &amp; Jerry Kids folder: a file Jellyfin 12.2.0
+    /// holds as a hidden alternate version of <see cref="TomAndJerryKidsId"/> — one of its 65 media sources, which
+    /// <c>/Items?ids=</c> doesn't list —, read by <c>GET /Items/{id}?userId=</c> on 2026-10-10
+    /// (<see cref="EpisodeAlternateVersionItem"/>). Its id is the one its path computes as an episode's.
+    /// </summary>
+    public const string TomAndJerryKidsAlternateId = "0fd6ec3e5018c65709d41fde00afcf4d";
+
     private static readonly Lazy<string> MoviesPageText = new(() => Read("movies-page.json"));
     private static readonly Lazy<string> SeriesPageText = new(() => Read("series-page.json"));
     private static readonly Lazy<string> SeasonsPageText = new(() => Read("seasons-page.json"));
@@ -221,6 +231,7 @@ public static class JellyfinSamples
     private static readonly Lazy<string> MoviesWithImagesPageText = new(() => Read("movies-page-with-images.json"));
     private static readonly Lazy<string> SeriesWithImagesPageText = new(() => Read("series-page-with-images.json"));
     private static readonly Lazy<string> EpisodesWithImagesPageText = new(() => Read("episodes-page-with-images.json"));
+    private static readonly Lazy<string> EpisodeAlternateVersionItemText = new(() => Read("episode-alternate-version-item.json"));
 
     /// <summary>The answer of <c>GET /System/Info</c>: Jellyfin 12.1.0, "VahaC media".</summary>
     public static JsonObject SystemInfo() => JsonNode.Parse(SystemInfoText.Value)!.AsObject();
@@ -343,6 +354,15 @@ public static class JellyfinSamples
     /// also carries its series' and season's tags (<c>SeriesPrimaryImageTag</c>, <c>ParentPrimaryImageTag</c>).
     /// </summary>
     public static List<JsonObject> EpisodesWithImages() => ItemsOf(EpisodesWithImagesPageText.Value);
+
+    /// <summary>
+    /// MAM-25 — <see cref="TomAndJerryKidsAlternateId"/> as <c>GET /Items/{id}?userId=</c> answered it on Jellyfin 12.2.0
+    /// (<c>episode-alternate-version-item.json</c>, recorded 2026-10-10): an episode with its own <c>Path</c>,
+    /// <c>ParentIndexNumber</c> 1, <c>IndexNumber</c> 4 and <c>RunTimeTicks</c>, no <c>IndexNumberEnd</c>, <c>SeriesId</c>
+    /// null and <c>ProviderIds</c> empty, as the orphan folder it lies in gives it, and every version of its primary among
+    /// its 65 <c>MediaSources</c>, its own first.
+    /// </summary>
+    public static JsonObject EpisodeAlternateVersionItem() => JsonNode.Parse(EpisodeAlternateVersionItemText.Value)!.AsObject();
 
     /// <summary>
     /// A series of its own with these facts (MAM-32): Yellowstone with its id, title, year, provider ids
@@ -508,6 +528,64 @@ public static class JellyfinSamples
         movie["MediaSources"]![0]!["Id"] = id;
         movie["MediaSources"]![0]!["Path"] = path;
         return movie;
+    }
+
+    /// <summary>
+    /// MAM-25 — the film item Jellyfin makes of the file at <paramref name="path"/>: <see cref="MovieWith"/> at that path,
+    /// under the id the path computes as a film's (<see cref="JellyfinItemIds"/>), which is where the adapter looks for it.
+    /// <paramref name="refreshed"/> <c>false</c> is the item before Jellyfin's refresh has read the file
+    /// (<see cref="BeforeRefresh"/>).
+    /// </summary>
+    public static JsonObject FilmAt(string path, string title, int year, string? imdbId = null, string? tmdbId = null, bool refreshed = true)
+    {
+        var film = MovieWith(JellyfinItemIds.Of(JellyfinItemIds.MovieType, path), title, null, year, path, imdbId, tmdbId);
+        return refreshed ? film : BeforeRefresh(film);
+    }
+
+    /// <summary>
+    /// MAM-25 — the episode item Jellyfin makes of the file at <paramref name="path"/>: <see cref="EpisodeWith"/> at that path,
+    /// under the id the path computes as an episode's, with <c>IndexNumberEnd</c> when the file covers several episodes.
+    /// <paramref name="refreshed"/> <c>false</c> is the item before Jellyfin's refresh has read the file
+    /// (<see cref="BeforeRefresh"/>).
+    /// </summary>
+    public static JsonObject EpisodeAt(
+        string path,
+        string title,
+        string? seriesId,
+        int? season,
+        int? episode,
+        int? episodeEnd = null,
+        string? imdbId = null,
+        string? tvdbId = null,
+        bool refreshed = true)
+    {
+        var item = EpisodeWith(JellyfinItemIds.Of(JellyfinItemIds.EpisodeType, path), title, seriesId, season, episode, path, imdbId, tvdbId);
+        if (episodeEnd is not null)
+            item["IndexNumberEnd"] = episodeEnd;
+        return refreshed ? item : BeforeRefresh(item);
+    }
+
+    /// <summary>
+    /// MAM-25 — a copy of <paramref name="item"/> as Jellyfin's first save leaves a new item, read in its source
+    /// (<c>LibraryManager.CreateItems</c>, <c>MetadataService</c>): no running time, on the item or its media sources, no
+    /// provider ids and no episode numbers — the final save of the refresh that reads the file brings them together. An
+    /// episode's series is already set.
+    /// </summary>
+    public static JsonObject BeforeRefresh(JsonObject item)
+    {
+        var copy = item.DeepClone().AsObject();
+        copy.Remove("RunTimeTicks");
+        copy.Remove("ParentIndexNumber");
+        copy.Remove("IndexNumber");
+        copy.Remove("IndexNumberEnd");
+        copy["ProviderIds"] = new JsonObject();
+        if (copy["MediaSources"] is JsonArray sources)
+        {
+            foreach (var source in sources.OfType<JsonObject>())
+                source.Remove("RunTimeTicks");
+        }
+
+        return copy;
     }
 
     /// <summary>

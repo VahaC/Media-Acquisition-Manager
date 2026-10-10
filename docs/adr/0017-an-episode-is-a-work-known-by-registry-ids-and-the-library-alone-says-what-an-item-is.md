@@ -295,3 +295,43 @@ with `LibraryDuplicatesSameWorkHttpTests.List_makes_no_group_of_two_episodes_of_
 `LibraryDuplicatesSameWorkHttpTests.List_keeps_an_episodes_copies_one_group_whatever_years_their_names_claim`,
 `LibraryDuplicatesPossibleHttpTests.List_never_offers_two_episodes_with_one_imdb_id_at_different_places_with_one_title_and_year`,
 `DuplicateWorkComponentsTests` and `EpisodeSegmentsTests`, they pin it.
+
+## End numbers, read for a replacement only (added 0.3.0, MAM-25)
+
+**Jellyfin's end number of an episode file that covers several (`IndexNumberEnd`) is read by the
+check of a replacement's new files alone — for each new file and each ticked episode copy, through
+the new `IMediaLibraryFileLookup` —, never by the sync, so the Library and the Duplicates page see
+one episode per item as before ([ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md),
+[ADR
+0032](0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)'s
+MAM-25 section).** A file covering a ticked episode and the next stops that replacement for review,
+and one covering only episodes nobody ticked is simply added.
+
+**The Decision holds for a replacement.** The kind is the library's word: a new file Jellyfin makes
+a film for an episode copy, and a ticked episode it now lists as a film, stop the replacement. So
+are an episode's series and numbers, as the library gives them now, not when the copy was ticked: a
+ticked episode's own item is read again on every pass, its series must still be the show by its ids
+and its season and number those it had when scheduled, so one Jellyfin now places in another series
+("“Living room” placed the old copy “…” in another series (…), not …") or numbers otherwise
+("“Living room” now numbers the old copy “…” season 2, episode 3, not season 2, episode 1 as when it
+was scheduled.") stops the replacement, and the episodes it covers are read from its numbers now. An
+episode's work is its series' registry ids at its season and number — an IMDb id among the show's
+ids, TMDb TV and TVDB within their kind, a film scheme on a series no id, as above —, never its
+series item. Names are hints that may only stop a replacement: a range a file's name gives, read the
+way Jellyfin 12.2 reads it (its ten multi-episode expressions, ported to `EpisodeRangeNames`), only
+widens the episodes an item covers where Jellyfin gives no end number, and an `a` or `b` glued to
+the first `SxxEyy` — MAM-37's segment letter, `c` and `d` left out — marks a half that can't be
+replaced on its own. Neither makes an item an episode or a pair. On 2026-10-10 no file of the
+reference installation had an end number or a half's letter, so these rest on the tests.
+
+`JellyfinAdapterFilesReadTests.ReadFiles_reads_the_end_number_of_an_episode_whose_file_covers_several`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_new_file_covering_a_ticked_episode_and_the_next_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_copy_jellyfin_numbers_as_two_episodes_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_pack_whose_file_of_two_episodes_touches_no_ticked_episode_simply_adds_it`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_episode_jellyfin_now_lists_as_a_film_stops_for_review`,
+`ReplacementVerificationEpisodesHttpTests.Verify_of_a_ticked_episode_jellyfin_now_numbers_otherwise_stops_for_review`,
+`ReplacementPairingEpisodesTests.Pair_of_an_old_copy_the_library_now_places_in_another_series_stops_for_review`,
+`ReplacementPairingEpisodesTests.Pair_of_an_old_copy_the_library_now_numbers_otherwise_stops_for_review_and_pairs_nothing`,
+`ReplacementPairingEpisodesTests.Pair_widens_a_new_files_episodes_by_its_name_and_never_narrows_them`
+and `EpisodeRangeNamesTests` pin it.

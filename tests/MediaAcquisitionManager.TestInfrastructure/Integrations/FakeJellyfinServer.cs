@@ -15,8 +15,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// A Jellyfin server behind a <see cref="RecordingHttpHandler"/> (MAM-8): it answers the requests the
 /// adapter makes — <c>/System/Info</c>, <c>/Library/VirtualFolders</c>, pages of <c>/Items</c> and
 /// <c>/Videos/{id}/AdditionalParts</c>, and MAM-34's <c>GET /Users</c>, <c>GET /Items/{id}</c>,
-/// <c>POST /Items/RemoteSearch/{Movie|Series}</c> and <c>POST /Items/RemoteSearch/Apply/{id}</c>, and MAM-35's
-/// <c>GET /Items/{id}/Images/Primary</c> — from the real samples (<see cref="JellyfinSamples"/>) unless a test changes them.
+/// <c>POST /Items/RemoteSearch/{Movie|Series}</c> and <c>POST /Items/RemoteSearch/Apply/{id}</c>, MAM-35's
+/// <c>GET /Items/{id}/Images/Primary</c>, and MAM-25's <c>POST /Library/Media/Updated</c> — from the real samples
+/// (<see cref="JellyfinSamples"/>) unless a test changes them.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -63,6 +64,15 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// are, so a sync after it reads the new one.
 /// </para>
 /// <para>
+/// MAM-25 — a request to look at paths (<c>POST /Library/Media/Updated</c>) is recorded with its paths in order
+/// (<see cref="ScanRequests"/>) and answered as Jellyfin 12.2's source does, at once: 204 with no body, or
+/// <see cref="ScanRefusal"/>'s status; <see cref="OnScanRequested"/> is where a test makes the items Jellyfin would make of the
+/// paths. A planted film or episode (<see cref="PlantFilm"/>, <see cref="PlantEpisode"/>) is stored under the id its path
+/// computes (<see cref="JellyfinItemIds"/>), so the one-item read finds it where the adapter looks, refreshed or not yet. The
+/// user-less <c>/Items?ids=</c> lists any stored item, a series' provider ids included. Unlike Jellyfin, which leaves an
+/// alternate version out of every list, the fake lists every item it stores: the adapter never looks a file up in a list.
+/// </para>
+/// <para>
 /// One server per address: <see cref="Arm(RecordingHttpHandler, FakeJellyfinServer[])"/> gives one
 /// handler several, each answering the requests to its own <see cref="BaseUrl"/>, so two integrations
 /// synced side by side each read their own library. A request to no server's address answers 503, like
@@ -98,6 +108,7 @@ public sealed class FakeJellyfinServer
     private readonly Dictionary<string, int> _peakByType = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<FakeJellyfinSearch> _searches = new();
     private readonly ConcurrentQueue<FakeJellyfinApply> _applied = new();
+    private readonly ConcurrentQueue<IReadOnlyList<string>> _scans = new();
     private int _inFlight;
     private int _peakInFlight;
     private int _applyCount;
@@ -182,6 +193,19 @@ public sealed class FakeJellyfinServer
     /// recorded 204; <c>null</c> lets the server answer.
     /// </summary>
     public Func<string, HttpResponseMessage?>? AfterApply { get; set; }
+
+    /// <summary>MAM-25 — the paths of every request to look the server received, each request's in its body's order, oldest
+    /// request first (concurrent safe; read it with <c>ToArray()</c> after the run). A refused one is recorded too: it reached
+    /// the server.</summary>
+    public IReadOnlyCollection<IReadOnlyList<string>> ScanRequests => _scans;
+
+    /// <summary>MAM-25 — when set, a request to look at paths answers this status with no body, and
+    /// <see cref="OnScanRequested"/> doesn't run: a refused one (401 behind a proxy, 403, 500).</summary>
+    public HttpStatusCode? ScanRefusal { get; set; }
+
+    /// <summary>MAM-25 — runs once a request to look was taken, given its paths: where a test plants the items Jellyfin would
+    /// make of them (<see cref="PlantFilm"/>, <see cref="PlantEpisode"/>), at once or not at all.</summary>
+    public Action<IReadOnlyList<string>>? OnScanRequested { get; set; }
 
     /// <summary>MAM-34 — how long an Apply takes before it applies: the handler's thread sleeps (a series took 159 s live),
     /// so a test sees Applies overlap. Zero when unset.</summary>
@@ -320,6 +344,31 @@ public sealed class FakeJellyfinServer
             }));
 
     /// <summary>
+    /// MAM-25 — plants the film item Jellyfin makes of the file at <paramref name="path"/> (<see cref="JellyfinSamples.FilmAt"/>)
+    /// among <see cref="Movies"/>, under the id that path computes, in place of any item stored under that id: planting it
+    /// again refreshed is Jellyfin finishing its refresh. Returns the stored item, which a test may change further.
+    /// </summary>
+    public JsonObject PlantFilm(string path, string title, int year, string? imdbId = null, string? tmdbId = null, bool refreshed = true) =>
+        Plant(Movies, JellyfinSamples.FilmAt(path, title, year, imdbId, tmdbId, refreshed));
+
+    /// <summary>
+    /// MAM-25 — plants the episode item Jellyfin makes of the file at <paramref name="path"/>
+    /// (<see cref="JellyfinSamples.EpisodeAt"/>) among <see cref="Episodes"/>, the same way as <see cref="PlantFilm"/>. Its
+    /// series item is the test's to add to <see cref="Series"/>, with the ids it should have.
+    /// </summary>
+    public JsonObject PlantEpisode(
+        string path,
+        string title,
+        string? seriesId,
+        int? season,
+        int? episode,
+        int? episodeEnd = null,
+        string? imdbId = null,
+        string? tvdbId = null,
+        bool refreshed = true) =>
+        Plant(Episodes, JellyfinSamples.EpisodeAt(path, title, seriesId, season, episode, episodeEnd, imdbId, tvdbId, refreshed));
+
+    /// <summary>
     /// MAM-35 — what <c>GET /Items/{id}/Images/Primary</c> answered for an item with a poster (recorded live on 2026-10-07,
     /// <see cref="JellyfinSamples.ImagePrimaryResponseFile"/>): its status and headers as recorded — <c>image/jpeg</c>, the
     /// year-long immutable <c>Cache-Control</c>, the <c>ETag</c> — with the test JPEG as its body (<see cref="TestImages"/>),
@@ -375,6 +424,7 @@ public sealed class FakeJellyfinServer
             _ when segments is ["Items", "RemoteSearch", ("Movie" or "Series") and var endpoint] && request.Method == HttpMethod.Post => RemoteSearch(endpoint, body),
             _ when segments is ["Videos", var itemId, "AdditionalParts"] => PartsOf(itemId),
             _ when segments is ["Items", var itemId, "Images", "Primary"] && request.Method == HttpMethod.Get => PosterOf(itemId),
+            "Library/Media/Updated" when request.Method == HttpMethod.Post => ScanRequested(body),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
     }
@@ -775,6 +825,39 @@ public sealed class FakeJellyfinServer
                 ? RecordedPoster()
                 : VendorResponses.Recorded(JellyfinSamples.ImagePrimaryMissingResponseFile);
         }
+    }
+
+    // ── MAM-25: a request to look, and the items planted at paths ────────────
+
+    private HttpResponseMessage ScanRequested(string? body)
+    {
+        // The real controller binds a required body and throws on an update without a path: 400 either way, nothing taken.
+        if (Posted(body)?["Updates"] is not JsonArray updates
+            || updates.Any(update => update is not JsonObject entry || entry["Path"] is not JsonValue path || !path.TryGetValue<string>(out _)))
+            return new HttpResponseMessage(HttpStatusCode.BadRequest);
+
+        IReadOnlyList<string> paths = [.. updates.Select(update => (string)update!["Path"]!)];
+        _scans.Enqueue(paths);
+        if (ScanRefusal is { } refusal)
+            return new HttpResponseMessage(refusal);
+
+        // Jellyfin answers before it looks; a test's items appear by the time the answer arrives, or whenever it plants them.
+        OnScanRequested?.Invoke(paths);
+        return new HttpResponseMessage(HttpStatusCode.NoContent);
+    }
+
+    // The item stored in its list in place of any stored under its id, in any list.
+    private JsonObject Plant(List<JsonObject> list, JsonObject item)
+    {
+        var id = (string)item["Id"]!;
+        lock (_gate)
+        {
+            foreach (var stored in (List<JsonObject>[])[Movies, Series, Episodes])
+                stored.RemoveAll(existing => SameId((string?)existing["Id"], id));
+            list.Add(item);
+        }
+
+        return item;
     }
 
     private HttpResponseMessage PartsOf(string itemId)

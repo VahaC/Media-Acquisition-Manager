@@ -6,8 +6,9 @@ public static class ReplacementServiceCollectionExtensions
 {
     /// <summary>
     /// MAM-24 — replacing old copies (ADR 0030–0034): the owner's gates, read by the Media folders page, the Download
-    /// dialog and the send; the dialog's read; the send's plan; and the following of each scheduled replacement. Its own
-    /// extension: it reads the settings, the library and the downloads alike.
+    /// dialog and the send; the dialog's read; the send's plan; and the following of each scheduled replacement. MAM-25 —
+    /// and the check of each replacement's new files once its download is done (ADR 0035). Its own extension: it reads
+    /// the settings, the library and the downloads alike.
     /// </summary>
     public static IServiceCollection AddReplacementFeatures(this IServiceCollection services)
     {
@@ -24,6 +25,12 @@ public static class ReplacementServiceCollectionExtensions
         // DownloadJobTracker's passes both call.
         services.AddScoped<IReplacementPlanner, ReplacementPlanner>();
         services.AddScoped<IReplacementJobFollower, ReplacementJobFollower>();
+        // MAM-25 — scoped, as they read and write the pass's DbContext: the check of the new files, which
+        // ReplacementVerificationTracker's passes call, and its two readers — the client's word and the disk, and the
+        // library's — each its own service so the check reads as its steps.
+        services.AddScoped<IReplacementNewFileReader, ReplacementNewFileReader>();
+        services.AddScoped<IReplacementLibraryReader, ReplacementLibraryReader>();
+        services.AddScoped<IReplacementVerifier, ReplacementVerifier>();
         return services;
     }
 }

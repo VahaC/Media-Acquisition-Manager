@@ -18,7 +18,7 @@
     "title": "Replacing copies",
     "description": "Whether a release you download may replace a copy you already have, and in which library folders. Saved with the folders above.",
     "switch": "Replace copies after verification",
-    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. In this version a replacement is only scheduled; moving old copies comes in a later version and will also need the media folders mounted read-write.",
+    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. In this version a replacement is scheduled and its new file checked once downloaded, but nothing is moved; moving old copies comes in a later version and will also need the media folders mounted read-write.",
     "folders": "Library folders replacement may touch",
     "foldersHint": "The folders of your Jellyfin libraries, as the app sees them. None is ticked by default, and the ticks are kept while replacement is off. A tick counts only inside the media folders as saved: a folder under one you add above can be ticked once you save it.",
     "libraries_one": "In the library {{names, list}}",

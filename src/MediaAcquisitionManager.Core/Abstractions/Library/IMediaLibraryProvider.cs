@@ -5,7 +5,8 @@ namespace MediaAcquisitionManager.Core.Abstractions.Library;
 /// <summary>
 /// A media library the app reads: what the owner already has. First implemented for Jellyfin by
 /// MAM-8, as a further interface of its <see cref="IIntegrationAdapter"/> class. Phase A members, and Phase B's
-/// poster (MAM-35); Phase C adds a scan request with its capability (specification §3.4, check 4).
+/// poster (MAM-35). MAM-25's scan request (specification §3.4, check 4) is an optional capability of its own,
+/// <see cref="IMediaLibraryFileLookup"/>, never a member of this contract.
 /// </summary>
 /// <remarks>
 /// <para>

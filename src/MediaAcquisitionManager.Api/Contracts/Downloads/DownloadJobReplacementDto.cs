@@ -4,8 +4,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 
 /// <summary>MAM-24 — the replacement of old copies the installation owner scheduled with a download, as the Jobs page and
 /// the Download dialog show it under the job (ADR 0030–0034).</summary>
-/// <param name="State">Where it stands: it mirrors its download until the download is done, and waits there in this
-/// version.</param>
+/// <param name="State">Where it stands: it mirrors its download until the download is done, then (MAM-25)
+/// <c>Inspecting</c> while its new files are checked, and <c>Verified</c>, <c>NeedsReview</c> or <c>Failed</c>; nothing
+/// moves in this version.</param>
 /// <param name="CopyCount">How many old copies it would replace.</param>
 /// <param name="Reason">Why it stopped — failed, needs review or cancelled —, the app's own sentence; <c>null</c> while it
 /// goes on.</param>

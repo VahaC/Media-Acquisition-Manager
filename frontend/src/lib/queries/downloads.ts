@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { isJobFollowed } from '../download-jobs'
+import { isJobFollowed, isJobWorkedOn } from '../download-jobs'
 import { downloadsApi } from '../downloads-api'
 import type { DownloadJob, DownloadJobFileList, DownloadJobFilesQuery, DownloadJobsQuery, SendDownloadRequest } from '../types'
 import { qk } from './keys'
@@ -7,7 +7,9 @@ import { qk } from './keys'
 /**
  * MAM-14 — how often a page that shows a followed job asks again: the server's own pass over the
  * client (it reads qBittorrent every 2 s, `DownloadJobTracker.PollInterval`), so asking more often
- * would only bring the same answer back.
+ * would only bring the same answer back. MAM-25 — the same while only a replacement's check runs:
+ * its passes are further apart (`ReplacementVerificationTracker.PassInterval`, 15 s), but one cadence
+ * keeps a page simple, and the line shows how the check ended within 2 s of the pass that ended it.
  */
 const JOBS_POLL_MS = 2_000
 
@@ -72,7 +74,8 @@ export const useSendDownload = () => {
  * MAM-14 — one page of the caller's own jobs, filtered and paged by the server. The previous page
  * stays on screen while the next one loads. Asked again every 2 s while the page shows a job the
  * app still follows, as its status and progress move without anyone acting; a page of ended jobs
- * asks nothing more.
+ * asks nothing more. MAM-25 — and while it shows a downloaded job whose replacement's new files are
+ * still being checked, as the check ends on its own.
  */
 export const useDownloadJobs = (query: DownloadJobsQuery) =>
   useQuery({
@@ -81,7 +84,7 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
     placeholderData: keepPreviousData,
     refetchInterval: (current) => {
       const list = current.state.data
-      return list !== undefined && list.items.some((job) => isJobFollowed(job.status)) ? JOBS_POLL_MS : false
+      return list !== undefined && list.items.some(isJobWorkedOn) ? JOBS_POLL_MS : false
     },
     // A 400 for a bad page or status won't change on a second try.
     retry: false,
@@ -89,7 +92,8 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
 
 /**
  * MAM-14 — one of the caller's own jobs, for its details page; nothing is asked without an id (an
- * address that holds none). Asked again every 2 s while the app still follows it.
+ * address that holds none). Asked again every 2 s while the app still follows it, or (MAM-25) still
+ * checks the new files of the replacement it carries.
  *
  * When an answer shows the job moved — another status or progress than the cached one — its files
  * are asked for again, and so they are while a followed job has none listed yet (a magnet still
@@ -120,7 +124,7 @@ export const useDownloadJob = (id: string) => {
     enabled: id !== '',
     refetchInterval: (current) => {
       const job = current.state.data
-      return job !== undefined && isJobFollowed(job.status) ? JOBS_POLL_MS : false
+      return job !== undefined && isJobWorkedOn(job) ? JOBS_POLL_MS : false
     },
     // A 404 for another user's job won't change on a second try.
     retry: false,

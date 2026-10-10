@@ -41,7 +41,7 @@ const NONE_TICKED = 'Tick the copies to replace.'
 const CONFIRM_FIRST = 'Tick “This release is Чужі (1986)” first.'
 const CONFIRM_HINT = 'Matched by title and year only. Your tick lets the app schedule this; nothing moves unless Jellyfin later gives the new file this work\'s id.'
 const NOT_CHECKED = 'The app can\'t check this destination\'s folder for files already there, and a replacement is sent only after that check. Pick another destination, or Keep both.'
-const CONDITIONS = 'Conditions: the old copy would move aside only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in Local qBittorrent. This version only schedules the replacement: once the download is done it waits, and nothing is checked or moved until a later version.'
+const CONDITIONS = 'Conditions: the old copy would move aside only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in Local qBittorrent. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy\'s work, but nothing is moved in this version: moving comes in a later version.'
 
 /** The Theatrical Cut's and the Special Edition's names, the ends of their paths that tell them apart. */
 const THEATRICAL = splitPath(theatricalCopy.file.appPath!).name

@@ -175,3 +175,34 @@ the quarantine. It licenses no other write: no folder of the library is created,
 other than `.mam-quarantine` and its job folders, no permission is changed, nothing is deleted
 outside the quarantine, and Jellyfin's `DELETE /Items/{id}` — which deletes a film's whole folder —
 is never called.
+
+## The look is also asked after a download (added 0.3.0, MAM-25)
+
+**Jellyfin is now also asked to look at a replacement's new files once their download is done and
+they passed the checks of the files, before any move: `POST /Library/Media/Updated` to each library
+with every new file's path in that library's own terms, at most 500 to a request, and still nothing
+else written into it ([ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)).**
+The request is the optional capability `IMediaLibraryFileLookup.RequestScanAsync`, beside
+`IMediaLibraryProvider` and never a member of it (ADR 0005), so MAM-26's look after a move and a
+restore will send the same member. Each path goes as an update of type `Created`, the way Jellyfin's
+own folder watcher reports a file that appeared, so it works with the real-time monitor on or off;
+204 is the one answer taken, and it proves only that Jellyfin took the request. The adapter sends it
+once; the check asks again on its next pass while the request isn't taken, within its hour.
+
+**The item id this Context relies on is read, not listed.** "A Jellyfin item id is a hash of its
+type and path" is now how the check finds the item Jellyfin made of a new file —
+`IMediaLibraryFileLookup.ReadFilesAsync`, `GET /Items/{id}?userId=` of an administrator for the id
+the path computes as a film's, an episode's, a plain video's and a trailer's —, as `/Items` hides
+alternate versions. A read-only check of the reference installation's Jellyfin 12.2.0 on 2026-10-10
+found the formula right for 880 of 880 movies and 440 of 440 episode files, so Restore's "the same
+item again" stands on it as well. Every such call is a read.
+
+`JellyfinAdapterFilesScanTests.RequestScan_posts_every_path_in_one_body_with_the_key_and_is_taken_on_204`,
+`JellyfinAdapterFilesScanTests.RequestScan_answered_with_anything_but_204_fails_with_its_status_and_sentence_and_is_never_sent_again`,
+`JellyfinAdapterFilesReadTests.ReadFiles_finds_a_film_by_the_id_its_path_computes_as_a_movie_with_its_ids`,
+`JellyfinAdapterFilesReadTests.ReadFiles_never_takes_an_item_of_another_path_for_the_file`,
+`ReplacementVerificationLibraryHttpTests.Verify_where_jellyfin_wont_take_the_request_to_look_asks_again_each_pass_until_the_hour_runs_out_then_stops_for_review`
+and
+`ReplacementVerificationHttpTests.Verify_of_a_film_whose_new_item_carries_the_old_works_imdb_id_verifies_it_and_keeps_the_evidence`
+(one POST, every other call a read) pin it.

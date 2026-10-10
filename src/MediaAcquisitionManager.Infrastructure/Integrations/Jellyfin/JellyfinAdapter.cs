@@ -16,10 +16,12 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 /// Jellyfin behind the core's contracts (Adapter, ADR 0005): the registration and the connection test
 /// (MAM-7), the media library contract (MAM-8): its movies, and since MAM-32 its series and episodes;
 /// and since MAM-34 the optional item identifier (<c>JellyfinAdapter.Identify*.cs</c>), which identifies one
-/// movie or series item as the owner's TMDb link says, exactly as Jellyfin's own "Identify" button does. Identify is the
-/// only thing that changes anything in Jellyfin: a search for the id, which changes nothing although it is a POST, and
-/// Apply, which replaces the item's title, overview, images and ids with the chosen result's; every other call is a GET,
-/// and a sync only reads.
+/// movie or series item as the owner's TMDb link says, exactly as Jellyfin's own "Identify" button does; and since MAM-25
+/// the optional file lookup (<c>JellyfinAdapter.Files.cs</c>), which asks Jellyfin to look at a download's new files and
+/// reads the item it made of each. Identify is the only thing that changes an item in Jellyfin: a search for the id, which
+/// changes nothing although it is a POST, and Apply, which replaces the item's title, overview, images and ids with the
+/// chosen result's. MAM-25's request to look at paths is the one other POST, and changes no item itself: Jellyfin looks at
+/// them as its own scan would. Every other call is a GET, and a sync only reads.
 /// </summary>
 /// <remarks>
 /// Every answer is read as an allowlist, property by property by name (house rule 8): a movie's answer
@@ -29,7 +31,7 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 /// and the poster it names is fetched as a JPEG by one more GET (<c>JellyfinAdapter.Posters.cs</c>).
 /// </remarks>
 internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
-    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider, IMediaLibraryItemIdentifier
+    : HttpIntegrationAdapter(httpClients, HttpClientName), IMediaLibraryProvider, IMediaLibraryItemIdentifier, IMediaLibraryFileLookup
 {
     /// <summary>The stored type id — part of the on-disk contract (ADR 0005).</summary>
     public const string TypeId = "jellyfin";

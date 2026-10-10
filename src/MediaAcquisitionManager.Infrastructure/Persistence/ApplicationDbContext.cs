@@ -136,6 +136,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<ReplacementJobWorkIdentifierEntity> ReplacementJobWorkIdentifiers => Set<ReplacementJobWorkIdentifierEntity>();
 
+    public DbSet<ReplacementJobNewFileEntity> ReplacementJobNewFiles => Set<ReplacementJobNewFileEntity>();
+
+    public DbSet<ReplacementJobNewFileIdentifierEntity> ReplacementJobNewFileIdentifiers => Set<ReplacementJobNewFileIdentifierEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -961,6 +965,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // added to the list changes the model and can't drift from the rule unnoticed.
             e.HasIndex(x => x.State, "IX_ReplacementJobs_Followed")
                 .HasFilter($"\"State\" IN ({string.Join(", ", ReplacementJobStates.Followed.Select(state => $"'{state}'"))})");
+            // MAM-25 — "every replacement whose new files are being checked", which the verifier reads on each of its
+            // passes. Partial and built from the core's list (ReplacementJobStates.Verifying) for the same reasons as the
+            // index above: the few in the check, never the history, and no drift from the rule.
+            e.HasIndex(x => x.State, "IX_ReplacementJobs_Verifying")
+                .HasFilter($"\"State\" IN ({string.Join(", ", ReplacementJobStates.Verifying.Select(state => $"'{state}'"))})");
         });
 
         modelBuilder.Entity<ReplacementJobFileEntity>(e =>
@@ -994,6 +1003,30 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Cascade: part of its work row, and so of its job. The key's index is EF's own.
             e.HasOne<ReplacementJobWorkEntity>().WithMany()
                 .HasForeignKey(x => x.ReplacementJobWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MAM-25 — the verification evidence (ADR 0035): new tables beside the replacement's own, and nullable columns
+        // added to two of its tables with no key, so the upgrade rebuilds no table.
+        modelBuilder.Entity<ReplacementJobNewFileEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            // One row per place in the client's list of files; leading with the job, so it also serves the foreign key
+            // and "this job's new files in order".
+            e.HasIndex(x => new { x.ReplacementJobId, x.Position }).IsUnique();
+            // Cascade: the evidence is part of its job. No key into IntegrationConnections or MediaWorks: the
+            // integration and the work are snapshot ids, as the job's other rows keep them (the entity says why).
+            e.HasOne<ReplacementJobEntity>().WithMany()
+                .HasForeignKey(x => x.ReplacementJobId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReplacementJobNewFileIdentifierEntity>(e =>
+        {
+            e.Property(x => x.Scheme).HasConversion<string>().HasMaxLength(32);
+            // Cascade: part of its new file row, and so of its job. The key's index is EF's own.
+            e.HasOne<ReplacementJobNewFileEntity>().WithMany()
+                .HasForeignKey(x => x.ReplacementJobNewFileId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

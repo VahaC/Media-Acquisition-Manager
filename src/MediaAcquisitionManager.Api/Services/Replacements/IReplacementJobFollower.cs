@@ -2,8 +2,9 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 
 /// <summary>
 /// MAM-24 — brings each scheduled replacement in line with its download job (ADR 0030–0034): it mirrors the download
-/// until the download is done and waits there, as nothing verifies or moves a copy in this version; it stops when the
-/// download fails, is cancelled or can't be told apart in the client.
+/// until the download is done and leaves it there — MAM-25's <see cref="IReplacementVerifier"/> takes it up, and a job
+/// being checked or verified is never followed —; it stops when the download fails, is cancelled or can't be told apart
+/// in the client.
 /// </summary>
 /// <remarks>
 /// <para>

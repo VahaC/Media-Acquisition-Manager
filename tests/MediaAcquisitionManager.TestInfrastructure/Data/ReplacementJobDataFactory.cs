@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
+using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -102,5 +103,33 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return work;
+    }
+
+    public async Task<ReplacementJobNewFileEntity> AddNewFile(
+        Guid replacementJobId,
+        int position,
+        string relativePath,
+        LibraryFileKind? kind = null,
+        IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool OfSeries)>? identifiers = null)
+    {
+        var file = new ReplacementJobNewFileEntity
+        {
+            ReplacementJobId = replacementJobId,
+            Position = position,
+            RelativePath = relativePath,
+            Kind = kind,
+        };
+
+        db.ReplacementJobNewFiles.Add(file);
+        db.ReplacementJobNewFileIdentifiers.AddRange((identifiers ?? []).Select(identifier => new ReplacementJobNewFileIdentifierEntity
+        {
+            ReplacementJobNewFileId = file.Id,
+            Scheme = identifier.Scheme,
+            Value = identifier.Value,
+            OfSeries = identifier.OfSeries,
+        }));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        return file;
     }
 }

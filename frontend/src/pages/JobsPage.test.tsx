@@ -188,8 +188,17 @@ describe('JobsPage', () => {
     ['downloading, of several copies', { state: 'Downloading', copyCount: 18 }, 'Downloading', 'Replacement scheduled: 18 copies, kept until the new one is verified.', 'library-source-status'],
     ['scheduled while replacement is switched off', { state: 'Submitted', copyCount: 2, switchedOff: true }, 'Submitted', 'Replacement scheduled, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
     ['paused, with copies no longer in a ticked folder', { state: 'Paused', copyCount: 3, copiesOutsideTickedFolders: 2 }, 'Paused', 'Replacement scheduled: 3 copies, kept until the new one is verified. 2 copies are no longer in a ticked folder and won\'t move.', 'library-source-status'],
-    ['waiting at Downloaded', { state: 'Downloaded', copyCount: 1 }, 'Downloaded', 'Replacement waits for verification: 1 copy. This version doesn\'t verify or move anything yet.', 'library-source-status'],
-    ['stopped for review', { state: 'NeedsReview', reason: 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.' }, 'NeedsLinking', 'Replacement stopped: qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.', 'library-source-warning'],
+    ['downloaded, until the check takes it up', { state: 'Downloaded', copyCount: 1 }, 'Downloaded', 'Replacement checks the new file: 1 copy, kept until it is verified.', 'library-source-status'],
+    ['inspecting the new files, of several copies', { state: 'Inspecting', copyCount: 18 }, 'Downloaded', 'Replacement checks the new file: 18 copies, kept until it is verified.', 'library-source-status'],
+    ['inspecting while replacement is switched off', { state: 'Inspecting', copyCount: 2, switchedOff: true }, 'Downloaded', 'Replacement checks the new file, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
+    ['downloaded, with a copy no longer in a ticked folder', { state: 'Downloaded', copyCount: 2, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement checks the new file: 2 copies, kept until it is verified. 1 copy is no longer in a ticked folder and won\'t move.', 'library-source-status'],
+    ['verified', { state: 'Verified', copyCount: 1 }, 'Downloaded', 'New file verified: 1 copy will be replaced by it in a later version; nothing is moved yet.', 'library-source-status'],
+    ['verified, of several copies, some no longer in a ticked folder', { state: 'Verified', copyCount: 5, copiesOutsideTickedFolders: 2 }, 'Downloaded', 'New file verified: 5 copies will be replaced by it in a later version; nothing is moved yet. 2 copies are no longer in a ticked folder and won\'t move.', 'library-source-status'],
+    ['verified while replacement is switched off', { state: 'Verified', copyCount: 3, switchedOff: true }, 'Downloaded', 'New file verified, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
+    ['in need of review after the check, with nothing said of what won\'t move', { state: 'NeedsReview', reason: 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement needs review: Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', 'library-source-warning'],
+    ['in need of review, with no reason given', { state: 'NeedsReview' }, 'Downloaded', 'Replacement needs review.', 'library-source-warning'],
+    ['in need of review while its download needs linking', { state: 'NeedsReview', reason: 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.' }, 'NeedsLinking', 'Replacement needs review: qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.', 'library-source-warning'],
+    ['failed on a new file that isn\'t readable media, with nothing said of what won\'t move', { state: 'Failed', reason: '“Alien.1979.Directors.Cut.2160p.mkv” has no video stream.', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement stopped: “Alien.1979.Directors.Cut.2160p.mkv” has no video stream.', 'library-source-warning'],
     ['cancelled', { state: 'Cancelled', reason: 'You cancelled the download, so nothing will be replaced.' }, 'Cancelled', 'Replacement stopped: You cancelled the download, so nothing will be replaced.', 'library-source-warning'],
   ])('says under the status where the replacement a job carries stands: %s', async (_, replacement, status, sentence, tone) => {
     // Arrange
@@ -206,6 +215,33 @@ describe('JobsPage', () => {
     expect(line).not.toHaveAttribute('role')
     expect(line?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(within(rowOf(downloadingJob.releaseTitle)).queryByText(/Replacement/)).not.toBeInTheDocument()
+  })
+
+  it('greens a verified replacement\'s line, as a downloaded job\'s, and not one still being checked', async () => {
+    // Arrange
+    const verified = jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000010',
+      releaseTitle: 'Alien (1979) 2160p Remux',
+      status: 'Downloaded',
+      progress: 1,
+      replacement: replacementOf({ state: 'Verified' }),
+    })
+    const inspecting = jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000011',
+      releaseTitle: 'Aliens (1986) 2160p Remux',
+      status: 'Downloaded',
+      progress: 1,
+      replacement: replacementOf({ state: 'Inspecting' }),
+    })
+    listing([verified, inspecting])
+
+    // Act
+    renderPage(owner)
+
+    // Assert
+    await screen.findByText(verified.releaseTitle, asTitle)
+    expect(within(rowOf(verified.releaseTitle)).getByText(/^New file verified:/).closest('p')).toHaveAttribute('data-status', 'Succeeded')
+    expect(within(rowOf(inspecting.releaseTitle)).getByText(/^Replacement checks the new file:/).closest('p')).not.toHaveAttribute('data-status')
   })
 
   it('says only that the replacement stopped on a failed job, whose red line says why', async () => {
