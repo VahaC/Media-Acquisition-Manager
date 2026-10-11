@@ -1,9 +1,9 @@
-using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Replacements;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,13 +12,15 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <inheritdoc cref="IReplacementJobActions"/>
 /// <remarks>
 /// <para>
-/// Split by action: the details and Retry here; Restore (<c>.Restore.cs</c>) and Delete for good (<c>.Delete.cs</c>), each
-/// with the checks it makes before anything is written; and the one write loop both run name by name
-/// (<c>.Writes.cs</c>) — the claim, each name's intent and outcome, the end —, so the two can't record a write two ways.
+/// Split by action: Retry here; the details (<c>.Details.cs</c>); Restore (<c>.Restore.cs</c>) and Delete for good
+/// (<c>.Delete.cs</c>), each with the checks it makes before anything is written; and the one write loop both run name by
+/// name (<c>.Writes.cs</c>) — the claim, each name's intent and outcome, the end —, so the two can't record a write two
+/// ways. MAM-27 — Keep both and Drop (<c>.Review.cs</c>).
 /// </para>
 /// <para>
-/// The answer to a Retry, a Restore or a Delete for good is the download job with its replacement line, read the way the
-/// Jobs page reads it (<see cref="IDownloadService.GetAsync"/>): the page shows what it would show after a reload.
+/// The answer to a Retry, a Restore, a Delete for good — MAM-27 — a Keep both or a Drop is the download job with its
+/// replacement line, read the way the Jobs page reads it (<see cref="IDownloadService.GetAsync"/>): the page shows what it
+/// would show after a reload.
 /// </para>
 /// <para>
 /// Information: a replacement's id, its states and counts, never a path, a title or a sentence.
@@ -40,8 +42,15 @@ public sealed partial class ReplacementJobActions(
     /// be.</summary>
     public const string UnreadableBodyError = "The body must be JSON with the files you confirmed, such as { \"names\": [\"<id>\"] }.";
 
-    // MAM-26 — a Retry of a job the mover didn't stop: MAM-25's review (its Retry is MAM-27's) or any other state.
-    private const string NothingToRetryError = "This replacement isn't waiting for review after a move, so there's nothing to retry here.";
+    // MAM-26 — a Retry of a job that isn't waiting for review. MAM-27 — no longer "after a move": a stop of the check of
+    // the new files is retried too.
+    private const string NothingToRetryError = "This replacement isn't waiting for review, so there's nothing to retry here.";
+
+    // MAM-27 — a review the download's following stopped before any check started (qBittorrent's downloads couldn't be
+    // told apart, say), or one whose download is no longer done and checked: there is no new file the app could check
+    // again. Keep both, or Cancel job, ends it.
+    private const string DownloadNotFollowedRetryError =
+        "The app can't follow this replacement's download, so its new file can't be checked again: keep both copies, or cancel the job.";
 
     // MAM-26 — someone in this process — the mover, or another click of the owner's — is writing for the job right now.
     private const string BeingWorkedOnError = "This replacement is being worked on right now. Try again in a moment.";
@@ -50,90 +59,51 @@ public sealed partial class ReplacementJobActions(
     private const string ChangedMeanwhileError =
         "This replacement changed while the app was working on it, so it stopped. Reload the page to see where it stands.";
 
-    public async Task<ReplacementDetailsDto?> GetAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken = default)
-    {
-        if (await FindOwnedAsync(replacementJobId, callerUserId, cancellationToken) is not { } job)
-            return null;
-
-        // Every row of the plan, a position being unique per job: what moved, what stayed and what came of each.
-        var names = await db.ReplacementJobNames
-            .AsNoTracking()
-            .Where(name => name.ReplacementJobId == replacementJobId)
-            .OrderBy(name => name.Position)
-            .ToListAsync(cancellationToken);
-        // Read fresh, never cached (ADR 0033): the buttons say whether they can work now.
-        var gate = await gates.ReadAsync(cancellationToken);
-        var quarantined = names.Where(name => name.State == ReplacementNameState.Quarantined).ToList();
-        var linkCounts = await LinkCountsNowAsync(quarantined, gate, cancellationToken);
-        int? LinkCountOf(ReplacementJobNameEntity name) => linkCounts.TryGetValue(name.Id, out var now) ? now : name.LinkCount;
-
-        var replacement = job.Replacement;
-        return new ReplacementDetailsDto(
-            replacement.Id,
-            replacement.DownloadJobId,
-            replacement.State,
-            replacement.Reason,
-            !gate.IsEnabled,
-            ReplacementJobOffers.CanRetry(replacement.State, replacement.QuarantineCheckedUtc),
-            ReplacementJobOffers.CanRestore(
-                replacement.State, quarantined.Count > 0, names.Any(name => name is { Kind: ReplacementNameKind.Video, State: ReplacementNameState.Deleted })),
-            ReplacementJobOffers.CanDeleteForGood(replacement.State, quarantined.Count > 0),
-            quarantined.Sum(name => name.SizeBytes),
-            // ADR 0031 — a file with another name keeps its data when this one goes, so it frees nothing; a count the
-            // platform didn't give can't promise the room either.
-            quarantined.Where(name => LinkCountOf(name) == 1).Sum(name => name.SizeBytes),
-            [
-                .. names.Select(name => new ReplacementNameDto(
-                    name.Id, name.Kind, name.AppPath, name.QuarantinePath, name.SizeBytes, LinkCountOf(name) > 1, name.State, name.Problem)),
-            ]);
-    }
-
-    /// <summary>
-    /// ADR 0031 — how many names each of <paramref name="quarantined"/> has now, by its row's id, as the disk says it at its
-    /// quarantine path when it is still the file the move put there; the count the move read is the fallback. A torrent
-    /// removed with its files since the move leaves the quarantined name the last one, and then deleting it frees its room.
-    /// </summary>
-    private async Task<Dictionary<Guid, int>> LinkCountsNowAsync(
-        IReadOnlyList<ReplacementJobNameEntity> quarantined, ReplacementGateState gate, CancellationToken cancellationToken)
-    {
-        var counts = new Dictionary<Guid, int>();
-        foreach (var name in quarantined)
-        {
-            if (RootsOf(name, gate) is { } roots
-                && await files.DescribeAsync(name.QuarantinePath, roots, cancellationToken) is { Status: FileInventoryStatus.Found, Value: { } facts }
-                && facts.DeviceId == name.DeviceId
-                && facts.Inode == name.Inode
-                && facts.LinkCount is { } linkCount)
-                counts[name.Id] = linkCount;
-        }
-
-        return counts;
-    }
-
     public async Task<ReplacementActionResult> RetryAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         if (await FindOwnedAsync(replacementJobId, callerUserId, cancellationToken) is not { } job)
             return ReplacementActionResult.NotFound;
-        if (!ReplacementJobOffers.CanRetry(job.Replacement.State, job.Replacement.QuarantineCheckedUtc))
-            return ReplacementActionResult.Refused(NothingToRetryError);
+
+        // MAM-27 — the stage that stopped it decides where it goes back: the mover's queue, or the check of the new files.
+        var replacement = job.Replacement;
+        var stop = ReplacementJobProgress.StopOf(replacement.State, replacement.InspectionStartedUtc, replacement.QuarantineCheckedUtc);
+        if (await RetryRefusalAsync(replacement, stop, cancellationToken) is { } refusal)
+            return ReplacementActionResult.Refused(refusal);
 
         var actor = await ActorAsync(callerUserId, cancellationToken);
         if (!inHand.TryTake(replacementJobId))
             return ReplacementActionResult.Refused(BeingWorkedOnError);
         try
         {
-            // Nothing is written to the media: the job goes back to the mover's queue, whose next pass checks its copies
-            // again — the switch, the ticks, the torrents — before anything moves. Conditional, and the audit row in the
-            // same transaction: a job that moved on meanwhile is left as it is, with nothing recorded.
+            // Nothing is written to the media or a client: the job goes back to a queue whose next pass checks again — the
+            // mover's, which checks its copies (the switch, the ticks, the torrents) before anything moves; or the
+            // verifier's, which checks the new files from the start and asks the library to look again, so the library's
+            // ids decide once more. Conditional, and the audit row in the same transaction: a job that moved on meanwhile
+            // is left as it is, with nothing recorded.
             await using var transaction = await db.Database.BeginTransactionAsync(CancellationToken.None);
             var now = time.GetUtcNow().UtcDateTime;
-            if (await db.ReplacementJobs.RetryAsync(replacementJobId, now) == 0)
-                return ReplacementActionResult.Refused(NothingToRetryError);
+            ReplacementJobState retriedTo;
+            if (stop == ReplacementStop.Move)
+            {
+                if (await db.ReplacementJobs.RetryAsync(replacementJobId, now) == 0)
+                    return ReplacementActionResult.Refused(ChangedMeanwhileError);
+                auditTrail.Record(AuditAction.ReplacementRetried, actor, TargetOf(job));
+                retriedTo = ReplacementJobState.Verified;
+            }
+            else
+            {
+                if (await db.ReplacementJobs.RetryCheckAsync(db.DownloadJobs, db.ReplacementJobFiles, replacementJobId, now) == 0)
+                    return ReplacementActionResult.Refused(ChangedMeanwhileError);
+                // The last run's evidence goes now, not at the next pass's files stage — minutes later for a pack —, so the
+                // page never shows "identified as Aliens" from a check that no longer stands.
+                await db.ForgetCheckAsync(replacementJobId);
+                auditTrail.Record(AuditAction.ReplacementCheckRetried, actor, TargetOf(job));
+                retriedTo = ReplacementJobState.Downloaded;
+            }
 
-            auditTrail.Record(AuditAction.ReplacementRetried, actor, TargetOf(job));
             await db.SaveChangesAsync(CancellationToken.None);
             await transaction.CommitAsync(CancellationToken.None);
-            LogMove(replacementJobId, ReplacementJobState.NeedsReview, ReplacementJobState.Verified);
+            LogMove(replacementJobId, ReplacementJobState.NeedsReview, retriedTo);
         }
         finally
         {
@@ -142,6 +112,42 @@ public sealed partial class ReplacementJobActions(
 
         return await AnswerAsync(job, callerUserId);
     }
+
+    /// <summary>
+    /// MAM-27 — why <paramref name="replacement"/>, stopped at <paramref name="stop"/>, can't be retried; <c>null</c> when it
+    /// can (<see cref="ReplacementJobOffers.CanRetry(ReplacementStop?, int)"/>): it isn't waiting for review; its download
+    /// can't be followed — or, for a stop of the check, is no longer done and checked, which the verifier never reads —;
+    /// or an undropped copy has a problem only a drop settles, the first by its place named.
+    /// </summary>
+    private async Task<string?> RetryRefusalAsync(ReplacementJobEntity replacement, ReplacementStop? stop, CancellationToken cancellationToken)
+    {
+        if (stop is null)
+            return NothingToRetryError;
+        if (stop == ReplacementStop.Download)
+            return DownloadNotFollowedRetryError;
+        if (stop == ReplacementStop.Move)
+            return null;
+
+        if (!await db.DownloadJobs.AnyAsync(
+                download => download.Id == replacement.DownloadJobId
+                    && download.Status == DownloadJobStatus.Downloaded
+                    && download.OverwriteCheck == DownloadOverwriteCheck.Checked,
+                cancellationToken))
+            return DownloadNotFollowedRetryError;
+
+        var dropOnly = await db.ReplacementJobFiles
+            .AsNoTracking()
+            .Where(copy => copy.ReplacementJobId == replacement.Id && copy.DroppedUtc == null && copy.OnlyDropSettles)
+            .OrderBy(copy => copy.Position)
+            .Select(copy => copy.AppPath)
+            .ToListAsync(cancellationToken);
+        return ReplacementJobOffers.CanRetry(stop, dropOnly.Count) ? null : DropOnlyError(dropOnly[0]);
+    }
+
+    // MAM-27 — an undropped copy whose problem no fix in the library or the client can change: a new check would only stop
+    // on it again, so dropping it, or keeping both, is the way on.
+    private static string DropOnlyError(string appPath) =>
+        $"{ReplacementText.Quote(ReplacementText.FileNameOf(appPath))} can only be dropped from this replacement, or both copies kept: checking again wouldn't change it.";
 
     // ── reads ───────────────────────────────────────────────────────────────────────────────────
 

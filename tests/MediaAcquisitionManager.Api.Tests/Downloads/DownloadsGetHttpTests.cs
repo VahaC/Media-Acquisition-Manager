@@ -9,8 +9,10 @@ using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,8 +23,8 @@ namespace MediaAcquisitionManager.Api.Tests.Downloads;
 // field, camelCase with its status by name and its instants in UTC; the names it was sent under even after
 // the client, the destination or the source went, and after its search is a day old and pruned. Another
 // user's job — the installation owner's reach included — one nobody is recorded as sending, and one that
-// never was answer the same bare 404, so nothing confirms a job exists. A read writes nothing and asks no
-// client and no feed.
+// never was answer the same bare 404, so nothing confirms a job exists — (MAM-27) one carrying a replacement that
+// stopped for review too. A read writes nothing and asks no client and no feed.
 public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/downloads";
@@ -36,6 +38,12 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
 
     // Spelled out rather than read from the product code: this is what the Download dialog shows.
     private const string AlreadyHasError = "“qBittorrent” already has this torrent, so nothing was sent.";
+
+    // MAM-27 — a replacement's ticked copies and why its check stopped.
+    private const string DroppedCopyPath = "/media/movies/Interstellar (2014)/Interstellar (2014) 720p.mkv";
+    private const string KeptCopyPath = "/media/movies/Interstellar (2014)/Interstellar (2014) 1080p.mkv";
+    private const string StoppedReason =
+        "“/media/movies/Interstellar.2014.BDRip.1080p.mkv” runs 1:06:40, less than three quarters of the old copy's 2:49:03.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -266,6 +274,43 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
         // Still there for its sender.
         Assert.Equal(HttpStatusCode.OK, (await _factory.GetHttpRequest($"{BaseUrl}/{sent.Id}", _member.AccessToken)).StatusCode);
         await AssertUnchangedAsync(before, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Get_of_another_users_job_with_a_stopped_replacement_is_a_bare_404_even_for_the_installation_owner()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var release = await _releases.CreateFound(_member.User, _toloka, ReleaseTitle);
+        var sent = await SendAsync(_member, release.Id, cancellationToken);
+        // MAM-27 — a replacement the check stopped, one of its copies dropped, the other one a drop alone settles. Only the
+        // owner schedules, so a member's job never carries one: planted, it proves the line it would bring opens no door
+        // the job's own scoping keeps shut.
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        var replacements = new ReplacementJobDataFactory(_factory.Scope.GetRequiredService<ApplicationDbContext>(), _factory.Time);
+        var replacement = await replacements.Create(
+            sent.Id, _member.User.Id, ReplacementJobState.NeedsReview, StoppedReason, inspectionStartedUtc: now.AddHours(-2));
+        await replacements.AddFile(replacement.Id, DroppedCopyPath, TestMedia.File(inode: 1), position: 0, problem: StoppedReason, droppedUtc: now);
+        await replacements.AddFile(replacement.Id, KeptCopyPath, TestMedia.File(inode: 2), position: 1, problem: StoppedReason, onlyDropSettles: true);
+        var before = await SnapshotAsync(cancellationToken);
+        var replacementRowsBefore = await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken);
+
+        //Act
+        var forOtherMember = await _factory.GetHttpRequest($"{BaseUrl}/{sent.Id}", _otherMember.AccessToken);
+        var forOwner = await _factory.GetHttpRequest($"{BaseUrl}/{sent.Id}", _owner.AccessToken);
+        var forOwnersList = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        await AssertBare404Async(forOtherMember, cancellationToken);
+        await AssertBare404Async(forOwner, cancellationToken);
+        Assert.Empty((await forOwnersList.Content.ReadFromJsonAsync<DownloadJobListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!.Items);
+        // Still there for its sender, with its replacement.
+        var forSender = await _factory.GetHttpRequest($"{BaseUrl}/{sent.Id}", _member.AccessToken);
+        Assert.Equal(HttpStatusCode.OK, forSender.StatusCode);
+        var read = (await forSender.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        Assert.Equal((replacement.Id, 1, 1), (read.Replacement!.Id, read.Replacement.CopyCount, read.Replacement.DroppedCopyCount));
+        await AssertUnchangedAsync(before, cancellationToken);
+        Assert.Equal(replacementRowsBefore, await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken));
     }
 
     [Fact]

@@ -281,4 +281,26 @@ public enum AuditAction
     /// replacement is done. Its actor the owner, its target the replacement job.
     /// </summary>
     ReplacementCompleted = 52,
+
+    /// <summary>
+    /// MAM-27 — the owner pressed Retry on a replacement whose check of the new files stopped (NeedsReview to Downloaded):
+    /// the verifier's next pass checks them again from the files, and the library is asked to look at them again. Its own
+    /// action, not <see cref="ReplacementRetried"/>, whose rows mean the mover's queue. Nothing is written to the media or
+    /// a client. Its actor the owner, its target the replacement job, named by the release.
+    /// </summary>
+    ReplacementCheckRetried = 53,
+
+    /// <summary>
+    /// MAM-27 — the owner cancelled only the replacement (Keep both, to Cancelled): both copies stay, and its download is
+    /// left as it is — nothing is sent to the client and no <see cref="DownloadCancelled"/> row is written, which tells it
+    /// from <see cref="ReplacementCancelled"/>. Its actor the owner, its target the replacement job, named by the release.
+    /// </summary>
+    ReplacementCancelledAlone = 54,
+
+    /// <summary>
+    /// MAM-27 — the owner dropped one ticked old copy from its replacement: it stays where it is and never moves with this
+    /// job, and the job's state is left as it was. Its actor the owner, its target the copy (its <c>ReplacementJobFiles</c>
+    /// row), named by the file's own name.
+    /// </summary>
+    ReplacementCopyDropped = 55,
 }

@@ -7,15 +7,17 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// <summary>
 /// MAM-26 — the owner's writes on a replacement (ADR 0030): Retry, and the end of a Restore or a Delete for good, each
 /// conditional on the state the request read, as every write of <see cref="ReplacementJobUpdates"/> is. The claim of a
-/// Restore or a Delete for good is a plain <see cref="ReplacementJobUpdates.MoveAsync"/>.
+/// Restore or a Delete for good is a plain <see cref="ReplacementJobUpdates.MoveAsync"/>. MAM-27 — the Retry of a stopped
+/// check, Keep both and Drop keep theirs beside these (<c>ReplacementJobUpdates.Review.cs</c>).
 /// </summary>
 public static partial class ReplacementJobUpdates
 {
     /// <summary>
     /// The owner's Retry of the replacement <paramref name="replacementJobId"/> at <paramref name="changedUtc"/>: back to
     /// <see cref="ReplacementJobState.Verified"/>, its reason gone, while it still waits for review after the mover
-    /// stopped it (<see cref="ReplacementJobOffers.CanRetry"/>), so the mover's next pass checks it again. A review of
-    /// MAM-25's check is never moved: its Retry is MAM-27's. How many it wrote (0 or 1).
+    /// stopped it (<see cref="ReplacementJobOffers.CanRetry(ReplacementStop?, int)"/>), so the mover's next pass checks it
+    /// again. A review of MAM-25's check is never moved here: MAM-27 — its Retry goes back to that check
+    /// (<see cref="RetryCheckAsync"/>). How many it wrote (0 or 1).
     /// </summary>
     public static Task<int> RetryAsync(this IQueryable<ReplacementJobEntity> jobs, Guid replacementJobId, DateTime changedUtc) =>
         jobs.Where(job => job.Id == replacementJobId && job.State == ReplacementJobState.NeedsReview && job.QuarantineCheckedUtc != null)

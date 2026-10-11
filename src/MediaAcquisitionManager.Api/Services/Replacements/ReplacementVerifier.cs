@@ -18,9 +18,11 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// </para>
 /// <para>
 /// Every write is in a transaction that first holds the job in the state the pass read — a conditional move for a
-/// decision, a claim of the state to itself for evidence alone —, so a cancel or MAM-27's retry that got there first is
-/// never written over, and a decision and its evidence and audit row commit together or not at all. Once decided, a
-/// write is never cancelled (<see cref="ReplacementJobUpdates"/>' rule).
+/// decision, a claim of the state to itself for evidence alone —, so the owner's Keep both that got there first (MAM-27)
+/// is never written over, and a decision and its evidence and audit row commit together or not at all. Once decided, a
+/// write is never cancelled (<see cref="ReplacementJobUpdates"/>' rule). The owner's Retry and Drop meet no pass: they
+/// apply only to a job stopped for review, which the verifier never reads; a Retry sends the job back to Downloaded, and
+/// the next pass checks it again from its files.
 /// </para>
 /// <para>
 /// Information: a replacement's id, its states and counts, never a path, a title or a sentence.

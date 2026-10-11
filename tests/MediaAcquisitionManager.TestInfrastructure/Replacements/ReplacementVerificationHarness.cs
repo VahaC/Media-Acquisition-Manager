@@ -500,6 +500,28 @@ public sealed class ReplacementVerificationHarness
     }
 
     /// <summary>
+    /// MAM-27 — every audit row aimed at a replacement, a name of its move or one of its ticked copies, whatever its
+    /// action, in the order they were saved (as <see cref="QuarantineAuditsAsync"/> reads them), each with its actor and
+    /// target. No list of actions: a "nothing recorded" built on a list passes for nothing when the row it should have
+    /// caught is of an action the list doesn't name.
+    /// </summary>
+    public async Task<IReadOnlyList<(AuditAction Action, Guid? ActorUserId, AuditTargetKind? TargetKind, Guid? TargetId, string? TargetName)>> ReplacementAuditsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        AuditTargetKind[] kinds = [AuditTargetKind.ReplacementJob, AuditTargetKind.ReplacementJobName, AuditTargetKind.ReplacementJobFile];
+        List<(AuditAction, Guid?, AuditTargetKind?, Guid?, string?)> rows = [];
+        // Nothing composed onto the raw query: EF would wrap it in a subquery, whose order SQLite needn't keep.
+        await _factory.WithDbAsync(async db => rows = (await db.AuditEvents
+                .FromSqlRaw("SELECT * FROM \"AuditEvents\" ORDER BY rowid")
+                .AsNoTracking()
+                .ToListAsync(cancellationToken))
+            .Where(audit => audit.TargetKind is { } kind && kinds.Contains(kind))
+            .Select(audit => (audit.Action, audit.ActorUserId, audit.TargetKind, audit.TargetId, audit.TargetName))
+            .ToList());
+        return rows;
+    }
+
+    /// <summary>
     /// The replacement line of the download <paramref name="downloadJobId"/> as the Jobs page reads it, through
     /// <c>GET /api/downloads/{id}</c> as the owner signed in afresh: a test that ran the clock past an hour outlived the
     /// session it started with. Throws unless the answer is 200.

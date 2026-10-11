@@ -1,10 +1,11 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useIsMutating, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { isJobFollowed, isJobWorkedOn } from '../download-jobs'
 import { downloadsApi } from '../downloads-api'
 import type {
   DownloadJob,
   DownloadJobFileList,
   DownloadJobFilesQuery,
+  DownloadJobList,
   DownloadJobReplacement,
   DownloadJobsQuery,
   SendDownloadRequest,
@@ -18,8 +19,10 @@ import { qk } from './keys'
  * its passes are further apart (`ReplacementVerificationTracker.PassInterval`, 15 s), but one cadence
  * keeps a page simple, and the line shows how the check ended within 2 s of the pass that ended it.
  * MAM-26 — the same while the mover's pass (also 15 s) takes a verified replacement up and moves it.
+ * MAM-27 — and for a replacement's details while its check runs (useReplacement's callers), which is
+ * why it is exported.
  */
-const JOBS_POLL_MS = 2_000
+export const JOBS_POLL_MS = 2_000
 
 /**
  * MAM-13 — the download clients and destinations a release can be sent to, for the Download dialog.
@@ -85,11 +88,25 @@ export const useSendDownload = () => {
  * asks nothing more. MAM-25 — and while it shows a downloaded job whose replacement's new files are
  * still being checked, as the check ends on its own; MAM-26 — or whose old copies are about to move
  * or moving (isReplacementWorkedOn).
+ *
+ * MAM-27 — an owner's row can open its replacement's copies (useReplacement) under it. As on the job's
+ * page (useDownloadJob), those details are asked for again on the answer that brings a replacement
+ * changed, rather than on a timer of their own: a check that ends, or a mover that takes the copies up,
+ * would otherwise leave an opened row showing them as they were. Only opened rows ask; another row's
+ * details, if cached, are only marked stale.
  */
-export const useDownloadJobs = (query: DownloadJobsQuery) =>
-  useQuery({
+export const useDownloadJobs = (query: DownloadJobsQuery) => {
+  const queryClient = useQueryClient()
+  return useQuery({
     queryKey: qk.downloads.jobs.list(query),
-    queryFn: () => downloadsApi.list(query),
+    queryFn: async ({ signal }) => {
+      const next = await downloadsApi.list(query)
+      // As useDownloadJob: a poll cancelled by a newer request never commits its answer.
+      if (signal.aborted) return next
+      const previous = queryClient.getQueryData<DownloadJobList>(qk.downloads.jobs.list(query))
+      if (previous !== undefined) askAgainForChangedReplacements(queryClient, previous.items, next.items)
+      return next
+    },
     placeholderData: keepPreviousData,
     refetchInterval: (current) => {
       const list = current.state.data
@@ -98,6 +115,18 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
     // A 400 for a bad page or status won't change on a second try.
     retry: false,
   })
+}
+
+/** Asks again for the details of each replacement on `next` that came back other than it was on `previous`. */
+function askAgainForChangedReplacements(queryClient: QueryClient, previous: DownloadJob[], next: DownloadJob[]) {
+  const before = new Map(previous.map((job) => [job.id, job.replacement]))
+  for (const job of next) {
+    if (job.replacement === null || !before.has(job.id)) continue
+    if (replacementChanged(before.get(job.id) ?? null, job.replacement)) {
+      void queryClient.invalidateQueries({ queryKey: qk.replacements.job(job.replacement.id) })
+    }
+  }
+}
 
 /**
  * MAM-14 — one of the caller's own jobs, for its details page; nothing is asked without an id (an
@@ -115,7 +144,9 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
  *
  * MAM-26 — the same holds for the replacement's details on the job's page (useReplacement): they are
  * asked for again on the answer whose replacement changed — another state, copies moved, files that
- * stayed, Retry offered or the switch turned —, never on a timer of their own.
+ * stayed, Retry offered or the switch turned —, never on a timer of their own. MAM-27 — except while
+ * its check runs, when the page itself asks every 2 s: what the check finds changes on every pass with
+ * nothing on the job's line changing.
  */
 export const useDownloadJob = (id: string) => {
   const queryClient = useQueryClient()
@@ -147,7 +178,11 @@ export const useDownloadJob = (id: string) => {
   })
 }
 
-/** Whether a job's replacement came back other than the cached one in what its details show. */
+/**
+ * Whether a job's replacement came back other than the cached one in what its details show. MAM-27 —
+ * also a copy dropped (the counts), Keep both offered or no more, and who stopped it or where its check
+ * is: a drop, or a check that moved on to Jellyfin, leaves the state as it was.
+ */
 function replacementChanged(previous: DownloadJobReplacement | null, next: DownloadJobReplacement): boolean {
   return previous === null
     || previous.state !== next.state
@@ -155,6 +190,12 @@ function replacementChanged(previous: DownloadJobReplacement | null, next: Downl
     || previous.quarantinedCopyCount !== next.quarantinedCopyCount
     || previous.stayedFileCount !== next.stayedFileCount
     || previous.canRetry !== next.canRetry
+    || previous.copyCount !== next.copyCount
+    || previous.droppedCopyCount !== next.droppedCopyCount
+    || previous.dropOnlyCopyCount !== next.dropOnlyCopyCount
+    || previous.canCancel !== next.canCancel
+    || previous.stop !== next.stop
+    || previous.checkStage !== next.checkStage
 }
 
 /**
@@ -193,9 +234,34 @@ export const useDownloadJobFiles = (id: string, query: DownloadJobFilesQuery) =>
 export const useCancelDownload = () => {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: qk.actions.cancelJob,
     mutationFn: (id: string) => downloadsApi.cancel(id),
     networkMode: 'always',
     onSuccess: (job) => queryClient.setQueryData<DownloadJob>(qk.downloads.jobs.detail(job.id), job),
     onSettled: () => queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
   })
+}
+
+/** The replacement an owner's action was sent for: its id is the variables, or their `id`. */
+function replacementIdOf(variables: unknown): string | null {
+  if (typeof variables === 'string') return variables
+  return typeof variables === 'object' && variables !== null && 'id' in variables && typeof variables.id === 'string'
+    ? variables.id
+    : null
+}
+
+/**
+ * MAM-27 — whether an action on the job `jobId`, or on the replacement `replacementId` it carries, is
+ * on its way, whichever button sent it: a Jobs row's Cancel job, Retry and Keep both, or a Drop from
+ * the Copies opened under it. The row holds every other one meanwhile — one busy flag, as the job's
+ * page's Replacement section has —, as a second would be refused, or act on a replacement the first
+ * just changed (a Retry that goes first sends a copy the owner was dropping back to the check).
+ */
+export const useJobActionsPending = (jobId: string, replacementId: string | null) => {
+  const cancelling = useIsMutating({ mutationKey: qk.actions.cancelJob, predicate: (mutation) => mutation.state.variables === jobId })
+  const acting = useIsMutating({
+    mutationKey: qk.actions.replacement,
+    predicate: (mutation) => replacementId !== null && replacementIdOf(mutation.state.variables) === replacementId,
+  })
+  return cancelling + acting > 0
 }

@@ -239,7 +239,9 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   download that needs linking puts it at `NeedsReview` ("qBittorrent's downloads couldn't be told
   apart for this release, so the app can't follow it to verify the new file."). **Cancel job**
   cancels it in the same transaction, from any state still followed, `NeedsReview` included, with a
-  `ReplacementCancelled` audit row ("You cancelled the download, so nothing will be replaced.").
+  `ReplacementCancelled` audit row ("You cancelled the download, so nothing will be replaced.";
+  MAM-27 below adds the owner's **Keep both**, which cancels the replacement alone, its download
+  left as it is).
   Each write is conditional on the state it read, the mirrored steps write no audit row, a bug on
   one replacement costs only that one the pass, and everything is rows, so a restart goes on where
   they stand. Every job the API answers — the list, a job, a send, a schedule, a cancel — carries
@@ -253,7 +255,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   ticked folder and won't move.". (MAM-25 below takes a `Downloaded` replacement on to the check of
   its new files, and the line with it: "Replacement checks the new file: 1 copy, kept until it is
   verified.", then "New file verified: …" or "Replacement needs review: <reason>"; MAM-26 below
-  takes a verified one on into the quarantine, with lines of its own.)
+  takes a verified one on into the quarantine, with lines of its own; MAM-27 below adds until when
+  the check waits for Jellyfin, and what to do at a review.)
   `ReplacementFollowingHttpTests` (to `Downloaded` and no further
   with nothing sent, a restart, a send still under way, a cancel with its row, the review a cancel
   ends, a failed download, an adopted interrupted send, a follower that throws, the gates on a job's
@@ -367,7 +370,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   conditional move — another writer that got there first wins — in one transaction with the evidence
   and a `ReplacementVerified`, `ReplacementNeedsReview` or `ReplacementFailed` row, no actor, its
   target the replacement job named by the release: the app's own decisions, where the following's
-  mirrored steps write none. *The evidence*, kept with the job for MAM-27 to show:
+  mirrored steps write none. *The evidence*, kept with the job for MAM-27 to show (it does, below):
   `ReplacementJobNewFiles`, a row per new file in the client's order — its name, size and progress
   by qBittorrent, its path in the app, its library and its path there, its device, inode, size,
   modification time, running time, video codec and frame size as read, its item, kind, whether read,
@@ -601,7 +604,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   as `QuarantineCheckedUtc` marks — back to `Verified` with a `ReplacementRetried` row, writing
   nothing to the media; the next pass checks everything again, and what is in the quarantine stays
   there. A stop of the new files' check is 409 "This replacement isn't waiting for review after a
-  move, so there's nothing to retry here.": that Retry stays MAM-27's. `POST …/restore`, from
+  move, so there's nothing to retry here.": that Retry stays MAM-27's (MAM-27 below takes it, and
+  shortens this sentence). `POST …/restore`, from
   `Quarantined`, or from `NeedsReview` with names in the quarantine, checks every name before
   anything is written — replacement switched off ("Replacement is switched off on the Media folders
   page, so nothing can be put back. Switch it on, then press Restore again."), an old path no longer
@@ -637,7 +641,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   heard of the move. The owner is the actor of each of these rows. A replacement being worked on —
   the mover's pass or another click — is 409 "This replacement is being worked on right now. Try
   again in a moment.", so two clicks at once rename or delete each name once. The job's page gains an
-  **Old copies** section between its details and its files: every name with where it is now, the
+  **Old copies** section (MAM-27 below renames it **Replacement**) between its details and its
+  files: every name with where it is now, the
   reason one stayed, wasn't put back or was lost, and the room in the quarantine, with **Retry**,
   **Restore** (a plain confirmation) and **Delete for good** (a red outline, whose confirmation lists
   every path with its size, "Frees 4.2 GiB." and how many files have another name, and sends exactly
@@ -649,7 +654,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   ("No old copy has moved yet, and none moves while replacement is switched off." while it is off),
   and "Nothing of this replacement was moved." once it was cancelled, failed or stopped for review
   before its move. The Jobs row shows the owner's **Retry** beside a line the
-  move stopped. `ReplacementRetryHttpTests`, `ReplacementRestoreHttpTests`,
+  move stopped (MAM-27 below shows it for a stop of the check too, beside **Keep both**).
+  `ReplacementRetryHttpTests`, `ReplacementRestoreHttpTests`,
   `ReplacementDeleteForGoodHttpTests`, `ReplacementDetailsHttpTests`,
   `ReplacementQuarantineFlowHttpTests` (a move then Restore, a move then Delete for good, a held copy
   then Retry, end to end with Jellyfin's requests and the audit rows in order),
@@ -709,6 +715,209 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `LocalFileInventoryListingTests.List_never_follows_a_link_into_a_quarantine` and
   `LocalFileInventoryListingTests.List_of_a_root_that_lies_in_a_quarantine_gives_nothing_for_it_and_walks_the_others`
   pin it.
+- **The owner sees, on the Jobs page and on each job's page, where a replacement stands, the old
+  copies he ticked with the new file each pairs with, what the check found on the disk and in
+  Jellyfin, and why it stopped, with what to do next (MAM-27, ADR 0032, ADR 0035, Vasyl's decisions
+  of 2026-10-08 and 2026-10-11).** The Jobs line now says until what time the check waits for
+  Jellyfin, once Jellyfin took the request to look — "Replacement waits for Jellyfin to identify the
+  new file until 14:05: 1 copy, kept until it is verified." —, and a review's line ends with what to
+  do, by what stopped it: "Replacement needs review: <reason> Fix it in Jellyfin or qBittorrent,
+  then press Retry — or see the job." after a stop of the check, "… Keep both, or cancel the job."
+  for a download the app can't follow, "… 1 copy can only be dropped, or both kept: see the job."
+  while a copy only a drop settles is in it — "… A new check can't pair its last copy: keep both."
+  once every copy left is one —, and nothing more after a stop of the move, whose own sentence says
+  what to do; on the job's own page the line leaves these out, and ": see the job" after MAM-26's
+  files that stayed, as its section below says them. "1 copy dropped." follows once a copy was
+  dropped, and every count is of the copies still in the replacement. The Download dialog's sent
+  view shares the line. On the owner's row a **Copies** button opens, right under the job, the table
+  of its old copies, with **Drop** on each the server lets go, asking again every 2 s while the
+  check runs; a refusal shows in the page's banner, while one of the row's actions is on its way the
+  others wait, and a member's row has no such button. A job's page names its section
+  **Replacement**, where it read **Old copies**, with one row of actions — **Retry**, **Keep both**,
+  **Restore**, **Delete for good** —; a box of what the owner can do, by what stopped it ("Fix what
+  the reason says — for a film Jellyfin gave no id, set its TMDb link on the Library page, and
+  Jellyfin's Identify applies it —, then press Retry: the check starts again, and Jellyfin's ids
+  decide. Or drop a copy below: it stays where it is. Or keep both.", without "Or drop a copy below"
+  when no copy can be dropped, as for a single film), with **Open Alien in Library**, the Library
+  page searched by the film's title (`/library?search=Alien`), for a film the check stopped, and
+  "Replacement is switched off on the Media folders page: nothing moves while it is off. Switch it
+  on there, or keep both." while it is off and Keep both is offered; how far the check got — "Waits
+  for the download.", "The check of the new files starts within a few seconds.", "Reading the new
+  files on the disk (started 13:05).", "Waiting for Jellyfin to identify the new files until
+  14:05.", "Every old copy is paired with a new file Jellyfin identified." or "The check stopped."
+  —; the old copies, **Old copy**, **New file** and **Where it stands**, each with its path, size,
+  running time, episode and edition, its new file's chips, its status ("Kept until the new file is
+  verified.", "Paired with its new file: it moves into the quarantine when the replacement goes
+  ahead.", "Not paired.", "Stopped the replacement:" with the problem the check or the move stored — "Still held by the torrent
+  “Alien.1979.Theatrical” in “qBittorrent”: remove that torrent there without its files, then press
+  Retry.", say —, "Dropped from the replacement: it stays where it is.", "In the quarantine." …) —
+  while the check still waits, what a pass found shows under the copy, and under its new file, as a
+  warning, as it stops nothing yet — and "Only dropping it or keeping both settles this." where only
+  that does, the last copy left excepted, under "Nothing moves until every copy is paired or
+  dropped: 1 of 2 paired, 1 dropped."; the new files, **New file**, **On the disk** and **Jellyfin**, each with how far it got
+  ("Not read on the disk yet.", "Not listed by Jellyfin yet.", "No TMDb or IMDb id from Jellyfin
+  yet.", "An extra: simply added.", "Identified by Jellyfin." …), the ids its work is expected to
+  carry ("Expected: IMDb tt0078748") and the work Jellyfin gave it, once the check wrote them; and
+  MAM-26's table, now under **Files the move planned** and only once a name exists. The page asks
+  again every 2 s while the check runs. Every table is cards at phone width. A member reads "Only
+  the installation owner sees a replacement's copies and checks, and retries, cancels or drops
+  them." and nothing is asked. `GET /api/replacements/{id}` answers the copies, the new files and
+  the works behind it, and the server works out each copy's status and each new file's progress
+  (`ReplacementJobProgress`), so the page never pairs anything itself; it still writes nothing,
+  holds nothing, and reads a fixed number of queries per replacement. None of MAM-27 was tried on a
+  real setup — no replacement was kept, retried or dropped there, and MAM-28 is the live check —;
+  the Jobs page and the job's page were looked at in a browser at 1280 px and 375 px with answers
+  made up in the page — stops of the check and of the move, a dropped copy, a replacement kept both
+  and a member's view among them —, nothing sent.
+  `ReplacementDetailsHttpTests` (each reason as the page shows it — a held torrent, no id during the
+  hour and after it, an unclear pair, replacement switched off —, the pairs, statuses, drops and
+  offers, the new files' evidence and ids, the works' expected ids, what a pass found while the
+  check still waits never read as a stop, the copies a cancelled or restored replacement never moved
+  staying where they are, one query per table for a page of jobs), `ReplacementLineHttpTests` (each
+  state's fields), `ReplacementJobProgressTests`, `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`,
+  `JobDetailsPage.replacement.test.tsx`, `ReplacementCopies.test.tsx` and
+  `replacement-details.test.ts` pin it.
+- **The owner keeps both copies — cancels the replacement alone, its download left as it is — at any
+  point before an old copy starts to move (MAM-27, ADR 0014, ADR 0033, Vasyl's decisions of
+  2026-10-08).** `POST /api/replacements/{id}/cancel`, owner-only like the rest of
+  `Controllers/Replacements`, for the caller's own replacement, takes one `Scheduled`, `Submitted`,
+  `Downloading`, `Paused`, `Downloaded`, `Inspecting`, `Verified` or `NeedsReview` none of whose
+  names is moving, in the quarantine, being put back or deleted, or deleted for good to `Cancelled`
+  with "You cancelled the replacement, so nothing will be replaced.", in one transaction that also
+  forgets its names still `Planned` or `Stayed` — a name put back or lost stays, and doesn't stand
+  in its way — and writes a `ReplacementCancelledAlone` audit row, the owner its actor, its target
+  the replacement named by the release. It writes nothing to the download job — no
+  `DownloadCancelled` row —, asks and sends qBittorrent nothing and writes nothing to the media, so
+  the download goes on, followed as before, and the old copies can be ticked by another download.
+  200 with the download job, as `GET /api/downloads/{id}` answers it; 409 "This replacement has
+  already ended, so there's nothing to cancel." for `Failed`, `Cancelled`, `Completed` and
+  `Restored`, "Part of this replacement has left its folders already, so it can't be cancelled:
+  Restore puts back what is in the quarantine." for `Quarantined` or a name taken out of its folder,
+  "This replacement is being worked on right now. Try again in a moment." while it is
+  `Quarantining`, `Restoring` or `Deleting` or the mover's pass or another click holds it, and "This
+  replacement changed while the app was working on it, so it stopped. Reload the page to see where
+  it stands." when it changed meanwhile, nothing written; a bare 404 for another user's replacement
+  or one that doesn't exist. It works while replacement is switched off. A pass of the check or of
+  the move that read the job before loses its conditional write and writes nothing. **Cancel job**
+  still ends a replacement whose download is followed, with its own `ReplacementCancelled` row, as
+  MAM-24 built it, and whichever of the two comes first wins. The Jobs row shows **Keep both**, the
+  owner's, before **Cancel job**, and the job's page beside **Retry**, not red, as nothing is
+  deleted; it asks first, "Keep both copies of …?" — "The replacement is cancelled: the old copy
+  stays where it is, and nothing of it moves. The download is left as it is, and nothing is sent to
+  qBittorrent. This can't be undone." — with **Keep both** and **Keep replacing**; then the job's
+  page says "Replacement cancelled: both copies stay.", and the Jobs row's line "Replacement
+  stopped: You cancelled the replacement, so nothing will be replaced.".
+  `ReplacementCancelHttpTests` (every state before the move, a review holding only names planned,
+  stayed, put back or lost, every other state and every name taken out of its folder refused with
+  nothing changed, a double click, the download followed on afterwards with the check and the move
+  writing nothing, the copies tickable again, a later **Cancel job** writing no second row, a cancel
+  landing inside a pass of the check, one being worked on, the follower ending the job between the
+  read and the write (409) or moving it on (cancelled, the log naming the state it left),
+  replacement switched off, another user's 404), `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`
+  and `JobDetailsPage.replacement.test.tsx` pin it.
+- **The owner retries a replacement the check of its new files stopped, once he fixed the cause in
+  Jellyfin or qBittorrent, and the check starts again from the files (MAM-27, ADR 0035, ADR 0032,
+  Vasyl's decisions of 2026-10-08 and 2026-10-11).** `POST /api/replacements/{id}/retry` now also
+  takes a `NeedsReview` the check stopped — its download `Downloaded` and checked before the send,
+  and no copy in it that only a drop settles — back to `Downloaded`, its reason cleared, with a
+  `ReplacementCheckRetried` audit row, the owner its actor; in the same transaction the last check's
+  evidence goes — the new files' rows and their ids, and each copy's pair, problem and drop-only
+  mark, a dropped copy keeping its last problem —, so the page never shows the old run's findings as
+  current. The request writes nothing to the media and asks no one; within 15 s the check's next
+  pass claims the job as any `Downloaded` one, with `ReplacementCheckStarted`, reads qBittorrent and
+  the files again, asks Jellyfin to look again and gives both hours anew, and Jellyfin's ids decide
+  again: a Retry with nothing fixed stops again with the same reason. Asked to look again, Jellyfin
+  keeps the ids its Identify set, as its source shows — the request queues an ordinary refresh,
+  which replaces no metadata —; MAM-28 sees it live. A replacement the move stopped is retried as
+  MAM-26 built it, back to `Verified` with `ReplacementRetried`. 409 "The app can't follow this
+  replacement's download, so its new file can't be checked again: keep both copies, or cancel the
+  job." for a review of a download that needs linking, or of a check whose download is no longer
+  done and checked; "“Yellowstone S02E05.mkv” can only be dropped from this replacement, or both
+  copies kept: checking again wouldn't change it." while a copy only a drop settles is in it, the
+  first by its place; "This replacement isn't waiting for review, so there's nothing to retry here."
+  for every other state, `Failed` included; the being-worked-on and changed-meanwhile sentences —
+  nothing written. Only a drop settles a ticked episode Jellyfin now numbers otherwise, a ticked
+  episode with no new episode at its number, an old copy or a new file that is half an episode or
+  covers several, a new file whose name claims another edition than the release, and one under three
+  quarters of the old copy's running time; the check stores that mark beside each copy's problem
+  (`OnlyDropSettles`), and two new files of one work, a film with no new file, an old copy without a
+  number or listed as a film, and a series Jellyfin hasn't identified stay open to a Retry. The Jobs
+  row shows **Retry** for a stop of the check too, titled "Check the new files again: Jellyfin's ids
+  decide whether the old copies move", and hides it while a copy only a drop settles is in it; the
+  job's page shows it disabled then, with "Drop the copies a new check can't pair first, or keep
+  both." — or, once every copy left is one, "A new check can't pair the copies left, and the last
+  copy can't be dropped: keep both instead." — also as a line, and after a Retry says "Retried: the
+  app checks the new files again and asks Jellyfin to look at them again.".
+  `ReplacementRetryHttpTests` (back to `Downloaded` with the evidence forgotten and a dropped copy's
+  kept, a download that needs linking, a copy only a drop settles and then 200 once it is dropped, a
+  download no longer done and checked, every other state, one being worked on, a stop of the check
+  or of the move that ended between the read and the write, the move's Retry unchanged),
+  `ReplacementReviewFlowHttpTests` (a film Jellyfin gave no id, fixed in Jellyfin, retried, verified
+  and moved, Jellyfin asked twice, the second request later; a Retry with nothing fixed stopping
+  again with nothing moved), `ReplacementPairingDropOnlyTests`, `ReplacementJobOffersTests`,
+  `JobsPage.test.tsx` and `JobDetailsPage.replacement.test.tsx` pin it.
+- **The owner drops an old copy from a replacement that stopped for review: it stays where it is,
+  and the others go on once he presses Retry (MAM-27, ADR 0032, Vasyl's decisions of 2026-10-08 and
+  2026-10-11).** `POST /api/replacements/{id}/copies/{copyId}/drop`, owner-only, for a copy of the
+  caller's own replacement, only from a `NeedsReview` the check or the move stopped, marks the copy
+  dropped (`DroppedUtc`) and forgets its names still `Planned` or `Stayed`, with a
+  `ReplacementCopyDropped` audit row aimed at the copy itself — a new target kind,
+  `ReplacementJobFile`, named by its file name —, the owner its actor; the replacement keeps its
+  state and reason, and nothing more happens until the owner presses **Retry**, so several copies
+  can be dropped for one check. 200 with the download job, as `GET /api/downloads/{id}` answers it;
+  409 "A copy can be dropped only from a replacement that stopped for review.", "The app can't
+  follow this replacement's download, so dropping a copy wouldn't change anything: keep both copies,
+  or cancel the job.", "“Alien.mkv” is dropped from this replacement already.", "“Alien.mkv” has
+  left its folder already, so it can't be dropped: Restore puts it back." for a copy one of whose
+  names is moving, in the quarantine, being put back or deleted, or deleted for good, "“Alien.mkv”
+  is the last copy this replacement would replace, so it can't be dropped: keep both copies
+  instead." and the being-worked-on and changed-meanwhile sentences, nothing written; a bare 404 for
+  another user's replacement, one that doesn't exist, and a copy that isn't one of this
+  replacement's. A dropped copy can't be taken back in, and it is out of the replacement, not out of
+  the library: the check no longer reads, pairs or waits on it, so a new file it would have paired
+  with is simply added once Jellyfin has listed, read and identified it — until then it holds the
+  replacement, as any new file does, since it may be a second file of a copy left —; checks 5 and 6
+  and the move pass it by, so a torrent that holds it stops nothing; another download may tick it;
+  and a new file that is that very copy still stops the check. So an unclear pair is settled through
+  the library — the owner corrects the new item in Jellyfin, then presses Retry — or by dropping
+  that copy, an episode Jellyfin numbers otherwise only by dropping it or keeping both, no click
+  confirms a work or an edition by hand, and nothing moves until every ticked copy is paired or
+  dropped. On the page **Drop** sits on each copy the server says may go, asks "Drop “Alien.mkv”
+  from the replacement?" — "It stays where it is, and nothing of it moves. A new file it was paired
+  with is simply added once Jellyfin has identified it. Press Retry afterwards to go on with the
+  other copies." — with **Drop it** and **Keep it in**, then, on the job's page, says "Dropped “Alien.mkv”: it stays where it is.";
+  the last copy's is disabled with "It is the replacement's last copy: keep both instead.", and a
+  dropped copy stays in the table, greyed, with its last problem. `ReplacementDropCopyHttpTests` (a
+  stop of the check and one of the move, every state it doesn't apply to, a download that needs
+  linking, a copy dropped already, each name taken out of its folder, the last copy, two drops of
+  the last two at once, the other copy dropped meanwhile, one being worked on, the follower ending
+  the job between the read and the write, a copy of another replacement, a made-up copy, another
+  user's 404, the schedule's replay after a drop), `ReplacementDroppedCopyHttpTests` (the check
+  never reading, pairing or waiting on a dropped copy, its new file simply added once identified, a
+  new file that is one still stopping it, the move never planning or renaming one, a torrent holding
+  one stopping nothing, the copy tickable again, the drop-only mark stored and cleared, and what
+  passes that waited stored forgotten at a stop before the pairing),
+  `ReplacementReviewFlowHttpTests` (a renumbered episode dropped and the other moved after Retry,
+  the dropped one where it was; a pack's held copy dropped and the others moved without asking about
+  its torrent), `JobsPage.test.tsx`, `JobDetailsPage.replacement.test.tsx` and
+  `ReplacementCopies.test.tsx` pin it.
+- **The owner's actions on a replacement are refused to a member on every route, found by a test
+  that discovers them, and on a real stopped replacement too, the owner's and the member's own
+  (MAM-27, ADR 0033).** Keep both and Drop live in `Controllers/Replacements`, so
+  `ReplacementsAreOwnerOnlyConvention` answers a member 403 "Only the installation owner can do
+  this." before anything is read, and `ReplacementsAreOwnerOnlyHttpTests` now finds eight routes.
+  Two new sweeps plant a `NeedsReview` replacement the move stopped, with two copies — one with
+  names of its move, none of which left its folder, one paired with its new file —, once as the
+  owner's and once as the member's own, where Retry, Keep both and Drop would each write for him;
+  each fills every discovered route's parameters by name — `id` the replacement, `copyId` one of its
+  copies; a parameter it doesn't know fails the test —, sends each as a member with no body, and
+  finds every row as it was, nothing asked of qBittorrent or Jellyfin or read on the disk, and
+  nothing renamed, deleted or made. The actions find a job by its sender, so only the sweep over the
+  member's own would catch a gate that came after the write; and a member's own quarantined job
+  refuses him Restore and Delete for good too. Another user's job with a stopped replacement is a
+  bare 404, even for the owner. `ReplacementsAreOwnerOnlyHttpTests`,
+  `ControllerAccessDeclarationTests` (both new actions), `ReplacementRestoreHttpTests` (a member's
+  own quarantined job) and `DownloadsGetHttpTests` pin it.
 
 ### Changed
 
@@ -839,6 +1048,47 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   (`ReplacementOptionsHoldingsHttpTests.Options_with_holdings_marks_a_copy_a_torrent_lists_at_its_path_whatever_size_it_lists`).
   The dialog still reads every client, those whose mappings reach no Media folder included
   (`ReplacementOptionsHoldingsHttpTests.Options_with_holdings_still_answers_for_a_client_whose_mappings_reach_no_media_folder`).
+- **A replacement's line carries what the pages need to say what to do next (MAM-27).**
+  `replacement` gains, after its other fields, `droppedCopyCount`, `dropOnlyCopyCount` (the copies
+  still in it that only a drop settles), `canCancel` (the owner's Keep both), `stop` (what stopped a
+  `NeedsReview` — `Download`, `Check` or `Move`, by name —, `null` in any other state), `checkStage`
+  (`Files` or `Library`, by name, only while `Inspecting`) and `checkWaitsUntilUtc` (only while
+  `Inspecting`); `copyCount` now counts the copies not dropped, `copiesOutsideTickedFolders` the
+  copies not dropped and not yet moved, and `canRetry` is true for a stop of the move, and for a
+  stop of the check while no copy that only a drop settles is in it. All of it is read from the rows
+  the page already reads, one query per table. `ReplacementLineHttpTests` and
+  `ReplacementScheduleHttpTests` pin the shape.
+- **A replacement's details carry its copies, its new files and its works (MAM-27).**
+  `GET /api/replacements/{id}` keeps its fields, `canRetry` now by the rule above, and gains
+  `canCancel`, `stop`, `checkStage`, `checkStartedUtc`, `libraryAskedUtc`, `checkWaitsUntilUtc`,
+  `dropOnlyCopyCount`, `copies`, `newFiles` and `works`; the README's API table has each shape.
+  `ReplacementDetailsHttpTests` and `ReplacementQuarantineFlowHttpTests` pin it.
+- **The job's page calls its section Replacement, and tells a member a little more (MAM-27).** The
+  section reads **Replacement** where it read **Old copies**, as it now holds the new files too, and
+  MAM-26's table of names sits inside it under **Files the move planned**; a member reads "Only the
+  installation owner sees a replacement's copies and checks, and retries, cancels or drops them."
+  where he read "Only the installation owner sees the old copies a replacement moves, and restores
+  them or deletes them for good.". `JobDetailsPage.replacement.test.tsx` pins it.
+- **MAM-26's Retry answers a replacement that isn't in review with a shorter sentence (MAM-27).**
+  "This replacement isn't waiting for review after a move, so there's nothing to retry here." now
+  reads "This replacement isn't waiting for review, so there's nothing to retry here.", as a stop of
+  the check is retried too; a stop of the move is retried as before. `ReplacementRetryHttpTests`
+  pins it.
+- **The check marks what only a drop settles, and forgets its last run in one place (MAM-27).** The
+  pairing's outcome for each old copy (`ReplacementOldCopyOutcome`) says whether only dropping it,
+  or keeping both, can settle its problem, which the check stores beside the problem; and deleting
+  the new files' rows with each copy's pair, problem and mark, which the check's files stage did
+  alone, is `ForgetCheckAsync`, shared with the owner's Retry, leaving a dropped copy's last problem
+  as it was. A stop of the library stage before the pairing — a new file that changed, or Jellyfin
+  not read once the hour ran out — clears what the passes that waited before it stored on each copy
+  left and each new file, as none of it was a verdict, so a mark of theirs never withholds Retry.
+  The check's own suites reach the verdicts they reached, nothing they plant being dropped.
+  `ReplacementPairingDropOnlyTests` and `ReplacementDroppedCopyHttpTests` pin it.
+- **A confirmation's title breaks a long name anywhere (found by MAM-27's look in a browser).**
+  Unbroken, "Keep both copies of Heat.1995.2160p.UHD.BluRay.REMUX.HDR.HEVC?" — and Cancel job's and
+  Drop's alike — pushed the dialog past its right edge, cutting off the message and the buttons, at
+  1280 px and at 375 px; the title of a confirmation now wraps anywhere, clear of the close button
+  (`.confirm-dialog .ui-dialog-title`, pinned in `downloads.test.ts`).
 
 ### Notes for upgraders
 
@@ -863,6 +1113,12 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   check's indexes as they are; every replacement comes through whole, with nothing quarantined
   (`AddReplacementQuarantineMigrationTests`). A replacement already `Verified` is taken up by the
   mover's first pass after the start, once replacement is switched on.
+- **Applying `AddReplacementCopyDrops` rebuilds no table, so it logs no warning 20410 (MAM-27).** It
+  adds two columns to `ReplacementJobFiles` — `DroppedUtc`, nullable, and `OnlyDropSettles`, not
+  null with a default of false — and no index; every replacement comes through whole, each of its
+  copies not dropped and open to a Retry (`AddReplacementCopyDropsMigrationTests`). A review the
+  check stopped before the upgrade offers Retry whatever its reason, as no copy carries the
+  drop-only mark yet; a Retry that can't help stops again, and marks the copy this time.
 - **Replacement is off, and no folder ticked, after the upgrade, and turning it on takes four steps
   (MAM-24, MAM-26, ADR 0033).** Members send as before, with Keep both, and so does the owner until
   he turns it on; the owner's dialog says why Replace can't be picked. To turn it on: (1) mount the
@@ -881,17 +1137,19 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `:ro` or the image's own ids, the Media folders page says a move would fail, and a move that is
   tried stops its replacement for review with nothing moved; so does any move on a host that isn't
   Linux.
-- **What moves, and what the backup doesn't keep (MAM-24, MAM-25, MAM-26).** Scheduling reads the
-  download clients' torrents and the old copies' identities, and the check of the new files reads
-  qBittorrent, the new files and Jellyfin, sending Jellyfin only `POST /Library/Media/Updated`; the
-  move then writes to the media folders `.mam-quarantine` and its replacement folders, the renames of
-  the old copies' files into it and out of it, and the deletions from it the owner confirms — nothing
-  else, and nothing to qBittorrent but the one add every send makes. Quarantined files stay on disk
-  in `.mam-quarantine` at the top of each media folder, outside the database backup: backing up
-  `mam.db` and `.secrets/` doesn't keep them, and restoring a backup doesn't bring them back. The
-  replacements, the evidence of their checks and where each old file went live in `mam.db` alone;
-  back it up with `.secrets/`. A replacement needs room for both copies until the old one is deleted
-  for good.
+- **What moves, and what the backup doesn't keep (MAM-24, MAM-25, MAM-26, MAM-27).** Scheduling
+  reads the download clients' torrents and the old copies' identities, and the check of the new
+  files reads qBittorrent, the new files and Jellyfin, sending Jellyfin only
+  `POST /Library/Media/Updated`; the move then writes to the media folders `.mam-quarantine` and its
+  replacement folders, the renames of the old copies' files into it and out of it, and the deletions
+  from it the owner confirms — nothing else, and nothing to qBittorrent but the one add every send
+  makes. The owner's Keep both, Drop and Retry write only the app's own rows, nothing to the media
+  folders and nothing to qBittorrent; a retried check asks Jellyfin to look again, as the first one
+  did. Quarantined files stay on disk in `.mam-quarantine` at the top of each media folder, outside
+  the database backup: backing up `mam.db` and `.secrets/` doesn't keep them, and restoring a backup
+  doesn't bring them back. The replacements, the evidence of their checks, the copies dropped from
+  them and where each old file went live in `mam.db` alone; back it up with `.secrets/`. A
+  replacement needs room for both copies until the old one is deleted for good.
 - **The marks of torrents that hold a copy need qBittorrent 5.2 or later (MAM-24).** An older one —
   the app still sends to and follows 4.4.1 and later — is reported in the dialog as not checked,
   "Couldn't check whether a torrent in “qBittorrent” holds these copies: This is qBittorrent 5.1.4;

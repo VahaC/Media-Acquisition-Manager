@@ -202,6 +202,7 @@
   },
   "episode": {
     "numbered": "Episode {{number}}",
+    "range": "Episodes {{first}}–{{last}}",
     "numberedTitle": "{{number}}. {{title}}"
   },
   "version": {

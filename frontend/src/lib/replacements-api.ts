@@ -16,8 +16,8 @@ const jobUrl = (id: string) => `${BASE_URL}/${encodeURIComponent(id)}`
  * MAM-24 — scheduling the replacement of specific old copies with a download (ADR 0032). Owner-only
  * (ADR 0033): every call answers 403 `{ error }` for anyone else, the read included, so the Download
  * dialog never asks for a member. MAM-26 — and the owner's own replacement afterwards: its names in
- * the quarantine, Retry, Restore and Delete for good (ADR 0030). Another user's replacement, or none,
- * is a bare 404.
+ * the quarantine, Retry, Restore and Delete for good (ADR 0030). MAM-27 — its copies, new files and
+ * check, Keep both and Drop. Another user's replacement, or none, is a bare 404.
  */
 export const replacementsApi = {
   /**
@@ -48,23 +48,55 @@ export const replacementsApi = {
   /**
    * MAM-26 — `GET /api/replacements/{id}`. 200 with the replacement: every name its move planned, by
    * position, with where each is now and why one stayed, the room its quarantine holds and frees, and
-   * what the owner may do. 403 `{ error }` for anyone but the owner; a bare 404 for another user's
-   * replacement or none.
+   * what the owner may do. MAM-27 — with every copy the owner ticked and where it stands, the new files
+   * and what the check found of each, the works expected, and how far the check got or who stopped it.
+   * 403 `{ error }` for anyone but the owner; a bare 404 for another user's replacement or none.
    */
   get: async (id: string): Promise<ReplacementDetails> =>
     (await api.get<ReplacementDetails>(jobUrl(id))).data,
 
   /**
-   * MAM-26 — `POST /api/replacements/{id}/retry`. 200 with its download job, the replacement back to
-   * `Verified`, so the next pass checks the old copies again and moves them; nothing is written to
-   * the media by the request itself. 409 `{ error }` when the replacement isn't one the mover stopped
-   * for review (a stop after the check of the new files isn't retried here); 403 `{ error }` for
-   * anyone but the owner; a bare 404 for another user's replacement or none.
+   * MAM-26 — `POST /api/replacements/{id}/retry`. 200 with its download job. After a stop of the mover
+   * the replacement goes back to `Verified`, so the next pass checks the old copies again and moves
+   * them; MAM-27 — after a stop of the check of its new files it goes back to `Downloaded`, the last
+   * check's evidence forgotten, so the next pass checks the new files again from the disk and asks
+   * Jellyfin to look again, whose ids still decide. Nothing is written to the media or sent to a client
+   * by the request itself. 409 `{ error }` when the replacement isn't waiting for review, when the app
+   * can't follow its download, when a copy in it can only be dropped (the sentence names it), or when
+   * another action on it is under way or it changed meanwhile; 403 `{ error }` for anyone but the
+   * owner; a bare 404 for another user's replacement or none.
    *
    * Never retried on its own: a write goes out once, and only the owner's own click repeats it.
    */
   retry: async (id: string): Promise<DownloadJob> =>
     (await api.post<DownloadJob>(`${jobUrl(id)}/retry`)).data,
+
+  /**
+   * MAM-27 — `POST /api/replacements/{id}/cancel`, the owner's Keep both. 200 with its download job,
+   * the replacement `Cancelled`: both copies stay where they are, and the download is left as it is —
+   * nothing written to it, nothing sent to its client. 409 `{ error }` when the replacement has ended
+   * already, when part of it has left its folders (Restore puts that back), or when another action on
+   * it is under way or it changed meanwhile; 403 `{ error }` for anyone but the owner; a bare 404 for
+   * another user's replacement or none.
+   *
+   * Never retried on its own: a write goes out once, and only the owner's own click repeats it.
+   */
+  cancel: async (id: string): Promise<DownloadJob> =>
+    (await api.post<DownloadJob>(`${jobUrl(id)}/cancel`)).data,
+
+  /**
+   * MAM-27 — `POST /api/replacements/{id}/copies/{copyId}/drop`. 200 with its download job: the copy
+   * is out of the replacement and stays where it is, and the replacement's state is unchanged — nothing
+   * else happens until the owner presses Retry. 409 `{ error }` when the replacement didn't stop for
+   * review, when the app can't follow its download, when the copy is dropped already, has left its
+   * folder (Restore puts it back) or is the last one left (Keep both instead), or when another action
+   * on it is under way or it changed meanwhile; 403 `{ error }` for anyone but the owner; a bare 404
+   * for another user's replacement or none, and for a copy that isn't one of this replacement's.
+   *
+   * Never retried on its own: a write goes out once, and only the owner's own click repeats it.
+   */
+  dropCopy: async (id: string, copyId: string): Promise<DownloadJob> =>
+    (await api.post<DownloadJob>(`${jobUrl(id)}/copies/${encodeURIComponent(copyId)}/drop`)).data,
 
   /**
    * MAM-26 — `POST /api/replacements/{id}/restore`. 200 with its download job once every name in the

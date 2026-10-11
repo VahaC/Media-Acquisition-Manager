@@ -3,7 +3,9 @@ import { renderHook, waitFor } from '@testing-library/react'
 import type { MockInstance } from 'vitest'
 import {
   qk,
+  useCancelReplacement,
   useDeleteReplacementForGood,
+  useDropReplacementCopy,
   useReplacement,
   useReplacementOptions,
   useRestoreReplacement,
@@ -18,6 +20,7 @@ import {
   alienSubtitle,
   alienVideo,
   aliensWorkOf,
+  jobCopyOf,
   REPLACEMENT_ID,
   replacementDetailsOf,
   replacementOf,
@@ -33,6 +36,7 @@ vi.mock('@/lib/replacements-api')
 // over them, so the dialog never offers a list the server would refuse again. MAM-26 — the job page's
 // hooks for the owner's replacement: its details only for the owner, and each action puts the job it
 // answered in place and asks again for what it changed, whatever it answered, never retrying itself.
+// MAM-27 — the details polled on the caller's cadence while the check runs, and Keep both and Drop.
 
 const request = {
   requestId: '0f8e1d2c-3b4a-4596-8877-665544332211',
@@ -60,6 +64,10 @@ function invalidatedKeys(spy: MockInstance<QueryClient['invalidateQueries']>) {
 describe('replacement hooks', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   describe('useReplacementOptions', () => {
@@ -207,6 +215,49 @@ describe('replacement hooks', () => {
       await waitFor(() => expect(result.current.isError).toBe(true))
       expect(replacementsApi.get).toHaveBeenCalledOnce()
     })
+
+    // MAM-27 — what the check found of the new files changes on every pass while it runs, with nothing
+    // on the job's line changing, so the caller polls the details for as long as the check runs.
+
+    it('asks nothing again on its own when the caller gives no cadence', async () => {
+      // Arrange
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.mocked(replacementsApi.get).mockResolvedValue(replacementDetailsOf())
+      const { result } = renderWith(newClient(), () => useReplacement(REPLACEMENT_ID, true))
+      await waitFor(() => expect(result.current.data).toEqual(replacementDetailsOf()))
+
+      // Act
+      await vi.advanceTimersByTimeAsync(10_000)
+
+      // Assert
+      expect(replacementsApi.get).toHaveBeenCalledOnce()
+    })
+
+    it('asks again on the cadence the caller gives while the check runs, and stops once it gives none', async () => {
+      // Arrange
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.mocked(replacementsApi.get)
+        .mockResolvedValueOnce(replacementDetailsOf({ state: 'Inspecting', checkStage: 'Files' }))
+        .mockResolvedValue(replacementDetailsOf({ state: 'Inspecting', checkStage: 'Library' }))
+      const client = newClient()
+      const { result, rerender } = renderHook(
+        ({ refetchEveryMs }: { refetchEveryMs: number | false }) => useReplacement(REPLACEMENT_ID, true, refetchEveryMs),
+        {
+          initialProps: { refetchEveryMs: 2_000 as number | false },
+          wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+        },
+      )
+      await waitFor(() => expect(result.current.data?.checkStage).toBe('Files'))
+
+      // Act
+      await vi.advanceTimersByTimeAsync(2_000)
+      await waitFor(() => expect(result.current.data?.checkStage).toBe('Library'))
+      rerender({ refetchEveryMs: false })
+      await vi.advanceTimersByTimeAsync(10_000)
+
+      // Assert
+      expect(replacementsApi.get).toHaveBeenCalledTimes(2)
+    })
   })
 
   describe('the owner\'s actions', () => {
@@ -256,6 +307,41 @@ describe('replacement hooks', () => {
       ])
     })
 
+    it('puts the job Keep both answered in place, and asks again for the jobs and the replacement, not the quarantine room', async () => {
+      // Arrange
+      const cancelled = jobOf({ replacement: replacementOf({ state: 'Cancelled', reason: 'You cancelled the replacement, so nothing will be replaced.' }) })
+      vi.mocked(replacementsApi.cancel).mockResolvedValue(cancelled)
+      const client = newClient()
+      const invalidate = vi.spyOn(client, 'invalidateQueries')
+      const { result } = renderWith(client, () => useCancelReplacement())
+
+      // Act
+      await result.current.mutateAsync(REPLACEMENT_ID)
+
+      // Assert
+      expect(replacementsApi.cancel).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
+      expect(client.getQueryData(qk.downloads.jobs.detail(cancelled.id))).toEqual(cancelled)
+      expect(invalidatedKeys(invalidate)).toEqual([qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID)])
+    })
+
+    it('sends Drop the replacement and the copy it is given, puts the job it answered in place, and asks again for the jobs and the replacement, not the quarantine room', async () => {
+      // Arrange
+      const dropped = jobOf({ replacement: replacementOf({ state: 'NeedsReview', stop: 'Check', droppedCopyCount: 1 }) })
+      vi.mocked(replacementsApi.dropCopy).mockResolvedValue(dropped)
+      const client = newClient()
+      const invalidate = vi.spyOn(client, 'invalidateQueries')
+      const { result } = renderWith(client, () => useDropReplacementCopy())
+      const copy = jobCopyOf({ status: 'Stopped', canDrop: true })
+
+      // Act
+      await result.current.mutateAsync({ id: REPLACEMENT_ID, copyId: copy.id })
+
+      // Assert
+      expect(replacementsApi.dropCopy).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, copy.id)
+      expect(client.getQueryData(qk.downloads.jobs.detail(dropped.id))).toEqual(dropped)
+      expect(invalidatedKeys(invalidate)).toEqual([qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID)])
+    })
+
     it('sends Delete for good the names it is given', async () => {
       // Arrange
       vi.mocked(replacementsApi.deleteForGood).mockResolvedValue(answered)
@@ -284,6 +370,16 @@ describe('replacement hooks', () => {
         return () => result.current.mutateAsync({ id: REPLACEMENT_ID, names: [alienVideo.id] })
       }, () => vi.mocked(replacementsApi.deleteForGood).mockRejectedValue(apiError(409, 'Refused.')),
       [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID), qk.settings.allowedRoots]],
+      ['Keep both', (client) => {
+        const { result } = renderWith(client, () => useCancelReplacement())
+        return () => result.current.mutateAsync(REPLACEMENT_ID)
+      }, () => vi.mocked(replacementsApi.cancel).mockRejectedValue(apiError(409, 'Refused.')),
+      [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID)]],
+      ['Drop', (client) => {
+        const { result } = renderWith(client, () => useDropReplacementCopy())
+        return () => result.current.mutateAsync({ id: REPLACEMENT_ID, copyId: jobCopyOf().id })
+      }, () => vi.mocked(replacementsApi.dropCopy).mockRejectedValue(apiError(409, 'Refused.')),
+      [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID)]],
     ])('asks again for what %s may have changed when it is refused, and never sends it twice', async (_, hook, refuse, keys) => {
       // Arrange
       refuse()
@@ -297,7 +393,7 @@ describe('replacement hooks', () => {
       // Assert
       expect(failure).toBeInstanceOf(Error)
       expect(invalidatedKeys(invalidate)).toEqual(keys)
-      const calls = [replacementsApi.retry, replacementsApi.restore, replacementsApi.deleteForGood]
+      const calls = [replacementsApi.retry, replacementsApi.restore, replacementsApi.deleteForGood, replacementsApi.cancel, replacementsApi.dropCopy]
         .map((call) => vi.mocked(call).mock.calls.length)
       expect(calls.reduce((sum, count) => sum + count, 0)).toBe(1)
     })

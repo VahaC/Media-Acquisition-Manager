@@ -670,6 +670,31 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         Assert.Empty(_factory.Quarantine.Deletions);
     }
 
+    [Fact]
+    public async Task Restore_and_delete_for_good_of_a_members_own_quarantined_job_are_403_and_move_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var member = await new UserSeeder(_factory.Scope).CreateAuthorized("member");
+        // ADR 0014 — a job is its sender's, and a member can't send a replacement: this one is planted as a hand-edited row
+        // would leave it. The actions find it for him — the owner's job they don't —, so Restore and Delete for good would
+        // each move his names past a gate that came too late.
+        var planted = await PlantQuarantinedAsync(ReplacementJobState.Quarantined, member.User.Id);
+        var id = planted.Replacement.Id;
+
+        //Act
+        var restore = await _factory.PostHttpRequest($"{BaseUrl}/{id}/restore", member.AccessToken);
+        var delete = await _factory.PostHttpRequest(
+            $"{BaseUrl}/{id}/delete-for-good", member.AccessToken, new DeleteQuarantinedRequest([.. planted.Names.Select(name => name.Id)]));
+
+        //Assert
+        // ADR 0033 — Restore and Delete for good are the owner's alone, whoever sent the job.
+        Assert.Equal(
+            [(HttpStatusCode.Forbidden, OwnerOnlyBody), (HttpStatusCode.Forbidden, OwnerOnlyBody)],
+            [(restore.StatusCode, await restore.Content.ReadAsStringAsync(cancellationToken)), (delete.StatusCode, await delete.Content.ReadAsStringAsync(cancellationToken))]);
+        await AssertNothingWrittenAsync(planted, cancellationToken);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     private static FileFacts Subtitle() => TestMedia.File(inode: 2, sizeBytes: SubtitleSize);

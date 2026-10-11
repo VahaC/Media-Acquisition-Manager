@@ -1,8 +1,12 @@
 using System.Net;
 using System.Net.Http.Headers;
+using MediaAcquisitionManager.Core.Abstractions.Library;
+using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
+using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
-using MediaAcquisitionManager.TestInfrastructure.Integrations;
+using MediaAcquisitionManager.TestInfrastructure.Replacements;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -21,13 +25,27 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // Retry, Restore and Delete for good of a replacement live there too, by its id: the sweep sends each with a made-up id and
 // no body, and nothing renamed, deleted or made on the disk shows the gate came first there too (the owner's real
 // quarantined job is ReplacementRestoreHttpTests.Restore_and_delete_for_good_of_the_owners_quarantined_job_as_a_member_are_403_and_move_nothing).
+// MAM-27 — Keep both and Drop join them; and two more sweeps send every discovered route to a real replacement stopped for
+// review — each route's parameters filled by name with its id and a real copy's —, so "nothing written" is proved against
+// rows a write would change (every replacement row compared before and after), not only against an empty database: the
+// owner's, and the member's own. The actions look a job up by its sender, so a member's request on the owner's job would
+// write nothing even past a gate that came too late; on his own job Retry, Keep both and Drop would each write, so only
+// that sweep shows the gate comes before them.
 public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     // Spelled out rather than read from the convention: this pins where the replacement controllers live.
     private const string ReplacementsNamespace = "MediaAcquisitionManager.Api.Controllers.Replacements";
     private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
+    private const string TheatricalPath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv";
+    private const string SubtitlePath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.uk.srt";
+    private const string ExtendedPath = "/media/movies/Alien (1979)/Alien (1979) Extended.mkv";
+    private const string NewName = "Alien.1979.Directors.Cut.2160p.mkv";
+    private const string NewPath = "/media/movies/Alien.1979.Directors.Cut.2160p.mkv";
+    private const string AlienImdbId = "tt0078748";
+    private const string HeldReason = "Still held by the torrent “Alien” in “qBittorrent”: remove that torrent there without its files, then press Retry.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
+    private ReplacementVerificationHarness _harness = null!;
     private AuthorizedUser _member = null!;
 
     public ReplacementsAreOwnerOnlyHttpTests(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
@@ -35,11 +53,10 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
     public async ValueTask InitializeAsync()
     {
         await _factory.ResetAsync();
-        var users = new UserSeeder(_factory.Scope);
-        await users.CreateOwner("owner");
-        _member = await users.CreateAuthorized("member");
-        // A client that would answer, so a request reaching it would be recorded rather than refused on the way.
-        new FakeQBittorrentServer().Arm(_factory.QBittorrentHttp);
+        // The owner, and a client and a library that would answer, so a request reaching them would be recorded rather than
+        // refused on the way; no replacement, download job or audit row yet.
+        _harness = await ReplacementVerificationHarness.CreateAsync(_factory);
+        _member = await new UserSeeder(_factory.Scope).CreateAuthorized("member");
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
@@ -65,6 +82,9 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
                 "POST api/replacements/{id:guid}/retry",
                 "POST api/replacements/{id:guid}/restore",
                 "POST api/replacements/{id:guid}/delete-for-good",
+                // MAM-27 — Keep both, and Drop of one ticked copy.
+                "POST api/replacements/{id:guid}/cancel",
+                "POST api/replacements/{id:guid}/copies/{copyId:guid}/drop",
             },
             endpoints);
     }
@@ -108,6 +128,42 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
     }
 
     [Fact]
+    public async Task Every_replacement_endpoint_as_a_member_on_the_owners_real_stopped_replacement_is_403_and_changes_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // The owner's own replacement: for him Retry, Keep both and Drop would each write to it.
+        var planted = await PlantStoppedAsync(requestedByUserId: null);
+        var before = await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken);
+        var sentBefore = (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count, _factory.Files.DescribedPaths.Count);
+
+        //Act
+        var answers = await SweepAsMemberAsync(planted, cancellationToken);
+
+        //Assert
+        await AssertRefusedAndUnchangedAsync(planted, answers, before, sentBefore, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Every_replacement_endpoint_as_a_member_on_his_own_real_stopped_replacement_is_403_and_changes_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // ADR 0014 — a job is its sender's, and a member can't send a replacement: this one is planted as a hand-edited row
+        // would leave it. The actions find it for him, so Retry, Keep both and Drop would each write to it past a gate that
+        // came too late.
+        var planted = await PlantStoppedAsync(requestedByUserId: _member.User.Id);
+        var before = await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken);
+        var sentBefore = (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count, _factory.Files.DescribedPaths.Count);
+
+        //Act
+        var answers = await SweepAsMemberAsync(planted, cancellationToken);
+
+        //Assert
+        await AssertRefusedAndUnchangedAsync(planted, answers, before, sentBefore, cancellationToken);
+    }
+
+    [Fact]
     public async Task Every_replacement_endpoint_without_a_token_is_401()
     {
         //Arrange
@@ -124,6 +180,88 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
         //Assert
         Assert.NotEmpty(answers);
         Assert.All(answers, answer => Assert.Equal(HttpStatusCode.Unauthorized, answer.Status));
+    }
+
+    /// <summary>
+    /// A replacement stopped by the mover, sent by the owner — or by <paramref name="requestedByUserId"/> —, with two ticked
+    /// copies: the theatrical cut with names of its move, none of which left its folder, and the extended cut paired with the
+    /// new file its check found. Retry, Keep both and Drop would each write to it for its sender.
+    /// </summary>
+    private Task<PlantedReplacement> PlantStoppedAsync(Guid? requestedByUserId)
+    {
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        return new ReplacementQuarantinePlanter(_factory, _harness).PlantAsync(
+            ReplacementJobState.NeedsReview,
+            [
+                new PlantedName(ReplacementNameKind.Video, TheatricalPath, TestMedia.File(inode: 1), ReplacementNameState.Planned),
+                new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Stayed, HeldReason),
+            ],
+            quarantineCheckedUtc: now,
+            reason: HeldReason,
+            requestedByUserId: requestedByUserId,
+            copies: [new PlantedCopy(ExtendedPath, TestMedia.File(inode: 3), PairedWithNewFile: 0)],
+            newFiles:
+            [
+                new ReplacementNewFileFacts(
+                    NewName,
+                    ClientSizeBytes: 3_891_719_630,
+                    ClientProgress: 1.0,
+                    AppPath: NewPath,
+                    Disk: TestMedia.File(inode: 7),
+                    CheckedUtc: now,
+                    Kind: LibraryFileKind.Movie,
+                    Refreshed: true,
+                    ReadUtc: now,
+                    MediaWorkId: Guid.NewGuid(),
+                    Identifiers: [(MediaIdentifierScheme.Imdb, AlienImdbId, false)]),
+            ],
+            inspectionStartedUtc: now,
+            libraryAskedUtc: now);
+    }
+
+    /// <summary>
+    /// Every discovered method of every replacement endpoint, sent as the member to <paramref name="planted"/> — each route
+    /// parameter by its name: the job, and a real copy of it — with no body and no query: the owner check comes before
+    /// binding and lookups, so neither may turn the answer into a 400, 415 or 409.
+    /// </summary>
+    private async Task<List<(string Url, HttpStatusCode Status, string Body)>> SweepAsMemberAsync(
+        PlantedReplacement planted, CancellationToken cancellationToken)
+    {
+        var rows = new Dictionary<string, Guid>(StringComparer.Ordinal) { ["id"] = planted.Replacement.Id, ["copyId"] = planted.Copies[1].Id };
+        var answers = new List<(string Url, HttpStatusCode Status, string Body)>();
+        foreach (var endpoint in ReplacementEndpoints())
+        {
+            var url = UrlFor(endpoint.Endpoint.RoutePattern, rows);
+            using var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _member.AccessToken);
+            var response = await _factory.SendHttpRequest(request);
+            answers.Add(($"{endpoint.Method} {url}", response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken)));
+        }
+
+        return answers;
+    }
+
+    /// <summary>
+    /// Every answer of a sweep of <paramref name="planted"/> was the owner sentence's 403, and nothing changed: every
+    /// replacement row, download job and audit row as in <paramref name="before"/>, no client or library asked and nothing
+    /// read on the disk since <paramref name="sentBefore"/>, nothing renamed, deleted or made.
+    /// </summary>
+    private async Task AssertRefusedAndUnchangedAsync(
+        PlantedReplacement planted,
+        IReadOnlyList<(string Url, HttpStatusCode Status, string Body)> answers,
+        ReplacementRowsSnapshot before,
+        (int QBittorrent, int Jellyfin, int Described) sentBefore,
+        CancellationToken cancellationToken)
+    {
+        // Guards the guard: the routes that name a replacement or a copy were sent the real ones.
+        Assert.Contains(answers, answer => answer.Url == $"POST /api/replacements/{planted.Replacement.Id}/cancel");
+        Assert.Contains(answers, answer => answer.Url == $"POST /api/replacements/{planted.Replacement.Id}/copies/{planted.Copies[1].Id}/drop");
+        Assert.All(answers, answer => Assert.Equal((HttpStatusCode.Forbidden, OwnerOnlyBody), (answer.Status, answer.Body)));
+        Assert.Equal(before, await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken));
+        Assert.Equal(sentBefore, (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count, _factory.Files.DescribedPaths.Count));
+        Assert.Empty(_factory.Quarantine.Renames);
+        Assert.Empty(_factory.Quarantine.Deletions);
+        Assert.Empty(_factory.Quarantine.CreatedFolders);
     }
 
     // Every endpoint of a replacement controller as the running app routes it, with each method it answers — or POST, for
@@ -147,14 +285,22 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
             : [HttpMethods.Post];
 
     // The route with every parameter filled in: a new Guid for a guid, 1 for a number, a word otherwise.
-    private static string UrlFor(RoutePattern pattern) =>
-        "/" + string.Join('/', pattern.PathSegments.Select(segment => string.Concat(segment.Parts.Select(TextOf))));
+    private static string UrlFor(RoutePattern pattern) => UrlFor(pattern, null);
 
-    private static string TextOf(RoutePatternPart part) => part switch
+    // MAM-27 — or each guid by its parameter's name from rows that exist; a guid parameter they don't name throws, so a
+    // route added later under a new name can't pass with a made-up id.
+    private static string UrlFor(RoutePattern pattern, IReadOnlyDictionary<string, Guid>? rows) =>
+        "/" + string.Join('/', pattern.PathSegments.Select(segment => string.Concat(segment.Parts.Select(part => TextOf(part, rows)))));
+
+    private static string TextOf(RoutePatternPart part, IReadOnlyDictionary<string, Guid>? rows) => part switch
     {
         RoutePatternLiteralPart literal => literal.Content,
         RoutePatternSeparatorPart separator => separator.Content,
-        RoutePatternParameterPart parameter when HasConstraint(parameter, "guid") => Guid.NewGuid().ToString(),
+        RoutePatternParameterPart parameter when HasConstraint(parameter, "guid") => rows is null
+            ? Guid.NewGuid().ToString()
+            : rows.TryGetValue(parameter.Name, out var row)
+                ? row.ToString()
+                : throw new InvalidOperationException($"No planted row fills the route parameter {{{parameter.Name}}}."),
         RoutePatternParameterPart parameter when HasConstraint(parameter, "int") || HasConstraint(parameter, "long") => "1",
         RoutePatternParameterPart => "sample",
         _ => throw new InvalidOperationException($"Unexpected route part {part}."),

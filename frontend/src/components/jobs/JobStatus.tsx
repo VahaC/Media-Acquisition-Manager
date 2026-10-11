@@ -30,7 +30,11 @@ const STATUS_ICONS: Record<DownloadJobStatus, LucideIcon> = {
  * The colours follow the Library's status lines: a green icon for Downloaded, a red line for
  * Failed, an amber icon for a job that needs linking; amber never colours text (contrast).
  */
-export function JobStatus({ job }: { job: DownloadJob }) {
+export function JobStatus({ job, onJobPage = false }: {
+  job: DownloadJob
+  /** MAM-27 — it is the job's own page, whose Replacement section says what to do (ReplacementLine). */
+  onJobPage?: boolean
+}) {
   const { t } = useTranslation('jobs')
   const Icon = STATUS_ICONS[job.status]
   const label = t(`status.${job.status}`)
@@ -65,7 +69,9 @@ export function JobStatus({ job }: { job: DownloadJob }) {
           <span>{job.error}</span>
         </p>
       )}
-      {job.replacement && <ReplacementLine replacement={job.replacement} downloadFailed={job.status === 'Failed'} />}
+      {job.replacement && (
+        <ReplacementLine replacement={job.replacement} downloadFailed={job.status === 'Failed'} onJobPage={onJobPage} />
+      )}
       {notChecked && (
         <p className="library-source-warning">
           <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />

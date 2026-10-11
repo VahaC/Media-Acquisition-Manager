@@ -183,7 +183,9 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             (DownloadJobStatus.Submitted, (DownloadOverwriteCheck?)DownloadOverwriteCheck.Checked, AlienRelease),
             (job.Status, job.OverwriteCheck, job.ReleaseTitle));
         // The answer already says how the replacement stands: the download went to qBittorrent after the strict check.
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, false, 0) { Id = await ReplacementIdAsync(cancellationToken) }, job.Replacement);
+        Assert.Equal(
+            new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, false, 0) { Id = await ReplacementIdAsync(cancellationToken), CanCancel = true },
+            job.Replacement);
         // ADR 0013, R1 — everything written before the .torrent was fetched, the work's IMDb id included, and nothing asked
         // of qBittorrent before it.
         Assert.Equal((0, 1, 1, 1, 1, 1, 2), atFetch);
@@ -1026,9 +1028,13 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var replacement = document.RootElement.GetProperty("replacement");
         // Exactly the names the Jobs page and the dialog's sent view read (frontend DownloadJobReplacement), the state by
-        // name, as every enum on the wire. MAM-26 — and the replacement's id, its quarantine's counts and Retry.
+        // name, as every enum on the wire. MAM-26 — and the replacement's id, its quarantine's counts and Retry. MAM-27 — and
+        // its drops, Keep both, the stop of a review and where a running check is.
         Assert.Equal(
-            ["state", "copyCount", "reason", "switchedOff", "copiesOutsideTickedFolders", "id", "quarantinedCopyCount", "stayedFileCount", "canRetry"],
+            [
+                "state", "copyCount", "reason", "switchedOff", "copiesOutsideTickedFolders", "id", "quarantinedCopyCount", "stayedFileCount", "canRetry",
+                "droppedCopyCount", "dropOnlyCopyCount", "canCancel", "stop", "checkStage", "checkWaitsUntilUtc",
+            ],
             replacement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ("Submitted", 1, JsonValueKind.Null, false, 0),
@@ -1038,6 +1044,11 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             (0, 0, false),
             (replacement.GetProperty("quarantinedCopyCount").GetInt32(), replacement.GetProperty("stayedFileCount").GetInt32(),
                 replacement.GetProperty("canRetry").GetBoolean()));
+        Assert.Equal(
+            (0, 0, true, JsonValueKind.Null, JsonValueKind.Null, JsonValueKind.Null),
+            (replacement.GetProperty("droppedCopyCount").GetInt32(), replacement.GetProperty("dropOnlyCopyCount").GetInt32(),
+                replacement.GetProperty("canCancel").GetBoolean(), replacement.GetProperty("stop").ValueKind, replacement.GetProperty("checkStage").ValueKind,
+                replacement.GetProperty("checkWaitsUntilUtc").ValueKind));
         var id = replacement.GetProperty("id").GetGuid();
         await _factory.WithDbAsync(async db =>
         {
@@ -1073,7 +1084,9 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var job = await ReadJobAsync(first, cancellationToken);
         Assert.Equivalent(job, await ReadJobAsync(response, cancellationToken), strict: true);
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Submitted, 2, null, false, 0) { Id = await ReplacementIdAsync(cancellationToken) }, job.Replacement);
+        Assert.Equal(
+            new DownloadJobReplacementDto(ReplacementJobState.Submitted, 2, null, false, 0) { Id = await ReplacementIdAsync(cancellationToken), CanCancel = true },
+            job.Replacement);
         await _factory.WithDbAsync(async db =>
         {
             Assert.Equal(1, await db.DownloadJobs.CountAsync(cancellationToken));

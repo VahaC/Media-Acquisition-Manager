@@ -254,3 +254,31 @@ no member.
 `ReplacementQuarantineFlowHttpTests.Flow_of_a_copy_a_torrent_holds_stops_for_review_and_once_the_torrent_is_removed_retry_lets_the_next_pass_move_it`
 and `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
 pin it.
+
+## The held copy on the job's page (added 0.3.0, MAM-27)
+
+**The job's page names the torrent that holds an old copy on the copy itself — "Stopped the
+replacement:" with the Decision's sentence the move stored, "Still held by the torrent
+“Alien.1979.Theatrical” in “qBittorrent”: remove that torrent there without its files, then press
+Retry." —; the owner's Retry, once he removed it, still sends the job back to the move, which reads
+the clients again, or he drops that copy, which stays where it is with its torrent, and the others
+move once he presses Retry ([ADR
+0032](0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)'s
+MAM-27 section).** A dropped copy is never read for holds again — check 6 passes it by —, so a
+torrent that holds it stops nothing. Still no client write: Keep both, Drop and Retry ask
+qBittorrent nothing.
+
+**What of the text above no longer holds.** The MAM-26 section's "A stop of the check of the new
+files is not this Retry (409): that one stays MAM-27's": a stop of the check is retried too, back to
+the check ([ADR
+0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)'s
+MAM-27 section). Of the tests above,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`
+is now
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`.
+
+`ReplacementReviewFlowHttpTests`,
+`ReplacementDroppedCopyHttpTests`
+and
+`DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
+pin it, and `JobDetailsPage.replacement.test.tsx` the job's page.

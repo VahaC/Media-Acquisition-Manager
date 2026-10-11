@@ -44,8 +44,13 @@ disk, and the real renames and deletions on Linux folders in Docker —, tried o
 no published image yet) then checks the old copy and every client's torrents again right before the
 move, renames the old copy with its own companions into `.mam-quarantine` at the top of its media
 folder, where it stays until the owner restores it or deletes it for good, and finds a move, a
-restore or a deletion a restart cut again by device and inode. MAM-27 (the Jobs page's view of
-replacements) and MAM-28 (Phase C's live check) are still to do.
+restore or a deletion a restart cut again by device and inode. MAM-27 (built on 2026-10-11 while
+0.3.0 is the version, resting on the tests and a look at its pages in a browser at 1280 px and
+375 px over made-up answers, tried on no real setup, and in no published image yet) then shows, on
+the Jobs page and each job's page, where each replacement stands, its ticked copies with the new
+file each pairs with, what the check found and why it stopped, and lets the owner keep both copies,
+retry a stopped check or drop one old copy, each with an audit row. MAM-28 (Phase C's live check)
+is still to do.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -53,8 +58,8 @@ follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24, MAM-25 and MAM-26; the release of the
-rest of Phase C, and of Phase D, is not decided yet.
+Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24, MAM-25, MAM-26 and MAM-27; the release
+of the rest of Phase C, and of Phase D, is not decided yet.
 
 ## Phases
 
@@ -1254,8 +1259,8 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 ### Phase C — Safe replacement
 
-**Release:** 0.3.0 holds MAM-24, MAM-25 and MAM-26; the rest of Phase C not decided. **Tickets:**
-MAM-23 to MAM-28.
+**Release:** 0.3.0 holds MAM-24, MAM-25, MAM-26 and MAM-27; the rest of Phase C not decided.
+**Tickets:** MAM-23 to MAM-28.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
 copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
@@ -1359,7 +1364,8 @@ a quarantine until you delete it for good, and you can put it back.
   `Submitted`, `Downloading`, `Paused`, `Downloaded` —; a failed, refused or interrupted send
   `Failed`, a download that needs linking `NeedsReview`, a cancel `Cancelled` with a
   `ReplacementCancelled` row; every job's answer carries `replacement`, and the Jobs page shows one
-  line (the full view stays MAM-27's). Every send now records what its release turned out to be
+  line (the full view stays MAM-27's, which builds it below). Every send now records what its
+  release turned out to be
   (`DownloadJobs.PayloadKind`). Migrations `AddReplacementSettings` and `AddReplacementJobs` rebuild
   no table. Accepted gaps: strict mode compares a place nothing is at yet only with the torrents of
   the destination's own category, as MAM-38 does, so a torrent of another category writing there
@@ -1485,7 +1491,8 @@ a quarantine until you delete it for good, and you can put it back.
   nothing until a later pass. *Retry:* the
   owner's, for a replacement the move stopped — checks 5 or 6, a refused rename, a cut — back to
   `Verified`, nothing written to the media; a stop of the new files' check is refused, as that Retry
-  is MAM-27's. *Restore:* the owner's, from `Quarantined` or a review with names in the quarantine,
+  is MAM-27's (MAM-27 below takes it). *Restore:* the owner's, from `Quarantined` or a review with
+  names in the quarantine,
   every name checked first — the switch, the ticks, the file in the quarantine unchanged, nothing at
   its old path, a dangling link included, its folder still there; no folder is created; never after
   a part-way Delete for good took a video —, then renamed back, videos first,
@@ -1494,11 +1501,12 @@ a quarantine until you delete it for good, and you can put it back.
   compared again right before its `unlinkat`, no folder removed, ending `Completed`. *Jellyfin:*
   after a move and a restore, `POST /Library/Media/Updated` with the old copy's library paths as
   `Deleted` or `Created` (`LibraryFileChange`), never a quarantine path, owed for an hour while not
-  taken (`LibraryNoticeDueUtc`); nothing else. *The page:* the job's **Old copies** section — every
-  name, where it is now, the room — with **Retry**, **Restore** and **Delete for good**, the owner's
-  alone (`GET /api/replacements/{id}`, `POST …/retry`, `…/restore`, `…/delete-for-good`); the Jobs
-  line for every new state and the owner's Retry on the row; the Media folders page's per-folder hint
-  of whether a rename can work there (another mount, a read-only mount, no write permission, or not
+  taken (`LibraryNoticeDueUtc`); nothing else. *The page:* the job's **Old copies** section (MAM-27
+  below renames it **Replacement**) — every name, where it is now, the room — with **Retry**,
+  **Restore** and **Delete for good**, the owner's alone (`GET /api/replacements/{id}`,
+  `POST …/retry`, `…/restore`, `…/delete-for-good`); the Jobs line for every new state and the
+  owner's Retry on the row; the Media folders page's per-folder hint of whether a rename can work
+  there (another mount, a read-only mount, no write permission, or not
   checked), the room each quarantine takes, and the Save that would leave a quarantine holding names
   outside every allowed folder refused. *The scan:* the folder scan leaves out every
   `.mam-quarantine`, at any depth. *The end:* `Quarantining` → `Quarantined`, then `Restoring` →
@@ -1512,11 +1520,59 @@ a quarantine until you delete it for good, and you can put it back.
   container's file systems all have `RENAME_NOREPLACE`), a real read-only bind mount (read from a
   mount table instead), a mount at `.mam-quarantine`, a kernel without `STATX_MNT_ID`, an fsync that
   fails (the rename stands and is recorded) and arm64's open flags.
-- **MAM-27 Replacements on the Jobs page** (to do): each replacement's state, its pairs, the
-  evidence and the reason for any block (MAM-26 shows its old copies on the job's page); Cancel a
-  pending removal, Retry after a stop of the check of the new files (after the owner has corrected a
-  new item in Jellyfin, say — MAM-26's Retry takes only a stop of the move), settle a pair, drop a
-  copy from the job — the owner's alone, each with an audit row.
+- **MAM-27 Replacements on the Jobs page** (built, release 0.3.0; tried on no real setup — the tests
+  stand in for it, and MAM-28 is the live check —; in no published image yet): the Jobs page and
+  each job's page show where a replacement stands, its ticked copies with the new file each pairs
+  with, what the check found and why it stopped, and the owner keeps both copies, retries a stopped
+  check or drops one old copy, each with an audit row (Vasyl's decisions of 2026-10-08 and
+  2026-10-11; the MAM-27 sections of [ADR
+  0032](docs/adr/0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md),
+  ADR 0014, ADR 0031, ADR 0033 and ADR 0035). *The view:* the Jobs line says until when the check
+  waits for Jellyfin, and a review's line what to do next by what stopped it — the download, the
+  check or the move — and whether a copy only a drop settles is in it, with the dropped copies
+  counted; the owner's row has **Retry**, **Keep both** and a **Copies** toggle that opens the old
+  copies' table under the row. The job's page, its section now **Replacement**, has a box of what
+  the owner can do — for a film Jellyfin gave no id, a link to the Library page searched by its
+  title —, how far the check got with its times, the old copies — each one's pair, status, problem
+  and **Drop** — and the new files — how far each got on the disk and in Jellyfin, the ids its work
+  is expected to carry and those it was given —, then MAM-26's names under **Files the move
+  planned**; both pages ask again every 2 s while the check runs. The server works out each copy's
+  status and each new file's progress (`ReplacementJobProgress`), so the pages never pair anything
+  themselves (`GET /api/replacements/{id}` and the job's `replacement` widened). *Keep both:*
+  `POST …/cancel`, from `Scheduled` to `Verified` and from a review, while no name of the job has
+  left its folder — `Cancelled` with "You cancelled the replacement, so nothing will be replaced.",
+  its names still `Planned` or `Stayed` forgotten, nothing written to the download job or sent to
+  qBittorrent, so the download goes on; **Cancel job** still ends a followed replacement with its
+  download. *The check's Retry:* `POST …/retry` now takes a stop of the check back to `Downloaded`,
+  the last check's evidence forgotten in the same transaction; the check's next pass reads
+  qBittorrent and the files again, asks Jellyfin to look again and gives both hours anew, so
+  Jellyfin's ids decide again (its look keeps the ids an Identify set, by Jellyfin's source). A stop
+  of the move is retried as MAM-26 built it, and a download the app can't follow has no Retry. *Only
+  a drop settles:* Jellyfin numbering the ticked episode otherwise, no new episode at its number, a
+  half or a file of several episodes on either side, another edition and a file under three quarters
+  of the old copy's running time — the pairing marks such a copy (`OnlyDropSettles`), and while one
+  is in a replacement Retry is withheld. *Dropping a copy:* `POST …/copies/{copyId}/drop`, only from
+  a review the check or the move stopped, never the last copy or one a name of which left its
+  folder; the copy stays where it is (`DroppedUtc`), its names still `Planned` or `Stayed`
+  forgotten, and nothing more happens until the owner presses Retry; the check no longer reads,
+  pairs or waits on it, the move passes it by — a torrent holding it stops nothing —, another
+  download may tick it, and it can't be taken back in. *Pairs:* settled only through the library
+  (correct the new item, then Retry) or by a drop; no click confirms a work or an edition by hand,
+  and nothing moves until every ticked copy is paired or dropped. *The end:* no new state; three new
+  audit actions, `ReplacementCheckRetried`, `ReplacementCancelledAlone` and `ReplacementCopyDropped`
+  — the last aimed at the copy, a new target kind —, the owner's with him; each action one
+  transaction writing nothing to the media or a client, owner-only by where its route lives, and
+  usable while replacement is switched off. Migration `AddReplacementCopyDrops` rebuilds no table.
+  Tried live: nothing — no replacement was kept, retried or dropped on the reference installation;
+  the pages were looked at in a browser at 1280 px and 375 px over made-up answers. Accepted gaps: a
+  copy ticked by mistake can't be dropped while the download runs, only the whole replacement kept;
+  a dropped copy can't be taken back in; until the owner presses Retry after a drop, the line keeps
+  the old reason; a new file of a dropped copy still holds the job until Jellyfin has listed, read
+  and identified it, as any new file does, since it may be a second file of a copy left — a fix in
+  Jellyfin, then Retry, settles it; a title-and-year film with no TMDb or IMDb id keeps Retry for
+  its "no id to compare" stop, which can only stop again; and a stop of the move because the new
+  file changed after it was verified keeps MAM-26's Retry, which can only stop again — a drop or
+  Keep both is the way out.
 - **MAM-28 Live check** (to do): the acceptance bar on the reference installation.
 - **Backup/restore:** replacement jobs, the switch, the ticks and the audit trail live in the
   database; quarantined files stay on disk in the quarantine folder, outside the database backup.
@@ -1598,7 +1654,23 @@ another allowed folder or a quarantine, and a folder swapped right before the re
 `ReplacementsAreOwnerOnlyHttpTests`, `LocalFileQuarantineLinuxTests`,
 `LocalFileQuarantinePlacesLinuxTests`, `LocalFileInventoryListingTests`,
 `AddReplacementQuarantineMigrationTests`, and `JobDetailsPage.replacement.test.tsx` and
-`MediaFoldersPage.test.tsx` for the pages).
+`MediaFoldersPage.test.tsx` for the pages). MAM-27's tests prove the review's view and the owner's
+three actions over HTTP: each action with its audit row — Keep both from every state before the move
+with the download and qBittorrent untouched, a drop aimed at the copy, the check's Retry forgetting
+the last check's evidence —; Retry moving the copy once the holding torrent is gone, and a film
+Jellyfin gave no id verified and moved once the owner fixed it in Jellyfin and pressed Retry,
+Jellyfin asked to look again; a 409 for every state an action doesn't apply to, a copy only a drop
+settles withholding Retry, and the last copy refusing a drop, each with nothing written; a dropped
+copy never read, paired, checked or moved again, and tickable by another download; a member refused
+on every replacement route, found by the test that discovers the routes and sent over a real stopped
+replacement, the owner's and the member's own, with nothing written, renamed or asked; another
+user's job a bare 404, even for the owner; and the line and the details by state
+(`ReplacementCancelHttpTests`, `ReplacementDropCopyHttpTests`, `ReplacementRetryHttpTests`,
+`ReplacementReviewFlowHttpTests`, `ReplacementDroppedCopyHttpTests`, `ReplacementDetailsHttpTests`,
+`ReplacementLineHttpTests`, `ReplacementsAreOwnerOnlyHttpTests`, `ReplacementRestoreHttpTests`,
+`DownloadsGetHttpTests`, `AddReplacementCopyDropsMigrationTests`, the Core rules' own tests, and
+`JobsPage.test.tsx`, `JobDetailsPage.replacement.test.tsx` and `ReplacementCopies.test.tsx` for the
+pages).
 
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an

@@ -14,8 +14,8 @@ public interface IReplacementJobDataFactory
     /// A saved replacement of the download job <paramref name="downloadJobId"/> in <paramref name="state"/>, scheduled by
     /// <paramref name="requestedByUserId"/> (its name read from the account) at the factory's now, with
     /// <paramref name="reason"/> when it stopped. MAM-26 — with the mover's times as given: when it last checked or
-    /// claimed the job, when the job reached the quarantine, and since when a library notice is owed. No file, work or
-    /// name: each is a row of its own.
+    /// claimed the job, when the job reached the quarantine, and since when a library notice is owed. MAM-27 — and the
+    /// check's: when it started, and when it asked the library to look. No file, work or name: each is a row of its own.
     /// </summary>
     Task<ReplacementJobEntity> Create(
         Guid downloadJobId,
@@ -24,14 +24,18 @@ public interface IReplacementJobDataFactory
         string? reason = null,
         DateTime? quarantineCheckedUtc = null,
         DateTime? quarantinedUtc = null,
-        DateTime? libraryNoticeDueUtc = null);
+        DateTime? libraryNoticeDueUtc = null,
+        DateTime? inspectionStartedUtc = null,
+        DateTime? libraryAskedUtc = null);
 
     /// <summary>
     /// A saved old copy of <paramref name="replacementJobId"/> at <paramref name="appPath"/> (canonical) with the
     /// identity <paramref name="facts"/> read when it was scheduled, at <paramref name="position"/>; its library rows'
     /// ids are made up unless given, as nothing joins on them. MAM-26 — the library's own path of it is
     /// <paramref name="servicePath"/>, or <paramref name="appPath"/> when <c>null</c>; and it is paired with the new file
-    /// <paramref name="pairedNewFileId"/> when given, as a verified job's copies are.
+    /// <paramref name="pairedNewFileId"/> when given, as a verified job's copies are. MAM-27 — an episode's place when
+    /// given; the <paramref name="problem"/> it stopped the job with, marked as one only a drop settles when
+    /// <paramref name="onlyDropSettles"/>; and dropped by the owner at <paramref name="droppedUtc"/> when given.
     /// </summary>
     Task<ReplacementJobFileEntity> AddFile(
         Guid replacementJobId,
@@ -41,7 +45,12 @@ public interface IReplacementJobDataFactory
         Guid? physicalFileId = null,
         Guid? mediaWorkId = null,
         string? servicePath = null,
-        Guid? pairedNewFileId = null);
+        Guid? pairedNewFileId = null,
+        string? problem = null,
+        bool onlyDropSettles = false,
+        DateTime? droppedUtc = null,
+        int? seasonNumber = null,
+        int? episodeNumber = null);
 
     /// <summary>
     /// A saved matched work <paramref name="mediaWorkId"/> of <paramref name="replacementJobId"/> as the dialog showed it
@@ -71,6 +80,13 @@ public interface IReplacementJobDataFactory
         string relativePath,
         LibraryFileKind? kind = null,
         IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool OfSeries)>? identifiers = null);
+
+    /// <summary>
+    /// MAM-27 — a saved new file of <paramref name="replacementJobId"/>'s download at <paramref name="position"/> in the
+    /// client's list with every piece of evidence <paramref name="facts"/> gives, and its registry ids: as a check that got
+    /// that far left it.
+    /// </summary>
+    Task<ReplacementJobNewFileEntity> AddNewFile(Guid replacementJobId, int position, ReplacementNewFileFacts facts);
 
     /// <summary>
     /// MAM-26 — a saved name of <paramref name="replacementJobId"/>'s move at <paramref name="position"/> in its plan: the

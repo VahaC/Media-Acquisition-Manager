@@ -593,7 +593,8 @@ public sealed class DownloadService(
     /// The jobs as the dialog and the Jobs page show them, in <paramref name="rows"/>' order, each with its replacement.
     /// MAM-24, R10 — a replacement's counts read in a batch, never per job: one query for the copies of every replacement
     /// among the rows and one read of the gates — and neither for rows that carry none, as a page of Keep both sends does.
-    /// MAM-26 — and one query for the names their moves planned, for what the quarantine holds of each.
+    /// MAM-26 — and one query for the names their moves planned, for what the quarantine holds of each. MAM-27 — still those
+    /// three: what the line says of drops, Keep both and a running check comes from the same rows and the replacement's own.
     /// </summary>
     private async Task<IReadOnlyList<DownloadJobDto>> ToDtosAsync(IReadOnlyList<JobRow> rows, bool forOwner, CancellationToken cancellationToken)
     {
@@ -604,7 +605,8 @@ public sealed class DownloadService(
         // One JSON parameter (EF.Parameter) rather than one per id, the house rule against SQLite's limit.
         var copies = (await db.ReplacementJobFiles.AsNoTracking()
                 .Where(file => EF.Parameter(replacementIds).Contains(file.ReplacementJobId))
-                .Select(file => new ReplacementCopyPath(file.ReplacementJobId, file.Id, file.AppPath))
+                .Select(file => new ReplacementCopyPath(
+                    file.ReplacementJobId, file.Id, file.AppPath, file.DroppedUtc != null, file.OnlyDropSettles))
                 .ToListAsync(cancellationToken))
             .ToLookup(file => file.ReplacementJobId);
         // MAM-26 — the same way: only the columns the counts need, never a path.
@@ -637,6 +639,9 @@ public sealed class DownloadService(
     /// replacement for review. And, from its <paramref name="names"/>, how many ticked copies have their video in the
     /// quarantine, and how many companions stayed in their folder in a job that moved something — one whose video never
     /// moved left them all where they were, which its reason says.
+    /// MAM-27 — a copy the owner dropped is out of the job: it stays where it is, so it counts neither among the copies it
+    /// would replace nor outside a ticked folder, only as dropped; and whether any name left its folder, which Keep both
+    /// can't undo.
     /// </remarks>
     private DownloadJobReplacementDto ReplacementOf(
         ReplacementJobEntity replacement, IReadOnlyList<ReplacementCopyPath> copies, IReadOnlyList<ReplacementNameCount> names, ReplacementGateState gate)
@@ -645,11 +650,10 @@ public sealed class DownloadService(
             .Where(name => name is { Kind: ReplacementNameKind.Video, State: ReplacementNameState.Quarantined or ReplacementNameState.Deleted })
             .Select(name => name.ReplacementJobFileId)
             .ToHashSet();
-        return mapper.ToDto(
-            replacement,
-            copies.Count,
-            !gate.IsEnabled,
-            copies.Count(copy => !moved.Contains(copy.Id)
+        var kept = copies.Where(copy => !copy.Dropped).ToList();
+        var counts = new ReplacementLineCounts(
+            kept.Count,
+            kept.Count(copy => !moved.Contains(copy.Id)
                 && (!NormalizedPath.TryParse(copy.AppPath, out var parsed, out _) || !gate.IsInTickedFolder(parsed))),
             names.Where(name => name is { Kind: ReplacementNameKind.Video, State: ReplacementNameState.Quarantined })
                 .Select(name => name.ReplacementJobFileId)
@@ -657,7 +661,11 @@ public sealed class DownloadService(
                 .Count(),
             names.Any(name => MovedStates.Contains(name.State))
                 ? names.Count(name => name is { Kind: ReplacementNameKind.Companion, State: ReplacementNameState.Stayed })
-                : 0);
+                : 0,
+            copies.Count - kept.Count,
+            kept.Count(copy => copy.OnlyDropSettles),
+            names.Any(name => ReplacementNameStates.Taken.Contains(name.State)));
+        return mapper.ToDto(replacement, counts, !gate.IsEnabled);
     }
 
     /// <summary>MAM-14 — why a job of <paramref name="status"/>, which ended, can't be cancelled.</summary>
@@ -887,6 +895,7 @@ public sealed class DownloadService(
     /// <summary>MAM-26 — one name a replacement's move planned, with only what the Jobs line counts of it.</summary>
     private sealed record ReplacementNameCount(Guid ReplacementJobId, Guid ReplacementJobFileId, ReplacementNameKind Kind, ReplacementNameState State);
 
-    /// <summary>MAM-24 — one ticked copy of a replacement, with only what the Jobs line counts of it: where it is.</summary>
-    private sealed record ReplacementCopyPath(Guid ReplacementJobId, Guid Id, string AppPath);
+    /// <summary>MAM-24 — one ticked copy of a replacement, with only what the Jobs line counts of it: where it is. MAM-27 —
+    /// and whether the owner dropped it, and whether its problem is one only a drop settles.</summary>
+    private sealed record ReplacementCopyPath(Guid ReplacementJobId, Guid Id, string AppPath, bool Dropped, bool OnlyDropSettles);
 }

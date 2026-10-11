@@ -30,4 +30,8 @@ public enum AuditTargetKind
     /// <summary>MAM-26 — one name a replacement moves into the quarantine, restores or deletes (its
     /// <c>ReplacementJobNames</c> row), named by the file's own name.</summary>
     ReplacementJobName = 8,
+
+    /// <summary>MAM-27 — one old copy the owner ticked for a replacement (its <c>ReplacementJobFiles</c> row), named by the
+    /// file's own name.</summary>
+    ReplacementJobFile = 9,
 }

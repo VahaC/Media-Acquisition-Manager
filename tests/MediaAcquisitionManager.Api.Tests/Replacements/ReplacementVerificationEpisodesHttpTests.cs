@@ -116,7 +116,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 2, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 2, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id, CanCancel = true }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         // The three episodes, by the client's place — never the skipped sample, nor the .nfo —, each Yellowstone's by its
         // series at its place.
@@ -185,7 +185,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id, CanCancel = true }, await _harness.LineAsync(job.Id, cancellationToken));
         Assert.Equal(
             [((int?)null, (Guid?)_yellowstone.Id, (string?)null), (4, _yellowstone.Id, null)],
             (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.EpisodeNumberEnd, file.MediaWorkId, file.Problem)));
@@ -210,7 +210,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id, CanCancel = true }, await _harness.LineAsync(job.Id, cancellationToken));
         // Two requests to look: the most one call names, then the rest, in the client's order.
         Assert.Equal(["POST /Library/Media/Updated", "POST /Library/Media/Updated"], _harness.Writes());
         var asked = _harness.JellyfinServer.ScanRequests.ToList();
@@ -252,7 +252,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 2, reason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 2, reason, 1, cancellationToken);
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.Equal(
             [((int?)1, (int?)null, (Guid?)_yellowstone.Id, (string?)null), (2, numberEnd, _yellowstone.Id, null)],
@@ -280,7 +280,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, OldTwoEpisodesReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, OldTwoEpisodesReason, 1, cancellationToken);
         Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), NewFileOutcome(Assert.Single(await _harness.NewFilesAsync(cancellationToken))));
         // The copy keeps Jellyfin's end number of it beside why it stopped.
         var copy = Assert.Single(await _harness.CopiesAsync(cancellationToken));
@@ -305,7 +305,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, HalfReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, HalfReason, 1, cancellationToken);
         Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), NewFileOutcome(Assert.Single(await _harness.NewFilesAsync(cancellationToken))));
         Assert.Equal(((Guid?)null, (string?)HalfReason), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
     }
@@ -326,7 +326,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 2, NoNewFileReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 2, NoNewFileReason, 1, cancellationToken);
         var newFiles = await _harness.NewFilesAsync(cancellationToken);
         Assert.All(newFiles, file => Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), NewFileOutcome(file)));
         Assert.Equal(
@@ -352,7 +352,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, TwoNewFilesReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, TwoNewFilesReason, 0, cancellationToken);
         Assert.All(
             await _harness.NewFilesAsync(cancellationToken),
             file => Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), NewFileOutcome(file)));
@@ -375,7 +375,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, MadeFilmReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, MadeFilmReason, 0, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(
             ((LibraryFileKind?)LibraryFileKind.Movie, (string?)null, (Guid?)null, (string?)MadeFilmReason),
@@ -404,7 +404,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, OldListedAsFilmReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, OldListedAsFilmReason, 0, cancellationToken);
         Assert.Equal(((Guid?)_yellowstone.Id, (string?)null), NewFileOutcome(Assert.Single(await _harness.NewFilesAsync(cancellationToken))));
         Assert.Equal(((Guid?)null, (string?)OldListedAsFilmReason), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
     }
@@ -428,7 +428,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, OldRenumberedReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, OldRenumberedReason, 1, cancellationToken);
         Assert.Equal(((Guid?)null, (string?)OldRenumberedReason), CopyOutcome(Assert.Single(await _harness.CopiesAsync(cancellationToken))));
     }
 
@@ -450,7 +450,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        await AssertNeedsReviewAsync(job, 1, ConflictingSeriesReason, cancellationToken);
+        await AssertNeedsReviewAsync(job, 1, ConflictingSeriesReason, 0, cancellationToken);
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(((string?)otherSeriesId, (Guid?)null, (string?)ConflictingSeriesReason), (newFile.SeriesItemId, newFile.MediaWorkId, newFile.Problem));
         Assert.Equal(
@@ -513,13 +513,21 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
 
     /// <summary>
     /// The job stopped for review with <paramref name="reason"/> — on the Jobs page too, its <paramref name="copyCount"/>
-    /// copies kept —, with its two audit rows of the app's own, and nothing touched: Jellyfin asked once to look, qBittorrent
-    /// only read, the old copies where they were.
+    /// copies kept, the check's stop offering Keep both and (MAM-27) the owner's Retry, unless a copy's problem is one only
+    /// a drop settles (<paramref name="dropOnlyCopyCount"/>) —, with its two audit rows of the app's own, and nothing
+    /// touched: Jellyfin asked once to look, qBittorrent only read, the old copies where they were.
     /// </summary>
-    private async Task AssertNeedsReviewAsync(DownloadJobDto job, int copyCount, string reason, CancellationToken cancellationToken)
+    private async Task AssertNeedsReviewAsync(DownloadJobDto job, int copyCount, string reason, int dropOnlyCopyCount, CancellationToken cancellationToken)
     {
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, copyCount, reason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id },
+            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, copyCount, reason, false, 0)
+            {
+                Id = (await _harness.ReplacementAsync(cancellationToken)).Id,
+                CanRetry = dropOnlyCopyCount == 0,
+                DropOnlyCopyCount = dropOnlyCopyCount,
+                CanCancel = true,
+                Stop = ReplacementStop.Check,
+            },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, replacement.Reason));

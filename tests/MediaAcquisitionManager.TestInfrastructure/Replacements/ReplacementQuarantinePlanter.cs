@@ -13,6 +13,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 /// <see cref="ReplacementVerificationHarness"/>'s world, for the HTTP tests of the owner's own actions: its download done,
 /// its ticked copies, its names in the states given, and each file where its state says it is — in the quarantine at
 /// <see cref="ReplacementVerificationHarness.QuarantinePathOf"/>, or at its old path —, every old folder still there.
+/// MAM-27 — or as the check of its new files left it: copies with no name, each with its pair, problem or drop, and the
+/// new files with the evidence the check gathered.
 /// </summary>
 /// <remarks>
 /// The mover itself is tested by moving (<c>QuarantineReplacementsAsync</c>); what the owner does next stands on rows a
@@ -29,12 +31,23 @@ public sealed class ReplacementQuarantinePlanter(MediaAcquisitionManagerApiFacto
     /// <paramref name="names"/> in their order: each video starts a ticked copy, its companions follow it. A Quarantined job
     /// reached the quarantine at the factory's now; no library notice is owed.
     /// </summary>
+    /// <remarks>
+    /// MAM-27 — the check started at <paramref name="inspectionStartedUtc"/> and asked the library at
+    /// <paramref name="libraryAskedUtc"/> when given; <paramref name="newFiles"/> are planted first, in the client's order
+    /// — each on the disk at its path, when it has one and the disk's identity —; then the copies of
+    /// <paramref name="names"/>, then <paramref name="copies"/>, which have no name and stay at their old paths, each paired
+    /// with the new file at its <see cref="PlantedCopy.PairedWithNewFile"/>.
+    /// </remarks>
     public async Task<PlantedReplacement> PlantAsync(
         ReplacementJobState state,
         IReadOnlyList<PlantedName> names,
         DateTime? quarantineCheckedUtc = null,
         string? reason = null,
-        Guid? requestedByUserId = null)
+        Guid? requestedByUserId = null,
+        IReadOnlyList<PlantedCopy>? copies = null,
+        IReadOnlyList<ReplacementNewFileFacts>? newFiles = null,
+        DateTime? inspectionStartedUtc = null,
+        DateTime? libraryAskedUtc = null)
     {
         ArgumentNullException.ThrowIfNull(names);
         var db = factory.Scope.GetRequiredService<ApplicationDbContext>();
@@ -57,23 +70,36 @@ public sealed class ReplacementQuarantinePlanter(MediaAcquisitionManagerApiFacto
             state,
             reason,
             quarantineCheckedUtc: quarantineCheckedUtc,
-            quarantinedUtc: state == ReplacementJobState.Quarantined ? now : null);
+            quarantinedUtc: state == ReplacementJobState.Quarantined ? now : null,
+            inspectionStartedUtc: inspectionStartedUtc,
+            libraryAskedUtc: libraryAskedUtc);
 
-        var copies = new List<ReplacementJobFileEntity>();
+        var newFileRows = new List<ReplacementJobNewFileEntity>();
+        foreach (var (facts, position) in (newFiles ?? []).Select((facts, position) => (facts, position)))
+        {
+            newFileRows.Add(await replacements.AddNewFile(replacement.Id, position, facts));
+            if (facts is { AppPath: { } newPath, Disk: { } disk })
+            {
+                factory.Files.AddFolder(newPath[..newPath.LastIndexOf('/')]);
+                factory.Files.AddFile(newPath, disk);
+            }
+        }
+
+        var ticked = new List<ReplacementJobFileEntity>();
         var rows = new List<ReplacementJobNameEntity>();
         foreach (var (name, position) in names.Select((name, position) => (name, position)))
         {
             if (name.Kind == ReplacementNameKind.Video)
             {
-                copies.Add(await replacements.AddFile(
+                ticked.Add(await replacements.AddFile(
                     replacement.Id,
                     name.AppPath,
                     name.Facts,
-                    position: copies.Count,
+                    position: ticked.Count,
                     servicePath: ReplacementVerificationHarness.InJellyfin(name.AppPath)));
             }
 
-            var copy = copies.LastOrDefault() ?? throw new ArgumentException("A companion follows the video it belongs to.", nameof(names));
+            var copy = ticked.LastOrDefault() ?? throw new ArgumentException("A companion follows the video it belongs to.", nameof(names));
             var quarantinePath = ReplacementVerificationHarness.QuarantinePathOf(replacement.Id, name.AppPath);
             rows.Add(await replacements.AddName(
                 replacement.Id,
@@ -103,6 +129,25 @@ public sealed class ReplacementQuarantinePlanter(MediaAcquisitionManagerApiFacto
             }
         }
 
-        return new PlantedReplacement(download, replacement, copies, rows);
+        foreach (var copy in copies ?? [])
+        {
+            ticked.Add(await replacements.AddFile(
+                replacement.Id,
+                copy.AppPath,
+                copy.Facts,
+                position: ticked.Count,
+                servicePath: ReplacementVerificationHarness.InJellyfin(copy.AppPath),
+                pairedNewFileId: copy.PairedWithNewFile is { } pair ? newFileRows[pair].Id : null,
+                problem: copy.Problem,
+                onlyDropSettles: copy.OnlyDropSettles,
+                droppedUtc: copy.DroppedUtc,
+                seasonNumber: copy.SeasonNumber,
+                episodeNumber: copy.EpisodeNumber));
+            // Never moved: it is where it was scheduled, dropped or not.
+            factory.Files.AddFolder(copy.AppPath[..copy.AppPath.LastIndexOf('/')]);
+            factory.Files.AddFile(copy.AppPath, copy.Facts);
+        }
+
+        return new PlantedReplacement(download, replacement, ticked, rows, newFileRows);
     }
 }

@@ -171,7 +171,7 @@ public sealed class ReplacementPairingVerdictTests
         const string reason =
             "“/media/tv-shows/The Penguins of Madagascar/Season 02 [new]/Penguins.S02E05.Extended.mkv” claims Extended cut, while the release claimed none.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, extended.Id, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, extended.Id, reason, OnlyDropSettles: true)], result.OldCopies);
     }
 
     [Fact]

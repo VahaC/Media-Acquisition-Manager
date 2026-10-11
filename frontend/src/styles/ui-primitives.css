@@ -186,6 +186,18 @@
   white-space: pre-line;
 }
 
+/* MAM-27 — a confirmation's title can quote a scene name or a file name with no space in it ("Keep
+   both copies of Heat.1995.2160p.UHD.BluRay.REMUX.HDR.HEVC?", Cancel job's, Drop's). Unbroken, it set
+   the width of the dialog's one grid column: the title ran past the right edge, the message and the
+   buttons were cut off with it, and the dialog scrolled sideways (seen at 1280 and 375 px). `anywhere`,
+   not `break-word`: only it also shrinks the min-content size the grid track takes. It wraps clear of
+   the close button and keeps its lines apart, as the Details dialog's title does. */
+.confirm-dialog .ui-dialog-title {
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  padding-right: 1.5rem;
+}
+
 /* The type-the-name field, on the confirmations where a mis-click costs an outage. Its own block
    between the message and the footer so the name being asked for sits directly under the sentence
    that explains why. */

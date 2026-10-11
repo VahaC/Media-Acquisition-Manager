@@ -16,6 +16,8 @@ public sealed partial class ReplacementVerifier
     private async Task CheckFilesAsync(VerifyingJob job, DateTime now, CancellationToken cancellationToken)
     {
         var replacementJobId = job.Replacement.Id;
+        // Every ticked copy, a dropped one too (MAM-27): it is still in the library, and a new file that is one of them is
+        // still no new copy.
         var copies = await db.ReplacementJobFiles
             .AsNoTracking()
             .Where(copy => copy.ReplacementJobId == replacementJobId)
@@ -93,19 +95,14 @@ public sealed partial class ReplacementVerifier
 
     /// <summary>
     /// Replaces the job's new-file rows whole with <paramref name="checkedFiles"/> (their ids go with them), and takes the
-    /// old copies' pairs and problems of an earlier check away: a check of the files starts the pairing over. Staged in the
-    /// caller's transaction; the rows are added to the context, saved by its <c>SaveChanges</c>.
+    /// old copies' pairs and problems of an earlier check away: a check of the files starts the pairing over. MAM-27 — the
+    /// owner's Retry of a stopped check forgets the same way (<see cref="ReplacementJobUpdates.ForgetCheckAsync"/>), so a
+    /// copy's drop-only mark goes with its problem and a dropped copy keeps both as its history. Staged in the caller's
+    /// transaction; the rows are added to the context, saved by its <c>SaveChanges</c>.
     /// </summary>
     private async Task ReplaceNewFilesAsync(Guid replacementJobId, IReadOnlyList<ReplacementJobNewFileEntity> checkedFiles)
     {
-        await db.ReplacementJobNewFiles.Where(file => file.ReplacementJobId == replacementJobId).ExecuteDeleteAsync(CancellationToken.None);
-        await db.ReplacementJobFiles
-            .Where(copy => copy.ReplacementJobId == replacementJobId && (copy.PairedNewFileId != null || copy.Problem != null))
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(copy => copy.PairedNewFileId, (Guid?)null)
-                    .SetProperty(copy => copy.Problem, (string?)null),
-                CancellationToken.None);
+        await db.ForgetCheckAsync(replacementJobId);
         db.ReplacementJobNewFiles.AddRange(checkedFiles);
     }
 }

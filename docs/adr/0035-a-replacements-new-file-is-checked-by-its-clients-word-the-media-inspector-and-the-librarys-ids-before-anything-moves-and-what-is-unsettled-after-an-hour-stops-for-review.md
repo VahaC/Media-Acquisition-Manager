@@ -256,3 +256,79 @@ request, its paths sent as `Deleted` where this check sends the new files' as `C
 and
 `ReplacementQuarantineFlowHttpTests.Flow_moves_the_old_copy_tells_jellyfin_it_went_then_restore_puts_it_back_with_its_identity_and_tells_jellyfin_it_came_back`
 pin it, and `JobsPage.test.tsx` the line.
+
+## The check's Retry, and the evidence on the job's page (added 0.3.0, MAM-27)
+
+**The owner's Retry now takes up a review this check stopped: back to `Downloaded`, the last check's
+evidence forgotten in the same transaction, and the next pass starts the whole check again from the
+files — qBittorrent and the disk read again, Jellyfin asked to look again, both hours anew —, so
+Jellyfin's ids decide again ([ADR
+0032](0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)).**
+The Decision's "a check claimed again starts from the files and reads Jellyfin's ids afresh", as
+built.
+
+**Who stopped it decides.** `POST /api/replacements/{id}/retry` reads who stopped the job:
+`QuarantineCheckedUtc` set — the move — goes back to `Verified` as MAM-26 built it;
+`InspectionStartedUtc` set without it — this check — goes back to `Downloaded`, guarded in one
+statement by the state, both stamps, the download `Downloaded` with its overwrite check `Checked`,
+and no copy still in the replacement that only a drop settles, with a `ReplacementCheckRetried` row,
+the owner its actor; neither set — a download that needs linking — has no Retry ("The app can't
+follow this replacement's download, so its new file can't be checked again: keep both copies, or
+cancel the job."). `Failed` is never retried: no wait or review makes a bad file a copy. Any other
+state is 409 "This replacement isn't waiting for review, so there's nothing to retry here.", where
+MAM-26's said "… after a move …". The request writes nothing to the media and asks no one:
+`Downloaded` is among the check's states, so its next pass, within 15 s, claims the job with a new
+`InspectionStartedUtc`, no `LibraryAskedUtc` and a `ReplacementCheckStarted` row.
+
+**The old evidence goes at once.** In the Retry's transaction `ForgetCheckAsync` deletes the new
+files' rows, their ids with them, and clears each copy's pair, problem and drop-only mark — what the
+files stage's first step did alone, minutes later for a pack —, so the page never shows the last
+run's "identified as …" as current; a dropped copy keeps its last problem as history. The files
+stage calls the same method. And a stop of the library stage before the pairing — a new file that
+changed, or Jellyfin not read once the hour ran out — clears what the passes that waited before it
+stored on the copies left and the new files, as none of it was a verdict, so the stop's own reason
+stands alone and a mark of theirs never withholds Retry.
+
+**Jellyfin keeps the owner's fix.** Asked to look again, Jellyfin queues an ordinary refresh of the
+item: `POST /Library/Media/Updated` ignores the update type, and the refresh it queues replaces no
+metadata, keeping a valid provider id, so a TMDb link Identify applied stays. That was read in
+Jellyfin's source, not tried; MAM-28 sees it live.
+
+**The evidence on the job's page.** The Consequences' "MAM-27 will show them":
+`GET /api/replacements/{id}` answers each new file's client facts, readings, item, numbers, ids and
+problem with how far it got (`ReplacementNewFileProgress`, worked out by the server), each copy's
+pair, problem and status — while the check still runs, a problem a pass that waits on another file
+found is sent without the file or the copy reading as stopping the job, which only a review does —,
+the works with the ids they are expected to carry, and, while `Inspecting`, the stage and until when
+it waits (`CheckWaitsUntilUtc`: `LibraryAskedUtc` plus `LibraryWait` once Jellyfin took the request,
+else `InspectionStartedUtc` plus `FilesWait`); the Jobs line shows that time while Jellyfin's hour
+runs. The job's page asks again every 2 s while the check runs, as the Jobs pages do.
+
+**The cancel of a pending removal.** The Consequences' "a replacement can't be cancelled once its
+download is done until MAM-27's cancel of a pending removal": the owner's **Keep both** ([ADR
+0014](0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)'s
+MAM-27 section) cancels a `Downloaded`, `Inspecting`, `Verified` or review job, its download left as
+it is; a pass that read the job before loses its conditional write and writes nothing.
+
+**What of the text above no longer holds.** The MAM-26 section's "Retry is split" — a stop of this
+check answered 409, and the job's page offering nothing for it —: Retry and Keep both are offered.
+Of the tests above,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`
+is now
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`,
+and
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_nothing`
+is now
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_retry_and_keep_both`.
+
+**Not met by the tests.** No replacement was retried on the reference installation; MAM-28 checks
+it.
+
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`,
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_retry_and_keep_both`,
+`ReplacementDetailsHttpTests.Get_while_the_check_waits_on_another_file_sends_what_a_pass_found_without_saying_it_stopped_the_replacement`,
+`ReplacementDroppedCopyHttpTests.Verify_that_stops_before_the_pairing_forgets_what_a_waiting_pass_found_so_retry_stays_offered`,
+`ReplacementReviewFlowHttpTests`,
+`ReplacementLineHttpTests`
+and `ReplacementJobProgressTests` pin it, `JobsPage.test.tsx` and `JobsPage.polling.test.tsx` the
+line, and `JobDetailsPage.replacement.test.tsx` the job's page.

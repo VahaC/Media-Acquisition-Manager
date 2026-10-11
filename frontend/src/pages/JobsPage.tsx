@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { CancelJobButton } from '@/components/jobs/CancelJobButton'
 import { JobProgress } from '@/components/jobs/JobProgress'
 import { JobStatus } from '@/components/jobs/JobStatus'
+import { KeepBothButton } from '@/components/jobs/KeepBothButton'
+import { ReplacementCopiesPanel } from '@/components/jobs/ReplacementCopiesPanel'
 import { RetryReplacementButton } from '@/components/jobs/RetryReplacementButton'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -13,20 +16,23 @@ import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
 import { canCancelJob, DOWNLOAD_JOB_STATUSES } from '@/lib/download-jobs'
 import { formatDateTime } from '@/lib/format'
-import { useDownloadJobs } from '@/lib/queries'
+import { useDownloadJobs, useJobActionsPending } from '@/lib/queries'
 import type { DownloadJob, DownloadJobStatus } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the header, toolbar, table and row actions of this page
 import '@/styles/library.css' // .library-link — the release title that opens its job, the link to Search
-import '@/styles/jobs.css' // .jobs-stacked-cell — the Status cell that stacks its sentences on a phone
+import '@/styles/jobs.css' // .jobs-stacked-cell — the Status cell that stacks its sentences on a phone; .jobs-copies-row — the row a replacement's copies open in
 
 /** Per device: a phone and a desktop want different page lengths. */
 const PAGE_SIZE_STORAGE_KEY = 'mam:jobs:pageSize'
 
 /** When a job was sent, as the Library's sync lines show an instant. */
 const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
+
+/** The table's columns: a replacement's copies open in one cell that spans them all. */
+const COLUMN_COUNT = 6
 
 /**
  * MAM-14 — Jobs: the releases the signed-in user sent to a download client, newest first, filtered
@@ -35,7 +41,10 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  * on, how far it has got, and where it went; its title opens the job's details. A job the app still
  * follows, or one that needs linking, can be cancelled: the app stops following it, and the torrent
  * stays in the client. MAM-26 — the owner's job whose replacement the mover stopped for review offers
- * Retry beside its sentence.
+ * Retry beside its sentence. MAM-27 — and Retry when the check of its new files stopped, Keep both
+ * while none of its old copies has started to move, and a Copies button that opens the replacement's
+ * old copies, their new files and Drop under the row (Vasyl's answer of 2026-10-11: everything the
+ * ticket lists is on the Jobs page itself, and the list stays light until a row is opened).
  *
  * While a job on the page is still followed, the list is asked for again every 2 s
  * (useDownloadJobs), so statuses and progress move on by themselves.
@@ -180,9 +189,12 @@ interface JobRowProps {
    * in for this one's, which hides Cancel on a `Created` row until this page's answer is back.
    */
   answeredAt: number
-  /** Cancel or (MAM-26) Retry is about to be sent: the page clears its last refusal. */
+  /**
+   * Cancel, or an action on the job's replacement (MAM-26 Retry; MAM-27 Keep both, Drop), is about to
+   * be sent: the page clears its last refusal.
+   */
   onActionStart: () => void
-  /** Cancel or Retry was refused: the page shows the sentence above the rows. */
+  /** One of them was refused: the page shows the sentence above the rows. */
   onActionError: (message: string) => void
 }
 
@@ -190,41 +202,80 @@ interface JobRowProps {
  * A table row on a wide screen, a card on a phone: every cell carries its column name in
  * `data-label` for the stacked layout. Sent to is the client and the destination, by the names they
  * had when the job was made; a destination removed since is named by the category actually sent.
+ *
+ * MAM-27 — the owner's actions on the replacement the job carries come before Cancel job, which stops
+ * following the download too; Keep both ends only the replacement. Last, Copies opens the replacement's
+ * old copies in a row of its own under this one, as wide as the table; it is asked for only while it
+ * is open.
  */
 function JobRow({ job, answeredAt, onActionStart, onActionError }: JobRowProps) {
   const { t } = useTranslation(['jobs', 'common'])
-  // MAM-26 — Retry is the owner's (ADR 0033); a member's job carries no replacement, but the row
-  // doesn't rely on that.
+  // MAM-26 — a replacement's actions are the owner's (ADR 0033), and MAM-27 its copies too; a member's
+  // job carries no replacement, but the row doesn't rely on that.
   const isOwner = useAuthStore((state) => state.user?.isOwner === true)
+  const replacement = isOwner ? job.replacement : null
+  // One busy flag for the row: while any of its actions is on its way — a Drop from its Copies included
+  // —, the others wait, as on the job's page.
+  const busy = useJobActionsPending(job.id, replacement?.id ?? null)
+  const copiesId = useId()
+  const [copiesOpen, setCopiesOpen] = useState(false)
   const destination = job.destinationName ?? job.clientDestinationKey ?? t('noDestination')
 
   return (
-    <tr>
-      <td data-label={t('columns.release')}>
-        <span className="settings-name">
-          <Link className="settings-name-text library-link" to={`/jobs/${job.id}`}>{job.releaseTitle}</Link>
-        </span>
-      </td>
-      <td data-label={t('columns.status')} className="jobs-stacked-cell">
-        <JobStatus job={job} />
-      </td>
-      <td data-label={t('columns.progress')}>
-        <JobProgress progress={job.progress} />
-      </td>
-      <td data-label={t('columns.sentTo')}>
-        {[job.downloadClientName, destination].join(t('common:separator'))}
-      </td>
-      <td data-label={t('columns.sent')}>{formatDateTime(job.createdUtc, INSTANT_FORMAT)}</td>
-      <td className="settings-actions-cell">
-        <div className="settings-actions">
-          {isOwner && job.replacement?.canRetry && (
-            <RetryReplacementButton replacement={job.replacement} onStart={onActionStart} onError={onActionError} />
-          )}
-          {canCancelJob(job, answeredAt) && (
-            <CancelJobButton job={job} onStart={onActionStart} onError={onActionError} />
-          )}
-        </div>
-      </td>
-    </tr>
+    <>
+      <tr>
+        <td data-label={t('columns.release')}>
+          <span className="settings-name">
+            <Link className="settings-name-text library-link" to={`/jobs/${job.id}`}>{job.releaseTitle}</Link>
+          </span>
+        </td>
+        <td data-label={t('columns.status')} className="jobs-stacked-cell">
+          <JobStatus job={job} />
+        </td>
+        <td data-label={t('columns.progress')}>
+          <JobProgress progress={job.progress} />
+        </td>
+        <td data-label={t('columns.sentTo')}>
+          {[job.downloadClientName, destination].join(t('common:separator'))}
+        </td>
+        <td data-label={t('columns.sent')}>{formatDateTime(job.createdUtc, INSTANT_FORMAT)}</td>
+        <td className="settings-actions-cell">
+          <div className="settings-actions">
+            {replacement?.canRetry && (
+              <RetryReplacementButton replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+            )}
+            {replacement?.canCancel && (
+              <KeepBothButton job={job} replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+            )}
+            {canCancelJob(job, answeredAt) && (
+              <CancelJobButton job={job} busy={busy} onStart={onActionStart} onError={onActionError} />
+            )}
+            {replacement && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                title={t('oldCopies.copies.title')}
+                aria-expanded={copiesOpen}
+                aria-controls={copiesOpen ? copiesId : undefined}
+                onClick={() => setCopiesOpen(!copiesOpen)}
+              >
+                {copiesOpen
+                  ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                  : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+                <span className="label-text">{copiesOpen ? t('oldCopies.copies.hide') : t('oldCopies.copies.show')}</span>
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+      {replacement && copiesOpen && (
+        <tr id={copiesId} className="jobs-copies-row">
+          <td colSpan={COLUMN_COUNT}>
+            <ReplacementCopiesPanel replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

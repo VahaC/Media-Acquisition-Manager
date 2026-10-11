@@ -81,4 +81,24 @@ public static class ReplacementJobStates
         ReplacementJobState.Deleting,
         ReplacementJobState.NeedsReview,
     ];
+
+    /// <summary>
+    /// MAM-27 — the states before any old copy starts to move, which the owner's Keep both cancels the replacement in (a
+    /// review only while none of its names left its folder, <see cref="ReplacementNameStates.Taken"/>). Never
+    /// <see cref="ReplacementJobState.Quarantining"/>, <see cref="ReplacementJobState.Restoring"/> or
+    /// <see cref="ReplacementJobState.Deleting"/> — a write under way, or a cut the mover's recovery settles —, never
+    /// <see cref="ReplacementJobState.Quarantined"/> — Restore is the way back from there —, and never an end. Read only as
+    /// a constant in a query's <c>WHERE</c>: it builds no index, so it changes no migration.
+    /// </summary>
+    public static IReadOnlyList<ReplacementJobState> BeforeMove { get; } =
+    [
+        ReplacementJobState.Scheduled,
+        ReplacementJobState.Submitted,
+        ReplacementJobState.Downloading,
+        ReplacementJobState.Paused,
+        ReplacementJobState.Downloaded,
+        ReplacementJobState.Inspecting,
+        ReplacementJobState.Verified,
+        ReplacementJobState.NeedsReview,
+    ];
 }

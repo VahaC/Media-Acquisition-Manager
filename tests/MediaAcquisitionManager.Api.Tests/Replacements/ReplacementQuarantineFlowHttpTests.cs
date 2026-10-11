@@ -226,7 +226,11 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         using var document = JsonDocument.Parse(detailsJson);
         var video = document.RootElement.GetProperty("names")[0];
         Assert.Equal(
-            ["id", "downloadJobId", "state", "reason", "switchedOff", "canRetry", "canRestore", "canDeleteForGood", "quarantinedBytes", "freesBytes", "names"],
+            [
+                "id", "downloadJobId", "state", "reason", "switchedOff", "canRetry", "canRestore", "canDeleteForGood", "quarantinedBytes", "freesBytes",
+                "names", "canCancel", "stop", "checkStage", "checkStartedUtc", "libraryAskedUtc", "checkWaitsUntilUtc", "dropOnlyCopyCount", "copies",
+                "newFiles", "works",
+            ],
             document.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ["id", "kind", "originalPath", "quarantinePath", "sizeBytes", "otherNames", "state", "problem"],
@@ -300,9 +304,15 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         await QuarantineAsync(cancellationToken);
 
         //Assert
-        // Held: stopped for review naming the torrent, Retry offered, nothing renamed.
+        // Held: stopped for review by the mover naming the torrent, Retry and (MAM-27) Keep both offered, nothing renamed.
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, HeldReason, false, 0) { Id = replacement.Id, CanRetry = true },
+            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, HeldReason, false, 0)
+            {
+                Id = replacement.Id,
+                CanRetry = true,
+                CanCancel = true,
+                Stop = ReplacementStop.Move,
+            },
             heldLine);
         Assert.Equal(0, renamesWhileHeld);
 
@@ -310,7 +320,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var retriedJob = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = replacement.Id },
+            new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = replacement.Id, CanCancel = true },
             retriedJob.Replacement);
         Assert.Equal((ReplacementJobState.Verified, (string?)null), (retried.State, retried.Reason));
 

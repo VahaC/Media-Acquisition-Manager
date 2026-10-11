@@ -20,6 +20,17 @@ import type {
  * whole family. Components never write a literal key.
  */
 export const qk = {
+  /**
+   * MAM-27 — mutation keys, under a root of their own: no query sits under them, so no invalidation
+   * reaches them. A page tells by them that one of a job's actions is on its way, whichever button
+   * sent it (useJobActionsPending).
+   */
+  actions: {
+    /** A job's Cancel; its variables are the job's id. */
+    cancelJob: ['actions', 'downloads', 'cancel'] as const,
+    /** Every owner's action on a replacement; its variables are the replacement's id, or carry it as `id`. */
+    replacement: ['actions', 'replacements'] as const,
+  },
   health: {
     ready: ['health', 'ready'] as const,
     /** MAM-16 — the offline strip's probe. */

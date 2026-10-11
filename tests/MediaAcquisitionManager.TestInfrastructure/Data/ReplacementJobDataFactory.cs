@@ -18,7 +18,9 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         string? reason = null,
         DateTime? quarantineCheckedUtc = null,
         DateTime? quarantinedUtc = null,
-        DateTime? libraryNoticeDueUtc = null)
+        DateTime? libraryNoticeDueUtc = null,
+        DateTime? inspectionStartedUtc = null,
+        DateTime? libraryAskedUtc = null)
     {
         var requestedBy = await db.Users.AsNoTracking().SingleAsync(user => user.Id == requestedByUserId);
         var now = time.GetUtcNow().UtcDateTime;
@@ -34,6 +36,8 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
             QuarantineCheckedUtc = quarantineCheckedUtc,
             QuarantinedUtc = quarantinedUtc,
             LibraryNoticeDueUtc = libraryNoticeDueUtc,
+            InspectionStartedUtc = inspectionStartedUtc,
+            LibraryAskedUtc = libraryAskedUtc,
         };
 
         db.ReplacementJobs.Add(job);
@@ -50,7 +54,12 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         Guid? physicalFileId = null,
         Guid? mediaWorkId = null,
         string? servicePath = null,
-        Guid? pairedNewFileId = null)
+        Guid? pairedNewFileId = null,
+        string? problem = null,
+        bool onlyDropSettles = false,
+        DateTime? droppedUtc = null,
+        int? seasonNumber = null,
+        int? episodeNumber = null)
     {
         ArgumentNullException.ThrowIfNull(facts);
         var workId = mediaWorkId ?? Guid.NewGuid();
@@ -70,6 +79,11 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
             ModifiedUtc = facts.ModifiedUtc,
             LinkCount = facts.LinkCount,
             PairedNewFileId = pairedNewFileId,
+            Problem = problem,
+            OnlyDropSettles = onlyDropSettles,
+            DroppedUtc = droppedUtc,
+            SeasonNumber = seasonNumber,
+            EpisodeNumber = episodeNumber,
         };
 
         db.ReplacementJobFiles.Add(file);
@@ -114,23 +128,47 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         return work;
     }
 
-    public async Task<ReplacementJobNewFileEntity> AddNewFile(
+    public Task<ReplacementJobNewFileEntity> AddNewFile(
         Guid replacementJobId,
         int position,
         string relativePath,
         LibraryFileKind? kind = null,
-        IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool OfSeries)>? identifiers = null)
+        IReadOnlyList<(MediaIdentifierScheme Scheme, string Value, bool OfSeries)>? identifiers = null) =>
+        AddNewFile(replacementJobId, position, new ReplacementNewFileFacts(relativePath, Kind: kind, Identifiers: identifiers));
+
+    public async Task<ReplacementJobNewFileEntity> AddNewFile(Guid replacementJobId, int position, ReplacementNewFileFacts facts)
     {
+        ArgumentNullException.ThrowIfNull(facts);
         var file = new ReplacementJobNewFileEntity
         {
             ReplacementJobId = replacementJobId,
             Position = position,
-            RelativePath = relativePath,
-            Kind = kind,
+            RelativePath = facts.RelativePath,
+            ClientSizeBytes = facts.ClientSizeBytes,
+            ClientProgress = facts.ClientProgress,
+            AppPath = facts.AppPath,
+            DeviceId = facts.Disk?.DeviceId,
+            Inode = facts.Disk?.Inode,
+            SizeBytes = facts.Disk?.SizeBytes,
+            ModifiedUtc = facts.Disk?.ModifiedUtc,
+            DurationMilliseconds = facts.DurationMilliseconds,
+            VideoCodec = facts.VideoCodec,
+            Width = facts.Width,
+            Height = facts.Height,
+            CheckedUtc = facts.CheckedUtc,
+            LibraryItemId = facts.LibraryItemId,
+            Kind = facts.Kind,
+            Refreshed = facts.Refreshed,
+            SeasonNumber = facts.SeasonNumber,
+            EpisodeNumber = facts.EpisodeNumber,
+            EpisodeNumberEnd = facts.EpisodeNumberEnd,
+            ReadUtc = facts.ReadUtc,
+            MediaWorkId = facts.MediaWorkId,
+            Problem = facts.Problem,
         };
 
         db.ReplacementJobNewFiles.Add(file);
-        db.ReplacementJobNewFileIdentifiers.AddRange((identifiers ?? []).Select(identifier => new ReplacementJobNewFileIdentifierEntity
+        db.ReplacementJobNewFileIdentifiers.AddRange((facts.Identifiers ?? []).Select(identifier => new ReplacementJobNewFileIdentifierEntity
         {
             ReplacementJobNewFileId = file.Id,
             Scheme = identifier.Scheme,

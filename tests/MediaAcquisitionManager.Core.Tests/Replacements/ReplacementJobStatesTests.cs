@@ -7,7 +7,8 @@ namespace MediaAcquisitionManager.Core.Tests.Replacements;
 // never followed — a followed Inspecting job would be mirrored back to Downloaded on every pass of the download jobs —,
 // and a job being checked or verified still holds its old copies. MAM-26 — the mover takes up a verified job and one it is
 // moving, neither followed nor checked; a move, a restore and a deletion under way are what a restart may cut; and a job
-// holds its copies until its names are all deleted or all back.
+// holds its copies until its names are all deleted or all back. MAM-27 — Keep both applies in every state before an old
+// copy starts to move: never under a write, never in the quarantine, never once it ended.
 public sealed class ReplacementJobStatesTests
 {
     [Fact]
@@ -97,6 +98,55 @@ public sealed class ReplacementJobStatesTests
 
         //Assert
         Assert.Equal(open, holds);
+    }
+
+    [Fact]
+    public void BeforeMove_are_the_states_before_an_old_copy_starts_to_move()
+    {
+        //Arrange
+
+        //Act
+        var beforeMove = ReplacementJobStates.BeforeMove;
+
+        //Assert
+        Assert.Equal(
+            [
+                ReplacementJobState.Scheduled, ReplacementJobState.Submitted, ReplacementJobState.Downloading, ReplacementJobState.Paused,
+                ReplacementJobState.Downloaded, ReplacementJobState.Inspecting, ReplacementJobState.Verified, ReplacementJobState.NeedsReview,
+            ],
+            beforeMove);
+        // Every one still holds its copies; none is a write under way, the quarantine or an end.
+        Assert.Empty(beforeMove.Except(ReplacementJobStates.Open));
+        Assert.Empty(beforeMove.Intersect(ReplacementJobStates.Unsettled));
+        Assert.DoesNotContain(ReplacementJobState.Quarantined, beforeMove);
+    }
+
+    [Theory]
+    [InlineData(ReplacementJobState.Scheduled, true)]
+    [InlineData(ReplacementJobState.Submitted, true)]
+    [InlineData(ReplacementJobState.Downloading, true)]
+    [InlineData(ReplacementJobState.Paused, true)]
+    [InlineData(ReplacementJobState.Downloaded, true)]
+    [InlineData(ReplacementJobState.Inspecting, true)]
+    [InlineData(ReplacementJobState.Verified, true)]
+    [InlineData(ReplacementJobState.NeedsReview, true)]
+    [InlineData(ReplacementJobState.Quarantining, false)]
+    [InlineData(ReplacementJobState.Quarantined, false)]
+    [InlineData(ReplacementJobState.Restoring, false)]
+    [InlineData(ReplacementJobState.Deleting, false)]
+    [InlineData(ReplacementJobState.Failed, false)]
+    [InlineData(ReplacementJobState.Cancelled, false)]
+    [InlineData(ReplacementJobState.Completed, false)]
+    [InlineData(ReplacementJobState.Restored, false)]
+    public void BeforeMove_holds_no_state_a_move_has_reached_and_no_end(ReplacementJobState state, bool beforeMove)
+    {
+        //Arrange
+
+        //Act
+        var holds = ReplacementJobStates.BeforeMove.Contains(state);
+
+        //Assert
+        Assert.Equal(beforeMove, holds);
     }
 
     [Fact]

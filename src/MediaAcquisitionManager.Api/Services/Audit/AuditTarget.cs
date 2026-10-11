@@ -58,6 +58,14 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     public static AuditTarget ReplacementJobName(ReplacementJobNameEntity name) =>
         new(AuditTargetKind.ReplacementJobName, name.Id, Cut(ReplacementText.FileNameOf(name.AppPath)));
 
+    /// <summary>
+    /// MAM-27 — one old copy the owner ticked for a replacement, by its row, named by the file's own name
+    /// (<c>Alien (1979).mkv</c>), as a name of its move is: its row keeps the path, the identity and the job, and the audit
+    /// row's id finds it. Cut to the column with an ellipsis, as a file's name runs to 255 bytes.
+    /// </summary>
+    public static AuditTarget ReplacementJobFile(ReplacementJobFileEntity copy) =>
+        new(AuditTargetKind.ReplacementJobFile, copy.Id, Cut(ReplacementText.FileNameOf(copy.AppPath)));
+
     /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
     /// what tells two works apart within it.</summary>
     public const int TargetNameMaximumLength = 200;

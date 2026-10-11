@@ -278,7 +278,7 @@ public sealed class ReplacementPairingEpisodesTests
         const string reason =
             "“/media/cartoons/Mickey/Season 03/Mickey Mouse Clubhouse_S03E09a_-_Road Rally.mkv” is one half of an episode (its name gives the episode the letter “a”), so it can't be replaced on its own.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
     }
 
     [Fact]
@@ -365,7 +365,7 @@ public sealed class ReplacementPairingEpisodesTests
         var reason =
             $"“Living room” now numbers the old copy “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E05.mkv” {now}, not season 2, episode 5 as when it was scheduled.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
     }
 
     [Fact]
@@ -579,7 +579,7 @@ public sealed class ReplacementPairingEpisodesTests
         const string reason =
             "No new file is The Penguins of Madagascar, season 2, episode 7, so “/media/tv-shows/The Penguins of Madagascar/Season 02/Penguins.S02E07.mkv” has nothing to replace it.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, null, reason, OnlyDropSettles: true)], result.OldCopies);
     }
 
     [Fact]

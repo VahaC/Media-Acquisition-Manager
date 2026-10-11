@@ -120,11 +120,12 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
             .ToLookup(track => track.MediaInspectionId);
 
         // R3 — the files of every replacement not yet ended: a copy one of them holds can't be picked again. Few rows: a
-        // replacement is the owner's, one per download.
+        // replacement is the owner's, one per download. MAM-27 — a copy the owner dropped from its job is no longer held by
+        // it: that job never moves it, so another download may tick it.
         var held = await (
                 from file in db.ReplacementJobFiles.AsNoTracking()
                 join job in db.ReplacementJobs.AsNoTracking() on file.ReplacementJobId equals job.Id
-                where EF.Constant(ReplacementJobStates.Open).Contains(job.State)
+                where EF.Constant(ReplacementJobStates.Open).Contains(job.State) && file.DroppedUtc == null
                 select new { file.AppPath, file.DeviceId, file.Inode })
             .ToListAsync(cancellationToken);
 

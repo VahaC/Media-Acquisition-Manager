@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using MediaAcquisitionManager.Api.Services.Audit;
+using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
@@ -26,7 +27,10 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 // old copy to its new file; and the verifier's index over the jobs being checked only. MAM-26 (ADR 0030) — the quarantine:
 // a job's names part of it, gone with it, one per place in its plan; the new job and name states, the name kinds, the
 // quarantine's audit actions and the name target stored by name, a name named by the file's own name; a name's identity
-// and the job's new times kept to the bit and the tick; and the mover's index over the jobs it takes up only.
+// and the job's new times kept to the bit and the tick; and the mover's index over the jobs it takes up only. MAM-27 — a
+// copy's drop kept to the tick beside its drop-only mark, a copy neither dropped nor so marked unless told; the owner's
+// three new audit actions and the copy target stored by name, a copy named by the file's own name; and a check forgotten
+// takes its new files and their ids with it and clears the undropped copies only, a dropped one keeping its history.
 public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
 {
     private static readonly IEncryptionService Encryption = new AesGcmEncryptionService(
@@ -668,6 +672,122 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         Assert.Equal(
             "CREATE INDEX \"IX_ReplacementJobs_Quarantine\" ON \"ReplacementJobs\" (\"State\") WHERE \"State\" IN ('Verified', 'Quarantining')",
             definition);
+    }
+
+    [Fact]
+    public async Task A_ticked_copy_keeps_its_drop_to_the_tick_beside_its_drop_only_mark()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.NeedsReview);
+        var droppedUtc = new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
+
+        //Act
+        var dropped = await Replacements(db).AddFile(
+            job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E05.mkv", TestMedia.File(inode: 42), position: 0,
+            problem: "Jellyfin “Living room” now numbers the old copy “Yellowstone S02E05.mkv” season 2, episode 6.", onlyDropSettles: true,
+            droppedUtc: droppedUtc);
+        var kept = await Replacements(db).AddFile(job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E06.mkv", TestMedia.File(inode: 43), position: 1);
+
+        //Assert
+        await using var check = CreateContext();
+        var copies = await check.ReplacementJobFiles.AsNoTracking().OrderBy(copy => copy.Position).ToListAsync(cancellationToken);
+        // A copy written before MAM-27, or never dropped, reads as in the job and as one a Retry may settle.
+        Assert.Equal(
+            [(dropped.Id, (long?)droppedUtc.Ticks, true), (kept.Id, (long?)null, false)],
+            copies.Select(copy => (copy.Id, copy.DroppedUtc?.Ticks, copy.OnlyDropSettles)));
+    }
+
+    [Fact]
+    public async Task The_owners_review_audit_actions_and_the_copy_target_are_stored_by_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.NeedsReview);
+        var copy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien (1979).mkv", TestMedia.File(inode: 1));
+        var auditTrail = new AuditTrail(db, TimeProvider.System);
+        auditTrail.Record(AuditAction.ReplacementCheckRetried, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementCancelledAlone, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementCopyDropped, AuditActor.From(owner), AuditTarget.ReplacementJobFile(copy));
+        await db.SaveChangesAsync(cancellationToken);
+
+        //Act
+        var rows = await db.Database
+            .SqlQueryRaw<string>(
+                """
+                SELECT "Action" || '/' || COALESCE("ActorUserName", '-') || '/' || "TargetKind" || '/' || "TargetName" AS "Value"
+                FROM "AuditEvents" ORDER BY "Action"
+                """)
+            .ToListAsync(cancellationToken);
+        var copyTargets = await db.AuditEvents.AsNoTracking()
+            .Where(audit => audit.TargetKind == AuditTargetKind.ReplacementJobFile)
+            .Select(audit => audit.TargetId)
+            .ToListAsync(cancellationToken);
+
+        //Assert
+        // A copy is named by the file's own name, and found again by its row's id.
+        Assert.Equal(
+            [
+                "ReplacementCancelledAlone/owner/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementCheckRetried/owner/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementCopyDropped/owner/ReplacementJobFile/Alien (1979).mkv",
+            ],
+            rows);
+        Assert.Equal([(Guid?)copy.Id], copyTargets);
+    }
+
+    [Fact]
+    public async Task Forgetting_a_check_deletes_its_new_files_and_their_ids_and_clears_the_undropped_copies_only()
+    {
+        //Arrange
+        const string Renumbered = "Jellyfin “Living room” now numbers the old copy “Yellowstone S02E05.mkv” season 2, episode 6.";
+        const string NoNewFile = "No new file is season 2, episode 6, so “Yellowstone S02E06.mkv” has nothing to replace it.";
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.NeedsReview);
+        var other = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.NeedsReview);
+        var newFile = await Replacements(db).AddNewFile(
+            job.Id, 0, "Yellowstone.S02E05.mkv", LibraryFileKind.Episode, [(MediaIdentifierScheme.Tvdb, "341164", true)]);
+        var othersNewFile = await Replacements(db).AddNewFile(
+            other.Id, 0, "Alien.1979.2160p.mkv", LibraryFileKind.Movie, [(MediaIdentifierScheme.Tmdb, "348", false)]);
+        var droppedUtc = new DateTime(2026, 10, 11, 9, 0, 0, DateTimeKind.Utc);
+        var dropped = await Replacements(db).AddFile(
+            job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E05.mkv", TestMedia.File(inode: 42), position: 0, pairedNewFileId: newFile.Id,
+            problem: Renumbered, onlyDropSettles: true, droppedUtc: droppedUtc);
+        var stopped = await Replacements(db).AddFile(
+            job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E06.mkv", TestMedia.File(inode: 43), position: 1, problem: NoNewFile,
+            onlyDropSettles: true);
+        var paired = await Replacements(db).AddFile(
+            job.Id, "/media/tv-shows/Yellowstone/Season 02/Yellowstone S02E07.mkv", TestMedia.File(inode: 44), position: 2, pairedNewFileId: newFile.Id);
+        var othersCopy = await Replacements(db).AddFile(
+            other.Id, "/media/movies/Alien (1979)/Alien (1979).mkv", TestMedia.File(inode: 45), pairedNewFileId: othersNewFile.Id, problem: NoNewFile,
+            onlyDropSettles: true);
+
+        //Act
+        await db.ForgetCheckAsync(job.Id);
+
+        //Assert
+        await using var check = CreateContext();
+        // The job's new files go with their ids; the other job's evidence stays.
+        Assert.Equal([othersNewFile.Id], await check.ReplacementJobNewFiles.Select(file => file.Id).ToListAsync(cancellationToken));
+        Assert.Equal(
+            [othersNewFile.Id],
+            await check.ReplacementJobNewFileIdentifiers.Select(identifier => identifier.ReplacementJobNewFileId).ToListAsync(cancellationToken));
+        var copies = (await check.ReplacementJobFiles.AsNoTracking().ToListAsync(cancellationToken)).OrderBy(copy => copy.Inode);
+        // A dropped copy keeps its last pair and problem as history; the others start the next pairing from nothing.
+        Assert.Equal(
+            [
+                (dropped.Id, (Guid?)newFile.Id, (string?)Renumbered, true, (DateTime?)droppedUtc),
+                (stopped.Id, (Guid?)null, (string?)null, false, (DateTime?)null),
+                (paired.Id, (Guid?)null, (string?)null, false, (DateTime?)null),
+                (othersCopy.Id, (Guid?)othersNewFile.Id, (string?)NoNewFile, true, (DateTime?)null),
+            ],
+            copies.Select(copy => (copy.Id, copy.PairedNewFileId, copy.Problem, copy.OnlyDropSettles, copy.DroppedUtc)));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

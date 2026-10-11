@@ -11,7 +11,8 @@ namespace MediaAcquisitionManager.Api.Controllers.Replacements;
 /// <summary>
 /// MAM-26 — the owner's own hand on a scheduled replacement, by its id (ADR 0030, ADR 0033): its details on the job's page,
 /// Retry after the mover stopped it, Restore of what it holds in the quarantine, and Delete for good of that after a
-/// second confirmation.
+/// second confirmation. MAM-27 — Retry after the check of its new files stopped too, Keep both, which cancels only the
+/// replacement, and Drop of one ticked copy.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -40,13 +41,34 @@ public class ReplacementJobsController(IReplacementJobActions actions) : Control
         await actions.GetAsync(id, UserId, cancellationToken) is { } details ? Ok(details) : NotFound();
 
     /// <summary>
-    /// Puts a replacement the mover stopped back in its queue, so its next pass checks the copies again: 200 with the job;
-    /// 409 when it isn't waiting for review after a move — a stop of the new files' check is MAM-27's — or is being worked
-    /// on. Writes nothing to the media.
+    /// Puts a replacement the mover stopped back in its queue, so its next pass checks the copies again — MAM-27 — or one
+    /// whose check of the new files stopped back to that check, which starts again from the files and asks the library
+    /// again: 200 with the job; 409 when it isn't waiting for review, its download can't be followed, a copy can only be
+    /// dropped, or it is being worked on. Writes nothing to the media or a client.
     /// </summary>
     [HttpPost("{id:guid}/retry")]
     public async Task<ActionResult<DownloadJobDto>> Retry(Guid id, CancellationToken cancellationToken) =>
         Answer(await actions.RetryAsync(id, UserId, cancellationToken));
+
+    /// <summary>
+    /// MAM-27 — Keep both: cancels only the replacement, before any old copy started to move: 200 with the job, its
+    /// replacement now <c>Cancelled</c> and its download untouched; 409 when it has ended, part of it left its folders —
+    /// Restore puts that back —, or it is being worked on. Writes nothing to the media, and sends nothing to the client.
+    /// </summary>
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<DownloadJobDto>> Cancel(Guid id, CancellationToken cancellationToken) =>
+        Answer(await actions.CancelAsync(id, UserId, cancellationToken));
+
+    /// <summary>
+    /// MAM-27 — drops the ticked copy <paramref name="copyId"/> from a replacement that stopped for review: 200 with the
+    /// job, its state unchanged and the copy left where it is; 409 when the replacement didn't stop for review or its
+    /// download can't be followed, the copy is dropped already, left its folder or is the last one, or the job is being
+    /// worked on; a bare 404 for a copy that isn't this replacement's, as for a missing replacement. Writes nothing to the
+    /// media or a client.
+    /// </summary>
+    [HttpPost("{id:guid}/copies/{copyId:guid}/drop")]
+    public async Task<ActionResult<DownloadJobDto>> DropCopy(Guid id, Guid copyId, CancellationToken cancellationToken) =>
+        Answer(await actions.DropCopyAsync(id, copyId, UserId, cancellationToken));
 
     /// <summary>
     /// Puts every name the replacement holds in the quarantine back where it was: 200 with the job, now <c>Restored</c>;

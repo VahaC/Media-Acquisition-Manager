@@ -11,7 +11,7 @@ import { JobsPage } from '@/pages/JobsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { downloadedJob, downloadingJob, jobOf, jobsPage, sentMinutesAgo } from '@/test/downloads'
-import { REPLACEMENT_ID, replacementOf } from '@/test/replacements'
+import { jobCopyOf, REPLACEMENT_ID, replacementDetailsOf, replacementOf } from '@/test/replacements'
 
 vi.mock('@/lib/downloads-api')
 vi.mock('@/lib/replacements-api')
@@ -56,6 +56,16 @@ const blockedJob = jobOf({
   progress: 0.2,
   blockReason: '“Local qBittorrent” couldn\'t be asked about this download. Ask the owner to check “Local qBittorrent” under Integrations.',
 })
+
+// MAM-27 — until when a check waits for Jellyfin, and that time as the line says it; the server's
+// sentences for a replacement that stopped for review.
+const WAITS_UNTIL_UTC = '2026-10-11T14:05:00Z'
+const waitsUntil = formatDateTime(WAITS_UNTIL_UTC, { timeStyle: 'short' })
+const HELD_REASON = 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.'
+const NO_ID_REASON = 'Jellyfin gave “Alien.1979.2160p.Remux.mkv” no TMDb or IMDb id within an hour, so it can\'t be compared with Alien (1979).'
+const RENUMBERED_REASON = 'Jellyfin numbers “Yellowstone.S02E05.2160p.mkv” as season 2, episode 6, not the episode “Yellowstone S02E05.mkv” is.'
+const DOWNLOAD_REASON = 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.'
+const KEPT_BOTH_REASON = 'You cancelled the replacement, so nothing will be replaced.'
 
 const failedJob = jobOf({
   id: 'd0b10000-0000-4000-8000-000000000004',
@@ -193,6 +203,13 @@ describe('JobsPage', () => {
     ['downloaded, until the check takes it up', { state: 'Downloaded', copyCount: 1 }, 'Downloaded', 'Replacement checks the new file: 1 copy, kept until it is verified.', 'library-source-status'],
     ['inspecting the new files, of several copies', { state: 'Inspecting', copyCount: 18 }, 'Downloaded', 'Replacement checks the new file: 18 copies, kept until it is verified.', 'library-source-status'],
     ['inspecting while replacement is switched off', { state: 'Inspecting', copyCount: 2, switchedOff: true }, 'Downloaded', 'Replacement checks the new file, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
+    // MAM-27 — once Jellyfin was asked to look, the wait has an end, and the line names it.
+    ['reading the new files on the disk, with no time said', { state: 'Inspecting', copyCount: 2, checkStage: 'Files', checkWaitsUntilUtc: '2026-10-11T13:10:00Z' }, 'Downloaded', 'Replacement checks the new file: 2 copies, kept until it is verified.', 'library-source-status'],
+    ['waiting for Jellyfin to identify the new file, until when', { state: 'Inspecting', copyCount: 1, checkStage: 'Library', checkWaitsUntilUtc: WAITS_UNTIL_UTC }, 'Downloaded', `Replacement waits for Jellyfin to identify the new file until ${waitsUntil}: 1 copy, kept until it is verified.`, 'library-source-status'],
+    ['waiting for Jellyfin, of several copies', { state: 'Inspecting', copyCount: 18, checkStage: 'Library', checkWaitsUntilUtc: WAITS_UNTIL_UTC }, 'Downloaded', `Replacement waits for Jellyfin to identify the new files until ${waitsUntil}: 18 copies, kept until they are verified.`, 'library-source-status'],
+    ['waiting for Jellyfin while replacement is switched off, which is what it says', { state: 'Inspecting', copyCount: 2, switchedOff: true, checkStage: 'Library', checkWaitsUntilUtc: WAITS_UNTIL_UTC }, 'Downloaded', 'Replacement checks the new file, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
+    ['checked again after a copy was dropped', { state: 'Downloaded', copyCount: 1, droppedCopyCount: 1 }, 'Downloaded', 'Replacement checks the new file: 1 copy, kept until it is verified. 1 copy dropped.', 'library-source-status'],
+    ['waiting for Jellyfin, with copies dropped and one no longer in a ticked folder', { state: 'Inspecting', copyCount: 2, droppedCopyCount: 2, copiesOutsideTickedFolders: 1, checkStage: 'Library', checkWaitsUntilUtc: WAITS_UNTIL_UTC }, 'Downloaded', `Replacement waits for Jellyfin to identify the new files until ${waitsUntil}: 2 copies, kept until they are verified. 2 copies dropped. 1 copy is no longer in a ticked folder: unless it is ticked again, the replacement stops for review and nothing moves.`, 'library-source-status'],
     ['downloaded, with a copy no longer in a ticked folder', { state: 'Downloaded', copyCount: 2, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement checks the new file: 2 copies, kept until it is verified. 1 copy is no longer in a ticked folder: unless it is ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
     ['verified', { state: 'Verified', copyCount: 1 }, 'Downloaded', 'New file verified: 1 old copy moves into the quarantine next.', 'library-source-status'],
     // MAM-26 — the mover's check stops the whole replacement over one such copy: nothing moves next.
@@ -201,12 +218,14 @@ describe('JobsPage', () => {
     ['verified while replacement is switched off', { state: 'Verified', copyCount: 3, switchedOff: true }, 'Downloaded', 'New file verified, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
     ['verified while replacement is switched off, with a copy no longer in a ticked folder', { state: 'Verified', copyCount: 3, switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'New file verified, but replacement is switched off: nothing will move while it is off. 1 copy is no longer in a ticked folder: unless it is ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
     ['verified while replacement is on, with nothing in the quarantine yet', { state: 'Verified', copyCount: 2, quarantinedCopyCount: 0 }, 'Downloaded', 'New file verified: 2 old copies move into the quarantine next.', 'library-source-status'],
+    ['verified, with copies dropped', { state: 'Verified', copyCount: 2, droppedCopyCount: 3 }, 'Downloaded', 'New file verified: 2 old copies move into the quarantine next. 3 copies dropped.', 'library-source-status'],
     ['moving one copy into the quarantine', { state: 'Quarantining', copyCount: 1 }, 'Downloaded', 'Moving the old copy into the quarantine…', 'library-source-status'],
     ['moving several copies, with nothing said of what won\'t move', { state: 'Quarantining', copyCount: 4, switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Moving the old copies into the quarantine…', 'library-source-status'],
     ['in the quarantine', { state: 'Quarantined', copyCount: 1, quarantinedCopyCount: 1 }, 'Downloaded', 'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.', 'library-source-status'],
     ['in the quarantine, of several copies, with nothing said of the switch', { state: 'Quarantined', copyCount: 3, quarantinedCopyCount: 3, switchedOff: true }, 'Downloaded', 'Old copies moved into the quarantine: 3 copies, kept until you restore them or delete them for good.', 'library-source-status'],
     ['in the quarantine, with a file that stayed in its folder', { state: 'Quarantined', copyCount: 1, quarantinedCopyCount: 1, stayedFileCount: 1 }, 'Downloaded', 'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good. 1 file stayed in its folder: see the job.', 'library-source-status'],
     ['in the quarantine, with files that stayed in their folders', { state: 'Quarantined', copyCount: 2, quarantinedCopyCount: 2, stayedFileCount: 3 }, 'Downloaded', 'Old copies moved into the quarantine: 2 copies, kept until you restore them or delete them for good. 3 files stayed in their folders: see the job.', 'library-source-status'],
+    ['in the quarantine, with a copy dropped and a file that stayed in its folder', { state: 'Quarantined', copyCount: 1, quarantinedCopyCount: 1, stayedFileCount: 1, droppedCopyCount: 1 }, 'Downloaded', 'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good. 1 copy dropped. 1 file stayed in its folder: see the job.', 'library-source-status'],
     ['being put back', { state: 'Restoring', copyCount: 1, quarantinedCopyCount: 1 }, 'Downloaded', 'Putting the old copy back…', 'library-source-status'],
     ['being put back, of several copies', { state: 'Restoring', copyCount: 2, quarantinedCopyCount: 0 }, 'Downloaded', 'Putting the old copies back…', 'library-source-status'],
     ['being deleted for good', { state: 'Deleting', copyCount: 1, quarantinedCopyCount: 1 }, 'Downloaded', 'Deleting the old copy for good…', 'library-source-status'],
@@ -215,12 +234,22 @@ describe('JobsPage', () => {
     ['undone by a restore, of several copies', { state: 'Restored', copyCount: 2 }, 'Downloaded', 'Replacement undone: the old copies are back where they were.', 'library-source-status'],
     ['completed', { state: 'Completed', copyCount: 1 }, 'Downloaded', 'Replaced: the old copy was deleted for good.', 'library-source-status'],
     ['completed, of several copies', { state: 'Completed', copyCount: 18 }, 'Downloaded', 'Replaced: the old copies were deleted for good.', 'library-source-status'],
-    ['in need of review after the move, with the server\'s sentence', { state: 'NeedsReview', reason: 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.', canRetry: true }, 'Downloaded', 'Replacement needs review: Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.', 'library-source-warning'],
-    ['in need of review after the check, with nothing said of what won\'t move', { state: 'NeedsReview', reason: 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement needs review: Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', 'library-source-warning'],
+    // MAM-27 — the mover's sentence already ends with what to do, so nothing is added to it.
+    ['in need of review after the move, with the server\'s sentence', { state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true }, 'Downloaded', `Replacement needs review: ${HELD_REASON}`, 'library-source-warning'],
+    ['in need of review after the move, with copies dropped', { state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true, droppedCopyCount: 2 }, 'Downloaded', `Replacement needs review: ${HELD_REASON} 2 copies dropped.`, 'library-source-warning'],
+    ['in need of review after the check, with what to do and nothing said of what won\'t move', { state: 'NeedsReview', stop: 'Check', reason: 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement needs review: Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979). Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.', 'library-source-warning'],
+    ['in need of review after the check, with a copy dropped', { state: 'NeedsReview', stop: 'Check', reason: NO_ID_REASON, droppedCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${NO_ID_REASON} 1 copy dropped. Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.`, 'library-source-warning'],
+    ['in need of review after the check, with a copy only a drop settles', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 2, dropOnlyCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} 1 copy can only be dropped, or both kept: see the job.`, 'library-source-warning'],
+    ['in need of review after the check, with copies only a drop settles and one dropped', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 3, dropOnlyCopyCount: 2, droppedCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} 1 copy dropped. 2 copies can only be dropped, or both kept: see the job.`, 'library-source-warning'],
+    // MAM-27 review — the last copy is never dropped: with every copy left one, keeping both is all that settles it.
+    ['in need of review after the check, its one copy one only a drop settles', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 1, dropOnlyCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} A new check can't pair its last copy: keep both.`, 'library-source-warning'],
+    ['in need of review after the check, every copy left one only a drop settles', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 2, dropOnlyCopyCount: 2, droppedCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} 1 copy dropped. A new check can't pair any of its 2 copies left: keep both.`, 'library-source-warning'],
     ['in need of review, with no reason given', { state: 'NeedsReview' }, 'Downloaded', 'Replacement needs review.', 'library-source-warning'],
-    ['in need of review while its download needs linking', { state: 'NeedsReview', reason: 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.' }, 'NeedsLinking', 'Replacement needs review: qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.', 'library-source-warning'],
+    ['in need of review while its download needs linking', { state: 'NeedsReview', stop: 'Download', reason: DOWNLOAD_REASON }, 'NeedsLinking', `Replacement needs review: ${DOWNLOAD_REASON} Keep both, or cancel the job.`, 'library-source-warning'],
     ['failed on a new file that isn\'t readable media, with nothing said of what won\'t move', { state: 'Failed', reason: '“Alien.1979.Directors.Cut.2160p.mkv” has no video stream.', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement stopped: “Alien.1979.Directors.Cut.2160p.mkv” has no video stream.', 'library-source-warning'],
     ['cancelled', { state: 'Cancelled', reason: 'You cancelled the download, so nothing will be replaced.' }, 'Cancelled', 'Replacement stopped: You cancelled the download, so nothing will be replaced.', 'library-source-warning'],
+    ['cancelled alone by the owner\'s Keep both, its download going on', { state: 'Cancelled', reason: KEPT_BOTH_REASON }, 'Downloading', `Replacement stopped: ${KEPT_BOTH_REASON}`, 'library-source-warning'],
+    ['cancelled after a copy was dropped', { state: 'Cancelled', reason: KEPT_BOTH_REASON, droppedCopyCount: 1 }, 'Downloaded', `Replacement stopped: ${KEPT_BOTH_REASON} 1 copy dropped.`, 'library-source-warning'],
   ])('says under the status where the replacement a job carries stands: %s', async (_, replacement, status, sentence, tone) => {
     // Arrange
     const replacing = jobOf({ id: 'd0b10000-0000-4000-8000-000000000008', releaseTitle: 'Alien (1979) 2160p Remux', status, replacement: replacementOf(replacement) })
@@ -628,23 +657,25 @@ describe('JobsPage', () => {
   })
 
   // MAM-26 — the server's sentence on the row ends "…then press Retry.", so the owner's Retry sits on the row.
-  describe('Retry of a replacement the mover stopped', () => {
-    const heldReason = 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.'
-
+  // MAM-27 — and on a row whose check of the new files stopped, whose line ends "…then press Retry".
+  describe('Retry of a replacement that stopped for review', () => {
     /** The owner's downloaded job whose replacement the mover stopped for review; `changes` sets the replacement. */
     const stoppedJob = (changes: Partial<DownloadJobReplacement> = {}) => jobOf({
       id: 'd0b10000-0000-4000-8000-000000000013',
       releaseTitle: 'Alien (1979) 2160p Remux',
       status: 'Downloaded',
       progress: 1,
-      replacement: replacementOf({ state: 'NeedsReview', reason: heldReason, canRetry: true, ...changes }),
+      replacement: replacementOf({ state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true, ...changes }),
     })
 
     it.each<[string, Partial<DownloadJobReplacement>, CurrentUser, boolean]>([
       ['offers Retry to the owner on a replacement the mover stopped', {}, owner, true],
       ['offers no Retry to anyone else', {}, member, false],
-      ['offers no Retry on a replacement stopped by the check of its new files', { canRetry: false }, owner, false],
-      ['offers no Retry on a replacement in the quarantine', { state: 'Quarantined', reason: null, canRetry: false, quarantinedCopyCount: 1 }, owner, false],
+      ['offers Retry to the owner on a replacement the check of its new files stopped', { stop: 'Check', reason: NO_ID_REASON }, owner, true],
+      ['offers no Retry to anyone else on a replacement the check stopped', { stop: 'Check', reason: NO_ID_REASON }, member, false],
+      ['offers no Retry while a copy only a drop settles is in the replacement', { stop: 'Check', reason: RENUMBERED_REASON, canRetry: false, dropOnlyCopyCount: 1 }, owner, false],
+      ['offers no Retry on a replacement whose download the app can\'t follow', { stop: 'Download', reason: DOWNLOAD_REASON, canRetry: false }, owner, false],
+      ['offers no Retry on a replacement in the quarantine', { state: 'Quarantined', stop: null, reason: null, canRetry: false, quarantinedCopyCount: 1 }, owner, false],
     ])('%s, on its row', async (_, changes, signedIn, offered) => {
       // Arrange
       const job = stoppedJob(changes)
@@ -679,9 +710,46 @@ describe('JobsPage', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
+    it('sends a replacement the check stopped back to that check without a confirmation, and the row shows it checked again', async () => {
+      // Arrange
+      const job = stoppedJob({ stop: 'Check', reason: NO_ID_REASON })
+      const retried = { ...job, replacement: replacementOf({ state: 'Downloaded' }) }
+      vi.mocked(replacementsApi.retry).mockResolvedValue(retried)
+      listing([job])
+      const { user } = renderPage(owner)
+      await screen.findByText(job.releaseTitle, asTitle)
+      listing([retried])
+
+      // Act
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Retry' }))
+
+      // Assert
+      expect(replacementsApi.retry).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(await within(rowOf(job.releaseTitle)).findByText('Replacement checks the new file: 1 copy, kept until it is verified.')).toBeInTheDocument()
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it.each<[string, Partial<DownloadJobReplacement>, string]>([
+      ['the mover stopped', {}, 'Check the old copies again, and move them once nothing stands in the way'],
+      ['the check of its new files stopped', { stop: 'Check', reason: NO_ID_REASON }, 'Check the new files again: Jellyfin\'s ids decide whether the old copies move'],
+    ])('says in Retry\'s title what it checks again on a replacement %s', async (_, changes, title) => {
+      // Arrange
+      const job = stoppedJob(changes)
+      listing([job])
+
+      // Act
+      renderPage(owner)
+
+      // Assert
+      await screen.findByText(job.releaseTitle, asTitle)
+      expect(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Retry' })).toHaveAttribute('title', title)
+    })
+
     it('shows the server sentence above the rows when a retry is refused', async () => {
       // Arrange
-      const sentence = 'This replacement isn\'t waiting for review after a move, so there\'s nothing to retry here.'
+      const sentence = 'This replacement isn\'t waiting for review, so there\'s nothing to retry here.'
       vi.mocked(replacementsApi.retry).mockRejectedValue(apiError(409, sentence))
       const job = stoppedJob()
       listing([job])
@@ -714,6 +782,546 @@ describe('JobsPage', () => {
       expect(button).toHaveAttribute('title', 'Check the old copies again, and move them once nothing stands in the way')
       expect(button.querySelector('.label-text')).toHaveTextContent('Retrying…')
       expect(button.closest('.settings-actions')).not.toBeNull()
+    })
+  })
+
+  // MAM-27 — the owner's Keep both cancels only the replacement: both copies stay, and the download goes on.
+  describe('Keep both on a replacement', () => {
+    /** The owner's downloading job whose replacement waits for it; `changes` sets the replacement. */
+    const replacingJob = (changes: Partial<DownloadJobReplacement> = {}) => jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000014',
+      releaseTitle: 'Alien (1979) 2160p Remux',
+      status: 'Downloading',
+      progress: 0.3,
+      replacement: replacementOf({ state: 'Downloading', canCancel: true, ...changes }),
+    })
+
+    /** The same job once Keep both went through: the replacement cancelled, the download going on. */
+    const keptBoth = (job: DownloadJob) => ({ ...job, replacement: replacementOf({ state: 'Cancelled', reason: KEPT_BOTH_REASON }) })
+
+    /** Opens the confirmation of Keep both on the row of `job`. */
+    async function openKeepBoth(user: ReturnType<typeof userEvent.setup>, job: DownloadJob) {
+      await screen.findByText(job.releaseTitle, asTitle)
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Keep both' }))
+      return screen.findByRole('dialog', { name: `Keep both copies of ${job.releaseTitle}?` })
+    }
+
+    it.each<[string, Partial<DownloadJobReplacement>, CurrentUser, boolean]>([
+      ['offers Keep both to the owner on a replacement none of whose copies has started to move', {}, owner, true],
+      ['offers no Keep both to anyone else', {}, member, false],
+      ['offers Keep both to the owner on a replacement that stopped for review', { state: 'NeedsReview', stop: 'Check', reason: NO_ID_REASON, canRetry: true }, owner, true],
+      ['offers no Keep both on a replacement part of which is in the quarantine', { state: 'Quarantined', canCancel: false, quarantinedCopyCount: 1 }, owner, false],
+      ['offers no Keep both on a replacement that ended', { state: 'Cancelled', reason: KEPT_BOTH_REASON, canCancel: false }, owner, false],
+    ])('%s, on its row', async (_, changes, signedIn, offered) => {
+      // Arrange
+      const job = replacingJob(changes)
+      listing([job])
+
+      // Act
+      renderPage(signedIn)
+
+      // Assert
+      await screen.findByText(job.releaseTitle, asTitle)
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Keep both' }) !== null).toBe(offered)
+    })
+
+    it.each<[string, DownloadJobStatus, Partial<DownloadJobReplacement>, string[]]>([
+      ['before Cancel job on a job still downloading', 'Downloading', {}, ['Keep both', 'Cancel job', 'Copies']],
+      ['after Retry on a replacement the check stopped', 'Downloaded', { state: 'NeedsReview', stop: 'Check', reason: NO_ID_REASON, canRetry: true }, ['Retry', 'Keep both', 'Copies']],
+    ])('puts Keep both %s', async (_, status, changes, buttons) => {
+      // Arrange
+      const job = { ...replacingJob(changes), status }
+      listing([job])
+
+      // Act
+      renderPage(owner)
+
+      // Assert
+      await screen.findByText(job.releaseTitle, asTitle)
+      expect(within(rowOf(job.releaseTitle)).getAllByRole('button').map((button) => button.textContent)).toEqual(buttons)
+    })
+
+    it('cancels only the replacement after a confirmation that says the download goes on, and the row shows it cancelled', async () => {
+      // Arrange
+      const job = replacingJob()
+      vi.mocked(replacementsApi.cancel).mockResolvedValue(keptBoth(job))
+      listing([job])
+      const { user } = renderPage(owner)
+      const confirmation = await openKeepBoth(user, job)
+      listing([keptBoth(job)])
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Keep both' }))
+
+      // Assert
+      expect(confirmation).toHaveTextContent(
+        'The replacement is cancelled: the old copy stays where it is, and nothing of it moves. The download is left as it is, and nothing is sent to Local qBittorrent. This can\'t be undone.')
+      expect(replacementsApi.cancel).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
+      expect(downloadsApi.cancel).not.toHaveBeenCalled()
+      const row = within(rowOf(job.releaseTitle))
+      expect(await row.findByText(`Replacement stopped: ${KEPT_BOTH_REASON}`)).toBeInTheDocument()
+      expect(row.queryByRole('button', { name: 'Keep both' })).not.toBeInTheDocument()
+      expect(row.getByRole('button', { name: 'Cancel job' })).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('says how many old copies stay when several were ticked', async () => {
+      // Arrange
+      const job = replacingJob({ copyCount: 3 })
+      listing([job])
+      const { user } = renderPage(owner)
+
+      // Act
+      const confirmation = await openKeepBoth(user, job)
+
+      // Assert
+      expect(confirmation).toHaveTextContent(
+        'The replacement is cancelled: the 3 old copies stay where they are, and nothing of them moves. The download is left as it is, and nothing is sent to Local qBittorrent. This can\'t be undone.')
+    })
+
+    it('puts Keep both first and Keep replacing last in its confirmation, not in red, and cancels nothing on Keep replacing', async () => {
+      // Arrange
+      const job = replacingJob()
+      listing([job])
+      const { user } = renderPage(owner)
+      const confirmation = await openKeepBoth(user, job)
+
+      // Act
+      const buttons = within(confirmation.querySelector<HTMLElement>('.ui-dialog-footer')!).getAllByRole('button')
+      await user.click(within(confirmation).getByRole('button', { name: 'Keep replacing' }))
+
+      // Assert
+      expect(buttons.map((button) => button.textContent)).toEqual(['Keep both', 'Keep replacing'])
+      expect(buttons[0]).not.toHaveClass('ui-button-destructive')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(replacementsApi.cancel).not.toHaveBeenCalled()
+    })
+
+    it('stops following the download from Cancel job, not from Keep both', async () => {
+      // Arrange
+      const job = replacingJob()
+      vi.mocked(downloadsApi.cancel).mockReturnValue(new Promise(() => {}))
+      listing([job])
+      const { user } = renderPage(owner)
+      await screen.findByText(job.releaseTitle, asTitle)
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Cancel job' }))
+      const confirmation = await screen.findByRole('dialog', { name: `Cancel the job for ${job.releaseTitle}?` })
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Cancel job' }))
+
+      // Assert
+      expect(downloadsApi.cancel).toHaveBeenCalledExactlyOnceWith(job.id)
+      expect(replacementsApi.cancel).not.toHaveBeenCalled()
+    })
+
+    it('shows the server sentence above the rows when Keep both is refused', async () => {
+      // Arrange
+      const sentence = 'Part of this replacement has left its folders already, so it can\'t be cancelled: Restore puts back what is in the quarantine.'
+      vi.mocked(replacementsApi.cancel).mockRejectedValue(apiError(409, sentence))
+      const job = replacingJob()
+      listing([job])
+      const { user } = renderPage(owner)
+      const confirmation = await openKeepBoth(user, job)
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Keep both' }))
+
+      // Assert
+      expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
+    })
+
+    it('shows its own sentence when Keep both fails and the API gives none', async () => {
+      // Arrange
+      vi.mocked(replacementsApi.cancel).mockRejectedValue(apiError(500))
+      const job = replacingJob()
+      listing([job])
+      const { user } = renderPage(owner)
+      const confirmation = await openKeepBoth(user, job)
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Keep both' }))
+
+      // Assert
+      expect(await screen.findByRole('alert')).toHaveTextContent('The replacement couldn\'t be cancelled.')
+    })
+
+    it('says Keeping both… with a spinner while it is on its way, and names the button in its title for a phone', async () => {
+      // Arrange
+      vi.mocked(replacementsApi.cancel).mockReturnValue(new Promise(() => {}))
+      const job = replacingJob()
+      listing([job])
+      const { user } = renderPage(owner)
+      await screen.findByText(job.releaseTitle, asTitle)
+      // Taken before the confirmation opens: the dialog hides the page behind it from queries by role.
+      const button = within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Keep both' })
+      const confirmation = await openKeepBoth(user, job)
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Keep both' }))
+
+      // Assert
+      expect(button).toHaveTextContent('Keeping both…')
+      expect(button).toBeDisabled()
+      expect(button.querySelector('svg')).toHaveClass('animate-spin')
+      expect(button).toHaveAttribute('title', 'Cancel only the replacement: both copies stay, and the download goes on')
+      expect(button.querySelector('.label-text')).toHaveTextContent('Keeping both…')
+      expect(button.closest('.settings-actions')).not.toBeNull()
+      // One busy flag for the row: Cancel job waits too.
+      expect(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Cancel job' })).toBeDisabled()
+    })
+  })
+
+  // MAM-27 — the owner opens a replacement's copies under its row (Vasyl's answer of 2026-10-11): the
+  // job's page's table, with Drop, and its refusals in the page's banner.
+  describe('Copies of a replacement, opened under its row', () => {
+    const e05Path = '/media/shows/Yellowstone (2018)/Season 02/Yellowstone S02E05.mkv'
+    const e06Path = '/media/shows/Yellowstone (2018)/Season 02/Yellowstone S02E06.mkv'
+
+    /** The episode Jellyfin numbers elsewhere: only dropping it settles it. */
+    const renumbered = jobCopyOf({
+      id: 'e1a50000-0000-4000-8000-000000000211',
+      appPath: e05Path,
+      seasonNumber: 2,
+      episodeNumber: 5,
+      pairedNewFileId: null,
+      problem: RENUMBERED_REASON,
+      onlyDropSettles: true,
+      status: 'Stopped',
+      canDrop: true,
+    })
+
+    /** The other episode, left without a pair as the check stopped. */
+    const unpaired = jobCopyOf({
+      id: 'e1a50000-0000-4000-8000-000000000212',
+      position: 1,
+      appPath: e06Path,
+      seasonNumber: 2,
+      episodeNumber: 6,
+      pairedNewFileId: null,
+      status: 'NotPaired',
+      canDrop: true,
+    })
+
+    /** The owner's downloaded season whose check stopped over the renumbered episode. */
+    const stoppedJob = jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000015',
+      releaseTitle: 'Yellowstone S02 2160p WEB-DL',
+      status: 'Downloaded',
+      progress: 1,
+      replacement: replacementOf({ state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 2, dropOnlyCopyCount: 1, canCancel: true }),
+    })
+
+    /** The same replacement's details, as its Copies show them. */
+    const stoppedDetails = replacementDetailsOf({
+      state: 'NeedsReview',
+      stop: 'Check',
+      reason: RENUMBERED_REASON,
+      canRestore: false,
+      canDeleteForGood: false,
+      canCancel: true,
+      quarantinedBytes: 0,
+      freesBytes: 0,
+      names: [],
+      dropOnlyCopyCount: 1,
+      copies: [renumbered, unpaired],
+    })
+
+    /** The same job once the renumbered episode was dropped: Retry is offered again. */
+    const droppedJob = {
+      ...stoppedJob,
+      replacement: replacementOf({ state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 1, droppedCopyCount: 1, canRetry: true, canCancel: true }),
+    }
+
+    /** Its details then: the episode greyed as dropped, the other its last copy. */
+    const droppedDetails = {
+      ...stoppedDetails,
+      canRetry: true,
+      dropOnlyCopyCount: 0,
+      copies: [
+        { ...renumbered, droppedUtc: '2026-10-11T12:00:00Z', status: 'Dropped' as const, canDrop: false },
+        { ...unpaired, canDrop: false },
+      ],
+    }
+
+    /** The row the copies open in, right under the job's own. */
+    const copiesRowOf = (title: string) => rowOf(title).nextElementSibling as HTMLElement | null
+
+    /** Opens the Copies of the job's row and waits for its table. */
+    async function openCopies(user: ReturnType<typeof userEvent.setup>, title: string) {
+      await screen.findByText(title, asTitle)
+      await user.click(within(rowOf(title)).getByRole('button', { name: 'Copies' }))
+      return within(copiesRowOf(title)!).findByRole('region', { name: 'Old copies and their new files' })
+    }
+
+    beforeEach(() => {
+      vi.mocked(replacementsApi.get).mockResolvedValue(stoppedDetails)
+    })
+
+    it('opens the replacement\'s copies in a row of their own under the job\'s, as wide as the table, and asks for them only then', async () => {
+      // Arrange
+      listing([stoppedJob, downloadingJob])
+      const { user } = renderPage(owner)
+      await screen.findByText(stoppedJob.releaseTitle, asTitle)
+      const toggle = within(rowOf(stoppedJob.releaseTitle)).getByRole('button', { name: 'Copies' })
+      const closed = { expanded: toggle.getAttribute('aria-expanded'), asked: vi.mocked(replacementsApi.get).mock.calls.length }
+
+      // Act
+      await user.click(toggle)
+
+      // Assert
+      const row = copiesRowOf(stoppedJob.releaseTitle)!
+      const copies = await within(row).findByRole('region', { name: 'Old copies and their new files' })
+      expect(closed).toEqual({ expanded: 'false', asked: 0 })
+      expect(replacementsApi.get).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(toggle).toHaveTextContent('Hide copies')
+      expect(toggle).toHaveAttribute('title', 'Old copies and their new files')
+      expect(row).toHaveClass('jobs-copies-row')
+      expect(row.querySelector('td')).toHaveAttribute('colspan', '6')
+      expect(row.querySelector('td')).not.toHaveAttribute('data-label')
+      expect(within(copies).getByText(e05Path)).toBeInTheDocument()
+      expect(within(copies).getByText(e06Path)).toBeInTheDocument()
+      expect(within(copies).getByText(`Stopped the replacement: ${RENUMBERED_REASON}`)).toBeInTheDocument()
+      expect(within(copies).getByText('Only dropping it or keeping both settles this.')).toBeInTheDocument()
+      expect(within(copies).getAllByRole('button', { name: 'Drop' })).toHaveLength(2)
+      expect(within(rowOf(downloadingJob.releaseTitle)).queryByRole('button', { name: 'Copies' })).not.toBeInTheDocument()
+    })
+
+    it('closes the copies again from Hide copies', async () => {
+      // Arrange
+      listing([stoppedJob, downloadingJob])
+      const { user } = renderPage(owner)
+      await openCopies(user, stoppedJob.releaseTitle)
+      const toggle = within(rowOf(stoppedJob.releaseTitle)).getByRole('button', { name: 'Hide copies' })
+
+      // Act
+      await user.click(toggle)
+
+      // Assert
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(toggle).not.toHaveAttribute('aria-controls')
+      expect(toggle).toHaveTextContent('Copies')
+      expect(screen.queryByRole('region', { name: 'Old copies and their new files' })).not.toBeInTheDocument()
+      expect(copiesRowOf(stoppedJob.releaseTitle)).toBe(rowOf(downloadingJob.releaseTitle))
+    })
+
+    it('points the open Copies at the row they open in', async () => {
+      // Arrange
+      listing([stoppedJob])
+      const { user } = renderPage(owner)
+
+      // Act
+      await openCopies(user, stoppedJob.releaseTitle)
+
+      // Assert
+      const toggle = within(rowOf(stoppedJob.releaseTitle)).getByRole('button', { name: 'Hide copies' })
+      expect(toggle).toHaveAttribute('aria-controls', copiesRowOf(stoppedJob.releaseTitle)!.id)
+    })
+
+    it.each<[string, DownloadJob, CurrentUser]>([
+      ['anyone but the owner', stoppedJob, member],
+      ['a job with no replacement', downloadingJob, owner],
+    ])('offers no Copies to %s', async (_, job, signedIn) => {
+      // Arrange
+      listing([job])
+
+      // Act
+      renderPage(signedIn)
+
+      // Assert
+      await screen.findByText(job.releaseTitle, asTitle)
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Copies' })).not.toBeInTheDocument()
+      expect(replacementsApi.get).not.toHaveBeenCalled()
+    })
+
+    it('puts Copies last in the row\'s actions', async () => {
+      // Arrange
+      listing([stoppedJob])
+
+      // Act
+      renderPage(owner)
+
+      // Assert
+      await screen.findByText(stoppedJob.releaseTitle, asTitle)
+      expect(within(rowOf(stoppedJob.releaseTitle)).getAllByRole('button').map((button) => button.textContent)).toEqual(['Keep both', 'Copies'])
+    })
+
+    it('drops a copy from the opened Copies after its confirmation, and the row says it was dropped', async () => {
+      // Arrange
+      vi.mocked(replacementsApi.dropCopy).mockResolvedValue(droppedJob)
+      listing([stoppedJob])
+      const { user } = renderPage(owner)
+      const copies = await openCopies(user, stoppedJob.releaseTitle)
+      const e05 = within(copies).getByText(e05Path).closest('tr')!
+      await user.click(within(e05).getByRole('button', { name: 'Drop' }))
+      const confirmation = await screen.findByRole('dialog', { name: 'Drop “Yellowstone S02E05.mkv” from the replacement?' })
+      listing([droppedJob])
+      vi.mocked(replacementsApi.get).mockResolvedValue(droppedDetails)
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Drop it' }))
+
+      // Assert
+      expect(replacementsApi.dropCopy).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, renumbered.id)
+      const row = within(rowOf(stoppedJob.releaseTitle))
+      expect(await row.findByText(`Replacement needs review: ${RENUMBERED_REASON} 1 copy dropped. Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.`)).toBeInTheDocument()
+      expect(row.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+      expect(await within(copies).findByText('Dropped from the replacement: it stays where it is.')).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('asks before dropping that the copy stays and Retry comes after, Drop it first and Keep it in last, not in red, and drops nothing on Keep it in', async () => {
+      // Arrange
+      const dropMessage = 'It stays where it is, and nothing of it moves. A new file it was paired with is simply added once Jellyfin has identified it. Press Retry afterwards to go on with the other copies.'
+      listing([stoppedJob])
+      const { user } = renderPage(owner)
+      const copies = await openCopies(user, stoppedJob.releaseTitle)
+      await user.click(within(within(copies).getByText(e05Path).closest('tr')!).getByRole('button', { name: 'Drop' }))
+      const confirmation = await screen.findByRole('dialog', { name: 'Drop “Yellowstone S02E05.mkv” from the replacement?' })
+      const buttons = within(confirmation.querySelector<HTMLElement>('.ui-dialog-footer')!).getAllByRole('button')
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Keep it in' }))
+
+      // Assert
+      expect(confirmation).toHaveTextContent(dropMessage)
+      expect(buttons.map((button) => button.textContent)).toEqual(['Drop it', 'Keep it in'])
+      expect(buttons[0]).not.toHaveClass('ui-button-destructive')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(replacementsApi.dropCopy).not.toHaveBeenCalled()
+    })
+
+    it('shows the spinner on the dropped copy alone while its drop is on its way, and holds the other copy\'s Drop', async () => {
+      // Arrange
+      vi.mocked(replacementsApi.dropCopy).mockReturnValue(new Promise(() => {}))
+      listing([stoppedJob])
+      const { user } = renderPage(owner)
+      const copies = await openCopies(user, stoppedJob.releaseTitle)
+      const e05 = within(copies).getByText(e05Path).closest('tr')!
+      const e06 = within(copies).getByText(e06Path).closest('tr')!
+      await user.click(within(e05).getByRole('button', { name: 'Drop' }))
+      const confirmation = await screen.findByRole('dialog', { name: 'Drop “Yellowstone S02E05.mkv” from the replacement?' })
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Drop it' }))
+
+      // Assert
+      const dropping = await within(e05).findByRole('button', { name: 'Dropping…' })
+      expect(dropping).toBeDisabled()
+      expect(dropping.querySelector('svg')).toHaveClass('animate-spin')
+      expect(within(e06).getByRole('button', { name: 'Drop' })).toBeDisabled()
+    })
+
+    describe('one busy flag for the row', () => {
+      /** The owner's season whose move a torrent stopped: Retry, Keep both and every Drop are offered together. */
+      const heldJob = {
+        ...stoppedJob,
+        replacement: replacementOf({ state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, copyCount: 2, canRetry: true, canCancel: true }),
+      }
+
+      /** Its details: both episodes paired, and either may be dropped. */
+      const heldDetails = {
+        ...stoppedDetails,
+        stop: 'Move' as const,
+        reason: HELD_REASON,
+        canRetry: true,
+        dropOnlyCopyCount: 0,
+        copies: [
+          { ...renumbered, problem: null, onlyDropSettles: false, status: 'Paired' as const },
+          { ...unpaired, status: 'Paired' as const },
+        ],
+      }
+
+      beforeEach(() => {
+        vi.mocked(replacementsApi.get).mockResolvedValue(heldDetails)
+      })
+
+      it('holds the row\'s Retry and Keep both while a drop from its Copies is on its way', async () => {
+        // Arrange
+        vi.mocked(replacementsApi.dropCopy).mockReturnValue(new Promise(() => {}))
+        listing([heldJob])
+        const { user } = renderPage(owner)
+        const copies = await openCopies(user, heldJob.releaseTitle)
+        await user.click(within(within(copies).getByText(e05Path).closest('tr')!).getByRole('button', { name: 'Drop' }))
+        const confirmation = await screen.findByRole('dialog', { name: 'Drop “Yellowstone S02E05.mkv” from the replacement?' })
+
+        // Act
+        await user.click(within(confirmation).getByRole('button', { name: 'Drop it' }))
+
+        // Assert
+        await within(copies).findByRole('button', { name: 'Dropping…' })
+        const row = within(rowOf(heldJob.releaseTitle))
+        expect(row.getByRole('button', { name: 'Retry' })).toBeDisabled()
+        expect(row.getByRole('button', { name: 'Keep both' })).toBeDisabled()
+        expect(replacementsApi.retry).not.toHaveBeenCalled()
+      })
+
+      it('holds every Drop in the opened Copies, and Keep both, while the row\'s Retry is on its way', async () => {
+        // Arrange
+        vi.mocked(replacementsApi.retry).mockReturnValue(new Promise(() => {}))
+        listing([heldJob])
+        const { user } = renderPage(owner)
+        const copies = await openCopies(user, heldJob.releaseTitle)
+        expect(within(copies).getAllByRole('button', { name: 'Drop' }).every((button) => !(button as HTMLButtonElement).disabled)).toBe(true)
+
+        // Act
+        await user.click(within(rowOf(heldJob.releaseTitle)).getByRole('button', { name: 'Retry' }))
+
+        // Assert
+        expect(await within(rowOf(heldJob.releaseTitle)).findByRole('button', { name: 'Retrying…' })).toBeDisabled()
+        expect(within(copies).getAllByRole('button', { name: 'Drop' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true)
+        expect(within(rowOf(heldJob.releaseTitle)).getByRole('button', { name: 'Keep both' })).toBeDisabled()
+      })
+
+      it('leaves another job\'s actions alone while one row\'s action is on its way', async () => {
+        // Arrange
+        vi.mocked(replacementsApi.retry).mockReturnValue(new Promise(() => {}))
+        const other = jobOf({ id: 'd0b10000-0000-4000-8000-000000000016', releaseTitle: 'Arrival (2016) 2160p', status: 'Downloading', progress: 0.4 })
+        listing([heldJob, other])
+        const { user } = renderPage(owner)
+        await screen.findByText(heldJob.releaseTitle, asTitle)
+
+        // Act
+        await user.click(within(rowOf(heldJob.releaseTitle)).getByRole('button', { name: 'Retry' }))
+
+        // Assert
+        await within(rowOf(heldJob.releaseTitle)).findByRole('button', { name: 'Retrying…' })
+        expect(within(rowOf(other.releaseTitle)).getByRole('button', { name: 'Cancel job' })).toBeEnabled()
+      })
+    })
+
+    it('shows a refused drop\'s sentence in the banner above the rows, not in the Copies', async () => {
+      // Arrange
+      const sentence = '“Yellowstone S02E05.mkv” is the last copy this replacement would replace, so it can\'t be dropped: keep both copies instead.'
+      vi.mocked(replacementsApi.dropCopy).mockRejectedValue(apiError(409, sentence))
+      listing([stoppedJob])
+      const { user } = renderPage(owner)
+      const copies = await openCopies(user, stoppedJob.releaseTitle)
+      await user.click(within(within(copies).getByText(e05Path).closest('tr')!).getByRole('button', { name: 'Drop' }))
+      const confirmation = await screen.findByRole('dialog', { name: 'Drop “Yellowstone S02E05.mkv” from the replacement?' })
+
+      // Act
+      await user.click(within(confirmation).getByRole('button', { name: 'Drop it' }))
+
+      // Assert
+      const banner = await screen.findByRole('alert')
+      expect(banner).toHaveTextContent(sentence)
+      expect(copiesRowOf(stoppedJob.releaseTitle)).not.toContainElement(banner)
+    })
+
+    it('says so in the opened row when the copies can\'t be loaded', async () => {
+      // Arrange
+      vi.mocked(replacementsApi.get).mockRejectedValue(apiError(404))
+      listing([stoppedJob])
+      const { user } = renderPage(owner)
+      await screen.findByText(stoppedJob.releaseTitle, asTitle)
+
+      // Act
+      await user.click(within(rowOf(stoppedJob.releaseTitle)).getByRole('button', { name: 'Copies' }))
+
+      // Assert
+      expect(await within(copiesRowOf(stoppedJob.releaseTitle)!).findByRole('alert')).toHaveTextContent('Could not load the old copies.')
     })
   })
 

@@ -335,3 +335,64 @@ a season or a range against the files; the ticked copies alone decide what must 
 `ReplacementPairingEpisodesTests.Pair_of_an_old_copy_whose_series_has_no_id_waits_keeping_its_pair_and_stops_once_the_hour_ran_out`,
 `ReplacementPairingFilmsTests`, `ReplacementPairingEpisodesTests`,
 `ReplacementPairingVerdictTests` and `EpisodeRangeNamesTests` pin it.
+
+## Settling a pair, dropping a copy and what only a drop settles, as built (added 0.3.0, MAM-27)
+
+**A stopped replacement is settled only through the library — the owner corrects the new item in
+Jellyfin and presses Retry, which checks the new files again so that Jellyfin's ids decide —, by
+dropping the old copy that can't be paired, which stays where it is, or by keeping both copies; no
+click confirms a work, an edition or a pair by hand, and nothing moves before every ticked copy is
+paired or dropped (Vasyl's decisions of 2026-10-08 and 2026-10-11).** The Decision's "drop that copy
+from the job (MAM-27)" and "the owner settles each pair as above or drops it from the job", as
+built.
+
+**Drop.** `POST /api/replacements/{id}/copies/{copyId}/drop`, the owner's, only from a `NeedsReview`
+the check or the move stopped — Vasyl's answer: only once the replacement stopped and waits for him
+—, never the last copy still in the replacement (keep both instead) nor one a name of which has left
+its folder. It sets the copy's `DroppedUtc`, forgets its names still `Planned` or `Stayed`, writes a
+`ReplacementCopyDropped` row aimed at the copy (`AuditTargetKind.ReplacementJobFile`), and changes
+nothing else: the job keeps its state and reason until the owner presses Retry — Vasyl's answer
+again —, so several copies can be dropped for one check, and nothing moves between two drops. The
+copy's row stays, keeping its last problem: the schedule's replay compares the ticks as they were
+sent, and the row is the drop's history.
+
+**A dropped copy is out of the replacement, not out of the library.** The check's library stage no
+longer reads its episode item, pairs it or waits on it, so a new file it would have paired with is
+simply added, as any new file no ticked copy pairs with, once Jellyfin has listed, read and
+identified it — until then it still holds the job, as MAM-25's rule has it, since it may be a second
+file of a copy left, and a fix in Jellyfin, then Retry, settles it; checks 5 and 6 and the move pass
+it by, so a torrent that holds it stops nothing; and another download may tick it. It still counts
+for check 2's "not one of the old copies", as it is still in the library. A drop can't be undone:
+the owner keeps both and schedules again.
+
+**What only a drop settles.** The Decision's "An episode at the wrong place can only be dropped or
+cancelled" is widened, by Vasyl's answer, to every stop no fix in Jellyfin or qBittorrent can
+change: the ticked episode Jellyfin numbers otherwise now, no new episode at its number, an old copy
+or a new file that is half an episode or covers several, a new file whose name claims another
+edition than the release, and one under three quarters of the old copy's running time. The pairing
+marks such a copy (`ReplacementOldCopyOutcome.OnlyDropSettles`, kept as
+`ReplacementJobFiles.OnlyDropSettles` beside its problem), the job's page says "Only dropping it or
+keeping both settles this." on it — on the last copy left, "It is the replacement's last copy: keep
+both instead." —, and while a copy still in the replacement carries the mark, Retry is withheld —
+the Jobs row hides it, the job's page disables it with "Drop the copies a new check can't pair
+first, or keep both." (or, when every copy left carries it, "A new check can't pair the copies left,
+and the last copy can't be dropped: keep both instead."), and `POST …/retry` answers 409
+"“Yellowstone S02E05.mkv” can only be dropped from this replacement, or both copies kept: checking
+again wouldn't change it.". Two new files of one work, a film with no new file, an old copy Jellyfin
+gives no number or lists as a film, and a series it hasn't identified stay open to a Retry, as the
+owner can fix those in Jellyfin. The mark is the pairing's verdict only: a stop of the library stage
+before the pairing clears what the passes that waited stored, so a mark of theirs never withholds
+Retry.
+
+**What the owner sees.** Each ticked copy with the new file it pairs with, its status, its problem
+and **Drop**, and each new file with how far Jellyfin got and the ids its work is expected to carry,
+on the job's page and under the Jobs row's **Copies** — "Nothing moves until every copy is paired or
+dropped: 1 of 2 paired, 1 dropped." The Consequences' "MAM-27 settles pairs and drops copies" and
+the MAM-25 section's "Retry, dropping a copy and settling a pair are MAM-27's" hold as built here.
+
+`ReplacementDropCopyHttpTests`,
+`ReplacementDroppedCopyHttpTests`,
+`ReplacementReviewFlowHttpTests`,
+`ReplacementRetryHttpTests`
+and `ReplacementPairingDropOnlyTests` pin it, and `JobDetailsPage.replacement.test.tsx` and
+`ReplacementCopies.test.tsx` the job's page.

@@ -22,6 +22,8 @@
     "checking_one": "Replacement checks the new file: {{value}} copy, kept until it is verified.",
     "checking_other": "Replacement checks the new file: {{value}} copies, kept until it is verified.",
     "checkingSwitchedOff": "Replacement checks the new file, but replacement is switched off: nothing will move while it is off.",
+    "checkingLibrary_one": "Replacement waits for Jellyfin to identify the new file until {{time}}: {{value}} copy, kept until it is verified.",
+    "checkingLibrary_other": "Replacement waits for Jellyfin to identify the new files until {{time}}: {{value}} copies, kept until they are verified.",
     "verified_one": "New file verified: {{value}} old copy moves into the quarantine next.",
     "verified_other": "New file verified: {{value}} old copies move into the quarantine next.",
     "verifiedSwitchedOff": "New file verified, but replacement is switched off: nothing will move while it is off.",
@@ -33,6 +35,8 @@
     "quarantined_other": "Old copies moved into the quarantine: {{value}} copies, kept until you restore them or delete them for good.",
     "stayed_one": "{{value}} file stayed in its folder: see the job.",
     "stayed_other": "{{value}} files stayed in their folders: see the job.",
+    "stayedHere_one": "{{value}} file stayed in its folder.",
+    "stayedHere_other": "{{value}} files stayed in their folders.",
     "restoring_one": "Putting the old copy back…",
     "restoring_other": "Putting the old copies back…",
     "deleting_one": "Deleting the old copy for good…",
@@ -43,6 +47,16 @@
     "completed_other": "Replaced: the old copies were deleted for good.",
     "needsReview": "Replacement needs review: {{reason}}",
     "needsReviewNoReason": "Replacement needs review.",
+    "next": {
+      "Download": " Keep both, or cancel the job.",
+      "Check": " Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.",
+      "dropOnly_one": " {{value}} copy can only be dropped, or both kept: see the job.",
+      "dropOnly_other": " {{value}} copies can only be dropped, or both kept: see the job.",
+      "dropOnlyKeepBoth_one": " A new check can't pair its last copy: keep both.",
+      "dropOnlyKeepBoth_other": " A new check can't pair any of its {{value}} copies left: keep both."
+    },
+    "dropped_one": " {{value}} copy dropped.",
+    "dropped_other": " {{value}} copies dropped.",
     "stopped": "Replacement stopped: {{reason}}",
     "stoppedNoReason": "Replacement stopped."
   },
@@ -78,8 +92,8 @@
   },
   "actionFailed": "Could not cancel this job. Reload the page and try again.",
   "oldCopies": {
-    "title": "Old copies",
-    "notOwner": "Only the installation owner sees the old copies a replacement moves, and restores them or deletes them for good.",
+    "title": "Replacement",
+    "notOwner": "Only the installation owner sees a replacement's copies and checks, and retries, cancels or drops them.",
     "loadFailed": "Could not load the old copies.",
     "refreshFailed": "Refresh failed, showing the old copies as last loaded.",
     "noneYet": "No old copy has moved yet: each moves into the quarantine once the new file is verified.",
@@ -107,12 +121,118 @@
       "Deleted": "Deleted for good.",
       "Lost": "Found neither where it was nor in the quarantine."
     },
+    "next": {
+      "Download": "The app can't follow this download, so its new file can't be checked. Keep both cancels only the replacement; Cancel job stops following the download. Both copies stay either way.",
+      "Check": "Fix what the reason says — for a film Jellyfin gave no id, set its TMDb link on the Library page, and Jellyfin's Identify applies it —, then press Retry: the check starts again, and Jellyfin's ids decide. Or drop a copy below: it stays where it is. Or keep both.",
+      "CheckNoDrop": "Fix what the reason says — for a film Jellyfin gave no id, set its TMDb link on the Library page, and Jellyfin's Identify applies it —, then press Retry: the check starts again, and Jellyfin's ids decide. Or keep both.",
+      "dropOnly_one": "{{value}} copy can only be dropped, or both copies kept: a new check can't pair it. Drop it below, then press Retry for the others.",
+      "dropOnly_other": "{{value}} copies can only be dropped, or both copies kept: a new check can't pair them. Drop them below, then press Retry for the others.",
+      "dropOnlyKeepBoth_one": "Only keeping both settles this: a new check can't pair the replacement's last copy, and the last copy can't be dropped.",
+      "dropOnlyKeepBoth_other": "Only keeping both settles this: a new check can't pair any of the {{value}} copies left, and the last copy can't be dropped.",
+      "Move": "Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Or drop that copy below: it stays where it is, and the others move. Or keep both.",
+      "MoveRestore": "Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Or drop that copy below: it stays where it is, and the others move. Restore puts back what is in the quarantine.",
+      "MoveNoDrop": "Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Or keep both.",
+      "MoveRestoreNoDrop": "Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Restore puts back what is in the quarantine.",
+      "switchedOff": "Replacement is switched off on the Media folders page: nothing moves while it is off. Switch it on there, or keep both.",
+      "openInLibrary": "Open {{title}} in Library"
+    },
+    "check": {
+      "waitsDownload": "Waits for the download.",
+      "starting": "The check of the new files starts within a few seconds.",
+      "files": "Reading the new files on the disk (started {{time}}).",
+      "libraryWait": "Waiting for Jellyfin to identify the new files until {{time}}.",
+      "verified": "Every old copy is paired with a new file Jellyfin identified.",
+      "stopped": "The check stopped."
+    },
+    "copies": {
+      "title": "Old copies and their new files",
+      "show": "Copies",
+      "hide": "Hide copies",
+      "columns": {
+        "copy": "Old copy",
+        "newFile": "New file",
+        "where": "Where it stands",
+        "actions": "Actions"
+      },
+      "summary_one": "Nothing moves until every copy is paired or dropped: {{paired}} of {{value}} paired, {{dropped}} dropped.",
+      "summary_other": "Nothing moves until every copy is paired or dropped: {{paired}} of {{value}} paired, {{dropped}} dropped.",
+      "notPaired": "No new file paired.",
+      "pairedLater": "Paired once Jellyfin has identified every new file.",
+      "onlyDrop": "Only dropping it or keeping both settles this.",
+      "status": {
+        "Dropped": "Dropped from the replacement: it stays where it is.",
+        "Waiting": "Kept until the new file is verified.",
+        "Paired": "Paired with its new file: it moves into the quarantine when the replacement goes ahead.",
+        "Stopped": "Stopped the replacement:",
+        "NotPaired": "Not paired.",
+        "Moving": "Moving…",
+        "InQuarantine": "In the quarantine.",
+        "Restored": "Back where it was.",
+        "Deleted": "Deleted for good.",
+        "Lost": "Found neither where it was nor in the quarantine.",
+        "Stays": "Stays where it is."
+      }
+    },
+    "newFiles": {
+      "title": "New files",
+      "columns": {
+        "file": "New file",
+        "disk": "On the disk",
+        "library": "Jellyfin"
+      },
+      "expected": "Expected: {{ids}}",
+      "identifiedAs": "Identified: {{title}}",
+      "progress": {
+        "Stopped": "Stopped the replacement:",
+        "Downloading": "Not downloaded yet.",
+        "NotChecked": "Not read on the disk yet.",
+        "Checked": "Read on the disk.",
+        "AskedToLook": "Jellyfin asked to look at it.",
+        "NotListed": "Not listed by Jellyfin yet.",
+        "NotRead": "Jellyfin hasn't finished reading it.",
+        "Extra": "An extra: simply added.",
+        "NoId": "No TMDb or IMDb id from Jellyfin yet.",
+        "NotNumbered": "No season and episode number from Jellyfin yet.",
+        "Identified": "Identified by Jellyfin."
+      }
+    },
+    "moved": {
+      "title": "Files the move planned"
+    },
     "retry": {
       "action": "Retry",
       "pending": "Retrying…",
       "title": "Check the old copies again, and move them once nothing stands in the way",
       "done": "Retried: the app checks the old copies again and moves them once nothing stands in the way.",
+      "titleCheck": "Check the new files again: Jellyfin's ids decide whether the old copies move",
+      "doneCheck": "Retried: the app checks the new files again and asks Jellyfin to look at them again.",
+      "blockedByDrop": "Drop the copies a new check can't pair first, or keep both.",
+      "blockedKeepBoth": "A new check can't pair the copies left, and the last copy can't be dropped: keep both instead.",
       "failed": "Could not retry this replacement. Reload the page and try again."
+    },
+    "keepBoth": {
+      "action": "Keep both",
+      "pending": "Keeping both…",
+      "title": "Cancel only the replacement: both copies stay, and the download goes on",
+      "confirmTitle": "Keep both copies of {{title}}?",
+      "message_one": "The replacement is cancelled: the old copy stays where it is, and nothing of it moves. The download is left as it is, and nothing is sent to {{client}}. This can't be undone.",
+      "message_other": "The replacement is cancelled: the {{value}} old copies stay where they are, and nothing of them moves. The download is left as it is, and nothing is sent to {{client}}. This can't be undone.",
+      "confirm": "Keep both",
+      "keep": "Keep replacing",
+      "done": "Replacement cancelled: both copies stay.",
+      "failed": "The replacement couldn't be cancelled."
+    },
+    "drop": {
+      "action": "Drop",
+      "pending": "Dropping…",
+      "title": "Take this copy out of the replacement: it stays where it is",
+      "confirmTitle": "Drop “{{name}}” from the replacement?",
+      "message": "It stays where it is, and nothing of it moves. A new file it was paired with is simply added once Jellyfin has identified it. Press Retry afterwards to go on with the other copies.",
+      "confirm": "Drop it",
+      "keep": "Keep it in",
+      "done": "Dropped “{{name}}”: it stays where it is.",
+      "lastCopy": "It is the replacement's last copy: keep both instead.",
+      "failed": "The copy couldn't be dropped."
     },
     "restore": {
       "action": "Restore",

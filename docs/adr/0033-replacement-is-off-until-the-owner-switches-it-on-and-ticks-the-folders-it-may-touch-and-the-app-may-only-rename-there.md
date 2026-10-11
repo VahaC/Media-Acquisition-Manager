@@ -314,3 +314,51 @@ quarantine, and none copies, writes over, links or changes an owner or a mode
 and `FileInventoryNeverWritesTests.No_file_inventory_member_is_named_for_a_write` pin it,
 `MediaFoldersPage.test.tsx` the page's hint and room, and `JobDetailsPage.replacement.test.tsx` the
 job's page.
+
+## Keep both and Drop are the owner's too, and usable while replacement is off (added 0.3.0, MAM-27)
+
+**`POST /api/replacements/{id}/cancel` (Keep both) and
+`POST /api/replacements/{id}/copies/{copyId}/drop` join `Controllers/Replacements`, so
+`ReplacementsAreOwnerOnlyConvention` covers them as it does the rest, and
+`ReplacementsAreOwnerOnlyHttpTests` now holds all eight; the Decision's "resolving review,
+cancelling a pending removal", as built.** A member gets 403 "Only the installation owner can do
+this." before anything is read; a replacement is its owner's own, another's a bare 404, and a copy
+that isn't one of the replacement's a bare 404 too. Members see nothing new: no **Copies** button,
+no Keep both on a Jobs row, and their Keep both in the Download dialog as it was.
+
+**Sweeps over a real replacement.** Besides the 403 for each discovered route,
+`ReplacementsAreOwnerOnlyHttpTests` plants a `NeedsReview` replacement the move stopped, with two
+copies — one with names of its move, none of which left its folder, one paired with its new file —,
+fills each discovered route's parameters by name — `id` the replacement, `copyId` one of its copies,
+a parameter it doesn't know failing the test —, sends each as a member with no body, and finds every
+row as it was, nothing asked of qBittorrent or Jellyfin or read on the disk, and nothing renamed,
+deleted or made. It does so twice: over the owner's job, and over the same job planted as the
+member's own, as a hand-edited row would leave it. The actions find a job by its sender, so on the
+owner's job a gate that came after the write would still write nothing; only the member's own, where
+Retry, Keep both and Drop would each write for him, shows that the gate comes before them.
+`ReplacementRestoreHttpTests` refuses a member Restore and Delete for good of his own quarantined
+job the same way. `ControllerAccessDeclarationTests` lists the two new actions.
+
+**Usable while switched off.** Keep both, Drop and the check's Retry write nothing to the media and
+send nothing to a client, so, like MAM-26's Retry, none is refused while replacement is switched
+off; Restore and Delete for good still are. A replacement kept both while the switch is off ends
+`Cancelled`; one retried waits for its check, which runs whatever the switch says, and once verified
+waits for the switch.
+
+**Nothing else is written.** Each of the three is one database transaction: the replacement's or the
+copy's row — Keep both and Drop also forgetting the names still `Planned` or `Stayed`, and the
+check's Retry the last check's evidence — and an audit row with the owner as its actor,
+`ReplacementCancelledAlone`, `ReplacementCopyDropped` or `ReplacementCheckRetried`; nothing to the
+media folders, nothing to a client, and Jellyfin hears only the check's own request to look once a
+retried check reaches it.
+
+`ReplacementsAreOwnerOnlyHttpTests.Discovery_finds_every_replacement_endpoint_of_today`,
+`ReplacementsAreOwnerOnlyHttpTests.Every_replacement_endpoint_as_a_signed_in_non_owner_is_403_with_the_owner_sentence`,
+`ReplacementsAreOwnerOnlyHttpTests.Every_replacement_endpoint_as_a_member_on_the_owners_real_stopped_replacement_is_403_and_changes_nothing`,
+`ReplacementsAreOwnerOnlyHttpTests.Every_replacement_endpoint_as_a_member_on_his_own_real_stopped_replacement_is_403_and_changes_nothing`,
+`ReplacementRestoreHttpTests.Restore_and_delete_for_good_of_a_members_own_quarantined_job_are_403_and_move_nothing`,
+`DownloadsGetHttpTests.Get_of_another_users_job_with_a_stopped_replacement_is_a_bare_404_even_for_the_installation_owner`,
+`ControllerAccessDeclarationTests`,
+`ReplacementCancelHttpTests`
+and `ReplacementDropCopyHttpTests` pin it, and `JobsPage.test.tsx` and
+`JobDetailsPage.replacement.test.tsx` a member's view.

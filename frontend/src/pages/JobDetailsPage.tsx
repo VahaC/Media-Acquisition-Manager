@@ -45,7 +45,9 @@ const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
  * it, and its files as the client last listed them, paged. Cancel when the app still follows it, or
  * when it needs linking. MAM-26 — between the facts and the files, the old copies of the replacement
  * the job carries, with the owner's Retry, Restore and Delete for good (ReplacementSection): their
- * results in a green banner above the facts, their refusals in the red one Cancel uses.
+ * results in a green banner above the facts, their refusals in the red one Cancel uses. MAM-27 — the
+ * section is the whole Replacement: what to do and how far the check got, the ticked copies with
+ * Drop, the new files, and Keep both beside Retry, answering in the same banners.
  *
  * Another user's job, the installation owner's view of it included, is a bare 404 (MAM-14's
  * decision 1), worded like an address that holds no job. While the app follows the job, it is asked
@@ -112,6 +114,7 @@ export function JobDetailsPage() {
         <JobFacts job={job} />
         {job.replacement && (
           <ReplacementSection
+            job={job}
             replacement={job.replacement}
             onStart={startAction}
             onDone={setActionResult}
@@ -172,7 +175,7 @@ function JobFacts({ job }: { job: DownloadJob }) {
               : t('details.destinationValue', { name: destination, category: job.clientDestinationKey })}
           </dd>
           <dt>{t('details.status')}</dt>
-          <dd><JobStatus job={job} /></dd>
+          <dd><JobStatus job={job} onJobPage /></dd>
           <dt>{t('details.progress')}</dt>
           <dd><JobProgress progress={job.progress} /></dd>
           <dt>{t('details.sent')}</dt>

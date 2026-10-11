@@ -21,6 +21,10 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// the app's own readings said of the copy, the new file it was paired with, and why it stopped the job. Nullable
 /// columns added in place, with no key, so the upgrade rebuilds no table.
 /// </para>
+/// <para>
+/// MAM-27 — the last two are the owner's drop and the verifier's mark of a problem only a drop settles, added in place the
+/// same way (the flag with a default), so every copy an upgrade finds reads as not dropped and as one a Retry may settle.
+/// </para>
 /// </remarks>
 public class ReplacementJobFileEntity : BaseEntity
 {
@@ -105,4 +109,22 @@ public class ReplacementJobFileEntity : BaseEntity
     /// <summary>MAM-25 — why this copy stopped the job, one readable sentence; <c>null</c> when it didn't.</summary>
     [MaxLength(ProblemMaximumLength)]
     public string? Problem { get; set; }
+
+    /// <summary>
+    /// MAM-27 — when the owner dropped the copy from the job; <c>null</c> while it is in it. A dropped copy stays where it
+    /// is: the check no longer pairs it or waits on it, the mover never moves it, and another download may tick it again.
+    /// Its own column, never <see cref="Problem"/> or <see cref="PairedNewFileId"/>, which every check of the files wipes;
+    /// the row itself stays, as the drop's history and as the ticks the request was sent with. Written by the owner's Drop
+    /// alone, in one conditional <c>UPDATE</c>, and never cleared.
+    /// </summary>
+    public DateTime? DroppedUtc { get; set; }
+
+    /// <summary>
+    /// MAM-27 — whether the copy's <see cref="Problem"/> is one no fix in the library or the download client can change —
+    /// an episode the library numbers apart from the one ticked, a new file under ¾ of its running time, a cut the release
+    /// didn't claim, a half or several episodes in one file —, so only dropping it, or keeping both copies, settles it,
+    /// and Retry is withheld while an undropped copy has it. Written by the check beside the problem and cleared with it;
+    /// <c>false</c> when the copy has no problem.
+    /// </summary>
+    public bool OnlyDropSettles { get; set; }
 }

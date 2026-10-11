@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Replacements;
 
 namespace MediaAcquisitionManager.Api.Mapping;
 
@@ -30,21 +31,27 @@ public sealed class DownloadMapper : IDownloadMapper
         new(file.Position, file.RelativePath, file.SizeBytes, file.Progress, file.IsWanted);
 
     // MAM-24 — the reason is the app's own sentence, naming nothing of a service's, and the job is its sender's — the
-    // owner's, as only he schedules —, so it is shown as is. MAM-26 — Retry by the one rule its action keeps too.
-    public DownloadJobReplacementDto ToDto(
-        ReplacementJobEntity replacement,
-        int copyCount,
-        bool switchedOff,
-        int copiesOutsideTickedFolders,
-        int quarantinedCopyCount,
-        int stayedFileCount) =>
-        new(replacement.State, copyCount, replacement.Reason, switchedOff, copiesOutsideTickedFolders)
+    // owner's, as only he schedules —, so it is shown as is. MAM-26 — Retry by the one rule its action keeps too. MAM-27 —
+    // Keep both too, and the stop, the stage and the wait from the row's own times, by the rules the job's page reads: the
+    // line never tells the owner something its details or the action then contradict.
+    public DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, ReplacementLineCounts counts, bool switchedOff)
+    {
+        var stop = ReplacementJobProgress.StopOf(replacement.State, replacement.InspectionStartedUtc, replacement.QuarantineCheckedUtc);
+        return new(replacement.State, counts.CopyCount, replacement.Reason, switchedOff, counts.CopiesOutsideTickedFolders)
         {
             Id = replacement.Id,
-            QuarantinedCopyCount = quarantinedCopyCount,
-            StayedFileCount = stayedFileCount,
-            CanRetry = ReplacementJobOffers.CanRetry(replacement.State, replacement.QuarantineCheckedUtc),
+            QuarantinedCopyCount = counts.QuarantinedCopyCount,
+            StayedFileCount = counts.StayedFileCount,
+            CanRetry = ReplacementJobOffers.CanRetry(stop, counts.DropOnlyCopyCount),
+            DroppedCopyCount = counts.DroppedCopyCount,
+            DropOnlyCopyCount = counts.DropOnlyCopyCount,
+            CanCancel = ReplacementJobOffers.CanCancel(replacement.State, counts.HoldsTakenNames),
+            Stop = stop,
+            CheckStage = ReplacementJobProgress.StageOf(replacement.State, replacement.LibraryAskedUtc),
+            CheckWaitsUntilUtc = ReplacementJobProgress.CheckWaitsUntilUtc(
+                replacement.State, replacement.InspectionStartedUtc, replacement.LibraryAskedUtc),
         };
+    }
 
     public DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations) =>
         new(

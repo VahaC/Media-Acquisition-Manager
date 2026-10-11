@@ -14,17 +14,20 @@ public sealed partial class ReplacementQuarantiner
 {
     /// <summary>
     /// What <paramref name="job"/>'s move would be, read now inside <paramref name="gate"/>'s allowed roots: each ticked copy
-    /// whose video isn't in the quarantine yet (or deleted from it) by an earlier run, with its identity read fresh, the
-    /// allowed root that holds it and its own companions, each marked when a torrent holds it; and the companions an earlier
-    /// run left waiting beside a video it moved, each checked again — or why nothing of it may move, with the copies the
-    /// stop is about. Reads the database, the disk and the download clients; writes nothing.
+    /// the owner didn't drop whose video isn't in the quarantine yet (or deleted from it) by an earlier run, with its
+    /// identity read fresh, the allowed root that holds it and its own companions, each marked when a torrent holds it; and
+    /// the companions an earlier run left waiting beside a video it moved, each checked again — or why nothing of it may
+    /// move, with the copies the stop is about. Reads the database, the disk and the download clients; writes nothing.
     /// </summary>
     private async Task<MoveCheck> CheckAsync(QuarantineJob job, ReplacementGateState gate, CancellationToken cancellationToken)
     {
         var replacementJobId = job.Replacement.Id;
+        // MAM-27 — a copy the owner dropped stays where it is: never checked, planned or renamed, and a torrent holding it
+        // stops nothing. It holds no name still to move or in the quarantine — the drop removes the names that never moved
+        // and refuses a copy one of whose names left its folder —, so the names below need no filter.
         var copies = await db.ReplacementJobFiles
             .AsNoTracking()
-            .Where(copy => copy.ReplacementJobId == replacementJobId)
+            .Where(copy => copy.ReplacementJobId == replacementJobId && copy.DroppedUtc == null)
             .OrderBy(copy => copy.Position)
             .ToListAsync(cancellationToken);
         var earlier = await db.ReplacementJobNames

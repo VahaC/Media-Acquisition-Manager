@@ -149,6 +149,23 @@
   white-space: nowrap;
 }
 
+/* ── the replacement's copies and new files (MAM-27) ── */
+
+/* The Jobs list's Copies panel: one cell across the job's columns, under its row, holding the job
+   page's copies table (ReplacementCopies) — a settings-table of its own, so its rows are rows on a
+   wide screen and cards on a phone like any. A faint tint ties it to the row it opened from; the
+   table's own frame sits on it. */
+.settings-table tr.jobs-copies-row > td {
+  padding: 0.75rem;
+  background: color-mix(in oklab, var(--muted) 50%, transparent);
+}
+
+/* A dropped copy stays listed as history: greyed, its status icon too (currentColor), so it doesn't
+   read as a copy the replacement still holds. The paths and lines inside set no colour of their own. */
+.settings-table tr.jobs-copy-dropped {
+  color: var(--muted-foreground);
+}
+
 @media (max-width: 48rem) {
   /* Sentences and paths need the card's whole width: the cell's caption goes above them instead of
      beside them, and the lines start at the left like any text. */
@@ -161,5 +178,36 @@
 
   .settings-table td.jobs-stacked-cell > .jobs-status {
     max-width: none;
+  }
+
+  /* MAM-27 — on a phone the Copies panel is no card of its own: its copies are cards already, and a
+     card around cards would take a phone's width twice over. The row goes frameless, and its one cell
+     a plain block — a card's cell lays its children out in a row beside a caption, and it has none. */
+  .settings-table tr.jobs-copies-row {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .settings-table tr.jobs-copies-row > td {
+    display: block;
+    padding: 0;
+    text-align: left;
+    background: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* MAM-27 — a new file's chips stay after its path and facts, and a new file's ids after the lines
+     they belong under, as on a wider screen: library.css's phone rule gives a version row's chips a
+     row of their own (row 2), and the class is the same — in a grid of one column it would lift them
+     above the lines that come before them. Two classes, so this wins whichever sheet loads first;
+     library.css keeps its rule for the Library and the Duplicates page (downloads.css does the same
+     for the Download dialog's copies). */
+  .jobs-name-paths .library-version-chips,
+  .jobs-status .library-version-chips {
+    grid-row: auto;
+    grid-column: auto;
   }
 }

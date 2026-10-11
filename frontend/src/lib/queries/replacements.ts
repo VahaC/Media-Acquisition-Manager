@@ -58,15 +58,20 @@ export const useScheduleReplacement = () => {
 /**
  * MAM-26 — one of the owner's replacements, for its job's page: every name its move planned and
  * where each is now, the room it takes in the quarantine, and what the owner may do. Asked only for
- * the owner (`enabled`): the route is owner-only. Not polled: the job's own query asks for it again
- * whenever the replacement it carries comes back changed (useDownloadJob), and each action here asks
- * for it again once it answers. Not retried: a 404 for a replacement gone won't change on a second try.
+ * the owner (`enabled`): the route is owner-only. The job's own query asks for it again whenever the
+ * replacement it carries comes back changed (useDownloadJob), and each action here asks for it again
+ * once it answers. Not retried: a 404 for a replacement gone won't change on a second try.
+ *
+ * MAM-27 — and its copies, new files and check. While the check runs, what it found of the new files
+ * changes on every pass with nothing on the job's line changing, so the caller passes the Jobs
+ * cadence (`refetchEveryMs`) for as long as the check runs; otherwise it isn't polled.
  */
-export const useReplacement = (id: string, enabled: boolean) =>
+export const useReplacement = (id: string, enabled: boolean, refetchEveryMs: number | false = false) =>
   useQuery({
     queryKey: qk.replacements.job(id),
     queryFn: () => replacementsApi.get(id),
     enabled: enabled && id !== '',
+    refetchInterval: refetchEveryMs,
     retry: false,
   })
 
@@ -76,29 +81,79 @@ interface DeleteForGoodVariables {
   names: string[]
 }
 
+/** MAM-27 — the arguments of a Drop: the replacement, and the copy the owner takes out of it. */
+interface DropCopyVariables {
+  id: string
+  copyId: string
+}
+
 /**
  * Puts the job an owner's action answered with in place at once, as a cancel does. Each action then
  * asks again for every list, job and file page and the replacement's details whatever it answered —
  * a 409 means the replacement changed meanwhile, which the refetch shows —, and stays pending until
- * those are back, so its buttons stay disabled until the page shows the new state.
+ * those are back, so its buttons stay disabled until the page shows the new state. MAM-27 — each
+ * carries the replacement's mutation key, so a Jobs row holds its other actions meanwhile
+ * (useJobActionsPending).
  */
 const settleJob = (queryClient: QueryClient, job: DownloadJob) =>
   queryClient.setQueryData<DownloadJob>(qk.downloads.jobs.detail(job.id), job)
 
 /**
  * MAM-26 — sends a replacement the mover stopped for review back to be checked and moved (ADR 0031:
- * "remove that torrent there without its files, then press Retry"). The request itself writes
- * nothing to the media, so the quarantine's room is left alone. Never retried on its own, and sent
- * even while the browser says it is offline (`networkMode: 'always'`), as a cancel is: held back, it
- * would go out on its own later, after the owner may have left the page.
+ * "remove that torrent there without its files, then press Retry"). MAM-27 — or one the check of its
+ * new files stopped back to that check. The request itself writes nothing to the media, so the
+ * quarantine's room is left alone. Never retried on its own, and sent even while the browser says it
+ * is offline (`networkMode: 'always'`), as a cancel is: held back, it would go out on its own later,
+ * after the owner may have left the page.
  */
 export const useRetryReplacement = () => {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: qk.actions.replacement,
     mutationFn: (id: string) => replacementsApi.retry(id),
     networkMode: 'always',
     onSuccess: (job) => settleJob(queryClient, job),
     onSettled: (_, __, id) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
+      queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
+    ]),
+  })
+}
+
+/**
+ * MAM-27 — the owner's Keep both: cancels only the replacement, so both copies stay and its download
+ * goes on as it is. Nothing of it is in the quarantine (the server refuses otherwise), so its room is
+ * left alone. Never retried on its own, and sent even while the browser says it is offline
+ * (useRetryReplacement's reason).
+ */
+export const useCancelReplacement = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: qk.actions.replacement,
+    mutationFn: (id: string) => replacementsApi.cancel(id),
+    networkMode: 'always',
+    onSuccess: (job) => settleJob(queryClient, job),
+    onSettled: (_, __, id) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
+      queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
+    ]),
+  })
+}
+
+/**
+ * MAM-27 — takes one ticked copy out of the owner's replacement: it stays where it is, and nothing
+ * else happens until the owner presses Retry. A copy that left its folder can't be dropped, so the
+ * quarantine's room is left alone. Never retried on its own, and sent even while the browser says it
+ * is offline (useRetryReplacement's reason); `variables.copyId` tells which row waits.
+ */
+export const useDropReplacementCopy = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationKey: qk.actions.replacement,
+    mutationFn: ({ id, copyId }: DropCopyVariables) => replacementsApi.dropCopy(id, copyId),
+    networkMode: 'always',
+    onSuccess: (job) => settleJob(queryClient, job),
+    onSettled: (_, __, { id }) => Promise.all([
       queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
       queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
     ]),
@@ -114,6 +169,7 @@ export const useRetryReplacement = () => {
 export const useRestoreReplacement = () => {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: qk.actions.replacement,
     mutationFn: (id: string) => replacementsApi.restore(id),
     networkMode: 'always',
     onSuccess: (job) => settleJob(queryClient, job),
@@ -135,6 +191,7 @@ export const useRestoreReplacement = () => {
 export const useDeleteReplacementForGood = () => {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: qk.actions.replacement,
     mutationFn: ({ id, names }: DeleteForGoodVariables) => replacementsApi.deleteForGood(id, names),
     networkMode: 'always',
     onSuccess: (job) => settleJob(queryClient, job),

@@ -4,6 +4,9 @@ import type {
   ReplacementCopy,
   ReplacementDetails,
   ReplacementEpisode,
+  ReplacementJobCopy,
+  ReplacementJobNewFile,
+  ReplacementJobWork,
   ReplacementName,
   ReplacementOptions,
   ReplacementUnavailableReason,
@@ -159,7 +162,10 @@ export function yellowstoneWorkOf(changes: Partial<ReplacementWork> = {}): Repla
 /** MAM-26 — the replacement's own id, which its details and the owner's actions ask by. */
 export const REPLACEMENT_ID = 'e1a50000-0000-4000-8000-000000000001'
 
-/** The replacement a job carries; `changes` sets what a test is about. */
+/**
+ * The replacement a job carries; `changes` sets what a test is about. It offers nothing — no Retry,
+ * MAM-27: no Keep both — unless a test says so, so a page's buttons are only the ones a test asks for.
+ */
 export function replacementOf(changes: Partial<DownloadJobReplacement> = {}): DownloadJobReplacement {
   return {
     id: REPLACEMENT_ID,
@@ -171,6 +177,12 @@ export function replacementOf(changes: Partial<DownloadJobReplacement> = {}): Do
     quarantinedCopyCount: 0,
     stayedFileCount: 0,
     canRetry: false,
+    droppedCopyCount: 0,
+    dropOnlyCopyCount: 0,
+    canCancel: false,
+    stop: null,
+    checkStage: null,
+    checkWaitsUntilUtc: null,
     ...changes,
   }
 }
@@ -221,7 +233,9 @@ export const alienHeldSubtitle = nameOf({
 
 /**
  * The replacement as its job's page asks for it: Quarantined, the video and one subtitle in the
- * quarantine and the held one in its folder, Restore and Delete for good offered.
+ * quarantine and the held one in its folder, Restore and Delete for good offered. MAM-27 — with no
+ * copy, new file or work listed unless a test says so (jobCopyOf, newFileOf, workOf), so a page shows
+ * only the rows a test is about.
  */
 export function replacementDetailsOf(changes: Partial<ReplacementDetails> = {}): ReplacementDetails {
   return {
@@ -236,6 +250,97 @@ export function replacementDetailsOf(changes: Partial<ReplacementDetails> = {}):
     quarantinedBytes: alienVideo.sizeBytes + alienSubtitle.sizeBytes,
     freesBytes: alienVideo.sizeBytes + alienSubtitle.sizeBytes,
     names: [alienVideo, alienSubtitle, alienHeldSubtitle],
+    canCancel: false,
+    stop: null,
+    checkStage: null,
+    checkStartedUtc: null,
+    libraryAskedUtc: null,
+    checkWaitsUntilUtc: null,
+    dropOnlyCopyCount: 0,
+    copies: [],
+    newFiles: [],
+    works: [],
+    ...changes,
+  }
+}
+
+// MAM-27 — the rows GET /api/replacements/{id} lists for the same film: the ticked copy of Alien
+// (1979), the 2160p remux its download brought, and the work Jellyfin's ids are compared with. By
+// default the pair is verified and the copy is in the quarantine, as in replacementDetailsOf;
+// `changes` sets what a test is about.
+
+/** Alien (1979)'s work: the one the replacement expects, and the one Jellyfin's ids identified the remux as. */
+export const ALIEN_WORK_ID = 'e1a50000-0000-4000-8000-000000000401'
+
+/** The remux's own row id, which the copy's pair points at. */
+export const ALIEN_NEW_FILE_ID = 'e1a50000-0000-4000-8000-000000000301'
+
+/** One old copy the owner ticked: Alien (1979)'s 40 GiB video, paired with the remux and in the quarantine. */
+export function jobCopyOf(changes: Partial<ReplacementJobCopy> = {}): ReplacementJobCopy {
+  return {
+    id: 'e1a50000-0000-4000-8000-000000000201',
+    position: 0,
+    appPath: alienVideo.originalPath,
+    sizeBytes: alienVideo.sizeBytes,
+    workId: ALIEN_WORK_ID,
+    seasonNumber: null,
+    episodeNumber: null,
+    episodeNumberEnd: null,
+    editionLabel: null,
+    durationMilliseconds: 6_960_000,
+    pairedNewFileId: ALIEN_NEW_FILE_ID,
+    problem: null,
+    onlyDropSettles: false,
+    droppedUtc: null,
+    status: 'InQuarantine',
+    canDrop: false,
+    ...changes,
+  }
+}
+
+/** One new file the download brought: the 2160p HEVC remux, read on the disk and identified by Jellyfin by its ids. */
+export function newFileOf(changes: Partial<ReplacementJobNewFile> = {}): ReplacementJobNewFile {
+  return {
+    id: ALIEN_NEW_FILE_ID,
+    position: 0,
+    relativePath: 'Alien.1979.2160p.UHD.BluRay.REMUX.HDR.HEVC.mkv',
+    appPath: '/media/movies/Alien.1979.2160p.UHD.BluRay.REMUX.HDR.HEVC.mkv',
+    clientSizeBytes: 64_424_509_440,
+    clientProgress: 1,
+    sizeBytes: 64_424_509_440,
+    durationMilliseconds: 6_990_000,
+    videoCodec: 'hevc',
+    width: 3840,
+    height: 2160,
+    checkedUtc: '2026-10-10T12:00:00Z',
+    kind: 'Movie',
+    seasonNumber: null,
+    episodeNumber: null,
+    episodeNumberEnd: null,
+    readUtc: '2026-10-10T12:05:00Z',
+    workId: ALIEN_WORK_ID,
+    problem: null,
+    progress: 'Identified',
+    identifiers: [
+      { scheme: 'Imdb', value: 'tt0078748', ofSeries: false, setByOwner: false },
+      { scheme: 'Tmdb', value: '348', ofSeries: false, setByOwner: false },
+    ],
+    ...changes,
+  }
+}
+
+/** The work the replacement expects: Alien (1979), matched by its ids, so no confirmation was needed. */
+export function workOf(changes: Partial<ReplacementJobWork> = {}): ReplacementJobWork {
+  return {
+    workId: ALIEN_WORK_ID,
+    kind: 'Movie',
+    title: 'Alien',
+    year: 1979,
+    confirmedByOwner: false,
+    identifiers: [
+      { scheme: 'Imdb', value: 'tt0078748', ofSeries: false, setByOwner: false },
+      { scheme: 'Tmdb', value: '348', ofSeries: false, setByOwner: false },
+    ],
     ...changes,
   }
 }

@@ -592,10 +592,21 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
     /// <summary>
     /// The job ended <paramref name="state"/> with <paramref name="reason"/> — on the Jobs page too —, with its two audit rows
     /// of the app's own, and nothing touched: Jellyfin never asked anything, qBittorrent only read, the old copy where it was.
+    /// MAM-27 — a review is the check's stop, which the owner's Retry checks again and Keep both cancels alone; a failure
+    /// has ended, and offers neither.
     /// </summary>
     private async Task AssertStoppedAsync(DownloadJobDto job, ReplacementJobState state, string reason, CancellationToken cancellationToken)
     {
-        Assert.Equal(new DownloadJobReplacementDto(state, 1, reason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
+        var review = state == ReplacementJobState.NeedsReview;
+        Assert.Equal(
+            new DownloadJobReplacementDto(state, 1, reason, false, 0)
+            {
+                Id = (await _harness.ReplacementAsync(cancellationToken)).Id,
+                CanRetry = review,
+                CanCancel = review,
+                Stop = review ? ReplacementStop.Check : null,
+            },
+            await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((state, (string?)reason), (replacement.State, replacement.Reason));
         var stopped = state == ReplacementJobState.Failed ? AuditAction.ReplacementFailed : AuditAction.ReplacementNeedsReview;

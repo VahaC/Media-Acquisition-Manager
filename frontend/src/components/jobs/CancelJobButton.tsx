@@ -9,6 +9,11 @@ import '@/styles/settings-list.css' // .settings-actions .label-text — the lab
 
 interface CancelJobButtonProps {
   job: DownloadJob
+  /**
+   * MAM-27 — another action on the job or its replacement is on its way (a Jobs row's one busy flag):
+   * this one waits. Left out where the button stands alone.
+   */
+  busy?: boolean
   /** The cancel was confirmed and is about to be sent: the page clears its last refusal. */
   onStart: () => void
   /** The cancel failed: the page shows `message` in a banner above the job. */
@@ -23,7 +28,7 @@ interface CancelJobButtonProps {
  * Not the red style of Remove: nothing is removed anywhere. Placed in a `.settings-actions` row, its
  * label hides on a phone and the icon keeps its title.
  */
-export function CancelJobButton({ job, onStart, onError }: CancelJobButtonProps) {
+export function CancelJobButton({ job, busy = false, onStart, onError }: CancelJobButtonProps) {
   const { t } = useTranslation('jobs')
   const confirm = useConfirm()
   const cancel = useCancelDownload()
@@ -51,7 +56,7 @@ export function CancelJobButton({ job, onStart, onError }: CancelJobButtonProps)
       variant="outline"
       size="sm"
       title={t('cancel.action')}
-      disabled={cancel.isPending}
+      disabled={busy || cancel.isPending}
       onClick={() => void cancelJob()}
     >
       <CircleStop className="h-3.5 w-3.5" aria-hidden="true" />

@@ -20,19 +20,14 @@ public interface IDownloadMapper
 
     /// <summary>
     /// MAM-24 — the replacement a job carries, as the Jobs page shows it under the job: its state and why it stopped,
-    /// with what the caller counted — its <paramref name="copyCount"/> copies, whether replacement is
-    /// <paramref name="switchedOff"/> now, and how many copies lie outside a ticked folder now
-    /// (<paramref name="copiesOutsideTickedFolders"/>). MAM-26 — and its id, which the owner's actions are addressed by, how
-    /// many of its copies have their video in the quarantine (<paramref name="quarantinedCopyCount"/>), how many companion
-    /// files stayed in their folder (<paramref name="stayedFileCount"/>), and whether the owner's Retry is offered.
+    /// with what the caller counted of its rows (<paramref name="counts"/>) — its copies, and how many lie outside a ticked
+    /// folder now —, and whether replacement is <paramref name="switchedOff"/> now. MAM-26 — and its id, which the owner's
+    /// actions are addressed by, how many of its copies have their video in the quarantine, how many companion files stayed
+    /// in their folder, and whether the owner's Retry is offered. MAM-27 — and the copies dropped and those only a drop
+    /// settles, whether Keep both is offered, which stage stopped a review, and where a running check is and until when it
+    /// waits.
     /// </summary>
-    DownloadJobReplacementDto ToDto(
-        ReplacementJobEntity replacement,
-        int copyCount,
-        bool switchedOff,
-        int copiesOutsideTickedFolders,
-        int quarantinedCopyCount,
-        int stayedFileCount);
+    DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, ReplacementLineCounts counts, bool switchedOff);
 
     /// <summary>A client the dialog offers: its name, what it is (<paramref name="typeName"/>) and its
     /// <paramref name="destinations"/>, in the order given.</summary>

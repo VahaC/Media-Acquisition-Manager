@@ -2482,6 +2482,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<long>("DeviceId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("DroppedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("DurationMilliseconds")
                         .HasColumnType("INTEGER");
 
@@ -2512,6 +2515,9 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<DateTime>("ModifiedUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("OnlyDropSettles")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("PairedNewFileId")
                         .HasColumnType("TEXT");

@@ -6,4 +6,7 @@ namespace MediaAcquisitionManager.Core.Replacements;
 /// that stops the job too (another edition, too short), so the owner sees which file it was.</param>
 /// <param name="Problem">Why it stops the job — or, once the library's wait ran out, why it stopped it —, one readable
 /// sentence; <c>null</c> when it doesn't.</param>
-public sealed record ReplacementOldCopyOutcome(Guid OldCopyId, Guid? PairedNewFileId, string? Problem);
+/// <param name="OnlyDropSettles">MAM-27 — whether <paramref name="Problem"/> is one no fix in the library or the client can
+/// change, so only dropping the copy, or keeping both copies, settles it and Retry is withheld; <c>false</c> for every other
+/// problem, for a sentence of what is still awaited, and when there is no problem.</param>
+public sealed record ReplacementOldCopyOutcome(Guid OldCopyId, Guid? PairedNewFileId, string? Problem, bool OnlyDropSettles = false);

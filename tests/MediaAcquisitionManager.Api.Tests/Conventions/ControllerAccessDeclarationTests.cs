@@ -124,6 +124,9 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("ReplacementJobsController.Retry", actions);
         Assert.Contains("ReplacementJobsController.Restore", actions);
         Assert.Contains("ReplacementJobsController.DeleteForGood", actions);
+        // MAM-27 — the owner's Keep both and Drop of one ticked copy, in the same namespace.
+        Assert.Contains("ReplacementJobsController.Cancel", actions);
+        Assert.Contains("ReplacementJobsController.DropCopy", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

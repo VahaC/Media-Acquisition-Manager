@@ -144,9 +144,11 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
             entry => entry.Category == typeof(ReplacementJobFollower).FullName
                 && entry.Level == LogLevel.Information
                 && entry.Message == $"Replacement job {replacementId} went from Downloading to Paused.");
-        // And the Jobs page reads it.
+        // And the Jobs page reads it, with (MAM-27) Keep both offered: no old copy has started to move.
         var listed = await ListAsync(cancellationToken);
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Downloaded, 1, null, false, 0) { Id = replacementId }, Assert.Single(listed.Items).Replacement);
+        Assert.Equal(
+            new DownloadJobReplacementDto(ReplacementJobState.Downloaded, 1, null, false, 0) { Id = replacementId, CanCancel = true },
+            Assert.Single(listed.Items).Replacement);
     }
 
     [Fact]
@@ -438,9 +440,11 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var read = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        // MAM-27 — Keep both stays offered while replacement is off: it writes nothing to the media.
         var expected = new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, SwitchedOff: true, CopiesOutsideTickedFolders: 1)
         {
             Id = (await ReplacementAsync(cancellationToken)).Id,
+            CanCancel = true,
         };
         Assert.Equal(expected, read.Replacement);
         Assert.Equal(expected, Assert.Single((await ListAsync(cancellationToken)).Items).Replacement);

@@ -34,9 +34,15 @@ public sealed partial class ReplacementVerifier
             .AsTracking()
             .Where(identifier => rowIds.Contains(identifier.ReplacementJobNewFileId))
             .ToListAsync(cancellationToken);
+        // MAM-27 — a copy the owner dropped is out of the job: never read in the library, never paired, never waited on. Its
+        // last problem and pair stay as its history. Every new file still goes into the pairing, a dropped copy's own
+        // included: one the library hasn't listed, read, identified or numbered yet still holds the job as MAM-25's rule
+        // has it — it may be a second file of a copy left —, so the job is verified once every copy left in it is paired
+        // and every new file is settled. The works stay whole: a new file identified as a dropped copy's work is then that
+        // work's, and simply added, not another work's.
         var copies = await db.ReplacementJobFiles
             .AsTracking()
-            .Where(copy => copy.ReplacementJobId == replacementJobId)
+            .Where(copy => copy.ReplacementJobId == replacementJobId && copy.DroppedUtc == null)
             .OrderBy(copy => copy.Position)
             .ToListAsync(cancellationToken);
         var works = await WorksAsync(replacementJobId, cancellationToken);
@@ -47,6 +53,7 @@ public sealed partial class ReplacementVerifier
         {
             if (await ReplacementNewFileCheck.ChangedAsync(files, row, roots, cancellationToken) is { } changed)
             {
+                ForgetWaitingPass(rows, copies);
                 row.Problem = FileInspectionRunUpdates.Cut(changed, ReplacementJobNewFileEntity.ProblemMaximumLength);
                 await FinishAsync(job, ReplacementJobState.NeedsReview, changed, now, () => Task.CompletedTask);
                 return;
@@ -90,6 +97,7 @@ public sealed partial class ReplacementVerifier
             // once the hour ran out.
             if (answer.Status == ReplacementCheckStatus.Wait && !waitPassed)
                 return;
+            ForgetWaitingPass(rows, copies);
             await FinishAsync(job, ReplacementJobState.NeedsReview, answer.Reason, now, () => Task.CompletedTask);
             return;
         }
@@ -142,6 +150,8 @@ public sealed partial class ReplacementVerifier
             // A pair is kept once the job is decided: verified, or stopped with the copies that paired before it.
             copy.PairedNewFileId = result.Verdict == ReplacementPairingVerdict.Wait ? null : outcome.PairedNewFileId;
             copy.Problem = outcome.Problem is { } problem ? FileInspectionRunUpdates.Cut(problem, ReplacementJobFileEntity.ProblemMaximumLength) : null;
+            // MAM-27 — beside its problem, whether only a drop settles it: the owner's Retry is withheld while one does.
+            copy.OnlyDropSettles = outcome.OnlyDropSettles;
         }
 
         switch (result.Verdict)
@@ -155,6 +165,26 @@ public sealed partial class ReplacementVerifier
             default:
                 await KeepAsync(replacementJobId, () => Task.CompletedTask);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// MAM-27 — what the passes before decided nothing with — each copy left in the job's problem, drop-only mark and pair,
+    /// and each new file's problem — forgotten when this pass stops the job before the pairing: that stop's reason is what
+    /// stopped it. Every pass before it in the library's stage waited (a pass or a review ends the stage), so what it kept
+    /// is no verdict: a problem a waiting pass found would read as one that stopped the job, and its mark would withhold the
+    /// owner's Retry of a stop a new check may well settle. The library's word on each file stays as its evidence. Staged on
+    /// the tracked rows, saved with the stop or with nothing.
+    /// </summary>
+    private static void ForgetWaitingPass(IReadOnlyList<ReplacementJobNewFileEntity> rows, IReadOnlyList<ReplacementJobFileEntity> copies)
+    {
+        foreach (var row in rows)
+            row.Problem = null;
+        foreach (var copy in copies)
+        {
+            copy.PairedNewFileId = null;
+            copy.Problem = null;
+            copy.OnlyDropSettles = false;
         }
     }
 

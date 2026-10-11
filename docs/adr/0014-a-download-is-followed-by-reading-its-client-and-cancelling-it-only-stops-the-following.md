@@ -235,3 +235,34 @@ check passes every 15 s.
 `ReplacementVerificationHttpTests.Verify_whose_check_of_a_job_throws_logs_the_type_never_the_message_and_the_next_pass_goes_on`,
 `ReplacementVerificationLibraryHttpTests.Verify_on_later_passes_goes_on_from_the_rows_never_asking_the_library_or_reading_the_file_again`,
 `ReplacementJobStatesTests` and `JobsPage.polling.test.tsx` pin it.
+
+## The owner's Keep both cancels the replacement alone (added 0.3.0, MAM-27)
+
+**The owner can now cancel a replacement without its download: Keep both
+(`POST /api/replacements/{id}/cancel`) ends it `Cancelled` from any state before an old copy starts
+to move — the followed ones, `Downloaded`, `Inspecting`, `Verified` and a review —, writes nothing
+to the download job and sends the client nothing, so the download goes on as this Decision follows
+it; **Cancel job** still stops the following, and ends a followed replacement with it, as MAM-24
+built it.** The MAM-25 section's "cancelling a pending removal is MAM-27's", as built.
+
+**Two cancels, told apart.** **Cancel job** is the job's, any sender's, refused for a done download,
+and writes `DownloadCancelled` and, for a followed replacement, `ReplacementCancelled` ("You
+cancelled the download, so nothing will be replaced."). **Keep both** is the owner's alone ([ADR
+0033](0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)),
+the replacement's only, and writes `ReplacementCancelledAlone` ("You cancelled the replacement, so
+nothing will be replaced."). Both sit on the owner's Jobs row, **Keep both** first; whichever comes
+first wins, and the second writes no replacement row.
+
+**Against the following.** Its write is conditional on the states before the move as a set, so a
+pass that moves the download from `Downloading` to `Downloaded` between the request's read and its
+write doesn't undo it — the log names the state the job left, read again under the write's lock —,
+and the following's own mirrored move then finds `Cancelled` outside its states and writes nothing.
+A Keep both while the download goes on leaves the job followed, and the Jobs pages keep asking every
+2 s through the download's own following.
+
+**The Anti-consequence stands.** No client call, no torrent touched: the download and its files stay
+as they are, and the copies can be ticked again by another download.
+
+`ReplacementCancelHttpTests` pins it, with
+`ReplacementCancelHttpTests.Cancel_of_a_replacement_the_follower_moved_on_between_the_read_and_the_write_cancels_it_and_logs_the_state_it_left`
+for the following's move, and `JobsPage.test.tsx` and `JobsPage.polling.test.tsx` the page.

@@ -8,6 +8,7 @@ import {
   alienSubtitle,
   alienVideo,
   aliensWorkOf,
+  jobCopyOf,
   optionsUnavailable,
   REPLACEMENT_ID,
   replacementDetailsOf,
@@ -138,6 +139,7 @@ describe('replacementsApi', () => {
   it.each<[string, (id: string) => Promise<unknown>, string]>([
     ['Retry', (id) => replacementsApi.retry(id), 'retry'],
     ['Restore', (id) => replacementsApi.restore(id), 'restore'],
+    ['Keep both', (id) => replacementsApi.cancel(id), 'cancel'],
   ])('sends %s as a POST to the replacement\'s own address, with no body, and answers its job', async (_, send, action) => {
     // Arrange
     const job = jobOf({ replacement: replacementOf({ state: 'Verified' }) })
@@ -180,10 +182,42 @@ describe('replacementsApi', () => {
     expect(api.getUri(requests[0])).toBe('/api/replacements/..%2Fsettings')
   })
 
+  // MAM-27 — the owner's Drop of one ticked copy, addressed under its replacement.
+
+  it('sends Drop as a POST to the copy\'s address under its replacement, with no body, and answers its job', async () => {
+    // Arrange
+    const job = jobOf({ replacement: replacementOf({ state: 'NeedsReview', stop: 'Check', copyCount: 1, droppedCopyCount: 1 }) })
+    const requests = respondWith(200, job)
+    const copy = jobCopyOf()
+
+    // Act
+    const answer = await replacementsApi.dropCopy(REPLACEMENT_ID, copy.id)
+
+    // Assert
+    expect(answer).toEqual(job)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('post')
+    expect(api.getUri(requests[0])).toBe(`/api/replacements/${REPLACEMENT_ID}/copies/${copy.id}/drop`)
+    expect(requests[0].data).toBeUndefined()
+  })
+
+  it('encodes the replacement id and the copy id into one path segment each', async () => {
+    // Arrange
+    const requests = respondWith(200, jobOf({ replacement: replacementOf() }))
+
+    // Act
+    await replacementsApi.dropCopy('../settings', '../../users?all=true')
+
+    // Assert
+    expect(api.getUri(requests[0])).toBe('/api/replacements/..%2Fsettings/copies/..%2F..%2Fusers%3Fall%3Dtrue/drop')
+  })
+
   it.each<[string, () => Promise<unknown>, string]>([
-    ['Retry', () => replacementsApi.retry(REPLACEMENT_ID), 'This replacement isn\'t waiting for review after a move, so there\'s nothing to retry here.'],
+    ['Retry', () => replacementsApi.retry(REPLACEMENT_ID), 'This replacement isn\'t waiting for review, so there\'s nothing to retry here.'],
     ['Restore', () => replacementsApi.restore(REPLACEMENT_ID), 'Replacement is switched off on the Media folders page, so nothing can be put back. Switch it on, then press Restore again.'],
     ['Delete for good', () => replacementsApi.deleteForGood(REPLACEMENT_ID, [alienVideo.id]), 'What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.'],
+    ['Keep both', () => replacementsApi.cancel(REPLACEMENT_ID), 'Part of this replacement has left its folders already, so it can\'t be cancelled: Restore puts back what is in the quarantine.'],
+    ['Drop', () => replacementsApi.dropCopy(REPLACEMENT_ID, jobCopyOf().id), '“Alien.mkv” is the last copy this replacement would replace, so it can\'t be dropped: keep both copies instead.'],
   ])('rejects %s with the server sentence when it is refused (409)', async (_, send, sentence) => {
     // Arrange
     respondWith(409, { error: sentence })
@@ -193,6 +227,34 @@ describe('replacementsApi', () => {
 
     // Assert
     expect(getApiErrorMessage(failure)).toBe(sentence)
+  })
+
+  it.each<[string, () => Promise<unknown>]>([
+    ['Keep both', () => replacementsApi.cancel(REPLACEMENT_ID)],
+    ['Drop', () => replacementsApi.dropCopy(REPLACEMENT_ID, jobCopyOf().id)],
+  ])('rejects %s with the server sentence for anyone but the owner (403)', async (_, send) => {
+    // Arrange
+    respondWith(403, { error: 'Only the installation owner can do this.' })
+
+    // Act
+    const failure = await send().catch((error: unknown) => error)
+
+    // Assert
+    expect(getApiErrorMessage(failure)).toBe('Only the installation owner can do this.')
+  })
+
+  it.each<[string, () => Promise<unknown>]>([
+    ['Keep both of another user\'s replacement', () => replacementsApi.cancel(REPLACEMENT_ID)],
+    ['Drop of a copy that isn\'t the replacement\'s', () => replacementsApi.dropCopy(REPLACEMENT_ID, 'e1a50000-0000-4000-8000-0000000002ff')],
+  ])('rejects %s with a bare 404', async (_, send) => {
+    // Arrange
+    respondWith(404, '')
+
+    // Act
+    const result = send()
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 404, data: '' } })
   })
 
   it('rejects with the server sentence when a ticked copy can\'t be replaced any more (409)', async () => {

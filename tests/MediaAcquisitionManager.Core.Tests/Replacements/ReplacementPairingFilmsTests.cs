@@ -453,7 +453,7 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.Extended.2160p.mkv” claims Extended cut, while the release claimed none.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, extended.Id, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, extended.Id, reason, OnlyDropSettles: true)], result.OldCopies);
         Assert.Equal([new ReplacementNewFileOutcome(extended.Id, Alien.WorkId, null), new ReplacementNewFileOutcome(aliens.Id, null, null)], result.NewFiles);
     }
 
@@ -470,7 +470,7 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.Extended.2160p.mkv” claims Extended cut, while the release claimed none.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies);
     }
 
     [Fact]
@@ -556,7 +556,7 @@ public sealed class ReplacementPairingFilmsTests
         //Assert
         const string reason = "“/media/movies/Alien (1979)/Alien.1979.2160p.mkv” runs 1:12:04, less than three quarters of the old copy's 1:56:30.";
         Assert.Equal((ReplacementPairingVerdict.Review, reason), (result.Verdict, result.Reason));
-        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason)], result.OldCopies);
+        Assert.Equal([new ReplacementOldCopyOutcome(copy.Id, file.Id, reason, OnlyDropSettles: true)], result.OldCopies);
     }
 
     [Theory]

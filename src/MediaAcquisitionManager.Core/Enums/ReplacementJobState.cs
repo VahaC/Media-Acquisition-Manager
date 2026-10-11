@@ -6,7 +6,8 @@ namespace MediaAcquisitionManager.Core.Enums;
 /// or at <see cref="NeedsReview"/> or <see cref="Failed"/> with the reason (ADR 0035). MAM-26 then moves the old copies
 /// into the quarantine (<see cref="Quarantining"/>) and keeps them there (<see cref="Quarantined"/>) until the owner
 /// puts them back (<see cref="Restoring"/>, then <see cref="Restored"/>) or deletes them for good
-/// (<see cref="Deleting"/>, then <see cref="Completed"/>) (ADR 0030). Stored by name, so a state added later needs no
+/// (<see cref="Deleting"/>, then <see cref="Completed"/>) (ADR 0030). MAM-27 — the owner may cancel it on its own before
+/// anything of it moves (<see cref="Cancelled"/>, with Keep both). Stored by name, so a state added later needs no
 /// migration and no value is ever reused.
 /// </summary>
 public enum ReplacementJobState
@@ -34,7 +35,10 @@ public enum ReplacementJobState
     /// so nothing will be replaced; <c>Reason</c> says why.</summary>
     Failed = 7,
 
-    /// <summary>The download was cancelled, so nothing will be replaced.</summary>
+    /// <summary>
+    /// The replacement was cancelled, so nothing will be replaced: with its download, which was cancelled — or, MAM-27, on
+    /// its own by the owner's Keep both, which leaves the download as it is, going on or done. <c>Reason</c> says which.
+    /// </summary>
     Cancelled = 8,
 
     /// <summary>
