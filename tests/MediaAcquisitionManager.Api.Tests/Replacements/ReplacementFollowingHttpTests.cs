@@ -146,7 +146,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
                 && entry.Message == $"Replacement job {replacementId} went from Downloading to Paused.");
         // And the Jobs page reads it.
         var listed = await ListAsync(cancellationToken);
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Downloaded, 1, null, false, 0), Assert.Single(listed.Items).Replacement);
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Downloaded, 1, null, false, 0) { Id = replacementId }, Assert.Single(listed.Items).Replacement);
     }
 
     [Fact]
@@ -187,12 +187,19 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
     [Theory]
     [InlineData(ReplacementJobState.Inspecting)]
     [InlineData(ReplacementJobState.Verified)]
+    [InlineData(ReplacementJobState.Quarantining)]
+    [InlineData(ReplacementJobState.Quarantined)]
+    [InlineData(ReplacementJobState.Restoring)]
+    [InlineData(ReplacementJobState.Deleting)]
+    [InlineData(ReplacementJobState.Restored)]
+    [InlineData(ReplacementJobState.Completed)]
     public async Task Pass_never_touches_a_replacement_whose_new_files_are_being_checked_or_verified(ReplacementJobState state)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         // MAM-25 — as a previous run left them: the download done, its replacement taken up by the check of its new files.
-        // Were it followed, a done download would mirror it back to Downloaded on every pass.
+        // Were it followed, a done download would mirror it back to Downloaded on every pass. MAM-26 — nor any state after
+        // verification: moving, in the quarantine, put back or deleted, the old copies are the mover's and the owner's.
         var (_, replacement) = await PlantAsync(DownloadJobStatus.Downloaded, DownloadOverwriteCheck.Checked, state, progress: 1);
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
 
@@ -222,8 +229,8 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var cancelled = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Equal(DownloadJobStatus.Cancelled, cancelled.Status);
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Cancelled, 1, YouCancelledReason, false, 0), cancelled.Replacement);
         var replacement = await ReplacementAsync(cancellationToken);
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Cancelled, 1, YouCancelledReason, false, 0) { Id = replacement.Id }, cancelled.Replacement);
         await _factory.WithDbAsync(async db =>
         {
             var audit = await db.AuditEvents.AsNoTracking().SingleAsync(row => row.Action == AuditAction.ReplacementCancelled, cancellationToken);
@@ -431,7 +438,10 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var read = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
-        var expected = new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, SwitchedOff: true, CopiesOutsideTickedFolders: 1);
+        var expected = new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, SwitchedOff: true, CopiesOutsideTickedFolders: 1)
+        {
+            Id = (await ReplacementAsync(cancellationToken)).Id,
+        };
         Assert.Equal(expected, read.Replacement);
         Assert.Equal(expected, Assert.Single((await ListAsync(cancellationToken)).Items).Replacement);
     }

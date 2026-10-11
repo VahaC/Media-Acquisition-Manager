@@ -197,3 +197,29 @@ match is for the owner to confirm.
 `LibraryDuplicatesPossibleHttpTests.List_offers_a_scanned_file_by_its_folders_name`,
 `LibraryDuplicatesPossibleHttpTests.List_offers_two_scanned_files_named_with_one_title_and_year` and
 `LibraryDuplicatesPossibleHttpTests.List_never_offers_a_scanned_file_whose_name_has_no_year` pin it.
+
+## The quarantine is never walked (added 0.3.0, MAM-26)
+
+**The scan leaves out every entry named `.mam-quarantine`, at any depth, follows no link into one
+and gives nothing for an allowed folder that lies in one, so a file a replacement moved there is
+never a name no library reported ([ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).**
+
+**Where in the walk.** The name is checked first, before the rules of a usable name and of a path's
+length, and the entry gives nothing — not a place it didn't scan, so no problem is counted and the
+Media folders row's count stays the files the libraries could report. The name is matched as
+`QuarantineFolder.IsQuarantineName` reads it: in its own letter case on a POSIX path, in any on a
+Windows one. A link is followed only after the rule that it ends inside the allowed folders, and is
+then left out when what it leads to lies in a quarantine. `IFileInventory.ListMediaFilesAsync` says
+so, and `FakeFileInventory` does the same, so the HTTP tests' scans match.
+
+**What follows.** A quarantined file is never a scanned name, so it is never offered as a possible
+match on the Duplicates page (ADR 0028) nor counted in the room the files take; the replacement job
+is where the app knows it, and the Media folders page shows the room it takes from the job's rows.
+The walk still writes nothing: the quarantine's renames go through a contract of their own (ADR
+0030), never through `IFileInventory`.
+
+`LocalFileInventoryListingTests.List_never_walks_a_folder_named_mam_quarantine_at_any_depth_and_counts_no_problem`,
+`LocalFileInventoryListingTests.List_never_follows_a_link_into_a_quarantine`,
+`LocalFileInventoryListingTests.List_of_a_root_that_lies_in_a_quarantine_gives_nothing_for_it_and_walks_the_others`
+and `QuarantineFolderTests.Holds_a_quarantine_folder_and_anything_inside_one_at_any_depth` pin it.

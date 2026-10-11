@@ -135,7 +135,8 @@ export const qk = {
   replacements: {
     /**
      * MAM-24 — every answer about what a release may replace: what saving the Media folders (the
-     * switch and the ticked folders decide every reason) invalidates.
+     * switch and the ticked folders decide every reason) invalidates. MAM-26 — and every
+     * replacement's details, whose actions the switch allows or holds.
      */
     all: ['replacements'] as const,
     /**
@@ -144,6 +145,11 @@ export const qk = {
      */
     options: (releaseId: string, destinationId: string, holdings: boolean) =>
       ['replacements', 'options', releaseId, destinationId, holdings] as const,
+    /**
+     * MAM-26 — one replacement's names and what the owner may do with it, by the replacement's id:
+     * under `all`, so a Media folders save refreshes it, and beside `options` rather than among them.
+     */
+    job: (id: string) => ['replacements', 'jobs', id] as const,
   },
   search: {
     /** MAM-12 — every stored search and its releases: the prefix of the keys below. */

@@ -81,6 +81,8 @@ public sealed partial class CoreIsVendorNeutralTests
             typeof(IIntegrationAdapter), typeof(IMediaLibraryProvider), typeof(IReleaseSearchProvider),
             typeof(IDownloadClient), typeof(IFileInventory), typeof(IMetadataResolver),
             typeof(IntegrationConnectionEntity), typeof(PathMapper),
+            // MAM-26 — the write contract beside the inventory (ADR 0030).
+            typeof(IFileQuarantine),
         ];
 
         //Act

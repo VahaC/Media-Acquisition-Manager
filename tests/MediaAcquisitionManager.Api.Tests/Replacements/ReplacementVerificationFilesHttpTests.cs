@@ -595,7 +595,7 @@ public sealed class ReplacementVerificationFilesHttpTests : IClassFixture<MediaA
     /// </summary>
     private async Task AssertStoppedAsync(DownloadJobDto job, ReplacementJobState state, string reason, CancellationToken cancellationToken)
     {
-        Assert.Equal(new DownloadJobReplacementDto(state, 1, reason, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(state, 1, reason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((state, (string?)reason), (replacement.State, replacement.Reason));
         var stopped = state == ReplacementJobState.Failed ? AuditAction.ReplacementFailed : AuditAction.ReplacementNeedsReview;

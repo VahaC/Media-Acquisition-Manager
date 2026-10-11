@@ -1,12 +1,13 @@
 import { useId, useState, type FormEvent } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { Trans, useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatNumber } from '@/lib/format'
+import { formatFileSize, formatNumber } from '@/lib/format'
 import { useAllowedRoots, useUpdateAllowedRoots } from '@/lib/queries'
 import type { AllowedRoots, ReplacementFolder, UpdateAllowedRootsRequest } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
@@ -14,6 +15,7 @@ import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the header and the muted line every settings page shares
 import '@/styles/settings-dialog.css' // .settings-check — the replacement switch's and each library folder's box before its words
 import '@/styles/media-folders.css' // .media-folders-* — the folder rows, the replacement card and the Save row
+import '@/styles/library.css' // .library-source-warning, .library-link — a folder's rename problems, the link to Jobs
 
 /** One folder row of the form, with a key no other row of this page load has. */
 interface FolderDraft {
@@ -47,6 +49,11 @@ function storedTicks(roots: AllowedRoots): string[] {
  * default, and a tick per library folder the app knows, none by default. Only a copy in a ticked
  * folder inside the media folders can be picked in the Download dialog's Replace after verification.
  * One form holds both cards, so the page keeps one Save (house rule 17) and one request.
+ *
+ * MAM-26 — each folder ticked in the form says whether a move into the quarantine can work there
+ * (ADR 0033's hint), and the card lists the room each quarantine takes. A Save that would leave a
+ * quarantine holding old copies outside every media folder is the server's to refuse; its sentence
+ * names the quarantine, above Save like any refusal.
  *
  * A non-owner who opens the address gets the API's 403 sentence in place of the form.
  */
@@ -258,13 +265,15 @@ interface ReplacementCardProps {
  * MAM-24 — the replacement gates of ADR 0033: the master switch and the library folders it may touch.
  * The ticks stay editable while the switch is off, as both save together, so the owner can pick the
  * folders before switching it on. Each row's status comes from the server, against the stored media
- * folders rather than the ones being typed.
+ * folders rather than the ones being typed. MAM-26 — then the quarantines (ADR 0030): each one's
+ * room, from the app's own records, or that it is empty.
  */
 function ReplacementCard({ roots, replacementEnabled, picked, onSwitch, onTick }: ReplacementCardProps) {
   const { t } = useTranslation('mediaFolders')
   const titleId = useId()
   const switchHintId = useId()
   const foldersHintId = useId()
+  const quarantineId = useId()
   const unmapped = roots.unmappedLibraryFolderCount
 
   return (
@@ -310,6 +319,31 @@ function ReplacementCard({ roots, replacementEnabled, picked, onSwitch, onTick }
             <p className="settings-muted">{t('replace.unmapped', { count: unmapped, value: formatNumber(unmapped) })}</p>
           )}
         </fieldset>
+        <div className="ui-field">
+          <h3 id={quarantineId} className="ui-label">{t('replace.quarantine')}</h3>
+          <p className="ui-hint">
+            <Trans t={t} i18nKey="replace.quarantineHint" components={{ jobs: <Link className="library-link" to="/jobs" /> }} />
+          </p>
+          {roots.quarantines.length === 0 ? (
+            <p className="settings-muted">{t('replace.quarantineEmpty')}</p>
+          ) : (
+            <ul className="media-folders-quarantines" aria-labelledby={quarantineId}>
+              {roots.quarantines.map((quarantine) => (
+                <li key={quarantine.path}>
+                  {t('replace.quarantineRoom', {
+                    path: quarantine.path,
+                    size: formatFileSize(quarantine.sizeBytes),
+                    files: t('replace.quarantineFiles', { count: quarantine.fileCount, value: formatNumber(quarantine.fileCount) }),
+                    replacements: t('replace.quarantineReplacements', {
+                      count: quarantine.replacementCount,
+                      value: formatNumber(quarantine.replacementCount),
+                    }),
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -320,6 +354,11 @@ function ReplacementCard({ roots, replacementEnabled, picked, onSwitch, onTick }
  * lost its effect (outside the media folders, no longer a library folder) can always be taken back;
  * one stored unticked can be ticked only where a tick counts. The reason is a line of its own under
  * the path, not a tooltip: a phone has none.
+ *
+ * MAM-26 — a folder ticked in the form, saved or not, says whether a move into the quarantine can
+ * work there, as the server found it for every folder inside the media folders: one line that all is
+ * clear, or an amber line per problem, each part of the box's description. Spans, not paragraphs: they
+ * sit inside the label.
  */
 function LibraryFolderRow({ folder, ticked, onTick }: {
   folder: ReplacementFolder
@@ -336,9 +375,16 @@ function LibraryFolderRow({ folder, ticked, onTick }: {
     : folder.status === 'NoLongerALibraryFolder'
       ? t('replace.noLonger')
       : null
+  // Only where the server checked (an Available folder), and only once it is ticked here: the hint is
+  // about a folder replacement may touch.
+  const renameProblems = ticked ? folder.renameProblems : null
+  const renameIds = renameProblems === null
+    ? []
+    : renameProblems.length === 0 ? [`${id}-rename`] : renameProblems.map((_, index) => `${id}-rename-${index}`)
   const describedBy = [
     folder.libraryNames.length > 0 ? `${id}-names` : null,
     note === null ? null : `${id}-note`,
+    ...renameIds,
   ].filter((part) => part !== null)
 
   return (
@@ -360,6 +406,15 @@ function LibraryFolderRow({ folder, ticked, onTick }: {
             </span>
           )}
           {note !== null && <span id={`${id}-note`} className="ui-hint">{note}</span>}
+          {renameProblems !== null && renameProblems.length === 0 && (
+            <span id={`${id}-rename`} className="ui-hint">{t('replace.renameClear')}</span>
+          )}
+          {renameProblems?.map((problem, index) => (
+            <span key={problem} id={`${id}-rename-${index}`} className="library-source-warning">
+              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t(`replace.renameProblem.${problem}`)}</span>
+            </span>
+          ))}
         </span>
       </label>
     </li>

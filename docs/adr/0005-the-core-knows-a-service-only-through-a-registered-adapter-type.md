@@ -646,3 +646,37 @@ removing, deleting, stopping or pausing —, and
 and
 `IntegrationsInfrastructureExtensionsTests.A_whole_listing_of_torrents_with_their_files_logs_nothing_from_the_http_client`
 pin it.
+
+## The download client's words, and what a library is told happened (added 0.3.0, MAM-26)
+
+**The move of an old copy adds no member to `IDownloadClient` — its one write is still `SubmitAsync`,
+and its member names may now also not move, relocate, rename or set a location —, and the optional
+capability `IMediaLibraryFileLookup` says what happened to each path it asks a library to look at
+([ADR
+0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md),
+[ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).**
+
+**The words.** `DownloadClientNeverRemovesTests` forbids, beside removing, deleting, stopping and
+pausing, the verbs move, relocate and rename as whole words of a name, and the consecutive words set
+and location, as ADR 0031 asked since a `SetLocationAsync` would pass word by word; set, save and
+path and set, download and path are our addition, qBittorrent's other ways to put a torrent's files
+elsewhere. The method keeps its name, which ADR 0014 and the roadmap cite.
+
+**The kind of change.** `RequestScanAsync` takes a `LibraryFileChange`, `Created` or `Deleted`, from
+Core's library abstractions; any other value is a caller's mistake that throws before anything is
+sent. Jellyfin's adapter sends it as each path's `UpdateType`, which Jellyfin 12.2 doesn't read —
+its monitor looks at the path either way — but which says what happened; the check of new files
+sends `Created`, as it did, and the move and Restore send `Deleted` and `Created`.
+
+**The write contract is no service.** `IFileQuarantine`, like `IFileInventory`, is the host's own
+file system: one implementation, registered by the files' infrastructure extensions as a singleton,
+no adapter type and no product name; `CoreIsVendorNeutralTests` scans it with the rest of Core.
+
+`DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`,
+`DownloadClientNeverRemovesTests.The_detector_flags_a_removing_verb_and_spares_an_ordinary_name`,
+`JellyfinAdapterFilesScanTests.RequestScan_of_paths_that_went_posts_each_as_deleted_and_is_taken_on_204`,
+`JellyfinAdapterFilesScanTests.RequestScan_of_a_change_that_is_no_member_is_a_callers_mistake_and_sends_nothing`,
+`FakeJellyfinServerFilesTests.Media_updated_records_each_requests_update_types_beside_its_paths`
+and `FilesInfrastructureExtensionsTests.AddFilesInfrastructure_registers_the_local_quarantine_as_one_singleton`
+pin it, and `CoreIsVendorNeutralTests` the contract's names.

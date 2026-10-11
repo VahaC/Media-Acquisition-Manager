@@ -16,7 +16,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   by default ("Off by default. When on, the Download dialog offers Replace after verification for
   copies in the folders ticked below, to you alone. In this version a replacement is only scheduled;
   moving old copies comes in a later version and will also need the media folders mounted
-  read-write."; MAM-25 below rewords its last sentence), and **Library folders replacement may
+  read-write."; MAM-25 below rewords its last sentence, and MAM-26 below rewords it again, as the
+  old copy now moves), and **Library folders replacement may
   touch**: every library folder the Jellyfin
   integration's path mappings bring into the app, by its path in the app, with the libraries that
   list it ("In the library Фільми"), none ticked by default. An unticked folder outside the Media
@@ -107,7 +108,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   as the same work; a copy held by a torrent waits until you remove that torrent in qBittorrent.
   This version only schedules the replacement: once the download is done it waits, and nothing is
   checked or moved until a later version.", frozen in the sent view (MAM-25 below rewords its last
-  sentence, as the new file is now checked). A refused schedule reads the
+  sentence, as the new file is now checked, and MAM-26 below rewords the whole, as the old copy now
+  moves into the quarantine). A refused schedule reads the
   copies again, so the list shows what changed. The dialog widens to 48rem while it lists works and
   stacks the copies at phone width, long names wrapped. `DownloadDialog.replace.test.tsx`,
   `DownloadDialog.test.tsx` (the member's view), `replacements.test.ts`, `replacements-api.test.ts`,
@@ -150,7 +152,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   in the app's folders."; a screen reader reads these with **Send**. Nothing uncertain reads as "not
   held", and scheduling stays allowed. A Keep both send never reads a whole client, and the schedule
   doesn't read the torrents again: the read that decides comes right before a move, a later
-  version's. The log names a client by its id, with counts, never a torrent's name or a path. Tried
+  version's (MAM-26 below brings it into this one). The log names a client by its id, with counts,
+  never a torrent's name or a path. Tried
   against the reference installation's qBittorrent on 2026-10-09, read only, by the app's own
   adapter and sealed settings, booted on the development PC over a copy of its data directory: it
   answered in 355 ms with 358 torrents — 353 seeding, 4 errored, 1 downloading —, every one with its
@@ -249,7 +252,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   replacement is switched off: nothing will move while it is off." and "1 copy is no longer in a
   ticked folder and won't move.". (MAM-25 below takes a `Downloaded` replacement on to the check of
   its new files, and the line with it: "Replacement checks the new file: 1 copy, kept until it is
-  verified.", then "New file verified: …" or "Replacement needs review: <reason>".)
+  verified.", then "New file verified: …" or "Replacement needs review: <reason>"; MAM-26 below
+  takes a verified one on into the quarantine, with lines of its own.)
   `ReplacementFollowingHttpTests` (to `Downloaded` and no further
   with nothing sent, a restart, a send still under way, a cancel with its row, the review a cancel
   ends, a failed download, an adopted interrupted send, a follower that throws, the gates on a job's
@@ -442,6 +446,269 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   movie and episode file. `JellyfinAdapterFilesScanTests`, `JellyfinAdapterFilesReadTests`,
   `JellyfinAdapterFilesReadFailureTests`, `FakeJellyfinServerFilesTests` and `VendorSamplesTests`
   pin it.
+- **Right before the move, a verified replacement checks its old copies again and reads every
+  download client's torrents once more, and anything in the way stops it for review with nothing
+  moved (MAM-26, ADR 0030, ADR 0031, ADR 0033, Vasyl's decisions of 2026-10-08 and 2026-10-10).** A
+  background loop of its own, `ReplacementQuarantineTracker`, runs a pass right after the app starts
+  and 15 s after each pass ends, apart from the check of the new files, which still moves nothing.
+  A pass takes up each `Verified` replacement, oldest first (`IX_ReplacementJobs_Quarantine`), held
+  in the process-wide `ReplacementJobsInHand` while it works, so an owner's action on it waits for
+  the next pass and the other way round. While replacement is switched off the job is left
+  `Verified` and untouched — no disk, client or library read, nothing written —, as its line already
+  says. *Check 5*, for each ticked copy whose video isn't in the quarantine yet: still inside the
+  Media folders ("“/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv” is no longer inside
+  the Media folders, so it stays where it is.") and in a ticked folder ("… is no longer in a folder
+  ticked for replacement, so it stays where it is."); no clip of a Blu-ray or DVD folder ("“00000.m2ts”
+  is part of a disc folder, which can't be replaced one file at a time."); read fresh from the disk,
+  inside the allowed folder whose quarantine takes it alone — a copy a folder link leads to in
+  another allowed folder is that folder's, where a Restore could never reach back for it —, with the
+  device, inode, size and modification time to the tick it was scheduled with ("… is gone,
+  so there is nothing to move.", "… changed since it was picked for replacement, so it stays where it
+  is.", or the disk's own sentence after "The app couldn't read “…” again, so it stays where it
+  is:"); neither a new file's path nor its identity ("… is the new file's own path, so it stays where
+  it is."); and its paired new file still the file the check read ("The new file paired with “…”
+  changed or went since it was verified, so nothing moves."). *Companions:* the regular files of the
+  copy's folder, listed through the new write contract without following a link — a video that is
+  itself a link, which the listing leaves out, stops the job ("“Alien (1979) Theatrical Cut.mkv” is a
+  link to another file, and the app moves only a file itself, so it stays where it is.") — and picked by
+  `QuarantineCompanions` — the video's name without its extension and a dot, no media file itself,
+  and none that begins with the longer name of another video there and a dot —, each with its
+  identity ("The app couldn't read “…” well enough to tell whether a torrent holds it." otherwise).
+  *Check 6:* one read of every download client's torrents with their files for every name the move
+  would rename, through the holdings reader's new overload for names, which leaves out a client none
+  of whose path mappings reaches an allowed folder and asks it nothing (a client without mappings is
+  read). A client not read, or read in part, stops the job ("The app couldn't tell whether a torrent
+  in “qBittorrent” holds the old copy: This is qBittorrent v5.1.4; telling which torrents hold a
+  library file needs qBittorrent 5.2 or later.", "The app couldn't place 1 of “qBittorrent”'s
+  torrents in its folders, so it can't tell whether one of them holds the old copy."); a video any
+  torrent lists, in any state, stops it with ADR 0031's sentence, each torrent once by client and id
+  ("Still held by the torrent “Alien.1979.Theatrical” in “qBittorrent”: remove that torrent there
+  without its files, then press Retry.", or "Still held by the torrents “…” in “qBittorrent” and “…”
+  in “seedbox”: remove those torrents there without their files, then press Retry."); a companion a
+  torrent lists stays, named on the job ("Held by the torrent “Alien.1979.Subs” in “qBittorrent”, so
+  it stays where it is."), and its video still moves; a second name of a torrent's file moves, its
+  link count kept so that Delete for good counts no room for it. A pass with no name left to move —
+  a Retry of a replacement whose every video is in the quarantine already, or deleted from it — asks
+  no client at all. A stop before the move is one
+  transaction — `Verified` → `NeedsReview` with the reason, the copy's problem, `QuarantineCheckedUtc`
+  (which marks a stop the owner's Retry may take) and a `ReplacementNeedsReview` row with no actor —;
+  nothing is renamed, no name row written, and the clients get nothing but the listing.
+  `ReplacementQuarantineChecksHttpTests` (every reason of check 5, a listing refused, a companion
+  without an identity), `ReplacementQuarantineHoldsHttpTests` (a video held in any state, two
+  torrents, a held companion, a second name, Retry once the torrent is gone, a path no mapping
+  places, qBittorrent unreachable, switched off or too old), `ReplacementHoldingReaderTargetsTests`,
+  `QuarantineCompanionsTests`, `DiscFoldersTests` and `ReplacementJobsInHandTests` pin it.
+- **The old copy and its own companions move into `.mam-quarantine`, one `renameat2` each, through
+  a new write contract, and the replacement rests `Quarantined` (MAM-26, ADR 0030, ADR 0033, ADR
+  0009, Vasyl's decisions of 2026-10-08 and 2026-10-10).** Once the checks pass, one transaction
+  claims the job — `Verified` → `Quarantining`, conditional on the state read —, writes a row of the
+  new `ReplacementJobNames` per name the move plans — each ticked video, then its companions,
+  `Planned`, or `Stayed` for one a torrent holds, with where it goes, the allowed folder whose
+  quarantine takes it, and the device, inode, size, modification time and link count read right
+  before — and a `ReplacementQuarantineStarted` row. A name goes to `<allowed folder>/.mam-quarantine/
+  <replacement job id>/<its path inside that folder>` (`QuarantineFolder.PathOf`):
+  `/media/.mam-quarantine/<id>/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv` here. Then name
+  by name, videos first: the switch, the ticks and the allowed folders read again inside the
+  intent's own transaction, under SQLite's write lock, so a Save of the Media folders either comes
+  first and stops the move or comes after and finds the name `Moving` ("Replacement was switched off
+  while the old copies were moving: 1 of 4 names is in the quarantine.", "“…” left the folders
+  ticked for replacement while the old copies were moving: …", the count left out while none is
+  there yet), an intent committed before the rename (`Moving`,
+  `ReplacementNameMoving`), the rename, and its outcome committed after it (`Quarantined` with
+  `ReplacementNameMoved`, or `Stayed` with the contract's sentence and `ReplacementNameNotMoved`),
+  each name row its own audit target (`AuditTargetKind.ReplacementJobName`, named by the file's own
+  name), no actor. A video that didn't move stops the job at `NeedsReview` ("“Yellowstone
+  S02E02.mkv” couldn't be moved into the quarantine: … 1 of 3 names is in the quarantine."), what
+  moved before it staying in the quarantine and its companions left `Planned`; a companion that
+  didn't move stays, named on the job, and its video still moves. A rename that moved another file —
+  one put at the name after the last look (`FileQuarantineStatus.Swapped`) — records the name `Lost`
+  ("A different file now sits in the quarantine under “…”, as another file took its place just before
+  the rename, and the old copy's own file wasn't found.") and stops the job the same way, whichever
+  name it was. A Retry's run takes up the companions an earlier run left `Planned` beside a video it
+  moved, each checked again as its video was — still ticked, still the file the plan read, else
+  `Stayed` or, gone, `Lost` with why — and read by check 6 with the rest. Every video in:
+  `Quarantined`, with `QuarantinedUtc` and a `ReplacementQuarantined` row (`Completed` when a Retry
+  finds every video deleted from the quarantine for good). The write contract is `IFileQuarantine`,
+  beside `IFileInventory`, which stays read-only by construction (`FileInventoryNeverWritesTests`):
+  `Capabilities`, `ListFolderFilesAsync`, `ListFolderNamesAsync`, `MoveIntoQuarantineAsync`,
+  `RestoreFromQuarantineAsync`, `DeleteFromQuarantineAsync` and `DescribeRenamePlacesAsync`, every
+  member that changes a file named
+  for the quarantine and none named for copying, writing over, linking, owners or permissions
+  (`FileQuarantineNamesTests`). Its Linux implementation, `LocalFileQuarantine`, holds the file's
+  folder and the allowed folder as `O_PATH | O_NOFOLLOW` descriptors reached by ADR 0009's walk — a
+  move's file folder within the allowed folder whose quarantine takes it alone, and no folder whose
+  links lead into a quarantine, for a move, a restore or a listing ("“…” already lies in a
+  quarantine.") —, compares the name's `statx`, never following it, with the facts the caller expects,
+  answers a rename whose new name shows another device or inode `Swapped`, refuses another
+  mount by `STATX_MNT_ID` ("“…” and “…” are on different mounts, where a rename would be a copy."),
+  makes the quarantine's folders one level at a time (`mkdirat`, 0755 before the umask), walks both
+  folders again and compares the name once more, then makes one `renameat2(RENAME_NOREPLACE)`,
+  flushes both folders, and checks that the new name shows the same device and inode. `EEXIST`,
+  `EXDEV`, `EINVAL`, `EACCES`, `EPERM`, `EROFS` and `EOVERFLOW` each leave the name where it was with a
+  sentence ("“…” already holds a file, and the app never writes over one.", "“…” is on a read-only
+  mount.", "The app's user isn't allowed to change “…”: renaming or deleting a file needs write and
+  search permission on its folder, and on the one it goes into."). It creates no folder outside
+  `.mam-quarantine`, and `File.Move`, `FileInfo.MoveTo` and `Directory.Move` are never used; anywhere
+  but Linux every write is `NotSupported` ("Only the app running on Linux renames or deletes a library
+  file, as only there can a rename be made without ever replacing or copying one."), so a replacement
+  there stops for review with nothing moved. The log names ids, states and counts, never a path.
+  `ReplacementQuarantineHttpTests` (a film's video and its own companions moved with their
+  identities, another video's companion left, a season whose second episode can't move, the switch
+  off or a folder unticked between two names, the switch off before the move, a job an owner's action
+  holds, the tracker), `ReplacementQuarantineChecksHttpTests` (another mount, a name taken, a
+  platform that can't rename, a companion refused), `LocalFileQuarantineLinuxTests` (the real calls
+  on overlayfs in Docker, as uid 1000 and as root: identity kept, folders reused, a changed file, a
+  name taken, another mount on `/dev/shm`, a quarantine folder that is a link, a folder or the file
+  swapped right before the rename, a link, a folder the app may not write to),
+  `LocalFileQuarantineTests`, `QuarantineFolderTests`, `FakeFileQuarantineTests`,
+  `FilesInfrastructureExtensionsTests`, `FileInventoryNeverWritesTests`, `FileQuarantineNamesTests`
+  and `ReplacementJobPersistenceTests` pin it.
+- **A move, a restore or a deletion a restart cut is found again by device and inode and stops for
+  review, renaming and deleting nothing by itself (MAM-26, ADR 0030).** Each pass first takes every
+  replacement left `Quarantining`, `Restoring` or `Deleting` that no one in the process holds, and
+  looks each name caught between its intent and its outcome up, at its old path and in the
+  quarantine, by device and inode: a name being moved is `Quarantined` when found in the quarantine,
+  `Planned` again when found where it was, and `Lost` with why when found at neither; one being put
+  back is `Restored`, `Quarantined` again or `Lost`; one being deleted is `Deleted` when gone,
+  `Quarantined` when still there unchanged, and `Lost` when something else is there. A look that
+  didn't answer found or not found — a read error —, or a name found nowhere while neither the folder
+  it was in nor its folder in the quarantine is there — a mount missing —, decides nothing: the job
+  stays as the cut left it, with a warning in the log, and the next pass looks again. Each finding
+  writes its outcome row; then the job goes to `NeedsReview` with a `ReplacementNeedsReview` row and
+  no actor — "The app stopped while moving the old copies: 1 of 3 names is in the quarantine.", "The
+  app stopped while putting the old copies back: 1 of 3 names is back where it was." or "The app
+  stopped while deleting the old copies for good: 1 of 3 names is deleted.", the count left out
+  while it is none —, Retry offered, and Jellyfin is owed a notice when a cut move left a name in the
+  quarantine or a cut restore brought one back. A cut restore that put every name back ends
+  `Restored`, and a cut deletion that deleted every name `Completed`, with the row the owner's own
+  end writes and no actor: a review there could only end in a Retry that moves the restored copies
+  back, or in nothing (MAM-26's deviation from "a cut stops for review").
+  `ReplacementQuarantineRecoveryHttpTests` (a cut after a rename and before its outcome, a cut
+  between two names with nothing renamed twice and then retried, names found where they were or
+  lost, a cut restore, a cut deletion, each with every name done, a look that fails or finds no
+  folder left unsettled, a job someone in the app holds left alone) pins it.
+- **The owner retries a replacement the move stopped, restores what it holds in the quarantine, or
+  deletes that for good after a second confirmation, on the job's page (MAM-26, ADR 0030, ADR 0033,
+  Vasyl's decisions of 2026-10-08 and 2026-10-10).** Four routes join `Controllers/Replacements`,
+  owner-only like the rest, each for the caller's own replacement, another's or a missing one a bare
+  404. `GET /api/replacements/{id}` answers every name the move planned — where it was and where it
+  goes, its size, whether it has another name, its state and its problem —, the room the replacement
+  takes in the quarantine and the room deleting it frees (a name with another name frees none, its
+  link count read from the disk at the quarantine path while the file there is the one moved, so a
+  torrent removed with its files since the move frees its room),
+  whether replacement is switched off, and which actions are offered. `POST …/retry` takes a
+  replacement the mover stopped — checks 5 or 6, a rename refused, a cut move, restore or deletion,
+  as `QuarantineCheckedUtc` marks — back to `Verified` with a `ReplacementRetried` row, writing
+  nothing to the media; the next pass checks everything again, and what is in the quarantine stays
+  there. A stop of the new files' check is 409 "This replacement isn't waiting for review after a
+  move, so there's nothing to retry here.": that Retry stays MAM-27's. `POST …/restore`, from
+  `Quarantined`, or from `NeedsReview` with names in the quarantine, checks every name before
+  anything is written — replacement switched off ("Replacement is switched off on the Media folders
+  page, so nothing can be put back. Switch it on, then press Restore again."), an old path no longer
+  in a ticked folder, a quarantine no longer inside the Media folders ("“/media/.mam-quarantine” is
+  no longer inside the Media folders, so nothing was put back."), a file that changed in the
+  quarantine ("“…” changed in the quarantine since it was moved there, so nothing was put back."),
+  any name at an old path, a link leading nowhere too, as the folder's listing of names shows it
+  ("“…” already holds a file, so nothing was put back."), an old folder gone ("The folder “…” is gone,
+  so nothing was put back; the app creates no folder."), a platform that can't rename —, then puts
+  each name back, videos first,
+  by one `renameat2(RENAME_NOREPLACE)`, the switch and the ticks read again before each, with intent
+  and outcome rows (`ReplacementRestoreStarted`, `ReplacementNameRestoring`, then
+  `ReplacementNameRestored` or `ReplacementNameNotRestored`), and ends `Restored` — both copies in the
+  library — with `ReplacementRestored` and a notice owed to Jellyfin, or `NeedsReview` and 409 with
+  "“…” couldn't be put back: … 1 of 2 names is back where it was."; a rename back that moved another
+  file records the name `Lost` and stops the same way. A replacement one of whose videos a Delete for
+  good stopped part-way deleted is not put back — its subtitle would go back alone, and the job would
+  end saying the old copy is back —: 409 "A video of this replacement was deleted for good, so nothing
+  is put back without it. Press Retry, then Delete for good what the quarantine still holds.", and
+  Retry settles it `Quarantined`. Each name is written inside its own allowed folder while a current
+  allowed folder holds that one, so the quarantine stays in reach after the owner puts a folder above
+  it in its place. `POST …/delete-for-good` with
+  `{ names }`, the ids the confirmation listed, and only from `Quarantined`: 400 "Delete for good
+  needs the files you confirmed." without them; 409 "This replacement holds nothing in the quarantine
+  to delete.", "What this replacement holds in the quarantine changed since you opened it. Open
+  Delete for good again." for any other set, "Replacement is switched off on the Media folders page,
+  so nothing can be deleted. Switch it on, then press Delete for good again." or "“…” changed in the
+  quarantine since it was moved there, so nothing was deleted.", nothing deleted; then it deletes each
+  name from the quarantine alone, its identity compared again right before one `unlinkat`, and no
+  folder (`ReplacementDeleteStarted`, `ReplacementNameDeleting`, then `ReplacementNameDeleted` or
+  `ReplacementNameNotDeleted`), ending `Completed` with `ReplacementCompleted`, or `NeedsReview` and
+  409 with "“…” couldn't be deleted: … names are deleted."; Jellyfin hears nothing of it, having
+  heard of the move. The owner is the actor of each of these rows. A replacement being worked on —
+  the mover's pass or another click — is 409 "This replacement is being worked on right now. Try
+  again in a moment.", so two clicks at once rename or delete each name once. The job's page gains an
+  **Old copies** section between its details and its files: every name with where it is now, the
+  reason one stayed, wasn't put back or was lost, and the room in the quarantine, with **Retry**,
+  **Restore** (a plain confirmation) and **Delete for good** (a red outline, whose confirmation lists
+  every path with its size, "Frees 4.2 GiB." and how many files have another name, and sends exactly
+  the ids it listed) as offered — the last two disabled with "Replacement is switched off on the Media
+  folders page: nothing is put back or deleted while it is off." while it is off —; a member reads
+  "Only the installation owner sees the old copies a replacement moves, and restores them or deletes
+  them for good." and nothing is asked. A replacement with no name yet says "No old copy has moved
+  yet: each moves into the quarantine once the new file is verified." while a move can still come
+  ("No old copy has moved yet, and none moves while replacement is switched off." while it is off),
+  and "Nothing of this replacement was moved." once it was cancelled, failed or stopped for review
+  before its move. The Jobs row shows the owner's **Retry** beside a line the
+  move stopped. `ReplacementRetryHttpTests`, `ReplacementRestoreHttpTests`,
+  `ReplacementDeleteForGoodHttpTests`, `ReplacementDetailsHttpTests`,
+  `ReplacementQuarantineFlowHttpTests` (a move then Restore, a move then Delete for good, a held copy
+  then Retry, end to end with Jellyfin's requests and the audit rows in order),
+  `ReplacementsAreOwnerOnlyHttpTests` (the four new routes as a member: 403, nothing renamed, deleted
+  or written), `ControllerAccessDeclarationTests`, `JobDetailsPage.replacement.test.tsx`,
+  `JobsPage.test.tsx`, `replacements-api.test.ts` and `queries/replacements.test.tsx` pin it.
+- **Jellyfin is told an old copy went, and that it came back (MAM-26, ADR 0030, ADR 0005).** A move
+  that put a name in the quarantine, and a restore that brought one back, owe a notice
+  (`LibraryNoticeDueUtc`), which `IReplacementLibraryNotice` sends right after, and each pass after
+  while it is owed: `POST /Library/Media/Updated` to each library holding the old copy's places, with
+  the paths in its own terms — a name in the quarantine as `Deleted` at its old place, a name put back
+  as `Created`, a video by the path the library reported for its copy —, one request per Jellyfin and
+  kind of change, each path once, and never a quarantine path. Taken by every library, or nothing to
+  tell, settles it; a Jellyfin that doesn't take it keeps it owed for an hour, then it is given up
+  with a warning in the log; a library that can never be told settles it at once. A notice never
+  changes the replacement's state. `IMediaLibraryFileLookup.RequestScanAsync` takes the kind of change
+  (`LibraryFileChange`: `Created` or `Deleted`; anything else is a caller's mistake that sends
+  nothing), and Jellyfin's adapter sends it as each path's `UpdateType`, which Jellyfin 12.2 doesn't
+  read but which says what happened; MAM-25's look at new files sends `Created` as before.
+  `ReplacementLibraryNoticeTests`, `JellyfinAdapterFilesScanTests` (paths that went, posted as
+  `Deleted`; a change that is no member) and `FakeJellyfinServerFilesTests` (each request's update
+  types recorded) pin it.
+- **The Media folders page says whether a move can work in each ticked folder, lists the room each
+  quarantine takes, and refuses a Save that would leave a quarantine out of reach (MAM-26, ADR 0033,
+  ADR 0030).** Each library folder whose tick counts gets, from one `DescribeRenamePlacesAsync` for
+  all of them, what keeps a rename into its allowed folder's quarantine from working there — another
+  mount than the allowed folder's (`STATX_MNT_ID`), a read-only mount by the folder's own options in
+  `/proc/self/mountinfo` (`MountTable.MountOptionsOf`), or no write and search permission for the
+  app's user on it or on the allowed folder's `.mam-quarantine`, where a move makes its names — on the
+  allowed folder itself while it has none (`faccessat`); what can't be read, a file or a link at
+  `.mam-quarantine`, and every folder
+  anywhere but Linux, is "couldn't check". A folder ticked in the form shows it: "A move into the
+  quarantine can work here: the same mount as the quarantine, mounted read-write, and writable by the
+  app.", or a line per problem ("Not on the same mount as its media folder's quarantine, so a move
+  would fail: mount the media folder as one read-write mount.", "Mounted read-only, so a move would
+  fail: mount the media folders read-write.", "The app's user can't write here or in its media folder,
+  so a move would fail: run the app as the media folders' owner.", "The app couldn't check whether a
+  move can work here; the move itself will tell."): a hint, as the rename decides. A new
+  **Quarantine** field lists each quarantine that holds names, from the replacements' rows and never
+  a walk of the disk — "/media/.mam-quarantine: 4.2 GiB in 2 files, from 1 replacement." — or "The
+  quarantine is empty.", with a link to **Jobs**. A Save that changes the folders so that a
+  quarantine still holding names (`Quarantined`, `Moving`, `Restoring` or `Deleting`) lies under
+  none of them is 400 "“/media/.mam-quarantine” still holds replaced copies, so its media folder
+  can't be taken out of the list. Restore them or delete them for good first." and saves nothing,
+  checked inside the Save's transaction; a folder above the old one keeps it in reach, the quarantine
+  itself put in its folder's place doesn't.
+  `ReplacementSettingsHttpTests` (the hint for each available folder and none for the others, the
+  room, every held state refusing, a parent folder, a quarantine that holds nothing now, a Save that
+  keeps the folders), `LocalFileQuarantinePlacesLinuxTests`, `MountTableTests` (a mount's own
+  options, a read-only bind of a writable disk) and `MediaFoldersPage.test.tsx` pin it.
+- **The folder scan never walks into a quarantine (MAM-26, ADR 0021, ADR 0030).** The walk leaves out
+  every entry named `.mam-quarantine`, at any depth, before any other check and without counting it
+  as a place it didn't scan, follows no link into one, and gives nothing for an allowed folder that
+  lies in one, so a quarantined file is never a file no library reported, a possible match on the
+  Duplicates page or part of the Media folders row's count; `FakeFileInventory` does the same.
+  `LocalFileInventoryListingTests.List_never_walks_a_folder_named_mam_quarantine_at_any_depth_and_counts_no_problem`,
+  `LocalFileInventoryListingTests.List_never_follows_a_link_into_a_quarantine` and
+  `LocalFileInventoryListingTests.List_of_a_root_that_lies_in_a_quarantine_gives_nothing_for_it_and_walks_the_others`
+  pin it.
 
 ### Changed
 
@@ -485,7 +752,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   whose download is done, "Replacement waits for verification: 1 copy. This version doesn't verify
   or move anything yet." gives way to "Replacement checks the new file: 1 copy, kept until it is
   verified." while it is `Downloaded` or `Inspecting`; then "New file verified: 1 copy will be
-  replaced by it in a later version; nothing is moved yet.", its icon green as a downloaded job's;
+  replaced by it in a later version; nothing is moved yet." (MAM-26 below rewords it, as the old
+  copy now moves), its icon green as a downloaded job's;
   or "Replacement needs review: <reason>" — MAM-24's review of a download that needs linking now
   reads so too, where it read "Replacement stopped: …" —; `Failed` and `Cancelled` keep "Replacement
   stopped: <reason>". The switched-off and unticked-folder notes now show while it is scheduled,
@@ -504,8 +772,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   once the download is done it waits, and nothing is checked or moved until a later version.", and
   the switch's hint says "In this version a replacement is scheduled and its new file checked once
   downloaded, but nothing is moved; moving old copies comes in a later version and will also need
-  the media folders mounted read-write." `DownloadDialog.replace.test.tsx` and
-  `MediaFoldersPage.test.tsx` pin them.
+  the media folders mounted read-write." (MAM-26 below rewords both again, as the old copy now
+  moves.) `DownloadDialog.replace.test.tsx` and `MediaFoldersPage.test.tsx` pin them.
 - **The library folders carry their library and path, and a client file is placed in one place
   (MAM-25).** `LibraryFolderReader` now gives each library folder its integration and its path in
   the library's own terms beside its path in the app, which the check needs to ask the right library
@@ -513,6 +781,64 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `ReplacementHoldingReader`, is `ClientFilePlaces`, shared by the marks and the check. The
   Destinations page, the replacement gates and the marks behave as they did, and their suites pass
   unchanged.
+- **The Jobs line, the Download dialog's conditions and the switch's hint say that the old copy now
+  moves (MAM-26).** A verified replacement's line reads "New file verified: 1 old copy moves into the
+  quarantine next." where it read "New file verified: 1 copy will be replaced by it in a later
+  version; nothing is moved yet."; after it come "Moving the old copy into the quarantine…" (with a
+  spinner), "Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for
+  good." (and "1 file stayed in its folder: see the job." when one stayed), "Putting the old copy
+  back…", "Deleting the old copy for good…", "Replacement undone: the old copy is back where it was."
+  and, green, "Replaced: the old copy was deleted for good."; the pages also ask again every 2 s while
+  a replacement moves, is put back or is deleted, and while it is verified with replacement on. A
+  copy still to move whose folder is no longer ticked now reads "1 copy is no longer in a ticked
+  folder: unless it is ticked again, the replacement stops for review and nothing moves." where it
+  read "1 copy is no longer in a ticked folder and won't move.", as the check right before the move
+  stops the whole replacement over it; verified with replacement on, the line says only "New file
+  verified, but 1 copy is no longer in a ticked folder: …", and `copiesOutsideTickedFolders` no
+  longer counts a copy whose video is in the quarantine already. The
+  summary's conditions read "Conditions: the old copy moves into the quarantine only after the new
+  one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits
+  until you remove that torrent in qBittorrent. Once the download is done, the app checks that the
+  new file is complete, readable and identified by Jellyfin as the old copy's work. The old copy
+  stays in the quarantine until you restore it or delete it for good on the job's page." where they
+  read "Conditions: the old copy would move aside only after … but nothing is moved in this version:
+  moving comes in a later version."; and the switch's hint ends "Once the new file is verified, the
+  old copy moves into its media folder's quarantine and stays there until you restore it or delete
+  it for good. Moving needs the media folders mounted read-write and the app running as their owner."
+  where it ended "In this version a replacement is scheduled and its new file checked once
+  downloaded, but nothing is moved; moving old copies comes in a later version and will also need the
+  media folders mounted read-write.". `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`,
+  `JobDetailsPage.test.tsx`, `download-jobs.test.ts`, `DownloadDialog.replace.test.tsx` and
+  `MediaFoldersPage.test.tsx` pin them.
+- **The Media folders API answers the rename hint and the quarantines (MAM-26).**
+  `GET /api/settings/allowed-roots` answers
+  `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount, quarantines }`, each
+  folder `{ appPath, libraryNames, ticked, status, renameProblems }` — `renameProblems` `[]`, or
+  `OtherMount`, `ReadOnly`, `NotWritable` and `CouldNotCheck` by name, for an `Available` folder, and
+  `null` for the others — and each quarantine `{ path, replacementCount, fileCount, sizeBytes }`;
+  `PUT` may now answer 400 for a quarantine it would leave out of reach.
+- **A replacement's line carries its id and what the move did (MAM-26).** `replacement.state` may now
+  also be `Quarantining`, `Quarantined`, `Restoring`, `Deleting`, `Restored` or `Completed`, by name,
+  the first four holding their copies as the open states do; and `replacement` gains, after its
+  other fields, `id` (for the replacement's own routes), `quarantinedCopyCount` (the ticked copies
+  whose video is in the quarantine), `stayedFileCount` (the companions that stayed in a replacement
+  that moved something) and `canRetry`, read for a page in one query. `ReplacementScheduleHttpTests`
+  pins the shape.
+- **The media library's request to look says what happened, and the download client contract's
+  forbidden words grow (MAM-26, ADR 0005, ADR 0031).** `IMediaLibraryFileLookup.RequestScanAsync`
+  takes a `LibraryFileChange`, and Jellyfin's adapter sends it as each path's `UpdateType`,
+  `Created` or `Deleted`, where it always sent `Created`. `DownloadClientNeverRemovesTests` now also
+  refuses a member named for moving, relocating or renaming, or with the consecutive words set and
+  location — ADR 0031's `SetLocationAsync` — and, our addition, set, save and path or set, download
+  and path; its method keeps its name, and `IDownloadClient` gains no member.
+- **The verifier's check of a paired new file and the holdings reader are shared with the move
+  (MAM-26).** The identity check of a paired new file is `ReplacementNewFileCheck`, which the
+  verifier now calls with the same sentences; `IReplacementHoldingReader` reads the dialog's copies
+  through the move's overload for names; and a torrent's file whose mapped path is a copy's own path
+  is now a hold whatever size it lists, in the dialog too, where a different size left it out
+  (`ReplacementOptionsHoldingsHttpTests.Options_with_holdings_marks_a_copy_a_torrent_lists_at_its_path_whatever_size_it_lists`).
+  The dialog still reads every client, those whose mappings reach no Media folder included
+  (`ReplacementOptionsHoldingsHttpTests.Options_with_holdings_still_answers_for_a_client_whose_mappings_reach_no_media_folder`).
 
 ### Notes for upgraders
 
@@ -529,22 +855,43 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   and creates `ReplacementJobNewFiles` and `ReplacementJobNewFileIdentifiers`, with no key into a
   table a sync rebuilds, and three indexes, one of them the partial `IX_ReplacementJobs_Verifying`.
   A replacement already `Downloaded` is checked by the first pass after the start.
-- **Replacement is off, and no folder ticked, after the upgrade (MAM-24).** Members send as before,
-  with Keep both, and so does the owner until he turns it on; the owner's dialog says why Replace
-  can't be picked. To turn it on: user menu → **Media folders** → **Replacing copies**, tick
-  **Replace copies after verification** and the library folders it may touch, then **Save**. A copy
-  can then be ticked only once the app has inspected it inside the Media folders, and only through a
-  destination whose category saves inside a library folder under them.
-- **Nothing moves in this version (MAM-24, MAM-25).** Scheduling reads the download clients'
-  torrents and the old copies' identities, and writes nothing to the media folders, nor to
-  qBittorrent but the one add every send makes. The check of the new files only reads too:
-  qBittorrent's download, its files and its whole listing, the new files on the disk with the media
-  inspector, and Jellyfin's items, with `POST /Library/Media/Updated` to each library naming the new
-  files' paths — the one kind of request it sends Jellyfin, which makes Jellyfin look at them and
-  nothing more. A replacement ends `Verified` at most, both copies kept, until a later version moves
-  the old copy (MAM-26). Keep the media folders mounted `:ro` and the app's own ids: the read-write
-  mount and `APP_USER_ID`/`APP_GROUP_ID` will be needed only once a later version moves files. The
-  replacements and the evidence of their checks live in `mam.db` alone; back it up with `.secrets/`.
+- **Applying `AddReplacementQuarantine` rebuilds no table, so it logs no warning 20410 (MAM-26).** It
+  adds three nullable columns to `ReplacementJobs` — `QuarantineCheckedUtc`, `QuarantinedUtc` and
+  `LibraryNoticeDueUtc` —, creates `ReplacementJobNames`, one row per name a move plans, deleted with
+  its replacement, with the unique index on `(ReplacementJobId, Position)`, and adds the partial
+  `IX_ReplacementJobs_Quarantine` over `Verified` and `Quarantining`, leaving the following's and the
+  check's indexes as they are; every replacement comes through whole, with nothing quarantined
+  (`AddReplacementQuarantineMigrationTests`). A replacement already `Verified` is taken up by the
+  mover's first pass after the start, once replacement is switched on.
+- **Replacement is off, and no folder ticked, after the upgrade, and turning it on takes four steps
+  (MAM-24, MAM-26, ADR 0033).** Members send as before, with Keep both, and so does the owner until
+  he turns it on; the owner's dialog says why Replace can't be picked. To turn it on: (1) mount the
+  media folders read-write — the media mount in `docker-compose.yml` without `:ro`, each allowed
+  folder one mount holding its libraries with nothing mounted inside it, so that its quarantine
+  shares the mount —; (2) set `APP_USER_ID` and `APP_GROUP_ID` in `.env` to the media folders'
+  owner, qBittorrent's PUID and PGID (1000 and 100 on the reference installation), and hand the data
+  volume to them once with the app stopped, from the folder of `docker-compose.yml`:
+  `docker compose down`, then
+  `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 1000:100 /data`, then
+  `bash deploy.sh`, as `.env.example` gives it; (3) user menu → **Media folders** → **Replacing
+  copies**, tick **Replace copies after verification**; (4) tick the library folders it may touch,
+  each saying whether a move into the quarantine can work there, then **Save**. A copy can then be
+  ticked only once the app has inspected it inside the Media folders, and only through a destination
+  whose category saves inside a library folder under them. With the switch on but the mount still
+  `:ro` or the image's own ids, the Media folders page says a move would fail, and a move that is
+  tried stops its replacement for review with nothing moved; so does any move on a host that isn't
+  Linux.
+- **What moves, and what the backup doesn't keep (MAM-24, MAM-25, MAM-26).** Scheduling reads the
+  download clients' torrents and the old copies' identities, and the check of the new files reads
+  qBittorrent, the new files and Jellyfin, sending Jellyfin only `POST /Library/Media/Updated`; the
+  move then writes to the media folders `.mam-quarantine` and its replacement folders, the renames of
+  the old copies' files into it and out of it, and the deletions from it the owner confirms — nothing
+  else, and nothing to qBittorrent but the one add every send makes. Quarantined files stay on disk
+  in `.mam-quarantine` at the top of each media folder, outside the database backup: backing up
+  `mam.db` and `.secrets/` doesn't keep them, and restoring a backup doesn't bring them back. The
+  replacements, the evidence of their checks and where each old file went live in `mam.db` alone;
+  back it up with `.secrets/`. A replacement needs room for both copies until the old one is deleted
+  for good.
 - **The marks of torrents that hold a copy need qBittorrent 5.2 or later (MAM-24).** An older one —
   the app still sends to and follows 4.4.1 and later — is reported in the dialog as not checked,
   "Couldn't check whether a torrent in “qBittorrent” holds these copies: This is qBittorrent 5.1.4;
@@ -556,7 +903,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   the app can't place in its folders — a magnet still fetching its metadata, one saving where no
   path mapping of the qBittorrent integration reaches —, once the check's hour has run out ("The app
   can't place “qBittorrent”'s download “…” in its folders, so it can't tell whether that download
-  writes the new files."): map every folder qBittorrent saves to.
+  writes the new files."): map every folder qBittorrent saves to. The check right before a move
+  needs it as well (MAM-26): with an older qBittorrent, or torrents it can't place, every move stops
+  for review ("The app couldn't tell whether a torrent in “qBittorrent” holds the old copy: This is
+  qBittorrent v5.1.4; telling which torrents hold a library file needs qBittorrent 5.2 or later.").
 
 ## [0.2.1] — 2026-10-05
 

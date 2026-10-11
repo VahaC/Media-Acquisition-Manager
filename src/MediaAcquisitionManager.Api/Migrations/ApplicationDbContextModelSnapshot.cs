@@ -2415,6 +2415,15 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<DateTime?>("LibraryAskedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("LibraryNoticeDueUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("QuarantineCheckedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("QuarantinedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Reason")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
@@ -2449,6 +2458,9 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.HasIndex(new[] { "State" }, "IX_ReplacementJobs_Followed")
                         .HasFilter("\"State\" IN ('Scheduled', 'Submitted', 'Downloading', 'Paused', 'NeedsReview')");
+
+                    b.HasIndex(new[] { "State" }, "IX_ReplacementJobs_Quarantine")
+                        .HasFilter("\"State\" IN ('Verified', 'Quarantining')");
 
                     b.HasIndex(new[] { "State" }, "IX_ReplacementJobs_Verifying")
                         .HasFilter("\"State\" IN ('Downloaded', 'Inspecting')");
@@ -2534,6 +2546,82 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("ReplacementJobFiles");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNameEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AllowedRoot")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppPath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Inode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("LinkCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ModifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("MovedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Problem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QuarantinePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReplacementJobFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReplacementJobId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RestoredUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReplacementJobId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("ReplacementJobNames");
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNewFileEntity", b =>
@@ -3515,6 +3603,15 @@ namespace MediaAcquisitionManager.Api.Migrations
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobFileEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacementJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.ReplacementJobNameEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.ReplacementJobEntity", null)
                         .WithMany()

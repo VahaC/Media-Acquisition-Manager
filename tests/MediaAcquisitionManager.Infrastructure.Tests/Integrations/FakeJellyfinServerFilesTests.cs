@@ -76,6 +76,27 @@ public sealed class FakeJellyfinServerFilesTests : IDisposable
     }
 
     [Fact]
+    public async Task Media_updated_records_each_requests_update_types_beside_its_paths()
+    {
+        //Arrange
+        // MAM-26 — what the app said happened at each path: an old copy gone into the quarantine, another put back, and an
+        // update that names no type, which Jellyfin's controller takes as well.
+        var body = """{"Updates":[{"Path":"/media/movies/A.mkv","UpdateType":"Deleted"},{"Path":"/media/movies/B.mkv","UpdateType":"Created"},{"Path":"/media/movies/C.mkv"}]}""";
+
+        //Act
+        var first = await PostAsync(body);
+        var second = await PostAsync(Body(EpisodePath));
+
+        //Assert
+        Assert.Equal((HttpStatusCode.NoContent, HttpStatusCode.NoContent), (first.StatusCode, second.StatusCode));
+        Assert.Collection(
+            _server.ScanUpdateTypes,
+            types => Assert.Equal(["Deleted", "Created", null], types),
+            types => Assert.Equal(["Created"], types));
+        Assert.Equal(["/media/movies/A.mkv", "/media/movies/B.mkv", "/media/movies/C.mkv"], _server.ScanRequests.First());
+    }
+
+    [Fact]
     public async Task Media_updated_runs_the_hook_whose_planted_item_is_read_by_the_id_its_path_computes()
     {
         //Arrange
@@ -126,6 +147,7 @@ public sealed class FakeJellyfinServerFilesTests : IDisposable
         //Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(_server.ScanRequests);
+        Assert.Empty(_server.ScanUpdateTypes);
     }
 
     [Fact]

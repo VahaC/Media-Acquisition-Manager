@@ -24,7 +24,7 @@
     "replaced": "Replaced after verification:",
     "replacedGroup_one": "{{group}}: {{value}} copy",
     "replacedGroup_other": "{{group}}: {{value}} copies",
-    "conditions": "Conditions: the old copy would move aside only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in {{client}}. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy's work, but nothing is moved in this version: moving comes in a later version."
+    "conditions": "Conditions: the old copy moves into the quarantine only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in {{client}}. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy's work. The old copy stays in the quarantine until you restore it or delete it for good on the job's page."
   },
   "replace": {
     "legend": "Existing copies",

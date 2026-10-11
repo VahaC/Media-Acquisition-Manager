@@ -58,7 +58,8 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>, <see cref="TmdbHttp"/> — TMDb's image host
 /// included, MAM-33), so the real adapters run with the app's own client configuration and only the
 /// network is faked; and the file inventory, the Core seam to the app's mounts and the media inspector,
-/// is <see cref="Files"/> (MAM-9). One more adapter type,
+/// is <see cref="Files"/> (MAM-9), with — MAM-26 — the one write to them, the quarantine's renames and deletions,
+/// <see cref="Quarantine"/> over the same files. One more adapter type,
 /// <see cref="FakeAdapter"/>, is registered beside the real ones for tests about what the API does with
 /// an adapter's answer. Two more stand-ins keep the suite fast and its tests independent without
 /// faking any behaviour: a password hasher with a cheap iteration count (the real algorithm and format, which
@@ -99,6 +100,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     {
         DataDirectory = TestDatabase.CreateFactoryDirectory();
         WebRootDirectory = Path.Combine(DataDirectory, "wwwroot");
+        Quarantine = new FakeFileQuarantine(Files);
     }
 
     /// <summary>
@@ -169,6 +171,11 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>The app's mounts and media inspector (MAM-9), and the walk of its media folders (MAM-18);
     /// nothing is anywhere until a test adds a file. Emptied by <see cref="ResetAsync"/>.</summary>
     public FakeFileInventory Files { get; } = new();
+
+    /// <summary>MAM-26 — the app's one write to its mounts (ADR 0030): renames into the quarantine and back, and deletions
+    /// from it, over <see cref="Files"/>' own files and folders, so the inventory sees every rename. Renames work; nothing
+    /// is planted. Reset by <see cref="ResetAsync"/>.</summary>
+    public FakeFileQuarantine Quarantine { get; }
 
     /// <summary>
     /// A DI scope for seeders and assertions, created on first use and renewed by
@@ -250,7 +257,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// clock, empties <see cref="Logs"/> and <see cref="PasswordHasher"/>, disarms and empties
     /// <see cref="FakeAdapter"/>, <see cref="FakeLibraryIdentifier"/> and the vendor handlers, disarms <see cref="SaveChangesHook"/>,
     /// <see cref="TransactionHook"/> and <see cref="DbCommandHook"/>, empties
-    /// <see cref="Files"/>, drains the library sync, file inspection, folder scan and — MAM-33 — recommendation run
+    /// <see cref="Files"/> and — MAM-26 — <see cref="Quarantine"/>, drains the library sync, file inspection, folder scan
+    /// and — MAM-33 — recommendation run
     /// queues (a run id a test queued but never ran would otherwise reach the next test's worker) and — MAM-34 — the
     /// links' background writer's signal and the TMDb suggestion run queue, unpins the client
     /// address and renews <see cref="Scope"/>.
@@ -273,6 +281,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         TransactionHook.Reset();
         DbCommandHook.Reset();
         Files.Reset();
+        Quarantine.Reset();
         var libraryQueue = Services.GetRequiredService<LibrarySyncQueue>();
         while (libraryQueue.Reader.TryRead(out _))
         {
@@ -377,6 +386,8 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             // MAM-9 — instead of the local one: the host's folders and its ffprobe are the outside world
             // here, the way the vendors' networks are.
             ReplaceSingleton<IFileInventory>(services, Files);
+            // MAM-26 — and the one write to them, over the same files: never a real rename on the machine running the tests.
+            ReplaceSingleton<IFileQuarantine>(services, Quarantine);
             // Registered after the app's own client configuration, so these actions run after its
             // ConfigurePrimaryHttpMessageHandler and win; everything else about each client (timeout,
             // buffer limit, user agent, no logging handlers) stays the app's.

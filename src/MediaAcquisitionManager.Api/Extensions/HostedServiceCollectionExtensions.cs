@@ -89,6 +89,11 @@ public static class HostedServiceCollectionExtensions
         // job, so it needs nothing settled before it, and no reconciler — a check a stop cut goes on from its rows.
         services.AddSingleton<ReplacementVerificationTracker>();
         services.AddHostedService(provider => provider.GetRequiredService<ReplacementVerificationTracker>());
+        // MAM-26 — the move of the verified replacements' old copies into the quarantine, right after the check that makes
+        // a replacement Verified: it reads its queue from the rows on every pass, and settles a move, a restore or a
+        // deletion a stop cut on its own first pass — no one in a fresh process holds a job —, so it needs no reconciler.
+        services.AddSingleton<ReplacementQuarantineTracker>();
+        services.AddHostedService(provider => provider.GetRequiredService<ReplacementQuarantineTracker>());
         return services;
     }
 }

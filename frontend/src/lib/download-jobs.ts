@@ -1,4 +1,4 @@
-import type { DownloadJob, DownloadJobStatus, ReplacementJobState } from './types'
+import type { DownloadJob, DownloadJobReplacement, DownloadJobStatus, ReplacementJobState } from './types'
 
 /**
  * MAM-14 — every job status, in the order the API lists them: the Jobs page's status filter offers
@@ -48,13 +48,39 @@ export function isReplacementBeingChecked(state: ReplacementJobState): boolean {
 }
 
 /**
- * Whether the app is still working on `job` — following its download, or checking the new files of
- * the replacement it carries — so it can change without anyone acting, and a page that shows it asks
- * again. The download stays Downloaded while the check runs, so its status alone would stop the
- * polling before the page could show how the check ended.
+ * MAM-26 — the replacement states the app leaves by itself while it renames: Quarantining until the
+ * mover settles the job (Quarantined, or NeedsReview), Restoring and Deleting until the owner's
+ * request ends — or, cut by a restart, until the next pass stops it for review.
+ */
+const UNSETTLED_REPLACEMENT_STATES: ReadonlySet<ReplacementJobState> = new Set<ReplacementJobState>([
+  'Quarantining',
+  'Restoring',
+  'Deleting',
+])
+
+/**
+ * Whether the app still moves `replacement` on by itself: while its new files are checked (MAM-25),
+ * while it is Verified — the mover takes it up at its next pass (MAM-26) —, and while names are being
+ * renamed or deleted. A Verified one while replacement is switched off waits for the owner to switch
+ * it on, so asking again would bring the same answer (ADR 0033: the job keeps checking but writes
+ * nothing). It rests at Quarantined until the owner decides, and ends at NeedsReview, Restored,
+ * Completed, Failed or Cancelled.
+ */
+export function isReplacementWorkedOn(replacement: Pick<DownloadJobReplacement, 'state' | 'switchedOff'>): boolean {
+  const { state, switchedOff } = replacement
+  return isReplacementBeingChecked(state)
+    || UNSETTLED_REPLACEMENT_STATES.has(state)
+    || (state === 'Verified' && !switchedOff)
+}
+
+/**
+ * Whether the app is still working on `job` — following its download, or checking and moving the
+ * replacement it carries (isReplacementWorkedOn) — so it can change without anyone acting, and a page
+ * that shows it asks again. The download stays Downloaded while the replacement goes on, so its
+ * status alone would stop the polling before the page could show how the replacement went.
  */
 export function isJobWorkedOn(job: Pick<DownloadJob, 'status' | 'replacement'>): boolean {
-  return isJobFollowed(job.status) || (job.replacement !== null && isReplacementBeingChecked(job.replacement.state))
+  return isJobFollowed(job.status) || (job.replacement !== null && isReplacementWorkedOn(job.replacement))
 }
 
 /**

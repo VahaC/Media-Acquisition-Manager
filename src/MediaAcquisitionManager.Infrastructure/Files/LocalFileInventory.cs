@@ -298,7 +298,9 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     /// text, every link on the way followed, and still inside an allowed root (a root that is itself a link
     /// counts as where it leads).
     /// </summary>
-    private static FileInventoryResult<NormalizedPath> Locate(string appPath, IReadOnlyList<string> allowedRoots)
+    /// <remarks>MAM-26 — the quarantine (<see cref="LocalFileQuarantine"/>) finds the folders it renames in the same
+    /// way, so a write is never let through where a read would be refused.</remarks>
+    internal static FileInventoryResult<NormalizedPath> Locate(string appPath, IReadOnlyList<string> allowedRoots)
     {
         var roots = UsableRoots(allowedRoots);
         if (roots.Count == 0)
@@ -333,7 +335,7 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     /// The allowed roots that parse as paths of this platform's style, in their order; the others are dropped,
     /// so a bad value can only narrow what is read, never widen it.
     /// </summary>
-    private static List<NormalizedPath> UsableRoots(IReadOnlyList<string> allowedRoots) =>
+    internal static List<NormalizedPath> UsableRoots(IReadOnlyList<string> allowedRoots) =>
     [
         .. allowedRoots
             .Select(root => NormalizedPath.TryParse(root, out var parsed, out _) ? parsed : null)

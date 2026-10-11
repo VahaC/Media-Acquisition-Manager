@@ -7,8 +7,9 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// <summary>
 /// MAM-24 — the installation owner's scheduled replacement of specific old copies by a download (ADR 0030–0034):
 /// written with its download job, in the same save, before anything is fetched or sent (ADR 0013), and only from the
-/// owner's own ticks in the Download dialog. MAM-24 schedules and follows it, MAM-25 verifies its new files (ADR 0035);
-/// moving the old copies aside is MAM-26's.
+/// owner's own ticks in the Download dialog. MAM-24 schedules and follows it, MAM-25 verifies its new files (ADR 0035),
+/// and MAM-26 moves the old copies into the quarantine and keeps them there until the owner restores them or deletes
+/// them for good (ADR 0030), name by name in its <see cref="ReplacementJobNameEntity"/> rows.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,7 +27,9 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// and a <c>ReplacementWorkConfirmed</c> audit row; the verification evidence is MAM-25's
 /// <see cref="ReplacementJobNewFileEntity"/> rows with their ids, the pair and problem columns of its
 /// <see cref="ReplacementJobFileEntity"/> rows, <see cref="InspectionStartedUtc"/> and <see cref="LibraryAskedUtc"/>; the
-/// state, its reason and its time are below.
+/// quarantine — where each name went, its identity before the move, and what became of it — is MAM-26's
+/// <see cref="ReplacementJobNameEntity"/> rows with <see cref="QuarantineCheckedUtc"/>, <see cref="QuarantinedUtc"/> and
+/// <see cref="LibraryNoticeDueUtc"/>; the state, its reason and its time are below.
 /// </para>
 /// <para>
 /// Its rows carry no key into the library's rows a sync rebuilds (works, versions, files): they are a snapshot, as
@@ -84,4 +87,23 @@ public class ReplacementJobEntity : AuditableEntity
     /// list, refresh and identify every new file within <c>ReplacementVerificationRules.LibraryWait</c> of it.
     /// </summary>
     public DateTime? LibraryAskedUtc { get; set; }
+
+    /// <summary>
+    /// MAM-26 — when the mover last stopped this job before moving anything (its checks 5 and 6) or claimed it to move;
+    /// <c>null</c> before. It marks a job the mover's stage stopped: the owner's Retry is offered for a
+    /// <see cref="ReplacementJobState.NeedsReview"/> job only while it is set, as a stop of MAM-25's check isn't the
+    /// mover's to retry. MAM-25's verifier never sets it. Nullable and with no key, so the upgrade rebuilds no table.
+    /// </summary>
+    public DateTime? QuarantineCheckedUtc { get; set; }
+
+    /// <summary>MAM-26 — when the job reached <see cref="ReplacementJobState.Quarantined"/>; <c>null</c> before, and for a
+    /// job that never did.</summary>
+    public DateTime? QuarantinedUtc { get; set; }
+
+    /// <summary>
+    /// MAM-26 — since when the library is owed a notice that the job's names left or came back (ADR 0030: Jellyfin hears
+    /// <c>POST /Library/Media/Updated</c> after every move and every restore); <c>null</c> while none is owed. Cleared
+    /// once the library took it, or was given up on.
+    /// </summary>
+    public DateTime? LibraryNoticeDueUtc { get; set; }
 }

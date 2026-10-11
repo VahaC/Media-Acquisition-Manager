@@ -82,7 +82,10 @@ public interface IFileInventory
     /// it finds (<see cref="Core.Files.MediaFileNames"/>) and each folder, link or name it didn't go into or
     /// through, with why (MAM-18, ADR 0021). Links inside the roots are followed and one leading out is
     /// never; a loop ends; nothing is opened for reading. A walk that reaches its limit yields
-    /// <see cref="FileListingStatus.LimitReached"/> last.
+    /// <see cref="FileListingStatus.LimitReached"/> last. MAM-26, ADR 0030 — every folder named
+    /// <see cref="Core.Files.QuarantineFolder.Name"/> is left out at any depth, a link into one is not followed and a
+    /// root that lies in one gives nothing, all without an entry: the replaced copies there are the replacement jobs'
+    /// to know, never a file no library reported nor a problem of the walk.
     /// </summary>
     /// <param name="allowedRoots">The folders to walk, in canonical form; none yields nothing.</param>
     /// <param name="cancellationToken">Cancels the walk.</param>

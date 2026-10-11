@@ -14,11 +14,13 @@ vi.mock('@/lib/downloads-api')
 // MAM-14 — the Jobs page asks for its list again every 2 s while it shows a job the app still
 // follows (Created, Submitted, Downloading, Paused), and stops once every job on it has ended. MAM-25 —
 // and while it shows a downloaded job whose replacement's new files are still checked (Downloaded,
-// Inspecting), as the check ends by itself.
+// Inspecting), as the check ends by itself. MAM-26 — and while its old copies are about to move or
+// moving (Verified with replacement on, Quarantining, Restoring, Deleting), until it rests
+// (Quarantined) or ends.
 
-/** A downloaded job carrying a replacement in `state`. */
-const replacingJob = (state: ReplacementJobState) =>
-  jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state }) })
+/** A downloaded job carrying a replacement in `state`; `switchedOff` while replacement is switched off. */
+const replacingJob = (state: ReplacementJobState, switchedOff = false) =>
+  jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state, switchedOff }) })
 
 /** The server lists `items` for every request from now on. */
 function listing(...items: DownloadJob[]) {
@@ -119,7 +121,7 @@ describe('JobsPage while a job is followed', () => {
     expect(downloadsApi.list).toHaveBeenCalledOnce()
   })
 
-  it.each<ReplacementJobState>(['Downloaded', 'Inspecting'])('asks again every 2 s while a downloaded job\'s replacement is %s', async (state) => {
+  it.each<ReplacementJobState>(['Downloaded', 'Inspecting', 'Verified', 'Quarantining', 'Restoring', 'Deleting'])('asks again every 2 s while a downloaded job\'s replacement is %s', async (state) => {
     // Arrange
     listing(replacingJob(state), downloadedJob)
     renderPage()
@@ -133,7 +135,7 @@ describe('JobsPage while a job is followed', () => {
     expect(downloadsApi.list).toHaveBeenCalledTimes(3)
   })
 
-  it.each<ReplacementJobState>(['Verified', 'NeedsReview', 'Failed', 'Cancelled'])('asks nothing more while a downloaded job\'s replacement is %s', async (state) => {
+  it.each<ReplacementJobState>(['Quarantined', 'NeedsReview', 'Completed', 'Restored', 'Failed', 'Cancelled'])('asks nothing more while a downloaded job\'s replacement is %s', async (state) => {
     // Arrange
     listing(replacingJob(state), downloadedJob)
     renderPage()
@@ -147,7 +149,27 @@ describe('JobsPage while a job is followed', () => {
     expect(downloadsApi.list).toHaveBeenCalledOnce()
   })
 
-  it('follows a replacement\'s check from Inspecting until its new file is verified, then asks nothing more', async () => {
+  // MAM-26 — a Verified job waits for the switch while it is off (ADR 0033), so asking again would bring
+  // the same answer; the check of the new files and a rename under way go on whatever the switch.
+  it.each<[ReplacementJobState, number]>([
+    ['Verified', 1],
+    ['Inspecting', 3],
+    ['Quarantining', 3],
+  ])('while replacement is switched off, asks for a downloaded job whose replacement is %s %i time(s) over two polls', async (state, asked) => {
+    // Arrange
+    listing(replacingJob(state, true))
+    renderPage()
+    await screen.findByText(downloadingJob.releaseTitle, { selector: '.settings-name-text' })
+
+    // Act
+    await nextPoll()
+    await nextPoll()
+
+    // Assert
+    expect(downloadsApi.list).toHaveBeenCalledTimes(asked)
+  })
+
+  it('follows a replacement from Inspecting through Verified and the move until its old copy is in the quarantine, then asks nothing more', async () => {
     // Arrange
     listing(replacingJob('Inspecting'))
     renderPage()
@@ -156,12 +178,18 @@ describe('JobsPage while a job is followed', () => {
 
     // Act
     await nextPoll()
-    await screen.findByText('New file verified: 1 copy will be replaced by it in a later version; nothing is moved yet.')
+    await screen.findByText('New file verified: 1 old copy moves into the quarantine next.')
+    listing(replacingJob('Quarantining'))
+    await nextPoll()
+    await screen.findByText('Moving the old copy into the quarantine…')
+    listing(jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state: 'Quarantined', quarantinedCopyCount: 1 }) }))
+    await nextPoll()
+    await screen.findByText('Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.')
     await nextPoll()
     await nextPoll()
 
     // Assert
-    expect(downloadsApi.list).toHaveBeenCalledTimes(2)
+    expect(downloadsApi.list).toHaveBeenCalledTimes(4)
   })
 
   it('asks nothing more while the list is empty', async () => {

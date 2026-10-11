@@ -12,7 +12,9 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Integrations;
 // POST /Library/Media/Updated naming every path the way Jellyfin's own folder watcher reports a file that appeared, read in
 // Jellyfin 12.2's source, which answers 204 at once, before it looks. The request is sent once and asks for nothing else; a
 // refusal is the key's, a 5xx the server's, and any other answer one Jellyfin doesn't send for it. Reading what Jellyfin made
-// of the files has its own classes (JellyfinAdapterFilesReadTests, JellyfinAdapterFilesReadFailureTests).
+// of the files has its own classes (JellyfinAdapterFilesReadTests, JellyfinAdapterFilesReadFailureTests). MAM-26 — the same
+// request tells Jellyfin that old copies went into the quarantine, each path as "Deleted", or came back, as "Created"
+// (ADR 0030); a change that is no member is a caller's mistake.
 public sealed class JellyfinAdapterFilesScanTests : IDisposable
 {
     private const string BaseUrl = "http://jellyfin.test:8096";
@@ -79,7 +81,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         string[] paths = [FilmPath, EpisodePath];
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, paths, TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, paths, LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -96,6 +98,45 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
             request.Body);
         Assert.DoesNotContain(ApiKey, request.Uri.OriginalString, StringComparison.Ordinal);
         Assert.Equal(paths, Assert.Single(_server.ScanRequests));
+        Assert.Equal(["Created", "Created"], Assert.Single(_server.ScanUpdateTypes));
+    }
+
+    [Fact]
+    public async Task RequestScan_of_paths_that_went_posts_each_as_deleted_and_is_taken_on_204()
+    {
+        //Arrange
+        // MAM-26 — the old copy and its subtitle, moved into the quarantine: told at the paths they went from.
+        string[] paths = [FilmPath, "/media/movies/Alien (1979)/Alien.1979.2160p.UHD.BDRemux.uk.srt"];
+
+        //Act
+        var result = await Lookup.RequestScanAsync(Settings, paths, LibraryFileChange.Deleted, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal((IntegrationCallStatus.Succeeded, (string?)null, 2), (result.Status, result.Error, result.Value!.PathCount));
+        // One request, the same one a download's new files get, and nothing else.
+        var request = Assert.Single(_harness.JellyfinHttp.Requests);
+        Assert.Equal((HttpMethod.Post, "http://jellyfin.test:8096/Library/Media/Updated"), (request.Method, request.Uri.AbsoluteUri));
+        Assert.Equal(
+            """{"Updates":[{"Path":"/media/movies/Alien (1979)/Alien.1979.2160p.UHD.BDRemux.mkv","UpdateType":"Deleted"},{"Path":"/media/movies/Alien (1979)/Alien.1979.2160p.UHD.BDRemux.uk.srt","UpdateType":"Deleted"}]}""",
+            request.Body);
+        Assert.Equal(paths, Assert.Single(_server.ScanRequests));
+        Assert.Equal(["Deleted", "Deleted"], Assert.Single(_server.ScanUpdateTypes));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public async Task RequestScan_of_a_change_that_is_no_member_is_a_callers_mistake_and_sends_nothing(int change)
+    {
+        //Arrange
+        // MAM-26 — never guessed into Created or Deleted: a request that said the wrong thing would still be sent.
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => Lookup.RequestScanAsync(Settings, [FilmPath], (LibraryFileChange)change, TestContext.Current.CancellationToken));
+
+        //Assert
+        Assert.IsType<ArgumentOutOfRangeException>(exception);
+        Assert.Empty(_harness.JellyfinHttp.Requests);
     }
 
     [Fact]
@@ -112,7 +153,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         ];
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, paths, TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, paths, LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -130,7 +171,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         string[] paths = [.. Films(IMediaLibraryFileLookup.MaximumPaths - 1), "/media/" + new string('a', 4089)];
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, paths, TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, paths, LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal((500, 4096), (IMediaLibraryFileLookup.MaximumPaths, paths[^1].Length));
@@ -158,7 +199,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         _server.ScanRefusal = (HttpStatusCode)statusCode;
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
@@ -174,7 +215,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         var settings = Settings with { ApiKey = "0000000000000000000000000000dead" };
 
         //Act
-        var result = await Lookup.RequestScanAsync(settings, [FilmPath], TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(settings, [FilmPath], LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
@@ -189,7 +230,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Redirect($"http://elsewhere.test/{ApiKey}/Library/Media/Updated");
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Single(_harness.JellyfinHttp.Requests);
@@ -208,7 +249,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
             throw new HttpRequestException(error, $"Socket failure on {request.RequestUri} with the key {ApiKey}");
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal((expectedStatus, expectedMessage), (result.Status, result.Error));
@@ -222,7 +263,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         _harness.JellyfinHttp.Handler = (_, _) => throw new TaskCanceledException("The request timed out.");
 
         //Act
-        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], TestContext.Current.CancellationToken);
+        var result = await Lookup.RequestScanAsync(Settings, [FilmPath], LibraryFileChange.Created, TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.TimedOut, result.Status);
@@ -238,7 +279,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         var paths = LookupMistake(mistake);
 
         //Act
-        var exception = await Record.ExceptionAsync(() => Lookup.RequestScanAsync(Settings, paths!, TestContext.Current.CancellationToken));
+        var exception = await Record.ExceptionAsync(() => Lookup.RequestScanAsync(Settings, paths!, LibraryFileChange.Created, TestContext.Current.CancellationToken));
 
         //Assert
         Assert.IsAssignableFrom<ArgumentException>(exception);
@@ -251,7 +292,7 @@ public sealed class JellyfinAdapterFilesScanTests : IDisposable
         //Arrange
 
         //Act
-        var exception = await Record.ExceptionAsync(() => Lookup.RequestScanAsync(null!, [FilmPath], TestContext.Current.CancellationToken));
+        var exception = await Record.ExceptionAsync(() => Lookup.RequestScanAsync(null!, [FilmPath], LibraryFileChange.Created, TestContext.Current.CancellationToken));
 
         //Assert
         Assert.IsType<ArgumentNullException>(exception);

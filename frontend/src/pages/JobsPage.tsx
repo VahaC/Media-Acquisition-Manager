@@ -4,11 +4,13 @@ import { Link } from 'react-router-dom'
 import { CancelJobButton } from '@/components/jobs/CancelJobButton'
 import { JobProgress } from '@/components/jobs/JobProgress'
 import { JobStatus } from '@/components/jobs/JobStatus'
+import { RetryReplacementButton } from '@/components/jobs/RetryReplacementButton'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
+import { useAuthStore } from '@/lib/auth-store'
 import { canCancelJob, DOWNLOAD_JOB_STATUSES } from '@/lib/download-jobs'
 import { formatDateTime } from '@/lib/format'
 import { useDownloadJobs } from '@/lib/queries'
@@ -32,7 +34,8 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  * included (MAM-14's decision 1). Each row says where the job stands, why a followed job isn't moving
  * on, how far it has got, and where it went; its title opens the job's details. A job the app still
  * follows, or one that needs linking, can be cancelled: the app stops following it, and the torrent
- * stays in the client.
+ * stays in the client. MAM-26 — the owner's job whose replacement the mover stopped for review offers
+ * Retry beside its sentence.
  *
  * While a job on the page is still followed, the list is asked for again every 2 s
  * (useDownloadJobs), so statuses and progress move on by themselves.
@@ -142,8 +145,8 @@ export function JobsPage() {
                     key={job.id}
                     job={job}
                     answeredAt={dataUpdatedAt}
-                    onCancelStart={() => setActionError(null)}
-                    onCancelError={setActionError}
+                    onActionStart={() => setActionError(null)}
+                    onActionError={setActionError}
                   />
                 ))}
               </tbody>
@@ -177,8 +180,10 @@ interface JobRowProps {
    * in for this one's, which hides Cancel on a `Created` row until this page's answer is back.
    */
   answeredAt: number
-  onCancelStart: () => void
-  onCancelError: (message: string) => void
+  /** Cancel or (MAM-26) Retry is about to be sent: the page clears its last refusal. */
+  onActionStart: () => void
+  /** Cancel or Retry was refused: the page shows the sentence above the rows. */
+  onActionError: (message: string) => void
 }
 
 /**
@@ -186,8 +191,11 @@ interface JobRowProps {
  * `data-label` for the stacked layout. Sent to is the client and the destination, by the names they
  * had when the job was made; a destination removed since is named by the category actually sent.
  */
-function JobRow({ job, answeredAt, onCancelStart, onCancelError }: JobRowProps) {
+function JobRow({ job, answeredAt, onActionStart, onActionError }: JobRowProps) {
   const { t } = useTranslation(['jobs', 'common'])
+  // MAM-26 — Retry is the owner's (ADR 0033); a member's job carries no replacement, but the row
+  // doesn't rely on that.
+  const isOwner = useAuthStore((state) => state.user?.isOwner === true)
   const destination = job.destinationName ?? job.clientDestinationKey ?? t('noDestination')
 
   return (
@@ -209,8 +217,11 @@ function JobRow({ job, answeredAt, onCancelStart, onCancelError }: JobRowProps) 
       <td data-label={t('columns.sent')}>{formatDateTime(job.createdUtc, INSTANT_FORMAT)}</td>
       <td className="settings-actions-cell">
         <div className="settings-actions">
+          {isOwner && job.replacement?.canRetry && (
+            <RetryReplacementButton replacement={job.replacement} onStart={onActionStart} onError={onActionError} />
+          )}
           {canCancelJob(job, answeredAt) && (
-            <CancelJobButton job={job} onStart={onCancelStart} onError={onCancelError} />
+            <CancelJobButton job={job} onStart={onActionStart} onError={onActionError} />
           )}
         </div>
       </td>

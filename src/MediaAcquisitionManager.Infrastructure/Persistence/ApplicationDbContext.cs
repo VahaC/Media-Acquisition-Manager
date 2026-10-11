@@ -140,6 +140,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<ReplacementJobNewFileIdentifierEntity> ReplacementJobNewFileIdentifiers => Set<ReplacementJobNewFileIdentifierEntity>();
 
+    public DbSet<ReplacementJobNameEntity> ReplacementJobNames => Set<ReplacementJobNameEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -970,6 +972,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // index above: the few in the check, never the history, and no drift from the rule.
             e.HasIndex(x => x.State, "IX_ReplacementJobs_Verifying")
                 .HasFilter($"\"State\" IN ({string.Join(", ", ReplacementJobStates.Verifying.Select(state => $"'{state}'"))})");
+            // MAM-26 — "every replacement the mover takes up", which it reads on each of its passes: the verified ones it
+            // moves next and the ones it is moving (ReplacementJobStates.Quarantine). Partial and built from the core's
+            // list for the same reasons as the two above; an index of its own, so neither of theirs changes (a changed
+            // filter is a DROP and a CREATE).
+            e.HasIndex(x => x.State, "IX_ReplacementJobs_Quarantine")
+                .HasFilter($"\"State\" IN ({string.Join(", ", ReplacementJobStates.Quarantine.Select(state => $"'{state}'"))})");
         });
 
         modelBuilder.Entity<ReplacementJobFileEntity>(e =>
@@ -1027,6 +1035,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Cascade: part of its new file row, and so of its job. The key's index is EF's own.
             e.HasOne<ReplacementJobNewFileEntity>().WithMany()
                 .HasForeignKey(x => x.ReplacementJobNewFileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MAM-26 — the quarantine (ADR 0030): one row per name a move plans, a new table beside the replacement's own, and
+        // nullable columns added to ReplacementJobs with no key, so the upgrade rebuilds no table.
+        modelBuilder.Entity<ReplacementJobNameEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.State).HasConversion<string>().HasMaxLength(32);
+            // One name per place in the job's plan; leading with the job, so it also serves the foreign key and "this
+            // job's names in order".
+            e.HasIndex(x => new { x.ReplacementJobId, x.Position }).IsUnique();
+            // Cascade: the names are part of their job. No key into ReplacementJobFiles: the copy's id is a snapshot, as the
+            // job's other rows keep theirs (the entity says why), and the job's cascade removes both.
+            e.HasOne<ReplacementJobEntity>().WithMany()
+                .HasForeignKey(x => x.ReplacementJobId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

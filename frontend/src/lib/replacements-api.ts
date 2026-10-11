@@ -1,12 +1,23 @@
 import { api } from './api'
-import type { DownloadJob, ReplacementOptions, ScheduleReplacementRequest } from './types'
+import type {
+  DeleteQuarantinedRequest,
+  DownloadJob,
+  ReplacementDetails,
+  ReplacementOptions,
+  ScheduleReplacementRequest,
+} from './types'
 
 const BASE_URL = '/api/replacements'
+
+/** One replacement's address: its id is the server's, encoded into one path segment all the same. */
+const jobUrl = (id: string) => `${BASE_URL}/${encodeURIComponent(id)}`
 
 /**
  * MAM-24 — scheduling the replacement of specific old copies with a download (ADR 0032). Owner-only
  * (ADR 0033): every call answers 403 `{ error }` for anyone else, the read included, so the Download
- * dialog never asks for a member.
+ * dialog never asks for a member. MAM-26 — and the owner's own replacement afterwards: its names in
+ * the quarantine, Retry, Restore and Delete for good (ADR 0030). Another user's replacement, or none,
+ * is a bare 404.
  */
 export const replacementsApi = {
   /**
@@ -33,4 +44,53 @@ export const replacementsApi = {
    */
   schedule: async (request: ScheduleReplacementRequest): Promise<DownloadJob> =>
     (await api.post<DownloadJob>(BASE_URL, request)).data,
+
+  /**
+   * MAM-26 — `GET /api/replacements/{id}`. 200 with the replacement: every name its move planned, by
+   * position, with where each is now and why one stayed, the room its quarantine holds and frees, and
+   * what the owner may do. 403 `{ error }` for anyone but the owner; a bare 404 for another user's
+   * replacement or none.
+   */
+  get: async (id: string): Promise<ReplacementDetails> =>
+    (await api.get<ReplacementDetails>(jobUrl(id))).data,
+
+  /**
+   * MAM-26 — `POST /api/replacements/{id}/retry`. 200 with its download job, the replacement back to
+   * `Verified`, so the next pass checks the old copies again and moves them; nothing is written to
+   * the media by the request itself. 409 `{ error }` when the replacement isn't one the mover stopped
+   * for review (a stop after the check of the new files isn't retried here); 403 `{ error }` for
+   * anyone but the owner; a bare 404 for another user's replacement or none.
+   *
+   * Never retried on its own: a write goes out once, and only the owner's own click repeats it.
+   */
+  retry: async (id: string): Promise<DownloadJob> =>
+    (await api.post<DownloadJob>(`${jobUrl(id)}/retry`)).data,
+
+  /**
+   * MAM-26 — `POST /api/replacements/{id}/restore`. 200 with its download job once every name in the
+   * quarantine is back where it was, the replacement `Restored`. 409 `{ error }` when nothing of it
+   * is in the quarantine, when replacement is switched off, when a name's folder is no longer ticked,
+   * changed in the quarantine, would land on a file already there or in a folder that is gone —
+   * nothing put back —, when another action on it is under way, or when a rename failed part-way (the
+   * sentence says how many came back, and the replacement waits for review). 403 `{ error }` for
+   * anyone but the owner; a bare 404 for another user's replacement or none.
+   *
+   * Never retried on its own: a write goes out once, and only the owner's own click repeats it.
+   */
+  restore: async (id: string): Promise<DownloadJob> =>
+    (await api.post<DownloadJob>(`${jobUrl(id)}/restore`)).data,
+
+  /**
+   * MAM-26 — `POST /api/replacements/{id}/delete-for-good` with the ids of the names the owner
+   * confirmed. 200 with its download job once every one is deleted, the replacement `Completed`. 400
+   * `{ error }` without names; 409 `{ error }` when it isn't Quarantined, when the names aren't
+   * exactly what it holds in the quarantine now, when replacement is switched off, when a name
+   * changed in the quarantine — nothing deleted —, when another action on it is under way, or when a
+   * deletion failed part-way (the sentence says how many are gone, and the replacement waits for
+   * review). 403 `{ error }` for anyone but the owner; a bare 404 for another user's replacement or none.
+   *
+   * Never retried on its own: a deletion goes out once, and only the owner's own click repeats it.
+   */
+  deleteForGood: async (id: string, names: string[]): Promise<DownloadJob> =>
+    (await api.post<DownloadJob>(`${jobUrl(id)}/delete-for-good`, { names } satisfies DeleteQuarantinedRequest)).data,
 }

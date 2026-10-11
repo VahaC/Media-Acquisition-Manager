@@ -149,8 +149,11 @@ export interface ScheduleReplacementRequest {
  * Where a scheduled replacement stands. It follows its download — Scheduled while it is being sent,
  * then Submitted, Downloading (or Paused) and Downloaded —, then (MAM-25) its new files are checked:
  * Inspecting while the app reads them, nothing touched, and Verified once every ticked copy is paired
- * with a checked new file of its work, where this version leaves it (moving is MAM-26's). It stops at
- * NeedsReview, Failed (a new file that isn't readable media) or Cancelled, with the reason.
+ * with a checked new file of its work. MAM-26 — then the old copies move: Quarantining while the app
+ * renames them into the quarantine, and Quarantined once every ticked copy's video is there, where it
+ * rests until the owner decides (ADR 0030): Restoring, then Restored (both copies back in the
+ * library), or Deleting, then Completed. It stops at NeedsReview, Failed (a new file that isn't
+ * readable media) or Cancelled, with the reason.
  */
 export type ReplacementJobState =
   | 'Scheduled'
@@ -160,12 +163,20 @@ export type ReplacementJobState =
   | 'Downloaded'
   | 'Inspecting'
   | 'Verified'
+  | 'Quarantining'
+  | 'Quarantined'
+  | 'Restoring'
+  | 'Restored'
+  | 'Deleting'
+  | 'Completed'
   | 'NeedsReview'
   | 'Failed'
   | 'Cancelled'
 
 /** MAM-24 — the replacement a download job carries, as the Jobs page and the Download dialog show it. */
 export interface DownloadJobReplacement {
+  /** MAM-26 — the replacement's own id (not its download job's): what its details and the owner's actions ask by. */
+  id: string
   state: ReplacementJobState
   /** The old copies it would replace. */
   copyCount: number
@@ -173,6 +184,86 @@ export interface DownloadJobReplacement {
   reason: string | null
   /** Replacement is switched off now: nothing moves while it is off (ADR 0033). */
   switchedOff: boolean
-  /** Its copies whose folder is no longer ticked for replacement, which won't move. */
+  /**
+   * Its copies whose folder is no longer ticked for replacement, which won't move — MAM-26: of the
+   * copies still to move, any of which stops the whole move for review unless ticked again.
+   */
   copiesOutsideTickedFolders: number
+  /** MAM-26 — its ticked copies whose video is in the quarantine. */
+  quarantinedCopyCount: number
+  /** MAM-26 — the companion files that stayed in their folder while their copy moved: the job's page says why. */
+  stayedFileCount: number
+  /** MAM-26 — the mover stopped it for review, so the owner may press Retry; never after a check of the new files (MAM-27's). */
+  canRetry: boolean
+}
+
+/** MAM-26 — a name the move plans: the ticked copy's video, or one of its same-name companions (`Alien.srt`). */
+export type ReplacementNameKind = 'Video' | 'Companion'
+
+/**
+ * MAM-26 — where one name of a replacement is: Planned (in its folder, not moved yet), Moving,
+ * Quarantined, Stayed (it couldn't or mustn't move: `problem` says why), Restoring, Restored (back
+ * where it was), Deleting, Deleted (gone for good), or Lost (found neither where it was nor in the
+ * quarantine after the app stopped mid-way).
+ */
+export type ReplacementNameState =
+  | 'Planned'
+  | 'Moving'
+  | 'Quarantined'
+  | 'Stayed'
+  | 'Restoring'
+  | 'Restored'
+  | 'Deleting'
+  | 'Deleted'
+  | 'Lost'
+
+/** MAM-26 — one name a replacement moves into the quarantine, and where it is now. */
+export interface ReplacementName {
+  id: string
+  kind: ReplacementNameKind
+  /** Where it was, in the app's terms: where Restore puts it back. */
+  originalPath: string
+  /** Where it goes in the quarantine: `<media folder>/.mam-quarantine/<replacement id>/<relative path>`. */
+  quarantinePath: string
+  sizeBytes: number
+  /** The file has more names than this one (a hardlink): deleting it for good frees no space. */
+  otherNames: boolean
+  state: ReplacementNameState
+  /** Why it stayed, wasn't put back or deleted, or was lost: the app's own sentence; null otherwise. */
+  problem: string | null
+}
+
+/**
+ * MAM-26 — `GET /api/replacements/{id}`: one of the owner's replacements, with every name its move
+ * planned by position and what the owner may do with it. The server works out each `can…` and the
+ * room; the page shows them.
+ */
+export interface ReplacementDetails {
+  id: string
+  downloadJobId: string
+  state: ReplacementJobState
+  /** Why it stopped; null unless it did. */
+  reason: string | null
+  /** Replacement is switched off now: nothing is moved, put back or deleted while it is off (ADR 0033). */
+  switchedOff: boolean
+  /** The mover stopped it for review: Retry sends it back to be checked and moved. */
+  canRetry: boolean
+  /** Something of it is in the quarantine, and it is Quarantined or in review: Restore puts it back. */
+  canRestore: boolean
+  /** It is Quarantined: Delete for good deletes what it holds in the quarantine. */
+  canDeleteForGood: boolean
+  /** The room its names in the quarantine take. */
+  quarantinedBytes: number
+  /** The room Delete for good would free: a name with another name (a hardlink) frees nothing. */
+  freesBytes: number
+  names: ReplacementName[]
+}
+
+/**
+ * MAM-26 — the body of `POST /api/replacements/{id}/delete-for-good`: the ids of the names the owner
+ * confirmed, exactly as the confirmation listed them. The server refuses a list that isn't what the
+ * replacement holds in the quarantine now.
+ */
+export interface DeleteQuarantinedRequest {
+  names: string[]
 }

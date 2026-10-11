@@ -5,7 +5,9 @@ namespace MediaAcquisitionManager.Core.Tests.Replacements;
 
 // MAM-24/MAM-25 — which replacement jobs are still going (ADR 0030–0035). MAM-25's states are checked by the verifier and
 // never followed — a followed Inspecting job would be mirrored back to Downloaded on every pass of the download jobs —,
-// and a job being checked or verified still holds its old copies, which move only in MAM-26.
+// and a job being checked or verified still holds its old copies. MAM-26 — the mover takes up a verified job and one it is
+// moving, neither followed nor checked; a move, a restore and a deletion under way are what a restart may cut; and a job
+// holds its copies until its names are all deleted or all back.
 public sealed class ReplacementJobStatesTests
 {
     [Fact]
@@ -38,6 +40,37 @@ public sealed class ReplacementJobStatesTests
         Assert.Empty(verifying.Intersect(ReplacementJobStates.Followed));
     }
 
+    [Fact]
+    public void Quarantine_are_a_verified_job_and_one_being_moved()
+    {
+        //Arrange
+
+        //Act
+        var quarantine = ReplacementJobStates.Quarantine;
+
+        //Assert
+        Assert.Equal([ReplacementJobState.Verified, ReplacementJobState.Quarantining], quarantine);
+        // Neither following nor the check ever takes the mover's jobs back.
+        Assert.Empty(quarantine.Intersect(ReplacementJobStates.Followed));
+        Assert.Empty(quarantine.Intersect(ReplacementJobStates.Verifying));
+    }
+
+    [Fact]
+    public void Unsettled_are_a_move_a_restore_and_a_deletion_under_way()
+    {
+        //Arrange
+
+        //Act
+        var unsettled = ReplacementJobStates.Unsettled;
+
+        //Assert
+        Assert.Equal([ReplacementJobState.Quarantining, ReplacementJobState.Restoring, ReplacementJobState.Deleting], unsettled);
+        // Each still holds its copies, and none is followed or checked.
+        Assert.Empty(unsettled.Except(ReplacementJobStates.Open));
+        Assert.Empty(unsettled.Intersect(ReplacementJobStates.Followed));
+        Assert.Empty(unsettled.Intersect(ReplacementJobStates.Verifying));
+    }
+
     [Theory]
     [InlineData(ReplacementJobState.Scheduled, true)]
     [InlineData(ReplacementJobState.Submitted, true)]
@@ -46,10 +79,16 @@ public sealed class ReplacementJobStatesTests
     [InlineData(ReplacementJobState.Downloaded, true)]
     [InlineData(ReplacementJobState.Inspecting, true)]
     [InlineData(ReplacementJobState.Verified, true)]
+    [InlineData(ReplacementJobState.Quarantining, true)]
+    [InlineData(ReplacementJobState.Quarantined, true)]
+    [InlineData(ReplacementJobState.Restoring, true)]
+    [InlineData(ReplacementJobState.Deleting, true)]
     [InlineData(ReplacementJobState.NeedsReview, true)]
     [InlineData(ReplacementJobState.Failed, false)]
     [InlineData(ReplacementJobState.Cancelled, false)]
-    public void Open_holds_every_state_but_the_two_ends(ReplacementJobState state, bool open)
+    [InlineData(ReplacementJobState.Completed, false)]
+    [InlineData(ReplacementJobState.Restored, false)]
+    public void Open_holds_every_state_but_the_ends(ReplacementJobState state, bool open)
     {
         //Arrange
 
@@ -69,7 +108,8 @@ public sealed class ReplacementJobStatesTests
         [
             ReplacementJobState.Scheduled, ReplacementJobState.Submitted, ReplacementJobState.Downloading, ReplacementJobState.Paused,
             ReplacementJobState.Downloaded, ReplacementJobState.NeedsReview, ReplacementJobState.Failed, ReplacementJobState.Cancelled,
-            ReplacementJobState.Inspecting, ReplacementJobState.Verified,
+            ReplacementJobState.Inspecting, ReplacementJobState.Verified, ReplacementJobState.Quarantining, ReplacementJobState.Quarantined,
+            ReplacementJobState.Completed, ReplacementJobState.Restored, ReplacementJobState.Restoring, ReplacementJobState.Deleting,
         ];
 
         //Act

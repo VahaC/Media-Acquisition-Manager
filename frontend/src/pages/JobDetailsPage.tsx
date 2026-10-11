@@ -6,6 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import { CancelJobButton } from '@/components/jobs/CancelJobButton'
 import { JobProgress } from '@/components/jobs/JobProgress'
 import { JobStatus } from '@/components/jobs/JobStatus'
+import { ReplacementSection } from '@/components/jobs/ReplacementSection'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
@@ -42,7 +43,9 @@ const JOB_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
  * the client, the destination and the category actually sent), where it stands and why it isn't
  * moving on, how far it has got, when it was sent and last changed status, the client's own id for
  * it, and its files as the client last listed them, paged. Cancel when the app still follows it, or
- * when it needs linking.
+ * when it needs linking. MAM-26 — between the facts and the files, the old copies of the replacement
+ * the job carries, with the owner's Retry, Restore and Delete for good (ReplacementSection): their
+ * results in a green banner above the facts, their refusals in the red one Cancel uses.
  *
  * Another user's job, the installation owner's view of it included, is a bare 404 (MAM-14's
  * decision 1), worded like an address that holds no job. While the app follows the job, it is asked
@@ -56,6 +59,13 @@ export function JobDetailsPage() {
   const { data: job, dataUpdatedAt, error, isLoading } = jobQuery
   const load = useLoadRetry(jobQuery)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [actionResult, setActionResult] = useState<string | null>(null)
+
+  /** An action is about to be sent: the last one's news goes. */
+  const startAction = () => {
+    setActionError(null)
+    setActionResult(null)
+  }
 
   const body = (() => {
     // A bare 404 won't change on a second try: no Try again, and no server sentence to add.
@@ -80,13 +90,14 @@ export function JobDetailsPage() {
               job counting as interrupted. */}
           {canCancelJob(job, dataUpdatedAt) && (
             <div className="settings-actions">
-              <CancelJobButton job={job} onStart={() => setActionError(null)} onError={setActionError} />
+              <CancelJobButton job={job} onStart={startAction} onError={setActionError} />
             </div>
           )}
         </div>
 
         {/* Outside the facts, so a failed refresh or a refused cancel adds a line above them
-            instead of replacing them. A job removed meanwhile is a 404 like any other. */}
+            instead of replacing them. A job removed meanwhile is a 404 like any other. MAM-26 — the
+            old copies' actions answer here too. */}
         {error && (isGone(error) ? (
           <Banner>{t('details.notFound')}</Banner>
         ) : (
@@ -96,8 +107,17 @@ export function JobDetailsPage() {
           </Banner>
         ))}
         {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
+        {actionResult && <Banner tone="ok" onDismiss={() => setActionResult(null)}>{actionResult}</Banner>}
 
         <JobFacts job={job} />
+        {job.replacement && (
+          <ReplacementSection
+            replacement={job.replacement}
+            onStart={startAction}
+            onDone={setActionResult}
+            onError={setActionError}
+          />
+        )}
         <JobFiles job={job} />
       </>
     )

@@ -15,7 +15,10 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         Guid downloadJobId,
         Guid requestedByUserId,
         ReplacementJobState state = ReplacementJobState.Scheduled,
-        string? reason = null)
+        string? reason = null,
+        DateTime? quarantineCheckedUtc = null,
+        DateTime? quarantinedUtc = null,
+        DateTime? libraryNoticeDueUtc = null)
     {
         var requestedBy = await db.Users.AsNoTracking().SingleAsync(user => user.Id == requestedByUserId);
         var now = time.GetUtcNow().UtcDateTime;
@@ -28,6 +31,9 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
             StateChangedUtc = now,
             Reason = reason,
             CreatedUtc = now,
+            QuarantineCheckedUtc = quarantineCheckedUtc,
+            QuarantinedUtc = quarantinedUtc,
+            LibraryNoticeDueUtc = libraryNoticeDueUtc,
         };
 
         db.ReplacementJobs.Add(job);
@@ -42,7 +48,9 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         FileFacts facts,
         int position = 0,
         Guid? physicalFileId = null,
-        Guid? mediaWorkId = null)
+        Guid? mediaWorkId = null,
+        string? servicePath = null,
+        Guid? pairedNewFileId = null)
     {
         ArgumentNullException.ThrowIfNull(facts);
         var workId = mediaWorkId ?? Guid.NewGuid();
@@ -54,13 +62,14 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
             MediaVersionId = Guid.NewGuid(),
             MediaWorkId = workId,
             MatchedWorkId = workId,
-            ServicePath = appPath,
+            ServicePath = servicePath ?? appPath,
             AppPath = appPath,
             DeviceId = facts.DeviceId ?? throw new ArgumentException("A scheduled copy has the identity it was read with.", nameof(facts)),
             Inode = facts.Inode ?? throw new ArgumentException("A scheduled copy has the identity it was read with.", nameof(facts)),
             SizeBytes = facts.SizeBytes,
             ModifiedUtc = facts.ModifiedUtc,
             LinkCount = facts.LinkCount,
+            PairedNewFileId = pairedNewFileId,
         };
 
         db.ReplacementJobFiles.Add(file);
@@ -131,5 +140,48 @@ public sealed class ReplacementJobDataFactory(ApplicationDbContext db, TimeProvi
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         return file;
+    }
+
+    public async Task<ReplacementJobNameEntity> AddName(
+        Guid replacementJobId,
+        Guid replacementJobFileId,
+        int position,
+        ReplacementNameKind kind,
+        string appPath,
+        string quarantinePath,
+        string allowedRoot,
+        FileFacts facts,
+        ReplacementNameState state = ReplacementNameState.Planned,
+        string? problem = null,
+        DateTime? movedUtc = null,
+        DateTime? restoredUtc = null,
+        DateTime? deletedUtc = null)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        var name = new ReplacementJobNameEntity
+        {
+            ReplacementJobId = replacementJobId,
+            Position = position,
+            ReplacementJobFileId = replacementJobFileId,
+            Kind = kind,
+            AppPath = appPath,
+            QuarantinePath = quarantinePath,
+            AllowedRoot = allowedRoot,
+            DeviceId = facts.DeviceId ?? throw new ArgumentException("A planned name has the identity it was read with.", nameof(facts)),
+            Inode = facts.Inode ?? throw new ArgumentException("A planned name has the identity it was read with.", nameof(facts)),
+            SizeBytes = facts.SizeBytes,
+            ModifiedUtc = facts.ModifiedUtc,
+            LinkCount = facts.LinkCount,
+            State = state,
+            Problem = problem,
+            MovedUtc = movedUtc,
+            RestoredUtc = restoredUtc,
+            DeletedUtc = deletedUtc,
+        };
+
+        db.ReplacementJobNames.Add(name);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        return name;
     }
 }

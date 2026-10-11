@@ -206,3 +206,123 @@ item again" stands on it as well. Every such call is a read.
 and
 `ReplacementVerificationHttpTests.Verify_of_a_film_whose_new_item_carries_the_old_works_imdb_id_verifies_it_and_keeps_the_evidence`
 (one POST, every other call a read) pin it.
+
+## The move, Restore and Delete for good, as built (added 0.3.0, MAM-26)
+
+**The old copy moves as the Decision says, through `IFileQuarantine` — a write contract beside
+`IFileInventory`, which stays read-only by construction — whose Linux implementation,
+`LocalFileQuarantine`, makes one `renameat2(RENAME_NOREPLACE)` per name on folders it holds as
+`O_PATH | O_NOFOLLOW` descriptors; the job rests `Quarantined` until the owner's Restore, which ends
+it `Restored`, or Delete for good, which ends it `Completed`, and a cut is found again by device and
+inode and stops for review ([ADR
+0033](0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md),
+[ADR
+0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)).**
+`Restored` is a state of its own, both copies back in the library, by Vasyl's decision of
+2026-10-10; Restore and Delete for good act on the whole job, every name it holds in the quarantine.
+
+**Where and what.** `QuarantineFolder.PathOf` gives `<allowed folder>/.mam-quarantine/<job id>/<path
+inside the folder>` and refuses a path already in a quarantine. `QuarantineCompanions.Pick` reads a
+name in the video's own letter case on a POSIX folder and in any on a Windows one; `DiscFolders`
+tells a disc's clip, which stops the job before the claim. The claim writes a `ReplacementJobNames`
+row per planned name — the video, then its companions — with the allowed folder, the place in the
+quarantine, and the device, inode, size, modification time and link count read right before: the
+facts every later rename, Restore and Delete for good compares.
+
+**How.** The name is read by `statx` without following it and must be a regular file with the
+expected facts; the source folder must share the allowed folder's mount by `STATX_MNT_ID` (a kernel
+without it, before Linux 5.8, is `NotSupported`), and so must the quarantine's last folder; the
+quarantine's folders are made one level at a time (`mkdirat`, 0755 before the umask), a link
+planted there refused. Right before the rename both folder paths are walked again and must still
+lead to the folders held, and the name is compared again; after it both folders are flushed — a
+failed flush is ignored, as the rename happened and a restart's look covers a crash before the
+flush — and the new name must show the same device and inode. `EEXIST` is `NameTaken`, `EXDEV`
+`OtherMount`, `EINVAL` `NotSupported`, `EACCES`, `EPERM` and `EOVERFLOW` `NotAllowed`, `EROFS`
+`ReadOnly`, each with the contract's sentence, the name left where it was; a rename whose new name
+then shows another device or inode moved a file put at the name after the last look, and is
+`Swapped`. The last name is never followed, and a library video that is itself a link stops the job
+before the claim ("“Alien.mkv” is a link to another file, and the app moves only a file itself, so it
+stays where it is."). A move's source folder is located within the allowed folder whose quarantine
+takes the name alone, its links followed, and no folder of a move, a restore or a listing may lead
+into a quarantine ("… already lies in a quarantine."): a folder link into another allowed folder or
+into a quarantine moves nothing. Anywhere but Linux, `Capabilities.CanRename` is false and every
+write is `NotSupported`: a move there stops for review, and Restore and Delete for good refuse
+before the claim.
+
+**Rows before and after.** Each name's intent (`Moving`, `Restoring` or `Deleting`, with its audit
+row) is committed before the system call and its outcome after, no transaction held across the
+disk; a job being worked on is held in the process's `ReplacementJobsInHand`, so the mover and an
+owner's click never write for one job at once. A video that can't move stops the job at
+`NeedsReview` ("“Yellowstone S02E02.mkv” couldn't be moved into the quarantine: …"), what moved
+before it staying in the quarantine and its companions left `Planned` — a Retry's run takes them up
+again, each checked as its video was —; a name whose rename was `Swapped` is `Lost` ("A different
+file now sits in the quarantine under “…”, …") and stops the job too; a companion that can't stays
+`Stayed` with the sentence. A cut — a job found `Quarantining`, `Restoring` or `Deleting` that no one
+in the process holds — looks each name in the middle up through the file inventory at both places
+and records `Quarantined`, `Planned`, `Restored`, `Deleted` or `Lost`, then stops: "The app stopped
+while moving the old copies: 1 of 3 names is in the quarantine.", where the Decision's example said
+"The app restarted while moving this copy"; it renames and deletes nothing. A cut restore that put
+every name back ends `Restored`, and a cut deletion that deleted every name `Completed`, as nothing
+is left to review; a look that failed, or that finds a name nowhere while neither of its folders is
+there, decides nothing, and the next pass looks again.
+
+**Restore.** From `Quarantined`, or from `NeedsReview` with names in the quarantine; every name is
+checked before anything is written — the switch, the old path's ticked folder, the file in the
+quarantine unchanged, no name at the old path (a link leading nowhere included), the old folder
+still there, which a listing of its names never following one tells — and refused with nothing
+moved otherwise; so is a job one of whose videos a Delete for good that stopped part-way deleted, as
+its companions would go back alone (Retry settles it, then Delete for good takes the rest). Each
+name goes back by the same rename, videos first; one that can't stops the job for review with how
+many are back. Each name keeps its own
+allowed folder as the contract's root while a current allowed folder holds it, so a quarantine stays
+reachable when its folder is replaced by one above it.
+
+**Delete for good.** Only from `Quarantined`, and only for exactly the names the owner's second
+confirmation listed; each is compared again right before one `unlinkat`, which takes only a path
+inside a job's folder of a quarantine, and no folder is removed. The room it frees counts only names
+with one link, as the disk says it of the file now at the quarantine path while it is the one moved
+there.
+
+**Jellyfin.** After a move and a restore, `POST /Library/Media/Updated` with each name's original
+place in the library's terms, as `Deleted` after a move and `Created` after a restore
+(`LibraryFileChange`), never a quarantine path; owed (`LibraryNoticeDueUtc`) and sent again on each
+pass for an hour while it isn't taken. A deletion sends nothing more. Nothing else is written to
+Jellyfin, and Restore sends no Identify.
+
+**Out of the lists, within reach.** The scan leaves out every `.mam-quarantine` ([ADR
+0021](0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+The Media folders page lists each quarantine's room from the rows, never a walk of the disk, and a
+Save that would leave one holding names (`Quarantined`, `Moving`, `Restoring`, `Deleting`) outside
+every allowed folder is 400, naming it — so is one that puts the quarantine itself in its folder's
+place. The mover reads the allowed folders again inside each name's intent, under the same write
+lock as the Save, so a Save and a rename can't pass each other.
+
+**Not met by the tests.** The tests the Consequences' "Code to come" asked for are among those
+below, over real folders where it said so. Not met by them: `EXDEV`, `EINVAL`, `EROFS` and
+`EOVERFLOW` from the system calls
+themselves — the mount check stops a cross-mount rename before it, and the test container's file
+systems all have the flag —, a real read-only bind mount, a mount at `.mam-quarantine`, a failed
+flush and arm64's open flags. Nothing was moved on the reference installation; MAM-28 checks it.
+
+`LocalFileQuarantineLinuxTests.Move_renames_the_file_into_its_roots_quarantine_keeping_its_device_and_inode_and_leaves_nothing_behind`,
+`LocalFileQuarantineLinuxTests.Move_of_a_file_that_changed_since_it_was_checked_moves_nothing_and_makes_no_folder`,
+`LocalFileQuarantineLinuxTests.Move_onto_a_name_already_taken_in_the_quarantine_is_name_taken_and_both_files_stay`,
+`LocalFileQuarantineLinuxTests.Move_from_a_mount_inside_its_root_is_other_mount_and_makes_nothing`,
+`LocalFileQuarantineLinuxTests.Restore_renames_the_file_back_keeping_its_device_and_inode_and_leaves_nothing_in_the_quarantine`,
+`LocalFileQuarantineLinuxTests.Restore_into_a_folder_that_is_gone_is_folder_gone_and_makes_no_folder`,
+`LocalFileQuarantineLinuxTests.Delete_of_a_quarantined_file_that_changed_deletes_nothing`,
+`ReplacementQuarantineHttpTests.Quarantine_of_a_verified_film_moves_its_video_and_own_companions_into_the_quarantine_keeping_their_identity`,
+`ReplacementQuarantineHttpTests.Quarantine_leaves_another_videos_companion_whose_name_begins_with_the_ticked_videos_name_in_place`,
+`ReplacementQuarantineHttpTests.Quarantine_of_a_season_whose_second_episode_cant_be_renamed_keeps_the_first_in_the_quarantine_and_leaves_the_third_where_it_is`,
+`ReplacementQuarantineChecksHttpTests.Quarantine_of_a_clip_of_a_disc_folder_stops_for_review`,
+`ReplacementQuarantineChecksHttpTests.Quarantine_across_two_mounts_renames_nothing_and_stops_for_review`,
+`ReplacementQuarantineRecoveryHttpTests.Quarantine_cut_after_a_rename_before_its_outcome_finds_the_name_in_the_quarantine_on_the_next_pass_and_stops_for_review`,
+`ReplacementQuarantineRecoveryHttpTests.Quarantine_cut_between_two_names_counts_the_moved_ones_on_the_next_pass_and_renames_nothing_twice`,
+`ReplacementRestoreHttpTests.Restore_of_a_quarantined_replacement_puts_every_name_back_with_its_identity_and_is_200_restored`,
+`ReplacementRestoreHttpTests.Restore_refused_by_a_check_is_409_with_why_and_writes_and_renames_nothing`,
+`ReplacementDeleteForGoodHttpTests.DeleteForGood_of_the_confirmed_names_deletes_them_from_the_quarantine_and_is_200_completed`,
+`ReplacementDeleteForGoodHttpTests.DeleteForGood_confirming_another_set_than_the_quarantine_holds_is_409_and_deletes_nothing`,
+`ReplacementLibraryNoticeTests.SendDue_never_names_a_quarantine_path_even_where_the_quarantine_lies_in_a_library_folder`,
+`ReplacementQuarantineFlowHttpTests.Flow_moves_the_old_copy_tells_jellyfin_it_went_then_restore_puts_it_back_with_its_identity_and_tells_jellyfin_it_came_back`,
+`ReplacementSettingsHttpTests.Update_replacing_the_media_folder_by_its_parent_keeps_the_quarantine_reachable_and_is_204`,
+`QuarantineFolderTests` and `QuarantineCompanionsTests` pin it.

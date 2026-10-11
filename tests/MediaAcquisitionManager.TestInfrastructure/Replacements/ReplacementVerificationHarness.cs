@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -36,6 +37,13 @@ namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 /// asked or read Jellyfin by the app's path — or the app by Jellyfin's — finds nothing, and fails its test.
 /// </para>
 /// <para>
+/// MAM-26 — the move into the quarantine stands on the same world: a test reaches a Verified replacement in one step
+/// (<see cref="VerifiedAsync"/>), runs the mover's passes (<c>QuarantineReplacementsAsync</c>), and reads back where
+/// each name went (<see cref="QuarantinePathOf"/>, written out rather than asked of the app) and the quarantine's audit
+/// rows in the order they were saved (<see cref="QuarantineAuditsAsync"/>). <see cref="Mark"/> takes the marks
+/// <see cref="Writes"/> counts from again.
+/// </para>
+/// <para>
 /// Nothing here asserts: the test projects own their assertions. What a test reads back — the rows, the audit rows of the
 /// check, the Jobs page's line, every request that wasn't a read, the old copies on the disk now — comes back as data.
 /// Every test class makes its own: the tests are split by what they prove, and what they stand on is one place.
@@ -69,6 +77,9 @@ public sealed class ReplacementVerificationHarness
 
     /// <summary>Серіали's folder as Jellyfin reports it.</summary>
     public const string ShowsLibraryFolder = "/data/tv-shows";
+
+    /// <summary>MAM-26 — the quarantine of <see cref="MediaRoot"/>, where the old copies wait (ADR 0030).</summary>
+    public const string QuarantineRoot = "/media/.mam-quarantine";
 
     private const string DownloadsUrl = "/api/downloads";
     private const string ReplacementsUrl = "/api/replacements";
@@ -239,6 +250,20 @@ public sealed class ReplacementVerificationHarness
     }
 
     /// <summary>
+    /// MAM-26 — where the copy at <paramref name="appPath"/>, the app's, waits in the quarantine while the replacement
+    /// <paramref name="replacementJobId"/> holds it: <see cref="QuarantineRoot"/>, the job's id, then the copy's path
+    /// inside <see cref="MediaRoot"/> (ADR 0030). Written out here, not asked of the app, for <see cref="InJellyfin"/>'s
+    /// reason. Throws for a path outside <see cref="MediaRoot"/>, which has no place there.
+    /// </summary>
+    public static string QuarantinePathOf(Guid replacementJobId, string appPath)
+    {
+        ArgumentNullException.ThrowIfNull(appPath);
+        if (!appPath.StartsWith(MediaRoot + "/", StringComparison.Ordinal))
+            throw new ArgumentException($"Only a copy inside {MediaRoot} waits in its quarantine.", nameof(appPath));
+        return $"{QuarantineRoot}/{replacementJobId}/{appPath[(MediaRoot.Length + 1)..]}";
+    }
+
+    /// <summary>
     /// The path Jellyfin knows the file at <paramref name="appPath"/> by: <see cref="MediaRoot"/> spelled
     /// <see cref="JellyfinRoot"/>. Written out here, not asked of the app, which must build it from the folder Jellyfin
     /// reported (<c>ReplacementLibraryPlaces</c>) — a copy of its rule would agree with it however wrong. Throws for a path
@@ -297,9 +322,55 @@ public sealed class ReplacementVerificationHarness
             throw new InvalidOperationException("The replacement didn't follow its download to Downloaded.");
 
         _factory.Time.Advance(TimeSpan.FromSeconds(5));
+        Mark();
+        return job;
+    }
+
+    /// <summary>
+    /// MAM-26 — the owner's replacement of the copies at <paramref name="tickedPaths"/> by <paramref name="release"/>,
+    /// verified as MAM-25 leaves it: <see cref="DownloadedAsync"/> with <paramref name="files"/>, every one of
+    /// <paramref name="newFiles"/> on the disk, Jellyfin answering each request to look with <paramref name="identify"/>
+    /// (making the items of the paths it is given), and the verifier's two passes a
+    /// <see cref="ReplacementVerificationTracker.PassInterval"/> apart. Throws unless the replacement is Verified. Then
+    /// Jellyfin answers a request to look with nothing again — the move's own request names the old copy's path, where
+    /// <paramref name="identify"/> would plant an item —, and the marks <see cref="Writes"/> counts from are taken again,
+    /// so it counts what follows only.
+    /// </summary>
+    /// <param name="newFiles">Each new file at its app path, with the identity and the streams the disk and the media
+    /// inspector give.</param>
+    public async Task<DownloadJobDto> VerifiedAsync(
+        ReleaseEntity release,
+        DestinationMappingEntity destination,
+        IReadOnlyList<string> tickedPaths,
+        IReadOnlyList<FakeQBittorrentFile> files,
+        IReadOnlyList<(string AppPath, FileFacts Facts, MediaFacts Media)> newFiles,
+        Action<IReadOnlyList<string>> identify,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(newFiles);
+        ArgumentNullException.ThrowIfNull(identify);
+        var job = await DownloadedAsync(release, destination, tickedPaths, files, cancellationToken);
+        foreach (var (appPath, facts, media) in newFiles)
+            _factory.Files.AddFile(appPath, facts, media);
+        JellyfinServer.OnScanRequested = identify;
+        await VerifyAsync(cancellationToken);
+        _factory.Time.Advance(ReplacementVerificationTracker.PassInterval);
+        await VerifyAsync(cancellationToken);
+        JellyfinServer.OnScanRequested = null;
+
+        var replacement = await ReplacementAsync(cancellationToken);
+        if (replacement.State != ReplacementJobState.Verified)
+            throw new InvalidOperationException($"The replacement is {replacement.State}, not Verified: {replacement.Reason}");
+        Mark();
+        return job;
+    }
+
+    /// <summary>MAM-26 — takes the marks <see cref="Writes"/> counts from again: every request to qBittorrent and Jellyfin
+    /// so far is behind them.</summary>
+    public void Mark()
+    {
         _qbittorrentMark = _factory.QBittorrentHttp.Requests.Count;
         _jellyfinMark = _factory.JellyfinHttp.Requests.Count;
-        return job;
     }
 
     // ── the check ───────────────────────────────────────────────────────────────────────────────
@@ -378,6 +449,51 @@ public sealed class ReplacementVerificationHarness
                 .OrderBy(audit => audit.CreatedUtc)
                 .ThenBy(audit => audit.Action)
                 .ToListAsync(cancellationToken))
+            .Select(audit => (audit.Action, audit.ActorUserId, audit.TargetKind, audit.TargetId, audit.TargetName))
+            .ToList());
+        return rows;
+    }
+
+    /// <summary>
+    /// MAM-26 — the audit rows of the quarantine — every action MAM-26 added (the mover's, Retry's, Restore's and Delete
+    /// for good's, the job's and each name's) and <see cref="AuditAction.ReplacementNeedsReview"/>, which their stops
+    /// write — in the order they were saved, each with its actor and target. Read by SQLite's own row order: the clock
+    /// stands still in a test, so an intent and its outcome share a time, and the ids are random.
+    /// </summary>
+    /// <remarks>
+    /// The order is the saves' order, not the calls': EF writes the rows of one save in the order of their (random) ids,
+    /// so the rows one save holds come in any order among themselves — compare those as a set.
+    /// </remarks>
+    public async Task<IReadOnlyList<(AuditAction Action, Guid? ActorUserId, AuditTargetKind? TargetKind, Guid? TargetId, string? TargetName)>> QuarantineAuditsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        AuditAction[] actions =
+        [
+            AuditAction.ReplacementNeedsReview,
+            AuditAction.ReplacementQuarantineStarted,
+            AuditAction.ReplacementNameMoving,
+            AuditAction.ReplacementNameMoved,
+            AuditAction.ReplacementNameNotMoved,
+            AuditAction.ReplacementQuarantined,
+            AuditAction.ReplacementRetried,
+            AuditAction.ReplacementRestoreStarted,
+            AuditAction.ReplacementNameRestoring,
+            AuditAction.ReplacementNameRestored,
+            AuditAction.ReplacementNameNotRestored,
+            AuditAction.ReplacementRestored,
+            AuditAction.ReplacementDeleteStarted,
+            AuditAction.ReplacementNameDeleting,
+            AuditAction.ReplacementNameDeleted,
+            AuditAction.ReplacementNameNotDeleted,
+            AuditAction.ReplacementCompleted,
+        ];
+        List<(AuditAction, Guid?, AuditTargetKind?, Guid?, string?)> rows = [];
+        // Nothing composed onto the raw query: EF would wrap it in a subquery, whose order SQLite needn't keep.
+        await _factory.WithDbAsync(async db => rows = (await db.AuditEvents
+                .FromSqlRaw("SELECT * FROM \"AuditEvents\" ORDER BY rowid")
+                .AsNoTracking()
+                .ToListAsync(cancellationToken))
+            .Where(audit => actions.Contains(audit.Action))
             .Select(audit => (audit.Action, audit.ActorUserId, audit.TargetKind, audit.TargetId, audit.TargetName))
             .ToList());
         return rows;

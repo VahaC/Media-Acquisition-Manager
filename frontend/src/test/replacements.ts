@@ -2,7 +2,9 @@ import type {
   DownloadJobReplacement,
   LibraryFile,
   ReplacementCopy,
+  ReplacementDetails,
   ReplacementEpisode,
+  ReplacementName,
   ReplacementOptions,
   ReplacementUnavailableReason,
   ReplacementWork,
@@ -154,7 +156,86 @@ export function yellowstoneWorkOf(changes: Partial<ReplacementWork> = {}): Repla
   }
 }
 
+/** MAM-26 — the replacement's own id, which its details and the owner's actions ask by. */
+export const REPLACEMENT_ID = 'e1a50000-0000-4000-8000-000000000001'
+
 /** The replacement a job carries; `changes` sets what a test is about. */
 export function replacementOf(changes: Partial<DownloadJobReplacement> = {}): DownloadJobReplacement {
-  return { state: 'Scheduled', copyCount: 1, reason: null, switchedOff: false, copiesOutsideTickedFolders: 0, ...changes }
+  return {
+    id: REPLACEMENT_ID,
+    state: 'Scheduled',
+    copyCount: 1,
+    reason: null,
+    switchedOff: false,
+    copiesOutsideTickedFolders: 0,
+    quarantinedCopyCount: 0,
+    stayedFileCount: 0,
+    canRetry: false,
+    ...changes,
+  }
+}
+
+// MAM-26 — what GET /api/replacements/{id} answers for a film moved into /media's quarantine: Alien
+// (1979)'s video with its two subtitles, one of which a torrent holds, so it stayed.
+
+/** Where `relative` lands in the quarantine of /media for REPLACEMENT_ID. */
+const quarantined = (relative: string) => `/media/.mam-quarantine/${REPLACEMENT_ID}/${relative}`
+
+/** One name of the replacement; `changes` sets what a test is about. */
+export function nameOf(changes: Partial<ReplacementName>): ReplacementName {
+  return {
+    id: 'e1a50000-0000-4000-8000-000000000101',
+    kind: 'Video',
+    originalPath: '/media/movies/Alien (1979)/Alien.mkv',
+    quarantinePath: quarantined('movies/Alien (1979)/Alien.mkv'),
+    sizeBytes: 42_949_672_960,
+    otherNames: false,
+    state: 'Quarantined',
+    problem: null,
+    ...changes,
+  }
+}
+
+/** Alien (1979)'s video, moved into the quarantine: 40 GiB. */
+export const alienVideo = nameOf({})
+
+/** Its English subtitle, moved with it: 50 KiB. */
+export const alienSubtitle = nameOf({
+  id: 'e1a50000-0000-4000-8000-000000000102',
+  kind: 'Companion',
+  originalPath: '/media/movies/Alien (1979)/Alien.en.srt',
+  quarantinePath: quarantined('movies/Alien (1979)/Alien.en.srt'),
+  sizeBytes: 51_200,
+})
+
+/** Its Ukrainian subtitle, held by a torrent, so it stayed in its folder. */
+export const alienHeldSubtitle = nameOf({
+  id: 'e1a50000-0000-4000-8000-000000000103',
+  kind: 'Companion',
+  originalPath: '/media/movies/Alien (1979)/Alien.uk.srt',
+  quarantinePath: quarantined('movies/Alien (1979)/Alien.uk.srt'),
+  sizeBytes: 48_128,
+  state: 'Stayed',
+  problem: 'Held by the torrent “Alien.1979.Subs” in “Local qBittorrent”, so it stays where it is.',
+})
+
+/**
+ * The replacement as its job's page asks for it: Quarantined, the video and one subtitle in the
+ * quarantine and the held one in its folder, Restore and Delete for good offered.
+ */
+export function replacementDetailsOf(changes: Partial<ReplacementDetails> = {}): ReplacementDetails {
+  return {
+    id: REPLACEMENT_ID,
+    downloadJobId: 'd0b10000-0000-4000-8000-000000000002',
+    state: 'Quarantined',
+    reason: null,
+    switchedOff: false,
+    canRetry: false,
+    canRestore: true,
+    canDeleteForGood: true,
+    quarantinedBytes: alienVideo.sizeBytes + alienSubtitle.sizeBytes,
+    freesBytes: alienVideo.sizeBytes + alienSubtitle.sizeBytes,
+    names: [alienVideo, alienSubtitle, alienHeldSubtitle],
+    ...changes,
+  }
 }

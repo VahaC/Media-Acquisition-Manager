@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Replacements;
 
 namespace MediaAcquisitionManager.Api.Services.Audit;
 
@@ -48,6 +49,14 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     /// </summary>
     public static AuditTarget ReplacementJob(ReplacementJobEntity job, string name) =>
         new(AuditTargetKind.ReplacementJob, job.Id, Cut(name));
+
+    /// <summary>
+    /// MAM-26 — one name a replacement moves into the quarantine, restores or deletes, by its row, named by the file's own
+    /// name (<c>Alien (1979).mkv</c>): its row keeps both paths and the job, and the audit row's id finds it. Cut to the
+    /// column with an ellipsis, as a file's name runs to 255 bytes.
+    /// </summary>
+    public static AuditTarget ReplacementJobName(ReplacementJobNameEntity name) =>
+        new(AuditTargetKind.ReplacementJobName, name.Id, Cut(ReplacementText.FileNameOf(name.AppPath)));
 
     /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
     /// what tells two works apart within it.</summary>

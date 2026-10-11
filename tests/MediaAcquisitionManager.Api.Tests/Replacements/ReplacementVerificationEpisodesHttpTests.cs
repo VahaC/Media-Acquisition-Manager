@@ -116,7 +116,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 2, null, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 2, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         // The three episodes, by the client's place — never the skipped sample, nor the .nfo —, each Yellowstone's by its
         // series at its place.
@@ -185,7 +185,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         Assert.Equal(
             [((int?)null, (Guid?)_yellowstone.Id, (string?)null), (4, _yellowstone.Id, null)],
             (await _harness.NewFilesAsync(cancellationToken)).Select(file => (file.EpisodeNumberEnd, file.MediaWorkId, file.Problem)));
@@ -210,7 +210,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         // Two requests to look: the most one call names, then the rest, in the client's order.
         Assert.Equal(["POST /Library/Media/Updated", "POST /Library/Media/Updated"], _harness.Writes());
         var asked = _harness.JellyfinServer.ScanRequests.ToList();
@@ -519,7 +519,7 @@ public sealed class ReplacementVerificationEpisodesHttpTests : IClassFixture<Med
     private async Task AssertNeedsReviewAsync(DownloadJobDto job, int copyCount, string reason, CancellationToken cancellationToken)
     {
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, copyCount, reason, false, 0),
+            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, copyCount, reason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id },
             await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, replacement.Reason));

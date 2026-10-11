@@ -1,7 +1,7 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { replacementsApi } from '../replacements-api'
-import type { ScheduleReplacementRequest } from '../types'
+import type { DownloadJob, ScheduleReplacementRequest } from '../types'
 import { qk } from './keys'
 
 /**
@@ -52,5 +52,96 @@ export const useScheduleReplacement = () => {
         void queryClient.invalidateQueries({ queryKey: qk.replacements.options(request.releaseId, request.destinationId, holdings) })
       }
     },
+  })
+}
+
+/**
+ * MAM-26 — one of the owner's replacements, for its job's page: every name its move planned and
+ * where each is now, the room it takes in the quarantine, and what the owner may do. Asked only for
+ * the owner (`enabled`): the route is owner-only. Not polled: the job's own query asks for it again
+ * whenever the replacement it carries comes back changed (useDownloadJob), and each action here asks
+ * for it again once it answers. Not retried: a 404 for a replacement gone won't change on a second try.
+ */
+export const useReplacement = (id: string, enabled: boolean) =>
+  useQuery({
+    queryKey: qk.replacements.job(id),
+    queryFn: () => replacementsApi.get(id),
+    enabled: enabled && id !== '',
+    retry: false,
+  })
+
+/** The arguments of a Delete for good: the replacement, and the names the owner confirmed. */
+interface DeleteForGoodVariables {
+  id: string
+  names: string[]
+}
+
+/**
+ * Puts the job an owner's action answered with in place at once, as a cancel does. Each action then
+ * asks again for every list, job and file page and the replacement's details whatever it answered —
+ * a 409 means the replacement changed meanwhile, which the refetch shows —, and stays pending until
+ * those are back, so its buttons stay disabled until the page shows the new state.
+ */
+const settleJob = (queryClient: QueryClient, job: DownloadJob) =>
+  queryClient.setQueryData<DownloadJob>(qk.downloads.jobs.detail(job.id), job)
+
+/**
+ * MAM-26 — sends a replacement the mover stopped for review back to be checked and moved (ADR 0031:
+ * "remove that torrent there without its files, then press Retry"). The request itself writes
+ * nothing to the media, so the quarantine's room is left alone. Never retried on its own, and sent
+ * even while the browser says it is offline (`networkMode: 'always'`), as a cancel is: held back, it
+ * would go out on its own later, after the owner may have left the page.
+ */
+export const useRetryReplacement = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => replacementsApi.retry(id),
+    networkMode: 'always',
+    onSuccess: (job) => settleJob(queryClient, job),
+    onSettled: (_, __, id) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
+      queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
+    ]),
+  })
+}
+
+/**
+ * MAM-26 — puts every name of the owner's replacement in the quarantine back where it was (ADR 0030).
+ * Once it answers, the job, its details and the Media folders' quarantine room are asked for again,
+ * whatever the answer: a refusal part-way still brought some names back. Never retried on its own,
+ * and sent even while the browser says it is offline (useRetryReplacement's reason).
+ */
+export const useRestoreReplacement = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => replacementsApi.restore(id),
+    networkMode: 'always',
+    onSuccess: (job) => settleJob(queryClient, job),
+    onSettled: (_, __, id) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
+      queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
+      queryClient.invalidateQueries({ queryKey: qk.settings.allowedRoots }),
+    ]),
+  })
+}
+
+/**
+ * MAM-26 — deletes for good exactly the names the owner confirmed from the replacement's quarantine
+ * (ADR 0030); the server refuses the list if it isn't what the quarantine holds now. Then as Restore:
+ * the job, its details and the quarantine room are asked for again whatever the answer. Never
+ * retried on its own, and sent even while the browser says it is offline (useRetryReplacement's
+ * reason).
+ */
+export const useDeleteReplacementForGood = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, names }: DeleteForGoodVariables) => replacementsApi.deleteForGood(id, names),
+    networkMode: 'always',
+    onSuccess: (job) => settleJob(queryClient, job),
+    onSettled: (_, __, { id }) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
+      queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
+      queryClient.invalidateQueries({ queryKey: qk.settings.allowedRoots }),
+    ]),
   })
 }

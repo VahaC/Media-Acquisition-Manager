@@ -189,3 +189,68 @@ file there: that PC reaches no media file.
 and
 `DownloadsSendHttpTests.Create_records_what_the_release_turned_out_to_be_and_never_reads_the_whole_client`
 pin it, and `QBittorrentAdapterJobsWithFilesTests` the read itself.
+
+## The read that decides, and the owner's Retry, as built (added 0.3.0, MAM-26)
+
+**Right before the move, after check 5, the app reads every download client's torrents with their
+files once more, for the video and every companion it would rename, and a video any torrent lists —
+in any state, at its own path or reached through a link — stops the job at `NeedsReview` with the
+Decision's sentence, as built "Still held by the torrent “Alien.1979.Theatrical” in “qBittorrent”:
+remove that torrent there without its files, then press Retry."; the owner's Retry then sends it
+back to the move, which reads the clients again ([ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).**
+
+**Which clients.** `IReplacementHoldingReader` gains an overload for names, which the dialog's read
+now goes through too. It leaves out a client none of whose path mapping pairs has an app-side path
+under an allowed folder or holding one (`ClientFilePlaces.Reaches`) and asks it nothing, as none of
+its torrents can hold a file there; a client without pairs is read, its paths being the app's own.
+The dialog still lists every client.
+
+**By path, whatever the size.** A torrent file whose mapped path is a name's own path is a hold
+whatever size it lists, an unknown size included, and never makes the torrent unplaced — in the
+dialog too, where only a file of the copy's size was looked at before. Elsewhere a hold is still
+read by path and confirmed by device and inode.
+
+**Uncertain stops it.** A client not read is "The app couldn't tell whether a torrent in
+“qBittorrent” holds the old copy: …" with its reason — a qBittorrent older than 5.2 included —, and
+one some of whose torrents can't be placed "The app couldn't place 1 of “qBittorrent”'s torrents in
+its folders, so it can't tell whether one of them holds the old copy.", one sentence per client.
+
+**Several torrents** are named once each, told apart by client and torrent id and ordered by client,
+then torrent name: "Still held by the torrents “…” in “qBittorrent” and “…” in “seedbox”: remove
+those torrents there without their files, then press Retry." A companion a torrent lists is written
+`Stayed` with "Held by the torrent “…” in “qBittorrent”, so it stays where it is.", and its video
+still moves. A second name of a torrent's file moves, its link count kept so Delete for good counts
+no room for it while it has another name: the job's page reads the count again from the file at its
+quarantine path, so once the torrent is removed with its files, deleting the name frees its room. A
+pass with nothing left to rename — a Retry of a job whose every video is in the quarantine already —
+asks no client, as no torrent can hold what doesn't move.
+
+**Retry, as built.** `POST /api/replacements/{id}/retry`, the owner's, takes a job the move stopped —
+checks 5 or 6, a refused rename or a cut, marked by `QuarantineCheckedUtc` — back to `Verified` with
+a `ReplacementRetried` row and nothing written to the media; the next pass checks the copy and reads
+the clients again before anything moves. A stop of the check of the new files is not this Retry
+(409): that one stays MAM-27's.
+
+**Still no client write.** Before a move the clients get the sign-in, `app/version` and the
+listing, nothing else. `DownloadClientNeverRemovesTests` now forbids a member named for moving,
+relocating or renaming, and the consecutive words set and location, which the Consequences named;
+set, save and path and set, download and path are our addition, qBittorrent's other ways to put a
+torrent's files elsewhere. Its method keeps its name, cited elsewhere, and `IDownloadClient` gains
+no member.
+
+`ReplacementQuarantineHoldsHttpTests.Quarantine_of_a_video_a_torrent_lists_in_any_state_stops_for_review_naming_it_and_moves_nothing`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_of_a_video_two_torrents_list_names_each_of_them_by_client`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_of_a_companion_a_torrent_lists_leaves_it_named_on_the_job_and_moves_the_video`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_of_a_video_that_is_a_second_name_of_a_torrents_file_moves_it_recording_its_other_name`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_retried_once_the_owner_removed_the_torrent_moves_the_video`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_while_a_torrent_saves_where_no_pair_maps_stops_for_review`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_while_qbittorrent_does_not_answer_stops_for_review`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_while_qbittorrent_is_too_old_to_list_the_files_stops_for_review`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_marks_a_name_a_torrent_lists_at_its_path_whatever_size_it_lists`,
+`ReplacementOptionsHoldingsHttpTests.Options_with_holdings_marks_a_copy_a_torrent_lists_at_its_path_whatever_size_it_lists`,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`,
+`ReplacementQuarantineFlowHttpTests.Flow_of_a_copy_a_torrent_holds_stops_for_review_and_once_the_torrent_is_removed_retry_lets_the_next_pass_move_it`
+and `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
+pin it.

@@ -232,3 +232,85 @@ before each write.
 
 `ReplacementVerificationHttpTests.Verify_while_replacement_is_switched_off_still_verifies_and_moves_nothing`
 pins it, and `JobsPage.test.tsx` the lines.
+
+## The gates before each write, the per-folder hint and the owner's own actions, as built (added 0.3.0, MAM-26)
+
+**The switch and the ticks are read again right before every rename and every deletion — the
+mover's, Restore's and Delete for good's —, the Media folders page says for each ticked folder
+whether a rename can work there, a Save that would leave a quarantine holding names outside every
+allowed folder is refused, and Retry, Restore and Delete for good are the owner's by where their
+routes live ([ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).**
+
+**Before each write.** Switched off, a `Verified` job is left as it is — its copies, the clients and
+Jellyfin not even read —, and its line says nothing will move while it is off. A copy still to move
+whose folder is no longer ticked stops the whole replacement at the check right before the move, so
+its line says so ("1 copy is no longer in a ticked folder: unless it is ticked again, the replacement
+stops for review and nothing moves."). Switched off, the copy's folder unticked or its allowed folder
+taken out of the list, between two names, the move stops for review with how many names are in the
+quarantine; the gates are read inside each name's intent, under the write lock a Save takes too.
+Restore and Delete for good are refused with nothing written while it is off ("Replacement
+is switched off on the Media folders page, so nothing can be put back. Switch it on, then press
+Restore again."), the job's page disables both with "Replacement is switched off on the Media
+folders page: nothing is put back or deleted while it is off.", and a switch turned off between two
+names stops them for review. Retry writes nothing to the media and is not refused while it is off:
+the job then waits, verified.
+
+**The hint.** Each library folder whose tick counts (`Available`) gets `RenameProblems` from one
+`IFileQuarantine.DescribeRenamePlacesAsync` for all of them: `OtherMount` when the folder's
+`STATX_MNT_ID` isn't its allowed folder's, `ReadOnly` from the folder's own options in
+`/proc/self/mountinfo` (field 6, so a read-only bind of a writable disk counts) or `EROFS`,
+`NotWritable` when `faccessat(W_OK | X_OK, AT_EACCESS)` fails on the folder or where a move makes its
+names on the quarantine's side — the allowed folder's `.mam-quarantine` once it is there, as
+`mkdirat` answers `EEXIST` before it asks for write permission, the allowed folder while it isn't —,
+and `CouldNotCheck` for whatever can't be read, a file or a link at `.mam-quarantine` included, and
+for every folder anywhere but Linux. The page
+shows it under each folder ticked in the form, one all-clear line or one per problem. It looks at
+folders only, and stays a hint: the rename decides.
+
+**The Save refused.** Inside the Save's transaction, when the folders change, every quarantine
+holding names (`Quarantined`, `Moving`, `Restoring`, `Deleting`) must lie under one of the new
+folders, or the answer is 400 "“/media/.mam-quarantine” still holds replaced copies, so its media
+folder can't be taken out of the list. Restore them or delete them for good first." and nothing is
+saved; a folder above the old one keeps it in reach, by the rule Restore and Delete for good reach
+it by, and the quarantine itself put in its folder's place doesn't. The page also lists each
+quarantine's room.
+
+**The owner's alone.** `GET /api/replacements/{id}`, `POST …/retry`, `POST …/restore` and
+`POST …/delete-for-good` live in `Controllers/Replacements`, so `ReplacementsAreOwnerOnlyConvention`
+covers them as it does MAM-24's two, and `ReplacementsAreOwnerOnlyHttpTests` now holds all six; a
+replacement is its owner's own, another's a bare 404. Resolving a review and cancelling a pending
+removal are MAM-27's.
+
+**The mount and the ids are now needed.** "The mount, for this version" (MAM-24's section) and
+MAM-25's "neither the read-write mount nor `APP_USER_ID` and `APP_GROUP_ID` are needed yet" held
+until this version: a move needs all four steps of the Consequences, which the release note's
+"Turning it on" lists. The compose file keeps `:ro` in its example and says to drop it for
+replacement. With the switch on and the mount still `:ro`, or the image's own ids, the hint says a
+move would fail, and a move stops for review with nothing moved.
+
+**Nothing else is written.** The write contract's members that change a file all name the
+quarantine, and none copies, writes over, links or changes an owner or a mode
+(`FileQuarantineNamesTests`); `IFileInventory` still has no member named for a write
+(`FileInventoryNeverWritesTests`).
+
+`ReplacementQuarantineHttpTests.Quarantine_while_replacement_is_switched_off_leaves_the_job_verified_and_reads_nothing_but_the_gates`,
+`ReplacementQuarantineHttpTests.Quarantine_switched_off_between_two_names_stops_for_review_with_the_names_already_moved_and_moves_no_more`,
+`ReplacementQuarantineHttpTests.Quarantine_whose_folder_is_unticked_between_two_names_stops_for_review_with_the_names_already_moved`,
+`ReplacementQuarantineChecksHttpTests.Quarantine_of_a_copy_no_longer_in_a_ticked_folder_stops_for_review`,
+`ReplacementRestoreHttpTests.Restore_with_replacement_switched_off_between_two_names_stops_for_review_and_renames_no_more`,
+`ReplacementDeleteForGoodHttpTests.DeleteForGood_with_replacement_switched_off_is_409_and_deletes_nothing`,
+`ReplacementSettingsHttpTests.Get_says_for_each_available_folder_what_keeps_a_rename_into_the_quarantine_from_working_there_and_nothing_for_the_others`,
+`ReplacementSettingsHttpTests.Get_lists_how_much_room_each_quarantine_takes_from_the_names_it_holds`,
+`ReplacementSettingsHttpTests.Update_taking_out_the_media_folder_whose_quarantine_holds_names_is_400_naming_it_and_changes_nothing`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_on_another_mount_than_its_root_is_other_mount`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_whose_mount_the_table_says_is_read_only_is_read_only`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_the_app_may_not_write_to_is_not_writable`,
+`MountTableTests.MountOptionsOf_a_read_only_bind_of_a_writable_disk_says_ro_whatever_the_file_system_says`,
+`ReplacementsAreOwnerOnlyHttpTests.Discovery_finds_every_replacement_endpoint_of_today`,
+`ReplacementsAreOwnerOnlyHttpTests.Every_replacement_endpoint_as_a_signed_in_non_owner_is_403_with_the_owner_sentence`,
+`ReplacementRestoreHttpTests.Restore_and_delete_for_good_of_the_owners_quarantined_job_as_a_member_are_403_and_move_nothing`,
+`FileQuarantineNamesTests.No_file_quarantine_member_is_named_for_a_change_it_never_makes`
+and `FileInventoryNeverWritesTests.No_file_inventory_member_is_named_for_a_write` pin it,
+`MediaFoldersPage.test.tsx` the page's hint and room, and `JobDetailsPage.replacement.test.tsx` the
+job's page.

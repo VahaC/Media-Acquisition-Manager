@@ -26,4 +26,8 @@ public enum AuditTargetKind
 
     /// <summary>MAM-24 — a scheduled replacement of old copies, named by the release that brings the new one.</summary>
     ReplacementJob = 7,
+
+    /// <summary>MAM-26 — one name a replacement moves into the quarantine, restores or deletes (its
+    /// <c>ReplacementJobNames</c> row), named by the file's own name.</summary>
+    ReplacementJobName = 8,
 }

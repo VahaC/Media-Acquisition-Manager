@@ -1,15 +1,14 @@
 import { useId, useState, type ReactNode } from 'react'
-import { CircleCheck, EyeOff, Loader2, Rows3, Table2, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react'
+import { CircleCheck, EyeOff, Rows3, Table2, TriangleAlert, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DuplicateFileFacts } from '@/components/duplicates/DuplicateFileFacts'
 import { DuplicateHash } from '@/components/duplicates/DuplicateHash'
 import { DuplicateHolders } from '@/components/duplicates/DuplicateHolders'
 import { VersionRows } from '@/components/library/VersionRows'
 import { VersionTable } from '@/components/library/VersionTable'
-import { DisabledReason } from '@/components/shared/DisabledReason'
+import { ActionButton } from '@/components/shared/ActionButton'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { SegmentedControl } from '@/components/shared/SegmentedControl'
-import { Button } from '@/components/ui/button'
 import { editionsText, fileVersions, groupHeading, identityText, isGroupGone, type DuplicateLeaving } from '@/lib/duplicates'
 import { formatDateTime, formatDuration, formatFileSize, formatNumber } from '@/lib/format'
 import { splitPath } from '@/lib/library-versions'
@@ -385,33 +384,4 @@ function Evidence({ group }: { group: LibraryDuplicateGroup }) {
         </>
       )
   }
-}
-
-// ── a decision's button ──
-
-/**
- * Confirm, Dismiss or Undo: its icon and label, a spinner and "…ing" while its own request is pending, and
- * the reason on hover when the signed-in user isn't the owner. The label goes on a phone; the title names
- * the button then.
- */
-function ActionButton({ icon: Icon, label, pendingLabel, title, pending, disabled, reason, onClick }: {
-  icon: LucideIcon
-  label: string
-  pendingLabel: string
-  title: string
-  pending: boolean
-  disabled: boolean
-  reason: string | undefined
-  onClick: () => void
-}) {
-  return (
-    <DisabledReason reason={reason}>
-      <Button type="button" variant="outline" size="sm" title={title} disabled={disabled || reason !== undefined} onClick={onClick}>
-        {pending
-          ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          : <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
-        <span className="label-text">{pending ? pendingLabel : label}</span>
-      </Button>
-    </DisabledReason>
-  )
 }

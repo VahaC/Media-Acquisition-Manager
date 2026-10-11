@@ -187,7 +187,10 @@ public enum AuditAction
 
     /// <summary>
     /// MAM-25 — the check of a replacement's new files stopped for the owner's review, the job's reason saying why
-    /// (Inspecting to NeedsReview). No actor; its target the replacement job, named by the release. Both copies stay.
+    /// (Inspecting to NeedsReview); its target the replacement job, named by the release. Both copies stay. MAM-26 — and
+    /// any later stop: the mover's checks before the move, a name that couldn't move, a move, restore or deletion a
+    /// restart cut (Verified, Quarantining, Restoring or Deleting to NeedsReview). No actor when the app stopped it; the
+    /// owner when his own Restore or Delete for good ended in review.
     /// </summary>
     ReplacementNeedsReview = 35,
 
@@ -197,4 +200,85 @@ public enum AuditAction
     /// the replacement job, named by the release.
     /// </summary>
     ReplacementFailed = 36,
+
+    /// <summary>
+    /// MAM-26 — the mover claimed a verified replacement and wrote the plan of the names it moves into the quarantine
+    /// (Verified to Quarantining, ADR 0030). No actor; its target the replacement job, named by the release.
+    /// </summary>
+    ReplacementQuarantineStarted = 37,
+
+    /// <summary>
+    /// MAM-26 — the intent of one rename into the quarantine, committed before the call (ADR 0030): a restart between it
+    /// and its outcome finds the name by device and inode. No actor; its target the name, named by the file's own name.
+    /// </summary>
+    ReplacementNameMoving = 38,
+
+    /// <summary>MAM-26 — one name was renamed into the quarantine. No actor; its target the name.</summary>
+    ReplacementNameMoved = 39,
+
+    /// <summary>MAM-26 — one name was not renamed into the quarantine and stays where it was, the name's problem saying
+    /// why — or, after a restart, was found neither there nor in the quarantine. No actor; its target the name.</summary>
+    ReplacementNameNotMoved = 40,
+
+    /// <summary>
+    /// MAM-26 — every ticked copy's video of a replacement is in the quarantine (Quarantining to Quarantined), kept there
+    /// until the owner restores it or deletes it for good. No actor; its target the replacement job, named by the
+    /// release.
+    /// </summary>
+    ReplacementQuarantined = 41,
+
+    /// <summary>
+    /// MAM-26 — the owner pressed Retry on a replacement the mover stopped (NeedsReview to Verified): the mover's next
+    /// pass checks it again. Nothing is written to the media. Its actor the owner, its target the replacement job.
+    /// </summary>
+    ReplacementRetried = 42,
+
+    /// <summary>
+    /// MAM-26 — the owner's Restore started putting a replacement's quarantined names back (to Restoring, ADR 0030). Its
+    /// actor the owner, its target the replacement job.
+    /// </summary>
+    ReplacementRestoreStarted = 43,
+
+    /// <summary>MAM-26 — the intent of one rename back out of the quarantine, committed before the call. Its actor the
+    /// owner, its target the name.</summary>
+    ReplacementNameRestoring = 44,
+
+    /// <summary>MAM-26 — one name was renamed back to where it was. Its actor the owner — none when a restart's check
+    /// found it there —, its target the name.</summary>
+    ReplacementNameRestored = 45,
+
+    /// <summary>MAM-26 — one name was not put back and stays in the quarantine, the name's problem saying why — or, after
+    /// a restart, was found in neither place. Its actor the owner — none after a restart —, its target the name.</summary>
+    ReplacementNameNotRestored = 46,
+
+    /// <summary>
+    /// MAM-26 — the owner's Restore put every quarantined name of a replacement back (Restoring to Restored): both copies
+    /// are in the library again. Its actor the owner, its target the replacement job.
+    /// </summary>
+    ReplacementRestored = 47,
+
+    /// <summary>
+    /// MAM-26 — the owner's Delete for good, confirmed a second time, started deleting a replacement's quarantined names
+    /// (Quarantined to Deleting, ADR 0030). Its actor the owner, its target the replacement job.
+    /// </summary>
+    ReplacementDeleteStarted = 48,
+
+    /// <summary>MAM-26 — the intent of one deletion from the quarantine, committed before the call. Its actor the owner,
+    /// its target the name.</summary>
+    ReplacementNameDeleting = 49,
+
+    /// <summary>MAM-26 — one name was deleted from the quarantine for good. Its actor the owner — none when a restart's
+    /// check found it gone —, its target the name.</summary>
+    ReplacementNameDeleted = 50,
+
+    /// <summary>MAM-26 — one name was not deleted and stays in the quarantine, the name's problem saying why — or, after a
+    /// restart, something else was found at its place. Its actor the owner — none after a restart —, its target the
+    /// name.</summary>
+    ReplacementNameNotDeleted = 51,
+
+    /// <summary>
+    /// MAM-26 — the owner's Delete for good removed every quarantined name of a replacement (Deleting to Completed): the
+    /// replacement is done. Its actor the owner, its target the replacement job.
+    /// </summary>
+    ReplacementCompleted = 52,
 }

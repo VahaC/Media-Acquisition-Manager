@@ -1,7 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isJobFollowed, isJobWorkedOn } from '../download-jobs'
 import { downloadsApi } from '../downloads-api'
-import type { DownloadJob, DownloadJobFileList, DownloadJobFilesQuery, DownloadJobsQuery, SendDownloadRequest } from '../types'
+import type {
+  DownloadJob,
+  DownloadJobFileList,
+  DownloadJobFilesQuery,
+  DownloadJobReplacement,
+  DownloadJobsQuery,
+  SendDownloadRequest,
+} from '../types'
 import { qk } from './keys'
 
 /**
@@ -10,6 +17,7 @@ import { qk } from './keys'
  * would only bring the same answer back. MAM-25 — the same while only a replacement's check runs:
  * its passes are further apart (`ReplacementVerificationTracker.PassInterval`, 15 s), but one cadence
  * keeps a page simple, and the line shows how the check ended within 2 s of the pass that ended it.
+ * MAM-26 — the same while the mover's pass (also 15 s) takes a verified replacement up and moves it.
  */
 const JOBS_POLL_MS = 2_000
 
@@ -75,7 +83,8 @@ export const useSendDownload = () => {
  * stays on screen while the next one loads. Asked again every 2 s while the page shows a job the
  * app still follows, as its status and progress move without anyone acting; a page of ended jobs
  * asks nothing more. MAM-25 — and while it shows a downloaded job whose replacement's new files are
- * still being checked, as the check ends on its own.
+ * still being checked, as the check ends on its own; MAM-26 — or whose old copies are about to move
+ * or moving (isReplacementWorkedOn).
  */
 export const useDownloadJobs = (query: DownloadJobsQuery) =>
   useQuery({
@@ -93,7 +102,7 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
 /**
  * MAM-14 — one of the caller's own jobs, for its details page; nothing is asked without an id (an
  * address that holds none). Asked again every 2 s while the app still follows it, or (MAM-25) still
- * checks the new files of the replacement it carries.
+ * checks the new files of the replacement it carries, or (MAM-26) moves its old copies.
  *
  * When an answer shows the job moved — another status or progress than the cached one — its files
  * are asked for again, and so they are while a followed job has none listed yet (a magnet still
@@ -103,6 +112,10 @@ export const useDownloadJobs = (query: DownloadJobsQuery) =>
  * ended — before it could bring the files as the client finished them. The server commits a job's
  * status and progress together with its files, so a job seen moved already has its new files: the
  * files asked for on the answer that turned it Downloaded are its final ones.
+ *
+ * MAM-26 — the same holds for the replacement's details on the job's page (useReplacement): they are
+ * asked for again on the answer whose replacement changed — another state, copies moved, files that
+ * stayed, Retry offered or the switch turned —, never on a timer of their own.
  */
 export const useDownloadJob = (id: string) => {
   const queryClient = useQueryClient()
@@ -119,6 +132,9 @@ export const useDownloadJob = (id: string) => {
         .getQueriesData<DownloadJobFileList>({ queryKey: qk.downloads.jobs.allFiles(id) })
         .some(([, files]) => files?.totalCount === 0)
       if (moved || awaitingFiles) void queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.allFiles(id) })
+      if (previous !== undefined && next.replacement !== null && replacementChanged(previous.replacement, next.replacement)) {
+        void queryClient.invalidateQueries({ queryKey: qk.replacements.job(next.replacement.id) })
+      }
       return next
     },
     enabled: id !== '',
@@ -129,6 +145,16 @@ export const useDownloadJob = (id: string) => {
     // A 404 for another user's job won't change on a second try.
     retry: false,
   })
+}
+
+/** Whether a job's replacement came back other than the cached one in what its details show. */
+function replacementChanged(previous: DownloadJobReplacement | null, next: DownloadJobReplacement): boolean {
+  return previous === null
+    || previous.state !== next.state
+    || previous.switchedOff !== next.switchedOff
+    || previous.quarantinedCopyCount !== next.quarantinedCopyCount
+    || previous.stayedFileCount !== next.stayedFileCount
+    || previous.canRetry !== next.canRetry
 }
 
 /**

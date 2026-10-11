@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Services.Replacements;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 
@@ -29,9 +30,21 @@ public sealed class DownloadMapper : IDownloadMapper
         new(file.Position, file.RelativePath, file.SizeBytes, file.Progress, file.IsWanted);
 
     // MAM-24 — the reason is the app's own sentence, naming nothing of a service's, and the job is its sender's — the
-    // owner's, as only he schedules —, so it is shown as is.
-    public DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, int copyCount, bool switchedOff, int copiesOutsideTickedFolders) =>
-        new(replacement.State, copyCount, replacement.Reason, switchedOff, copiesOutsideTickedFolders);
+    // owner's, as only he schedules —, so it is shown as is. MAM-26 — Retry by the one rule its action keeps too.
+    public DownloadJobReplacementDto ToDto(
+        ReplacementJobEntity replacement,
+        int copyCount,
+        bool switchedOff,
+        int copiesOutsideTickedFolders,
+        int quarantinedCopyCount,
+        int stayedFileCount) =>
+        new(replacement.State, copyCount, replacement.Reason, switchedOff, copiesOutsideTickedFolders)
+        {
+            Id = replacement.Id,
+            QuarantinedCopyCount = quarantinedCopyCount,
+            StayedFileCount = stayedFileCount,
+            CanRetry = ReplacementJobOffers.CanRetry(replacement.State, replacement.QuarantineCheckedUtc),
+        };
 
     public DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations) =>
         new(

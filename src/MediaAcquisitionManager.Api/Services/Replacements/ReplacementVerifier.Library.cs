@@ -1,6 +1,5 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Files;
-using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Abstractions.Media;
 using MediaAcquisitionManager.Core.Entities;
@@ -46,7 +45,7 @@ public sealed partial class ReplacementVerifier
         var roots = await db.AllowedRoots.AsNoTracking().OrderBy(root => root.Position).Select(root => root.Path).ToListAsync(cancellationToken);
         foreach (var row in rows)
         {
-            if (await ChangedAsync(row, roots, cancellationToken) is { } changed)
+            if (await ReplacementNewFileCheck.ChangedAsync(files, row, roots, cancellationToken) is { } changed)
             {
                 row.Problem = FileInspectionRunUpdates.Cut(changed, ReplacementJobNewFileEntity.ProblemMaximumLength);
                 await FinishAsync(job, ReplacementJobState.NeedsReview, changed, now, () => Task.CompletedTask);
@@ -157,22 +156,6 @@ public sealed partial class ReplacementVerifier
                 await KeepAsync(replacementJobId, () => Task.CompletedTask);
                 break;
         }
-    }
-
-    /// <summary>
-    /// Why the new file of <paramref name="row"/> is no longer the file its check read, looked at inside
-    /// <paramref name="roots"/> — gone, unreadable, or another identity, size or modification time —; <c>null</c> when it
-    /// still is. Only the cheap look at its identity: the media inspector read it already.
-    /// </summary>
-    private async Task<string?> ChangedAsync(ReplacementJobNewFileEntity row, IReadOnlyList<string> roots, CancellationToken cancellationToken)
-    {
-        var path = ReplacementText.Quote(row.AppPath);
-        var described = await files.DescribeAsync(row.AppPath!, roots, cancellationToken);
-        if (described is not { Status: FileInventoryStatus.Found, Value: { } facts })
-            return described.Error ?? $"The app couldn't read the new file {path} again.";
-        return facts.DeviceId == row.DeviceId && facts.Inode == row.Inode && facts.SizeBytes == row.SizeBytes && facts.ModifiedUtc == row.ModifiedUtc
-            ? null
-            : $"The new file {path} changed after it was checked.";
     }
 
     /// <summary>Keeps on <paramref name="row"/> what the library said of its item at <paramref name="now"/>, its ids in place

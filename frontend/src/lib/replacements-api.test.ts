@@ -4,7 +4,17 @@ import { replacementsApi } from '@/lib/replacements-api'
 import { getApiErrorMessage } from '@/lib/utils'
 import { jobOf, localClient, moviesOption } from '@/test/downloads'
 import { aliens } from '@/test/library'
-import { aliensWorkOf, optionsUnavailable, replacementOf, replacementOptionsOf, theatricalCopy } from '@/test/replacements'
+import {
+  alienSubtitle,
+  alienVideo,
+  aliensWorkOf,
+  optionsUnavailable,
+  REPLACEMENT_ID,
+  replacementDetailsOf,
+  replacementOf,
+  replacementOptionsOf,
+  theatricalCopy,
+} from '@/test/replacements'
 import { tolokaRemux } from '@/test/search'
 
 /**
@@ -107,6 +117,82 @@ describe('replacementsApi', () => {
 
     // Assert
     expect(job).toEqual(existing)
+  })
+
+  // MAM-26 — the owner's replacement after the schedule: its names in the quarantine and the actions on it.
+
+  it('asks for one replacement\'s names and actions by its own id', async () => {
+    // Arrange
+    const requests = respondWith(200, replacementDetailsOf())
+
+    // Act
+    const details = await replacementsApi.get(REPLACEMENT_ID)
+
+    // Assert
+    expect(details).toEqual(replacementDetailsOf())
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe(`/api/replacements/${REPLACEMENT_ID}`)
+  })
+
+  it.each<[string, (id: string) => Promise<unknown>, string]>([
+    ['Retry', (id) => replacementsApi.retry(id), 'retry'],
+    ['Restore', (id) => replacementsApi.restore(id), 'restore'],
+  ])('sends %s as a POST to the replacement\'s own address, with no body, and answers its job', async (_, send, action) => {
+    // Arrange
+    const job = jobOf({ replacement: replacementOf({ state: 'Verified' }) })
+    const requests = respondWith(200, job)
+
+    // Act
+    const answer = await send(REPLACEMENT_ID)
+
+    // Assert
+    expect(answer).toEqual(job)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe('post')
+    expect(api.getUri(requests[0])).toBe(`/api/replacements/${REPLACEMENT_ID}/${action}`)
+    expect(requests[0].data).toBeUndefined()
+  })
+
+  it('sends Delete for good with exactly the names confirmed, and answers its job', async () => {
+    // Arrange
+    const job = jobOf({ replacement: replacementOf({ state: 'Completed' }) })
+    const requests = respondWith(200, job)
+
+    // Act
+    const answer = await replacementsApi.deleteForGood(REPLACEMENT_ID, [alienVideo.id, alienSubtitle.id])
+
+    // Assert
+    expect(answer).toEqual(job)
+    expect(requests[0].method).toBe('post')
+    expect(api.getUri(requests[0])).toBe(`/api/replacements/${REPLACEMENT_ID}/delete-for-good`)
+    expect(JSON.parse(requests[0].data as string)).toEqual({ names: [alienVideo.id, alienSubtitle.id] })
+  })
+
+  it('encodes a replacement id into one path segment', async () => {
+    // Arrange
+    const requests = respondWith(200, replacementDetailsOf())
+
+    // Act
+    await replacementsApi.get('../settings')
+
+    // Assert
+    expect(api.getUri(requests[0])).toBe('/api/replacements/..%2Fsettings')
+  })
+
+  it.each<[string, () => Promise<unknown>, string]>([
+    ['Retry', () => replacementsApi.retry(REPLACEMENT_ID), 'This replacement isn\'t waiting for review after a move, so there\'s nothing to retry here.'],
+    ['Restore', () => replacementsApi.restore(REPLACEMENT_ID), 'Replacement is switched off on the Media folders page, so nothing can be put back. Switch it on, then press Restore again.'],
+    ['Delete for good', () => replacementsApi.deleteForGood(REPLACEMENT_ID, [alienVideo.id]), 'What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.'],
+  ])('rejects %s with the server sentence when it is refused (409)', async (_, send, sentence) => {
+    // Arrange
+    respondWith(409, { error: sentence })
+
+    // Act
+    const failure = await send().catch((error: unknown) => error)
+
+    // Assert
+    expect(getApiErrorMessage(failure)).toBe(sentence)
   })
 
   it('rejects with the server sentence when a ticked copy can\'t be replaced any more (409)', async () => {

@@ -5,11 +5,15 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
+using MediaAcquisitionManager.TestInfrastructure.Data;
+using MediaAcquisitionManager.TestInfrastructure.Files;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace MediaAcquisitionManager.Api.Tests.Settings;
@@ -21,7 +25,10 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 // /config mapped to folders of the platform running the tests — Windows on a developer's box, Linux in CI — so the roots
 // the page saves pass the platform's rules: /media/movies, /media/tv-shows, /media/cartoons and /media/documentary lie
 // inside the media root, /config/data/collections outside it. A tick must be a library folder the app lists or a tick
-// already stored; missing fields switch off and untick (fail closed).
+// already stored; missing fields switch off and untick (fail closed). MAM-26, ADR 0030, ADR 0033 — the page also says, per
+// library folder whose tick counts, what keeps a rename into the quarantine from working there (the write contract faked),
+// and how much room each quarantine takes, from the replacements' rows; and a Save that would leave a quarantine holding
+// names outside every allowed root is refused with its path, nothing saved — a parent root keeps it in reach.
 public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/allowed-roots";
@@ -38,6 +45,10 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
     private const string DotSegmentError = "“/media/../etc” contains . or .. as a folder name, so it can't be ticked for replacement.";
     private const string LinuxTickedTwiceError = "“/media/movies” is ticked twice. Keep one.";
     private const string WindowsTickedTwiceError = "“D:\\media\\movies” is ticked twice. Keep one.";
+    private const string StrandedQuarantineError =
+        "“{0}” still holds replaced copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.";
+    private const string TolokaAddress = "http://prowlarr.test:9696/1/api";
+    private const string TolokaApiKey = "planted-torznab-key-0026";
 
     // The libraries of the sample, by name.
     private const string Movies = "Фільми";
@@ -104,10 +115,11 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         // ADR 0033's default: off, nothing ticked, and no library folder until a library is synced. Empty lists and a
-        // zero on the wire, never null or a missing property, so the page needs no special case.
+        // zero on the wire, never null or a missing property, so the page needs no special case. MAM-26 — and no
+        // quarantine, an empty list too.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            """{"paths":[],"replacementEnabled":false,"libraryFolders":[],"unmappedLibraryFolderCount":0}""",
+            """{"paths":[],"replacementEnabled":false,"libraryFolders":[],"unmappedLibraryFolderCount":0,"quarantines":[]}""",
             await response.Content.ReadAsStringAsync(cancellationToken));
         await _factory.WithDbAsync(async db =>
         {
@@ -623,6 +635,172 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
         Assert.DoesNotContain(entries, entry => entry.Message.Contains("movies", StringComparison.Ordinal));
     }
 
+    // ── the quarantine ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Get_says_for_each_available_folder_what_keeps_a_rename_into_the_quarantine_from_working_there_and_nothing_for_the_others()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(MediaRoot);
+        await SyncSampleLibrariesAsync();
+        // A stored tick the library dropped: not a folder the page could tick, so no hint.
+        await _replacement.Tick(Media("old-films"));
+        // As the host has them: Фільми fine; Мульфільми on a mount of its own; Документалки read-only and not the app's to
+        // write; Серіали not there at all.
+        _factory.Files.AddFolder(Media("movies"));
+        _factory.Files.AddFolder(Media("cartoons"));
+        _factory.Files.AddFolder(Media("documentary"));
+        _factory.Quarantine.SetMount(Media("cartoons"), 2);
+        _factory.Quarantine.SetReadOnly(Media("documentary"));
+        _factory.Quarantine.SetNotWritable(Media("documentary"));
+
+        //Act
+        var body = await GetAsync(cancellationToken);
+
+        //Assert
+        // ADR 0033's hint for every folder whose tick counts where it is, ticked or not; none for one outside the Media
+        // folders or no longer a library folder. On the wire by name.
+        Assert.Equal(
+            [
+                (Config("data", "collections"), (string?)null),
+                (Media("cartoons"), "OtherMount"),
+                (Media("documentary"), "ReadOnly, NotWritable"),
+                (Media("movies"), ""),
+                (Media("old-films"), null),
+                (Media("tv-shows"), "CouldNotCheck"),
+            ],
+            body.LibraryFolders.Select(folder => (folder.AppPath, folder.RenameProblems is { } problems ? string.Join(", ", problems) : null)));
+    }
+
+    [Fact]
+    public async Task Get_lists_how_much_room_each_quarantine_takes_from_the_names_it_holds()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(MediaRoot, ConfigRoot);
+        // In the quarantine, or in the middle of a write into it, out of it or in it, counted; anything else not.
+        await PlantNamesAsync(MediaRoot, (ReplacementNameState.Quarantined, 100), (ReplacementNameState.Quarantined, 20), (ReplacementNameState.Deleted, 1_000));
+        await PlantNamesAsync(MediaRoot, (ReplacementNameState.Restoring, 30), (ReplacementNameState.Restored, 7));
+        await PlantNamesAsync(MediaRoot, (ReplacementNameState.Lost, 9), (ReplacementNameState.Stayed, 8), (ReplacementNameState.Planned, 3));
+        await PlantNamesAsync(ConfigRoot, (ReplacementNameState.Moving, 5), (ReplacementNameState.Deleting, 6));
+        var describedBefore = _factory.Files.DescribedPaths.Count;
+
+        //Act
+        var body = await GetAsync(cancellationToken);
+
+        //Assert
+        // ADR 0030 — "The app shows how much room the quarantine takes", from the rows, by path; the disk isn't walked.
+        Assert.Equal(
+            [
+                new QuarantineSpaceDto(Config(".mam-quarantine"), 1, 2, 11),
+                new QuarantineSpaceDto(Media(".mam-quarantine"), 2, 3, 150),
+            ],
+            body.Quarantines);
+        Assert.Equal(describedBefore, _factory.Files.DescribedPaths.Count);
+    }
+
+    [Theory]
+    [InlineData(ReplacementNameState.Quarantined)]
+    [InlineData(ReplacementNameState.Moving)]
+    [InlineData(ReplacementNameState.Restoring)]
+    [InlineData(ReplacementNameState.Deleting)]
+    public async Task Update_taking_out_the_media_folder_whose_quarantine_holds_names_is_400_naming_it_and_changes_nothing(ReplacementNameState state)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seeded = await _roots.Allow(MediaRoot);
+        await PlantNamesAsync(MediaRoot, (state, 100));
+
+        //Act
+        var response = await _factory.PutHttpRequest(BaseUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([ConfigRoot], false, []));
+
+        //Assert
+        // ADR 0030 — Restore and Delete for good must stay within reach: the owner restores or deletes first.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(string.Format(StrandedQuarantineError, Media(".mam-quarantine")), await response.ReadErrorAsync(cancellationToken));
+        await AssertNothingSavedAsync(seeded[0].Id, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Update_replacing_the_media_folder_by_its_parent_keeps_the_quarantine_reachable_and_is_204()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var nested = OnThisPlatform("/srv/media", @"D:\srv\media");
+        var parent = OnThisPlatform("/srv", @"D:\srv");
+        await _roots.Allow(nested);
+        await PlantNamesAsync(nested, (ReplacementNameState.Quarantined, 100));
+
+        //Act
+        var response = await _factory.PutHttpRequest(BaseUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([parent], false, []));
+
+        //Assert
+        // /srv/media/.mam-quarantine lies inside /srv: still in reach.
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal([parent], await db.AllowedRoots.Select(root => root.Path).ToListAsync(cancellationToken));
+            Assert.Equal(AuditAction.AllowedRootsChanged, (await db.AuditEvents.SingleAsync(cancellationToken)).Action);
+        });
+    }
+
+    [Fact]
+    public async Task Update_putting_the_quarantine_itself_in_its_media_folders_place_is_400_naming_it_and_changes_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seeded = await _roots.Allow(MediaRoot);
+        await PlantNamesAsync(MediaRoot, (ReplacementNameState.Quarantined, 100));
+
+        //Act
+        // The quarantine lies inside the folder saved, but Restore and Delete for good look for it at the top of a root
+        // holding its own root, and none would.
+        var response = await _factory.PutHttpRequest(BaseUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([Media(".mam-quarantine")], false, []));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(string.Format(StrandedQuarantineError, Media(".mam-quarantine")), await response.ReadErrorAsync(cancellationToken));
+        await AssertNothingSavedAsync(seeded[0].Id, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Update_taking_out_a_media_folder_whose_quarantine_holds_nothing_now_is_204()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(MediaRoot);
+        // Deleted for good, put back, lost, or never moved: nothing left in the quarantine to reach.
+        await PlantNamesAsync(
+            MediaRoot, (ReplacementNameState.Deleted, 100), (ReplacementNameState.Restored, 20), (ReplacementNameState.Lost, 3), (ReplacementNameState.Stayed, 4));
+
+        //Act
+        var response = await _factory.PutHttpRequest(BaseUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([ConfigRoot], false, []));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal([ConfigRoot], await db.AllowedRoots.Select(root => root.Path).ToListAsync(cancellationToken)));
+    }
+
+    [Fact]
+    public async Task Update_that_keeps_the_roots_while_a_quarantine_holds_names_is_204()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(MediaRoot);
+        await SyncSampleLibrariesAsync();
+        await PlantNamesAsync(MediaRoot, (ReplacementNameState.Quarantined, 100));
+
+        //Act
+        // The switch and the ticks change; the roots don't, so the quarantine isn't the question.
+        var response = await _factory.PutHttpRequest(BaseUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([MediaRoot], true, [Media("movies")]));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.True((await GetAsync(cancellationToken)).ReplacementEnabled);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     // The platform the app under test runs on, read independently of AllowedRootRules.PlatformStyle.
@@ -650,6 +828,29 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
             pathMappings: pathMappings ?? [new PathMappingPair("/media", MediaRoot), new PathMappingPair("/config", ConfigRoot)]);
         _jellyfin.Arm(_factory.JellyfinHttp);
         await new LibrarySnapshotSeeder(_factory.Scope).Sync(jellyfin);
+    }
+
+    /// <summary>
+    /// MAM-26 — one replacement of a done download whose move planned <paramref name="names"/> — each a video of its own
+    /// with its state and size — in <paramref name="allowedRoot"/>'s quarantine, as a pass left them.
+    /// </summary>
+    private async Task PlantNamesAsync(string allowedRoot, params (ReplacementNameState State, long SizeBytes)[] names)
+    {
+        var toloka = await _integrations.Create("torznab", $"Toloka {Guid.NewGuid():N}", TolokaAddress, apiKey: TolokaApiKey);
+        var release = await new ReleaseSeeder(_factory.Scope).Create(toloka);
+        var db = _factory.Scope.GetRequiredService<ApplicationDbContext>();
+        var download = await new DownloadJobDataFactory(db, _factory.Time).Create(
+            release.Id, null, "qBittorrent", status: DownloadJobStatus.Downloaded, requestedByUserId: _owner.User.Id);
+        var replacements = new ReplacementJobDataFactory(db, _factory.Time);
+        var replacement = await replacements.Create(download.Id, _owner.User.Id, ReplacementJobState.Quarantined);
+        foreach (var (name, position) in names.Select((name, position) => (name, position)))
+        {
+            var appPath = string.Join(Separator, allowedRoot, "movies", $"Film {position}.mkv");
+            var facts = TestMedia.File(inode: position + 1, sizeBytes: name.SizeBytes);
+            var copy = await replacements.AddFile(replacement.Id, appPath, facts, position);
+            var quarantinePath = string.Join(Separator, allowedRoot, ".mam-quarantine", replacement.Id.ToString(), "movies", $"Film {position}.mkv");
+            await replacements.AddName(replacement.Id, copy.Id, position, ReplacementNameKind.Video, appPath, quarantinePath, allowedRoot, facts, name.State);
+        }
     }
 
     // The page as the owner reads it.

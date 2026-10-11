@@ -21,6 +21,12 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// looked at on the disk, once per path, and the device and inode found there decide.
 /// </para>
 /// <para>
+/// MAM-26 — but a torrent file whose mapped path is a name's own path holds it whatever size it lists (ADR 0031: "an old
+/// copy any torrent lists, in any state"): there the path alone is the claim, as a recheck would write that path back.
+/// And the read before a move asks only the clients whose mappings reach the allowed roots (ADR 0031's "each download
+/// client whose paths reach the allowed folders"); the Download dialog's read still answers for every client.
+/// </para>
+/// <para>
 /// Whether a type is a download client is asked of the adapter registry, and the stored secrets are opened by
 /// <see cref="IIntegrationSettingsFactory"/>, as <c>DestinationChecker</c> does.
 /// </para>
@@ -32,34 +38,63 @@ public sealed class ReplacementHoldingReader(
     IFileInventory files,
     ILogger<ReplacementHoldingReader> logger) : IReplacementHoldingReader
 {
-    public async Task<ReplacementHoldings> ReadAsync(
+    public Task<ReplacementHoldings> ReadAsync(
         IReadOnlyList<ReplacementCandidateCopy> copies, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(copies);
+        // MAM-26 — the dialog's copies as the names to look for: only a copy with a path and its identity read fresh can be
+        // confirmed held.
+        List<ReplacementHoldingTarget> targets =
+        [
+            .. copies
+                .Where(copy => copy is { AppPath: not null, Fresh: { DeviceId: not null, Inode: not null } })
+                .Select(copy => new ReplacementHoldingTarget(copy.AppPath!, copy.Fresh!)),
+        ];
+        // The dialog answers for every client, one whose mappings reach no allowed root included: it only marks, and says
+        // what it couldn't tell.
+        return ReadHoldsAsync(targets, allowedRoots, reachingOnly: false, cancellationToken);
+    }
+
+    public Task<ReplacementHoldings> ReadAsync(
+        IReadOnlyList<ReplacementHoldingTarget> targets, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default) =>
+        ReadHoldsAsync(targets, allowedRoots, reachingOnly: true, cancellationToken);
+
+    /// <summary>
+    /// The read itself: every download client's holds of <paramref name="targets"/> inside <paramref name="allowedRoots"/>;
+    /// with <paramref name="reachingOnly"/>, only the clients whose mappings reach those roots
+    /// (<see cref="ClientFilePlaces.Reaches"/>).
+    /// </summary>
+    private async Task<ReplacementHoldings> ReadHoldsAsync(
+        IReadOnlyList<ReplacementHoldingTarget> targets, IReadOnlyList<string> allowedRoots, bool reachingOnly, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
         ArgumentNullException.ThrowIfNull(allowedRoots);
 
         // Every download client, switched off or not: one the app may not ask can still hold the copies (R2). Read before
         // the clients are asked, as the context is not safe to share between the calls below.
-        var clients = await db.IntegrationConnections
+        var stored = await db.IntegrationConnections
             .AsNoTracking()
             .Include(client => client.PathMappings)
             .Where(client => client.Kind == IntegrationKind.DownloadClient)
             // The normalised name is unique, so the order is total.
             .OrderBy(client => client.NormalizedName)
             .ToListAsync(cancellationToken);
+        var roots = allowedRoots.Select(root => NormalizedPath.TryParse(root, out var path, out _) ? path : null).OfType<NormalizedPath>().ToList();
+        // MAM-26 — before a move, a client whose every mapping leads outside the allowed roots can name no file inside them
+        // (ADR 0031): left out, unasked, rather than counted uncertain for torrents it saves elsewhere.
+        var clients = reachingOnly ? stored.Where(client => Reaches(client, roots)).ToList() : stored;
         // Once per path: one file several works list is one copy.
-        List<ReplacementCandidateCopy> targets =
+        List<ReplacementHoldingTarget> names =
         [
-            .. copies
-                .Where(copy => copy is { AppPath: not null, Fresh: { DeviceId: not null, Inode: not null } })
-                .GroupBy(copy => copy.AppPath!)
+            .. targets
+                .Where(target => target.Fresh is { DeviceId: not null, Inode: not null })
+                .GroupBy(target => target.AppPath)
                 .Select(path => path.First()),
         ];
 
         // Each client once and all of them at once, the DestinationChecker way: the slowest sets the wait, and one that
         // fails can't hold the others back.
         var answers = await Task.WhenAll(clients.Select(client => AskAsync(client, cancellationToken)));
-        var roots = allowedRoots.Select(root => NormalizedPath.TryParse(root, out var path, out _) ? path : null).OfType<NormalizedPath>().ToList();
         var holds = new Dictionary<NormalizedPath, List<ReplacementHold>>();
         var described = new Dictionary<NormalizedPath, FileInventoryResult<FileFacts>>();
         var readings = new List<ReplacementClientReading>(clients.Count);
@@ -75,7 +110,7 @@ public sealed class ReplacementHoldingReader(
             var unplaced = 0;
             foreach (var job in jobs)
             {
-                if (!await PlaceAsync(client, job, targets, roots, allowedRoots, described, holds, cancellationToken))
+                if (!await PlaceAsync(client, job, names, roots, allowedRoots, described, holds, cancellationToken))
                     unplaced++;
             }
 
@@ -94,6 +129,20 @@ public sealed class ReplacementHoldingReader(
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Whether <paramref name="client"/>'s mappings reach <paramref name="roots"/>, and a line in the log when they
+    /// don't: ids only.</summary>
+    private bool Reaches(IntegrationConnectionEntity client, IReadOnlyList<NormalizedPath> roots)
+    {
+        if (ClientFilePlaces.Reaches(ClientFilePlaces.PairsOf(client), roots))
+            return true;
+
+        logger.LogInformation(
+            "Holdings listing of integration {IntegrationId} ({AdapterType}) did not ask it: its path mappings reach no allowed folder.",
+            client.Id,
+            client.AdapterType);
+        return false;
+    }
 
     /// <summary>
     /// One client's whole listing, or the sentence why it wasn't read: switched off, a type this version can't use, a
@@ -153,12 +202,13 @@ public sealed class ReplacementHoldingReader(
     /// <summary>
     /// Places one torrent's files in the app's folders and marks the copies it holds; <c>false</c> when any of its files
     /// couldn't be placed — no save path, no metadata, no mapping, an unknown size, nothing the disk shows —, which makes
-    /// its client's answer uncertain. A file outside the allowed roots, or of a size no copy has, holds none of them.
+    /// its client's answer uncertain. A file outside the allowed roots, or of a size no copy has, holds none of them; a
+    /// file at a copy's own path holds it whatever its size (MAM-26), and is placed.
     /// </summary>
     private async Task<bool> PlaceAsync(
         IntegrationConnectionEntity client,
         ClientJobWithFiles job,
-        IReadOnlyList<ReplacementCandidateCopy> targets,
+        IReadOnlyList<ReplacementHoldingTarget> targets,
         IReadOnlyList<NormalizedPath> roots,
         IReadOnlyList<string> allowedRoots,
         Dictionary<NormalizedPath, FileInventoryResult<FileFacts>> described,
@@ -183,13 +233,21 @@ public sealed class ReplacementHoldingReader(
 
             if (!roots.Any(appPath.IsUnder))
                 continue;
+
+            // MAM-26 — the name's own path is a hold whatever size the torrent lists (ADR 0031: "an old copy any torrent
+            // lists, in any state"): an errored torrent, one missing its files or a companion edited since lists another
+            // size than the disk's, and a recheck would still write that path back. Its place is known, so nothing below
+            // leaves the torrent unplaced for it; the disk is still read for another name of the file.
+            var atPath = targets.FirstOrDefault(target => appPath.IsSameAs(target.AppPath));
+            if (atPath is not null)
+                Hold(holds, atPath, new ReplacementHold(client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: false));
             if (file.SizeBytes is not { } size)
             {
-                placed = false;
+                placed &= atPath is not null;
                 continue;
             }
 
-            var sameSize = targets.Where(target => target.Fresh!.SizeBytes == size).ToList();
+            var sameSize = targets.Where(target => target.Fresh.SizeBytes == size).ToList();
             if (sameSize.Count == 0)
                 continue;
 
@@ -197,26 +255,31 @@ public sealed class ReplacementHoldingReader(
                 described[appPath] = answer = await files.DescribeAsync(appPath.ToString(), allowedRoots, cancellationToken);
             if (answer is not { Status: FileInventoryStatus.Found, Value: { DeviceId: not null, Inode: not null } facts })
             {
-                placed = false;
+                placed &= atPath is not null;
                 continue;
             }
 
-            foreach (var target in sameSize.Where(target => target.Fresh!.DeviceId == facts.DeviceId && target.Fresh.Inode == facts.Inode))
+            foreach (var target in sameSize.Where(target => target.Fresh.DeviceId == facts.DeviceId && target.Fresh.Inode == facts.Inode))
             {
                 // The torrent's own path, or the same file reached through a link (one name): the torrent holds the copy.
                 // Another name of a file with several: the torrent keeps its own, and moving the copy frees nothing.
-                var hold = new ReplacementHold(
-                    client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: !(appPath.IsSameAs(target.AppPath!) || target.Fresh!.LinkCount == 1));
-                if (!holds.TryGetValue(target.AppPath!, out var held))
-                    holds[target.AppPath!] = held = [];
-                // Told apart by the torrent's id, never its name: two of one torrent's files reaching the copy the same
-                // way are one hold, and two torrents of one name (a cross-seed) are two.
-                if (!held.Contains(hold))
-                    held.Add(hold);
+                Hold(holds, target, new ReplacementHold(
+                    client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: !(appPath.IsSameAs(target.AppPath) || target.Fresh.LinkCount == 1)));
             }
         }
 
         return placed;
+    }
+
+    /// <summary>Adds <paramref name="hold"/> to <paramref name="target"/>'s holds, once.</summary>
+    private static void Hold(Dictionary<NormalizedPath, List<ReplacementHold>> holds, ReplacementHoldingTarget target, ReplacementHold hold)
+    {
+        if (!holds.TryGetValue(target.AppPath, out var held))
+            holds[target.AppPath] = held = [];
+        // Told apart by the torrent's id, never its name: two of one torrent's files reaching the copy the same way are one
+        // hold, and two torrents of one name (a cross-seed) are two.
+        if (!held.Contains(hold))
+            held.Add(hold);
     }
 
     /// <summary>What one client's listing gave: its jobs, or the sentence why there are none. Its <c>ToString</c> prints

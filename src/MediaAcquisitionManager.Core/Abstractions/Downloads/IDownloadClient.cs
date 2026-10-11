@@ -42,6 +42,12 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 /// (the owner's switch and ticked folders, ADR 0033), never to follow a job, which keeps its own reads (ADR 0014).
 /// Still no member that removes, stops or moves anything; the one write is still <see cref="SubmitAsync"/>.
 /// </para>
+/// <para>
+/// MAM-26 — no new member: the read right before a replacement moves an old copy into the quarantine, the one that
+/// decides, is <see cref="ListJobsWithFilesAsync"/> again (ADR 0031). A held copy waits for the owner to remove its
+/// torrent in the client; the app never moves, relocates or renames a job or its files, nor sets where they lie —
+/// <c>DownloadClientNeverRemovesTests</c> now forbids those names too.
+/// </para>
 /// </remarks>
 public interface IDownloadClient
 {

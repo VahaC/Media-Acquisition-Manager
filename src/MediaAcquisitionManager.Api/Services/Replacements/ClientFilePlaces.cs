@@ -34,4 +34,26 @@ public static class ClientFilePlaces
         // Joined as the client names it and mapped whole: a ".." in a name maps to nothing rather than somewhere else.
         return PathMapper.Map(savePath.Append(relativePath.Split('/', StringSplitOptions.RemoveEmptyEntries)).ToString(), pairs);
     }
+
+    /// <summary>
+    /// MAM-26 — whether a client with <paramref name="pairs"/> can name a file inside <paramref name="roots"/> (ADR 0031:
+    /// the read before a move asks "each download client whose paths reach the allowed folders"): with no pairs, its paths
+    /// are the app's own and may lie anywhere; with pairs, one of their app-side paths must lie under a root or hold one.
+    /// </summary>
+    /// <remarks>
+    /// Every path a client names maps through its pairs (<see cref="PathMapper"/>), so a client whose pairs all lead
+    /// elsewhere — a seedbox mapped to <c>/srv/seedbox</c> — names nothing inside the roots, and its torrents saving where
+    /// no pair reaches are no uncertainty about them. An app-side path that doesn't parse reaches nothing.
+    /// </remarks>
+    public static bool Reaches(IReadOnlyList<PathMappingPair> pairs, IReadOnlyList<NormalizedPath> roots)
+    {
+        ArgumentNullException.ThrowIfNull(pairs);
+        ArgumentNullException.ThrowIfNull(roots);
+        if (pairs.Count == 0)
+            return true;
+
+        return pairs.Any(pair =>
+            NormalizedPath.TryParse(pair.AppPrefix, out var appPrefix, out _)
+            && roots.Any(root => appPrefix.IsUnder(root) || root.IsUnder(appPrefix)));
+    }
 }

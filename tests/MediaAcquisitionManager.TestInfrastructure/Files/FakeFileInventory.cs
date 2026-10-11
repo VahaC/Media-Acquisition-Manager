@@ -46,6 +46,15 @@ namespace MediaAcquisitionManager.TestInfrastructure.Files;
 /// (<see cref="SetFileSystem"/>), and every device asked is recorded (<see cref="DescribedDevices"/>).
 /// </para>
 /// <para>
+/// MAM-26 — the folders are known too: every folder on the way to a planted file is one (<see cref="AddFile"/>), and a
+/// test adds an empty one (<see cref="AddFolder"/>) or takes one away with what it holds (<see cref="RemoveFolder"/>). A
+/// folder stays when its files go, as on a disk, and a look at one answers <c>NotARegularFile</c>, as the real look does.
+/// A file moves to another name keeping its identity
+/// (<see cref="Move"/>) — what <see cref="FakeFileQuarantine"/> renames with, sharing this store. The walk leaves out
+/// every folder named <c>.mam-quarantine</c>, at any depth, and every linked name leading into one, as the real walk
+/// does (ADR 0030).
+/// </para>
+/// <para>
 /// Thread-safe: a run looks at and reads two files at a time. Every call is recorded, and
 /// <see cref="MostReadsAtOnce"/> and <see cref="MostHashesAtOnce"/> keep how many reads and hashes overlapped.
 /// </para>
@@ -73,6 +82,7 @@ public sealed class FakeFileInventory : IFileInventory
     private readonly ConcurrentDictionary<long, string?> _fileSystems = new();
     private readonly ConcurrentQueue<long> _describedDevices = new();
     private readonly ConcurrentQueue<string> _piecesHashed = new();
+    private readonly ConcurrentDictionary<NormalizedPath, byte> _folders = new();
     private int _readsUnderWay;
     private int _mostReadsAtOnce;
     private int _hashesUnderWay;
@@ -149,14 +159,16 @@ public sealed class FakeFileInventory : IFileInventory
     /// the read's answer altogether (an inspector that can't start, a file that changed under the read).
     /// MAM-19 — read whole, it hashes to <see cref="DefaultSha256"/> of <paramref name="facts"/>, unless
     /// <paramref name="hash"/> replaces that answer (a copy's hash, <see cref="HashOf"/>, or a file that
-    /// changed under the hash). Replaces whatever was at the path.
+    /// changed under the hash). Replaces whatever was at the path. MAM-26 — every folder on the way to it is a folder
+    /// from then on.
     /// </summary>
     public void AddFile(
         string appPath,
         FileFacts facts,
         MediaFacts? media = null,
         FileInventoryResult<MediaInspection>? read = null,
-        FileInventoryResult<FileContentHash>? hash = null) =>
+        FileInventoryResult<FileContentHash>? hash = null)
+    {
         _files[appPath] = new FakeFile(
             new FileInventoryResult<FileFacts>(FileInventoryStatus.Found, facts, null),
             read ?? (media is null
@@ -164,6 +176,9 @@ public sealed class FakeFileInventory : IFileInventory
                 : new FileInventoryResult<MediaInspection>(FileInventoryStatus.Found, new MediaInspection(facts, media), null)),
             hash ?? HashOf(facts, DefaultSha256(facts)),
             null);
+        if (ParentOf(appPath) is { } folder)
+            AddFolders(folder);
+    }
 
     /// <summary>
     /// MAM-38 — a regular file at <paramref name="appPath"/> holding <paramref name="content"/>: described with
@@ -220,18 +235,114 @@ public sealed class FakeFileInventory : IFileInventory
         _listingProblems[appPath] = new FileListingEntry(status, appPath, null, error);
     }
 
-    /// <summary>Takes the file, or the linked name, at <paramref name="appPath"/> away.</summary>
+    /// <summary>Takes the file, or the linked name, at <paramref name="appPath"/> away. Its folder stays.</summary>
     public void Remove(string appPath)
     {
         _files.TryRemove(appPath, out _);
         _linkedNames.TryRemove(appPath, out _);
     }
 
-    /// <summary>No files, linked names or listing problems, no recorded calls, no hooks, identity reported, and
-    /// (MAM-20) every device on <see cref="DefaultFileSystem"/>.</summary>
+    /// <summary>
+    /// MAM-26 — renames the file at <paramref name="fromAppPath"/> to <paramref name="toAppPath"/>: everything planted for
+    /// it — its identity above all — answers at the new name and nothing at the old one, and every folder on the way to
+    /// the new name is a folder. Never over a name: throws when nothing is at the old name or something is at the new
+    /// one, a test's own mistake. As a previous run's rename left a file, or what <see cref="FakeFileQuarantine"/> does.
+    /// </summary>
+    public void Move(string fromAppPath, string toAppPath)
+    {
+        if (_files.ContainsKey(toAppPath) || _linkedNames.ContainsKey(toAppPath))
+            throw new InvalidOperationException($"Something is at “{toAppPath}” already; a rename never replaces it.");
+        if (!_files.TryRemove(fromAppPath, out var file))
+            throw new InvalidOperationException($"Nothing is planted at “{fromAppPath}” to move.");
+        if (!_files.TryAdd(toAppPath, file))
+        {
+            _files[fromAppPath] = file;
+            throw new InvalidOperationException($"Something is at “{toAppPath}” already; a rename never replaces it.");
+        }
+
+        if (ParentOf(toAppPath) is { } folder)
+            AddFolders(folder);
+    }
+
+    /// <summary>MAM-26 — <paramref name="appPath"/> is a folder, empty or not, with every folder on the way to it.</summary>
+    public void AddFolder(string appPath)
+    {
+        if (Parse(appPath) is { } folder)
+            AddFolders(folder);
+    }
+
+    /// <summary>
+    /// MAM-26 — the folder at <paramref name="appPath"/> is gone, with every folder, file, linked name and listing problem
+    /// inside it: as the owner deleting it by hand.
+    /// </summary>
+    public void RemoveFolder(string appPath)
+    {
+        if (Parse(appPath) is not { } folder)
+            return;
+
+        foreach (var known in _folders.Keys.Where(known => known.IsUnder(folder)))
+            _folders.TryRemove(known, out _);
+        foreach (var path in _files.Keys.Where(path => IsAtOrUnder(path, folder)))
+            _files.TryRemove(path, out _);
+        foreach (var path in _linkedNames.Keys.Where(path => IsAtOrUnder(path, folder)))
+            _linkedNames.TryRemove(path, out _);
+        foreach (var path in _listingProblems.Keys.Where(path => IsAtOrUnder(path, folder)))
+            _listingProblems.TryRemove(path, out _);
+    }
+
+    /// <summary>MAM-26 — whether <paramref name="appPath"/> is a folder now: one on the way to a file planted since the
+    /// reset, or one a test added, and not removed.</summary>
+    public bool IsFolder(string appPath) => Parse(appPath) is { } folder && IsFolder(folder);
+
+    /// <inheritdoc cref="IsFolder(string)"/>
+    internal bool IsFolder(NormalizedPath folder) => _folders.ContainsKey(folder);
+
+    /// <summary>
+    /// MAM-26 — what is planted at exactly <paramref name="appPath"/>, never through a linked name: the look's answer of
+    /// a file or a planted problem, or <c>null</c> for nothing.
+    /// </summary>
+    internal FileInventoryResult<FileFacts>? PlantedAt(string appPath) => _files.TryGetValue(appPath, out var file) ? file.Describe : null;
+
+    /// <summary>MAM-26 — whether <paramref name="appPath"/> is a linked name (<see cref="AddLinkedName"/>).</summary>
+    internal bool IsLinkedName(string appPath) => _linkedNames.ContainsKey(appPath);
+
+    /// <summary>
+    /// MAM-26 — every planted regular file right inside <paramref name="folder"/> — a file the look finds, not a planted
+    /// problem or a linked name — with its path and identity, by name (ordinal).
+    /// </summary>
+    internal IReadOnlyList<(string AppPath, FileFacts Facts)> FilesIn(NormalizedPath folder) =>
+    [
+        .. _files
+            .Where(file => file.Value.Describe is { Status: FileInventoryStatus.Found, Value: not null }
+                && ParentOf(file.Key) is { } parent
+                && parent.IsSameAs(folder))
+            .Select(file => (AppPath: file.Key, Facts: file.Value.Describe.Value!))
+            .OrderBy(file => file.AppPath, StringComparer.Ordinal),
+    ];
+
+    /// <summary>
+    /// MAM-26 — every name right inside <paramref name="folder"/>, whatever is planted there: a file, a planted problem, a
+    /// linked name — one leading nowhere too —, or a folder; by name (ordinal).
+    /// </summary>
+    internal IReadOnlyList<string> NamesIn(NormalizedPath folder) =>
+    [
+        .. _files.Keys
+            .Concat(_linkedNames.Keys)
+            .Select(Parse)
+            .OfType<NormalizedPath>()
+            .Concat(_folders.Keys)
+            .Where(path => path.Segments.Count > 0 && (path with { Segments = [.. path.Segments.SkipLast(1)] }).IsSameAs(folder))
+            .Select(path => path.Segments[^1])
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal),
+    ];
+
+    /// <summary>No files, linked names, listing problems or (MAM-26) folders, no recorded calls, no hooks, identity
+    /// reported, and (MAM-20) every device on <see cref="DefaultFileSystem"/>.</summary>
     public void Reset()
     {
         _files.Clear();
+        _folders.Clear();
         _fileSystems.Clear();
         _describedDevices.Clear();
         _linkedNames.Clear();
@@ -383,10 +494,12 @@ public sealed class FakeFileInventory : IFileInventory
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     // Everything the walk of one root gives, in ordinal path order: the listing problems under it, and the
-    // media file names under it that no Unlisted or Skipped place covers.
+    // media file names under it that no Unlisted or Skipped place covers. MAM-26 — nothing in a quarantine, at any
+    // depth, nor a linked name leading into one (ADR 0030): the real walk never enters such a folder, says nothing
+    // of it, and gives nothing for a root inside one.
     private List<FileListingEntry> EntriesUnder(NormalizedPath root)
     {
-        var problems = _listingProblems.Values.Where(problem => IsAtOrUnder(problem.AppPath, root)).ToList();
+        var problems = _listingProblems.Values.Where(problem => IsAtOrUnder(problem.AppPath, root) && !InQuarantine(problem.AppPath)).ToList();
         var hiding = problems
             .Where(problem => problem.Status is FileListingStatus.Unlisted or FileListingStatus.Skipped)
             .Select(problem => problem.AppPath)
@@ -396,6 +509,8 @@ public sealed class FakeFileInventory : IFileInventory
             .Concat(_linkedNames.Select(link => (Name: link.Key, Target: link.Value)))
             .Where(name => MediaFileNames.IsMediaFile(FileNameOf(name.Name))
                 && IsAtOrUnder(name.Name, root)
+                && !InQuarantine(name.Name)
+                && !InQuarantine(name.Target)
                 && !hiding.Any(place => IsAtOrUnder(name.Name, place)))
             .Select(name => new FileListingEntry(FileListingStatus.MediaFile, name.Name, name.Target, null));
         return [.. problems.Concat(names).OrderBy(entry => entry.AppPath, StringComparer.Ordinal)];
@@ -408,8 +523,11 @@ public sealed class FakeFileInventory : IFileInventory
         var target = _linkedNames.GetValueOrDefault(appPath) ?? appPath;
         if (!IsInside(appPath, allowedRoots) || !IsInside(target, allowedRoots))
             return new FileInventoryResult<T>(FileInventoryStatus.OutsideAllowedRoots, null, $"“{appPath}” is outside the media folders the app may read.");
-        return _files.TryGetValue(target, out var file)
-            ? pick(file)
+        if (_files.TryGetValue(target, out var file))
+            return pick(file);
+        // MAM-26 — a folder is something, as on a disk: the look finds no regular file there, and says so.
+        return Parse(target) is { } folder && IsFolder(folder)
+            ? new FileInventoryResult<T>(FileInventoryStatus.NotARegularFile, null, $"“{appPath}” is a folder, not a file.")
             : new FileInventoryResult<T>(FileInventoryStatus.NotFound, null, $"Nothing is at “{appPath}”.");
     }
 
@@ -424,6 +542,22 @@ public sealed class FakeFileInventory : IFileInventory
 
     // The last name of a path in either style.
     private static string FileNameOf(string appPath) => appPath[(appPath.LastIndexOfAny(['/', '\\']) + 1)..];
+
+    // MAM-26 — whether the path lies in a quarantine folder at any depth.
+    private static bool InQuarantine(string appPath) => Parse(appPath) is { } path && QuarantineFolder.Holds(path);
+
+    private static NormalizedPath? Parse(string appPath) => NormalizedPath.TryParse(appPath, out var path, out _) ? path : null;
+
+    // The folder holding the path; null for a root or a path that doesn't parse.
+    private static NormalizedPath? ParentOf(string appPath) =>
+        Parse(appPath) is { Segments.Count: > 0 } path ? path with { Segments = [.. path.Segments.SkipLast(1)] } : null;
+
+    // The folder and every folder on the way to it, its root included.
+    private void AddFolders(NormalizedPath folder)
+    {
+        for (var count = 0; count <= folder.Segments.Count; count++)
+            _folders.TryAdd(folder with { Segments = [.. folder.Segments.Take(count)] }, 0);
+    }
 
     /// <summary>What the inventory answers for one path.</summary>
     private sealed record FakeFile(

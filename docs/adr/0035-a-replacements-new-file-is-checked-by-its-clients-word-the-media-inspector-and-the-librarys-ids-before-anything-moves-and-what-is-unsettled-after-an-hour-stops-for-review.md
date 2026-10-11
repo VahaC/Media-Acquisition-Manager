@@ -221,3 +221,38 @@ a file: MAM-26 checks the old copy, its torrents and the gates again right befor
 `FakeJellyfinServerFilesTests.Of_gives_every_recorded_movie_and_episode_file_the_id_jellyfin_gave_it`,
 `ReplacementLibraryPlacesTests`, `ReplacementVerificationRulesTests` and `NewFileReadabilityTests`
 pin it.
+
+## Verified is followed by the move (added 0.3.0, MAM-26)
+
+**`Verified` is no longer where a replacement rests: while replacement is switched on, a loop of its
+own takes it up, checks the old copy and the torrents again and moves it into the quarantine ([ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md));
+this check still never moves anything, and a review it stops still waits for MAM-27's Retry.**
+The Decision's "nothing moves in this version" held for 0.3.0 until MAM-26 joined it.
+
+**Two loops.** `ReplacementQuarantineTracker` runs apart from `ReplacementVerificationTracker`, on
+the same 15 s, so a bug in either can't stop the other, and the verifier's pass never touches a
+`Verified` job again. The verifier's check that a paired new file is still the file it read is now
+`ReplacementNewFileCheck`, shared: check 5 runs it again right before the move ("The new file paired
+with “…” changed or went since it was verified, so nothing moves."), which is the Anti-consequence's
+"MAM-26 checks the old copy, its torrents and the gates again right before it moves anything".
+
+**Retry is split.** The Consequences' "Nothing takes a job up again after `NeedsReview` before
+MAM-27's Retry" now holds for a stop of this check only. MAM-26's Retry takes a job the move stopped,
+marked by `QuarantineCheckedUtc`, which this check never sets; asked for one this check stopped, it
+answers 409 "This replacement isn't waiting for review after a move, so there's nothing to retry
+here.", and the job's page offers nothing for it.
+
+**What the owner sees.** "Jellyfin shows both copies meanwhile, and still after `Verified`, until
+MAM-26 moves the old one" is so: the line reads "New file verified: 1 old copy moves into the
+quarantine next.", and Jellyfin drops the old card about a minute after the move, told with the same
+request, its paths sent as `Deleted` where this check sends the new files' as `Created`
+(`LibraryFileChange`).
+
+`ReplacementVerificationHttpTests.Verify_while_replacement_is_switched_off_still_verifies_and_moves_nothing`,
+`ReplacementQuarantineChecksHttpTests.Quarantine_whose_new_file_changed_since_it_was_verified_stops_for_review`,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`,
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_nothing`
+and
+`ReplacementQuarantineFlowHttpTests.Flow_moves_the_old_copy_tells_jellyfin_it_went_then_restore_puts_it_back_with_its_identity_and_tells_jellyfin_it_came_back`
+pin it, and `JobsPage.test.tsx` the line.

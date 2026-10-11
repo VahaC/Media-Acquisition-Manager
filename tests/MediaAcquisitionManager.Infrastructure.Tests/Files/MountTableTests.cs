@@ -4,7 +4,8 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 
 // MAM-20 — Linux's mount table read for the file system type of a device (ADR 0028): the device number decoded the way
 // glibc's makedev made it, the type found after the " - " that ends the optional fields, a device mounted twice known
-// only when its lines agree, and nothing guessed from a line that can't be read.
+// only when its lines agree, and nothing guessed from a line that can't be read. MAM-26 — and for a mount's own
+// options by its id (ADR 0033): the sixth field, never the file system's options after the type.
 public sealed class MountTableTests
 {
     // makedev(8, 1) = 2049: the first partition of the first SCSI disk.
@@ -156,5 +157,60 @@ public sealed class MountTableTests
 
         //Assert
         Assert.Equal("ext4", type);
+    }
+
+    // ── MAM-26: a mount's own options ────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(22UL, new[] { "rw", "relatime" })]
+    [InlineData(24UL, new[] { "rw", "relatime" })]
+    [InlineData(36UL, new[] { "ro", "noatime" })]
+    public void MountOptionsOf_finds_the_line_of_the_mount_by_its_id_and_gives_its_own_options(ulong mountId, string[] expected)
+    {
+        //Arrange
+        const string mountInfo = """
+            22 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw,errors=remount-ro
+            24 22 8:17 / /media/movies rw,relatime shared:9 - xfs /dev/sdb1 rw,attr2,inode64
+            36 22 8:1 /srv/media /media ro,noatime shared:2 - ext4 /dev/sda1 rw,errors=remount-ro
+            """;
+
+        //Act
+        var options = MountTable.MountOptionsOf(mountInfo, mountId);
+
+        //Assert
+        Assert.Equal(expected, options);
+    }
+
+    [Fact]
+    public void MountOptionsOf_a_read_only_bind_of_a_writable_disk_says_ro_whatever_the_file_system_says()
+    {
+        //Arrange
+        // A :ro bind in a container: the mount's own options say ro, the super-options after the type say rw. Only the
+        // first stops a rename.
+        const string mountInfo = "512 498 0:73 /media /media ro,relatime master:1 - 9p drvfs rw,dirsync,aname=drvfs";
+
+        //Act
+        var options = MountTable.MountOptionsOf(mountInfo, 512);
+
+        //Assert
+        Assert.Contains("ro", options!);
+        Assert.DoesNotContain("rw", options!);
+    }
+
+    [Theory]
+    // 3 is asked; 36 and 13 only look like it, and 3 as a parent's id is no mount's own.
+    [InlineData("36 22 8:1 / /media ro,noatime shared:2 - ext4 /dev/sda1 rw\n13 3 8:1 / /x rw - ext4 /dev/sda1 rw")]
+    [InlineData("")]
+    // Too few fields to have options.
+    [InlineData("3 1 8:1 / /")]
+    public void MountOptionsOf_a_mount_no_line_names_is_unknown(string mountInfo)
+    {
+        //Arrange
+
+        //Act
+        var options = MountTable.MountOptionsOf(mountInfo, 3);
+
+        //Assert
+        Assert.Null(options);
     }
 }

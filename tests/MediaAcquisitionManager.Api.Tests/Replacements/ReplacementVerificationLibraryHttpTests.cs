@@ -207,7 +207,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
 
         //Assert
         Assert.Equal(ReplacementJobState.Inspecting, waiting.State);
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Verified, 1, null, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
         Assert.Equal(((Guid?)_alien.Id, (string?)null), (newFile.MediaWorkId, newFile.Problem));
         Assert.Equal([(0, false, MediaIdentifierScheme.Imdb, AlienImdbId)], await _harness.NewFileIdentifiersAsync(cancellationToken));
@@ -268,7 +268,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         //Assert
         // Never asked as far as the app knows: each pass asks again, an hour from the start of the check.
         Assert.Equal((ReplacementJobState.Inspecting, (DateTime?)null), (beforeTheHour.State, beforeTheHour.LibraryAskedUtc));
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NotAskedReason, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NotAskedReason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)NotAskedReason, (DateTime?)null), (replacement.State, replacement.Reason, replacement.LibraryAskedUtc));
         Assert.Equal(
@@ -309,7 +309,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         Assert.Equal(
             (ReplacementJobState.Inspecting, (string?)null, (DateTime?)startedUtc, (DateTime?)askedUtc),
             (pastTheChecksHour.State, pastTheChecksHour.Reason, pastTheChecksHour.InspectionStartedUtc, pastTheChecksHour.LibraryAskedUtc));
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NotListedReason, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NotListedReason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal(
             (ReplacementJobState.NeedsReview, (string?)NotListedReason, (DateTime?)startedUtc, (DateTime?)askedUtc),
@@ -344,7 +344,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         await _harness.VerifyAsync(cancellationToken);
 
         //Assert
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NoCapabilityReason, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, NoCapabilityReason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (DateTime?)null), (replacement.State, replacement.LibraryAskedUtc));
         // The file passed its checks, in that library; the library is why it stopped.
@@ -411,7 +411,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
         //Assert
         Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
         // ADR 0033 — the ticked Фільми went with its library, so the copy now lies in no ticked folder.
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, RemovedReason, false, 1), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, RemovedReason, false, 1) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)RemovedReason), (replacement.State, replacement.Reason));
         var newFile = Assert.Single(await _harness.NewFilesAsync(cancellationToken));
@@ -514,7 +514,7 @@ public sealed class ReplacementVerificationLibraryHttpTests : IClassFixture<Medi
     /// </summary>
     private async Task AssertNeedsReviewAsync(DownloadJobDto job, string reason, CancellationToken cancellationToken)
     {
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, reason, false, 0), await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, reason, false, 0) { Id = (await _harness.ReplacementAsync(cancellationToken)).Id }, await _harness.LineAsync(job.Id, cancellationToken));
         var replacement = await _harness.ReplacementAsync(cancellationToken);
         Assert.Equal((ReplacementJobState.NeedsReview, (string?)reason), (replacement.State, replacement.Reason));
         Assert.Equal(

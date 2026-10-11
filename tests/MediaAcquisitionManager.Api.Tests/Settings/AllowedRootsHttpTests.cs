@@ -99,10 +99,10 @@ public sealed class AllowedRootsHttpTests : IClassFixture<MediaAcquisitionManage
         var body = await response.Content.ReadFromJsonAsync<AllowedRootsResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         // The default: a fresh installation reads nothing until the owner names a folder. An empty list on
         // the wire, never null or a missing property, so the page needs no special case. MAM-24 — beside it the
-        // replacement gates, closed (ReplacementSettingsHttpTests pins them).
+        // replacement gates, closed (ReplacementSettingsHttpTests pins them). MAM-26 — and no quarantine.
         Assert.Empty(body!.Paths);
         Assert.Equal(
-            """{"paths":[],"replacementEnabled":false,"libraryFolders":[],"unmappedLibraryFolderCount":0}""",
+            """{"paths":[],"replacementEnabled":false,"libraryFolders":[],"unmappedLibraryFolderCount":0,"quarantines":[]}""",
             await response.Content.ReadAsStringAsync(cancellationToken));
         await _factory.WithDbAsync(async db =>
         {

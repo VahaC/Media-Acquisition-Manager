@@ -34,6 +34,12 @@ namespace MediaAcquisitionManager.Infrastructure.Files;
 /// stays open across a <c>yield</c>, so a caller that stops early leaves nothing open, and a deep tree holds one
 /// descriptor at a time. Nothing is opened for reading and nothing is written.
 /// </para>
+/// <para>
+/// MAM-26, ADR 0030 — a folder named <see cref="QuarantineFolder.Name"/> is passed over in silence, at any depth: no
+/// entry, no problem, nothing below it. It holds the replaced copies, which the replacement jobs know; given here, a
+/// quarantined video would come back as a file no library reported, a possible match and part of a Media folders
+/// count. A link that leads into a quarantine is not followed, and a root that lies in one gives nothing.
+/// </para>
 /// </remarks>
 internal static class FolderWalker
 {
@@ -53,9 +59,9 @@ internal static class FolderWalker
     /// <summary>
     /// One folder, all of it: hidden and system entries too (the defaults skip them — a <c>.hidden</c> folder full
     /// of films is still on the disk), and a folder the app may not list fails rather than reading as empty, which
-    /// would cost the names found in it before.
+    /// would cost the names found in it before. MAM-26 — the quarantine lists a video's folder the same way.
     /// </summary>
-    private static readonly EnumerationOptions ListingOptions = new()
+    internal static readonly EnumerationOptions ListingOptions = new()
     {
         RecurseSubdirectories = false,
         AttributesToSkip = 0,
@@ -86,7 +92,7 @@ internal static class FolderWalker
         var resolvedRoots = resolutions.Select(resolution => resolution.Value).OfType<NormalizedPath>().ToList();
 
         // The way down to the folder whose entries come next; the outermost frame holds the roots themselves.
-        var descent = new List<Frame> { new(null, null, null, [.. roots.Select((root, index) => RootStep(root, resolutions[index]))]) };
+        var descent = new List<Frame> { new(null, null, null, [.. roots.Select((root, index) => RootStep(root, resolutions[index])).OfType<Step>()]) };
         var foldersListed = 0;
         var entriesGiven = 0;
         while (descent.Count > 0)
@@ -139,11 +145,19 @@ internal static class FolderWalker
         }
     }
 
-    /// <summary>A root in the outermost frame: the folder to walk, or why it can't be, in the resolver's words.</summary>
-    private static Step RootStep(NormalizedPath root, FileInventoryResult<NormalizedPath> resolution) =>
-        resolution.Value is { } resolved
+    /// <summary>
+    /// A root in the outermost frame: the folder to walk, or why it can't be, in the resolver's words — or nothing for a
+    /// root that is, or leads into, a quarantine (MAM-26).
+    /// </summary>
+    private static Step? RootStep(NormalizedPath root, FileInventoryResult<NormalizedPath> resolution)
+    {
+        if (QuarantineFolder.Holds(root) || resolution.Value is { } inQuarantine && QuarantineFolder.Holds(inQuarantine))
+            return null;
+
+        return resolution.Value is { } resolved
             ? new Step(null, new Folder(root, resolved, IsRoot: true))
             : Give(FileListingStatus.Unlisted, root.ToString(), resolution.Error);
+    }
 
     /// <summary>
     /// Opens and lists <paramref name="folder"/>: its frame, every entry judged in name order, or the one entry
@@ -216,6 +230,10 @@ internal static class FolderWalker
     private static Step? Judge(FileSystemInfo entry, Folder parent, IReadOnlyList<NormalizedPath> resolvedRoots)
     {
         var name = entry.Name;
+        // MAM-26 — before every other test, so a quarantine's deep paths never come back as a problem of their own.
+        if (QuarantineFolder.IsQuarantineName(name, parent.AppPath.Style))
+            return null;
+
         if (!IsUsableName(name))
         {
             // A name that can be neither shown nor stored as it is: its folder stands for it.
@@ -270,6 +288,10 @@ internal static class FolderWalker
         if (!resolvedRoots.Any(target.IsUnder))
             return Give(FileListingStatus.Skipped, appText, FileInventoryMessages.LinkLeadsOut(appText, target.ToString()));
 
+        // MAM-26 — a link with another name is no way into a quarantine either.
+        if (QuarantineFolder.Holds(target))
+            return null;
+
         if (link is DirectoryInfo)
             return new Step(null, new Folder(appPath, target, IsRoot: false));
 
@@ -280,9 +302,9 @@ internal static class FolderWalker
     /// <summary>
     /// Whether a name can be given as part of a path: a name that isn't UTF-8 reads with U+FFFD in place of what
     /// isn't, and would be stored as another name than the disk's; a control character would garble any sentence
-    /// or log line it is quoted in.
+    /// or log line it is quoted in. MAM-26 — the quarantine's listing of a folder leaves such a name out too.
     /// </summary>
-    private static bool IsUsableName(string name) => !name.Contains('�', StringComparison.Ordinal) && !name.Any(char.IsControl);
+    internal static bool IsUsableName(string name) => !name.Contains('�', StringComparison.Ordinal) && !name.Any(char.IsControl);
 
     private static Step MediaFile(string appPath, NormalizedPath resolvedPath) =>
         new(new FileListingEntry(FileListingStatus.MediaFile, appPath, resolvedPath.ToString(), null), null);

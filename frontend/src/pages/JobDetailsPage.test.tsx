@@ -450,7 +450,8 @@ describe('JobDetailsPage', () => {
     })
 
     // MAM-25 — the download no longer moves, but the check of its replacement's new files ends by itself.
-    it('asks for a downloaded job every 2 s while its replacement\'s new files are checked, nothing more once verified, and never for its files again', async () => {
+    // MAM-26 — and so does the move of its old copies, which rests at Quarantined.
+    it('asks for a downloaded job every 2 s while its replacement\'s new files are checked and its old copy moves, nothing more once in the quarantine, and never for its files again', async () => {
       // Arrange
       const checked = { ...downloadedJob, replacement: replacementOf({ state: 'Inspecting' }) }
       serve(checked)
@@ -462,12 +463,15 @@ describe('JobDetailsPage', () => {
       await nextPoll()
       serve({ ...checked, replacement: replacementOf({ state: 'Verified' }) })
       await nextPoll()
-      await screen.findByText('New file verified: 1 copy will be replaced by it in a later version; nothing is moved yet.')
+      await screen.findByText('New file verified: 1 old copy moves into the quarantine next.')
+      serve({ ...checked, replacement: replacementOf({ state: 'Quarantined', quarantinedCopyCount: 1 }) })
+      await nextPoll()
+      await screen.findByText('Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.')
       await nextPoll()
       await nextPoll()
 
       // Assert
-      expect(downloadsApi.get).toHaveBeenCalledTimes(3)
+      expect(downloadsApi.get).toHaveBeenCalledTimes(4)
       expect(downloadsApi.files).toHaveBeenCalledOnce()
     })
 

@@ -12,10 +12,16 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// state the job no longer has, changes nothing.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Never cancelled, the <c>DownloadJobUpdates</c> rule: once a state is decided it is written, even while the app shuts
 /// down. The reason is cut to its column with an ellipsis, so the reader sees it was cut.
+/// </para>
+/// <para>
+/// MAM-26 — partial: the mover's writes and the owner's Restore, Delete for good and Retry each keep theirs in a file of
+/// their own beside these.
+/// </para>
 /// </remarks>
-public static class ReplacementJobUpdates
+public static partial class ReplacementJobUpdates
 {
     /// <summary>
     /// Moves the replacement <paramref name="replacementJobId"/>, read as <paramref name="observedState"/>, to

@@ -111,6 +111,44 @@
   overflow-wrap: anywhere;
 }
 
+/* ── the old copies (MAM-26) ── */
+
+/* A name's original path with its place in the quarantine under it, as one block: a span, as the
+   cell's only child, which a phone card lays out beside the cell's caption otherwise. */
+.jobs-name-paths {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* Delete for good's list of what it deletes. The confirmation centres its text on a phone
+   (.ui-dialog-header); a list of paths reads from the left, one path above its size. The dialog's
+   body is the one scroller, so the list has no scroll of its own. */
+.jobs-quarantine-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  min-width: 0;
+  text-align: left;
+}
+
+.jobs-quarantine-list > li {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.jobs-quarantine-size {
+  font-size: 0.75rem;
+}
+
+/* An old copy's size on one line: beside a long path the column is narrow, and "29.3 GiB" split over
+   two lines reads as two values. */
+.jobs-size {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 @media (max-width: 48rem) {
   /* Sentences and paths need the card's whole width: the cell's caption goes above them instead of
      beside them, and the lines start at the left like any text. */

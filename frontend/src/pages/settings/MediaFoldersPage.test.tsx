@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { allowedRootsApi } from '@/lib/allowed-roots-api'
 import { qk } from '@/lib/queries'
-import type { AllowedRoots, CurrentUser } from '@/lib/types'
+import type { AllowedRoots, CurrentUser, RenamePlaceProblem } from '@/lib/types'
 import { MediaFoldersPage } from '@/pages/settings/MediaFoldersPage'
 import {
   allowedRootsOf,
@@ -12,6 +12,7 @@ import {
   collectionsFolder,
   libraryFolderOf,
   moviesFolder,
+  quarantineOf,
   tvShowsFolder,
 } from '@/test/allowed-roots'
 import { apiError, networkError } from '@/test/api-error'
@@ -345,7 +346,7 @@ describe('MediaFoldersPage', () => {
 
   // MAM-24 — the replacement gates of ADR 0033, saved by the same Save as the folders.
   describe('replacing copies', () => {
-    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. In this version a replacement is scheduled and its new file checked once downloaded, but nothing is moved; moving old copies comes in a later version and will also need the media folders mounted read-write.'
+    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner.'
     const outside = 'Outside the Media folders.'
     const outsideTicked = 'Outside the Media folders: this tick has no effect until the folder is inside one.'
     const noLonger = 'No longer a library folder the app knows, so a tick here has no effect. Saved unticked, it leaves this list.'
@@ -737,6 +738,149 @@ describe('MediaFoldersPage', () => {
       expect(replacing).not.toContainElement(save)
       // .media-folders-path breaks a long path anywhere (media-folders.css), so the card never widens past a phone.
       expect(screen.getByText('/media/movies')).toHaveClass('media-folders-path')
+    })
+  })
+
+  // MAM-26 — whether a move into the quarantine can work in each ticked folder (ADR 0033's hint), the
+  // room each quarantine takes, and the Save that would leave one outside every media folder.
+  describe('the quarantine', () => {
+    const allClear = 'A move into the quarantine can work here: the same mount as the quarantine, mounted read-write, and writable by the app.'
+    const problems: Record<RenamePlaceProblem, string> = {
+      OtherMount: 'Not on the same mount as its media folder\'s quarantine, so a move would fail: mount the media folder as one read-write mount.',
+      ReadOnly: 'Mounted read-only, so a move would fail: mount the media folders read-write.',
+      NotWritable: 'The app\'s user can\'t write here or in its media folder, so a move would fail: run the app as the media folders\' owner.',
+      CouldNotCheck: 'The app couldn\'t check whether a move can work here; the move itself will tell.',
+    }
+    const empty = 'The quarantine is empty.'
+
+    it.each(Object.entries(problems) as [RenamePlaceProblem, string][])('says on a ticked folder why a move would fail there: %s', async (problem, sentence) => {
+      // Arrange
+      storedRoots(allowedRootsOf(['/media'], {
+        replacementEnabled: true,
+        libraryFolders: [libraryFolderOf('/media/movies', ['Фільми'], { ticked: true, renameProblems: [problem] })],
+      }))
+
+      // Act
+      renderPage()
+
+      // Assert
+      const box = await screen.findByRole('checkbox', { name: '/media/movies' })
+      const line = screen.getByText(sentence)
+      expect(line.closest('.library-source-warning')).not.toBeNull()
+      expect(line.closest('.library-source-warning')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+      expect(box).toHaveAccessibleDescription(`In the library Фільми ${sentence}`)
+      expect(screen.queryByText(allClear)).not.toBeInTheDocument()
+    })
+
+    it('gives each problem a line of its own, every one part of the box\'s description', async () => {
+      // Arrange
+      storedRoots(allowedRootsOf(['/media'], {
+        libraryFolders: [libraryFolderOf('/media/movies', ['Фільми'], { ticked: true, renameProblems: ['ReadOnly', 'NotWritable'] })],
+      }))
+
+      // Act
+      renderPage()
+
+      // Assert
+      const box = await screen.findByRole('checkbox', { name: '/media/movies' })
+      const lines = [problems.ReadOnly, problems.NotWritable].map((sentence) => screen.getByText(sentence).closest('.library-source-warning'))
+      expect(lines[0]).not.toBe(lines[1])
+      // Spans inside the label: a paragraph can't sit in one.
+      expect(lines.map((line) => line?.tagName)).toEqual(['SPAN', 'SPAN'])
+      expect(box).toHaveAccessibleDescription(`In the library Фільми ${problems.ReadOnly} ${problems.NotWritable}`)
+    })
+
+    it('says all is clear only on a folder ticked in the form, from the tick on, saved or not', async () => {
+      // Arrange
+      storedRoots(allowedRootsOf(['/media'], {
+        libraryFolders: [{ ...moviesFolder, ticked: true }, tvShowsFolder],
+      }))
+      const { user } = renderPage()
+      await screen.findByRole('checkbox', { name: '/media/movies' })
+      const beforeTick = screen.getAllByText(allClear).length
+
+      // Act
+      await user.click(folderBox('/media/tv-shows'))
+
+      // Assert
+      expect(beforeTick).toBe(1)
+      expect(screen.getAllByText(allClear)).toHaveLength(2)
+      expect(folderBox('/media/tv-shows')).toHaveAccessibleDescription(`In the library Серіали ${allClear}`)
+      await user.click(folderBox('/media/movies'))
+      expect(folderBox('/media/movies')).toHaveAccessibleDescription('In the library Фільми')
+      expect(screen.getAllByText(allClear)).toHaveLength(1)
+    })
+
+    it('says nothing of a move on a ticked folder the app didn\'t check, outside the media folders', async () => {
+      // Arrange
+      storedRoots(allowedRootsOf(['/media'], { libraryFolders: [{ ...collectionsFolder, ticked: true }] }))
+
+      // Act
+      renderPage()
+
+      // Assert
+      const box = await screen.findByRole('checkbox', { name: '/config/data/collections' })
+      expect(box).toHaveAccessibleDescription('In the library Колекції Outside the Media folders: this tick has no effect until the folder is inside one.')
+      expect(screen.queryByText(allClear)).not.toBeInTheDocument()
+      expect(document.querySelector('.media-folders-library .library-source-warning')).toBeNull()
+    })
+
+    it('lists the room each quarantine takes, with a link to the jobs that restore or delete what it holds', async () => {
+      // Arrange
+      storedRoots(allowedRootsOf(['/media', '/data'], {
+        quarantines: [
+          quarantineOf(),
+          quarantineOf({ path: '/data/.mam-quarantine', replacementCount: 1, fileCount: 1, sizeBytes: 1_073_741_824 }),
+        ],
+      }))
+
+      // Act
+      renderPage()
+
+      // Assert
+      const heading = await screen.findByRole('heading', { level: 3, name: 'Quarantine' })
+      const list = screen.getByRole('list', { name: 'Quarantine' })
+      expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+        '/media/.mam-quarantine: 42 GiB in 3 files, from 2 replacements.',
+        '/data/.mam-quarantine: 1 GiB in 1 file, from 1 replacement.',
+      ])
+      expect(screen.getByRole('region', { name: 'Replacing copies' })).toContainElement(heading)
+      expect(screen.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs')
+      expect(screen.queryByText(empty)).not.toBeInTheDocument()
+    })
+
+    it('says the quarantine is empty while it holds nothing', async () => {
+      // Arrange
+      storedRoots(allowedRootsOf(['/media']))
+
+      // Act
+      renderPage()
+
+      // Assert
+      expect(await screen.findByText(empty)).toBeInTheDocument()
+      expect(screen.queryByRole('list', { name: 'Quarantine' })).not.toBeInTheDocument()
+    })
+
+    it('shows the server\'s refusal of a Save that would leave a quarantine outside every media folder above Save, keeping what was typed', async () => {
+      // Arrange
+      const sentence = '“/media/.mam-quarantine” still holds replaced copies, so its media folder can\'t be taken out of the list. Restore them or delete them for good first.'
+      storedRoots(allowedRootsOf(['/media'], { quarantines: [quarantineOf()] }))
+      vi.mocked(allowedRootsApi.update).mockRejectedValue(apiError(400, sentence))
+      const { user } = renderPage()
+      await screen.findByRole('textbox', { name: 'Folder 1' })
+      await user.clear(screen.getByRole('textbox', { name: 'Folder 1' }))
+      await user.type(screen.getByRole('textbox', { name: 'Folder 1' }), '/media/movies')
+
+      // Act
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      // Assert
+      const error = await screen.findByRole('alert')
+      expect(error).toHaveTextContent(sentence)
+      expect(error.nextElementSibling).toContainElement(screen.getByRole('button', { name: 'Save' }))
+      expect(folderValues()).toEqual(['/media/movies'])
+      expect(screen.getByRole('list', { name: 'Quarantine' })).toHaveTextContent('/media/.mam-quarantine: 42 GiB in 3 files, from 2 replacements.')
+      expect(allowedRootsApi.get).toHaveBeenCalledOnce()
     })
   })
 })

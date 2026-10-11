@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Contracts;
@@ -9,4 +10,12 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <see cref="ReplacementFolderStatus.NoLongerALibraryFolder"/>.</param>
 /// <param name="Ticked">Whether the owner ticked it for replacement.</param>
 /// <param name="Status">Whether a tick here counts, and why not.</param>
-public sealed record ReplacementFolderDto(string AppPath, IReadOnlyList<string> LibraryNames, bool Ticked, ReplacementFolderStatus Status);
+/// <param name="RenameProblems">MAM-26 — for an <see cref="ReplacementFolderStatus.Available"/> folder, what keeps a
+/// rename into the quarantine from working there (ADR 0033's hint), none when it can; <c>null</c> for any other
+/// folder.</param>
+public sealed record ReplacementFolderDto(
+    string AppPath,
+    IReadOnlyList<string> LibraryNames,
+    bool Ticked,
+    ReplacementFolderStatus Status,
+    IReadOnlyList<RenamePlaceProblem>? RenameProblems = null);

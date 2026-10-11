@@ -4,8 +4,8 @@ namespace MediaAcquisitionManager.Core.Replacements;
 
 /// <summary>
 /// MAM-24 — which replacement jobs are still going (ADR 0030–0034): the ones following their download, the ones whose
-/// new files MAM-25 checks (ADR 0035), and the ones that still hold their old copies. Pure lists, in the order a job
-/// goes through them.
+/// new files MAM-25 checks (ADR 0035), the ones MAM-26's mover takes up and the ones a restart may have cut (ADR 0030),
+/// and the ones that still hold their old copies. Pure lists, in the order a job goes through them.
 /// </summary>
 public static class ReplacementJobStates
 {
@@ -36,10 +36,35 @@ public static class ReplacementJobStates
     ];
 
     /// <summary>
-    /// The states a replacement still holds its old copies in: every one but the two ends. A copy such a job holds
-    /// can't be picked by another (<see cref="ReplacementCopyUnavailableReason.AlreadyScheduled"/>): two downloads would
-    /// replace one copy, and the second would find it gone. MAM-25 — a job being checked or verified still holds them:
-    /// they move only in MAM-26.
+    /// MAM-26 — the mover's queue (ADR 0030): a <see cref="ReplacementJobState.Verified"/> job whose old copies it moves
+    /// next, and a <see cref="ReplacementJobState.Quarantining"/> one it is moving. Never <see cref="Followed"/> nor
+    /// <see cref="Verifying"/>: those passes would move it back.
+    /// </summary>
+    public static IReadOnlyList<ReplacementJobState> Quarantine { get; } =
+    [
+        ReplacementJobState.Verified,
+        ReplacementJobState.Quarantining,
+    ];
+
+    /// <summary>
+    /// MAM-26 — the states a write to the media is under way in: the mover's renames into the quarantine, and the
+    /// owner's Restore and Delete for good, each inside its request. A job found in one while no one in this process
+    /// holds it was cut by a restart or a crash; the mover's recovery looks its names up and stops it for review.
+    /// </summary>
+    public static IReadOnlyList<ReplacementJobState> Unsettled { get; } =
+    [
+        ReplacementJobState.Quarantining,
+        ReplacementJobState.Restoring,
+        ReplacementJobState.Deleting,
+    ];
+
+    /// <summary>
+    /// The states a replacement still holds its old copies in: every one but the ends. A copy such a job holds can't be
+    /// picked by another (<see cref="ReplacementCopyUnavailableReason.AlreadyScheduled"/>): two downloads would replace
+    /// one copy, and the second would find it gone. MAM-25 — a job being checked or verified still holds them. MAM-26 —
+    /// and one moving them, keeping them in the quarantine, or putting them back or deleting them; a job whose names are
+    /// all deleted (<see cref="ReplacementJobState.Completed"/>) or all back (<see cref="ReplacementJobState.Restored"/>)
+    /// holds nothing any more.
     /// </summary>
     public static IReadOnlyList<ReplacementJobState> Open { get; } =
     [
@@ -50,6 +75,10 @@ public static class ReplacementJobStates
         ReplacementJobState.Downloaded,
         ReplacementJobState.Inspecting,
         ReplacementJobState.Verified,
+        ReplacementJobState.Quarantining,
+        ReplacementJobState.Quarantined,
+        ReplacementJobState.Restoring,
+        ReplacementJobState.Deleting,
         ReplacementJobState.NeedsReview,
     ];
 }

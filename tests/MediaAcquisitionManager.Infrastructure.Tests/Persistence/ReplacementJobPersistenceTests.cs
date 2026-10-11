@@ -23,7 +23,10 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 // learns kept on the download job by name. MAM-25 (ADR 0035) — the verification evidence: a job's new files and their ids
 // part of it, gone with it, one per place in the client's list; their kind, the new states and the check's audit actions
 // stored by name; the evidence kept to the bit and the tick; no key into the library's integrations or works, nor from an
-// old copy to its new file; and the verifier's index over the jobs being checked only.
+// old copy to its new file; and the verifier's index over the jobs being checked only. MAM-26 (ADR 0030) — the quarantine:
+// a job's names part of it, gone with it, one per place in its plan; the new job and name states, the name kinds, the
+// quarantine's audit actions and the name target stored by name, a name named by the file's own name; a name's identity
+// and the job's new times kept to the bit and the tick; and the mover's index over the jobs it takes up only.
 public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
 {
     private static readonly IEncryptionService Encryption = new AesGcmEncryptionService(
@@ -426,6 +429,245 @@ public sealed class ReplacementJobPersistenceTests : DatabaseTestBase
         //Assert
         // A key from ReplacementJobFiles would rebuild that table; keys into the library would lose the evidence to a sync.
         Assert.Null(exception);
+    }
+
+    // ── the quarantine (MAM-26) ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Deleting_a_replacement_deletes_its_names_and_no_others()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var gone = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Quarantined);
+        var kept = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Quarantined);
+        foreach (var job in new[] { gone, kept })
+        {
+            var copy = await Replacements(db).AddFile(job.Id, $"/media/movies/{job.Id}.mkv", TestMedia.File(inode: 1));
+            await Replacements(db).AddName(
+                job.Id, copy.Id, 0, ReplacementNameKind.Video, copy.AppPath, $"/media/.mam-quarantine/{job.Id}/movies/{job.Id}.mkv", "/media",
+                TestMedia.File(inode: 1), ReplacementNameState.Quarantined);
+        }
+
+        //Act
+        await db.ReplacementJobs.Where(row => row.Id == gone.Id).ExecuteDeleteAsync(cancellationToken);
+
+        //Assert
+        // Cascade: the names are part of their job, and say nothing once it is gone.
+        await using var check = CreateContext();
+        Assert.Equal(kept.Id, (await check.ReplacementJobNames.SingleAsync(cancellationToken)).ReplacementJobId);
+    }
+
+    [Fact]
+    public async Task A_second_name_at_one_place_of_a_jobs_plan_is_refused()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Quarantining);
+        var copy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien.mkv", TestMedia.File(inode: 1));
+        await Replacements(db).AddName(
+            job.Id, copy.Id, 1, ReplacementNameKind.Companion, "/media/movies/Alien (1979)/Alien.srt",
+            $"/media/.mam-quarantine/{job.Id}/movies/Alien (1979)/Alien.srt", "/media", TestMedia.File(inode: 2, sizeBytes: 80_000));
+
+        //Act
+        var exception = await Record.ExceptionAsync(() => Replacements(db).AddName(
+            job.Id, copy.Id, 1, ReplacementNameKind.Companion, "/media/movies/Alien (1979)/Alien.nfo",
+            $"/media/.mam-quarantine/{job.Id}/movies/Alien (1979)/Alien.nfo", "/media", TestMedia.File(inode: 3, sizeBytes: 4_000)));
+
+        //Assert
+        // One name per place in the plan, which is what lets a restart say how far the move got.
+        var sqlite = Assert.IsType<SqliteException>(Assert.IsType<DbUpdateException>(exception).InnerException);
+        Assert.Equal(19, sqlite.SqliteErrorCode);
+        Assert.Contains(
+            "UNIQUE constraint failed: ReplacementJobNames.ReplacementJobId, ReplacementJobNames.Position", sqlite.Message, StringComparison.Ordinal);
+        await using var check = CreateContext();
+        Assert.Equal(1, await check.ReplacementJobNames.CountAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task The_quarantine_states_and_name_kinds_are_stored_by_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        // Every state MAM-26 adds, on a job and on a name, each once.
+        (ReplacementJobState Job, ReplacementNameKind Kind, ReplacementNameState Name)[] planted =
+        [
+            (ReplacementJobState.Quarantining, ReplacementNameKind.Video, ReplacementNameState.Planned),
+            (ReplacementJobState.Quarantining, ReplacementNameKind.Companion, ReplacementNameState.Moving),
+            (ReplacementJobState.Quarantined, ReplacementNameKind.Video, ReplacementNameState.Quarantined),
+            (ReplacementJobState.Quarantined, ReplacementNameKind.Companion, ReplacementNameState.Stayed),
+            (ReplacementJobState.Restoring, ReplacementNameKind.Video, ReplacementNameState.Restoring),
+            (ReplacementJobState.Restored, ReplacementNameKind.Video, ReplacementNameState.Restored),
+            (ReplacementJobState.Deleting, ReplacementNameKind.Video, ReplacementNameState.Deleting),
+            (ReplacementJobState.Completed, ReplacementNameKind.Video, ReplacementNameState.Deleted),
+            (ReplacementJobState.Completed, ReplacementNameKind.Companion, ReplacementNameState.Lost),
+        ];
+        foreach (var state in planted.GroupBy(row => row.Job))
+        {
+            var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, state.Key);
+            var copy = await Replacements(db).AddFile(job.Id, $"/media/movies/{job.Id}.mkv", TestMedia.File(inode: 1));
+            foreach (var (row, position) in state.Select((row, position) => (row, position)))
+            {
+                await Replacements(db).AddName(
+                    job.Id, copy.Id, position, row.Kind, $"/media/movies/{job.Id}.{position}", $"/media/.mam-quarantine/{job.Id}/movies/{job.Id}.{position}",
+                    "/media", TestMedia.File(inode: 100 + position), row.Name);
+            }
+        }
+
+        //Act
+        var stored = await db.Database
+            .SqlQueryRaw<string>(
+                """
+                SELECT "ReplacementJobs"."State" || '/' || "Kind" || '/' || "ReplacementJobNames"."State" AS "Value"
+                FROM "ReplacementJobs"
+                JOIN "ReplacementJobNames" ON "ReplacementJobNames"."ReplacementJobId" = "ReplacementJobs"."Id"
+                ORDER BY 1
+                """)
+            .ToListAsync(cancellationToken);
+
+        //Assert
+        // By name, like every other enum: a member added later never changes what a stored row means.
+        Assert.Equal(
+            [
+                "Completed/Companion/Lost", "Completed/Video/Deleted", "Deleting/Video/Deleting", "Quarantined/Companion/Stayed",
+                "Quarantined/Video/Quarantined", "Quarantining/Companion/Moving", "Quarantining/Video/Planned", "Restored/Video/Restored",
+                "Restoring/Video/Restoring",
+            ],
+            stored);
+    }
+
+    [Fact]
+    public async Task A_quarantine_name_keeps_its_identity_to_the_bit_and_the_tick()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Quarantined);
+        var copy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien.mkv", TestMedia.File(inode: 42));
+        var movedUtc = new DateTime(2026, 10, 10, 12, 0, 0, DateTimeKind.Utc).AddTicks(1_234_567);
+        var checkedUtc = movedUtc.AddMinutes(-1).AddTicks(3);
+        var problem = new string('x', ReplacementJobNameEntity.ProblemMaximumLength);
+
+        //Act
+        // A device past long.MaxValue as an unsigned st_dev, a size past 4 GiB, a time with sub-millisecond ticks and a
+        // second name.
+        await Replacements(db).AddName(
+            job.Id, copy.Id, 0, ReplacementNameKind.Video, copy.AppPath, $"/media/.mam-quarantine/{job.Id}/movies/Alien (1979)/Alien.mkv", "/media",
+            TestMedia.File(inode: 42, sizeBytes: 5_000_000_000, linkCount: 2), ReplacementNameState.Quarantined, problem, movedUtc);
+        await db.ReplacementJobs.Where(row => row.Id == job.Id).ExecuteUpdateAsync(
+            setters => setters
+                .SetProperty(row => row.QuarantineCheckedUtc, checkedUtc)
+                .SetProperty(row => row.QuarantinedUtc, movedUtc)
+                .SetProperty(row => row.LibraryNoticeDueUtc, movedUtc),
+            cancellationToken);
+
+        //Assert
+        await using var check = CreateContext();
+        var name = await check.ReplacementJobNames.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal(
+            (copy.Id, TestMedia.DeviceId, 42L, 5_000_000_000L, TestMedia.ModifiedUtc.Ticks, (int?)2, problem, movedUtc.Ticks),
+            (name.ReplacementJobFileId, name.DeviceId, name.Inode, name.SizeBytes, name.ModifiedUtc.Ticks, name.LinkCount, name.Problem,
+                name.MovedUtc!.Value.Ticks));
+        var stored = await check.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
+        Assert.Equal(
+            (checkedUtc.Ticks, movedUtc.Ticks, movedUtc.Ticks),
+            (stored.QuarantineCheckedUtc!.Value.Ticks, stored.QuarantinedUtc!.Value.Ticks, stored.LibraryNoticeDueUtc!.Value.Ticks));
+    }
+
+    [Fact]
+    public async Task The_quarantine_audit_actions_and_the_name_target_are_stored_by_name()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var owner = await CreateUserAsync(db);
+        var job = await Replacements(db).Create((await CreateDownloadJobAsync(db, owner)).Id, owner.Id, ReplacementJobState.Quarantining);
+        var copy = await Replacements(db).AddFile(job.Id, "/media/movies/Alien (1979)/Alien (1979).mkv", TestMedia.File(inode: 1));
+        var name = await Replacements(db).AddName(
+            job.Id, copy.Id, 0, ReplacementNameKind.Video, copy.AppPath, $"/media/.mam-quarantine/{job.Id}/movies/Alien (1979)/Alien (1979).mkv",
+            "/media", TestMedia.File(inode: 1));
+        var auditTrail = new AuditTrail(db, TimeProvider.System);
+        // The mover's rows have no actor; the owner's actions carry him.
+        auditTrail.Record(AuditAction.ReplacementQuarantineStarted, null, AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementNameMoving, null, AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementNameMoved, null, AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementNameNotMoved, null, AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementQuarantined, null, AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementRetried, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementRestoreStarted, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementNameRestoring, AuditActor.From(owner), AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementNameRestored, AuditActor.From(owner), AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementNameNotRestored, AuditActor.From(owner), AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementRestored, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementDeleteStarted, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        auditTrail.Record(AuditAction.ReplacementNameDeleting, AuditActor.From(owner), AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementNameDeleted, AuditActor.From(owner), AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementNameNotDeleted, AuditActor.From(owner), AuditTarget.ReplacementJobName(name));
+        auditTrail.Record(AuditAction.ReplacementCompleted, AuditActor.From(owner), AuditTarget.ReplacementJob(job, "Alien (1979) BDRip"));
+        await db.SaveChangesAsync(cancellationToken);
+
+        //Act
+        var rows = await db.Database
+            .SqlQueryRaw<string>(
+                """
+                SELECT "Action" || '/' || COALESCE("ActorUserName", '-') || '/' || "TargetKind" || '/' || "TargetName" AS "Value"
+                FROM "AuditEvents" ORDER BY "Action"
+                """)
+            .ToListAsync(cancellationToken);
+        var nameTargets = await db.AuditEvents.AsNoTracking()
+            .Where(audit => audit.TargetKind == AuditTargetKind.ReplacementJobName)
+            .Select(audit => audit.TargetId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        //Assert
+        // A name is named by the file's own name, and found again by its row's id.
+        Assert.Equal(
+            [
+                "ReplacementCompleted/owner/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementDeleteStarted/owner/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementNameDeleted/owner/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameDeleting/owner/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameMoved/-/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameMoving/-/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameNotDeleted/owner/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameNotMoved/-/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameNotRestored/owner/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameRestored/owner/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementNameRestoring/owner/ReplacementJobName/Alien (1979).mkv",
+                "ReplacementQuarantineStarted/-/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementQuarantined/-/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementRestoreStarted/owner/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementRestored/owner/ReplacementJob/Alien (1979) BDRip",
+                "ReplacementRetried/owner/ReplacementJob/Alien (1979) BDRip",
+            ],
+            rows);
+        Assert.Equal([(Guid?)name.Id], nameTargets);
+    }
+
+    [Fact]
+    public async Task The_quarantine_index_holds_only_the_replacements_the_mover_takes_up()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+
+        //Act
+        var definition = await db.Database
+            .SqlQueryRaw<string>("SELECT \"sql\" AS \"Value\" FROM \"sqlite_master\" WHERE \"name\" = 'IX_ReplacementJobs_Quarantine'")
+            .SingleAsync(cancellationToken);
+
+        //Assert
+        // Partial: the few the mover takes up, never the history. The states by name — exactly ReplacementJobStates.Quarantine.
+        Assert.Equal(
+            "CREATE INDEX \"IX_ReplacementJobs_Quarantine\" ON \"ReplacementJobs\" (\"State\") WHERE \"State\" IN ('Verified', 'Quarantining')",
+            definition);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

@@ -183,7 +183,7 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             (DownloadJobStatus.Submitted, (DownloadOverwriteCheck?)DownloadOverwriteCheck.Checked, AlienRelease),
             (job.Status, job.OverwriteCheck, job.ReleaseTitle));
         // The answer already says how the replacement stands: the download went to qBittorrent after the strict check.
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, false, 0), job.Replacement);
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Submitted, 1, null, false, 0) { Id = await ReplacementIdAsync(cancellationToken) }, job.Replacement);
         // ADR 0013, R1 — everything written before the .torrent was fetched, the work's IMDb id included, and nothing asked
         // of qBittorrent before it.
         Assert.Equal((0, 1, 1, 1, 1, 1, 2), atFetch);
@@ -1026,18 +1026,23 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var replacement = document.RootElement.GetProperty("replacement");
         // Exactly the names the Jobs page and the dialog's sent view read (frontend DownloadJobReplacement), the state by
-        // name, as every enum on the wire.
+        // name, as every enum on the wire. MAM-26 — and the replacement's id, its quarantine's counts and Retry.
         Assert.Equal(
-            ["state", "copyCount", "reason", "switchedOff", "copiesOutsideTickedFolders"],
+            ["state", "copyCount", "reason", "switchedOff", "copiesOutsideTickedFolders", "id", "quarantinedCopyCount", "stayedFileCount", "canRetry"],
             replacement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ("Submitted", 1, JsonValueKind.Null, false, 0),
             (replacement.GetProperty("state").GetString(), replacement.GetProperty("copyCount").GetInt32(), replacement.GetProperty("reason").ValueKind,
                 replacement.GetProperty("switchedOff").GetBoolean(), replacement.GetProperty("copiesOutsideTickedFolders").GetInt32()));
+        Assert.Equal(
+            (0, 0, false),
+            (replacement.GetProperty("quarantinedCopyCount").GetInt32(), replacement.GetProperty("stayedFileCount").GetInt32(),
+                replacement.GetProperty("canRetry").GetBoolean()));
+        var id = replacement.GetProperty("id").GetGuid();
         await _factory.WithDbAsync(async db =>
         {
             var row = await db.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
-            Assert.Equal(ReplacementJobState.Submitted, row.State);
+            Assert.Equal((row.Id, ReplacementJobState.Submitted), (id, row.State));
             Assert.Equal(theatrical, (await db.ReplacementJobFiles.AsNoTracking().SingleAsync(cancellationToken)).PhysicalFileId);
         });
     }
@@ -1068,7 +1073,7 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var job = await ReadJobAsync(first, cancellationToken);
         Assert.Equivalent(job, await ReadJobAsync(response, cancellationToken), strict: true);
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Submitted, 2, null, false, 0), job.Replacement);
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Submitted, 2, null, false, 0) { Id = await ReplacementIdAsync(cancellationToken) }, job.Replacement);
         await _factory.WithDbAsync(async db =>
         {
             Assert.Equal(1, await db.DownloadJobs.CountAsync(cancellationToken));
@@ -1389,6 +1394,14 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             .Join(db.MediaVersions, file => file.MediaVersionId, version => version.Id, (_, version) => version.SourceItemId!)
             .SingleAsync());
         return itemId;
+    }
+
+    /// <summary>MAM-26 — the id of the one replacement written, which its line on the job carries.</summary>
+    private async Task<Guid> ReplacementIdAsync(CancellationToken cancellationToken)
+    {
+        var id = Guid.Empty;
+        await _factory.WithDbAsync(async db => id = await db.ReplacementJobs.Select(replacement => replacement.Id).SingleAsync(cancellationToken));
+        return id;
     }
 
     /// <summary>What the database holds at a moment, read through a context of its own, and how many requests qBittorrent

@@ -19,8 +19,12 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 // (LibraryController.PostUpdatedMedia): each path goes to the library monitor as its own folder watcher would report it,
 // whether real-time monitoring is on or off, and the answer is 204 at once, before anything is looked at, whatever the path
 // is. So the answer proves only that Jellyfin took the request. It changes no item itself — Jellyfin makes and refreshes the
-// items of what it then finds, as its own scan would — and asking again is harmless (ADR 0030 asks the same after moving a
-// copy into the quarantine).
+// items of what it then finds, as its own scan would — and asking again is harmless.
+//
+// MAM-26 — the same request tells Jellyfin that a replacement's old copies went into the quarantine ("Deleted") or came back
+// ("Created"), at their old paths (ADR 0030). Jellyfin 12.2 never reads UpdateType — PostUpdatedMedia hands the monitor the
+// path alone, which refreshes the nearest item still on the disk: that drops a file that went and finds one that appeared.
+// The type still says what happened, as its own watcher would say it, so a Jellyfin that ever reads it hears the truth.
 //
 // Reading is by computed item id, never by a listing. Jellyfin gives an item the id new Guid(MD5(UTF-16 of its type's full
 // name + its path)) (LibraryManager.GetNewItemId, with case-sensitive ids, the default; ADR 0030 already relies on it to say
@@ -34,10 +38,6 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 // take another file for it.
 internal sealed partial class JellyfinAdapter
 {
-    /// <summary>What every path of a request to look is: a file that appeared. Jellyfin handles every update type alike;
-    /// this one says what happened.</summary>
-    private const string CreatedUpdateType = "Created";
-
     private const string ScanForbiddenError =
         "Jellyfin accepted the key but won't let it ask the library to look at new files (403 Forbidden). Use a key from Dashboard → API Keys, not a user's access token.";
 
@@ -60,19 +60,19 @@ internal sealed partial class JellyfinAdapter
 
     /// <inheritdoc/>
     /// <remarks>
-    /// <c>POST /Library/Media/Updated</c> with every path in one body, on the shared client: Jellyfin answers it at once. 204
-    /// is the one answer that took the request; 401 and 403 are the key's; anything else is an answer Jellyfin doesn't send
-    /// for it. Sent once by this call, whatever becomes of it. Unlike Identify's Apply it doesn't ask for its connection to
-    /// close: were .NET to send it again on a pooled connection the other end had closed, Jellyfin would only be asked to look
-    /// twice.
+    /// <c>POST /Library/Media/Updated</c> with every path in one body, each with the change's update type, on the shared
+    /// client: Jellyfin answers it at once. 204 is the one answer that took the request; 401 and 403 are the key's; anything
+    /// else is an answer Jellyfin doesn't send for it. Sent once by this call, whatever becomes of it. Unlike Identify's Apply
+    /// it doesn't ask for its connection to close: were .NET to send it again on a pooled connection the other end had closed,
+    /// Jellyfin would only be asked to look twice.
     /// </remarks>
     public Task<IntegrationCallResult<LibraryScanRequest>> RequestScanAsync(
-        IntegrationConnectionSettings settings, IReadOnlyList<string> servicePaths, CancellationToken cancellationToken = default)
+        IntegrationConnectionSettings settings, IReadOnlyList<string> servicePaths, LibraryFileChange change, CancellationToken cancellationToken = default)
     {
         // A caller's mistake, thrown before anything is sent.
         ArgumentNullException.ThrowIfNull(settings);
         ValidateLookupPaths(servicePaths);
-        var body = ScanBody(servicePaths);
+        var body = ScanBody(servicePaths, UpdateTypeOf(change));
         var pathCount = servicePaths.Count;
 
         return CallAsync<LibraryScanRequest>(
@@ -277,8 +277,21 @@ internal sealed partial class JellyfinAdapter
         }
     }
 
-    /// <summary>The request's body, compact, every path exactly as given, in the order given.</summary>
-    private static byte[] ScanBody(IReadOnlyList<string> servicePaths)
+    /// <summary>
+    /// MAM-26 — Jellyfin's update type for <paramref name="change"/>, as its own folder watcher names a file that appeared or
+    /// went (its <c>MediaUpdateInfoPathDto</c>); a change that is no member is a caller's mistake, thrown before anything is
+    /// sent. Never <c>Modified</c>: the app tells only of a file that appeared or went.
+    /// </summary>
+    private static string UpdateTypeOf(LibraryFileChange change) => change switch
+    {
+        LibraryFileChange.Created => "Created",
+        LibraryFileChange.Deleted => "Deleted",
+        _ => throw new ArgumentOutOfRangeException(nameof(change), change, "Name a change: a file created or deleted."),
+    };
+
+    /// <summary>The request's body, compact, every path exactly as given, in the order given, each of
+    /// <paramref name="updateType"/>.</summary>
+    private static byte[] ScanBody(IReadOnlyList<string> servicePaths, string updateType)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
@@ -289,7 +302,7 @@ internal sealed partial class JellyfinAdapter
             {
                 writer.WriteStartObject();
                 writer.WriteString("Path", path);
-                writer.WriteString("UpdateType", CreatedUpdateType);
+                writer.WriteString("UpdateType", updateType);
                 writer.WriteEndObject();
             }
 

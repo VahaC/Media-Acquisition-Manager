@@ -8,8 +8,8 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 // MAM-18 — the walk of the allowed roots for media file names, over real folders in a temp folder (ADR 0021): media
 // by extension, every folder walked in ordinal name order, links inside the roots followed under their own names and
 // refused when they lead out, loops ended, a root that is away or empty answered as unlisted rather than as empty —
-// reached through a link in another root too — a folder's names taken from the folder that was opened, and the walk
-// bounded. A link to a folder is a junction on Windows, which needs no privilege; a symbolic link to a
+// reached through a link in another root too — a folder's names taken from the folder that was opened, the walk
+// bounded, and (MAM-26) every quarantine passed over in silence. A link to a folder is a junction on Windows, which needs no privilege; a symbolic link to a
 // file is skipped on a Windows account that may not create one and runs on Linux in CI. What only Linux can show —
 // a folder swapped for a link, names that aren't UTF-8, a folder the app may not list — is in
 // LocalFileInventoryListingLinuxTests.
@@ -572,6 +572,65 @@ public sealed class LocalFileInventoryListingTests : IDisposable
         // Nothing of what is at b's path now ("now-at-b.mkv"), and nothing under the opened folder's own path.
         Assert.Equal([Media(_media, "a.mkv"), Media(_media, "b", "opened.mkv")], entries);
         Assert.Equal(["media", "b"], reader.Opened.Select(Path.GetFileName));
+    }
+
+    // MAM-26 — the quarantine holds the replaced copies, which the replacement jobs know (ADR 0030): the walk passes
+    // it over in silence, so a quarantined video is never a file no library reported, a possible match or part of a
+    // Media folders count, and never a problem of the scan.
+
+    [Fact]
+    public async Task List_never_walks_a_folder_named_mam_quarantine_at_any_depth_and_counts_no_problem()
+    {
+        //Arrange
+        _folder.WriteFile("1", "media", "a.mkv");
+        _folder.WriteFile("2", "media", ".mam-quarantine", "6f9d2c1e-4b7a-4e10-9c55-0d3a8e1f2b64", "movies", "Alien (1979)", "Alien.mkv");
+        _folder.WriteFile("3", "media", "movies", ".mam-quarantine", "deep", "Old.mkv");
+        _folder.WriteFile("4", "media", "movies", "z.mkv");
+        // A file of that name is passed over too: no entry of that name is ever given.
+        _folder.WriteFile("5", "media", "shows", ".mam-quarantine");
+
+        //Act
+        var entries = await ListAsync(_media);
+
+        //Assert
+        Assert.Equal([Media(_media, "a.mkv"), Media(_media, "movies", "z.mkv")], entries);
+    }
+
+    [Fact]
+    public async Task List_never_follows_a_link_into_a_quarantine()
+    {
+        //Arrange
+        // Links with ordinary names, inside the root, leading to the quarantine and into a job's folder in it.
+        _folder.WriteFile("1", "media", ".mam-quarantine", "job", "Alien.mkv");
+        _folder.WriteFile("2", "media", "movies", "z.mkv");
+        FileLinks.CreateFolderLink(Path.Combine(_media, "kept"), _folder.PathOf("media", ".mam-quarantine"));
+        FileLinks.CreateFolderLink(Path.Combine(_media, "movies", "old"), _folder.PathOf("media", ".mam-quarantine", "job"));
+        _ = FileLinks.TryCreateSymbolicLink(Path.Combine(_media, "alias.mkv"), _folder.PathOf("media", ".mam-quarantine", "job", "Alien.mkv"));
+
+        //Act
+        var entries = await ListAsync(_media);
+
+        //Assert
+        Assert.Equal([Media(_media, "movies", "z.mkv")], entries);
+    }
+
+    [Fact]
+    public async Task List_of_a_root_that_lies_in_a_quarantine_gives_nothing_for_it_and_walks_the_others()
+    {
+        //Arrange
+        // A root typed inside a quarantine, and one that is a link into one.
+        var downloads = _folder.CreateFolder("downloads");
+        _folder.WriteFile("1", "downloads", "a.mkv");
+        var typedInside = _folder.CreateFolder("media", ".mam-quarantine", "job");
+        _folder.WriteFile("2", "media", ".mam-quarantine", "job", "Alien.mkv");
+        var linkedInside = _folder.PathOf("library");
+        FileLinks.CreateFolderLink(linkedInside, typedInside);
+
+        //Act
+        var entries = await ListAsync(typedInside, linkedInside, downloads);
+
+        //Assert
+        Assert.Equal([Media(downloads, "a.mkv")], entries);
     }
 
     [Fact]

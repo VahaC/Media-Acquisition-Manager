@@ -65,7 +65,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// </para>
 /// <para>
 /// MAM-25 — a request to look at paths (<c>POST /Library/Media/Updated</c>) is recorded with its paths in order
-/// (<see cref="ScanRequests"/>) and answered as Jellyfin 12.2's source does, at once: 204 with no body, or
+/// (<see cref="ScanRequests"/>) — MAM-26 — and their update types (<see cref="ScanUpdateTypes"/>), and answered as Jellyfin 12.2's source does, at once: 204 with no body, or
 /// <see cref="ScanRefusal"/>'s status; <see cref="OnScanRequested"/> is where a test makes the items Jellyfin would make of the
 /// paths. A planted film or episode (<see cref="PlantFilm"/>, <see cref="PlantEpisode"/>) is stored under the id its path
 /// computes (<see cref="JellyfinItemIds"/>), so the one-item read finds it where the adapter looks, refreshed or not yet. The
@@ -109,6 +109,7 @@ public sealed class FakeJellyfinServer
     private readonly ConcurrentQueue<FakeJellyfinSearch> _searches = new();
     private readonly ConcurrentQueue<FakeJellyfinApply> _applied = new();
     private readonly ConcurrentQueue<IReadOnlyList<string>> _scans = new();
+    private readonly ConcurrentQueue<IReadOnlyList<string?>> _scanUpdateTypes = new();
     private int _inFlight;
     private int _peakInFlight;
     private int _applyCount;
@@ -198,6 +199,11 @@ public sealed class FakeJellyfinServer
     /// request first (concurrent safe; read it with <c>ToArray()</c> after the run). A refused one is recorded too: it reached
     /// the server.</summary>
     public IReadOnlyCollection<IReadOnlyList<string>> ScanRequests => _scans;
+
+    /// <summary>MAM-26 — the update type of each path of every request to look, beside <see cref="ScanRequests"/>: each
+    /// request's in its body's order, oldest request first, <c>null</c> where an update named none (concurrent safe; read it
+    /// with <c>ToArray()</c> after the run). Jellyfin 12.2 never reads the type; a test reads what the app said happened.</summary>
+    public IReadOnlyCollection<IReadOnlyList<string?>> ScanUpdateTypes => _scanUpdateTypes;
 
     /// <summary>MAM-25 — when set, a request to look at paths answers this status with no body, and
     /// <see cref="OnScanRequested"/> doesn't run: a refused one (401 behind a proxy, 403, 500).</summary>
@@ -837,7 +843,11 @@ public sealed class FakeJellyfinServer
             return new HttpResponseMessage(HttpStatusCode.BadRequest);
 
         IReadOnlyList<string> paths = [.. updates.Select(update => (string)update!["Path"]!)];
+        // Recorded as sent, a type that isn't a string as none: the real controller binds it as an optional string.
+        IReadOnlyList<string?> updateTypes =
+            [.. updates.Select(update => update!["UpdateType"] is JsonValue type && type.TryGetValue<string>(out var text) ? text : null)];
         _scans.Enqueue(paths);
+        _scanUpdateTypes.Enqueue(updateTypes);
         if (ScanRefusal is { } refusal)
             return new HttpResponseMessage(refusal);
 

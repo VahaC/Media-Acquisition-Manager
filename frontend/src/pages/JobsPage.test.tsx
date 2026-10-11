@@ -6,13 +6,15 @@ import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { downloadsApi } from '@/lib/downloads-api'
 import { formatDateTime } from '@/lib/format'
 import type { CurrentUser, DownloadJob, DownloadJobReplacement, DownloadJobStatus, DownloadOverwriteCheck } from '@/lib/types'
+import { replacementsApi } from '@/lib/replacements-api'
 import { JobsPage } from '@/pages/JobsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { downloadedJob, downloadingJob, jobOf, jobsPage, sentMinutesAgo } from '@/test/downloads'
-import { replacementOf } from '@/test/replacements'
+import { REPLACEMENT_ID, replacementOf } from '@/test/replacements'
 
 vi.mock('@/lib/downloads-api')
+vi.mock('@/lib/replacements-api')
 
 /** What the last request for the list asked for. */
 const lastQuery = () => vi.mocked(downloadsApi.list).mock.lastCall?.[0]
@@ -187,14 +189,33 @@ describe('JobsPage', () => {
     ['scheduled', { state: 'Scheduled', copyCount: 1 }, 'Created', 'Replacement scheduled: 1 copy, kept until the new one is verified.', 'library-source-status'],
     ['downloading, of several copies', { state: 'Downloading', copyCount: 18 }, 'Downloading', 'Replacement scheduled: 18 copies, kept until the new one is verified.', 'library-source-status'],
     ['scheduled while replacement is switched off', { state: 'Submitted', copyCount: 2, switchedOff: true }, 'Submitted', 'Replacement scheduled, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
-    ['paused, with copies no longer in a ticked folder', { state: 'Paused', copyCount: 3, copiesOutsideTickedFolders: 2 }, 'Paused', 'Replacement scheduled: 3 copies, kept until the new one is verified. 2 copies are no longer in a ticked folder and won\'t move.', 'library-source-status'],
+    ['paused, with copies no longer in a ticked folder', { state: 'Paused', copyCount: 3, copiesOutsideTickedFolders: 2 }, 'Paused', 'Replacement scheduled: 3 copies, kept until the new one is verified. 2 copies are no longer in a ticked folder: unless they are ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
     ['downloaded, until the check takes it up', { state: 'Downloaded', copyCount: 1 }, 'Downloaded', 'Replacement checks the new file: 1 copy, kept until it is verified.', 'library-source-status'],
     ['inspecting the new files, of several copies', { state: 'Inspecting', copyCount: 18 }, 'Downloaded', 'Replacement checks the new file: 18 copies, kept until it is verified.', 'library-source-status'],
     ['inspecting while replacement is switched off', { state: 'Inspecting', copyCount: 2, switchedOff: true }, 'Downloaded', 'Replacement checks the new file, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
-    ['downloaded, with a copy no longer in a ticked folder', { state: 'Downloaded', copyCount: 2, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement checks the new file: 2 copies, kept until it is verified. 1 copy is no longer in a ticked folder and won\'t move.', 'library-source-status'],
-    ['verified', { state: 'Verified', copyCount: 1 }, 'Downloaded', 'New file verified: 1 copy will be replaced by it in a later version; nothing is moved yet.', 'library-source-status'],
-    ['verified, of several copies, some no longer in a ticked folder', { state: 'Verified', copyCount: 5, copiesOutsideTickedFolders: 2 }, 'Downloaded', 'New file verified: 5 copies will be replaced by it in a later version; nothing is moved yet. 2 copies are no longer in a ticked folder and won\'t move.', 'library-source-status'],
+    ['downloaded, with a copy no longer in a ticked folder', { state: 'Downloaded', copyCount: 2, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement checks the new file: 2 copies, kept until it is verified. 1 copy is no longer in a ticked folder: unless it is ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
+    ['verified', { state: 'Verified', copyCount: 1 }, 'Downloaded', 'New file verified: 1 old copy moves into the quarantine next.', 'library-source-status'],
+    // MAM-26 — the mover's check stops the whole replacement over one such copy: nothing moves next.
+    ['verified, of several copies, some no longer in a ticked folder', { state: 'Verified', copyCount: 5, copiesOutsideTickedFolders: 2 }, 'Downloaded', 'New file verified, but 2 copies are no longer in a ticked folder: unless they are ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
+    ['verified, with one copy no longer in a ticked folder', { state: 'Verified', copyCount: 1, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'New file verified, but 1 copy is no longer in a ticked folder: unless it is ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
     ['verified while replacement is switched off', { state: 'Verified', copyCount: 3, switchedOff: true }, 'Downloaded', 'New file verified, but replacement is switched off: nothing will move while it is off.', 'library-source-status'],
+    ['verified while replacement is switched off, with a copy no longer in a ticked folder', { state: 'Verified', copyCount: 3, switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'New file verified, but replacement is switched off: nothing will move while it is off. 1 copy is no longer in a ticked folder: unless it is ticked again, the replacement stops for review and nothing moves.', 'library-source-status'],
+    ['verified while replacement is on, with nothing in the quarantine yet', { state: 'Verified', copyCount: 2, quarantinedCopyCount: 0 }, 'Downloaded', 'New file verified: 2 old copies move into the quarantine next.', 'library-source-status'],
+    ['moving one copy into the quarantine', { state: 'Quarantining', copyCount: 1 }, 'Downloaded', 'Moving the old copy into the quarantine…', 'library-source-status'],
+    ['moving several copies, with nothing said of what won\'t move', { state: 'Quarantining', copyCount: 4, switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Moving the old copies into the quarantine…', 'library-source-status'],
+    ['in the quarantine', { state: 'Quarantined', copyCount: 1, quarantinedCopyCount: 1 }, 'Downloaded', 'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.', 'library-source-status'],
+    ['in the quarantine, of several copies, with nothing said of the switch', { state: 'Quarantined', copyCount: 3, quarantinedCopyCount: 3, switchedOff: true }, 'Downloaded', 'Old copies moved into the quarantine: 3 copies, kept until you restore them or delete them for good.', 'library-source-status'],
+    ['in the quarantine, with a file that stayed in its folder', { state: 'Quarantined', copyCount: 1, quarantinedCopyCount: 1, stayedFileCount: 1 }, 'Downloaded', 'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good. 1 file stayed in its folder: see the job.', 'library-source-status'],
+    ['in the quarantine, with files that stayed in their folders', { state: 'Quarantined', copyCount: 2, quarantinedCopyCount: 2, stayedFileCount: 3 }, 'Downloaded', 'Old copies moved into the quarantine: 2 copies, kept until you restore them or delete them for good. 3 files stayed in their folders: see the job.', 'library-source-status'],
+    ['being put back', { state: 'Restoring', copyCount: 1, quarantinedCopyCount: 1 }, 'Downloaded', 'Putting the old copy back…', 'library-source-status'],
+    ['being put back, of several copies', { state: 'Restoring', copyCount: 2, quarantinedCopyCount: 0 }, 'Downloaded', 'Putting the old copies back…', 'library-source-status'],
+    ['being deleted for good', { state: 'Deleting', copyCount: 1, quarantinedCopyCount: 1 }, 'Downloaded', 'Deleting the old copy for good…', 'library-source-status'],
+    ['being deleted for good, of several copies', { state: 'Deleting', copyCount: 5, quarantinedCopyCount: 5 }, 'Downloaded', 'Deleting the old copies for good…', 'library-source-status'],
+    ['undone by a restore', { state: 'Restored', copyCount: 1 }, 'Downloaded', 'Replacement undone: the old copy is back where it was.', 'library-source-status'],
+    ['undone by a restore, of several copies', { state: 'Restored', copyCount: 2 }, 'Downloaded', 'Replacement undone: the old copies are back where they were.', 'library-source-status'],
+    ['completed', { state: 'Completed', copyCount: 1 }, 'Downloaded', 'Replaced: the old copy was deleted for good.', 'library-source-status'],
+    ['completed, of several copies', { state: 'Completed', copyCount: 18 }, 'Downloaded', 'Replaced: the old copies were deleted for good.', 'library-source-status'],
+    ['in need of review after the move, with the server\'s sentence', { state: 'NeedsReview', reason: 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.', canRetry: true }, 'Downloaded', 'Replacement needs review: Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.', 'library-source-warning'],
     ['in need of review after the check, with nothing said of what won\'t move', { state: 'NeedsReview', reason: 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement needs review: Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', 'library-source-warning'],
     ['in need of review, with no reason given', { state: 'NeedsReview' }, 'Downloaded', 'Replacement needs review.', 'library-source-warning'],
     ['in need of review while its download needs linking', { state: 'NeedsReview', reason: 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.' }, 'NeedsLinking', 'Replacement needs review: qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.', 'library-source-warning'],
@@ -242,6 +263,35 @@ describe('JobsPage', () => {
     await screen.findByText(verified.releaseTitle, asTitle)
     expect(within(rowOf(verified.releaseTitle)).getByText(/^New file verified:/).closest('p')).toHaveAttribute('data-status', 'Succeeded')
     expect(within(rowOf(inspecting.releaseTitle)).getByText(/^Replacement checks the new file:/).closest('p')).not.toHaveAttribute('data-status')
+  })
+
+  // MAM-26 — a replacement only spins while the app renames, and only its end by deletion is green.
+  it.each<[DownloadJobReplacement['state'], string, boolean, boolean]>([
+    ['Quarantining', 'Moving the old copy into the quarantine…', true, false],
+    ['Restoring', 'Putting the old copy back…', true, false],
+    ['Deleting', 'Deleting the old copy for good…', true, false],
+    ['Quarantined', 'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.', false, false],
+    ['Restored', 'Replacement undone: the old copy is back where it was.', false, false],
+    ['Completed', 'Replaced: the old copy was deleted for good.', false, true],
+  ])('marks a %s replacement\'s line as work under way or as a success only where it is one', async (state, sentence, spinning, green) => {
+    // Arrange
+    const replacing = jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000012',
+      releaseTitle: 'Alien (1979) 2160p Remux',
+      status: 'Downloaded',
+      progress: 1,
+      replacement: replacementOf({ state, quarantinedCopyCount: 1 }),
+    })
+    listing([replacing])
+
+    // Act
+    renderPage(owner)
+
+    // Assert
+    await screen.findByText(replacing.releaseTitle, asTitle)
+    const line = within(rowOf(replacing.releaseTitle)).getByText(sentence).closest('p')!
+    expect(line.querySelector('svg')?.classList.contains('animate-spin')).toBe(spinning)
+    expect(line.getAttribute('data-status') === 'Succeeded').toBe(green)
   })
 
   it('says only that the replacement stopped on a failed job, whose red line says why', async () => {
@@ -575,6 +625,96 @@ describe('JobsPage', () => {
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not cancel this job. Reload the page and try again.')
+  })
+
+  // MAM-26 — the server's sentence on the row ends "…then press Retry.", so the owner's Retry sits on the row.
+  describe('Retry of a replacement the mover stopped', () => {
+    const heldReason = 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.'
+
+    /** The owner's downloaded job whose replacement the mover stopped for review; `changes` sets the replacement. */
+    const stoppedJob = (changes: Partial<DownloadJobReplacement> = {}) => jobOf({
+      id: 'd0b10000-0000-4000-8000-000000000013',
+      releaseTitle: 'Alien (1979) 2160p Remux',
+      status: 'Downloaded',
+      progress: 1,
+      replacement: replacementOf({ state: 'NeedsReview', reason: heldReason, canRetry: true, ...changes }),
+    })
+
+    it.each<[string, Partial<DownloadJobReplacement>, CurrentUser, boolean]>([
+      ['offers Retry to the owner on a replacement the mover stopped', {}, owner, true],
+      ['offers no Retry to anyone else', {}, member, false],
+      ['offers no Retry on a replacement stopped by the check of its new files', { canRetry: false }, owner, false],
+      ['offers no Retry on a replacement in the quarantine', { state: 'Quarantined', reason: null, canRetry: false, quarantinedCopyCount: 1 }, owner, false],
+    ])('%s, on its row', async (_, changes, signedIn, offered) => {
+      // Arrange
+      const job = stoppedJob(changes)
+      listing([job])
+
+      // Act
+      renderPage(signedIn)
+
+      // Assert
+      await screen.findByText(job.releaseTitle, asTitle)
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Retry' }) !== null).toBe(offered)
+    })
+
+    it('sends the replacement back to be moved without a confirmation, and the row shows it verified', async () => {
+      // Arrange
+      const job = stoppedJob()
+      const retried = { ...job, replacement: replacementOf({ state: 'Verified' }) }
+      vi.mocked(replacementsApi.retry).mockResolvedValue(retried)
+      listing([job])
+      const { user } = renderPage(owner)
+      await screen.findByText(job.releaseTitle, asTitle)
+      listing([retried])
+
+      // Act
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Retry' }))
+
+      // Assert
+      expect(replacementsApi.retry).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(await within(rowOf(job.releaseTitle)).findByText('New file verified: 1 old copy moves into the quarantine next.')).toBeInTheDocument()
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('shows the server sentence above the rows when a retry is refused', async () => {
+      // Arrange
+      const sentence = 'This replacement isn\'t waiting for review after a move, so there\'s nothing to retry here.'
+      vi.mocked(replacementsApi.retry).mockRejectedValue(apiError(409, sentence))
+      const job = stoppedJob()
+      listing([job])
+      const { user } = renderPage(owner)
+      await screen.findByText(job.releaseTitle, asTitle)
+
+      // Act
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Retry' }))
+
+      // Assert
+      expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
+    })
+
+    it('says Retrying… with a spinner while its retry is on its way, and names the button in its title for a phone', async () => {
+      // Arrange
+      vi.mocked(replacementsApi.retry).mockReturnValue(new Promise(() => {}))
+      const job = stoppedJob()
+      listing([job])
+      const { user } = renderPage(owner)
+      await screen.findByText(job.releaseTitle, asTitle)
+      const button = within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Retry' })
+
+      // Act
+      await user.click(button)
+
+      // Assert
+      expect(button).toHaveTextContent('Retrying…')
+      expect(button).toBeDisabled()
+      expect(button.querySelector('svg')).toHaveClass('animate-spin')
+      expect(button).toHaveAttribute('title', 'Check the old copies again, and move them once nothing stands in the way')
+      expect(button.querySelector('.label-text')).toHaveTextContent('Retrying…')
+      expect(button.closest('.settings-actions')).not.toBeNull()
+    })
   })
 
   it('names the Cancel button in its title, for the icon alone on a phone', async () => {

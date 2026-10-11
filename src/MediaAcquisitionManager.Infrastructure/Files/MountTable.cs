@@ -16,6 +16,10 @@ namespace MediaAcquisitionManager.Infrastructure.Files;
 /// A device can be mounted more than once (bind mounts, a container's volumes): the lines agree on its type, and lines
 /// that don't — or none — leave it unknown rather than guessed.
 /// </para>
+/// <para>
+/// MAM-26, ADR 0033 — a mount is also looked up by its own id, the first field, for its options: what says whether
+/// the quarantine can be written there.
+/// </para>
 /// </remarks>
 internal static class MountTable
 {
@@ -24,6 +28,12 @@ internal static class MountTable
 
     /// <summary>Where the device's <c>major:minor</c> is on a line: the third field.</summary>
     private const int DeviceField = 2;
+
+    /// <summary>Where the mount's own id is on a line: the first field.</summary>
+    private const int MountIdField = 0;
+
+    /// <summary>Where the mount's own options are on a line: the sixth field.</summary>
+    private const int MountOptionsField = 5;
 
     /// <summary>The fields before the optional ones: id, parent, device, root, mount point and options.</summary>
     private const int FixedFieldCount = 6;
@@ -57,6 +67,29 @@ internal static class MountTable
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// MAM-26 — the options of the mount <paramref name="mountId"/> (<c>statx</c>'s <c>stx_mnt_id</c>): the sixth
+    /// field of its line, split at commas (<c>ro</c>, <c>noatime</c>…); <c>null</c> when no line has that id.
+    /// </summary>
+    /// <remarks>
+    /// The mount's own options, never the file system's after the type: a read-only bind of a read-write file system
+    /// says <c>ro</c> there and <c>rw</c> at the end, and only the first stops a rename (<c>EROFS</c>).
+    /// </remarks>
+    public static IReadOnlyList<string>? MountOptionsOf(string mountInfo, ulong mountId)
+    {
+        ArgumentNullException.ThrowIfNull(mountInfo);
+
+        var id = mountId.ToString(CultureInfo.InvariantCulture);
+        foreach (var line in mountInfo.Split('\n'))
+        {
+            var fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length > MountOptionsField && string.Equals(fields[MountIdField], id, StringComparison.Ordinal))
+                return fields[MountOptionsField].Split(',');
+        }
+
+        return null;
     }
 
     /// <summary>

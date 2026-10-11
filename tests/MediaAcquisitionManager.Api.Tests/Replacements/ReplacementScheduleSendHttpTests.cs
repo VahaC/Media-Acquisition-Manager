@@ -280,7 +280,7 @@ public sealed class ReplacementScheduleSendHttpTests : IClassFixture<MediaAcquis
         Assert.Equal(
             (DownloadJobStatus.Failed, (DownloadOverwriteCheck?)DownloadOverwriteCheck.Checked),
             (job.Status, job.OverwriteCheck));
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Failed, 1, DownloadFailedReason, false, 0), job.Replacement);
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Failed, 1, DownloadFailedReason, false, 0) { Id = await ReplacementIdAsync(cancellationToken) }, job.Replacement);
         await _factory.WithDbAsync(async db =>
         {
             var replacement = await db.ReplacementJobs.AsNoTracking().SingleAsync(cancellationToken);
@@ -289,6 +289,14 @@ public sealed class ReplacementScheduleSendHttpTests : IClassFixture<MediaAcquis
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>MAM-26 — the id of the one replacement written, which its line on the job carries.</summary>
+    private async Task<Guid> ReplacementIdAsync(CancellationToken cancellationToken)
+    {
+        var id = Guid.Empty;
+        await _factory.WithDbAsync(async db => id = await db.ReplacementJobs.Select(replacement => replacement.Id).SingleAsync(cancellationToken));
+        return id;
+    }
 
     private Task<IntegrationConnectionEntity> CreateClientAsync(string name, string appPrefix) =>
         _integrations.Create(
@@ -316,7 +324,7 @@ public sealed class ReplacementScheduleSendHttpTests : IClassFixture<MediaAcquis
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var job = (await response.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
         Assert.Equal((DownloadJobStatus.Failed, error, (DownloadOverwriteCheck?)null), (job.Status, job.Error, job.OverwriteCheck));
-        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Failed, 1, RefusedBeforeSentReason, false, 0), job.Replacement);
+        Assert.Equal(new DownloadJobReplacementDto(ReplacementJobState.Failed, 1, RefusedBeforeSentReason, false, 0) { Id = await ReplacementIdAsync(cancellationToken) }, job.Replacement);
         await _factory.WithDbAsync(async db =>
         {
             var row = await db.DownloadJobs.AsNoTracking().SingleAsync(cancellationToken);

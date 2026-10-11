@@ -20,7 +20,29 @@ export interface AllowedRoots {
    * listed or ticked.
    */
   unmappedLibraryFolderCount: number
+  /**
+   * MAM-26 — every quarantine holding replaced copies, one per media folder whose
+   * `.mam-quarantine` holds any (ADR 0030), from the app's own records; none when nothing is there.
+   */
+  quarantines: QuarantineSpace[]
 }
+
+/** MAM-26 — the room one quarantine takes. */
+export interface QuarantineSpace {
+  /** The quarantine folder inside the app, such as `/media/.mam-quarantine`. */
+  path: string
+  /** The replacements whose old copies it holds. */
+  replacementCount: number
+  fileCount: number
+  sizeBytes: number
+}
+
+/**
+ * MAM-26 — what keeps a rename into the quarantine from working in a library folder (ADR 0033's
+ * hint): another mount than its media folder's, where the quarantine is; a read-only mount; no write
+ * and search permission for the app's user there or on its media folder; or the app couldn't tell.
+ */
+export type RenamePlaceProblem = 'OtherMount' | 'ReadOnly' | 'NotWritable' | 'CouldNotCheck'
 
 /**
  * MAM-24 — what a tick on a library folder is worth. `Available`: the folder lies inside a media
@@ -41,6 +63,12 @@ export interface ReplacementFolder {
   /** Whether the owner ticked it for replacement. */
   ticked: boolean
   status: ReplacementFolderStatus
+  /**
+   * MAM-26 — whether a rename into the quarantine can work there, for every `Available` folder: none
+   * means it can. Null for the other statuses, which the app doesn't check. A hint only: the rename
+   * itself decides.
+   */
+  renameProblems: RenamePlaceProblem[] | null
 }
 
 /**

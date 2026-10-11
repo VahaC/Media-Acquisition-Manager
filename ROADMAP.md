@@ -38,8 +38,14 @@ to `Downloaded`; MAM-25 (built on 2026-10-10 while 0.3.0 is the version, resting
 read-only live read of Jellyfin's items, and in no published image yet) then checks each new file
 before anything is touched — complete by qBittorrent's word, readable by ffprobe, and identified by
 Jellyfin's own ids as the old copy's work, every ticked copy paired with exactly one new file —, and
-ends the replacement `Verified`, or stops it for review with the reason: nothing of Phase C moves a
-file yet.
+ends the replacement `Verified`, or stops it for review with the reason; and MAM-26 (built on
+2026-10-10 while 0.3.0 is the version, resting on the tests — over HTTP with a stand-in for the
+disk, and the real renames and deletions on Linux folders in Docker —, tried on no real setup, and in
+no published image yet) then checks the old copy and every client's torrents again right before the
+move, renames the old copy with its own companions into `.mam-quarantine` at the top of its media
+folder, where it stays until the owner restores it or deletes it for good, and finds a move, a
+restore or a deletion a restart cut again by device and inode. MAM-27 (the Jobs page's view of
+replacements) and MAM-28 (Phase C's live check) are still to do.
 
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -47,8 +53,8 @@ follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24 and MAM-25; the release of the rest of
-Phase C, and of Phase D, is not decided yet.
+Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24, MAM-25 and MAM-26; the release of the
+rest of Phase C, and of Phase D, is not decided yet.
 
 ## Phases
 
@@ -1248,8 +1254,8 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 ### Phase C — Safe replacement
 
-**Release:** 0.3.0 holds MAM-24 and MAM-25; the rest of Phase C not decided. **Tickets:** MAM-23 to
-MAM-28.
+**Release:** 0.3.0 holds MAM-24, MAM-25 and MAM-26; the rest of Phase C not decided. **Tickets:**
+MAM-23 to MAM-28.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
 copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
@@ -1421,8 +1427,9 @@ a quarantine until you delete it for good, and you can put it back.
   and problem — and, on each ticked copy, its pair, its end number, its measured running time and
   its problem; migration `AddReplacementVerification` rebuilds no table. *The Jobs line:*
   "Replacement checks the new file: 1 copy, kept until it is verified.", "New file verified: 1 copy
-  will be replaced by it in a later version; nothing is moved yet." with a green tick, or
-  "Replacement needs review: <reason>"; the pages ask every 2 s while the check runs. qBittorrent is
+  will be replaced by it in a later version; nothing is moved yet." with a green tick (MAM-26 below
+  rewords it, as the old copy now moves), or "Replacement needs review: <reason>"; the pages ask
+  every 2 s while the check runs. qBittorrent is
   only read, and Jellyfin hears only the request to look, every other call a read. Tried live: on
   2026-10-10 a read-only probe read the reference installation's Jellyfin 12.2.0 with the app's
   stored settings — the computed id right for 880 of 880 movies and 440 of 440 episode files, a
@@ -1433,16 +1440,83 @@ a quarantine until you delete it for good, and you can put it back.
   `b` are halves; a Jellyfin with case-insensitive ids or path substitution never lists a new file,
   and no Jellyfin lists a sample file, which it ignores, so such checks end in review after the
   hour.
-- **MAM-26 The quarantine** (to do): check 5 and the torrent listing of check 6 right before the
-  move; the switch and the ticks rechecked before every write, and the Media folders page's hint of
-  whether a rename can work in each ticked folder; the write contract with its atomic rename and its
-  recovery after a restart; the folder scan skipping every `.mam-quarantine`; the quarantine kept
-  within the allowed folders; Restore and Delete for good; `Quarantined` → `Completed`, each step
-  with an audit row.
-- **MAM-27 Replacements on the Jobs page** (to do): each replacement's state, its old copies, its
-  pairs, the evidence and the reason for any block; Cancel a pending removal, Retry (after the owner
-  has corrected a new item in Jellyfin, say), settle a pair, drop a copy from the job — the owner's
-  alone, each with an audit row.
+- **MAM-26 The quarantine** (built, release 0.3.0; tried on no real setup — the tests stand in for
+  it, and MAM-28 is the live check —; in no published image yet): right before the move the app
+  checks the old copy and every download client's torrents again, then renames the picked video and
+  its own companions into `.mam-quarantine` at the top of the allowed folder that holds it, one
+  `renameat2(RENAME_NOREPLACE)` per name through a new write contract beside the read-only
+  `IFileInventory`, and keeps them there until the owner restores them or deletes them for good; a
+  move, a restore or a deletion a restart cut is found again by device and inode and stops for review
+  (Vasyl's decisions of 2026-10-08 and 2026-10-10; [ADR
+  0030](docs/adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md),
+  and the MAM-26 sections of ADR 0005, ADR 0009, ADR 0021, ADR 0031, ADR 0033 and ADR 0035). *The
+  loop:* `ReplacementQuarantineTracker`, a background service of its own, a pass right after the app
+  starts and 15 s after each pass ends; it settles the cut jobs first, then takes up each `Verified`
+  replacement, oldest first (`IX_ReplacementJobs_Quarantine`), then sends the library notices still
+  owed; every job it works on is held in `ReplacementJobsInHand`, so an owner's action on it waits,
+  and the other way round. Switched off, a verified job is left as it is, nothing read or written.
+  *Check 5:* each ticked copy still inside the Media folders and in a ticked folder, no disc clip,
+  read fresh from the disk, within its own allowed folder, with the identity it was scheduled with, a
+  file itself and not a link, neither a new file's path nor its
+  identity, and its paired new file still the one verified (`ReplacementNewFileCheck`, shared with the
+  check). *Check 6:* the copy's own companions listed through the write contract
+  (`QuarantineCompanions`), then one read of every download client's torrents with their files — a
+  client whose mappings reach no allowed folder left out — for every name the move would rename; a
+  client not read or read in part stops the job, a video any torrent lists stops it with ADR 0031's
+  "Still held by the torrent … then press Retry.", a companion a torrent lists stays, named on the
+  job, and a second name of a torrent's file moves. A stop before the move is `NeedsReview` with
+  the reason and `QuarantineCheckedUtc`, nothing renamed. *The move:* a claim (`Quarantining`) with
+  one `ReplacementJobNames` row per planned name — its place in the quarantine, the allowed folder
+  and the identity read right before —; then name by name, videos first, the switch, the ticks and
+  the allowed folders read again under the intent's write lock, an intent row committed before each
+  rename and an outcome row after; a video that can't move stops the job for review, what moved
+  staying in the quarantine, a rename that moved another file put at the name records it `Lost` and
+  stops it too, and a companion that can't stays where it is, named on the job; a Retry's run takes
+  up the companions a stop left waiting beside a moved video; every video in, `Quarantined`. On Linux,
+  `LocalFileQuarantine`: `O_PATH | O_NOFOLLOW` folders from ADR 0009's walk, the name compared by
+  `statx` without following it, another mount refused by `STATX_MNT_ID`, the quarantine's folders made
+  one level at a time, the folders walked again right before the rename, both folders flushed and the
+  new name's identity checked after it; anywhere else every write is refused, so a replacement there
+  stops for review. *Restart:* a job left `Quarantining`, `Restoring` or `Deleting` that no one in the
+  process holds has each name in the middle looked up by device and inode where it was and in the
+  quarantine, recorded where it is (or `Lost`), and stops for review ("The app stopped while moving
+  the old copies: 1 of 3 names is in the quarantine."), renaming and deleting nothing — a restore or a
+  deletion cut after its last name ends `Restored` or `Completed`, and a look that fails decides
+  nothing until a later pass. *Retry:* the
+  owner's, for a replacement the move stopped — checks 5 or 6, a refused rename, a cut — back to
+  `Verified`, nothing written to the media; a stop of the new files' check is refused, as that Retry
+  is MAM-27's. *Restore:* the owner's, from `Quarantined` or a review with names in the quarantine,
+  every name checked first — the switch, the ticks, the file in the quarantine unchanged, nothing at
+  its old path, a dangling link included, its folder still there; no folder is created; never after
+  a part-way Delete for good took a video —, then renamed back, videos first,
+  ending `Restored` with both copies in the library. *Delete for good:* the owner's, from
+  `Quarantined`, for exactly the names the second confirmation listed with the room they free, each
+  compared again right before its `unlinkat`, no folder removed, ending `Completed`. *Jellyfin:*
+  after a move and a restore, `POST /Library/Media/Updated` with the old copy's library paths as
+  `Deleted` or `Created` (`LibraryFileChange`), never a quarantine path, owed for an hour while not
+  taken (`LibraryNoticeDueUtc`); nothing else. *The page:* the job's **Old copies** section — every
+  name, where it is now, the room — with **Retry**, **Restore** and **Delete for good**, the owner's
+  alone (`GET /api/replacements/{id}`, `POST …/retry`, `…/restore`, `…/delete-for-good`); the Jobs
+  line for every new state and the owner's Retry on the row; the Media folders page's per-folder hint
+  of whether a rename can work there (another mount, a read-only mount, no write permission, or not
+  checked), the room each quarantine takes, and the Save that would leave a quarantine holding names
+  outside every allowed folder refused. *The scan:* the folder scan leaves out every
+  `.mam-quarantine`, at any depth. *The end:* `Quarantining` → `Quarantined`, then `Restoring` →
+  `Restored` or `Deleting` → `Completed`, or `NeedsReview`; every job step and every name's intent
+  and outcome with an audit row — sixteen new actions, the mover's with no actor, the owner's with
+  him —, and the client contract's forbidden words now also moving, relocating, renaming and setting
+  a location. Migration `AddReplacementQuarantine` rebuilds no table. Tried live: nothing — no file
+  was moved, put back or deleted on the reference installation, and the new parts of the pages
+  weren't looked at in a browser. Not tried by the tests either: `EXDEV`, `EINVAL`, `EROFS` and
+  `EOVERFLOW` from the real calls (the mount check stops a cross-mount rename first, and the
+  container's file systems all have `RENAME_NOREPLACE`), a real read-only bind mount (read from a
+  mount table instead), a mount at `.mam-quarantine`, a kernel without `STATX_MNT_ID`, an fsync that
+  fails (the rename stands and is recorded) and arm64's open flags.
+- **MAM-27 Replacements on the Jobs page** (to do): each replacement's state, its pairs, the
+  evidence and the reason for any block (MAM-26 shows its old copies on the job's page); Cancel a
+  pending removal, Retry after a stop of the check of the new files (after the owner has corrected a
+  new item in Jellyfin, say — MAM-26's Retry takes only a stop of the move), settle a pair, drop a
+  copy from the job — the owner's alone, each with an audit row.
 - **MAM-28 Live check** (to do): the acceptance bar on the reference installation.
 - **Backup/restore:** replacement jobs, the switch, the ticks and the audit trail live in the
   database; quarantined files stay on disk in the quarantine folder, outside the database backup.
@@ -1491,7 +1565,40 @@ verified job never read again (`ReplacementVerificationHttpTests`,
 `ReplacementVerificationFilesHttpTests`, `ReplacementVerificationEpisodesHttpTests`,
 `ReplacementVerificationLibraryHttpTests`, `ReplacementLibraryPlacesTests`, the Core rules' own
 tests, and `JellyfinAdapterFilesScanTests`, `JellyfinAdapterFilesReadTests` and
-`JellyfinAdapterFilesReadFailureTests` for the adapter).
+`JellyfinAdapterFilesReadFailureTests` for the adapter). MAM-26's tests prove the move, its way back
+and its way out, over HTTP with a stand-in for the write contract and, for the real calls, on Linux
+folders in Docker: a changed, gone, unticked or outside copy, a disc clip, the new file itself, a
+changed new file, a folder that can't be listed and a companion without an identity each stopping
+the job for review with nothing renamed; a video any torrent lists, in any state, two torrents, a
+client switched off, out of reach, too old or with torrents it can't place doing the same with only
+the listing sent, a held companion staying while its video moves, a second name moving, and Retry
+moving the copy once the torrent is gone; a film's video and its own companions moved with their
+device and inode, another video's companion left, a season whose second episode can't move keeping
+the first in the quarantine, the switch off or a folder unticked between two names, a Media folder
+taken out of the list right before a name's intent, another mount, a name taken, a platform that
+can't rename and a rename that moved another file each moving nothing more; a Retry moving the
+companions a stop left waiting; a restart after a rename and before its outcome, and one between two
+names, found again by device and inode with nothing renamed twice, a cut restore and a cut deletion
+settled the same way or ended once every name was done, and a look that fails left for a later pass;
+Restore putting every name back with its identity, refused with nothing moved by each of its checks,
+stopped for review part-way, and Delete for good deleting exactly the confirmed names, refused for
+another set, a changed file or the switch off; both still reaching the quarantine after its folder
+is replaced by a parent, and refused once it is out of the list; a cut Restore or Delete for good
+settled by the next pass; two clicks at once renaming or deleting each name once; Jellyfin told
+`Deleted` after a move and `Created` after a restore, never a quarantine path; a member refused on
+every new route; the Media folders page's hint, the quarantines' room and a Save that would strand
+one refused; the scan skipping every quarantine; and the real rename, restore and deletion keeping
+the identity, refusing a changed file, a name taken, another mount, a link, a folder link into
+another allowed folder or a quarantine, and a folder swapped right before the rename or the deletion
+(`ReplacementQuarantineHttpTests`, `ReplacementQuarantineChecksHttpTests`,
+`ReplacementQuarantineHoldsHttpTests`, `ReplacementQuarantineRecoveryHttpTests`,
+`ReplacementQuarantineFlowHttpTests`, `ReplacementRetryHttpTests`, `ReplacementRestoreHttpTests`,
+`ReplacementDeleteForGoodHttpTests`, `ReplacementDetailsHttpTests`, `ReplacementLibraryNoticeTests`,
+`ReplacementHoldingReaderTargetsTests`, `ReplacementSettingsHttpTests`,
+`ReplacementsAreOwnerOnlyHttpTests`, `LocalFileQuarantineLinuxTests`,
+`LocalFileQuarantinePlacesLinuxTests`, `LocalFileInventoryListingTests`,
+`AddReplacementQuarantineMigrationTests`, and `JobDetailsPage.replacement.test.tsx` and
+`MediaFoldersPage.test.tsx` for the pages).
 
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an

@@ -252,3 +252,54 @@ has a reading, and a changed file's old hash goes with its old reading.
 `FileHashCacheHttpTests.Inspect_of_a_file_back_unchanged_after_runs_without_it_reads_nothing_whole`
 and `FileHashCacheHttpTests.Inspect_while_a_sync_replaces_a_name_keeps_its_hash_and_the_next_run_finds_it_without_reading`
 pin it.
+
+## The walk reaches the folder a rename acts in (added 0.3.0, MAM-26)
+
+**The quarantine's write contract reaches a file's folder by this record's walk — every link on the
+way resolved inside the allowed roots, each folder opened from `/` name by name with `O_NOFOLLOW` —
+and keeps that folder's `O_PATH` descriptor, and the resolved root's, for the rename or the
+deletion, which acts on the last name without following it; the roots are still no licence to
+write: that write is a contract of its own, behind its own gates ([ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md),
+[ADR
+0033](0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).**
+
+**One walk, shared.** The Linux calls the reader made are `LinuxCalls`, shared by the reader and
+`LocalFileQuarantine`, and the `statx` buffer carries the mount id (`STATX_MNT_ID`), which the
+quarantine asks for; the walk to a folder (`LocalFileInventory.Locate`) and the usable roots are
+shared too. The reader behaves as it
+did, and its Linux tests pass unchanged. `IFileInventory` itself gains no member and stays read-only
+by construction.
+
+**Identity before every write.** The name is read with `statx` and `AT_SYMLINK_NOFOLLOW`, never
+following it, and must be a regular file whose device, inode, size and modification time, to the
+tick, are what the caller read. Right before the system call both folders are walked again and must
+still lead to the folders held, and the name is read again, so a folder swapped for a link, or a file
+swapped for another, after the checks moves nothing. The quarantine's side is reached from the
+resolved root with no link followed at all.
+
+**A link is not a file to move.** A library video that is itself a link is a regular file to a read,
+which follows it, but not to the rename, which never follows the last name: the check right before
+the move stops the job over it, as its folder's listing, which leaves links out, lacks its name
+("“Alien.mkv” is a link to another file, and the app moves only a file itself, so it stays where it
+is."), and the rename would refuse it too ("… isn't a regular file."), so the recorded path stays
+the one Restore puts back.
+
+**The roots a write walks in.** A move walks to the file's folder within the allowed folder whose
+quarantine takes it alone, so a folder link into another allowed folder moves nothing there — a
+Restore, which reaches back through that folder only, could never put the file back —; and the
+folder of a move, a restore or a listing must not lie in a quarantine wherever its links lead ("…
+already lies in a quarantine."), only the names below the matching root counted.
+
+`LocalFileQuarantineLinuxTests.Move_where_the_files_folder_is_swapped_for_a_link_right_before_the_rename_moves_nothing`,
+`LocalFileQuarantineLinuxTests.Move_where_the_file_is_swapped_for_another_right_before_the_rename_moves_nothing`,
+`LocalFileQuarantineLinuxTests.Move_where_the_quarantine_folder_is_a_link_moves_nothing_through_it`,
+`LocalFileQuarantineLinuxTests.Move_of_a_link_moves_nothing`,
+`LocalFileQuarantineLinuxTests.Move_of_a_file_a_folder_link_leads_to_in_another_allowed_root_moves_nothing_and_makes_nothing`,
+`LocalFileQuarantineLinuxTests.Move_through_a_folder_link_into_another_jobs_quarantine_moves_nothing`,
+`ReplacementQuarantineChecksHttpTests.Quarantine_of_a_copy_that_is_a_link_to_another_file_stops_for_review_and_moves_nothing`,
+`LocalFileQuarantineLinuxTests.Move_to_a_place_that_isnt_a_jobs_folder_in_the_roots_quarantine_moves_nothing`,
+`LocalFileQuarantineLinuxTests.ListFolderFiles_leaves_out_a_named_pipe_and_a_link_and_never_opens_either`,
+`LocalFileQuarantineTests.ListFolderFiles_of_a_video_outside_the_allowed_roots_is_refused`,
+`LinuxFileStatusReaderTests.OpenFolder_through_a_folder_swapped_for_a_link_since_the_check_is_refused`
+and `FileInventoryNeverWritesTests.No_file_inventory_member_is_named_for_a_write` pin it.

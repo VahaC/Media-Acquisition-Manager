@@ -17,7 +17,10 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // download clients' torrents. They live in Controllers/Replacements, whose convention (ReplacementsAreOwnerOnlyConvention)
 // gates every action there with no attribute on any of them; this sweep — over the running app's endpoints, every method
 // each answers, not a hand-kept list — fails the day an endpoint there answers a member, and no replacement, download job
-// or audit row written and no request to qBittorrent show the gate came before anything else.
+// or audit row written and no request to qBittorrent show the gate came before anything else. MAM-26 — the owner's details,
+// Retry, Restore and Delete for good of a replacement live there too, by its id: the sweep sends each with a made-up id and
+// no body, and nothing renamed, deleted or made on the disk shows the gate came first there too (the owner's real
+// quarantined job is ReplacementRestoreHttpTests.Restore_and_delete_for_good_of_the_owners_quarantined_job_as_a_member_are_403_and_move_nothing).
 public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     // Spelled out rather than read from the convention: this pins where the replacement controllers live.
@@ -52,7 +55,18 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
         //Assert
         // Guards the guard: a discovery that misses these would let the sweeps below pass for nothing. A superset, so an
         // endpoint added there later passes here and is swept below.
-        Assert.Superset(new HashSet<string> { "GET api/replacements/options", "POST api/replacements" }, endpoints);
+        Assert.Superset(
+            new HashSet<string>
+            {
+                "GET api/replacements/options",
+                "POST api/replacements",
+                // MAM-26 — the owner's own hand on a replacement.
+                "GET api/replacements/{id:guid}",
+                "POST api/replacements/{id:guid}/retry",
+                "POST api/replacements/{id:guid}/restore",
+                "POST api/replacements/{id:guid}/delete-for-good",
+            },
+            endpoints);
     }
 
     [Fact]
@@ -81,11 +95,16 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
         {
             Assert.Equal(0, await db.ReplacementJobs.CountAsync(cancellationToken));
             Assert.Equal(0, await db.ReplacementJobFiles.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.ReplacementJobNames.CountAsync(cancellationToken));
             Assert.Equal(0, await db.DownloadJobs.CountAsync(cancellationToken));
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
         });
         Assert.Empty(_factory.QBittorrentHttp.Requests);
         Assert.Empty(_factory.Files.DescribedPaths);
+        // MAM-26 — nothing renamed, deleted or made through the write contract.
+        Assert.Empty(_factory.Quarantine.Renames);
+        Assert.Empty(_factory.Quarantine.Deletions);
+        Assert.Empty(_factory.Quarantine.CreatedFolders);
     }
 
     [Fact]

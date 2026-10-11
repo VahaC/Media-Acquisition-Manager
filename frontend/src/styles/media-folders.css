@@ -98,6 +98,14 @@
   overflow-wrap: anywhere;
 }
 
+/* MAM-26 — one line per quarantine, its path at the start of a sentence: it breaks anywhere too. */
+.media-folders-quarantines {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Save with "Saved." beside it, wrapping under it if a translation runs long. */
 .media-folders-save {
   display: flex;

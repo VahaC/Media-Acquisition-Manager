@@ -25,8 +25,9 @@ public interface IAllowedRootsService
     /// <c>ReplacementFoldersChanged</c>. A save that is the stored state in canonical form — the ticks in any order —
     /// writes nothing. <see cref="AllowedRootsUpdateStatus.Invalid"/>, writing nothing, when the roots break a rule of
     /// <see cref="Core.Files.AllowedRootRules"/>, the ticks one of <see cref="Core.Files.ReplacementFolderRules"/>, or
-    /// a tick is neither a library folder the mappings bring into the app nor a tick already stored. Saving starts no
-    /// inspection: the owner does that from the Library page.
+    /// a tick is neither a library folder the mappings bring into the app nor a tick already stored — MAM-26 — or the new
+    /// roots would leave a quarantine that holds a replacement's names outside every one of them (ADR 0030). Saving starts
+    /// no inspection: the owner does that from the Library page.
     /// </summary>
     Task<AllowedRootsUpdateResult> UpdateAsync(
         IReadOnlyList<string?> paths,
@@ -35,6 +36,10 @@ public interface IAllowedRootsService
         Guid actorUserId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>The response the settings page reads.</summary>
+    /// <summary>
+    /// The response the settings page reads. MAM-26 — with, for every library folder whose tick counts, what keeps a rename
+    /// into the quarantine from working there, from one look through the write contract at those folders alone, never
+    /// their files; and the room each quarantine takes, from the database.
+    /// </summary>
     Task<AllowedRootsResponse> GetAsync(CancellationToken cancellationToken = default);
 }

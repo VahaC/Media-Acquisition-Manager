@@ -5,8 +5,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// checks 1–4; ADR 0032, ADR 0035): complete by the client's word, readable by the media inspector inside the allowed
 /// folders, listed and finished by the library once asked to look, and identified by the library's ids as the old copy's
 /// own work, every ticked copy paired with exactly one new file. Then the job is <c>Verified</c>, or stops —
-/// <c>NeedsReview</c>, or <c>Failed</c> for a bad file — with its reason, both copies staying. Nothing is moved in this
-/// version: moving the old copies aside is MAM-26's.
+/// <c>NeedsReview</c>, or <c>Failed</c> for a bad file — with its reason, both copies staying. Nothing is moved here: a
+/// <c>Verified</c> job's old copies are moved by MAM-26's <see cref="IReplacementQuarantiner"/>, on a loop of its own.
 /// </summary>
 /// <remarks>
 /// <para>

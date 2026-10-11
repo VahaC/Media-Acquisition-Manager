@@ -70,6 +70,19 @@ public sealed class DownloadService(
     // MAM-24 — why a replacement ends when its download is cancelled from the Jobs page (R6).
     private const string ReplacementCancelledReason = "You cancelled the download, so nothing will be replaced.";
 
+    /// <summary>
+    /// MAM-26 — the states of a name that moved into the quarantine at some point: in it, on its way back or out, back, or
+    /// deleted. A job holding one moved something, so the companions that stayed are worth a word on its line.
+    /// </summary>
+    private static readonly IReadOnlySet<ReplacementNameState> MovedStates = new HashSet<ReplacementNameState>
+    {
+        ReplacementNameState.Quarantined,
+        ReplacementNameState.Restoring,
+        ReplacementNameState.Restored,
+        ReplacementNameState.Deleting,
+        ReplacementNameState.Deleted,
+    };
+
     public async Task<DownloadOptionsResult> GetOptionsAsync(string? releaseId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         Guid? id = Guid.TryParse(releaseId, out var parsed) ? parsed : null;
@@ -580,6 +593,7 @@ public sealed class DownloadService(
     /// The jobs as the dialog and the Jobs page show them, in <paramref name="rows"/>' order, each with its replacement.
     /// MAM-24, R10 — a replacement's counts read in a batch, never per job: one query for the copies of every replacement
     /// among the rows and one read of the gates — and neither for rows that carry none, as a page of Keep both sends does.
+    /// MAM-26 — and one query for the names their moves planned, for what the quarantine holds of each.
     /// </summary>
     private async Task<IReadOnlyList<DownloadJobDto>> ToDtosAsync(IReadOnlyList<JobRow> rows, bool forOwner, CancellationToken cancellationToken)
     {
@@ -588,17 +602,23 @@ public sealed class DownloadService(
             return [.. rows.Select(row => ToDto(row, forOwner))];
 
         // One JSON parameter (EF.Parameter) rather than one per id, the house rule against SQLite's limit.
-        var appPaths = (await db.ReplacementJobFiles.AsNoTracking()
+        var copies = (await db.ReplacementJobFiles.AsNoTracking()
                 .Where(file => EF.Parameter(replacementIds).Contains(file.ReplacementJobId))
-                .Select(file => new { file.ReplacementJobId, file.AppPath })
+                .Select(file => new ReplacementCopyPath(file.ReplacementJobId, file.Id, file.AppPath))
                 .ToListAsync(cancellationToken))
-            .ToLookup(file => file.ReplacementJobId, file => file.AppPath);
+            .ToLookup(file => file.ReplacementJobId);
+        // MAM-26 — the same way: only the columns the counts need, never a path.
+        var names = (await db.ReplacementJobNames.AsNoTracking()
+                .Where(name => EF.Parameter(replacementIds).Contains(name.ReplacementJobId))
+                .Select(name => new ReplacementNameCount(name.ReplacementJobId, name.ReplacementJobFileId, name.Kind, name.State))
+                .ToListAsync(cancellationToken))
+            .ToLookup(name => name.ReplacementJobId);
         // Read fresh, never cached (ADR 0033): what the page says about the switch and the ticks is what they are now.
         var gate = await gates.ReadAsync(cancellationToken);
         return
         [
             .. rows.Select(row => row.Replacement is { } replacement
-                ? ToDto(row, forOwner) with { Replacement = ReplacementOf(replacement, [.. appPaths[replacement.Id]], gate) }
+                ? ToDto(row, forOwner) with { Replacement = ReplacementOf(replacement, [.. copies[replacement.Id]], [.. names[replacement.Id]], gate) }
                 : ToDto(row, forOwner)),
         ];
     }
@@ -607,16 +627,38 @@ public sealed class DownloadService(
 
     /// <summary>
     /// MAM-24, R10 — <paramref name="replacement"/> as the Jobs page shows it: whether replacement is switched off now,
-    /// and how many of its copies, at <paramref name="appPaths"/>, no longer lie in a ticked folder — every library folder
-    /// holding one ticked and inside the Media folders, as the plan required. A stored path that no longer parses lies in
-    /// none: it can't move.
+    /// and how many of its <paramref name="copies"/> no longer lie in a ticked folder — every library folder holding one
+    /// ticked and inside the Media folders, as the plan required. A stored path that no longer parses lies in none: it
+    /// can't move.
     /// </summary>
-    private DownloadJobReplacementDto ReplacementOf(ReplacementJobEntity replacement, IReadOnlyList<string> appPaths, ReplacementGateState gate) =>
-        mapper.ToDto(
+    /// <remarks>
+    /// MAM-26 — of the copies still to move only: check 5 passes over a copy whose video is in the quarantine already or
+    /// was deleted from it, so its folder's tick stops nothing, while any other copy outside a ticked folder stops the whole
+    /// replacement for review. And, from its <paramref name="names"/>, how many ticked copies have their video in the
+    /// quarantine, and how many companions stayed in their folder in a job that moved something — one whose video never
+    /// moved left them all where they were, which its reason says.
+    /// </remarks>
+    private DownloadJobReplacementDto ReplacementOf(
+        ReplacementJobEntity replacement, IReadOnlyList<ReplacementCopyPath> copies, IReadOnlyList<ReplacementNameCount> names, ReplacementGateState gate)
+    {
+        var moved = names
+            .Where(name => name is { Kind: ReplacementNameKind.Video, State: ReplacementNameState.Quarantined or ReplacementNameState.Deleted })
+            .Select(name => name.ReplacementJobFileId)
+            .ToHashSet();
+        return mapper.ToDto(
             replacement,
-            appPaths.Count,
+            copies.Count,
             !gate.IsEnabled,
-            appPaths.Count(path => !NormalizedPath.TryParse(path, out var parsed, out _) || !gate.IsInTickedFolder(parsed)));
+            copies.Count(copy => !moved.Contains(copy.Id)
+                && (!NormalizedPath.TryParse(copy.AppPath, out var parsed, out _) || !gate.IsInTickedFolder(parsed))),
+            names.Where(name => name is { Kind: ReplacementNameKind.Video, State: ReplacementNameState.Quarantined })
+                .Select(name => name.ReplacementJobFileId)
+                .Distinct()
+                .Count(),
+            names.Any(name => MovedStates.Contains(name.State))
+                ? names.Count(name => name is { Kind: ReplacementNameKind.Companion, State: ReplacementNameState.Stayed })
+                : 0);
+    }
 
     /// <summary>MAM-14 — why a job of <paramref name="status"/>, which ended, can't be cancelled.</summary>
     private static string NothingToStopError(DownloadJobStatus status) => status switch
@@ -841,4 +883,10 @@ public sealed class DownloadService(
 
     /// <summary>A job with its release's title and source, and (MAM-24) the replacement it carries, read together.</summary>
     private sealed record JobRow(DownloadJobEntity Job, string ReleaseTitle, string? SourceName, ReplacementJobEntity? Replacement);
+
+    /// <summary>MAM-26 — one name a replacement's move planned, with only what the Jobs line counts of it.</summary>
+    private sealed record ReplacementNameCount(Guid ReplacementJobId, Guid ReplacementJobFileId, ReplacementNameKind Kind, ReplacementNameState State);
+
+    /// <summary>MAM-24 — one ticked copy of a replacement, with only what the Jobs line counts of it: where it is.</summary>
+    private sealed record ReplacementCopyPath(Guid ReplacementJobId, Guid Id, string AppPath);
 }

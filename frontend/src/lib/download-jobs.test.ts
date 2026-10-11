@@ -1,4 +1,11 @@
-import { canCancelJob, DOWNLOAD_JOB_STATUSES, isJobFollowed, isJobWorkedOn, isReplacementBeingChecked } from '@/lib/download-jobs'
+import {
+  canCancelJob,
+  DOWNLOAD_JOB_STATUSES,
+  isJobFollowed,
+  isJobWorkedOn,
+  isReplacementBeingChecked,
+  isReplacementWorkedOn,
+} from '@/lib/download-jobs'
 import type { ReplacementJobState } from '@/lib/types'
 import { jobOf } from '@/test/downloads'
 import { replacementOf } from '@/test/replacements'
@@ -15,6 +22,12 @@ const REPLACEMENT_JOB_STATES: readonly ReplacementJobState[] = [
   'Downloaded',
   'Inspecting',
   'Verified',
+  'Quarantining',
+  'Quarantined',
+  'Restoring',
+  'Restored',
+  'Deleting',
+  'Completed',
   'NeedsReview',
   'Failed',
   'Cancelled',
@@ -58,8 +71,9 @@ describe('download job statuses', () => {
   })
 
   // MAM-25 — the download stops moving once it is Downloaded, while the check of its replacement's new
-  // files goes on by itself until it ends Verified, NeedsReview or Failed.
-  it('counts a downloaded job as worked on while its replacement is Downloaded or Inspecting, and in no other replacement state', () => {
+  // files goes on by itself until it ends Verified, NeedsReview or Failed. MAM-26 — and the mover takes
+  // a Verified one up by itself, then the renames end it Quarantined, Restored, Completed or NeedsReview.
+  it('counts a downloaded job as worked on while its replacement is checked, verified or being renamed, and in no other replacement state', () => {
     // Arrange
     const jobs = REPLACEMENT_JOB_STATES.map((state) => jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state }) }))
 
@@ -67,7 +81,20 @@ describe('download job statuses', () => {
     const workedOn = jobs.filter(isJobWorkedOn).map((job) => job.replacement?.state)
 
     // Assert
-    expect(workedOn).toEqual(['Downloaded', 'Inspecting'])
+    expect(workedOn).toEqual(['Downloaded', 'Inspecting', 'Verified', 'Quarantining', 'Restoring', 'Deleting'])
+  })
+
+  // MAM-26 — while replacement is switched off the mover leaves a Verified one untouched (ADR 0033), so
+  // asking again would bring the same answer; the check of the new files and a rename under way go on.
+  it('counts a replacement as worked on while replacement is switched off only while it is checked or being renamed', () => {
+    // Arrange
+    const replacements = REPLACEMENT_JOB_STATES.map((state) => replacementOf({ state, switchedOff: true }))
+
+    // Act
+    const workedOn = replacements.filter(isReplacementWorkedOn).map((replacement) => replacement.state)
+
+    // Assert
+    expect(workedOn).toEqual(['Downloaded', 'Inspecting', 'Quarantining', 'Restoring', 'Deleting'])
   })
 
   it('counts a replacement as being checked only while it is Downloaded or Inspecting', () => {

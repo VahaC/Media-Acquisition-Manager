@@ -23,7 +23,9 @@ namespace MediaAcquisitionManager.Api.Tests.Replacements;
 // where the app can't look; two torrents of one name are two holds, and a torrent file of the copy's size that is another
 // file holds nothing. A client the app may not ask or can't use, one that doesn't answer, one whose listing throws and one
 // too old to list the files are "not read", and torrents whose files can't be placed make their client's answer partial —
-// never an all-clear. Holds never keep a copy from being ticked, and the read only reads.
+// never an all-clear. Holds never keep a copy from being ticked, and the read only reads. MAM-26 — a torrent that lists a
+// copy at its own path holds it whatever size it lists, and the dialog still answers for a client whose mappings reach no
+// Media folder, which the read before a move leaves out (ReplacementHoldingReaderTargetsTests).
 public sealed class ReplacementOptionsHoldingsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/replacements/options";
@@ -191,6 +193,73 @@ public sealed class ReplacementOptionsHoldingsHttpTests : IClassFixture<MediaAcq
         Assert.Equal(
             [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0)],
             options.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents)));
+    }
+
+    [Fact]
+    public async Task Options_with_holdings_marks_a_copy_a_torrent_lists_at_its_path_whatever_size_it_lists()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantAlienAsync(cancellationToken);
+        await _replacement.SwitchOn(FilmsFolder);
+        // MAM-26 — an errored torrent that lists the theatrical cut at its path with a size the disk doesn't have, and one
+        // missing its files that lists the director's cut with no size it can tell: ADR 0031's "an old copy any torrent
+        // lists, in any state" — a recheck would write either path back.
+        _qbittorrent.AddTorrent(TorrentHolding("Alien.1979.Theatrical", "Alien (1979)/Alien (1979) Theatrical Cut.mkv", TheatricalSize - 4096, state: "error"));
+        _qbittorrent.AddTorrent(TorrentHolding("Alien.1979.DC", "Alien (1979)/Alien (1979) Director's Cut.mkv", -1, state: "missingFiles"));
+
+        //Act
+        var response = await OptionsAsync(holdings: true);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await ReadAsync(response, cancellationToken);
+        Assert.Equal(
+            new Dictionary<string, string>
+            {
+                [DirectorsCutPath] = "qBittorrent/Alien.1979.DC/False",
+                [TheatricalPath] = "qBittorrent/Alien.1979.Theatrical/False",
+            },
+            CopiesOf(options).ToDictionary(copy => copy.File.AppPath!, copy => string.Join(", ", copy.Holds.Select(Describe))));
+        // The path places the file: neither torrent is one the app couldn't place.
+        Assert.Equal(
+            [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0)],
+            options.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents)));
+    }
+
+    [Fact]
+    public async Task Options_with_holdings_still_answers_for_a_client_whose_mappings_reach_no_media_folder()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantAlienAsync(cancellationToken);
+        await _replacement.SwitchOn(FilmsFolder);
+        // MAM-26 — a seedbox whose one mapping leads outside /media: the read before a move leaves it out; the dialog, which
+        // only marks, still says what it gave — one torrent mapped outside the Media folders, one saving where no mapping
+        // reaches.
+        var seedbox = new FakeQBittorrentServer("http://seedbox.test:8080");
+        FakeQBittorrentServer.Arm(_factory.QBittorrentHttp, _qbittorrent, seedbox);
+        seedbox.AddTorrent(TorrentHolding("Alien.1979.Theatrical", "Alien (1979)/Alien (1979) Theatrical Cut.mkv", TheatricalSize));
+        seedbox.AddTorrent(TorrentHolding("Elsewhere", "Alien.mkv", TheatricalSize, savePath: "/elsewhere"));
+        await _integrations.Create(
+            "qbittorrent",
+            "seedbox",
+            seedbox.BaseUrl,
+            userName: FakeQBittorrentServer.DefaultUserName,
+            password: FakeQBittorrentServer.DefaultPassword,
+            pathMappings: [new PathMappingPair("/downloads", "/srv/seedbox")]);
+
+        //Act
+        var response = await OptionsAsync(holdings: true);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await ReadAsync(response, cancellationToken);
+        Assert.Equal(
+            [("qBittorrent", ReplacementClientCheck.Read, (string?)null, 0), ("seedbox", ReplacementClientCheck.Partial, (string?)null, 1)],
+            options.Clients.Select(client => (client.ClientName, client.Status, client.Error, client.UnplacedTorrents)));
+        Assert.All(CopiesOf(options), copy => Assert.Empty(copy.Holds));
+        Assert.Contains(_factory.QBittorrentHttp.Requests, request => request.Uri.Host == "seedbox.test" && request.Uri.Query.Contains("includeFiles", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -119,6 +119,11 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         // MAM-24 — under Controllers/Replacements: the owner's alone, every action, by the namespace's convention (ADR 0033).
         Assert.Contains("ReplacementsController.Options", actions);
         Assert.Contains("ReplacementsController.Schedule", actions);
+        // MAM-26 — the owner's details, Retry, Restore and Delete for good of a replacement, in the same namespace.
+        Assert.Contains("ReplacementJobsController.Get", actions);
+        Assert.Contains("ReplacementJobsController.Retry", actions);
+        Assert.Contains("ReplacementJobsController.Restore", actions);
+        Assert.Contains("ReplacementJobsController.DeleteForGood", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

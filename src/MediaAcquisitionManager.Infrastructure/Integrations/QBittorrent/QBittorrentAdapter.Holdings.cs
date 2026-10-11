@@ -9,6 +9,12 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 // GET api/v2/torrents/info?includeFiles=true (qBittorrent 5.2 and later), read as an allowlist, for telling which
 // torrent holds a library copy before the owner schedules its replacement (ADR 0031). Every request is the sign-in
 // or a GET.
+//
+// MAM-26 — the same listing is the read that decides, right before an old copy and its companions move into the
+// quarantine: a name a torrent lists stays where it is until the owner removes that torrent here. Nothing in this
+// adapter moves, relocates or renames a torrent or its files, or sets their location or save path
+// (torrents/setLocation, torrents/setSavePath, torrents/setDownloadPath, torrents/renameFile, torrents/renameFolder):
+// a torrent's files stay where it put them.
 internal sealed partial class QBittorrentAdapter
 {
     /// <summary>
