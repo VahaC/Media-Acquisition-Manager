@@ -18,35 +18,58 @@ import type {
 
 /**
  * The Duplicates page's tabs, in the order of specification §3.3, with every class first and the
- * dismissed possible matches last.
+ * dismissed possible matches last. MAM-40 — Dismissed holds the groups the owner kept as they are too, and
+ * Removed, the owner's alone, lists the copies he removed into the quarantine.
  */
-export const DUPLICATE_TABS = ['All', 'SameFile', 'ByteIdentical', 'SameWork', 'Possible', 'Dismissed'] as const
+export const DUPLICATE_TABS = ['All', 'SameFile', 'ByteIdentical', 'SameWork', 'Possible', 'Dismissed', 'Removed'] as const
 
 /** One tab of the Duplicates page. */
 export type DuplicateTab = (typeof DUPLICATE_TABS)[number]
 
+/** MAM-40 — a tab that lists groups: every tab but Removed copies, which lists removals. */
+export type DuplicateListTab = Exclude<DuplicateTab, 'Removed'>
+
 /**
- * What took a possible match off the tab on screen: the owner dismissed it, or undid its dismissal on the
- * Dismissed tab.
+ * What took a group off the tab on screen, or a copy off a group: the owner dismissed a possible match or
+ * kept a group's copies as they are (MAM-40), undid that on the Dismissed tab, or removed one of its copies
+ * into the quarantine (MAM-40) — `path` is where the copy was; `needsReview` and `reason` are the removal's as the
+ * server answered it: a removal stopped for review, or one a same-name companion stayed behind from, says so.
  */
-export type DuplicateLeaving = 'Dismissed' | 'Restored'
+export type DuplicateLeaving =
+  | { kind: 'Dismissed' }
+  | { kind: 'Restored' }
+  | { kind: 'Removed'; path: string; needsReview: boolean; reason: string | null }
 
 /**
  * The tab `?tab=` names; All when it is left out or names no tab (a link from an older address, a typo),
- * rather than a page that refuses to open.
+ * rather than a page that refuses to open. MAM-40 — Removed copies is the owner's alone: for anyone else
+ * it reads as All too.
  */
-export function tabFrom(param: string | null): DuplicateTab {
-  return DUPLICATE_TABS.find((tab) => tab === param) ?? 'All'
+export function tabFrom(param: string | null, isOwner: boolean): DuplicateTab {
+  return DUPLICATE_TABS.find((tab) => tab === param && (tab !== 'Removed' || isOwner)) ?? 'All'
 }
 
 /**
  * The filters a tab asks the server for: none for All (every group but the dismissed ones), a class for
- * a class's tab, and the dismissed possible matches for Dismissed.
+ * a class's tab, and the dismissed possible matches and kept groups for Dismissed.
  */
-export function tabQuery(tab: DuplicateTab): Pick<LibraryDuplicatesQuery, 'class' | 'decision'> {
+export function tabQuery(tab: DuplicateListTab): Pick<LibraryDuplicatesQuery, 'class' | 'decision'> {
   if (tab === 'All') return {}
   if (tab === 'Dismissed') return { decision: 'Dismissed' }
   return { class: tab }
+}
+
+/**
+ * MAM-40 — whether a group's files are copies the owner keeps or removes: copies of one work and exact
+ * copies. One file's names take their room once, and a possible match is confirmed or dismissed instead.
+ */
+export function holdsCopies(group: LibraryDuplicateGroup): boolean {
+  return group.class === 'SameWork' || group.class === 'ByteIdentical'
+}
+
+/** MAM-40 — whether a group is headed by an episode, so its words say "episode" where a film's say "film". */
+export function isEpisodeGroup(group: LibraryDuplicateGroup): boolean {
+  return firstWork(group)?.kind === 'Episode'
 }
 
 /** Library titles in Ukrainian alphabetical order, letter case ignored: the server's LibraryTitleOrder. */

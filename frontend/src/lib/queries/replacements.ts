@@ -164,7 +164,9 @@ export const useDropReplacementCopy = () => {
  * MAM-26 — puts every name of the owner's replacement in the quarantine back where it was (ADR 0030).
  * Once it answers, the job, its details and the Media folders' quarantine room are asked for again,
  * whatever the answer: a refusal part-way still brought some names back. Never retried on its own,
- * and sent even while the browser says it is offline (useRetryReplacement's reason).
+ * and sent even while the browser says it is offline (useRetryReplacement's reason). MAM-40 — and the
+ * Duplicates page: a copy back in its folder counts in its group again, and a replacement that ended no
+ * longer holds its files from Remove this copy.
  */
 export const useRestoreReplacement = () => {
   const queryClient = useQueryClient()
@@ -177,6 +179,7 @@ export const useRestoreReplacement = () => {
       queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
       queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
       queryClient.invalidateQueries({ queryKey: qk.settings.allowedRoots }),
+      queryClient.invalidateQueries({ queryKey: qk.library.duplicatesAll }),
     ]),
   })
 }
@@ -184,9 +187,10 @@ export const useRestoreReplacement = () => {
 /**
  * MAM-26 — deletes for good exactly the names the owner confirmed from the replacement's quarantine
  * (ADR 0030); the server refuses the list if it isn't what the quarantine holds now. Then as Restore:
- * the job, its details and the quarantine room are asked for again whatever the answer. Never
- * retried on its own, and sent even while the browser says it is offline (useRetryReplacement's
- * reason).
+ * the job, its details, the quarantine room and (MAM-40) the Duplicates page are asked for again
+ * whatever the answer — a replacement that ended no longer holds its files from Remove this copy.
+ * Never retried on its own, and sent even while the browser says it is offline
+ * (useRetryReplacement's reason).
  */
 export const useDeleteReplacementForGood = () => {
   const queryClient = useQueryClient()
@@ -199,6 +203,7 @@ export const useDeleteReplacementForGood = () => {
       queryClient.invalidateQueries({ queryKey: qk.downloads.jobs.all }),
       queryClient.invalidateQueries({ queryKey: qk.replacements.job(id) }),
       queryClient.invalidateQueries({ queryKey: qk.settings.allowedRoots }),
+      queryClient.invalidateQueries({ queryKey: qk.library.duplicatesAll }),
     ]),
   })
 }

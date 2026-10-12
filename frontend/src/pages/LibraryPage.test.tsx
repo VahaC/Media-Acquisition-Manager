@@ -74,7 +74,7 @@ describe('LibraryPage', () => {
 
     // Assert
     expect(link).toHaveAttribute('href', '/library/duplicates')
-    expect(link).toHaveAttribute('title', 'The files that are one file, copies or possible matches of each other, with the evidence')
+    expect(link).toHaveAttribute('title', 'Files that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, with the evidence')
     expect(link.parentElement).toHaveClass('settings-header')
   })
 

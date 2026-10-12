@@ -120,7 +120,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
             (ReplacementVerificationHarness.QuarantineRoot, 1, 2, TheatricalSize + SrtSize),
             (quarantine.GetProperty("path").GetString(), quarantine.GetProperty("replacementCount").GetInt32(), quarantine.GetProperty("fileCount").GetInt32(),
                 quarantine.GetProperty("sizeBytes").GetInt64()));
-        Assert.Equal(["path", "replacementCount", "fileCount", "sizeBytes"], quarantine.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(["path", "replacementCount", "removalCount", "fileCount", "sizeBytes"], quarantine.EnumerateObject().Select(property => property.Name));
         Assert.All(
             mediaFoldersJson.RootElement.GetProperty("libraryFolders").EnumerateArray(),
             folder => Assert.Equal(["appPath", "libraryNames", "ticked", "status", "renameProblems", "writeAccess"], folder.EnumerateObject().Select(property => property.Name)));

@@ -66,6 +66,21 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     public static AuditTarget ReplacementJobFile(ReplacementJobFileEntity copy) =>
         new(AuditTargetKind.ReplacementJobFile, copy.Id, Cut(ReplacementText.FileNameOf(copy.AppPath)));
 
+    /// <summary>
+    /// MAM-40 — the owner's removal of one copy of a duplicate group, by its row, named by the group's heading as the
+    /// Duplicates page showed it ("The Gods Must Be Crazy (1980)"), as a replacement is by its release: its row keeps the
+    /// file's path and its names which files went. Cut to the column with an ellipsis.
+    /// </summary>
+    public static AuditTarget CopyRemoval(CopyRemovalEntity removal) =>
+        new(AuditTargetKind.CopyRemoval, removal.Id, Cut(removal.Title));
+
+    /// <summary>
+    /// MAM-40 — one name a removal moves into the quarantine, restores or deletes, by its row, named by the file's own name,
+    /// as a replacement's name is. Cut to the column with an ellipsis.
+    /// </summary>
+    public static AuditTarget CopyRemovalName(CopyRemovalNameEntity name) =>
+        new(AuditTargetKind.CopyRemovalName, name.Id, Cut(ReplacementText.FileNameOf(name.AppPath)));
+
     /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
     /// what tells two works apart within it.</summary>
     public const int TargetNameMaximumLength = 200;

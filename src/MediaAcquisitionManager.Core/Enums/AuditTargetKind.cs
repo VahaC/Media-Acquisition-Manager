@@ -34,4 +34,12 @@ public enum AuditTargetKind
     /// <summary>MAM-27 — one old copy the owner ticked for a replacement (its <c>ReplacementJobFiles</c> row), named by the
     /// file's own name.</summary>
     ReplacementJobFile = 9,
+
+    /// <summary>MAM-40 — the owner's removal of one copy of a duplicate group (its <c>CopyRemovals</c> row), named by the
+    /// group's heading.</summary>
+    CopyRemoval = 10,
+
+    /// <summary>MAM-40 — one name a removal moves into the quarantine, restores or deletes (its <c>CopyRemovalNames</c>
+    /// row), named by the file's own name.</summary>
+    CopyRemovalName = 11,
 }

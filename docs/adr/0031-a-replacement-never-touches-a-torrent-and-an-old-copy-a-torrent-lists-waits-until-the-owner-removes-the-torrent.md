@@ -416,3 +416,42 @@ Media folders. Of the MAM-26 section's tests,
 was
 `ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`
 until MAM-28, which tells it that the app sent a replacement to qBittorrent alone.
+
+## Check 6 also guards a copy removed from the Duplicates page (added 0.3.0, MAM-40)
+
+**The owner's Remove this copy on the Duplicates page reads every download client as a
+replacement's move does, right before anything is written — the same clients, the MAM-26 and MAM-28
+sections' rules, for the video and every companion that would move —, and a video any torrent lists
+is refused with the Decision's sentence ending "then press Remove again." ([ADR
+0037](0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md),
+Vasyl's decisions of 2026-10-12).** Still no client write: the owner removes the torrent in
+qBittorrent without its files, then presses **Remove this copy** again.
+
+**One check, two wordings.** The read and the judgement moved out of the mover into
+`QuarantineHoldingCheck`, which both call; only two words change, through `QuarantineWording`: the
+copy ("the old copy", "this copy") and what to press again ("Retry", "Remove again"). A removal's
+sentences read "Still held by the torrent “Alien.1979.Theatrical” in “qBittorrent”: remove that
+torrent there without its files, then press Remove again.", "The app couldn't tell whether a torrent
+in “qBittorrent” holds this copy: …", "The app couldn't place 1 of “qBittorrent”'s torrents in its
+folders, so it can't tell whether one of them holds this copy." and "“qBittorrent”'s path mappings
+put 1 of its torrents outside the Media folders, so the app can't tell whether that torrent holds
+this copy: check those mappings under Integrations, then press Remove again."; a replacement's read
+as they did.
+
+**Refused, not stopped.** A removal has no review to wait in before its move: a held video or an
+uncertain client answers the request 409 with the sentence, and nothing is written — no row, no
+name, no audit row. A companion a torrent lists is written `Stayed` with "Held by the torrent “…” in
+“qBittorrent”, so it stays where it is.", and its video moves, as for a replacement. A second name of
+a torrent's file moves, its link count kept, so Delete for good counts no room for it while it has
+another name.
+
+**The Duplicates list still asks no client.** Each file's verdict there comes from what is stored
+alone ([ADR
+0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)'s
+MAM-40 section, ADR 0018): a held copy shows **Remove this copy** enabled, and the click says which
+torrent holds it.
+
+`CopyRemovalChecksHttpTests.Remove_of_a_copy_a_torrent_holds_is_409_naming_the_torrent`,
+`CopyRemovalChecksHttpTests.Remove_when_a_download_client_cant_be_read_is_409` and
+`CopyRemovalChecksHttpTests.Remove_leaves_a_companion_a_torrent_holds_where_it_is_and_moves_the_video`
+pin it, beside the MAM-26 and MAM-28 sections' tests, which pin the shared check for replacements.

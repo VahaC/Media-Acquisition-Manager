@@ -17,9 +17,10 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Recoverable">The room removing all but one copy would free: 0 for one file's names, an estimate or why
 /// there is none for byte-identical files; <c>null</c> for copies of a work and possible matches, which are never
 /// redundant.</param>
-/// <param name="Decision">MAM-21 — the owner's decision on a possible match, kept by <paramref name="Key"/>;
-/// <c>null</c> while undecided, and always for another class. It changes neither <paramref name="NeedsReview"/> nor what
-/// the group is (ADR 0029).</param>
+/// <param name="Decision">MAM-21 — the owner's decision on a possible match, kept by <paramref name="Key"/>; MAM-40 — or
+/// on copies of one work or byte-identical copies kept as they are (<c>Dismissed</c>), while no new file has joined them;
+/// <c>null</c> while undecided, and always for one file's names. It changes neither <paramref name="NeedsReview"/> nor
+/// what the group is (ADR 0029).</param>
 public sealed record LibraryDuplicateGroupDto(
     string Key,
     DuplicateClass Class,

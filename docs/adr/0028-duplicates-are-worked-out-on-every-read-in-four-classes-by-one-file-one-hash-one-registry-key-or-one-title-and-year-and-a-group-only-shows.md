@@ -785,3 +785,67 @@ a copy in two parts, an unmeasured copy or a failed reading beside measured ones
 whose names say different editions, a whole episode file beside an `a` file, a film item linked as
 an episode at another place, the `|Years:` and `|Editions:` keys — no production component splits
 into two groups —, and possible matches, of which production has none.
+
+## Plain names, quarantined names and each file's removal verdict (added 0.3.0, MAM-40)
+
+**The page names the classes in plain words, a name in the quarantine counts in no group, and each
+file of a group of exact copies or of one work's copies carries whether the owner may remove it
+([ADR
+0037](0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md));
+the classes, their rules and their keys stay as above (Vasyl's decisions of 2026-10-12).**
+
+**Plain names, on the page only.** Vasyl couldn't tell what "Same work" meant. The tabs now read
+All, "One file, two names" (`SameFile`), "Exact copies" (`ByteIdentical`), "Same film, different
+files" (`SameWork`), "Maybe the same film" (`Possible`), "Kept as they are" (`decision=Dismissed`,
+[ADR
+0029](0029-a-possible-match-is-confirmed-or-dismissed-by-the-owner-alone-kept-by-its-groups-key-and-never-authorises-removal.md)'s
+MAM-40 section) and "Removed copies", the owner's alone (`?tab=Removed`, ADR 0037). A card's badge
+has the same words, an episode's group "Same episode, different files", while the tab keeps the
+film's. Every card has one line saying what its group is and what can be done: "These files hold
+exactly the same bytes. Remove a copy you don't need, or keep them as they are.", "Different files
+of the same film, by its ids: another size, quality or source. Compare them, then remove a copy you
+don't need, or keep them as they are." (an episode's: "… of the same episode, by its ids: another
+size or quality. …"), "One file reached by two names or more (hardlinks): it takes its room once,
+so there is nothing to keep or remove." and "Maybe the same film: the titles and years match, but no
+ids say so. Confirm it if they are one film, or dismiss it if they aren't; nothing is removed either
+way." The API keeps its names: `class` and `decision` take and give the values they did. The MAM-21
+section's tabs "All, Same file, Byte-identical, Same work, Possible and Dismissed" read so since.
+
+**A quarantined name counts in no group.** **What a name is** above now leaves out every name a
+replacement or a removal took into the quarantine and hasn't given back — its row `Moving`,
+`Quarantined`, `Restoring`, `Deleting` or `Deleted` —, matched by its old app path and the device,
+inode, size and modification time it moved with, all five against the app's last read of the
+library's file, whatever a sync or the scan last saw there; a file put at that path since counts,
+and so does one a later download got the inode of a name deleted for good, which device and inode
+alone would hide for ever. It costs two queries of the quarantine's own rows, however large the
+library. A replacement's old copy now leaves its group at its move too, where it stayed until the
+next sync.
+
+**Each file's removal verdict.** On `ByteIdentical` and `SameWork` groups each file carries
+`removal: { allowed, reason }`, ADR 0037's stored rules read with the gates and the holds once per
+page, for every signed-in user; `null` on the other two classes. It reads the database alone: the
+list still asks no download client, and the torrents are the Remove request's.
+
+**The Anti-consequence, since.** "Nothing is removed, moved, renamed, written or stored because of a
+group" now has two exceptions, each the owner's word on one group: Keep both stores a decision on
+exact copies or one work's copies (ADR 0029's MAM-40 section), and Remove this copy moves the one
+file the owner pressed it on into the quarantine (ADR 0037). A group still decides nothing, calls no
+copy redundant, and the app suggests none.
+
+**The file system for kept copies.** The MAM-21 section's "A list with `decision` asks no file
+system, whatever its class" no longer holds for `decision=Dismissed`: kept exact copies are listed
+there with their estimate, so that list asks for their devices as one of every class or of
+`ByteIdentical` does; `decision=Confirmed` still asks nothing.
+`LibraryDuplicatesByteIdenticalHttpTests.List_asks_the_file_system_only_of_byte_identical_groups`
+now finds the devices asked for `decision=Dismissed` too.
+
+`LibraryDuplicatesQuarantineHttpTests.List_counts_no_name_a_replacement_took_into_the_quarantine`,
+`LibraryDuplicatesQuarantineHttpTests.List_counts_a_name_that_is_still_or_again_where_it_was`,
+`LibraryDuplicatesQuarantineHttpTests.List_counts_a_new_file_put_at_a_quarantined_names_path`,
+`LibraryDuplicatesQuarantineHttpTests.List_counts_a_new_file_given_the_inode_of_a_name_deleted_for_good_at_its_path`,
+`LibraryDuplicatesQuarantineHttpTests.List_counts_no_name_deleted_for_good_while_its_path_identity_size_and_time_all_match`,
+`CopyRemovalHttpTests.Remove_takes_a_group_of_two_copies_off_the_duplicates_list`,
+`CopyRemovalHttpTests.Remove_from_a_group_of_three_copies_keeps_the_other_two_as_a_group`,
+`CopyRemovalActionsHttpTests.Restore_puts_every_name_back_tells_jellyfin_they_came_back_and_the_copy_counts_in_its_group_again`,
+`CopyRemovalVerdictsHttpTests` and `LibraryDuplicatesHttpTests` (`removal` on the wire) pin it, and
+`DuplicatesPage.test.tsx` and `DuplicateGroupCard.test.tsx` the names and the lines.

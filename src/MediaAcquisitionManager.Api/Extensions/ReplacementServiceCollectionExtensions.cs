@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Services.CopyRemovals;
 using MediaAcquisitionManager.Api.Services.Replacements;
 
 namespace MediaAcquisitionManager.Api.Extensions;
@@ -9,7 +10,8 @@ public static class ReplacementServiceCollectionExtensions
     /// dialog and the send; the dialog's read; the send's plan; and the following of each scheduled replacement. MAM-25 —
     /// and the check of each replacement's new files once its download is done (ADR 0035). MAM-26 — and the move of the
     /// old copies into the quarantine, the library's notice, and the owner's Retry, Restore and Delete for good (ADR
-    /// 0030). Its own extension: it reads the settings, the library and the downloads alike.
+    /// 0030). MAM-40 — and the owner's removal of a duplicate copy into the same quarantine, with its Restore and Delete for
+    /// good. Its own extension: it reads the settings, the library and the downloads alike.
     /// </summary>
     public static IServiceCollection AddReplacementFeatures(this IServiceCollection services)
     {
@@ -41,6 +43,18 @@ public static class ReplacementServiceCollectionExtensions
         services.AddScoped<IReplacementQuarantiner, ReplacementQuarantiner>();
         services.AddScoped<IReplacementLibraryNotice, ReplacementLibraryNotice>();
         services.AddScoped<IReplacementJobActions, ReplacementJobActions>();
+        // MAM-40 — singletons that live and die with the process: the removals someone here is writing for, which tell a
+        // write under way from one a restart cut; and the one turn removals take at a time, so two requests can't take a
+        // group's last two copies.
+        services.AddSingleton<CopyRemovalsInHand>();
+        services.AddSingleton<CopyRemovalTurns>();
+        // MAM-40 — scoped, as they read and write the request's (or the pass's) DbContext: the removal rules' reads, which the
+        // Duplicates list and the Remove request share; the owner's removals; the library's notice of them; and the pass that
+        // settles the ones a restart cut, which ReplacementQuarantineTracker calls after the replacements'.
+        services.AddScoped<ICopyRemovalVerdicts, CopyRemovalVerdicts>();
+        services.AddScoped<ICopyRemovalService, CopyRemovalService>();
+        services.AddScoped<ICopyRemovalLibraryNotice, CopyRemovalLibraryNotice>();
+        services.AddScoped<ICopyRemovalRecovery, CopyRemovalRecovery>();
         return services;
     }
 }

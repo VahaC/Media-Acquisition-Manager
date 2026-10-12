@@ -542,6 +542,44 @@ public sealed class ReplacementOptionsHttpTests : IClassFixture<MediaAcquisition
             work.Copies.Select(copy => (copy.File.AppPath!, copy.Unavailable)));
     }
 
+    [Theory]
+    [InlineData(CopyRemovalState.Moving, true)]
+    [InlineData(CopyRemovalState.Quarantined, true)]
+    [InlineData(CopyRemovalState.NeedsReview, true)]
+    [InlineData(CopyRemovalState.Restored, false)]
+    [InlineData(CopyRemovalState.NotMoved, false)]
+    public async Task Options_marks_a_copy_an_open_removal_holds_and_not_one_an_ended_removal_held(CopyRemovalState state, bool holds)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantAlienAsync(cancellationToken);
+        await _replacement.SwitchOn(FilmsFolder);
+        var release = await FindAlienAsync();
+        // MAM-40 — the owner removed the theatrical cut from its duplicate group, the library not synced since: a removal still
+        // open holds it — the send would find it in the quarantine —, under its own reason, as no download replaces it.
+        await _factory.WithDbAsync(async db =>
+        {
+            var removals = new CopyRemovalDataFactory(db, _factory.Time);
+            var removal = await removals.Create(_owner.User.Id, state, TheatricalPath, TheatricalPath);
+            await removals.AddName(
+                removal.Id, 0, ReplacementNameKind.Video, TheatricalPath, $"/media/.mam-quarantine/{removal.Id}/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv", "/media",
+                TestMedia.File(inode: 1), ReplacementNameState.Quarantined);
+        });
+
+        //Act
+        var response = await OptionsAsync(release, _movies);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var work = Assert.Single((await ReadAsync(response, cancellationToken)).Works);
+        Assert.Equal(
+            [
+                (DirectorsCutPath, (ReplacementCopyUnavailableReason?)null),
+                (TheatricalPath, holds ? ReplacementCopyUnavailableReason.HeldByRemoval : null),
+            ],
+            work.Copies.Select(copy => (copy.File.AppPath!, copy.Unavailable)));
+    }
+
     [Fact]
     public async Task Options_marks_a_copy_a_replacement_holds_under_another_path_by_its_identity()
     {

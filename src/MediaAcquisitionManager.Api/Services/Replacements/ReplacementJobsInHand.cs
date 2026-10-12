@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
 /// <summary>
@@ -15,19 +13,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// A singleton, kept in memory only, never in the database: a row would outlive the very crash it should tell apart.
 /// </para>
 /// <para>
-/// Thread-safe. The taker releases in a <c>finally</c>, so a write that throws never leaves its job held.
+/// Thread-safe. The taker releases in a <c>finally</c>, so a write that throws never leaves its job held. MAM-40 — the
+/// registry itself is <see cref="RowsInHand"/>, which a removal's holds too.
 /// </para>
 /// </remarks>
-public sealed class ReplacementJobsInHand
-{
-    private readonly ConcurrentDictionary<Guid, byte> _held = new();
-
-    /// <summary>Takes the replacement <paramref name="replacementJobId"/>; <c>false</c> when someone already holds it.</summary>
-    public bool TryTake(Guid replacementJobId) => _held.TryAdd(replacementJobId, 0);
-
-    /// <summary>Lets the replacement <paramref name="replacementJobId"/> go; nothing when no one holds it.</summary>
-    public void Release(Guid replacementJobId) => _held.TryRemove(replacementJobId, out _);
-
-    /// <summary>Whether someone in this process holds the replacement <paramref name="replacementJobId"/> now.</summary>
-    public bool Holds(Guid replacementJobId) => _held.ContainsKey(replacementJobId);
-}
+public sealed class ReplacementJobsInHand : RowsInHand;

@@ -1,6 +1,7 @@
 export * from './keys'
 export * from './allowed-roots'
 export * from './auth'
+export * from './copy-removals'
 export * from './destinations'
 export * from './downloads'
 export * from './duplicates'

@@ -33,6 +33,8 @@ export interface QuarantineSpace {
   path: string
   /** The replacements whose old copies it holds. */
   replacementCount: number
+  /** MAM-40 — the owner's removals of a duplicate copy it holds. */
+  removalCount: number
   fileCount: number
   sizeBytes: number
 }

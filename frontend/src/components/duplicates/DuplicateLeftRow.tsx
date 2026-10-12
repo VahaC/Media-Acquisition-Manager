@@ -1,9 +1,11 @@
 import { useId, useState } from 'react'
-import { EyeOff, Loader2, Undo2 } from 'lucide-react'
+import { Archive, CopyCheck, EyeOff, Loader2, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { Button } from '@/components/ui/button'
-import { groupName, isGroupGone, type DuplicateLeaving } from '@/lib/duplicates'
+import { groupName, holdsCopies, isGroupGone, type DuplicateLeaving } from '@/lib/duplicates'
+import { splitPath } from '@/lib/library-versions'
 import { useDecideDuplicate, useUndoDuplicateDecision } from '@/lib/queries'
 import type { LibraryDuplicateGroup } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
@@ -11,7 +13,10 @@ import '@/styles/duplicates.css' // .duplicates-left — the short row in the ca
 
 interface DuplicateLeftRowProps {
   group: LibraryDuplicateGroup
-  /** What took it off the tab on screen: the owner dismissed it, or undid its dismissal on Dismissed. */
+  /**
+   * What took it off the tab on screen: the owner dismissed it or kept its copies, undid that on Dismissed, or
+   * removed one of its copies into the quarantine.
+   */
   change: DuplicateLeaving
   /** The way back went through and the list shows the group again: the card takes the row's place. */
   onBack: () => void
@@ -24,8 +29,14 @@ interface DuplicateLeftRowProps {
  * offers Undo; restored on the Dismissed tab, it says so and offers Dismiss again. The page keeps it until
  * the tab or the page changes (DuplicatesPage).
  *
- * Only the owner's own decision makes one, so its button takes the focus the card's button had, described by
- * the line, which names the group.
+ * MAM-40 — copies kept as they are leave the same way, worded as kept, with Undo, and Keep again once undone
+ * on Kept as they are. A removed copy leaves a row naming its file with the way to Removed copies, where
+ * Restore puts it back after a confirmation: the group itself, when files enough are left, comes back on the
+ * list without it. A removal the server answered as needing review, or with a sentence (a companion stayed),
+ * says so with that sentence rather than that it waits in the quarantine.
+ *
+ * Only the owner's own action makes one, so its button takes the focus the card's button had, described by
+ * the line, which names the group or the file.
  */
 export function DuplicateLeftRow({ group, change, onBack }: DuplicateLeftRowProps) {
   const { t } = useTranslation('duplicates')
@@ -33,8 +44,42 @@ export function DuplicateLeftRow({ group, change, onBack }: DuplicateLeftRowProp
   const decide = useDecideDuplicate()
   const undo = useUndoDuplicateDecision()
   const [error, setError] = useState<string | null>(null)
-  const dismissed = change === 'Dismissed'
+  const [, setSearchParams] = useSearchParams()
+  const copies = holdsCopies(group)
   const pending = decide.isPending || undo.isPending
+
+  if (change.kind === 'Removed') {
+    const file = splitPath(change.path).name
+    // Not "it waits in the quarantine" alone when the server said something of it needs a look: its sentence,
+    // or that the removal stopped for review.
+    const text = change.reason !== null
+      ? t('left.removedReason', { file, reason: change.reason })
+      : change.needsReview ? t('left.removedReview', { file }) : t('left.removed', { file })
+    return (
+      <div className="duplicates-left">
+        <span id={textId}>{text}</span>
+        {/* A button, as the tabs are: it opens the page's Removed copies tab, in the address as a tab is. */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-describedby={textId}
+          // Mounted only by the owner's own click, which took the button it replaces away.
+          autoFocus
+          onClick={() => setSearchParams({ tab: 'Removed' }, { replace: true })}
+        >
+          <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+          {t('left.openRemoved')}
+        </Button>
+      </div>
+    )
+  }
+
+  const dismissed = change.kind === 'Dismissed'
+  const name = groupName(group)
+  const text = dismissed
+    ? t(copies ? 'left.kept' : 'left.dismissed', { name })
+    : t(copies ? 'left.restoredCopies' : 'left.restored', { name })
 
   const goBack = async () => {
     setError(null)
@@ -46,13 +91,15 @@ export function DuplicateLeftRow({ group, change, onBack }: DuplicateLeftRowProp
     } catch (e: unknown) {
       setError(isGroupGone(e)
         ? t('actions.changed')
-        : getApiErrorMessage(e, t(dismissed ? 'actions.undoFailed' : 'actions.dismissFailed')))
+        : getApiErrorMessage(e, t(dismissed ? 'actions.undoFailed' : copies ? 'actions.keepFailed' : 'actions.dismissFailed')))
     }
   }
 
+  const AgainIcon = copies ? CopyCheck : EyeOff
+
   return (
     <div className="duplicates-left">
-      <span id={textId}>{t(dismissed ? 'left.dismissed' : 'left.restored', { name: groupName(group) })}</span>
+      <span id={textId}>{text}</span>
       <Button
         type="button"
         variant="outline"
@@ -67,10 +114,12 @@ export function DuplicateLeftRow({ group, change, onBack }: DuplicateLeftRowProp
           ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
           : dismissed
             ? <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
-            : <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />}
+            : <AgainIcon className="h-3.5 w-3.5" aria-hidden="true" />}
         {dismissed
           ? (pending ? t('actions.undoing') : t('actions.undo'))
-          : (pending ? t('actions.dismissing') : t('left.dismissAgain'))}
+          : pending
+            ? t(copies ? 'actions.keeping' : 'actions.dismissing')
+            : t(copies ? 'left.keepAgain' : 'left.dismissAgain')}
       </Button>
       {error && <FieldErrorLine>{error}</FieldErrorLine>}
     </div>

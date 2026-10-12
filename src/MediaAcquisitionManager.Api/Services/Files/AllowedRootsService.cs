@@ -43,7 +43,8 @@ public sealed class AllowedRootsService(
 {
     /// <summary>
     /// MAM-26 — the states of a name that sits in a quarantine, or may: there, or in the middle of a write into it, out of
-    /// it or in it. What the room counts and what a Save must keep within reach.
+    /// it or in it. What the room counts and what a Save must keep within reach. MAM-40 — a removal's names' as a
+    /// replacement's.
     /// </summary>
     private static readonly IReadOnlyList<ReplacementNameState> HeldStates =
     [
@@ -127,7 +128,7 @@ public sealed class AllowedRootsService(
         if (changes.Roots && await StrandedQuarantineAsync(roots, cancellationToken) is { } stranded)
         {
             return AllowedRootsUpdateResult.Invalid(
-                $"“{stranded}” still holds replaced copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.");
+                $"“{stranded}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.");
         }
 
         // No target on any row: the roots, the switch and the ticks belong to the installation, not to a row the
@@ -210,22 +211,30 @@ public sealed class AllowedRootsService(
     /// <summary>
     /// MAM-26, ADR 0030 — every quarantine holding a replacement's names now, with how many replacements and names and
     /// their sizes as each was before its move, by path (ordinal): from the rows, never a walk of the disk, which the scan
-    /// keeps out of the quarantine anyway.
+    /// keeps out of the quarantine anyway. MAM-40 — a removal's names count among the names and the room.
     /// </summary>
     private async Task<IReadOnlyList<QuarantineSpaceDto>> QuarantinesAsync(CancellationToken cancellationToken)
     {
-        var held = await db.ReplacementJobNames
+        var replaced = await db.ReplacementJobNames
             .AsNoTracking()
             .Where(name => EF.Constant(HeldStates).Contains(name.State))
-            .Select(name => new { name.AllowedRoot, name.ReplacementJobId, name.SizeBytes })
+            .Select(name => new { name.AllowedRoot, ReplacementJobId = (Guid?)name.ReplacementJobId, CopyRemovalId = (Guid?)null, name.SizeBytes })
+            .ToListAsync(cancellationToken);
+        // MAM-40 — the owner's removals of a duplicate copy wait in the same quarantine: their names take room there too,
+        // counted with the replacements' names, and the removals are counted apart from the replacements.
+        var removed = await db.CopyRemovalNames
+            .AsNoTracking()
+            .Where(name => EF.Constant(HeldStates).Contains(name.State))
+            .Select(name => new { name.AllowedRoot, ReplacementJobId = (Guid?)null, CopyRemovalId = (Guid?)name.CopyRemovalId, name.SizeBytes })
             .ToListAsync(cancellationToken);
         return
         [
-            .. held
+            .. replaced.Concat(removed)
                 .GroupBy(name => name.AllowedRoot, StringComparer.Ordinal)
                 .Select(root => new QuarantineSpaceDto(
                     QuarantineOf(root.Key),
-                    root.Select(name => name.ReplacementJobId).Distinct().Count(),
+                    root.Select(name => name.ReplacementJobId).OfType<Guid>().Distinct().Count(),
+                    root.Select(name => name.CopyRemovalId).OfType<Guid>().Distinct().Count(),
                     root.Count(),
                     root.Sum(name => name.SizeBytes)))
                 .OrderBy(space => space.Path, StringComparer.Ordinal),
@@ -240,11 +249,15 @@ public sealed class AllowedRootsService(
     /// </summary>
     private async Task<string?> StrandedQuarantineAsync(IReadOnlyList<string> roots, CancellationToken cancellationToken)
     {
+        // MAM-40 — a removal's names count as a replacement's: Restore and Delete for good reach them the same way.
         var heldRoots = await db.ReplacementJobNames
             .AsNoTracking()
             .Where(name => EF.Constant(HeldStates).Contains(name.State))
             .Select(name => name.AllowedRoot)
-            .Distinct()
+            .Union(db.CopyRemovalNames
+                .AsNoTracking()
+                .Where(name => EF.Constant(HeldStates).Contains(name.State))
+                .Select(name => name.AllowedRoot))
             .ToListAsync(cancellationToken);
         List<NormalizedPath> allowed = [.. roots.Select(root => NormalizedPath.TryParse(root, out var path, out _) ? path : null).OfType<NormalizedPath>()];
         return heldRoots

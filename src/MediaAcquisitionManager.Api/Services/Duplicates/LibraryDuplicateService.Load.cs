@@ -6,6 +6,7 @@ using MediaAcquisitionManager.Core.Duplicates;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
+using MediaAcquisitionManager.Core.Replacements;
 using MediaAcquisitionManager.Core.Search;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,8 @@ public sealed partial class LibraryDuplicateService
     /// <summary>
     /// Every file name the grouping reads — the libraries' names, and the folder scan's own that no library reports now
     /// (ADR 0021: a scan row stays until the next scan, after a sync starts reporting its path, and would otherwise look
-    /// like a second name of its file) — with the works holding them and their series.
+    /// like a second name of its file) — with the works holding them and their series. MAM-40 — never a name in the
+    /// quarantine (<see cref="QuarantinedAsync"/>).
     /// </summary>
     private async Task<Snapshot> LoadAsync(bool forOwner, CancellationToken cancellationToken)
     {
@@ -73,6 +75,7 @@ public sealed partial class LibraryDuplicateService
         var locationNames = await db.LibraryLocations.AsNoTracking()
             .ToDictionaryAsync(location => location.Id, location => location.Name, cancellationToken);
         var reported = await LibraryAppPaths.LoadAsync(db, cancellationToken);
+        var quarantined = await QuarantinedAsync(cancellationToken);
 
         // MAM-9 — the facts grouping reads from each name's reading: the duration and the video tracks' dynamic ranges.
         var readingIds = rows.Select(file => file.MediaInspectionId).OfType<Guid>().Distinct().ToList();
@@ -99,6 +102,15 @@ public sealed partial class LibraryDuplicateService
             var mapped = PathMapper.Map(row.ServicePath, MappingsOf(row, pathMappings));
             NormalizedPath? appPath = mapped.HasAppPath && NormalizedPath.TryParse(mapped.AppPath, out var parsed, out _) ? parsed : null;
             if (row.MediaVersionId is null && appPath is not null && reported.Contains(appPath))
+                continue;
+            // MAM-40 — a name a replacement or a removal took into the quarantine has left the library, whatever a sync or
+            // the scan last saw there: it no longer counts in any group until it is put back. By its path and the identity
+            // the app read, so a new file put at the old path counts as it should — size and modification time included,
+            // which a rename keeps: once a name is deleted for good its inode is free, and a file downloaded again under
+            // the same name may be given it, which by device and inode alone would stay hidden for ever.
+            if (appPath is not null
+                && row is { DeviceId: { } deviceId, Inode: { } inode, ReadSizeBytes: { } sizeBytes, ReadModifiedUtc: { } modifiedUtc }
+                && quarantined.Contains((appPath, deviceId, inode, sizeBytes, modifiedUtc)))
                 continue;
 
             if (appPath is not null)
@@ -183,6 +195,32 @@ public sealed partial class LibraryDuplicateService
         ];
 
         return new Snapshot(names, files, duplicateWorks, works, titles, positions, versions, linked, pathMappings, locationNames);
+    }
+
+    /// <summary>
+    /// MAM-40 — every name a replacement or a removal took out of the library and hasn't given back
+    /// (<see cref="ReplacementNameStates.Taken"/>: moving, in the quarantine, on its way back or out, or deleted for good),
+    /// by its old path and the identity, size and modification time it was moved with. Two queries of the quarantine's own
+    /// rows, however large the library.
+    /// </summary>
+    private async Task<HashSet<(NormalizedPath AppPath, long DeviceId, long Inode, long SizeBytes, DateTime ModifiedUtc)>> QuarantinedAsync(
+        CancellationToken cancellationToken)
+    {
+        var replaced = await db.ReplacementJobNames.AsNoTracking()
+            .Where(name => EF.Constant(ReplacementNameStates.Taken).Contains(name.State))
+            .Select(name => new { name.AppPath, name.DeviceId, name.Inode, name.SizeBytes, name.ModifiedUtc })
+            .ToListAsync(cancellationToken);
+        var removed = await db.CopyRemovalNames.AsNoTracking()
+            .Where(name => EF.Constant(ReplacementNameStates.Taken).Contains(name.State))
+            .Select(name => new { name.AppPath, name.DeviceId, name.Inode, name.SizeBytes, name.ModifiedUtc })
+            .ToListAsync(cancellationToken);
+        return
+        [
+            .. replaced.Concat(removed)
+                .Select(name => (Path: NormalizedPath.TryParse(name.AppPath, out var path, out _) ? path : null, Name: name))
+                .Where(name => name.Path is not null)
+                .Select(name => (name.Path!, name.Name.DeviceId, name.Name.Inode, name.Name.SizeBytes, name.Name.ModifiedUtc)),
+        ];
     }
 
     private static IReadOnlyList<PathMappingPair> MappingsOf(

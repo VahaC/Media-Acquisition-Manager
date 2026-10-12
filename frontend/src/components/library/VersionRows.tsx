@@ -7,7 +7,7 @@ import { formatFileSize } from '@/lib/format'
 import { versionSize } from '@/lib/library-versions'
 import type { ShownVersion } from '@/lib/types'
 import '@/styles/settings-list.css' // .settings-muted — "No file reported"
-import '@/styles/library.css' // .library-version-rows, -row, -row-inset, -name, -chips, -size, -details
+import '@/styles/library.css' // .library-version-rows, -row, -row-inset, -name, -chips, -size, -details, -line, -actions
 
 interface VersionRowsProps {
   versions: ShownVersion[]
@@ -16,6 +16,12 @@ interface VersionRowsProps {
    * file (its identity, hash, editions and the works holding it). None on the Library and Search pages.
    */
   details?: (version: ShownVersion) => ReactNode
+  /**
+   * MAM-40 — what can be done with a version, on its row's line, so it shows with every row closed: the
+   * Duplicates page's Remove this copy. Beside the row rather than in it, as a row that opens is a button,
+   * which may hold no other button. None on the Library and Search pages, whose rows stay as they are.
+   */
+  actions?: (version: ShownVersion) => ReactNode
   /** MAM-21 — the list's accessible name: "Versions" unless the rows are something else (the Duplicates page's files). */
   label?: string
 }
@@ -30,9 +36,10 @@ interface VersionRowsProps {
  * Takes the versions in the card's order, which also numbers the unlabelled ones ("Version 2").
  *
  * MAM-21 — the Duplicates page shows a group's files as these rows too, each file a version named by the
- * end of its path that tells it apart, with its facts under its file lines (`details`).
+ * end of its path that tells it apart, with its facts under its file lines (`details`). MAM-40 — and its
+ * Remove this copy after the row's size (`actions`), under the row on a phone.
  */
-export function VersionRows({ versions, details, label: listLabel }: VersionRowsProps) {
+export function VersionRows({ versions, details, actions, label: listLabel }: VersionRowsProps) {
   const { t } = useTranslation('library')
   const detailsId = useId()
   // The open row by its version's id, which a sync keeps (ADR 0008), so the row stays open while the
@@ -48,10 +55,12 @@ export function VersionRows({ versions, details, label: listLabel }: VersionRows
         if (single || !hasFile) {
           return (
             <li key={version.id}>
-              {/* Among rows that open, its label lines up with theirs, past the chevron. */}
-              <div className={single ? 'library-version-row' : 'library-version-row library-version-row-inset'}>
-                <RowCells version={version} label={label} />
-              </div>
+              <RowLine version={version} actions={actions}>
+                {/* Among rows that open, its label lines up with theirs, past the chevron. */}
+                <div className={single ? 'library-version-row' : 'library-version-row library-version-row-inset'}>
+                  <RowCells version={version} label={label} />
+                </div>
+              </RowLine>
               {hasFile && <VersionDetails version={version} details={details} />}
             </li>
           )
@@ -61,16 +70,18 @@ export function VersionRows({ versions, details, label: listLabel }: VersionRows
         const Chevron = open ? ChevronDown : ChevronRight
         return (
           <li key={version.id}>
-            <button
-              type="button"
-              className="library-version-row"
-              aria-expanded={open}
-              aria-controls={open ? id : undefined}
-              onClick={() => setOpenId(open ? null : version.id)}
-            >
-              <Chevron className="library-version-chevron h-4 w-4" aria-hidden="true" />
-              <RowCells version={version} label={label} />
-            </button>
+            <RowLine version={version} actions={actions}>
+              <button
+                type="button"
+                className="library-version-row"
+                aria-expanded={open}
+                aria-controls={open ? id : undefined}
+                onClick={() => setOpenId(open ? null : version.id)}
+              >
+                <Chevron className="library-version-chevron h-4 w-4" aria-hidden="true" />
+                <RowCells version={version} label={label} />
+              </button>
+            </RowLine>
             {open && <VersionDetails id={id} version={version} details={details} />}
           </li>
         )
@@ -80,6 +91,25 @@ export function VersionRows({ versions, details, label: listLabel }: VersionRows
 }
 
 // ── a row ──
+
+/**
+ * MAM-40 — the row with what the page offers for its version beside it (library.css lays them out); the row
+ * alone where the page offers nothing for it, so the Library's and Search's rows are what they were.
+ */
+function RowLine({ version, actions, children }: {
+  version: ShownVersion
+  actions: VersionRowsProps['actions']
+  children: ReactNode
+}) {
+  const offered = actions?.(version)
+  if (offered === undefined || offered === null || offered === false) return children
+  return (
+    <div className="library-version-line">
+      {children}
+      <div className="library-version-actions">{offered}</div>
+    </div>
+  )
+}
 
 /**
  * The label, the summary and the size. Spans only: in a version that opens they sit inside a button,

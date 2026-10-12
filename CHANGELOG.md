@@ -713,10 +713,11 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   rewords the third, and names in it the folder, its owner and the `PUID` and `PGID` to set). A new
   **Quarantine** field lists each quarantine that holds names, from the replacements' rows and never
   a walk of the disk — "/media/.mam-quarantine: 4.2 GiB in 2 files, from 1 replacement." — or "The
-  quarantine is empty.", with a link to **Jobs**. A Save that changes the folders so that a
+  quarantine is empty.", with a link to **Jobs** (MAM-40 below counts the removals there too). A Save that changes the folders so that a
   quarantine still holding names (`Quarantined`, `Moving`, `Restoring` or `Deleting`) lies under
   none of them is 400 "“/media/.mam-quarantine” still holds replaced copies, so its media folder
-  can't be taken out of the list. Restore them or delete them for good first." and saves nothing,
+  can't be taken out of the list. Restore them or delete them for good first." (MAM-40 below:
+  "replaced or removed copies") and saves nothing,
   checked inside the Save's transaction; a folder above the old one keeps it in reach, the quarantine
   itself put in its folder's place doesn't.
   `ReplacementSettingsHttpTests` (the hint for each available folder and none for the others, the
@@ -1079,6 +1080,130 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   1000:100 said "A move into the quarantine can work here: …", a folder of 1000 with mode 555 gave
   the already-owner sentence, and the root folder the root sentence with "(now user 1000, group
   100)".
+- **The owner removes a copy of a duplicate into the quarantine on the Duplicates page, and restores
+  it or deletes it for good under Removed copies (MAM-40, ADR 0037, ADR 0030, ADR 0031, ADR 0033,
+  Vasyl's decisions of 2026-10-12).** On 2026-10-12, before production's four groups of one work's
+  copies, Vasyl asked how he was to settle them there: the page only showed, and Phase C could take
+  a copy out only by downloading a release to replace it, when the better copy was already in the
+  library. Each file of an "Exact copies" or "Same film, different files" group now has **Remove
+  this copy**, in its open row and in the table's new **Removal** row, a red outline, the owner's;
+  the app never suggests which copy to remove. `GET /api/library/duplicates` gives each such file
+  `removal`, `{ allowed, reason }`, from what the app has stored (ADR 0037's rules, the switch, the
+  ticks and the holds read once per page, for every signed-in user, no download client asked), and
+  `null` on the other classes; a file that can't be removed now shows the button disabled with the
+  sentence, also as a line under it — "Removing copies is switched off. Turn on “Replace copies
+  after verification” under Media folders.", "This file isn't inside the Media folders, so the app
+  can't move it.", "This file's library folder isn't ticked for replacement under Media folders.",
+  "The app hasn't inspected this file yet. Press Inspect files on the Library page first.", "The
+  app's last look couldn't read this file as media, so it can't tell what would go.", "This file is
+  part of a disc folder, which can't be removed one file at a time.", "This file also holds a film
+  or an episode outside this group, which would go with it.", "A replacement on the Jobs page holds
+  this file.", "A removal under Removed copies holds this file." or "No other copy in this group is
+  one the app has read as media, so this one stays: it may be the only one that plays." —, and a
+  member sees it disabled with "Only the owner keeps or removes copies.". It asks first — "Remove
+  “Alien (1979) 2160p.mkv”?", "This file moves into the quarantine folder at the top of its media
+  folder, with its subtitles and other files of the same name:", the file with its size, "You can
+  restore it or delete it for good under Removed copies on this page.", and "This file stays:" or
+  "These files stay:" with each one's size, **Remove this copy** first and **Cancel** last —, then
+  sends `POST /api/replacements/removals` with `{ groupKey, fileId, deviceId, inode, sizeBytes }`,
+  the identity the page showed. The server works the group out again — a bare 404 for a key no group
+  has or a file not in it, which the card reads as "This group has changed since the page loaded:
+  the list shows it again as it is now." —, checks the same rules, then, one removal at a time in
+  the process, the platform ("The app can't rename files on the platform it runs on, so nothing was
+  removed."), the identity ("This copy changed since the page showed it. Reload the page to see it
+  as it is now."), the file on the disk as a replaced copy is checked right before its move ("“…” is
+  gone, so there is nothing to remove.", "“…” changed since the app last read it, so it stays where
+  it is. Inspect the library's files again, then press Remove again."), another copy of the group —
+  another file, never a second name of this one — still on the disk as read ("No other copy of this
+  group is on the disk as the app last read it, so this one stays. Inspect the library's files again
+  to see what is there."), its companions, and every download client, as check 6 reads them ("Still
+  held by the torrent “…” in “qBittorrent”: remove that torrent there without its files, then press
+  Remove again.", "The app couldn't tell whether a torrent in “qBittorrent” holds this copy: …"):
+  each refusal is 409 with its sentence, inline on the card, nothing written. Then it claims the
+  removal — a `CopyRemovals` row `Moving`, its names planned in `CopyRemovalNames`,
+  `CopyRemovalStarted` — and renames the video, then its own subtitles and `.nfo`, into `<media
+  folder>/.mam-quarantine/<removal>/<path inside it>`, one `renameat2(RENAME_NOREPLACE)` each, the
+  switch and the ticks read again before each, with rows before and after (`CopyRemovalNameMoving`,
+  then `CopyRemovalNameMoved` or `CopyRemovalNameNotMoved`), and tells Jellyfin the old paths went:
+  200 with the removal, `Quarantined` (`CopyRemoved`). A video that can't move ends it `NotMoved`
+  (`CopyRemovalNotMoved`) with nothing in the quarantine, and the answer is 409 "“…” couldn't be
+  moved into the quarantine: …", `NotMoved` meaning only that; a rename that moved another file put
+  at the video's place records the video `Lost` and leaves the removal `NeedsReview`
+  (`CopyRemovalNeedsReview`), listed under Removed copies, the request 409 with a reason that says
+  where to look ("… A different file now sits in the quarantine at “…”, as another file took the
+  place of “…” just before the rename, and this copy's own file wasn't found. Look there to see
+  which file it is."); a companion a torrent holds or that can't move stays where it is, named on
+  its row; the switch off or the folder unticked between two names leaves it `NeedsReview` with how
+  many names are in the quarantine. On the page a short row says "Removed “Alien (1979) 2160p.mkv”:
+  it waits in the quarantine, under Removed copies, until you restore it or delete it for good."
+  with a **Removed copies** button, and the list is asked again: a group of two leaves it, a larger
+  one stays without the file. The new **Removed copies** tab, the owner's alone (`?tab=Removed`,
+  read as All for a member), lists the removals still open, newest first, paged on the server (`GET
+  /api/replacements/removals?page=&pageSize=`, with `switchedOff`), under "The quarantine holds 2
+  GiB of removed copies.": each headed by its group's title as it was, the file's name, where it
+  was, where it is in the quarantine, its size, when and by whom it was removed, where it is now
+  ("In the quarantine.", "Needs your review." with the reason, …) and every file that went with it,
+  as a replacement's names are shown. **Restore** asks "Put “…” back?", listing what goes back, then
+  `POST /api/replacements/removals/{id}/restore` checks every file first, as a replacement's Restore
+  does, and puts each back, the video first, ending `Restored` (`CopyRemovalRestoreStarted`,
+  `CopyRemovalNameRestoring`, `CopyRemovalNameRestored` or `CopyRemovalNameNotRestored`,
+  `CopyRemovalRestored`), Jellyfin told the files came back, so the copy counts in its group again;
+  "This copy's video was deleted for good, so nothing is put back without it. Delete for good what
+  the quarantine still holds." once a Delete for good stopped after the video. **Delete for good**,
+  red, asks once more with every path, its size, "Frees …" and how many files have another name,
+  then `POST /api/replacements/removals/{id}/delete-for-good`, with no body — the whole removal —,
+  deletes each file from the quarantine alone, its identity compared right before, ending `Deleted`
+  (`CopyRemovalDeleteStarted`, `CopyRemovalNameDeleting`, `CopyRemovalNameDeleted` or
+  `CopyRemovalNameNotDeleted`, `CopyRemovalDeletedForGood`). Both are offered from `Quarantined` and
+  from `NeedsReview` while a file is in the quarantine, refused while replacement is switched off
+  ("Replacing and removing copies is switched off on the Media folders page, so nothing can be put
+  back. Turn on “Replace copies after verification”, then press Restore again." and its Delete for
+  good twin) — the list answers `switchedOff`, and the tab then disables both with the reason and
+  says above the list "Replacing and removing copies is switched off: nothing is put back or deleted
+  while it is off. Switch it on in Media folders.", linking to the page —, and stop for review
+  part-way only while a file is still in the quarantine; what they did shows above the list, a
+  refusal on the card — or above the list once the card has left it —, the banner, or the empty
+  list, taking the focus. `Restored`, `Deleted` and `NotMoved` end a removal, kept with its audit
+  rows and listed nowhere. The quarantine's pass every 15 s settles a removal a restart cut in
+  `Moving`, `Restoring` or `Deleting` — each file in the middle looked up by device and inode, as a
+  replacement's; a video a move left nowhere `Lost`, its removal `NeedsReview` with "The app stopped
+  while moving this copy, and found its video neither at “…” nor in the quarantine at “…”. Look in
+  both places to see where it went." —, and sends the notices it owes. A removal whose video was
+  lost has nothing in the quarantine to restore or delete: it stays listed, holding its copy's path,
+  until the owner settles it outside the app. A Restore or Delete for good whose video is lost on
+  the way ends `Restored` or `Deleted` with that reason once nothing of it is left in the
+  quarantine. The removals are the installation's: the owner acts on every one, the list and all
+  three writes owner-only by where `CopyRemovalsController` lives. `AuditAction` gains 58 to 74, and
+  `AuditTargetKind` `CopyRemoval` (10) and `CopyRemovalName` (11). `CopyRemovalHttpTests`,
+  `CopyRemovalChecksHttpTests`, `CopyRemovalVerdictsHttpTests`, `CopyRemovalActionsHttpTests`,
+  `CopyRemovalListHttpTests`, `CopyRemovalRecoveryHttpTests`, `ReplacementsAreOwnerOnlyHttpTests`,
+  `ControllerAccessDeclarationTests`, `CopyRemovalPersistenceTests`,
+  `AddCopyRemovalsMigrationTests`, `DuplicateGroupCard.remove.test.tsx`,
+  `DuplicatesPage.removed.test.tsx` and `copy-removals-api.test.ts` pin it. Not tried on the
+  reference installation; the page was checked in a browser at desktop and phone width with the
+  API's answers stood in for.
+- **The owner keeps a group of copies as they are (MAM-40, ADR 0029, Vasyl's decisions of
+  2026-10-12).** A group of exact copies or of one work's copies has **Keep both** — **Keep all**
+  past two files —, the owner's, with no confirmation: `PUT /api/library/duplicates/{key}/decision`
+  with `Dismissed`, as a dismissed possible match, which a same-work group couldn't take before. The
+  row now keeps `KeptMembers`, the group's members by path, as its key doesn't change when a copy
+  joins: the group leaves every tab for **Kept as they are**, the Dismissed tab renamed, with
+  "Kept as they are by owner on …. A new copy joining the group brings it back to the list." and
+  **Undo**, and comes back, undecided, once a new file joins it; a file leaving keeps it kept. A
+  short row says "Kept the copies of “Alien (1979)” as they are: the group is listed under Kept as
+  they are now." with **Undo**, and an Undo on Kept as they are "“Alien (1979)” is back among the
+  duplicates." with **Keep again**. Audit rows `DuplicateCopiesKept` (56) and
+  `DuplicateCopiesKeptUndone` (57), named by the group's first work, "Alien (1979)", an episode's
+  "Clarkson's Farm S02E03". Keep both removes and moves nothing. `LibraryDuplicateKeepBothHttpTests`,
+  `DuplicateMatchDecisionPersistenceTests`, `DuplicateGroupCard.decisions.test.tsx` and
+  `DuplicatesPage.decisions.test.tsx` pin it.
+- **A name in the quarantine counts in no duplicate group (MAM-40, ADR 0028).** The list leaves out
+  every name a replacement or a removal took into the quarantine and hasn't put back — moving, in
+  it, on its way back or out, or deleted for good —, matched by its old path and the device, inode,
+  size and modification time it moved with, all five against the app's last read of the file, so a
+  file put at that path since counts, and so does one a later download got the inode of a name
+  deleted for good; a replacement's old copy no longer waits for the next sync to leave its group.
+  `LibraryDuplicatesQuarantineHttpTests` pins it.
 
 ### Changed
 
@@ -1186,7 +1311,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount, quarantines }`, each
   folder `{ appPath, libraryNames, ticked, status, renameProblems }` — `renameProblems` `[]`, or
   `OtherMount`, `ReadOnly`, `NotWritable` and `CouldNotCheck` by name, for an `Available` folder, and
-  `null` for the others — and each quarantine `{ path, replacementCount, fileCount, sizeBytes }`;
+  `null` for the others — and each quarantine `{ path, replacementCount, fileCount, sizeBytes }`
+  (MAM-40 below adds `removalCount`);
   `PUT` may now answer 400 for a quarantine it would leave out of reach.
 - **A replacement's line carries its id and what the move did (MAM-26).** `replacement.state` may now
   also be `Quarantining`, `Quarantined`, `Restoring`, `Deleting`, `Restored` or `Completed`, by name,
@@ -1288,6 +1414,61 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `{ path, ownerUserId, ownerGroupId, appUserId, appGroupId }` or `null`: filled only for an
   `Available` folder whose `renameProblems` holds `NotWritable`, on Linux, when the owner could be
   read, `path` in canonical form.
+- **The Duplicates page says what each kind of duplicate is, in plain words (MAM-40, ADR 0028,
+  Vasyl's decision of 2026-10-12).** Vasyl couldn't tell what "Same work" meant. The tabs read All,
+  "One file, two names", "Exact copies", "Same film, different files", "Maybe the same film", "Kept
+  as they are" (was Dismissed) and, for the owner, "Removed copies"; a card's badge has the same
+  words, an episode's group "Same episode, different files"; and each card has one line saying what
+  its group is and what can be done, such as "These files hold exactly the same bytes. Remove a copy
+  you don't need, or keep them as they are." or "One file reached by two names or more (hardlinks):
+  it takes its room once, so there is nothing to keep or remove.". The page's lead no longer says
+  nothing there removes a file: "… Removing a copy moves it into the quarantine folder of its media
+  folder, where you can restore it or delete it for good under Removed copies; keeping copies as
+  they are, or confirming a possible match, removes nothing."; the Library page's **Duplicates**
+  button's title uses the same names. The API's class names are unchanged. `DuplicatesPage.test.tsx`,
+  `DuplicateGroupCard.test.tsx`, `duplicates.test.ts` and `LibraryPage.test.tsx` pin it.
+- **A decision is refused by what the group's class takes (MAM-40, ADR 0029).**
+  `PUT /api/library/duplicates/{key}/decision` takes `Dismissed` on `SameWork` and `ByteIdentical`
+  groups too (Keep both, above), and answers 400 "These files are copies by their bytes or registry
+  ids, which no one has to confirm: keep them as they are, or remove a copy." to `Confirmed` on them,
+  and "These are names of one file, not copies of it: removing a name frees nothing, so there is
+  nothing to keep or remove." to any decision or undo on `SameFile`; the old sentence for a group of
+  another class, "Only a possible match is confirmed or dismissed: …", is gone. `DELETE` undoes kept
+  copies too. `decision=Dismissed` lists kept copies beside dismissed matches, a kept group's
+  `decision` is `Dismissed` while no new file has joined it, and that list now asks the file system
+  for its byte-identical groups' estimate.
+- **The duplicates list's files carry the removal verdict (MAM-40).** Each `files` item of
+  `GET /api/library/duplicates` gains a trailing `removal`, `{ allowed, reason }` on `ByteIdentical`
+  and `SameWork` groups and `null` on the others.
+- **The Media folders page counts the removals in the quarantine (MAM-40, ADR 0030).** Each
+  quarantine of `GET /api/settings/allowed-roots` gains `removalCount`, beside `replacementCount`, and
+  its `fileCount` and `sizeBytes` count a removal's names too; the page says "/media/.mam-quarantine:
+  4 GiB in 4 files, from 1 replacement and 2 removals." ("from 1 removal." when it holds no
+  replacement's), and its hint now links to **Removed copies** as well as **Jobs**. A Save that would
+  strand a quarantine is refused for a removal's names too, as "“/media/.mam-quarantine” still holds
+  replaced or removed copies, so its media folder can't be taken out of the list. Restore them or
+  delete them for good first.", where it said "still holds replaced copies". The switch's hint adds
+  that the Duplicates page offers Remove this copy for files in the ticked folders, and that a
+  removed copy moves into the quarantine at once. `ReplacementSettingsHttpTests` and
+  `MediaFoldersPage.test.tsx` pin it.
+- **The Download dialog won't tick a copy an open removal holds (MAM-40, ADR 0032).** A copy an open
+  removal holds, by path or by device and inode, gets a copy reason of its own, `HeldByRemoval`
+  (10), after `AlreadyScheduled`: the dialog says "A removal under Removed copies on the Duplicates
+  page holds this copy.", and a send that ticks it is 409 "A removal under Removed copies on the
+  Duplicates page holds “…”, so it can't be replaced. Pick Keep both to download the release." with
+  nothing written or sent; an ended removal holds nothing (`ReplacementOptionsHttpTests`,
+  `ReplacementScheduleHttpTests`).
+- **The quarantine's checks and writes are shared by a replacement and a removal (MAM-40, ADR 0030,
+  ADR 0031).** A replacement's names keep their table, `ReplacementJobNames`, their columns now
+  `QuarantinedNameEntity`'s, an abstract base EF doesn't map, which a removal's names share; check
+  5's look at the copy, the companions' listing, check 6 and its sentences (`QuarantineWording`:
+  "the old copy" and "Retry" for a replacement, "this copy" and "Remove again" for a removal), the
+  owner's write loop of Restore and Delete for good and its checks, the look-up of a cut name, and
+  Jellyfin's notice moved out of the replacement's classes into ones both use, with no change for a
+  replacement. In the web app, a quarantined name's row (`QuarantineNameRow`) and Delete for good's
+  confirmation (`DeleteForGoodMessage`) moved out of the job page's **Replacement** section into
+  shared components, and the list of files with their sizes that Remove's, Restore's and Delete for
+  good's confirmations show is one, `FileSizeList`.
 
 ### Notes for upgraders
 
@@ -1393,6 +1574,23 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **A bind-mounted data directory changes owner on the host (MAM-39).** With `PUID` and `PGID` set,
   the container hands it over to them as it starts, and back to 10001 once they are removed; its
   mode stays as it was made, so create it 0700 first, as before.
+- **Applying `AddCopyRemovals` and `AddKeptDuplicateMembers` rebuilds no table, so it logs no
+  warning 20410 (MAM-40).** `AddCopyRemovals` only creates `CopyRemovals`, with an index on who made
+  each and the partial `IX_CopyRemovals_Open` over `Moving`, `Quarantined`, `NeedsReview`,
+  `Restoring` and `Deleting`, and `CopyRemovalNames`, deleted with its removal, with the unique index
+  on `(CopyRemovalId, Position)`; it touches no other table, and every replacement's names come
+  through whole (`AddCopyRemovalsMigrationTests`). `AddKeptDuplicateMembers` adds one nullable
+  column, `DuplicateMatchDecisions.KeptMembers`: every decision on a possible match comes through as
+  it was, with none.
+- **Removing a copy from the Duplicates page needs replacement turned on, and nothing more (MAM-40,
+  ADR 0033).** It stands behind the same four steps as a replacement — the media folders mounted
+  read-write, `PUID` and `PGID` set to their owner, the switch on and the library folder ticked —,
+  and until then every **Remove this copy** is disabled with why; **Keep both** works whatever the
+  switch says. A removed copy's files stay on disk in `.mam-quarantine`, outside the database backup,
+  as a replaced copy's do; the removals and where each file went live in `mam.db` alone. To go back
+  to 0.2.1, settle **Removed copies** too — Restore or Delete for good every removal there — while
+  replacement is still on, as the release note's **Going back** says for replacements: 0.2.1 knows
+  nothing of the quarantine.
 
 ## [0.2.1] — 2026-10-05
 

@@ -17,7 +17,8 @@ namespace MediaAcquisitionManager.Api.Controllers.Library;
 /// <para>
 /// MAM-21 — confirming, dismissing and undoing a possible match are the installation owner's alone (Vasyl, 2026-10-07):
 /// outside <c>Controllers/Settings</c>, so each write declares it. A decision is kept by the group's key and never removes,
-/// moves or links anything (ADR 0029); nothing here removes a file.
+/// moves or links anything (ADR 0029); nothing here removes a file. MAM-40 — Keep both of copies is the same decision,
+/// <c>Dismissed</c>, on the same routes.
 /// </para>
 /// </remarks>
 [ApiController]
@@ -41,9 +42,9 @@ public class LibraryDuplicatesController(ILibraryDuplicateService duplicates, ID
     }
 
     /// <summary>
-    /// MAM-21 — confirms or dismisses the possible match the key names now: 204, also when it was already decided so; a
-    /// bare 404 for a key no group has; 400 with the sentence for a decision missing or not one, or a group of another
-    /// class.
+    /// MAM-21 — confirms or dismisses the possible match the key names now; MAM-40 — or keeps copies of one work or
+    /// byte-identical copies as they are (<c>Dismissed</c>): 204, also when it was already decided so; a bare 404 for a
+    /// key no group has; 400 with the sentence for a decision missing or not one, or one the group's class never takes.
     /// </summary>
     /// <remarks>The key is not constrained in the route: a key of another shape is the same bare 404 as one no group has,
     /// not a route that doesn't exist.</remarks>
@@ -58,8 +59,8 @@ public class LibraryDuplicatesController(ILibraryDuplicateService duplicates, ID
         Answer(await decisions.DecideAsync(key, request?.Decision, UserId, cancellationToken));
 
     /// <summary>
-    /// MAM-21 — forgets the decision on the possible match the key names now, which is asked about again: 204, also when
-    /// it had none; a bare 404 for a key no group has; 400 with the sentence for a group of another class.
+    /// MAM-21 — forgets the decision on the group the key names now, which is asked about again: 204, also when it had
+    /// none; a bare 404 for a key no group has; 400 with the sentence for one file's names, which are never decided.
     /// </summary>
     [HttpDelete("{key}/decision")]
     [RequireInstallationOwner]

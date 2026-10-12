@@ -9,7 +9,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 
 // MAM-26 — the mover's writes (ADR 0030): its claim of a verified job and its stop before one, the intent and the outcome
 // of each name it renames, what its recovery finds of a name a restart cut, and the job's end. Each a conditional UPDATE of
-// a row still in the state the mover read, never cancelled — the same rules as the writes beside them.
+// a row still in the state the mover read, never cancelled — the same rules as the writes beside them. MAM-40 — the names'
+// own writes are generic over QuarantinedNameEntity: a removal's names are written by the same ones.
 public static partial class ReplacementJobUpdates
 {
     /// <summary>
@@ -124,27 +125,29 @@ public static partial class ReplacementJobUpdates
     // ── the names ───────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// MAM-26 — the intent of the mover's rename of the name <paramref name="replacementJobNameId"/>: from
+    /// MAM-26 — the intent of the mover's rename of the name <paramref name="nameId"/>: from
     /// <see cref="ReplacementNameState.Planned"/> to <see cref="ReplacementNameState.Moving"/>, committed before the call,
-    /// so a restart between the two finds it in the middle. How many it wrote (0 or 1).
+    /// so a restart between the two finds it in the middle. How many it wrote (0 or 1). MAM-40 — a replacement's name or a
+    /// removal's alike (<see cref="QuarantinedNameEntity"/>).
     /// </summary>
-    public static Task<int> StartNameMoveAsync(this IQueryable<ReplacementJobNameEntity> names, Guid replacementJobNameId) =>
-        names.Where(name => name.Id == replacementJobNameId && name.State == ReplacementNameState.Planned)
+    public static Task<int> StartNameMoveAsync<TName>(this IQueryable<TName> names, Guid nameId)
+        where TName : QuarantinedNameEntity =>
+        names.Where(name => name.Id == nameId && name.State == ReplacementNameState.Planned)
             .ExecuteUpdateAsync(setters => setters.SetProperty(name => name.State, ReplacementNameState.Moving), CancellationToken.None);
 
     /// <summary>
-    /// MAM-26 — the outcome of a rename into the quarantine that was done: the name <paramref name="replacementJobNameId"/>,
+    /// MAM-26 — the outcome of a rename into the quarantine that was done: the name <paramref name="nameId"/>,
     /// still <see cref="ReplacementNameState.Moving"/>, is <see cref="ReplacementNameState.Quarantined"/> since
     /// <paramref name="movedUtc"/>, with what the file system said of it at its new name (<paramref name="facts"/>) — what
     /// Restore and Delete for good expect there. Written whatever the job's state by then: the file moved. How many it
     /// wrote (0 or 1).
     /// </summary>
-    public static Task<int> RecordNameMovedAsync(
-        this IQueryable<ReplacementJobNameEntity> names, Guid replacementJobNameId, FileFacts facts, DateTime movedUtc)
+    public static Task<int> RecordNameMovedAsync<TName>(this IQueryable<TName> names, Guid nameId, FileFacts facts, DateTime movedUtc)
+        where TName : QuarantinedNameEntity
     {
         ArgumentNullException.ThrowIfNull(facts);
         var (deviceId, inode, sizeBytes, modifiedUtc, linkCount) = (facts.DeviceId, facts.Inode, facts.SizeBytes, facts.ModifiedUtc, facts.LinkCount);
-        return names.Where(name => name.Id == replacementJobNameId && name.State == ReplacementNameState.Moving)
+        return names.Where(name => name.Id == nameId && name.State == ReplacementNameState.Moving)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(name => name.State, ReplacementNameState.Quarantined)
@@ -160,19 +163,19 @@ public static partial class ReplacementJobUpdates
     }
 
     /// <summary>
-    /// MAM-26 — the outcome of a rename into the quarantine that wasn't done: the name <paramref name="replacementJobNameId"/>,
+    /// MAM-26 — the outcome of a rename into the quarantine that wasn't done: the name <paramref name="nameId"/>,
     /// still <see cref="ReplacementNameState.Moving"/>, stays where it was (<see cref="ReplacementNameState.Stayed"/>),
     /// with the write's own sentence as <paramref name="problem"/>; or, when the rename moved another file put at the name
     /// after the last look, it is <see cref="ReplacementNameState.Lost"/> with why. How many it wrote (0 or 1).
     /// </summary>
-    public static Task<int> RecordNameNotMovedAsync(
-        this IQueryable<ReplacementJobNameEntity> names, Guid replacementJobNameId, ReplacementNameState state, string problem)
+    public static Task<int> RecordNameNotMovedAsync<TName>(this IQueryable<TName> names, Guid nameId, ReplacementNameState state, string problem)
+        where TName : QuarantinedNameEntity
     {
         if (state is not (ReplacementNameState.Stayed or ReplacementNameState.Lost))
             throw new ArgumentOutOfRangeException(nameof(state), state, "A rename not done leaves a name Stayed, or Lost.");
 
-        var storedProblem = FileInspectionRunUpdates.Cut(problem, ReplacementJobNameEntity.ProblemMaximumLength);
-        return names.Where(name => name.Id == replacementJobNameId && name.State == ReplacementNameState.Moving)
+        var storedProblem = FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
+        return names.Where(name => name.Id == nameId && name.State == ReplacementNameState.Moving)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(name => name.State, state)
@@ -181,19 +184,19 @@ public static partial class ReplacementJobUpdates
     }
 
     /// <summary>
-    /// MAM-26 — a companion an earlier run left waiting, <paramref name="replacementJobNameId"/>, still
+    /// MAM-26 — a companion an earlier run left waiting, <paramref name="nameId"/>, still
     /// <see cref="ReplacementNameState.Planned"/>, that a Retry's checks found shouldn't move: it stays where it is
     /// (<see cref="ReplacementNameState.Stayed"/>) or is gone from there (<see cref="ReplacementNameState.Lost"/>), with
     /// <paramref name="problem"/> saying why. How many it wrote (0 or 1).
     /// </summary>
-    public static Task<int> RecordNameLeftWaitingAsync(
-        this IQueryable<ReplacementJobNameEntity> names, Guid replacementJobNameId, ReplacementNameState state, string problem)
+    public static Task<int> RecordNameLeftWaitingAsync<TName>(this IQueryable<TName> names, Guid nameId, ReplacementNameState state, string problem)
+        where TName : QuarantinedNameEntity
     {
         if (state is not (ReplacementNameState.Stayed or ReplacementNameState.Lost))
             throw new ArgumentOutOfRangeException(nameof(state), state, "A name left waiting stays, or is lost.");
 
-        var storedProblem = FileInspectionRunUpdates.Cut(problem, ReplacementJobNameEntity.ProblemMaximumLength);
-        return names.Where(name => name.Id == replacementJobNameId && name.State == ReplacementNameState.Planned)
+        var storedProblem = FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
+        return names.Where(name => name.Id == nameId && name.State == ReplacementNameState.Planned)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(name => name.State, state)
@@ -202,22 +205,23 @@ public static partial class ReplacementJobUpdates
     }
 
     /// <summary>
-    /// MAM-26 — what the mover's recovery found of the name <paramref name="replacementJobNameId"/>, left in
+    /// MAM-26 — what the mover's recovery found of the name <paramref name="nameId"/>, left in
     /// <paramref name="observedState"/> — the intent of a write a restart cut —: <paramref name="state"/>, with
     /// <paramref name="problem"/> (why it is lost; <c>null</c> otherwise) and, for a name found where the write was taking
     /// it, the write's time as <paramref name="foundUtc"/> — the moment it was seen there, as the rename's own is unknown.
     /// How many it wrote (0 or 1).
     /// </summary>
-    public static Task<int> RecordNameFoundAsync(
-        this IQueryable<ReplacementJobNameEntity> names,
-        Guid replacementJobNameId,
+    public static Task<int> RecordNameFoundAsync<TName>(
+        this IQueryable<TName> names,
+        Guid nameId,
         ReplacementNameState observedState,
         ReplacementNameState state,
         string? problem,
         DateTime foundUtc)
+        where TName : QuarantinedNameEntity
     {
-        var storedProblem = problem is null ? null : FileInspectionRunUpdates.Cut(problem, ReplacementJobNameEntity.ProblemMaximumLength);
-        return names.Where(name => name.Id == replacementJobNameId && name.State == observedState)
+        var storedProblem = problem is null ? null : FileInspectionRunUpdates.Cut(problem, QuarantinedNameEntity.ProblemMaximumLength);
+        return names.Where(name => name.Id == nameId && name.State == observedState)
             .ExecuteUpdateAsync(
                 setters =>
                 {

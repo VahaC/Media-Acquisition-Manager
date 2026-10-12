@@ -17,6 +17,11 @@ namespace MediaAcquisitionManager.Core.Entities;
 /// <para>
 /// A decision never makes the works one, never changes whether the group needs review and never allows a removal.
 /// </para>
+/// <para>
+/// MAM-40 — also the owner's Keep both of copies of one work or byte-identical copies, as
+/// <see cref="DuplicateMatchDecision.Dismissed"/> with <see cref="KeptMembers"/>: their key stays when a file joins, so
+/// the members kept are stored beside it.
+/// </para>
 /// </remarks>
 public class DuplicateMatchDecisionEntity : AuditableEntity
 {
@@ -39,4 +44,12 @@ public class DuplicateMatchDecisionEntity : AuditableEntity
 
     /// <summary>When <see cref="Decision"/> was last set.</summary>
     public DateTime DecidedUtc { get; set; }
+
+    /// <summary>
+    /// MAM-40 — for kept copies, the group's member path keys when it was last kept, in ordinal order, one per line
+    /// (<c>DuplicateDecisionRules.KeptMembersOf</c>): the decision holds while every member the group has is among them
+    /// (<c>DuplicateDecisionRules.IsInForce</c>). <c>null</c> for a possible match, whose key names its members. No
+    /// length limit: a group can hold many names, each up to a full path.
+    /// </summary>
+    public string? KeptMembers { get; set; }
 }

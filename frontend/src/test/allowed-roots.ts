@@ -35,7 +35,7 @@ export function writeAccessOf(changes: Partial<WriteAccess> = {}): WriteAccess {
 
 /** MAM-26 — the quarantine of `/media`, holding old copies of `replacementCount` replacements. */
 export function quarantineOf(changes: Partial<QuarantineSpace> = {}): QuarantineSpace {
-  return { path: '/media/.mam-quarantine', replacementCount: 2, fileCount: 3, sizeBytes: 45_097_156_608, ...changes }
+  return { path: '/media/.mam-quarantine', replacementCount: 2, removalCount: 0, fileCount: 3, sizeBytes: 45_097_156_608, ...changes }
 }
 
 export const moviesFolder = libraryFolderOf('/media/movies', ['Фільми'])

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatFileSize, formatNumber } from '@/lib/format'
 import { useAllowedRoots, useUpdateAllowedRoots } from '@/lib/queries'
-import type { AllowedRoots, RenamePlaceProblem, ReplacementFolder, UpdateAllowedRootsRequest, WriteAccess } from '@/lib/types'
+import type { AllowedRoots, QuarantineSpace, RenamePlaceProblem, ReplacementFolder, UpdateAllowedRootsRequest, WriteAccess } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the header and the muted line every settings page shares
@@ -323,7 +323,14 @@ function ReplacementCard({ roots, replacementEnabled, picked, onSwitch, onTick }
         <div className="ui-field">
           <h3 id={quarantineId} className="ui-label">{t('replace.quarantine')}</h3>
           <p className="ui-hint">
-            <Trans t={t} i18nKey="replace.quarantineHint" components={{ jobs: <Link className="library-link" to="/jobs" /> }} />
+            <Trans
+              t={t}
+              i18nKey="replace.quarantineHint"
+              components={{
+                jobs: <Link className="library-link" to="/jobs" />,
+                removed: <Link className="library-link" to="/library/duplicates?tab=Removed" />,
+              }}
+            />
           </p>
           {roots.quarantines.length === 0 ? (
             <p className="settings-muted">{t('replace.quarantineEmpty')}</p>
@@ -335,10 +342,7 @@ function ReplacementCard({ roots, replacementEnabled, picked, onSwitch, onTick }
                     path: quarantine.path,
                     size: formatFileSize(quarantine.sizeBytes),
                     files: t('replace.quarantineFiles', { count: quarantine.fileCount, value: formatNumber(quarantine.fileCount) }),
-                    replacements: t('replace.quarantineReplacements', {
-                      count: quarantine.replacementCount,
-                      value: formatNumber(quarantine.replacementCount),
-                    }),
+                    holders: quarantineHoldersText(quarantine, t),
                   })}
                 </li>
               ))}
@@ -425,6 +429,21 @@ function LibraryFolderRow({ folder, ticked, onTick }: {
 
 /** Linux's overflow uid ("nobody"): an owner the app can't see the real id of. */
 const overflowId = 65534
+
+/**
+ * MAM-40 — whose names a quarantine holds: the replacements', the owner's removals of a duplicate copy, or both,
+ * each counted only when there is one.
+ */
+function quarantineHoldersText(quarantine: QuarantineSpace, t: TFunction<'mediaFolders'>): string {
+  const replacements = t('replace.quarantineReplacements', {
+    count: quarantine.replacementCount,
+    value: formatNumber(quarantine.replacementCount),
+  })
+  const removals = t('replace.quarantineRemovals', { count: quarantine.removalCount, value: formatNumber(quarantine.removalCount) })
+  if (quarantine.removalCount === 0) return replacements
+  if (quarantine.replacementCount === 0) return removals
+  return t('replace.quarantineHolders', { replacements, removals })
+}
 
 /**
  * MAM-39 — the sentence of one rename problem. NotWritable names what to change when the server read

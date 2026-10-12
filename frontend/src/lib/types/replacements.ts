@@ -23,7 +23,7 @@ export type ReplacementWorkUnavailableReason = 'TitleOnly' | 'ConflictingIds' | 
 /**
  * Why one copy can't be ticked, the first that applies in the server's order: no path in the app,
  * its library folder isn't ticked, it sits outside the episodes the release claims, another
- * replacement holds it, the app hasn't inspected it, the same file is also a copy of another
+ * replacement holds it, a removal from the Duplicates page holds it, the app hasn't inspected it, the same file is also a copy of another
  * matched work that can't be replaced (by its title alone, or with conflicting ids), it isn't there
  * any more, it can't be read now, or it changed since the app inspected it.
  */
@@ -37,6 +37,8 @@ export type ReplacementCopyUnavailableReason =
   | 'OutsideTheClaim'
   | 'AlreadyScheduled'
   | 'SharedWithUnavailableWork'
+  /** MAM-40 — the owner's removal of it from the Duplicates page holds it (Removed copies). */
+  | 'HeldByRemoval'
 
 /**
  * How one download client's list of torrents was read for the held marks: every torrent placed,

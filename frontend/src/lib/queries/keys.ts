@@ -1,5 +1,6 @@
 import type {
   ConfidentSuggestionsQuery,
+  CopyRemovalsQuery,
   DestinationsQuery,
   DownloadJobFilesQuery,
   DownloadJobsQuery,
@@ -161,6 +162,14 @@ export const qk = {
      * under `all`, so a Media folders save refreshes it, and beside `options` rather than among them.
      */
     job: (id: string) => ['replacements', 'jobs', id] as const,
+    /**
+     * MAM-40 — every page of the owner's removals from the Duplicates page: what a removal, a Restore and a
+     * Delete for good invalidate. Under `all`, so a Media folders save (the switch and the ticks decide
+     * what may be put back or deleted) refreshes them too.
+     */
+    removalsAll: ['replacements', 'removals'] as const,
+    /** MAM-40 — one page of the removals; the whole query object is part of the key. */
+    removals: (query: CopyRemovalsQuery) => ['replacements', 'removals', query] as const,
   },
   search: {
     /** MAM-12 — every stored search and its releases: the prefix of the keys below. */

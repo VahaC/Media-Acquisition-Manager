@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
+using MediaAcquisitionManager.Api.Services.CopyRemovals;
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Core.Abstractions.Files;
@@ -26,9 +27,15 @@ namespace MediaAcquisitionManager.Api.Services.Duplicates;
 /// there are none or another class is asked for: it decides whether removing a copy frees its room (Vasyl,
 /// 2026-10-07). No download client is injected, by design (ADR 0018).
 /// </para>
+/// <para>
+/// MAM-40 — each file of a page's exact copies and one work's copies carries the verdict on removing it by what is stored
+/// (<see cref="CopyRemovalRules"/>, through <see cref="ICopyRemovalVerdicts"/>, read once per page); the torrents are the
+/// Remove request's to read, never the list's. A name in the quarantine counts in no group (<see cref="LoadAsync"/>).
+/// </para>
 /// </remarks>
 public sealed partial class LibraryDuplicateService(
-    ApplicationDbContext db, ILibraryDuplicateMapper mapper, ILibraryLinkReader links, IFileInventory inventory) : ILibraryDuplicateService
+    ApplicationDbContext db, ILibraryDuplicateMapper mapper, ILibraryLinkReader links, IFileInventory inventory, ICopyRemovalVerdicts removals)
+    : ILibraryDuplicateService
 {
     /// <summary>How much of an unknown class a sentence repeats: the longest class is 13 characters, and a pasted page
     /// of text shouldn't come back whole (the Library's filter rule).</summary>
@@ -58,15 +65,16 @@ public sealed partial class LibraryDuplicateService(
 
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         var library = await LoadAsync(forOwner, cancellationToken);
-        // MAM-21 — the owner's decisions, read whole (a row per possible match decided, a small table: one query) and met
-        // with the groups by key. A key carries its class, so a row only ever meets the possible match it was given for;
-        // a row whose key no group has now — its members changed — matches nothing and stays (ADR 0029).
+        // MAM-21 — the owner's decisions, read whole (a row per group decided, a small table: one query) and met with the
+        // groups by key. A key carries its class, so a row only ever meets the group it was given for; a row whose key no
+        // group has now — its members changed — matches nothing and stays (ADR 0029).
         var decisions = await db.DuplicateMatchDecisions.AsNoTracking()
             .ToDictionaryAsync(row => row.GroupKey, StringComparer.Ordinal, cancellationToken);
 
-        // Only when byte-identical groups are listed: a page of another class shows no estimate to ask for. Nor does a
-        // page of decided matches (MAM-21): only a possible match is ever decided, whatever the class asked for.
-        IReadOnlyList<long> devices = decisionFilter is null && classFilter is null or DuplicateClass.ByteIdentical
+        // Only when byte-identical groups can be listed: a page of another class shows no estimate to ask for, nor does a
+        // page of confirmed matches (MAM-21), as only a possible match is ever confirmed. MAM-40 — a page of dismissed
+        // groups can list byte-identical copies kept as they are, whose estimate is as sure as on their own tab.
+        IReadOnlyList<long> devices = classFilter is null or DuplicateClass.ByteIdentical && decisionFilter is null or DuplicateMatchDecision.Dismissed
             ? DuplicateGrouping.DevicesOfByteIdenticalCopies(library.Names)
             : [];
         var fileSystems = new Dictionary<long, string?>();
@@ -76,13 +84,20 @@ public sealed partial class LibraryDuplicateService(
                 fileSystems[device.DeviceId] = device.Type;
         }
 
-        var groups = DuplicateGrouping.Group(library.Names, library.Works, fileSystems)
+        var allGroups = DuplicateGrouping.Group(library.Names, library.Works, fileSystems);
+        // MAM-40 — the decisions that hold for the groups as they are now (DuplicateDecisionRules.IsInForce): kept copies a
+        // new file has joined are undecided again, on their tabs and without a decision on their card; their row is
+        // ignored, never deleted.
+        var inForce = allGroups
+            .Where(group => decisions.TryGetValue(group.Key, out var row) && DuplicateDecisionRules.IsInForce(group, row.KeptMembers))
+            .ToDictionary(group => group.Key, group => decisions[group.Key], StringComparer.Ordinal);
+        var groups = allGroups
             .Where(group => classFilter is null || group.Class == classFilter)
             // MAM-21 (Vasyl, 2026-10-07) — a dismissed possible match leaves the list, every class's tab included; the
-            // dismissed ones are listed apart, where the decision can be undone.
+            // dismissed ones are listed apart, where the decision can be undone. MAM-40 — so do copies kept as they are.
             .Where(group => decisionFilter is null
-                ? decisions.GetValueOrDefault(group.Key)?.Decision != DuplicateMatchDecision.Dismissed
-                : decisions.GetValueOrDefault(group.Key)?.Decision == decisionFilter)
+                ? inForce.GetValueOrDefault(group.Key)?.Decision != DuplicateMatchDecision.Dismissed
+                : inForce.GetValueOrDefault(group.Key)?.Decision == decisionFilter)
             .Select(group => (Group: group, Order: OrderOf(group, library)))
             .OrderBy(group => group.Group.Class)
             .ThenBy(group => group.Order.Title, LibraryTitleOrder.Comparer)
@@ -101,7 +116,7 @@ public sealed partial class LibraryDuplicateService(
             return LibraryDuplicateListResult.Listed(new LibraryDuplicateListResponse([], groups.Count, page, pageSize));
 
         var pageGroups = groups.Skip((int)offset).Take(pageSize).ToList();
-        var items = await MapAsync(pageGroups, library, decisions, forOwner, cancellationToken);
+        var items = await MapAsync(pageGroups, library, inForce, forOwner, cancellationToken);
         return LibraryDuplicateListResult.Listed(new LibraryDuplicateListResponse(items, groups.Count, page, pageSize));
     }
 
@@ -140,11 +155,16 @@ public sealed partial class LibraryDuplicateService(
                 .Where(track => EF.Parameter(readingIds).Contains(track.MediaInspectionId))
                 .ToListAsync(cancellationToken))
             .ToLookup(track => track.MediaInspectionId);
+        // MAM-40 — the gates and the holds once for the page, and only when it has a group a copy can be removed from.
+        var judge = groups.Any(group => group.Class is DuplicateClass.SameWork or DuplicateClass.ByteIdentical)
+            ? await removals.ReadAsync(cancellationToken)
+            : null;
 
         return
         [
             .. groups.Select(group =>
             {
+                var verdicts = VerdictsOf(group, library, namesById, judge);
                 List<DuplicateName> names =
                 [
                     .. group.FileIds
@@ -157,6 +177,7 @@ public sealed partial class LibraryDuplicateService(
                     .. names.Select(name =>
                     {
                         var file = library.Files[name.FileId];
+                        // MAM-40 — the verdict added after mapping, as a computed field is.
                         return mapper.ToDto(
                             name,
                             file,
@@ -171,7 +192,7 @@ public sealed partial class LibraryDuplicateService(
                                 seriesId => [.. library.Titles[seriesId]],
                                 library.Versions[holder.VersionId],
                                 library.Linked[holder.WorkId]))],
-                            forOwner);
+                            forOwner) with { Removal = verdicts.GetValueOrDefault(name.FileId) };
                     }),
                 ];
                 // ADR 0018 — each file once, by the identity and size the app read, never the size a library reported.

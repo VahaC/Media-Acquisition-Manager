@@ -1,6 +1,19 @@
-import { distinctPathEnds, editionsText, fileVersions, firstWork, groupHeading, groupName, identityText, tabFrom, tabQuery } from '@/lib/duplicates'
+import {
+  distinctPathEnds,
+  editionsText,
+  fileVersions,
+  firstWork,
+  groupHeading,
+  groupName,
+  holdsCopies,
+  identityText,
+  isEpisodeGroup,
+  tabFrom,
+  tabQuery,
+} from '@/lib/duplicates'
 import {
   aliensHolder,
+  byteIdenticalGroupOf,
   daybreakFileName,
   daybreakHolderOf,
   duplicateFileOf,
@@ -14,15 +27,32 @@ describe('tabFrom', () => {
   it.each([
     ['SameFile', 'SameFile'],
     ['Dismissed', 'Dismissed'],
+    ['Removed', 'Removed'],
     [null, 'All'],
     ['Hardlinks', 'All'],
     ['possible', 'All'],
-  ])('reads ?tab=%s as the %s tab', (param, expected) => {
+  ])('reads ?tab=%s as the %s tab for the owner', (param, expected) => {
     // Arrange
     const asked = param
 
     // Act
-    const tab = tabFrom(asked)
+    const tab = tabFrom(asked, true)
+
+    // Assert
+    expect(tab).toBe(expected)
+  })
+
+  it.each([
+    ['SameWork', 'SameWork'],
+    ['Dismissed', 'Dismissed'],
+    // MAM-40 — Removed copies is the owner's alone.
+    ['Removed', 'All'],
+  ])('reads ?tab=%s as the %s tab for a member', (param, expected) => {
+    // Arrange
+    const asked = param
+
+    // Act
+    const tab = tabFrom(asked, false)
 
     // Assert
     expect(tab).toBe(expected)
@@ -46,6 +76,41 @@ describe('tabQuery', () => {
 
     // Assert
     expect(query).toEqual(expected)
+  })
+})
+
+describe('holdsCopies', () => {
+  it.each([
+    ['one file\'s names', sameFileGroup, false],
+    ['exact copies', byteIdenticalGroupOf(), true],
+    ['copies of one work', sameWorkGroup, true],
+    ['a possible match', possibleGroupOf(), false],
+  ])('says whether %s are copies kept or removed: %s', (_, group, expected) => {
+    // Arrange
+    const of = group
+
+    // Act
+    const copies = holdsCopies(of)
+
+    // Assert
+    expect(copies).toBe(expected)
+  })
+})
+
+describe('isEpisodeGroup', () => {
+  it.each([
+    ['an episode\'s copies', sameWorkGroup, true],
+    ['a film\'s copies', byteIdenticalGroupOf(), false],
+    ['names no library reports', { ...sameFileGroup, files: [sameFileGroup.files[0]] }, false],
+  ])('says whether %s are headed by an episode: %s', (_, group, expected) => {
+    // Arrange
+    const of = group
+
+    // Act
+    const episode = isEpisodeGroup(of)
+
+    // Assert
+    expect(episode).toBe(expected)
   })
 })
 

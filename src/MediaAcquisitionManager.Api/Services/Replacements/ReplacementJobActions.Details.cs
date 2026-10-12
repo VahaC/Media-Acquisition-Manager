@@ -1,5 +1,4 @@
 using MediaAcquisitionManager.Api.Contracts;
-using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
@@ -32,7 +31,7 @@ public sealed partial class ReplacementJobActions
         // Read fresh, never cached (ADR 0033): the buttons say whether they can work now.
         var gate = await gates.ReadAsync(cancellationToken);
         var quarantined = names.Where(name => name.State == ReplacementNameState.Quarantined).ToList();
-        var linkCounts = await LinkCountsNowAsync(quarantined, gate, cancellationToken);
+        var linkCounts = await QuarantineNameChecks.LinkCountsNowAsync(files, quarantined, gate, cancellationToken);
         int? LinkCountOf(ReplacementJobNameEntity name) => linkCounts.TryGetValue(name.Id, out var now) ? now : name.LinkCount;
 
         // MAM-27 — one read per table, however many copies and new files the job holds (no N+1): a season pack's page is
@@ -79,28 +78,6 @@ public sealed partial class ReplacementJobActions
             NewFiles = newFiles,
             Works = works,
         };
-    }
-
-    /// <summary>
-    /// ADR 0031 — how many names each of <paramref name="quarantined"/> has now, by its row's id, as the disk says it at its
-    /// quarantine path when it is still the file the move put there; the count the move read is the fallback. A torrent
-    /// removed with its files since the move leaves the quarantined name the last one, and then deleting it frees its room.
-    /// </summary>
-    private async Task<Dictionary<Guid, int>> LinkCountsNowAsync(
-        IReadOnlyList<ReplacementJobNameEntity> quarantined, ReplacementGateState gate, CancellationToken cancellationToken)
-    {
-        var counts = new Dictionary<Guid, int>();
-        foreach (var name in quarantined)
-        {
-            if (RootsOf(name, gate) is { } roots
-                && await files.DescribeAsync(name.QuarantinePath, roots, cancellationToken) is { Status: FileInventoryStatus.Found, Value: { } facts }
-                && facts.DeviceId == name.DeviceId
-                && facts.Inode == name.Inode
-                && facts.LinkCount is { } linkCount)
-                counts[name.Id] = linkCount;
-        }
-
-        return counts;
     }
 
     // ── MAM-27: the copies, the new files and the works ────────────────────────────────────────

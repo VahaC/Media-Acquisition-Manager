@@ -400,7 +400,7 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         Assert.All(items, item =>
         {
             Assert.Equal(
-                // MAM-21 — the owner's decision last, null while undecided and for every class but a possible match.
+                // MAM-21 — the owner's decision last, null while undecided (MAM-40: and always for one file's names).
                 ["key", "class", "needsReview", "distinctions", "evidence", "files", "space", "recoverable", "decision"],
                 item!.AsObject().Select(property => property.Key));
             Assert.Matches("^[0-9a-f]{32}$", item["key"]!.GetValue<string>());
@@ -446,7 +446,8 @@ public sealed class LibraryDuplicatesHttpTests : IClassFixture<MediaAcquisitionM
         var files = sameWork["files"]!.AsArray();
         Assert.All(files, file =>
             Assert.Equal(
-                ["file", "readSizeBytes", "deviceId", "inode", "linkCount", "sha256", "editions", "works"],
+                // MAM-40 — and the verdict on removing it.
+                ["file", "readSizeBytes", "deviceId", "inode", "linkCount", "sha256", "editions", "works", "removal"],
                 file!.AsObject().Select(property => property.Key)));
         Assert.All(files, file => Assert.Equal(["FinalCut"], file!["editions"]!.AsArray().Select(edition => edition!.GetValue<string>())));
         var work = Assert.Single(files[0]!["works"]!.AsArray())!;

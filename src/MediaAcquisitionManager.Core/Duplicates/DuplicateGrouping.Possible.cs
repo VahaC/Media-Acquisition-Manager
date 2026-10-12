@@ -151,6 +151,7 @@ public static partial class DuplicateGrouping
             NeedsReview: true,
             [.. EditionDistinctions(files), .. DynamicRangeDistinctions(files)],
             FileIdsOf(files),
+            PathKeysOf(files),
             [.. members.Where(subject => subject.Work is not null).Select(subject => subject.Id)],
             null,
             null,

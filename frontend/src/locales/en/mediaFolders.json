@@ -18,7 +18,7 @@
     "title": "Replacing copies",
     "description": "Whether a release you download may replace a copy you already have, and in which library folders. Saved with the folders above.",
     "switch": "Replace copies after verification",
-    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder's quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.",
+    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, and the Duplicates page offers Remove this copy for files in them, to you alone. Once the new file is verified, the old copy moves into its media folder's quarantine, as a removed copy does at once, and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.",
     "folders": "Library folders replacement may touch",
     "foldersHint": "The folders of your Jellyfin libraries, as the app sees them. None is ticked by default, and the ticks are kept while replacement is off. A tick counts only inside the media folders as saved: a folder under one you add above can be ticked once you save it.",
     "libraries_one": "In the library {{names, list}}",
@@ -40,12 +40,15 @@
       "CouldNotCheck": "The app couldn't check whether a move can work here; the move itself will tell."
     },
     "quarantine": "Quarantine",
-    "quarantineHint": "Old copies wait in their media folder's quarantine until you restore them or delete them for good on their job's page, under <jobs>Jobs</jobs>.",
-    "quarantineRoom": "{{path}}: {{size}} in {{files}}, from {{replacements}}.",
+    "quarantineHint": "Old copies wait in their media folder's quarantine until you restore them or delete them for good: a replaced copy on its job's page, under <jobs>Jobs</jobs>, a removed one under <removed>Removed copies</removed> on the Duplicates page.",
+    "quarantineRoom": "{{path}}: {{size}} in {{files}}, from {{holders}}.",
+    "quarantineHolders": "{{replacements}} and {{removals}}",
     "quarantineFiles_one": "{{value}} file",
     "quarantineFiles_other": "{{value}} files",
     "quarantineReplacements_one": "{{value}} replacement",
     "quarantineReplacements_other": "{{value}} replacements",
+    "quarantineRemovals_one": "{{value}} removal",
+    "quarantineRemovals_other": "{{value}} removals",
     "quarantineEmpty": "The quarantine is empty."
   }
 }

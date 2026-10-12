@@ -11,6 +11,10 @@ namespace MediaAcquisitionManager.Core.Duplicates;
 /// another copy of a work with a distinction.</param>
 /// <param name="Distinctions">What tells its files or works apart, each once, by kind, then scheme.</param>
 /// <param name="FileIds">The names in it (<see cref="DuplicateName.FileId"/>), each once.</param>
+/// <param name="MemberPathKeys">MAM-40 — the same names by their <see cref="DuplicateName.PathKey"/>, each once, in
+/// ordinal order: what a kept group's decision remembers of its members. By path, never by
+/// <see cref="FileIds"/> — a sync replaces the rows — nor by identity, as a name the app never looked at is counted by
+/// its path until its first inspection and by its identity after.</param>
 /// <param name="WorkIds">The works it is about: those holding its names, for a possible match the works it
 /// offers.</param>
 /// <param name="Identity">The file, for <see cref="DuplicateClass.SameFile"/>.</param>
@@ -32,6 +36,7 @@ public sealed record DuplicateGroup(
     bool NeedsReview,
     IReadOnlyList<DuplicateDistinction> Distinctions,
     IReadOnlyList<Guid> FileIds,
+    IReadOnlyList<string> MemberPathKeys,
     IReadOnlyList<Guid> WorkIds,
     DuplicateIdentity? Identity,
     string? Sha256,

@@ -166,3 +166,81 @@ default list and from no one: `decision=Dismissed` lists it to every signed-in u
 written to Jellyfin, a file or a download client, and the Library, the Search page and the
 recommendations read the works as before. This doesn't license decisions on the other classes, a
 bulk Confirm or Dismiss, or a member's decision.
+
+## Keep both: copies kept as they are, by the same decision (added 0.3.0, MAM-40)
+
+**The owner's Keep both — Keep all past two files — on a group of exact copies (`ByteIdentical`) or
+of one work's copies (`SameWork`) is this ADR's `Dismissed`, on the same routes, with the same row
+and the members it was kept with: the group leaves every tab for "Kept as they are", the Dismissed
+tab renamed, and comes back when a new file joins it; a confirmation of copies, and any decision on
+one file's names, are refused (Vasyl's decisions of 2026-10-12).** Keep both removes, moves and
+allows nothing; removing a copy is [ADR
+0037](0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md)'s.
+
+**Why.** On 2026-10-12 Vasyl found production's four groups of one work's copies on the list with no
+way to say he had looked at them: the Decision's "Only a possible match is decided" refused them.
+His decision: Keep both exists, and the group comes back when a new file of the work appears.
+
+**Which class takes what (`DuplicateDecisionRules.RefusalOf`).** A possible match: `Confirmed` or
+`Dismissed`, as before. Exact copies and one work's copies: `Dismissed` alone, and its undo; a
+confirmation is 400 "These files are copies by their bytes or registry ids, which no one has to
+confirm: keep them as they are, or remove a copy." One file's names: any decision and any undo is
+400 "These are names of one file, not copies of it: removing a name frees nothing, so there is
+nothing to keep or remove." The Decision's sentence for a group of another class, "Only a possible
+match is confirmed or dismissed: …", is gone, and with it
+`LibraryDuplicateDecisionsHttpTests.Decide_and_undo_of_a_same_work_group_are_400_with_the_sentence`;
+`LibraryDuplicateKeepBothHttpTests` covers both classes instead.
+
+**Kept with its members (`KeptMembers`).** A same-work key holds only its works and a byte-identical
+key only its hash, so a new copy joining keeps the key, where a possible match's key changes with its
+subjects. `DuplicateMatchDecisions` gains `KeptMembers` (`AddKeptDuplicateMembers`, a nullable text
+column, no length limit): for kept copies the group's members by path key — the grouping's own, never
+a file id a sync replaces nor an identity a first inspection gives a name —, in ordinal order, one
+per line; `null` for a possible match. A decision on kept copies is in force while every member the
+group has now is among them (`DuplicateDecisionRules.IsInForce`): a new file joining makes the group
+undecided again, on its tab with no decision on its card; a file leaving changes nothing. A row out
+of force is ignored, never deleted: it holds again if the group comes back to members it covers;
+keeping the group again overwrites it with the members it has then and writes a new audit row; and
+an undo with no decision in force answers 204 and writes nothing. A new work joining gives a
+same-work group another key, which is asked about again, as the Decision says.
+
+**The list.** `decision=Dismissed` lists kept copies beside dismissed matches, and without
+`decision` they leave every tab and the totals, as a dismissed match does. A kept group's `decision`
+is `{ decision: "Dismissed", decidedUtc, decidedByUserName }`, the name the owner's only, so members
+read that it was kept and when; one file's names always have `null`. The page says "Kept as they
+are" where a dismissed match says "Dismissed", "Kept as they are by owner on …. A new copy joining
+the group brings it back to the list.", and offers Undo on that tab; a Keep both leaves the short row
+"Kept the copies of “Alien (1979)” as they are: the group is listed under Kept as they are now." with
+Undo, and an Undo there "“Alien (1979)” is back among the duplicates." with **Keep again**. Keep
+both asks no confirmation, as Dismiss asks none.
+
+**Audit.** `DuplicateCopiesKept` (56) and `DuplicateCopiesKeptUndone` (57), on the Decision's
+`DuplicateMatch` target, named by the group's first work as its card heads it — "Alien (1979)", an
+episode by its series and place, "Clarkson's Farm S02E03", copies no library reports by the first
+one's file name — as such a group offers no title and year.
+
+**What of the text above no longer holds.** The title's "a possible match" and the Decision's "Only
+the group a key names now, and only a possible match" and its 400 sentence: kept copies are decided
+too, as above. The rejected option "Decisions on every class": two classes take `Dismissed` alone,
+and only to keep them as they are — no same-work group is confirmed, its flags still the owner's to
+read. The Consequences' "A same-work group flagged for review can't be marked as looked at": Keep
+both does that. The rest holds: a decision still never joins works, changes `needsReview`, or
+links, moves or removes anything.
+
+`LibraryDuplicateKeepBothHttpTests.Keep_copies_of_one_work_is_204_and_lists_them_only_as_kept_with_the_decision_and_an_audit_row`,
+`LibraryDuplicateKeepBothHttpTests.Keep_byte_identical_copies_lists_them_as_kept_with_the_room_a_copy_takes`,
+`LibraryDuplicateKeepBothHttpTests.Keep_the_same_copies_again_is_204_and_writes_nothing`,
+`LibraryDuplicateKeepBothHttpTests.Undo_of_kept_copies_forgets_the_decision_with_an_audit_row_and_they_are_back_undecided`,
+`LibraryDuplicateKeepBothHttpTests.A_new_file_of_a_work_in_kept_copies_brings_them_back_undecided_under_the_same_key`,
+`LibraryDuplicateKeepBothHttpTests.Keep_again_after_a_new_file_joined_stores_the_members_now_with_another_audit_row`,
+`LibraryDuplicateKeepBothHttpTests.Kept_copies_stay_kept_when_a_member_file_leaves`,
+`LibraryDuplicateKeepBothHttpTests.A_new_work_joining_kept_copies_gives_them_another_key_and_brings_them_back`,
+`LibraryDuplicateKeepBothHttpTests.A_new_copy_joining_kept_byte_identical_copies_brings_them_back_undecided`,
+`LibraryDuplicateKeepBothHttpTests.Decide_confirmed_of_copies_is_400_with_the_sentence_and_writes_nothing`,
+`LibraryDuplicateKeepBothHttpTests.Decide_and_undo_of_one_files_names_are_400_with_the_sentence_and_write_nothing`,
+`LibraryDuplicateKeepBothHttpTests.Keep_and_undo_as_a_member_are_403_with_the_owner_sentence_and_change_nothing`,
+`LibraryDuplicateKeepBothHttpTests.Keep_an_episodes_copies_names_the_audit_row_by_its_series_and_place`
+and
+`DuplicateMatchDecisionPersistenceTests.Kept_members_are_stored_whole_however_many_and_long_and_a_possible_match_has_none`
+pin it; `DuplicateGroupCard.decisions.test.tsx` and `DuplicatesPage.decisions.test.tsx` the buttons
+and the short rows.

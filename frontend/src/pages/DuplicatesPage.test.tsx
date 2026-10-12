@@ -2,18 +2,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
+import { copyRemovalsApi } from '@/lib/copy-removals-api'
 import { duplicatesApi } from '@/lib/duplicates-api'
 import { qk } from '@/lib/queries'
 import type { CurrentUser, LibraryDuplicateGroup } from '@/lib/types'
 import { DuplicatesPage } from '@/pages/DuplicatesPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
+import { removalsPage } from '@/test/copy-removals'
 import { byteIdenticalGroupOf, duplicatesPage, possibleGroupOf, sameFileGroup, sameWorkGroup } from '@/test/duplicates'
 
 vi.mock('@/lib/duplicates-api')
+vi.mock('@/lib/copy-removals-api')
 
 // MAM-21 — the Duplicates page around its cards: the tabs of the classes with Dismissed last, the tab in
-// the address, the query each tab sends the server, its paging, and the states of its list.
+// the address, the query each tab sends the server, its paging, and the states of its list. MAM-40 — the
+// tabs in plain words, Dismissed as Kept as they are, and the owner's Removed copies last.
 
 /** The address the page is at, so a test can read what the tabs put there. */
 function Address() {
@@ -26,12 +31,14 @@ function renderPage(path = '/library/duplicates', signedIn: CurrentUser = owner)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/library/duplicates" element={<DuplicatesPage />} />
-        </Routes>
-        <Address />
-      </MemoryRouter>
+      <ConfirmProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route path="/library/duplicates" element={<DuplicatesPage />} />
+          </Routes>
+          <Address />
+        </MemoryRouter>
+      </ConfirmProvider>
     </QueryClientProvider>,
   )
   return { client, user: userEvent.setup() }
@@ -48,6 +55,11 @@ const cardTitles = () =>
 
 const everyClass: LibraryDuplicateGroup[] = [sameFileGroup, byteIdenticalGroupOf(), sameWorkGroup, possibleGroupOf()]
 
+const lead = 'The files in your library that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, each group with the evidence behind it. Removing a copy moves it into the quarantine folder of its media folder, where you can restore it or delete it for good under Removed copies; keeping copies as they are, or confirming a possible match, removes nothing.'
+
+/** The tabs every signed-in user has, in their order. */
+const memberTabs = ['All', 'One file, two names', 'Exact copies', 'Same film, different files', 'Maybe the same film', 'Kept as they are']
+
 describe('DuplicatesPage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -55,7 +67,7 @@ describe('DuplicatesPage', () => {
     vi.mocked(duplicatesApi.list).mockImplementation(async (query) => duplicatesPage(query, everyClass))
   })
 
-  it('shows its title, that nothing is removed here, and the six tabs on All, asking for every group but the dismissed ones', async () => {
+  it('shows a member its title, what removing does, and the six tabs on All, asking for every group but the dismissed ones', async () => {
     // Arrange
     const signedIn = member
 
@@ -64,9 +76,9 @@ describe('DuplicatesPage', () => {
 
     // Assert
     expect(screen.getByRole('heading', { level: 1, name: 'Duplicates' })).toBeInTheDocument()
-    expect(screen.getByText(/Nothing here removes, moves or renames a file/)).toBeInTheDocument()
+    expect(screen.getByText(lead)).toBeInTheDocument()
     const tabs = within(screen.getByRole('tablist', { name: 'Kinds of duplicate' })).getAllByRole('tab')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['All', 'Same file', 'Byte-identical', 'Same work', 'Possible', 'Dismissed'])
+    expect(tabs.map((tab) => tab.textContent)).toEqual(memberTabs)
     expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByRole('heading', { level: 2, name: 'Єллоустоун' })).toBeInTheDocument()
     expect(cardTitles()).toEqual(['Чужі', 'Чужі', 'Єллоустоун', 'Чужі'])
@@ -75,13 +87,53 @@ describe('DuplicatesPage', () => {
     expect(screen.getByText('1–4 of 4')).toBeInTheDocument()
   })
 
+  it('shows the owner Removed copies last, after the six tabs', () => {
+    // Arrange
+    const signedIn = owner
+
+    // Act
+    renderPage('/library/duplicates', signedIn)
+
+    // Assert
+    const tabs = within(screen.getByRole('tablist', { name: 'Kinds of duplicate' })).getAllByRole('tab')
+    expect(tabs.map((tab) => tab.textContent)).toEqual([...memberTabs, 'Removed copies'])
+  })
+
+  it('reads a member\'s ?tab=Removed as All, asking for the groups and never for the removals', async () => {
+    // Arrange
+    const path = '/library/duplicates?tab=Removed'
+
+    // Act
+    renderPage(path, member)
+
+    // Assert
+    expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: 'Removed copies' })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(lastQuery()).toEqual({ page: 1, pageSize: 25 }))
+    expect(copyRemovalsApi.list).not.toHaveBeenCalled()
+  })
+
+  it('asks for the removals alone on the owner\'s Removed copies, never for the groups', async () => {
+    // Arrange
+    vi.mocked(copyRemovalsApi.list).mockImplementation(async (query) => removalsPage(query, []))
+
+    // Act
+    renderPage('/library/duplicates?tab=Removed')
+
+    // Assert
+    expect(screen.getByRole('tab', { name: 'Removed copies' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel', { name: 'Removed copies' })).toBeInTheDocument()
+    await vi.waitFor(() => expect(copyRemovalsApi.list).toHaveBeenCalledExactlyOnceWith({ page: 1, pageSize: 25 }))
+    expect(duplicatesApi.list).not.toHaveBeenCalled()
+  })
+
   it('puts the tab picked in the address, and leaves All out of it', async () => {
     // Arrange
     const { user } = renderPage()
     await screen.findByText('1–4 of 4')
 
     // Act
-    await user.click(screen.getByRole('tab', { name: 'Same file' }))
+    await user.click(screen.getByRole('tab', { name: 'One file, two names' }))
     const sameFile = address()
     await user.click(screen.getByRole('tab', { name: 'All' }))
 
@@ -91,11 +143,11 @@ describe('DuplicatesPage', () => {
   })
 
   it.each([
-    ['Same file', { class: 'SameFile' }],
-    ['Byte-identical', { class: 'ByteIdentical' }],
-    ['Same work', { class: 'SameWork' }],
-    ['Possible', { class: 'Possible' }],
-    ['Dismissed', { decision: 'Dismissed' }],
+    ['One file, two names', { class: 'SameFile' }],
+    ['Exact copies', { class: 'ByteIdentical' }],
+    ['Same film, different files', { class: 'SameWork' }],
+    ['Maybe the same film', { class: 'Possible' }],
+    ['Kept as they are', { decision: 'Dismissed' }],
   ])('asks the server for the %s tab\'s groups alone', async (name, filter) => {
     // Arrange
     const { user } = renderPage()
@@ -117,7 +169,7 @@ describe('DuplicatesPage', () => {
     renderPage(path)
 
     // Assert
-    expect(screen.getByRole('tab', { name: 'Dismissed' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Kept as they are' })).toHaveAttribute('aria-selected', 'true')
     await vi.waitFor(() => expect(lastQuery()).toEqual({ decision: 'Dismissed', page: 1, pageSize: 25 }))
     expect(vi.mocked(duplicatesApi.list)).toHaveBeenCalledOnce()
   })
@@ -144,7 +196,7 @@ describe('DuplicatesPage', () => {
     await screen.findByText('26–30 of 30')
 
     // Act
-    await user.click(screen.getByRole('tab', { name: 'Possible' }))
+    await user.click(screen.getByRole('tab', { name: 'Maybe the same film' }))
 
     // Assert
     expect(await screen.findByText('1–25 of 30')).toBeInTheDocument()
@@ -197,7 +249,7 @@ describe('DuplicatesPage', () => {
     vi.mocked(duplicatesApi.list).mockReturnValue(new Promise(() => {}))
 
     // Act
-    await user.click(screen.getByRole('tab', { name: 'Dismissed' }))
+    await user.click(screen.getByRole('tab', { name: 'Kept as they are' }))
 
     // Assert
     expect(await screen.findByText('Loading…')).toBeInTheDocument()
@@ -238,7 +290,7 @@ describe('DuplicatesPage', () => {
     ['ByteIdentical', 'No two files have the same bytes, as far as the app has hashed them.'],
     ['SameWork', 'No movie or episode has two copies.'],
     ['Possible', 'No possible match is left to check.'],
-    ['Dismissed', 'No possible match is dismissed.'],
+    ['Dismissed', 'Nothing is kept as it is: no group\'s copies were kept and no possible match was dismissed.'],
   ])('says the %s tab has no group', async (tab, sentence) => {
     // Arrange
     vi.mocked(duplicatesApi.list).mockImplementation(async (query) => duplicatesPage(query, []))

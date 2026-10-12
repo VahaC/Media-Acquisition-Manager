@@ -18,6 +18,7 @@ public sealed partial class ReplacementCandidateReader
         ReplacementCopyUnavailableReason.FolderNotTicked,
         ReplacementCopyUnavailableReason.OutsideTheClaim,
         ReplacementCopyUnavailableReason.AlreadyScheduled,
+        ReplacementCopyUnavailableReason.HeldByRemoval,
         ReplacementCopyUnavailableReason.NotInspected,
         ReplacementCopyUnavailableReason.SharedWithUnavailableWork,
         ReplacementCopyUnavailableReason.Missing,
@@ -122,7 +123,8 @@ public sealed partial class ReplacementCandidateReader
     /// <summary>
     /// The first of the stored checks that fails, in <see cref="ReasonOrder"/>: a path in the app inside an allowed root;
     /// every library folder holding it ticked (R3); a TV copy inside the claim; no replacement not yet ended holding it,
-    /// by path or by the identity its inspection read; and an identity the app read.
+    /// by path or by the identity its inspection read; MAM-40 — nor a removal not yet ended, alike; and an identity the app
+    /// read.
     /// </summary>
     private static ReplacementCopyUnavailableReason? StoredReasonOf(
         Listing listing, NormalizedPath? appPath, IReadOnlyList<NormalizedPath> roots, ReplacementGateState gates, LibraryRows rows)
@@ -136,6 +138,9 @@ public sealed partial class ReplacementCandidateReader
         if (rows.HeldPaths.Any(held => held.IsSameAs(appPath))
             || (listing.Row is { DeviceId: { } deviceId, Inode: { } inode } && rows.HeldIdentities.Contains((deviceId, inode))))
             return ReplacementCopyUnavailableReason.AlreadyScheduled;
+        if (rows.RemovalPaths.Any(held => held.IsSameAs(appPath))
+            || (listing.Row is { DeviceId: { } removedDeviceId, Inode: { } removedInode } && rows.RemovalIdentities.Contains((removedDeviceId, removedInode))))
+            return ReplacementCopyUnavailableReason.HeldByRemoval;
         // R3 — only the identity counts here: a reading the media inspector failed on leaves the copy tickable, its
         // dynamic range unknown.
         if (listing.Row is not

@@ -1,6 +1,5 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Core.Replacements;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
@@ -75,36 +74,22 @@ public sealed partial class ReplacementJobActions
         if (!gate.IsEnabled)
             return DeleteSwitchedOffError;
 
-        foreach (var row in names)
-        {
-            if (RootsOf(row, gate) is not { } roots)
-                return $"{ReplacementText.Quote(QuarantineOf(row))} is no longer inside the Media folders, so nothing was deleted.";
-            if (await ChangedInQuarantineAsync(row, roots, cancellationToken))
-                return $"{ReplacementText.Quote(row.QuarantinePath)} changed in the quarantine since it was moved there, so nothing was deleted.";
-        }
-
-        return null;
+        // MAM-40 — name by name as a removal's Delete for good checks them (QuarantineNameChecks).
+        return await QuarantineNameChecks.DeleteRefusalAsync(files, names, gate, cancellationToken);
     }
 
     /// <summary>Delete for good as the write loop runs it: <c>Deleting</c> to <c>Completed</c>, nothing told to the
-    /// library — it heard the names leave at the move — and no gate but the switch's read again before each name.</summary>
+    /// library — it heard the names leave at the move — and no gate but the switch's read again before each name
+    /// (<see cref="QuarantineNameWrites.Delete"/>).</summary>
     private OwnerWrite DeleteWrite() => new(
         ReplacementJobState.Deleting,
         ReplacementJobState.Completed,
-        ReplacementNameState.Deleting,
-        ReplacementNameState.Deleted,
         AuditAction.ReplacementDeleteStarted,
-        AuditAction.ReplacementNameDeleting,
-        AuditAction.ReplacementNameDeleted,
-        AuditAction.ReplacementNameNotDeleted,
         AuditAction.ReplacementCompleted,
-        TellsLibrary: false,
-        Closed: (_, _) => null,
-        WriteAsync: (row, roots) => quarantine.DeleteFromQuarantineAsync(row.QuarantinePath, FactsOf(row), roots, CancellationToken.None),
-        Stamp: (row, now) => row.DeletedUtc = now,
-        // A deletion moves nothing, so the contract never answers it Swapped; the sentence is there should it ever.
-        SwappedProblem: row =>
-            $"The file deleted at {ReplacementText.Quote(row.QuarantinePath)} wasn't the one moved there, and the old copy's own file wasn't found.",
-        StopReason: (row, error, done, total) =>
-            ReplacementNameTally.AfterSentence($"{NameOf(row)} couldn't be deleted: {error}", ReplacementNameTally.Deleted(done, total)));
+        QuarantineNameWrites.Delete(
+            quarantine,
+            AuditAction.ReplacementNameDeleting,
+            AuditAction.ReplacementNameDeleted,
+            AuditAction.ReplacementNameNotDeleted,
+            SwitchedOffMidwayError));
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Mapping;
+using MediaAcquisitionManager.Api.Services.CopyRemovals;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.Search;
@@ -57,7 +58,8 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
     /// <summary>
     /// Every row the copies are read from, batched: one query each for the claimed places of the matched series'
     /// episodes, every place of those episodes, the versions, their files, the titles, the libraries, the mappings, the
-    /// readings with their tracks, and the files of the replacements not yet ended.
+    /// readings with their tracks, and the files of the replacements not yet ended — MAM-40 — and the names of the removals
+    /// not yet ended.
     /// </summary>
     private async Task<LibraryRows> LoadAsync(
         List<Guid> matchedIds, bool isTv, ClaimedEpisodes? claimed, CancellationToken cancellationToken)
@@ -128,6 +130,10 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
                 where EF.Constant(ReplacementJobStates.Open).Contains(job.State) && file.DroppedUtc == null
                 select new { file.AppPath, file.DeviceId, file.Inode })
             .ToListAsync(cancellationToken);
+        // MAM-40 — and the names of every removal still open: a copy the owner removed into the quarantine, or is removing,
+        // is no copy to replace, and the send would find it gone. Few rows, the owner's own. Kept apart from the
+        // replacements' holds, as the owner settles them elsewhere: each has its own reason.
+        var removed = await CopyRemovalHolds.RemovalNamesAsync(db, cancellationToken);
 
         return new LibraryRows(
             claimedPositions.ToLookup(position => position.SeriesWorkId!.Value),
@@ -140,7 +146,9 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
             readings,
             tracks,
             [.. held.Select(file => NormalizedPath.TryParse(file.AppPath, out var path, out _) ? path : null).OfType<NormalizedPath>()],
-            [.. held.Select(file => (file.DeviceId, file.Inode))]);
+            [.. held.Select(file => (file.DeviceId, file.Inode))],
+            [.. removed.Select(name => NormalizedPath.TryParse(name.AppPath, out var path, out _) ? path : null).OfType<NormalizedPath>()],
+            [.. removed.Select(name => (name.DeviceId, name.Inode))]);
     }
 
     // ── assembly ────────────────────────────────────────────────────────────────────────────────────
@@ -256,5 +264,7 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
         IReadOnlyDictionary<Guid, MediaInspectionEntity> Readings,
         ILookup<Guid, MediaInspectionTrackEntity> Tracks,
         IReadOnlyList<NormalizedPath> HeldPaths,
-        IReadOnlyList<(long DeviceId, long Inode)> HeldIdentities);
+        IReadOnlyList<(long DeviceId, long Inode)> HeldIdentities,
+        IReadOnlyList<NormalizedPath> RemovalPaths,
+        IReadOnlyList<(long DeviceId, long Inode)> RemovalIdentities);
 }

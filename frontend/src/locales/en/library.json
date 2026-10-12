@@ -38,7 +38,7 @@
   "empty": "Nothing here yet. Once a media library is synced, its movies and series are listed here.",
   "duplicates": {
     "action": "Duplicates",
-    "title": "The files that are one file, copies or possible matches of each other, with the evidence"
+    "title": "Files that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, with the evidence"
   },
   "sources": {
     "title": "Sources",

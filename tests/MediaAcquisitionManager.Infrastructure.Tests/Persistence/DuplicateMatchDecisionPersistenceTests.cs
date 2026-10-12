@@ -12,12 +12,13 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Persistence;
 // MAM-21 — the owner's decisions on possible matches, pinned on the migrated schema (ADR 0029): one decision per group
 // key, the backstop behind the service's read for two first decisions racing; the decision, and the audit rows of
 // confirming, dismissing and undoing with their target kind, stored by name; and a decision outlives the account that
-// gave it, its name copied. Deletes go through ExecuteDelete, so what happens to the row is the database's own doing,
-// not EF's tracking.
+// gave it, its name copied. MAM-40 — kept copies store their members whole, and their audit actions by name too.
+// Deletes go through ExecuteDelete, so what happens to the row is the database's own doing, not EF's tracking.
 public sealed class DuplicateMatchDecisionPersistenceTests : DatabaseTestBase
 {
     private const string GoneKey = "0123456789abcdef0123456789abcdef";
     private const string HeatKey = "fedcba9876543210fedcba9876543210";
+    private const string AlienKey = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
 
     public DuplicateMatchDecisionPersistenceTests() => TestDatabase.CopyMigratedTemplateTo(DatabasePath);
 
@@ -34,6 +35,8 @@ public sealed class DuplicateMatchDecisionPersistenceTests : DatabaseTestBase
         auditTrail.Record(AuditAction.DuplicateMatchConfirmed, AuditActor.From(owner), AuditTarget.DuplicateMatch(GoneKey, "Gone (2001)"));
         auditTrail.Record(AuditAction.DuplicateMatchDismissed, AuditActor.From(owner), AuditTarget.DuplicateMatch(HeatKey, "Heat (1995)"));
         auditTrail.Record(AuditAction.DuplicateMatchDecisionUndone, AuditActor.From(owner), AuditTarget.DuplicateMatch(GoneKey, "Gone (2001)"));
+        auditTrail.Record(AuditAction.DuplicateCopiesKept, AuditActor.From(owner), AuditTarget.DuplicateMatch(AlienKey, "Alien (1979)"));
+        auditTrail.Record(AuditAction.DuplicateCopiesKeptUndone, AuditActor.From(owner), AuditTarget.DuplicateMatch(AlienKey, "Alien (1979)"));
         await db.SaveChangesAsync(cancellationToken);
 
         //Act
@@ -45,11 +48,13 @@ public sealed class DuplicateMatchDecisionPersistenceTests : DatabaseTestBase
         //Assert
         // By name, like every other enum: a value reordered or added later never changes what a stored row means.
         Assert.Equal(["Confirmed", "Dismissed"], decisions);
-        Assert.Equal(["DuplicateMatchConfirmed", "DuplicateMatchDecisionUndone", "DuplicateMatchDismissed"], actions);
+        Assert.Equal(
+            ["DuplicateCopiesKept", "DuplicateCopiesKeptUndone", "DuplicateMatchConfirmed", "DuplicateMatchDecisionUndone", "DuplicateMatchDismissed"],
+            actions);
         Assert.Equal(["DuplicateMatch"], targetKinds);
         // A group's key is its audit target's id: the 32 hex digits read back as the key, so every decision on a group
         // has one target.
-        Assert.Equal([GoneKey, HeatKey], targetIds.Select(id => id.ToString("N")).Order(StringComparer.Ordinal));
+        Assert.Equal([GoneKey, AlienKey, HeatKey], targetIds.Select(id => id.ToString("N")).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -85,6 +90,27 @@ public sealed class DuplicateMatchDecisionPersistenceTests : DatabaseTestBase
         Assert.Null(exception);
         await using var check = CreateContext();
         Assert.Equal(2, await check.DuplicateMatchDecisions.CountAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task Kept_members_are_stored_whole_however_many_and_long_and_a_possible_match_has_none()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        // MAM-40 — a large kept group: 300 names, each a deep path, about 90,000 characters in all.
+        var keptMembers = string.Join('\n', Enumerable.Range(0, 300).Select(index => $"/media/{new string('д', 280)}/copy {index:000}.mkv"));
+        await Decisions(db).Create(AlienKey, DuplicateMatchDecision.Dismissed, keptMembers: keptMembers);
+        await Decisions(db).Create(GoneKey, DuplicateMatchDecision.Confirmed);
+
+        //Act
+        await using var check = CreateContext();
+        var rows = await check.DuplicateMatchDecisions.AsNoTracking().ToDictionaryAsync(row => row.GroupKey, row => row.KeptMembers, cancellationToken);
+
+        //Assert
+        // No length limit: a cut list would read as members never kept, and ask the owner again for nothing.
+        Assert.Equal(keptMembers, rows[AlienKey]);
+        Assert.Null(rows[GoneKey]);
     }
 
     [Fact]

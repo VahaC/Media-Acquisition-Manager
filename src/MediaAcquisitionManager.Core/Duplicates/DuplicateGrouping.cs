@@ -103,6 +103,11 @@ public static partial class DuplicateGrouping
 
     private static IReadOnlyList<Guid> FileIdsOf(IEnumerable<DuplicateName> members) => [.. members.Select(name => name.FileId).Distinct()];
 
+    // MAM-40 — the members by path, sorted, as a kept group's decision stores them: never by FileKeyOf, which turns from
+    // a path into an identity on a name's first inspection and would make a kept group look new.
+    private static IReadOnlyList<string> PathKeysOf(IEnumerable<DuplicateName> members) =>
+        [.. members.Select(name => name.PathKey).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
+
     private static IReadOnlyList<Guid> WorkIdsOf(IEnumerable<DuplicateName> members) =>
         [.. members.SelectMany(name => name.Holders).Select(holder => holder.WorkId).Distinct()];
 

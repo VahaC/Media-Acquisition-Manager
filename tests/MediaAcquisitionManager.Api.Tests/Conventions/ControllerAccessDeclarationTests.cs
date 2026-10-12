@@ -127,6 +127,11 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         // MAM-27 — the owner's Keep both and Drop of one ticked copy, in the same namespace.
         Assert.Contains("ReplacementJobsController.Cancel", actions);
         Assert.Contains("ReplacementJobsController.DropCopy", actions);
+        // MAM-40 — the owner's removals of a duplicate copy, their Restore and Delete for good, in the same namespace.
+        Assert.Contains("CopyRemovalsController.List", actions);
+        Assert.Contains("CopyRemovalsController.Remove", actions);
+        Assert.Contains("CopyRemovalsController.Restore", actions);
+        Assert.Contains("CopyRemovalsController.DeleteForGood", actions);
         Assert.Contains("UnknownApiController.Unmatched", actions);
     }
 

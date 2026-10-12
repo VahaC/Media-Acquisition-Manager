@@ -396,3 +396,24 @@ the MAM-25 section's "Retry, dropping a copy and settling a pair are MAM-27's" h
 `ReplacementRetryHttpTests`
 and `ReplacementPairingDropOnlyTests` pin it, and `JobDetailsPage.replacement.test.tsx` and
 `ReplacementCopies.test.tsx` the job's page.
+
+## A copy a removal holds can't be ticked (added 0.3.0, MAM-40)
+
+**A copy the owner removed on the Duplicates page, while its removal is open — on its way into the
+quarantine, in it, waiting for review, or on its way back or out —, can't be ticked in the Download
+dialog nor sent for replacement: it gets a tenth copy reason, `HeldByRemoval` (10, by name on the
+wire), after `AlreadyScheduled` and read the same way, by path or by device and inode ([ADR
+0037](0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md)).**
+No download replaces it, and the owner settles it on the Duplicates page, so it is no
+`AlreadyScheduled`, whose words name another download. The dialog says "A removal under Removed
+copies on the Duplicates page holds this copy."; a send that ticks it anyway is 409 "A removal under
+Removed copies on the Duplicates page holds “Alien (1979).mkv”, so it can't be replaced. Pick Keep
+both to download the release." with nothing written or sent. A removal that ended — `Restored`,
+`Deleted` or `NotMoved` — holds nothing. **A copy's reasons, in order** above now reads
+`NoAppPath`, `FolderNotTicked`, `OutsideTheClaim`, `AlreadyScheduled`, `HeldByRemoval`,
+`NotInspected`, `SharedWithUnavailableWork`, then the disk's three.
+
+`ReplacementOptionsHttpTests.Options_marks_a_copy_an_open_removal_holds_and_not_one_an_ended_removal_held`
+and
+`ReplacementScheduleHttpTests.Schedule_of_a_copy_an_open_removal_holds_is_409_naming_the_removal_and_writes_nothing`
+pin it.

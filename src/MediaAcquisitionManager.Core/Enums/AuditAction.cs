@@ -303,4 +303,93 @@ public enum AuditAction
     /// row), named by the file's own name.
     /// </summary>
     ReplacementCopyDropped = 55,
+
+    /// <summary>
+    /// MAM-40 — the owner kept copies of one work, or byte-identical copies, as they are (Keep both): the group leaves the
+    /// list for "Kept as they are" until a new file joins it. Written with the decision, also when keeping a group again
+    /// after a file joined; never for keeping a group already kept. Its target the group by its key
+    /// (<c>AuditTargetKind.DuplicateMatch</c>), named by its first work. It removes, moves and allows nothing.
+    /// </summary>
+    DuplicateCopiesKept = 56,
+
+    /// <summary>
+    /// MAM-40 — the owner undid keeping copies as they are: the decision is forgotten and the group is back on the list.
+    /// Written with the delete; never when there was no decision in force to undo.
+    /// </summary>
+    DuplicateCopiesKeptUndone = 57,
+
+    /// <summary>
+    /// MAM-40 — the owner's Remove of one copy of a duplicate group passed every check and claimed it: the removal row
+    /// (Moving) and the plan of the names it moves into the quarantine, in one transaction. Its actor the owner, its target
+    /// the removal, named by the group's heading.
+    /// </summary>
+    CopyRemovalStarted = 58,
+
+    /// <summary>MAM-40 — the intent of one rename of a removal into the quarantine, committed before the call (ADR 0030).
+    /// Its actor the owner, its target the name, named by the file's own name.</summary>
+    CopyRemovalNameMoving = 59,
+
+    /// <summary>MAM-40 — one name of a removal was renamed into the quarantine. Its actor the owner — none when a restart's
+    /// check found it there —, its target the name.</summary>
+    CopyRemovalNameMoved = 60,
+
+    /// <summary>MAM-40 — one name of a removal was not renamed into the quarantine and stays where it was, the name's
+    /// problem saying why — or, after a restart, was found neither there nor in the quarantine. Its actor the owner — none
+    /// after a restart —, its target the name.</summary>
+    CopyRemovalNameNotMoved = 61,
+
+    /// <summary>MAM-40 — the removed copy's video is in the quarantine (Moving to Quarantined), kept there until the owner
+    /// restores it or deletes it for good. Its actor the owner, its target the removal.</summary>
+    CopyRemoved = 62,
+
+    /// <summary>MAM-40 — the removed copy's video couldn't be moved, so nothing of it is in the quarantine (Moving to
+    /// NotMoved), the removal's reason saying why. Its actor the owner — none after a restart —, its target the
+    /// removal.</summary>
+    CopyRemovalNotMoved = 63,
+
+    /// <summary>MAM-40 — a removal's write stopped part-way with names still in the quarantine, and it waits for the
+    /// owner's review, its reason saying why. Its actor the owner — none after a restart —, its target the removal.</summary>
+    CopyRemovalNeedsReview = 64,
+
+    /// <summary>MAM-40 — the owner's Restore started putting a removal's quarantined names back (to Restoring). Its actor
+    /// the owner, its target the removal.</summary>
+    CopyRemovalRestoreStarted = 65,
+
+    /// <summary>MAM-40 — the intent of one rename of a removal back out of the quarantine, committed before the call. Its
+    /// actor the owner, its target the name.</summary>
+    CopyRemovalNameRestoring = 66,
+
+    /// <summary>MAM-40 — one name of a removal was renamed back to where it was. Its actor the owner — none when a
+    /// restart's check found it there —, its target the name.</summary>
+    CopyRemovalNameRestored = 67,
+
+    /// <summary>MAM-40 — one name of a removal was not put back and stays in the quarantine, the name's problem saying why
+    /// — or, after a restart, was found in neither place. Its actor the owner — none after a restart —, its target the
+    /// name.</summary>
+    CopyRemovalNameNotRestored = 68,
+
+    /// <summary>MAM-40 — the owner's Restore put every quarantined name of a removal back (Restoring to Restored): the copy
+    /// is in the library again. Its actor the owner — none after a restart —, its target the removal.</summary>
+    CopyRemovalRestored = 69,
+
+    /// <summary>MAM-40 — the owner's Delete for good, confirmed a second time, started deleting a removal's quarantined
+    /// names (to Deleting). Its actor the owner, its target the removal.</summary>
+    CopyRemovalDeleteStarted = 70,
+
+    /// <summary>MAM-40 — the intent of one deletion of a removal's name from the quarantine, committed before the call.
+    /// Its actor the owner, its target the name.</summary>
+    CopyRemovalNameDeleting = 71,
+
+    /// <summary>MAM-40 — one name of a removal was deleted from the quarantine for good. Its actor the owner — none when a
+    /// restart's check found it gone —, its target the name.</summary>
+    CopyRemovalNameDeleted = 72,
+
+    /// <summary>MAM-40 — one name of a removal was not deleted and stays in the quarantine, the name's problem saying why —
+    /// or, after a restart, something else was found at its place. Its actor the owner — none after a restart —, its
+    /// target the name.</summary>
+    CopyRemovalNameNotDeleted = 73,
+
+    /// <summary>MAM-40 — the owner's Delete for good removed every quarantined name of a removal (Deleting to Deleted). Its
+    /// actor the owner — none after a restart —, its target the removal.</summary>
+    CopyRemovalDeletedForGood = 74,
 }

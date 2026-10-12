@@ -1,5 +1,6 @@
 export type * from './allowed-roots'
 export type * from './auth'
+export type * from './copy-removals'
 export type * from './destinations'
 export type * from './downloads'
 export type * from './duplicates'

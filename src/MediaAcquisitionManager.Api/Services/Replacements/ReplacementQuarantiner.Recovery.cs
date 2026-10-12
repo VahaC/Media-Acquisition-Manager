@@ -1,8 +1,6 @@
 using MediaAcquisitionManager.Api.Services.Audit;
-using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Core.Paths;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -10,7 +8,8 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 // The recovery of a job a restart or a crash cut in the middle of a write to the media (ADR 0030): each name in the middle
 // of one looked up by device and inode where it was and where it was going, what was found recorded, and the job stopped
 // for the owner's review — or ended as the write would have ended it, when the cut came after its last name. It renames and
-// deletes nothing by itself, and decides nothing on a look that failed.
+// deletes nothing by itself, and decides nothing on a look that failed. MAM-40 — the look itself is QuarantineNameFinder's,
+// which a removal's recovery shares.
 public sealed partial class ReplacementQuarantiner
 {
     /// <summary>
@@ -47,7 +46,7 @@ public sealed partial class ReplacementQuarantiner
         var undecided = 0;
         foreach (var name in names.Where(name => name.State is ReplacementNameState.Moving or ReplacementNameState.Restoring or ReplacementNameState.Deleting))
         {
-            if (await FindAsync(name, roots, cancellationToken) is { } outcome)
+            if (await QuarantineNameFinder.FindAsync(files, name, roots, cancellationToken) is { } outcome)
                 found.Add((name, outcome.State, outcome.Problem));
             else
                 undecided++;
@@ -113,97 +112,20 @@ public sealed partial class ReplacementQuarantiner
         switch (state)
         {
             case ReplacementJobState.Quarantining:
-                var moved = MovedOf(states);
+                var moved = QuarantineNameCounts.Moved(states);
                 return (ReplacementJobState.NeedsReview, CutWhileMovingReason(moved), moved.Count > 0, AuditAction.ReplacementNeedsReview);
             case ReplacementJobState.Restoring:
-                var restored = RestoredOf(states);
+                var restored = QuarantineNameCounts.Restored(states);
                 return restored.Total > 0 && restored.Count == restored.Total
                     ? (ReplacementJobState.Restored, null, true, AuditAction.ReplacementRestored)
                     : (ReplacementJobState.NeedsReview, CutWhileRestoringReason(restored), restored.Count > 0, AuditAction.ReplacementNeedsReview);
             default:
-                var deleted = DeletedOf(states);
+                var deleted = QuarantineNameCounts.Deleted(states);
                 return deleted.Total > 0 && deleted.Count == deleted.Total
                     ? (ReplacementJobState.Completed, null, false, AuditAction.ReplacementCompleted)
                     : (ReplacementJobState.NeedsReview, CutWhileDeletingReason(deleted), false, AuditAction.ReplacementNeedsReview);
         }
     }
-
-    /// <summary>
-    /// Where <paramref name="name"/>, cut in the middle of a write, is now, by device and inode, inside
-    /// <paramref name="roots"/>: a rename into the quarantine done or not, a rename back done or not, a deletion done or not
-    /// — or neither, which loses it, with why. <c>null</c> when that can't be told: a look that didn't answer found or not
-    /// found, or a name found nowhere while neither the folder it was in nor the one it was going to is there — a mount
-    /// missing, an empty mount point —, where its absence proves nothing.
-    /// </summary>
-    private async Task<(ReplacementNameState State, string? Problem)?> FindAsync(
-        ReplacementJobNameEntity name, IReadOnlyList<string> roots, CancellationToken cancellationToken)
-    {
-        var inQuarantine = await files.DescribeAsync(name.QuarantinePath, roots, cancellationToken);
-        if (!IsAnswer(inQuarantine))
-            return null;
-
-        switch (name.State)
-        {
-            case ReplacementNameState.Moving:
-            {
-                if (IsThere(inQuarantine, name))
-                    return (ReplacementNameState.Quarantined, null);
-                var atOldPath = await files.DescribeAsync(name.AppPath, roots, cancellationToken);
-                if (!IsAnswer(atOldPath))
-                    return null;
-                if (IsThere(atOldPath, name))
-                    return (ReplacementNameState.Planned, null);
-                return await PlaceIsThereAsync(name, roots, cancellationToken) ? (ReplacementNameState.Lost, LostWhileMovingProblem(name.AppPath)) : null;
-            }
-
-            case ReplacementNameState.Restoring:
-            {
-                var atOldPath = await files.DescribeAsync(name.AppPath, roots, cancellationToken);
-                if (!IsAnswer(atOldPath))
-                    return null;
-                if (IsThere(atOldPath, name))
-                    return (ReplacementNameState.Restored, null);
-                if (IsThere(inQuarantine, name))
-                    return (ReplacementNameState.Quarantined, null);
-                return await PlaceIsThereAsync(name, roots, cancellationToken) ? (ReplacementNameState.Lost, LostWhileRestoringProblem(name.AppPath)) : null;
-            }
-
-            default:
-                if (inQuarantine.Status == FileInventoryStatus.NotFound)
-                    return await PlaceIsThereAsync(name, roots, cancellationToken) ? (ReplacementNameState.Deleted, null) : null;
-                return IsThere(inQuarantine, name)
-                    ? (ReplacementNameState.Quarantined, null)
-                    : (ReplacementNameState.Lost, LostWhileDeletingProblem(name.AppPath));
-        }
-    }
-
-    /// <summary>Whether the look said found or not found: anything else — unreadable, changed while read, outside the
-    /// roots — leaves where the name is unknown.</summary>
-    private static bool IsAnswer(FileInventoryResult<FileFacts> described) =>
-        described.Status is FileInventoryStatus.Found or FileInventoryStatus.NotFound;
-
-    /// <summary>
-    /// Whether <paramref name="name"/>'s places can be read for an absence: the folder it was in, or its folder in the
-    /// quarantine, is there — a folder answers a look as no regular file —, so the mount holding both is too. Neither
-    /// folder's absence is ever the app's doing: a write never removes a folder.
-    /// </summary>
-    private async Task<bool> PlaceIsThereAsync(ReplacementJobNameEntity name, IReadOnlyList<string> roots, CancellationToken cancellationToken)
-    {
-        foreach (var path in new[] { name.AppPath, name.QuarantinePath })
-        {
-            if (NormalizedPath.TryParse(path, out var parsed, out _)
-                && parsed.Segments.Count > 0
-                && (await files.DescribeAsync((parsed with { Segments = [.. parsed.Segments.SkipLast(1)] }).ToString(), roots, cancellationToken)).Status
-                    == FileInventoryStatus.NotARegularFile)
-                return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>Whether the look found <paramref name="name"/>'s own file: its device and inode, which a rename keeps.</summary>
-    private static bool IsThere(FileInventoryResult<FileFacts> described, ReplacementJobNameEntity name) =>
-        described is { Status: FileInventoryStatus.Found, Value: { } facts } && facts.DeviceId == name.DeviceId && facts.Inode == name.Inode;
 
     /// <summary>The outcome row of a write a restart cut, as the write itself would have written it.</summary>
     private static AuditAction FoundActionOf(ReplacementNameState intent, ReplacementNameState found) => (intent, found) switch
@@ -216,16 +138,4 @@ public sealed partial class ReplacementQuarantiner
         (ReplacementNameState.Deleting, _) => AuditAction.ReplacementNameNotDeleted,
         _ => throw new ArgumentOutOfRangeException(nameof(intent), intent, "Only a write's intent is found again."),
     };
-
-    /// <summary>The names back where they were, of every name a restore was putting back: in the quarantine, back, or
-    /// lost on the way.</summary>
-    private static (int Count, int Total) RestoredOf(IReadOnlyList<ReplacementNameState> states) =>
-        (states.Count(state => state == ReplacementNameState.Restored),
-            states.Count(state => state is ReplacementNameState.Quarantined or ReplacementNameState.Restored or ReplacementNameState.Lost));
-
-    /// <summary>The names deleted for good, of every name a deletion was taking: in the quarantine, deleted, or lost on the
-    /// way.</summary>
-    private static (int Count, int Total) DeletedOf(IReadOnlyList<ReplacementNameState> states) =>
-        (states.Count(state => state == ReplacementNameState.Deleted),
-            states.Count(state => state is ReplacementNameState.Quarantined or ReplacementNameState.Deleted or ReplacementNameState.Lost));
 }

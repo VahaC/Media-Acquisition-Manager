@@ -79,6 +79,8 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         "“Alien (1979) Theatrical Cut.mkv” isn't in a folder ticked for replacement on the Media folders page, so it can't be replaced. Tick its folder there, or pick Keep both.";
     private const string AlreadyScheduledError =
         "“Alien (1979) Theatrical Cut.mkv” is already scheduled for replacement by another download, so it can't be replaced again. Pick Keep both to download the release.";
+    private const string HeldByRemovalError =
+        "A removal under Removed copies on the Duplicates page holds “Alien (1979) Theatrical Cut.mkv”, so it can't be replaced. Pick Keep both to download the release.";
     private const string TitleOnlyError =
         "This release matched Alien by its title alone, which never allows a replacement, so “Alien (1979) Theatrical Cut.mkv” can't be replaced. Pick Keep both to download it.";
     private const string ConflictingIdsError =
@@ -961,6 +963,41 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             Assert.Equal(1, await db.ReplacementJobs.CountAsync(cancellationToken));
         });
         Assert.Equal(qBittorrentBefore, _factory.QBittorrentHttp.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Schedule_of_a_copy_an_open_removal_holds_is_409_naming_the_removal_and_writes_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await PlantAlienAsync(cancellationToken);
+        await _replacement.SwitchOn(FilmsFolder);
+        var release = await FindAlienAsync();
+        var theatrical = await FileIdAsync(TheatricalPath);
+        // MAM-40 — the owner removed the theatrical cut from its duplicate group after the dialog listed it: it is in the
+        // quarantine, under Removed copies, and the library not synced since.
+        await _factory.WithDbAsync(async db =>
+        {
+            var removals = new CopyRemovalDataFactory(db, _factory.Time);
+            var removal = await removals.Create(_owner.User.Id, CopyRemovalState.Quarantined, TheatricalPath, TheatricalPath);
+            await removals.AddName(
+                removal.Id, 0, ReplacementNameKind.Video, TheatricalPath, $"/media/.mam-quarantine/{removal.Id}/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv", "/media",
+                TestMedia.File(inode: 1), ReplacementNameState.Quarantined);
+        });
+
+        //Act
+        var response = await ScheduleAsync(release, [theatrical]);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HeldByRemovalError, await response.ReadErrorAsync(cancellationToken));
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal(0, await db.DownloadJobs.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.ReplacementJobs.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
+        });
+        Assert.Empty(_factory.QBittorrentHttp.Requests);
     }
 
     [Fact]

@@ -517,8 +517,40 @@ button.library-version-row:focus-visible {
   padding: 0.25rem 0.75rem 0.75rem;
 }
 
-button.library-version-row + .library-version-details {
+button.library-version-row + .library-version-details,
+.library-version-line:has(> button.library-version-row) + .library-version-details {
   padding-left: 2.5rem;
+}
+
+/* MAM-40 — a row with what the page offers beside it (the Duplicates page's Remove this copy), outside the
+   row, as a row that opens is a button and may hold no other button. The row takes what the actions leave;
+   they come after its size, centred on its first line: the row's .5rem padding over a 19.5px line puts a
+   2rem button 2px below the line's top. On a phone they go under the row (below). */
+.library-version-line {
+  display: flex;
+  align-items: flex-start;
+  transition: background-color 160ms ease;
+}
+
+.library-version-line > .library-version-row {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.library-version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  padding: 0.125rem 0.75rem 0.5rem 0;
+}
+
+/* A hovered row's fill takes its whole line, under the actions too, so the row doesn't read as cut short;
+   not while the pointer is on an action, which doesn't open the row. */
+.library-version-line:has(> button.library-version-row:hover) {
+  background: var(--muted);
 }
 
 /* FileLines spaces its lines 2px apart for the Details dialog; here they are 4px apart, as the
@@ -727,6 +759,26 @@ button.library-version-row + .library-version-details {
   .library-bar-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  /* MAM-40 — a row's actions go on a line of their own under it, lined up with its label: beside it they
+     would leave its name a few characters a line. They keep their labels there, as they stand alone. */
+  .library-version-line {
+    flex-wrap: wrap;
+  }
+
+  .library-version-line > .library-version-row {
+    flex-basis: 100%;
+  }
+
+  .library-version-actions {
+    justify-content: flex-start;
+    padding: 0 0.75rem 0.5rem;
+  }
+
+  .library-version-line > button.library-version-row + .library-version-actions,
+  .library-version-line > .library-version-row-inset + .library-version-actions {
+    padding-left: 2.5rem;
   }
 }
 

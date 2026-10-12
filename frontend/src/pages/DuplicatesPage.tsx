@@ -1,9 +1,10 @@
 import { useId, useState } from 'react'
-import { CircleHelp, Copy, EyeOff, Fingerprint, Layers, Link, type LucideIcon } from 'lucide-react'
+import { Archive, CircleHelp, Copy, CopyCheck, Fingerprint, Layers, Link, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { DuplicateGroupCard } from '@/components/duplicates/DuplicateGroupCard'
 import { DuplicateLeftRow } from '@/components/duplicates/DuplicateLeftRow'
+import { RemovedCopies } from '@/components/duplicates/RemovedCopies'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
@@ -28,17 +29,40 @@ const TAB_ICONS: Record<DuplicateTab, LucideIcon> = {
   ByteIdentical: Fingerprint,
   SameWork: Copy,
   Possible: CircleHelp,
-  Dismissed: EyeOff,
+  Dismissed: CopyCheck,
+  Removed: Archive,
 }
 
 /**
- * A possible match the owner's own decision took off the tab on screen, kept as a short row where its card
- * was: the group as it was shown, its place among the rows, and what took it off.
+ * A group the owner's own action took off the tab on screen, kept as a short row where its card was: the
+ * group as it was shown, its place among the rows, what took it off, and the row's own number.
  */
 interface LeftGroup {
   group: LibraryDuplicateGroup
   index: number
   change: DuplicateLeaving
+  /** Counted up for each row made, never reused while the page is open. */
+  id: number
+}
+
+/** The short rows of the tab and page they were made on, and how many rows were made so far (the next id). */
+interface LeftRows {
+  tab: DuplicateTab
+  page: number
+  groups: LeftGroup[]
+  made: number
+}
+
+/** A row of the list: a group's card, or the short row an action left in a card's place. */
+type Row = { kind: 'card'; group: LibraryDuplicateGroup } | ({ kind: 'left' } & LeftGroup)
+
+/**
+ * A row's React key. A removed copy's short row can stand beside its group's card, beside the row of another
+ * copy removed from it, and beside a row of the same file removed again (put back meanwhile from another tab
+ * of the browser), so a short row is keyed by its own number, not by what left.
+ */
+function rowKey(row: Row): string {
+  return row.kind === 'card' ? `card:${row.group.key}` : `left:${row.id}`
 }
 
 /**
@@ -56,14 +80,22 @@ interface LeftGroup {
  * sees the buttons disabled with the reason). A dismissed one leaves the list for Dismissed, and an undone
  * dismissal leaves Dismissed: either way a short row with the way back takes the card's place
  * (DuplicateLeftRow), as "Not interested" leaves a recommendation, rather than the list closing up under the
- * pointer. The rows stay until the tab or the page changes. Nothing on the page removes, moves or renames a
- * file, and nothing acts on many groups at once.
+ * pointer. The rows stay until the tab or the page changes. Nothing acts on many groups at once.
+ *
+ * MAM-40 — the tabs and badges have plain names ("Exact copies", "Kept as they are"), and the owner settles
+ * copies of a work and exact copies on their cards: Keep both, which takes the group to Kept as they are (the
+ * server's Dismissed) as Dismiss takes a possible match, with the same short row and Undo; or Remove this copy
+ * on a file, which moves it into the quarantine — its short row names the file and leads to Removed copies,
+ * and hides no card: a group with files enough left comes back on the list without it, under a key of its
+ * own. Removed copies (`?tab=Removed`) is the owner's alone, a list of its own from the removals' route; for a
+ * member the address reads as All.
  */
 export function DuplicatesPage() {
   const { t } = useTranslation(['duplicates', 'common'])
   const isOwner = useAuthStore((state) => state.user?.isOwner === true)
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = tabFrom(searchParams.get('tab'))
+  const tab = tabFrom(searchParams.get('tab'), isOwner)
+  const removedTab = tab === 'Removed'
   const idPrefix = useId()
   const panelId = `${idPrefix}-panel`
   const tabId = (of: DuplicateTab) => `${idPrefix}-tab-${of}`
@@ -73,19 +105,25 @@ export function DuplicatesPage() {
   const onTab = paging.tab === tab
   if (!onTab) setPaging({ tab, page: 1 })
   const page = onTab ? paging.page : 1
-  const groups = useLibraryDuplicates({ ...tabQuery(tab), page, pageSize })
+  // Removed copies are no groups: that tab asks for the removals alone (RemovedCopies).
+  const groups = useLibraryDuplicates({ ...tabQuery(removedTab ? 'All' : tab), page, pageSize }, !removedTab)
   const { data, error, isLoading, isPlaceholderData } = groups
   const load = useLoadRetry(groups)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
   // A decision, a sync or an inspection can leave fewer groups than the page on screen needs: move to the
   // last page there is. Only on this page's own answer, not the one kept on screen while it loads.
   if (onTab && data && !isPlaceholderData && page > pages) setPaging({ tab, page: pages })
-  // The short rows belong to the tab and the page they were made on, as the page belongs to its tab.
-  const [left, setLeft] = useState<{ tab: DuplicateTab; page: number; groups: LeftGroup[] }>({ tab, page: 1, groups: [] })
+  // The short rows belong to the tab and the page they were made on, as the page belongs to its tab: another
+  // tab or page drops them, during render as `paging` is reset. Kept for a return instead, a removed copy's
+  // row came back naming a copy put back meanwhile under Removed copies as still in the quarantine, and took
+  // the focus from the tab again (DuplicateLeftRow's autoFocus).
+  const [left, setLeft] = useState<LeftRows>({ tab, page, groups: [], made: 0 })
+  if (left.tab !== tab || left.page !== page) setLeft({ tab, page, groups: [], made: left.made })
   const leftGroups = left.tab === tab && left.page === page ? left.groups : []
-  const isLeft = (key: string) => leftGroups.some((entry) => entry.group.key === key)
+  // A removed copy's row stands beside its group rather than for it: a group with files enough left is still one.
+  const isLeft = (key: string) => leftGroups.some((entry) => entry.group.key === key && entry.change.kind !== 'Removed')
   // The cards in the server's order, each short row put back at the place its card had.
-  const rows: ({ kind: 'card'; group: LibraryDuplicateGroup } | ({ kind: 'left' } & LeftGroup))[] = (data?.items ?? [])
+  const rows: Row[] = (data?.items ?? [])
     .filter((group) => !isLeft(group.key))
     .map((group) => ({ kind: 'card', group }))
   for (const entry of leftGroups.toSorted((a, b) => a.index - b.index)) {
@@ -109,15 +147,18 @@ export function DuplicatesPage() {
     setLeft((current) => ({
       tab,
       page,
-      groups: [...(current.tab === tab && current.page === page ? current.groups : []), { group, index, change }],
+      groups: [...(current.tab === tab && current.page === page ? current.groups : []), { group, index, change, id: current.made }],
+      made: current.made + 1,
     }))
 
-  // Its way back went through, and the list it waited for shows the group again.
+  // Its way back went through, and the list it waited for shows the group again. A removed copy's row stays.
   const back = (key: string) =>
     setLeft((current) => ({
       tab,
       page,
-      groups: (current.tab === tab && current.page === page ? current.groups : []).filter((entry) => entry.group.key !== key),
+      groups: (current.tab === tab && current.page === page ? current.groups : [])
+        .filter((entry) => entry.group.key !== key || entry.change.kind === 'Removed'),
+      made: current.made,
     }))
 
   return (
@@ -131,7 +172,9 @@ export function DuplicatesPage() {
 
       <PageTabs
         label={t('tabs.label')}
-        tabs={DUPLICATE_TABS.map((value) => ({ value, label: t(`tabs.${value}`), icon: TAB_ICONS[value] }))}
+        tabs={DUPLICATE_TABS
+          .filter((value) => value !== 'Removed' || isOwner)
+          .map((value) => ({ value, label: t(`tabs.${value}`), icon: TAB_ICONS[value] }))}
         current={tab}
         panelId={panelId}
         tabId={tabId}
@@ -139,53 +182,59 @@ export function DuplicatesPage() {
       />
 
       <div id={panelId} role="tabpanel" aria-labelledby={tabId(tab)} className="duplicates-panel">
-        {/* Outside the ternary below, so a failed refresh adds a line above the cards instead of
-            replacing them. */}
-        {error && data && !isPlaceholderData && (
-          <Banner action={<RetryButton onRetry={() => groups.refetch()} />}>
-            {t('refreshFailed')}{' '}
-            {getApiErrorMessage(error)}
-          </Banner>
-        )}
-
-        {load.error ? (
-          // A page or filter the server refuses (400) is its lasting answer: no Try again for it.
-          <ErrorState
-            title={t('loadFailed')}
-            onRetry={retryCanHelp(load.error) ? load.retry : undefined}
-            retrying={load.retrying}
-          >
-            {getApiErrorMessage(load.error)}
-          </ErrorState>
-        ) : isLoading ? (
-          <p className="settings-muted">{t('common:loading')}</p>
-        ) : data && data.totalCount === 0 && leftGroups.length === 0 ? (
-          <div className="settings-empty">
-            <p>{t(`empty.${tab}`)}</p>
-          </div>
-        ) : data ? (
+        {removedTab ? (
+          <RemovedCopies pageSize={pageSize} onPageSize={changePageSize} />
+        ) : (
           <>
-            <ul className="duplicates-groups">
-              {rows.map((row, index) => (
-                <li key={row.group.key}>
-                  {row.kind === 'left'
-                    ? <DuplicateLeftRow group={row.group} change={row.change} onBack={() => back(row.group.key)} />
-                    : <DuplicateGroupCard group={row.group} isOwner={isOwner} onLeft={(change) => leave(row.group, index, change)} />}
-                </li>
-              ))}
-            </ul>
+            {/* Outside the ternary below, so a failed refresh adds a line above the cards instead of
+                replacing them. */}
+            {error && data && !isPlaceholderData && (
+              <Banner action={<RetryButton onRetry={() => groups.refetch()} />}>
+                {t('refreshFailed')}{' '}
+                {getApiErrorMessage(error)}
+              </Banner>
+            )}
 
-            <ListPager
-              page={page}
-              pages={pages}
-              pageSize={pageSize}
-              pageSizes={PAGE_SIZES}
-              totalCount={data.totalCount}
-              onPage={goToPage}
-              onPageSize={changePageSize}
-            />
+            {load.error ? (
+              // A page or filter the server refuses (400) is its lasting answer: no Try again for it.
+              <ErrorState
+                title={t('loadFailed')}
+                onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+                retrying={load.retrying}
+              >
+                {getApiErrorMessage(load.error)}
+              </ErrorState>
+            ) : isLoading ? (
+              <p className="settings-muted">{t('common:loading')}</p>
+            ) : data && data.totalCount === 0 && leftGroups.length === 0 ? (
+              <div className="settings-empty">
+                <p>{t(`empty.${tab}`)}</p>
+              </div>
+            ) : data ? (
+              <>
+                <ul className="duplicates-groups">
+                  {rows.map((row, index) => (
+                    <li key={rowKey(row)}>
+                      {row.kind === 'left'
+                        ? <DuplicateLeftRow group={row.group} change={row.change} onBack={() => back(row.group.key)} />
+                        : <DuplicateGroupCard group={row.group} isOwner={isOwner} onLeft={(change) => leave(row.group, index, change)} />}
+                    </li>
+                  ))}
+                </ul>
+
+                <ListPager
+                  page={page}
+                  pages={pages}
+                  pageSize={pageSize}
+                  pageSizes={PAGE_SIZES}
+                  totalCount={data.totalCount}
+                  onPage={goToPage}
+                  onPageSize={changePageSize}
+                />
+              </>
+            ) : null}
           </>
-        ) : null}
+        )}
       </div>
     </div>
   )

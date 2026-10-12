@@ -200,6 +200,8 @@ public sealed class ReplacementPlanner(
                 $"Its library places “{file}” outside the episodes this release claims, so it can't be replaced. Pick Keep both to download the release.",
             ReplacementCopyUnavailableReason.AlreadyScheduled =>
                 $"“{file}” is already scheduled for replacement by another download, so it can't be replaced again. Pick Keep both to download the release.",
+            ReplacementCopyUnavailableReason.HeldByRemoval =>
+                $"A removal under Removed copies on the Duplicates page holds “{file}”, so it can't be replaced. Pick Keep both to download the release.",
             ReplacementCopyUnavailableReason.NotInspected =>
                 $"The app hasn't inspected “{file}” yet, so it can't be replaced. Inspect the library first, or pick Keep both.",
             ReplacementCopyUnavailableReason.SharedWithUnavailableWork =>

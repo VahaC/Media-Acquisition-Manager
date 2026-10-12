@@ -67,7 +67,8 @@
       "Unreadable": "The app can't read this file now.",
       "OutsideTheClaim": "The library places this version outside the episodes this release claims.",
       "AlreadyScheduled": "A replacement scheduled earlier already holds this copy.",
-      "SharedWithUnavailableWork": "This file is also a copy of another work this release matched, which can't be replaced."
+      "SharedWithUnavailableWork": "This file is also a copy of another work this release matched, which can't be replaced.",
+      "HeldByRemoval": "A removal under Removed copies on the Duplicates page holds this copy."
     },
     "heldBy_one": "Held by the torrent “{{torrent}}” in “{{client}}”: before this copy can move you'll remove that torrent there without its files — which also stops seeding its other files.",
     "heldBy_other": "Held by the torrent “{{torrent}}” in “{{client}}” ({{value}} of these copies): before these copies can move you'll remove that torrent there without its files — which also stops seeding its other files.",

@@ -48,7 +48,7 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
     private const string LinuxTickedTwiceError = "“/media/movies” is ticked twice. Keep one.";
     private const string WindowsTickedTwiceError = "“D:\\media\\movies” is ticked twice. Keep one.";
     private const string StrandedQuarantineError =
-        "“{0}” still holds replaced copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.";
+        "“{0}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.";
     private const string TolokaAddress = "http://prowlarr.test:9696/1/api";
     private const string TolokaApiKey = "planted-torznab-key-0026";
 
@@ -743,8 +743,8 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
         // ADR 0030 — "The app shows how much room the quarantine takes", from the rows, by path; the disk isn't walked.
         Assert.Equal(
             [
-                new QuarantineSpaceDto(Config(".mam-quarantine"), 1, 2, 11),
-                new QuarantineSpaceDto(Media(".mam-quarantine"), 2, 3, 150),
+                new QuarantineSpaceDto(Config(".mam-quarantine"), 1, 0, 2, 11),
+                new QuarantineSpaceDto(Media(".mam-quarantine"), 2, 0, 3, 150),
             ],
             body.Quarantines);
         Assert.Equal(describedBefore, _factory.Files.DescribedPaths.Count);
@@ -767,6 +767,42 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         // ADR 0030 — Restore and Delete for good must stay within reach: the owner restores or deletes first.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(string.Format(StrandedQuarantineError, Media(".mam-quarantine")), await response.ReadErrorAsync(cancellationToken));
+        await AssertNothingSavedAsync(seeded[0].Id, cancellationToken);
+    }
+
+    [Fact]
+    public async Task Get_counts_the_names_a_removal_holds_in_a_quarantine_with_the_replacements_ones()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(MediaRoot);
+        await PlantNamesAsync(MediaRoot, (ReplacementNameState.Quarantined, 100));
+        // MAM-40 — the owner's removal of a duplicate copy waits in the same quarantine: its names in it take room too, its
+        // name put back none; it is no replacement.
+        await PlantRemovalNamesAsync(MediaRoot, (ReplacementNameState.Quarantined, 40), (ReplacementNameState.Deleting, 2), (ReplacementNameState.Restored, 1_000));
+
+        //Act
+        var body = await GetAsync(cancellationToken);
+
+        //Assert
+        Assert.Equal([new QuarantineSpaceDto(Media(".mam-quarantine"), 1, 1, 3, 142)], body.Quarantines);
+    }
+
+    [Fact]
+    public async Task Update_taking_out_the_media_folder_whose_quarantine_holds_a_removals_names_is_400_naming_it_and_changes_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seeded = await _roots.Allow(MediaRoot);
+        await PlantRemovalNamesAsync(MediaRoot, (ReplacementNameState.Quarantined, 100));
+
+        //Act
+        var response = await _factory.PutHttpRequest(BaseUrl, _owner.AccessToken, new UpdateAllowedRootsRequest([ConfigRoot], false, []));
+
+        //Assert
+        // MAM-40 — a removal's Restore and Delete for good reach its quarantine as a replacement's do.
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(string.Format(StrandedQuarantineError, Media(".mam-quarantine")), await response.ReadErrorAsync(cancellationToken));
         await AssertNothingSavedAsync(seeded[0].Id, cancellationToken);
@@ -900,6 +936,24 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
             var copy = await replacements.AddFile(replacement.Id, appPath, facts, position);
             var quarantinePath = string.Join(Separator, allowedRoot, ".mam-quarantine", replacement.Id.ToString(), "movies", $"Film {position}.mkv");
             await replacements.AddName(replacement.Id, copy.Id, position, ReplacementNameKind.Video, appPath, quarantinePath, allowedRoot, facts, name.State);
+        }
+    }
+
+    /// <summary>
+    /// MAM-40 — one removal of a duplicate copy holding <paramref name="names"/> — a video, each with its state and size — in
+    /// <paramref name="allowedRoot"/>'s quarantine, as a request left them.
+    /// </summary>
+    private async Task PlantRemovalNamesAsync(string allowedRoot, params (ReplacementNameState State, long SizeBytes)[] names)
+    {
+        var removals = new CopyRemovalDataFactory(_factory.Scope.GetRequiredService<ApplicationDbContext>(), _factory.Time);
+        var firstPath = string.Join(Separator, allowedRoot, "movies", "Copy 0.mkv");
+        var removal = await removals.Create(_owner.User.Id, CopyRemovalState.Quarantined, firstPath, firstPath);
+        foreach (var (name, position) in names.Select((name, position) => (name, position)))
+        {
+            var appPath = string.Join(Separator, allowedRoot, "movies", $"Copy {position}.mkv");
+            var quarantinePath = string.Join(Separator, allowedRoot, ".mam-quarantine", removal.Id.ToString(), "movies", $"Copy {position}.mkv");
+            await removals.AddName(
+                removal.Id, position, ReplacementNameKind.Video, appPath, quarantinePath, allowedRoot, TestMedia.File(inode: 100 + position, sizeBytes: name.SizeBytes), name.State);
         }
     }
 

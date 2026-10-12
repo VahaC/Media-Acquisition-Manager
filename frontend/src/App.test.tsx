@@ -150,7 +150,7 @@ describe('App', () => {
     const nav = screen.getByRole('navigation', { name: 'Main' })
     expect(within(nav).getByRole('link', { name: 'Duplicates' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
-    expect(screen.getByRole('tab', { name: 'Possible' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Maybe the same film' })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByRole('heading', { level: 2, name: 'Чужі' })).toBeInTheDocument()
     expect(duplicatesApi.list).toHaveBeenCalledExactlyOnceWith({ class: 'Possible', page: 1, pageSize: 25 })
   })

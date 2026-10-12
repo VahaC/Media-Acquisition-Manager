@@ -1,7 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Core.Files;
 using MediaAcquisitionManager.Core.Paths;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,11 +51,7 @@ public sealed partial class ReplacementQuarantiner
             .AsNoTracking()
             .Where(file => file.ReplacementJobId == replacementJobId)
             .ToListAsync(cancellationToken);
-        var roots = gate.AllowedRoots
-            .Select(text => (Text: text, Path: NormalizedPath.TryParse(text, out var path, out _) ? path : null))
-            .Where(root => root.Path is not null)
-            .Select(root => (root.Text, Path: root.Path!))
-            .ToList();
+        var roots = QuarantineCopyCheck.RootsOf(gate);
         var toMove = copies.Where(copy => !moved.Contains(copy.Id)).ToList();
 
         // ── check 5, copy by copy ──
@@ -74,38 +69,17 @@ public sealed partial class ReplacementQuarantiner
         var companionsOf = new Dictionary<Guid, List<PlannedCompanion>>();
         foreach (var copy in checkedCopies)
         {
-            // Within the copy's own root, as its look was.
-            var listed = await quarantine.ListFolderFilesAsync(copy.AppPath.ToString(), [copy.RootText], cancellationToken);
-            if (listed is not { Status: FileQuarantineStatus.Done, Value: { } folderFiles })
-            {
-                // The listing's own sentence: it names the folder and why.
-                var reason = listed.Error ?? NotListedReason(copy.AppPath.ToString());
+            // MAM-40 — listed as a removal lists its copy's (QuarantineCompanionListing): the folder, the link, the identities.
+            var (listed, reason) = await QuarantineCompanionListing.ListAsync(quarantine, copy.AppPath, copy.RootText, cancellationToken);
+            if (reason is not null)
                 return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, string> { [copy.Copy.Id] = reason });
-            }
-
-            // The listing leaves a link out: a video whose own name isn't among its folder's files is a link, which the look
-            // followed to the file it leads to. Refused here, before the claim, rather than by the rename itself.
-            if (!folderFiles.Any(file => NormalizedPath.TryParse(file.AppPath, out var listedPath, out _) && listedPath.IsSameAs(copy.AppPath)))
-            {
-                var reason = LinkReason(copy.AppPath.ToString());
-                return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, string> { [copy.Copy.Id] = reason });
-            }
 
             var companions = companionsOf[copy.Copy.Id] = [];
-            foreach (var name in QuarantineCompanions.Pick(copy.AppPath.Segments[^1], [.. folderFiles.Select(file => file.Name)], copy.AppPath.Style))
+            foreach (var (path, facts) in listed)
             {
-                var companion = folderFiles.First(file => string.Equals(file.Name, name, StringComparison.Ordinal));
-                // Without its identity a torrent's hold on it can't be confirmed: the reader would pass it over as held by
-                // none, and a held companion would move.
-                if (companion.Facts is not { DeviceId: not null, Inode: not null } || !NormalizedPath.TryParse(companion.AppPath, out var path, out _))
-                {
-                    var reason = CompanionUnreadableReason(name);
-                    return MoveCheck.Stopped(toMove, reason, new Dictionary<Guid, string> { [copy.Copy.Id] = reason });
-                }
-
                 // Each name once: two ticked videos of one folder never share a companion by the rule, and this keeps it so.
                 if (planned.Add(path))
-                    companions.Add(new PlannedCompanion(path, companion.Facts, null));
+                    companions.Add(new PlannedCompanion(path, facts, null));
             }
         }
 
@@ -131,34 +105,26 @@ public sealed partial class ReplacementQuarantiner
         if (targets.Count == 0)
             return MoveCheck.Planned([], leftovers);
 
-        // MAM-28 — every client the app sent a replacement to that still exists: asked whatever its mappings say now, as one
-        // deleted or pointed outside the Media folders since may hide an old copy it lists. A client deleted and added again
-        // has a new id, and a send that never reached its client has no id there.
-        var libraryClients = await db.ReplacementJobs
-            .AsNoTracking()
-            .Join(db.DownloadJobs.AsNoTracking(), replacement => replacement.DownloadJobId, download => download.Id, (replacement, download) => download)
-            .Where(download => download.ClientJobId != null && download.DownloadClientConnectionId != null)
-            .Select(download => download.DownloadClientConnectionId!.Value)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-        var holdings = await holdingReader.ReadAsync(targets, gate.AllowedRoots, libraryClients, cancellationToken);
+        // MAM-28 — every client the app sent a replacement to that still exists, asked whatever its mappings say now
+        // (QuarantineHoldingCheck.ReadAsync says why); MAM-40 — read as a removal reads them.
+        var holdings = await QuarantineHoldingCheck.ReadAsync(db, holdingReader, targets, gate.AllowedRoots, cancellationToken);
 
         // Anything uncertain is never an all-clear (ADR 0031): a client not read, or read in part, stops the job.
-        var uncertain = holdings.Clients.Where(client => client.Status != ReplacementClientCheck.Read).ToList();
+        var uncertain = QuarantineHoldingCheck.UncertainOf(holdings);
         if (uncertain.Count > 0)
-            return MoveCheck.Stopped(toMove, UncertainReason(uncertain), new Dictionary<Guid, string>());
+            return MoveCheck.Stopped(toMove, QuarantineHoldingCheck.UncertainReason(uncertain, QuarantineWording.Replacement), new Dictionary<Guid, string>());
 
         // A video a torrent lists — its own path, or reached through a link — stays until the owner removes the torrent.
         var heldCopies = checkedCopies
-            .Select(copy => (CopyId: copy.Copy.Id, Holds: HoldsOf(holdings, copy.AppPath)))
+            .Select(copy => (CopyId: copy.Copy.Id, Holds: QuarantineHoldingCheck.HoldsOf(holdings, copy.AppPath)))
             .Where(held => held.Holds.Count > 0)
             .ToList();
         if (heldCopies.Count > 0)
         {
             return MoveCheck.Stopped(
                 toMove,
-                HeldReason([.. heldCopies.SelectMany(held => held.Holds)]),
-                heldCopies.ToDictionary(held => held.CopyId, held => HeldReason(held.Holds)));
+                QuarantineHoldingCheck.HeldReason([.. heldCopies.SelectMany(held => held.Holds)], QuarantineWording.Replacement),
+                heldCopies.ToDictionary(held => held.CopyId, held => QuarantineHoldingCheck.HeldReason(held.Holds, QuarantineWording.Replacement)));
         }
 
         // A companion a torrent lists stays, named on the job; its video still moves. A second name of a torrent's file
@@ -170,14 +136,16 @@ public sealed partial class ReplacementQuarantiner
                     Companions =
                     [
                         .. companionsOf[copy.Copy.Id].Select(companion =>
-                            HoldsOf(holdings, companion.AppPath) is { Count: > 0 } holds ? companion with { HeldBy = CompanionHeldReason(holds) } : companion),
+                            QuarantineHoldingCheck.HoldsOf(holdings, companion.AppPath) is { Count: > 0 } holds
+                                ? companion with { HeldBy = QuarantineHoldingCheck.CompanionHeldReason(holds) }
+                                : companion),
                     ],
                 }),
             ],
             [
                 .. leftovers.Select(leftover =>
-                    leftover.State == ReplacementNameState.Planned && HoldsOf(holdings, leftover.AppPath!) is { Count: > 0 } holds
-                        ? leftover with { State = ReplacementNameState.Stayed, Problem = CompanionHeldReason(holds) }
+                    leftover.State == ReplacementNameState.Planned && QuarantineHoldingCheck.HoldsOf(holdings, leftover.AppPath!) is { Count: > 0 } holds
+                        ? leftover with { State = ReplacementNameState.Stayed, Problem = QuarantineHoldingCheck.CompanionHeldReason(holds) }
                         : leftover),
             ]);
     }
@@ -194,28 +162,22 @@ public sealed partial class ReplacementQuarantiner
         IReadOnlyList<ReplacementJobNewFileEntity> newFiles,
         CancellationToken cancellationToken)
     {
-        if (!NormalizedPath.TryParse(copy.AppPath, out var appPath, out _) || roots.FirstOrDefault(root => appPath.IsUnder(root.Path)) is not { Text: not null } root)
-            return (null, OutsideMediaFoldersReason(copy.AppPath));
-        if (!gate.IsInTickedFolder(appPath))
-            return (null, NotTickedReason(copy.AppPath));
-        if (DiscFolders.HoldsClip(appPath))
-            return (null, DiscClipReason(copy.AppPath));
-
-        // Within the root whose quarantine takes it alone, as the move itself goes (ADR 0030): a copy a folder link leads to
-        // in another allowed root is that root's, and a Restore, which reaches back through this one, could never put it back.
-        var described = await files.DescribeAsync(copy.AppPath, [root.Text], cancellationToken);
-        switch (described)
+        // MAM-40 — the half a removed copy is checked by too (QuarantineCopyCheck); the sentences are the mover's own.
+        var look = await QuarantineCopyCheck.LookAsync(files, copy.AppPath, copy.DeviceId, copy.Inode, copy.SizeBytes, copy.ModifiedUtc, gate, roots, cancellationToken);
+        if (look.Stop is { } stop)
         {
-            case { Status: FileInventoryStatus.NotFound }:
-                return (null, GoneReason(copy.AppPath));
-            case { Status: FileInventoryStatus.Found, Value: { } fresh }
-                when fresh.DeviceId == copy.DeviceId && fresh.Inode == copy.Inode && fresh.SizeBytes == copy.SizeBytes && fresh.ModifiedUtc == copy.ModifiedUtc:
-                break;
-            case { Status: FileInventoryStatus.Found }:
-                return (null, ChangedReason(copy.AppPath));
-            default:
-                return (null, NotReadReason(copy.AppPath, described.Error));
+            return (null, stop switch
+            {
+                QuarantineCopyStop.OutsideMediaFolders => OutsideMediaFoldersReason(copy.AppPath),
+                QuarantineCopyStop.NotTicked => NotTickedReason(copy.AppPath),
+                QuarantineCopyStop.DiscClip => DiscClipReason(copy.AppPath),
+                QuarantineCopyStop.Gone => GoneReason(copy.AppPath),
+                QuarantineCopyStop.Changed => ChangedReason(copy.AppPath),
+                _ => NotReadReason(copy.AppPath, look.Error),
+            });
         }
+
+        var appPath = look.AppPath!;
 
         // Never the new file itself, by its path or its identity: moving it would take the replacement away.
         if (newFiles.Any(file => (file.AppPath is { } newPath && NormalizedPath.TryParse(newPath, out var parsed, out _) && parsed.IsSameAs(appPath))
@@ -227,7 +189,7 @@ public sealed partial class ReplacementQuarantiner
         if (pair is not { AppPath: not null } || await ReplacementNewFileCheck.ChangedAsync(files, pair, gate.AllowedRoots, cancellationToken) is not null)
             return (null, PairChangedReason(copy.AppPath));
 
-        return (new CheckedCopy(copy, appPath, root.Text, root.Path, described.Value!, []), null);
+        return (new CheckedCopy(copy, appPath, look.RootText!, look.Root!, look.Fresh!, []), null);
     }
 
     /// <summary>
@@ -238,7 +200,7 @@ public sealed partial class ReplacementQuarantiner
     /// </summary>
     private async Task<WaitingCompanion> CheckWaitingAsync(ReplacementJobNameEntity name, ReplacementGateState gate, CancellationToken cancellationToken)
     {
-        if (!NormalizedPath.TryParse(name.AppPath, out var appPath, out _) || !StillTicked(name, gate))
+        if (!NormalizedPath.TryParse(name.AppPath, out var appPath, out _) || !QuarantineNameChecks.StillTicked(name, gate))
             return new WaitingCompanion(name, null, ReplacementNameState.Stayed, NotTickedReason(name.AppPath));
 
         var described = await files.DescribeAsync(name.AppPath, [name.AllowedRoot], cancellationToken);
@@ -252,11 +214,6 @@ public sealed partial class ReplacementQuarantiner
             _ => new WaitingCompanion(name, appPath, ReplacementNameState.Stayed, NotReadReason(name.AppPath, described.Error)),
         };
     }
-
-    /// <summary>The holds on <paramref name="path"/> by a torrent's own name — its path, or the file reached through a link
-    /// —; none for a second name, which may move.</summary>
-    private static List<ReplacementHold> HoldsOf(ReplacementHoldings holdings, NormalizedPath path) =>
-        [.. (holdings.Holds.GetValueOrDefault(path) ?? []).Where(hold => !hold.SecondName)];
 
     /// <summary>One ticked copy as check 5 read it now: where it is, the allowed root whose quarantine takes it, its fresh
     /// identity, and the companions that go with it.</summary>

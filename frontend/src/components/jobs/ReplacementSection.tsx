@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { Archive, CircleAlert, Clock, Copy, Loader2, RotateCw, Trash2, TriangleAlert, Undo2, type LucideIcon } from 'lucide-react'
+import { Copy, RotateCw, Trash2, TriangleAlert, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ReplacementCopies } from '@/components/jobs/ReplacementCopies'
 import { ReplacementNewFiles } from '@/components/jobs/ReplacementNewFiles'
@@ -9,7 +9,9 @@ import { useKeepBoth } from '@/components/jobs/use-keep-both'
 import { ActionButton } from '@/components/shared/ActionButton'
 import { Banner } from '@/components/shared/Banner'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
+import { DeleteForGoodMessage } from '@/components/shared/DeleteForGoodMessage'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { QuarantineNameRow } from '@/components/shared/QuarantineNameRow'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { useAuthStore } from '@/lib/auth-store'
 import { isReplacementBeingChecked } from '@/lib/download-jobs'
@@ -28,14 +30,13 @@ import type {
   ReplacementDetails,
   ReplacementJobState,
   ReplacementName,
-  ReplacementNameState,
 } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
-import { cn, getApiErrorMessage, retryCanHelp } from '@/lib/utils'
+import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the heading row, the actions, the table and its states
-import '@/styles/library.css' // .library-source-status, .library-source-warning — where each name is, why one stayed
+import '@/styles/library.css' // .library-source-warning — why Restore, Delete for good or Retry is held
 import '@/styles/search.css' // .search-details-heading — the heading of the files the move planned
-import '@/styles/jobs.css' // .jobs-* — the heading, the paths that break anywhere, the sizes that don't, the confirmation's list
+import '@/styles/jobs.css' // .jobs-section, -section-title — the section and its heading
 
 interface ReplacementSectionProps {
   /** The job the page shows: its release names Keep both's confirmation, its client the message. */
@@ -49,25 +50,6 @@ interface ReplacementSectionProps {
   /** An action was refused or failed: the page shows `message` in its error banner. */
   onError: (message: string) => void
 }
-
-/** Each name state's icon; Moving, Restoring and Deleting spin, as work under way. */
-const NAME_ICONS: Record<ReplacementNameState, LucideIcon> = {
-  Planned: Clock,
-  Moving: Loader2,
-  Quarantined: Archive,
-  Stayed: TriangleAlert,
-  Restoring: Loader2,
-  Restored: Undo2,
-  Deleting: Loader2,
-  Deleted: Trash2,
-  Lost: TriangleAlert,
-}
-
-/** The name states worded as a warning: the name isn't where the replacement meant it to be. */
-const WARNING_STATES: ReadonlySet<ReplacementNameState> = new Set<ReplacementNameState>(['Stayed', 'Lost'])
-
-/** The name states that spin. */
-const UNDER_WAY_STATES: ReadonlySet<ReplacementNameState> = new Set<ReplacementNameState>(['Moving', 'Restoring', 'Deleting'])
 
 /**
  * The replacement states that still lead to the move: its download or the check of its new file
@@ -345,82 +327,10 @@ function OldCopies({ details }: { details: ReplacementDetails }) {
             </tr>
           </thead>
           <tbody>
-            {details.names.map((name) => <NameRow key={name.id} name={name} />)}
+            {details.names.map((name) => <QuarantineNameRow key={name.id} name={name} pathLabel={t('oldCopies.columns.path')} />)}
           </tbody>
         </table>
       </div>
     </section>
-  )
-}
-
-/**
- * One name: a table row on a wide screen, a card on a phone. Where it was, with its place in the
- * quarantine under it — where it went, or would go —, its size, and where it is now; the server's
- * sentence under that when it stayed, wasn't put back or deleted, or was lost.
- */
-function NameRow({ name }: { name: ReplacementName }) {
-  const { t } = useTranslation('jobs')
-  const Icon = NAME_ICONS[name.state]
-  const warning = WARNING_STATES.has(name.state)
-
-  return (
-    <tr>
-      <td data-label={t('oldCopies.columns.path')} className="jobs-stacked-cell">
-        <span className="jobs-name-paths">
-          <span className="jobs-file-path">{name.originalPath}</span>
-          <span className="ui-hint">
-            {t('oldCopies.quarantinePath')}{' '}
-            <span className="jobs-file-path">{name.quarantinePath}</span>
-          </span>
-        </span>
-      </td>
-      <td data-label={t('oldCopies.columns.size')} className="jobs-size">{formatFileSize(name.sizeBytes)}</td>
-      <td data-label={t('oldCopies.columns.where')} className="jobs-stacked-cell">
-        <div className="jobs-status">
-          <p className={warning ? 'library-source-warning' : 'library-source-status'}>
-            <Icon className={cn('h-3.5 w-3.5', UNDER_WAY_STATES.has(name.state) && 'animate-spin')} aria-hidden="true" />
-            <span>{t(`oldCopies.state.${name.state}`)}</span>
-          </p>
-          {name.problem !== null && (
-            <p className="library-source-warning">
-              <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{name.problem}</span>
-            </p>
-          )}
-          {name.otherNames && <p className="ui-hint">{t('oldCopies.otherNames')}</p>}
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-// ── Delete for good's confirmation ──
-
-/**
- * Every name Delete for good deletes, where it was and its size, then the room it frees as the
- * server worked it out — a name with another name (a hardlink) frees nothing, and the message says
- * how many have one. The list is left-aligned and its paths break anywhere: the dialog is narrow,
- * and centres its text on a phone.
- */
-function DeleteForGoodMessage({ names, freesBytes }: { names: ReplacementName[]; freesBytes: number }) {
-  const { t } = useTranslation('jobs')
-  const otherNames = names.filter((name) => name.otherNames).length
-
-  return (
-    <>
-      <p>{t('oldCopies.deleteForGood.lead', { count: names.length, value: formatNumber(names.length) })}</p>
-      <ul className="jobs-quarantine-list">
-        {names.map((name) => (
-          <li key={name.id}>
-            <span className="jobs-file-path">{name.originalPath}</span>
-            <span className="jobs-quarantine-size">{formatFileSize(name.sizeBytes)}</span>
-          </li>
-        ))}
-      </ul>
-      <p>{t('oldCopies.deleteForGood.frees', { size: formatFileSize(freesBytes) })}</p>
-      {otherNames > 0 && (
-        <p>{t('oldCopies.deleteForGood.otherNames', { count: otherNames, value: formatNumber(otherNames) })}</p>
-      )}
-    </>
   )
 }

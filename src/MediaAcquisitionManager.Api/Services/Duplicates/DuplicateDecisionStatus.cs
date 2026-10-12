@@ -9,7 +9,7 @@ public enum DuplicateDecisionStatus
     /// <summary>No group has the key now, or none could have it; nothing changed.</summary>
     NotFound = 2,
 
-    /// <summary>The decision is missing or not one, or the group is not a possible match, which the error names; nothing
-    /// changed.</summary>
+    /// <summary>The decision is missing or not one, or the group's class never takes it (MAM-40: copies are only kept,
+    /// one file's names never decided), which the error names; nothing changed.</summary>
     Invalid = 3,
 }

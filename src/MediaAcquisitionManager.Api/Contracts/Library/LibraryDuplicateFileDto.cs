@@ -14,6 +14,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Editions">The editions its file name and its versions' names say it is.</param>
 /// <param name="Works">The library works holding it, each through a version, in title order; none for a name no
 /// library reported.</param>
+/// <param name="Removal">MAM-40 — whether Remove this copy may take it into the quarantine, and why not; <c>null</c> for a
+/// group of one file's names or a possible match, which offers no removal.</param>
 public sealed record LibraryDuplicateFileDto(
     LibraryFileDto File,
     long? ReadSizeBytes,
@@ -22,4 +24,5 @@ public sealed record LibraryDuplicateFileDto(
     int? LinkCount,
     string? Sha256,
     IReadOnlyList<MediaEdition> Editions,
-    IReadOnlyList<LibraryDuplicateWorkDto> Works);
+    IReadOnlyList<LibraryDuplicateWorkDto> Works,
+    CopyRemovalVerdictDto? Removal = null);

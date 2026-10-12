@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DuplicateGroupCard } from '@/components/duplicates/DuplicateGroupCard'
+import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import type { LibraryDuplicateGroup } from '@/lib/types'
 import { aliensSha256, byteIdenticalGroupOf, daybreakFileName, duplicateFileOf, libraryFileOf, sameFileGroup, sameWorkGroup } from '@/test/duplicates'
 import { windowIs } from '@/test/match-media'
@@ -16,14 +17,17 @@ function renderCard(group: LibraryDuplicateGroup) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <DuplicateGroupCard group={group} isOwner onLeft={() => {}} />
+      <ConfirmProvider>
+        <DuplicateGroupCard group={group} isOwner onLeft={() => {}} />
+      </ConfirmProvider>
     </QueryClientProvider>,
   )
   return userEvent.setup()
 }
 
-/** The rows of the group's files, which open them. */
-const fileRows = () => within(screen.getByRole('list', { name: 'Files' })).getAllByRole('button')
+/** The rows of the group's files, which open them: not the buttons an open row holds (MAM-40's Remove this copy). */
+const fileRows = () =>
+  within(screen.getByRole('list', { name: 'Files' })).getAllByRole('button').filter((button) => button.hasAttribute('aria-expanded'))
 
 /** The facts of the open row, as label and value pairs. */
 function openFacts() {

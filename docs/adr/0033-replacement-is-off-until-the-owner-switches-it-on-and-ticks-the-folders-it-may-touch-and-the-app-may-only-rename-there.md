@@ -467,3 +467,63 @@ pin it, each Linux test reading the owner and the process's ids another way than
 test (coreutils' `stat` and `/proc/self/status`); `MediaFoldersPage.test.tsx` pins each sentence,
 the overflow id, a folder without the ids, the plain digits and a path with "&" and quotes; and
 `tools/check-image-user.sh` the image (ADR 0036).
+
+## The switch and the ticks also gate removing a copy on the Duplicates page (added 0.3.0, MAM-40)
+
+**Remove this copy on the Duplicates page, and Restore and Delete for good of what it removed, stand
+behind this ADR's gates and no others: the same master switch, the same per-folder ticks, the
+read-write mount and the app running as the media folders' owner (`PUID` and `PGID`), and the
+owner's alone by where their routes live ([ADR
+0037](0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md),
+Vasyl's decisions of 2026-10-12).** Turning replacement on turns removing on; there is nothing more
+to turn on. The Decision's "only the owner schedules, retries, resolves, restores and deletes for
+good" now also covers removing a copy, and its Anti-consequence's "the copies the owner picks"
+includes the one he removes.
+
+**Read fresh, before each write.** The Duplicates list's verdict on each file and the Remove request
+read the gates through `IReplacementGates`, never cached: switched off, every file says "Removing
+copies is switched off. Turn on “Replace copies after verification” under Media folders."; a file
+outside every ticked folder "This file's library folder isn't ticked for replacement under Media
+folders." Under each name's intent, with the write lock a Save takes, the gates are read again, so a
+switch turned off or a folder unticked between two names stops the removal for review with how many
+names are in the quarantine ("Replacing and removing copies was switched off while this copy was
+moving: …"). Restore reads the switch and each name's tick, Delete for good the switch alone, as the
+quarantine belongs to the allowed folder; switched off, each is 409 with nothing written —
+"Replacing and removing copies is switched off on the Media folders page, so nothing can be put
+back. Turn on “Replace copies after verification”, then press Restore again." and its Delete for
+good twin —, and a switch turned off between two names stops it for review. `GET
+/api/replacements/removals` answers `switchedOff`, so while it is off **Removed copies** disables
+both with "Replacing and removing copies is switched off on the Media folders page: nothing is put
+back or deleted while it is off." and says above the list "Replacing and removing copies is switched
+off: nothing is put back or deleted while it is off. Switch it on in Media folders.", linking to the
+page, as a replacement's page does. Keep both on the Duplicates page writes a decision alone and
+works whatever the switch says, as MAM-27's Keep both does.
+
+**The switch's hint** on the Media folders page now reads "Off by default. When on, the Download
+dialog offers Replace after verification for copies in the folders ticked below, and the Duplicates
+page offers Remove this copy for files in them, to you alone. Once the new file is verified, the old
+copy moves into its media folder's quarantine, as a removed copy does at once, and stays there until
+you restore it or delete it for good. Moving needs the media folders mounted read-write and the app
+running as their owner, set with PUID and PGID." Its label, **Replace copies after verification**,
+stays.
+
+**The owner's alone.** `CopyRemovalsController` lives in `Controllers/Replacements`, so
+`ReplacementsAreOwnerOnlyConvention` covers its four actions, the list of removals included: a member
+gets 403 "Only the installation owner can do this." before anything is read or bound.
+`ReplacementsAreOwnerOnlyHttpTests` discovers `GET` and `POST api/replacements/removals`,
+`POST …/removals/{id}/restore` and `POST …/removals/{id}/delete-for-good` — twelve routes in all —, and
+its two sweeps send each `{id}` a real removal resting in the quarantine, which Restore and Delete for
+good would write to, finding every removal row as it was; `ControllerAccessDeclarationTests` lists
+the four actions. A member sees **Remove this copy** and **Keep both** disabled with "Only the owner
+keeps or removes copies." and no **Removed copies** tab. A removal is the installation's, as its
+library is, not its maker's: the owner acts on every one, and another's is no bare 404 as another's
+replacement is.
+
+`CopyRemovalChecksHttpTests.Remove_while_switched_off_is_409_as_the_list_says`,
+`CopyRemovalChecksHttpTests.Remove_of_a_file_in_an_unticked_folder_is_409_as_the_list_says`,
+`CopyRemovalChecksHttpTests.Remove_of_a_file_outside_the_media_folders_is_409_as_the_list_says`,
+`CopyRemovalActionsHttpTests.Restore_while_switched_off_is_409_and_writes_nothing`,
+`CopyRemovalListHttpTests.List_says_whether_replacing_and_removing_copies_is_switched_off_now`,
+`ReplacementsAreOwnerOnlyHttpTests.Discovery_finds_every_replacement_endpoint_of_today`,
+`ReplacementsAreOwnerOnlyHttpTests.Every_replacement_endpoint_as_a_member_on_the_owners_real_stopped_replacement_is_403_and_changes_nothing`,
+`ControllerAccessDeclarationTests` and `MediaFoldersPage.test.tsx` (the hint) pin it.

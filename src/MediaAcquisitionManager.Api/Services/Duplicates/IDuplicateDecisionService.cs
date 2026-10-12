@@ -8,26 +8,29 @@ namespace MediaAcquisitionManager.Api.Services.Duplicates;
 /// </summary>
 /// <remarks>
 /// A decision is a note on the list and nothing more: it never makes the works one, never changes whether the group
-/// needs review, never removes, moves or links anything. Only a possible match is decided — the other classes are one
-/// by the files' identity, bytes or registry ids — and only the group the key names <em>now</em>: a group whose members
-/// changed has another key, so it is asked about again.
+/// needs review, never removes, moves or links anything. A possible match is confirmed or dismissed; MAM-40 — copies of
+/// one work and byte-identical copies are only kept as they are (Keep both, stored as dismissed with the members kept),
+/// and one file's names are never decided. Only the group the key names <em>now</em> is decided: a group whose members
+/// changed has another key, so it is asked about again — and kept copies a new file has joined, whose key stays, are
+/// asked about again too (<c>DuplicateDecisionRules.IsInForce</c>).
 /// </remarks>
 public interface IDuplicateDecisionService
 {
     /// <summary>
-    /// Decides the possible match <paramref name="key"/> names now as <paramref name="decision"/> (a
+    /// Decides the group <paramref name="key"/> names now as <paramref name="decision"/> (a
     /// <c>DuplicateMatchDecision</c> by name, in any letter case), by <paramref name="ownerUserId"/>, recording
-    /// <c>DuplicateMatchConfirmed</c> or <c>DuplicateMatchDismissed</c>. <see cref="DuplicateDecisionStatus.Invalid"/> for
-    /// a decision missing or not one (checked first), <see cref="DuplicateDecisionStatus.NotFound"/> for a key no group
-    /// has, <see cref="DuplicateDecisionStatus.Invalid"/> for a group of another class.
+    /// <c>DuplicateMatchConfirmed</c> or <c>DuplicateMatchDismissed</c> for a possible match, <c>DuplicateCopiesKept</c>
+    /// for kept copies. <see cref="DuplicateDecisionStatus.Invalid"/> for a decision missing or not one (checked first),
+    /// <see cref="DuplicateDecisionStatus.NotFound"/> for a key no group has, <see cref="DuplicateDecisionStatus.Invalid"/>
+    /// for a class that never takes the decision.
     /// </summary>
     Task<DuplicateDecisionResult> DecideAsync(string key, string? decision, Guid ownerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Forgets the decision on the possible match <paramref name="key"/> names now, by <paramref name="ownerUserId"/>,
-    /// recording <c>DuplicateMatchDecisionUndone</c>; <see cref="DuplicateDecisionStatus.Done"/> also when there was none.
-    /// <see cref="DuplicateDecisionStatus.NotFound"/> and <see cref="DuplicateDecisionStatus.Invalid"/> as for
-    /// <see cref="DecideAsync"/>.
+    /// Forgets the decision on the group <paramref name="key"/> names now, by <paramref name="ownerUserId"/>, recording
+    /// <c>DuplicateMatchDecisionUndone</c> for a possible match, <c>DuplicateCopiesKeptUndone</c> for kept copies;
+    /// <see cref="DuplicateDecisionStatus.Done"/> also when there was none in force. <see cref="DuplicateDecisionStatus.NotFound"/>
+    /// as for <see cref="DecideAsync"/>, <see cref="DuplicateDecisionStatus.Invalid"/> for one file's names.
     /// </summary>
     Task<DuplicateDecisionResult> UndoAsync(string key, Guid ownerUserId, CancellationToken cancellationToken = default);
 }

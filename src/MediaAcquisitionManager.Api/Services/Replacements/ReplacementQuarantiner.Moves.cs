@@ -213,7 +213,7 @@ public sealed partial class ReplacementQuarantiner
             // Once its intent is committed the rename is decided: never cancelled. Inside the roots read under the intent's
             // lock, so a Save of the Media folders can't have taken this one's away in between.
             var result = await quarantine.MoveIntoQuarantineAsync(
-                name.AppPath, ExpectedOf(name), name.QuarantinePath, gate!.AllowedRoots, CancellationToken.None);
+                name.AppPath, QuarantineNameChecks.FactsOf(name), name.QuarantinePath, gate!.AllowedRoots, CancellationToken.None);
             if (result is { Status: FileQuarantineStatus.Done, Value: { } facts })
             {
                 await RecordMovedAsync(name, facts, time.GetUtcNow().UtcDateTime);
@@ -270,7 +270,7 @@ public sealed partial class ReplacementQuarantiner
         }
 
         var gate = await gates.ReadAsync(CancellationToken.None);
-        if (!gate.IsEnabled || !StillTicked(name, gate))
+        if (!gate.IsEnabled || !QuarantineNameChecks.StillTicked(name, gate))
         {
             db.ChangeTracker.Clear();
             return (gate.IsEnabled ? NameIntent.LeftTicked : NameIntent.SwitchedOff, gate);
@@ -406,27 +406,8 @@ public sealed partial class ReplacementQuarantiner
             .Where(name => name.ReplacementJobId == replacementJobId)
             .Select(name => name.State)
             .ToListAsync(cancellationToken);
-        return MovedOf(states);
+        return QuarantineNameCounts.Moved(states);
     }
-
-    /// <summary>The quarantined names among <paramref name="states"/>, of the names a move planned (see
-    /// <see cref="CountMovedAsync"/>).</summary>
-    private static (int Count, int Total) MovedOf(IReadOnlyList<ReplacementNameState> states) =>
-        (states.Count(state => state == ReplacementNameState.Quarantined),
-            states.Count(state => state is not (ReplacementNameState.Restored or ReplacementNameState.Deleted)));
-
-    /// <summary>Whether <paramref name="name"/> is still in a ticked folder inside the allowed root whose quarantine takes
-    /// it, as <paramref name="gate"/> reads now.</summary>
-    private static bool StillTicked(ReplacementJobNameEntity name, ReplacementGateState gate) =>
-        NormalizedPath.TryParse(name.AppPath, out var appPath, out _)
-        && NormalizedPath.TryParse(name.AllowedRoot, out var root, out _)
-        && gate.AllowedRoots.Any(allowed => NormalizedPath.TryParse(allowed, out var path, out _) && path.IsSameAs(root))
-        && gate.IsInTickedFolder(appPath);
-
-    /// <summary>What the rename expects of <paramref name="name"/>: the identity, size and modification time the plan read
-    /// right before it.</summary>
-    private static FileFacts ExpectedOf(ReplacementJobNameEntity name) =>
-        new(name.SizeBytes, name.ModifiedUtc, name.DeviceId, name.Inode, name.LinkCount);
 
     /// <summary>What a name's intent came to: written, or not — the job moved on, or the gates read under its lock closed
     /// on it.</summary>

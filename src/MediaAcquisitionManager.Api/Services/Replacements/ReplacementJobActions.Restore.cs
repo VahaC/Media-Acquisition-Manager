@@ -1,8 +1,5 @@
-using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Core.Paths;
-using MediaAcquisitionManager.Core.Replacements;
 using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.Api.Services.Replacements;
@@ -76,69 +73,21 @@ public sealed partial class ReplacementJobActions
         if (!gate.IsEnabled)
             return RestoreSwitchedOffError;
 
-        foreach (var row in names)
-        {
-            if (RootsOf(row, gate) is not { } roots)
-                return $"{ReplacementText.Quote(QuarantineOf(row))} is no longer inside the Media folders, so nothing was put back.";
-            if (!IsInTickedFolder(row, gate))
-                return $"{ReplacementText.Quote(row.AppPath)} is no longer in a folder ticked for replacement, so nothing was put back.";
-            if (await ChangedInQuarantineAsync(row, roots, cancellationToken))
-                return $"{ReplacementText.Quote(row.QuarantinePath)} changed in the quarantine since it was moved there, so nothing was put back.";
-
-            // The folder the name goes back into, listed through the write contract, which never makes it again; and
-            // anything at the old path among its names — a file, a folder, a link, one leading nowhere too, which a look
-            // following it would find nothing at — is something a rename back would have to go around.
-            var folder = await quarantine.ListFolderNamesAsync(row.AppPath, roots, cancellationToken);
-            if (folder.Status == FileQuarantineStatus.NotFound)
-                return $"The folder {ReplacementText.Quote(FolderOf(row.AppPath))} is gone, so nothing was put back; the app creates no folder.";
-            if (folder is not { Status: FileQuarantineStatus.Done, Value: { } namesThere })
-                return $"The app couldn't look in the folder of {ReplacementText.Quote(row.AppPath)}: {folder.Error ?? NoReasonError} Nothing was put back.";
-            if (namesThere.Any(name => IsNameOf(row.AppPath, name)))
-                return $"{ReplacementText.Quote(row.AppPath)} already holds a file, so nothing was put back.";
-        }
-
-        return null;
+        // MAM-40 — name by name as a removal's Restore checks them (QuarantineNameChecks).
+        return await QuarantineNameChecks.RestoreRefusalAsync(files, quarantine, names, gate, cancellationToken);
     }
 
     /// <summary>Restore as the write loop runs it: <c>Restoring</c> to <c>Restored</c>, the library told of every name
-    /// that came back, each name's tick read again before it moves.</summary>
+    /// that came back, each name's tick read again before it moves (<see cref="QuarantineNameWrites.Restore"/>).</summary>
     private OwnerWrite RestoreWrite() => new(
         ReplacementJobState.Restoring,
         ReplacementJobState.Restored,
-        ReplacementNameState.Restoring,
-        ReplacementNameState.Restored,
         AuditAction.ReplacementRestoreStarted,
-        AuditAction.ReplacementNameRestoring,
-        AuditAction.ReplacementNameRestored,
-        AuditAction.ReplacementNameNotRestored,
         AuditAction.ReplacementRestored,
-        TellsLibrary: true,
-        Closed: (row, gate) => IsInTickedFolder(row, gate)
-            ? null
-            : $"{ReplacementText.Quote(row.AppPath)} is no longer in a folder ticked for replacement.",
-        WriteAsync: (row, roots) => quarantine.RestoreFromQuarantineAsync(row.QuarantinePath, FactsOf(row), row.AppPath, roots, CancellationToken.None),
-        Stamp: (row, now) => row.RestoredUtc = now,
-        SwappedProblem: row =>
-            $"A different file now sits at {ReplacementText.Quote(row.AppPath)}, as another file took the name's place in the quarantine just before the "
-            + "rename back, and the old copy's own file wasn't found.",
-        StopReason: (row, error, done, total) =>
-            ReplacementNameTally.AfterSentence($"{NameOf(row)} couldn't be put back: {error}", ReplacementNameTally.BackWhereTheyWere(done, total)));
-
-    /// <summary>Whether <paramref name="row"/>'s old path lies in a ticked folder now (ADR 0033): the gate the move went
-    /// through, which Restore goes through again.</summary>
-    private static bool IsInTickedFolder(ReplacementJobNameEntity row, ReplacementGateState gate) =>
-        NormalizedPath.TryParse(row.AppPath, out var path, out _) && gate.IsInTickedFolder(path);
-
-    /// <summary>Whether <paramref name="name"/>, one name of a folder's listing, is <paramref name="appPath"/>'s own, by the
-    /// path's own letter-case rules.</summary>
-    private static bool IsNameOf(string appPath, string name) =>
-        NormalizedPath.TryParse(appPath, out var path, out _)
-        && path.Segments.Count > 0
-        && (path with { Segments = [.. path.Segments.SkipLast(1)] }).Append([name]).IsSameAs(path);
-
-    /// <summary>The folder holding <paramref name="appPath"/>.</summary>
-    private static string FolderOf(string appPath) =>
-        NormalizedPath.TryParse(appPath, out var path, out _) && path.Segments.Count > 0
-            ? (path with { Segments = [.. path.Segments.SkipLast(1)] }).ToString()
-            : appPath;
+        QuarantineNameWrites.Restore(
+            quarantine,
+            AuditAction.ReplacementNameRestoring,
+            AuditAction.ReplacementNameRestored,
+            AuditAction.ReplacementNameNotRestored,
+            SwitchedOffMidwayError));
 }

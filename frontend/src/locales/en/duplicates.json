@@ -1,14 +1,15 @@
 {
   "title": "Duplicates",
-  "lead": "The files in your library that are one file under several names, exact copies, other copies of one movie or episode, or possible matches, each group with the evidence behind it. Nothing here removes, moves or renames a file: confirming a possible match only records that the owner checked it.",
+  "lead": "The files in your library that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, each group with the evidence behind it. Removing a copy moves it into the quarantine folder of its media folder, where you can restore it or delete it for good under Removed copies; keeping copies as they are, or confirming a possible match, removes nothing.",
   "tabs": {
     "label": "Kinds of duplicate",
     "All": "All",
-    "SameFile": "Same file",
-    "ByteIdentical": "Byte-identical",
-    "SameWork": "Same work",
-    "Possible": "Possible",
-    "Dismissed": "Dismissed"
+    "SameFile": "One file, two names",
+    "ByteIdentical": "Exact copies",
+    "SameWork": "Same film, different files",
+    "Possible": "Maybe the same film",
+    "Dismissed": "Kept as they are",
+    "Removed": "Removed copies"
   },
   "refreshFailed": "Refresh failed, showing the last loaded groups.",
   "loadFailed": "Could not load the duplicates.",
@@ -18,18 +19,34 @@
     "ByteIdentical": "No two files have the same bytes, as far as the app has hashed them.",
     "SameWork": "No movie or episode has two copies.",
     "Possible": "No possible match is left to check.",
-    "Dismissed": "No possible match is dismissed."
+    "Dismissed": "Nothing is kept as it is: no group's copies were kept and no possible match was dismissed.",
+    "Removed": "No removed copy is in the quarantine. A copy you remove on its group's card waits here until you restore it or delete it for good."
   },
   "left": {
-    "dismissed": "“{{name}}” is dismissed: it is listed under Dismissed now.",
+    "dismissed": "“{{name}}” is dismissed: it is listed under Kept as they are now.",
+    "kept": "Kept the copies of “{{name}}” as they are: the group is listed under Kept as they are now.",
     "restored": "“{{name}}” is back among the possible matches.",
-    "dismissAgain": "Dismiss again"
+    "restoredCopies": "“{{name}}” is back among the duplicates.",
+    "dismissAgain": "Dismiss again",
+    "keepAgain": "Keep again",
+    "removed": "Removed “{{file}}”: it waits in the quarantine, under Removed copies, until you restore it or delete it for good.",
+    "removedReview": "Removed “{{file}}”, but it needs your review under Removed copies.",
+    "removedReason": "Removed “{{file}}”, but it needs your review under Removed copies: {{reason}}",
+    "openRemoved": "Removed copies"
   },
   "class": {
-    "SameFile": "Same file",
-    "ByteIdentical": "Byte-identical",
-    "SameWork": "Same work",
-    "Possible": "Possible match"
+    "SameFile": "One file, two names",
+    "ByteIdentical": "Exact copies",
+    "SameWork": "Same film, different files",
+    "SameWorkEpisode": "Same episode, different files",
+    "Possible": "Maybe the same film"
+  },
+  "explain": {
+    "SameFile": "One file reached by two names or more (hardlinks): it takes its room once, so there is nothing to keep or remove.",
+    "ByteIdentical": "These files hold exactly the same bytes. Remove a copy you don't need, or keep them as they are.",
+    "SameWork": "Different files of the same film, by its ids: another size, quality or source. Compare them, then remove a copy you don't need, or keep them as they are.",
+    "SameWorkEpisode": "Different files of the same episode, by its ids: another size or quality. Compare them, then remove a copy you don't need, or keep them as they are.",
+    "Possible": "Maybe the same film: the titles and years match, but no ids say so. Confirm it if they are one film, or dismiss it if they aren't; nothing is removed either way."
   },
   "group": {
     "about": "About this group",
@@ -44,10 +61,14 @@
     "ConfirmedBy": "Confirmed by {{name}} on {{date}}. It stays a possible match: nothing is removed because of it.",
     "ConfirmedOn": "Confirmed on {{date}}. It stays a possible match: nothing is removed because of it.",
     "DismissedBy": "Dismissed by {{name}} on {{date}}.",
-    "DismissedOn": "Dismissed on {{date}}."
+    "DismissedOn": "Dismissed on {{date}}.",
+    "Kept": "Kept as they are",
+    "KeptBy": "Kept as they are by {{name}} on {{date}}. A new copy joining the group brings it back to the list.",
+    "KeptOn": "Kept as they are on {{date}}. A new copy joining the group brings it back to the list."
   },
   "actions": {
     "label": "Decide about this possible match",
+    "labelCopies": "Keep or remove these copies",
     "confirm": "Confirm",
     "confirmTitle": "These are one work: keep it as checked, with nothing removed",
     "confirming": "Confirming…",
@@ -57,11 +78,31 @@
     "undo": "Undo",
     "undoTitle": "Forget the decision, so the group asks again",
     "undoing": "Undoing…",
+    "undoKeptTitle": "Forget the decision, so the group is back among the duplicates",
+    "keepBoth": "Keep both",
+    "keepAll": "Keep all",
+    "keepTitle": "Keep every copy as it is: the group moves to Kept as they are until a new copy joins it",
+    "keeping": "Keeping…",
+    "remove": "Remove this copy",
+    "removeTitle": "Move this file into the quarantine of its media folder",
+    "removing": "Removing…",
+    "cantRemove": "This copy can't be removed now.",
     "notOwner": "Only the owner confirms or dismisses a possible match.",
+    "notOwnerCopies": "Only the owner keeps or removes copies.",
     "confirmFailed": "The match couldn't be confirmed.",
     "dismissFailed": "The match couldn't be dismissed.",
     "undoFailed": "The decision couldn't be undone.",
+    "keepFailed": "The copies couldn't be kept.",
+    "removeFailed": "The copy couldn't be removed.",
     "changed": "This group has changed since the page loaded: the list shows it again as it is now."
+  },
+  "remove": {
+    "confirmTitle": "Remove “{{name}}”?",
+    "lead": "This file moves into the quarantine folder at the top of its media folder, with its subtitles and other files of the same name:",
+    "where": "You can restore it or delete it for good under Removed copies on this page.",
+    "stays_one": "This file stays:",
+    "stays_other": "These files stay:",
+    "confirm": "Remove this copy"
   },
   "space": {
     "files_one": "{{value}} file · {{size}}",
@@ -118,7 +159,8 @@
     "noEditions": "None in its names",
     "heldBy": "Held by",
     "noLibrary": "No library reports this file; the folder scan found it.",
-    "caption": "Size, file, folder and who holds it come from the library or the folder scan, and the editions from the names; the identity and SHA-256 come from the app's own look at the file, every other value from ffprobe."
+    "caption": "Size, file, folder and who holds it come from the library or the folder scan, and the editions from the names; the identity and SHA-256 come from the app's own look at the file, every other value from ffprobe.",
+    "removal": "Removal"
   },
   "holder": {
     "kind": {
@@ -147,5 +189,58 @@
     "Assembly": "Assembly cut",
     "Widescreen": "Widescreen",
     "FullScreen": "Full screen"
+  },
+  "removed": {
+    "room": "The quarantine holds {{size}} of removed copies.",
+    "refreshFailed": "Refresh failed, showing the removed copies as last loaded.",
+    "loadFailed": "Could not load the removed copies.",
+    "columns": {
+      "path": "File"
+    },
+    "facts": {
+      "originalPath": "Was at",
+      "quarantinePath": "In the quarantine",
+      "size": "Size",
+      "removed": "Removed",
+      "state": "Where it is now"
+    },
+    "removedBy": "{{date}} by {{name}}",
+    "state": {
+      "Moving": "Being moved into the quarantine…",
+      "Quarantined": "In the quarantine.",
+      "NeedsReview": "Needs your review.",
+      "Restoring": "Being put back…",
+      "Restored": "Back where it was.",
+      "Deleting": "Being deleted for good…",
+      "Deleted": "Deleted for good.",
+      "NotMoved": "Not moved: it stayed where it was."
+    },
+    "files": "Its files",
+    "actionsLabel": "Restore or delete this copy",
+    "unavailable": "Not now: something of it is still under way, or nothing of it is in the quarantine to act on.",
+    "switchedOff": "Replacing and removing copies is switched off on the Media folders page: nothing is put back or deleted while it is off.",
+    "switchedOffLinked": "Replacing and removing copies is switched off: nothing is put back or deleted while it is off. Switch it on in <page>Media folders</page>.",
+    "gone": "This removal has ended meanwhile: the list shows the removed copies as they are now.",
+    "failedOf": "“{{name}}”: {{error}}",
+    "restore": {
+      "action": "Restore",
+      "pending": "Restoring…",
+      "title": "Put this copy back where it was",
+      "confirmTitle": "Put “{{name}}” back?",
+      "message_one": "This file goes back where it was, never over a file there now, and no folder is created for it. Jellyfin lists it again and identifies it afresh, so a TMDb link you set by hand may need Identify again:",
+      "message_other": "These {{value}} files go back where they were, never over a file there now, and no folder is created for them. Jellyfin lists the copy again and identifies it afresh, so a TMDb link you set by hand may need Identify again:",
+      "confirm": "Restore",
+      "done": "Restored “{{name}}”: it is back where it was.",
+      "failed": "Could not put the copy back. Reload the page and try again."
+    },
+    "deleteForGood": {
+      "action": "Delete for good",
+      "pending": "Deleting…",
+      "title": "Delete this copy in the quarantine for good",
+      "confirmTitle": "Delete “{{name}}” for good?",
+      "confirm": "Delete for good",
+      "done": "Deleted “{{name}}” for good.",
+      "failed": "Could not delete the copy. Reload the page and try again."
+    }
   }
 }

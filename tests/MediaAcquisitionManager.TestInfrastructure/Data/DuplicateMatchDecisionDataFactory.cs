@@ -8,7 +8,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 public sealed class DuplicateMatchDecisionDataFactory(ApplicationDbContext db, TimeProvider time) : IDuplicateMatchDecisionDataFactory
 {
     public async Task<DuplicateMatchDecisionEntity> Create(
-        string groupKey, DuplicateMatchDecision decision, Guid? decidedByUserId = null, string decidedByUserName = "owner")
+        string groupKey, DuplicateMatchDecision decision, Guid? decidedByUserId = null, string decidedByUserName = "owner", string? keptMembers = null)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var row = new DuplicateMatchDecisionEntity
@@ -18,6 +18,7 @@ public sealed class DuplicateMatchDecisionDataFactory(ApplicationDbContext db, T
             DecidedByUserId = decidedByUserId,
             DecidedByUserName = decidedByUserName,
             DecidedUtc = now,
+            KeptMembers = keptMembers,
             CreatedUtc = now,
         };
 

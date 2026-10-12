@@ -21,7 +21,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 /// <param name="NewFiles">Their new files and the new files' ids.</param>
 /// <param name="Downloads">Every download job.</param>
 /// <param name="AuditEvents">How many audit rows there are.</param>
-public sealed record ReplacementRowsSnapshot(string Jobs, string Copies, string Works, string Names, string NewFiles, string Downloads, int AuditEvents)
+/// <param name="Removals">MAM-40 — the owner's removals of a duplicate copy and their names.</param>
+public sealed record ReplacementRowsSnapshot(
+    string Jobs, string Copies, string Works, string Names, string NewFiles, string Downloads, int AuditEvents, string Removals)
 {
     /// <summary>The rows of <paramref name="factory"/>'s database now, each table's by id.</summary>
     public static async Task<ReplacementRowsSnapshot> TakeAsync(MediaAcquisitionManagerApiFactory factory, CancellationToken cancellationToken = default)
@@ -37,7 +39,9 @@ public sealed record ReplacementRowsSnapshot(string Jobs, string Copies, string 
             Text(await db.ReplacementJobNewFiles.AsNoTracking().ToListAsync(cancellationToken))
                 + "\n" + Text(await db.ReplacementJobNewFileIdentifiers.AsNoTracking().ToListAsync(cancellationToken)),
             Text(await db.DownloadJobs.AsNoTracking().ToListAsync(cancellationToken)),
-            await db.AuditEvents.CountAsync(cancellationToken)));
+            await db.AuditEvents.CountAsync(cancellationToken),
+            Text(await db.CopyRemovals.AsNoTracking().ToListAsync(cancellationToken))
+                + "\n" + Text(await db.CopyRemovalNames.AsNoTracking().ToListAsync(cancellationToken))));
         return snapshot!;
     }
 

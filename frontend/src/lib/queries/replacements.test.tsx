@@ -288,7 +288,7 @@ describe('replacement hooks', () => {
         const { result } = renderWith(client, () => useDeleteReplacementForGood())
         return () => result.current.mutateAsync({ id: REPLACEMENT_ID, names: [alienVideo.id, alienSubtitle.id] })
       }, () => vi.mocked(replacementsApi.deleteForGood).mockResolvedValue(answered)],
-    ])('puts the job %s answered in place, and asks again for the jobs, the replacement and the quarantine room', async (_, hook, answer) => {
+    ])('puts the job %s answered in place, and asks again for the jobs, the replacement, the quarantine room and the duplicates', async (_, hook, answer) => {
       // Arrange
       answer()
       const client = newClient()
@@ -304,6 +304,8 @@ describe('replacement hooks', () => {
         qk.downloads.jobs.all,
         qk.replacements.job(REPLACEMENT_ID),
         qk.settings.allowedRoots,
+        // MAM-40 — a copy put back counts in its group again, and an ended replacement holds no file from Remove.
+        qk.library.duplicatesAll,
       ])
     })
 
@@ -364,12 +366,12 @@ describe('replacement hooks', () => {
         const { result } = renderWith(client, () => useRestoreReplacement())
         return () => result.current.mutateAsync(REPLACEMENT_ID)
       }, () => vi.mocked(replacementsApi.restore).mockRejectedValue(apiError(409, 'Refused.')),
-      [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID), qk.settings.allowedRoots]],
+      [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID), qk.settings.allowedRoots, qk.library.duplicatesAll]],
       ['Delete for good', (client) => {
         const { result } = renderWith(client, () => useDeleteReplacementForGood())
         return () => result.current.mutateAsync({ id: REPLACEMENT_ID, names: [alienVideo.id] })
       }, () => vi.mocked(replacementsApi.deleteForGood).mockRejectedValue(apiError(409, 'Refused.')),
-      [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID), qk.settings.allowedRoots]],
+      [qk.downloads.jobs.all, qk.replacements.job(REPLACEMENT_ID), qk.settings.allowedRoots, qk.library.duplicatesAll]],
       ['Keep both', (client) => {
         const { result } = renderWith(client, () => useCancelReplacement())
         return () => result.current.mutateAsync(REPLACEMENT_ID)

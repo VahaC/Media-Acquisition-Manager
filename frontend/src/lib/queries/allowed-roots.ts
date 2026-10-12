@@ -23,6 +23,8 @@ export const useAllowedRoots = () =>
  * MAM-24 — the save carries the replacement switch and ticks, which decide every reason the Download
  * dialog gives for a copy (switched off, folder not ticked), and the media folders decide which ticks
  * count: every answer about what a release may replace is asked for again.
+ *
+ * MAM-40 — and the Duplicates page: the same switch and ticks decide whether each copy can be removed now.
  */
 export const useUpdateAllowedRoots = () => {
   const queryClient = useQueryClient()
@@ -32,6 +34,7 @@ export const useUpdateAllowedRoots = () => {
       queryClient.invalidateQueries({ queryKey: qk.settings.allowedRoots }),
       queryClient.invalidateQueries({ queryKey: qk.library.sources }),
       queryClient.invalidateQueries({ queryKey: qk.replacements.all }),
+      queryClient.invalidateQueries({ queryKey: qk.library.duplicatesAll }),
     ]),
   })
 }

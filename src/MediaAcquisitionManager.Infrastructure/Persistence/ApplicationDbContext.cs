@@ -142,6 +142,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<ReplacementJobNameEntity> ReplacementJobNames => Set<ReplacementJobNameEntity>();
 
+    public DbSet<CopyRemovalEntity> CopyRemovals => Set<CopyRemovalEntity>();
+
+    public DbSet<CopyRemovalNameEntity> CopyRemovalNames => Set<CopyRemovalNameEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -928,6 +932,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // One decision per group: a second Confirm or Dismiss changes the row. The service reads first; this settles
             // two first decisions racing.
             e.HasIndex(x => x.GroupKey).IsUnique();
+            // MAM-40 — KeptMembers is left without a length on purpose (TEXT): a kept group can hold many names, each a
+            // full path, and a cut list would read as members that were never kept, asking the owner again for nothing.
             // SetNull: the decision outlives the account that made it, like a link's setter; DecidedByUserName keeps who.
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.DecidedByUserId)
@@ -1051,6 +1057,39 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // job's other rows keep theirs (the entity says why), and the job's cascade removes both.
             e.HasOne<ReplacementJobEntity>().WithMany()
                 .HasForeignKey(x => x.ReplacementJobId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MAM-40 — the owner's removals of one copy of a duplicate group into the quarantine (ADR 0030): two new tables, so
+        // the upgrade rebuilds none, and ReplacementJobNames is left as it was — the name columns both share are an
+        // unmapped base class's (QuarantinedNameEntity), not a table of their own.
+        modelBuilder.Entity<CopyRemovalEntity>(e =>
+        {
+            e.Property(x => x.State).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.GroupClass).HasConversion<string>().HasMaxLength(32);
+            // SetNull: the removal outlives the account that made it, as a replacement does; RequestedByUserName keeps who.
+            // No key into PhysicalFiles: a sync replaces those rows, and the removal keeps a snapshot (the entity says why).
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            // "Every removal still open", which the Removed copies tab lists and the quarantine's pass reads for the cut
+            // ones. Partial, so it holds the few still going and never the history; built from the core's list
+            // (CopyRemovalStates.Open), as IX_ReplacementJobs_Followed is, so a state added to the list changes the model
+            // and can't drift from the rule unnoticed.
+            e.HasIndex(x => x.State, "IX_CopyRemovals_Open")
+                .HasFilter($"\"State\" IN ({string.Join(", ", CopyRemovalStates.Open.Select(state => $"'{state}'"))})");
+        });
+
+        modelBuilder.Entity<CopyRemovalNameEntity>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(32);
+            e.Property(x => x.State).HasConversion<string>().HasMaxLength(32);
+            // One name per place in the removal's plan; leading with the removal, so it also serves the foreign key and
+            // "this removal's names in order".
+            e.HasIndex(x => new { x.CopyRemovalId, x.Position }).IsUnique();
+            // Cascade: the names are part of their removal, as a replacement's are of their job.
+            e.HasOne<CopyRemovalEntity>().WithMany()
+                .HasForeignKey(x => x.CopyRemovalId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

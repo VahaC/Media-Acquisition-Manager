@@ -18,6 +18,7 @@ import {
 } from '@/test/allowed-roots'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
+import { byteIdenticalGroupOf, duplicatesPage } from '@/test/duplicates'
 import { sourceOf, sourcesOf } from '@/test/library'
 import { moviesOption } from '@/test/downloads'
 import { optionsUnavailable } from '@/test/replacements'
@@ -251,6 +252,22 @@ describe('MediaFoldersPage', () => {
     expect(client.getQueryState(qk.library.sources)?.isInvalidated).toBe(true)
   })
 
+  it('asks for the Duplicates page\'s groups again after a save, as the switch and the ticks decide which copy can be removed', async () => {
+    // Arrange
+    vi.mocked(allowedRootsApi.update).mockResolvedValue()
+    const { client, user } = renderPage()
+    const groups = qk.library.duplicates({ page: 1, pageSize: 25 })
+    client.setQueryData(groups, duplicatesPage({ page: 1, pageSize: 25 }, [byteIdenticalGroupOf()]))
+    await screen.findByRole('textbox', { name: 'Folder 1' })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    // Assert
+    await screen.findByText('Saved.')
+    expect(client.getQueryState(groups)?.isInvalidated).toBe(true)
+  })
+
   it('shows the API sentence in place of the form to anyone but the owner', async () => {
     // Arrange
     vi.mocked(allowedRootsApi.get).mockRejectedValue(apiError(403, 'Only the installation owner can do this.'))
@@ -347,7 +364,7 @@ describe('MediaFoldersPage', () => {
 
   // MAM-24 — the replacement gates of ADR 0033, saved by the same Save as the folders.
   describe('replacing copies', () => {
-    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.'
+    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, and the Duplicates page offers Remove this copy for files in them, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine, as a removed copy does at once, and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.'
     const outside = 'Outside the Media folders.'
     const outsideTicked = 'Outside the Media folders: this tick has no effect until the folder is inside one.'
     const noLonger = 'No longer a library folder the app knows, so a tick here has no effect. Saved unticked, it leaves this list.'
@@ -942,12 +959,14 @@ describe('MediaFoldersPage', () => {
       expect(document.querySelector('.media-folders-library .library-source-warning')).toBeNull()
     })
 
-    it('lists the room each quarantine takes, with a link to the jobs that restore or delete what it holds', async () => {
+    it('lists the room each quarantine takes and whose names it holds, with links to where they are restored or deleted', async () => {
       // Arrange
-      storedRoots(allowedRootsOf(['/media', '/data'], {
+      storedRoots(allowedRootsOf(['/media', '/data', '/films', '/tv'], {
         quarantines: [
           quarantineOf(),
           quarantineOf({ path: '/data/.mam-quarantine', replacementCount: 1, fileCount: 1, sizeBytes: 1_073_741_824 }),
+          quarantineOf({ path: '/films/.mam-quarantine', replacementCount: 0, removalCount: 1, fileCount: 2, sizeBytes: 2_147_483_648 }),
+          quarantineOf({ path: '/tv/.mam-quarantine', replacementCount: 1, removalCount: 2, fileCount: 4, sizeBytes: 4_294_967_296 }),
         ],
       }))
 
@@ -960,9 +979,12 @@ describe('MediaFoldersPage', () => {
       expect(within(list).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
         '/media/.mam-quarantine: 42 GiB in 3 files, from 2 replacements.',
         '/data/.mam-quarantine: 1 GiB in 1 file, from 1 replacement.',
+        '/films/.mam-quarantine: 2 GiB in 2 files, from 1 removal.',
+        '/tv/.mam-quarantine: 4 GiB in 4 files, from 1 replacement and 2 removals.',
       ])
       expect(screen.getByRole('region', { name: 'Replacing copies' })).toContainElement(heading)
       expect(screen.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs')
+      expect(screen.getByRole('link', { name: 'Removed copies' })).toHaveAttribute('href', '/library/duplicates?tab=Removed')
       expect(screen.queryByText(empty)).not.toBeInTheDocument()
     })
 
@@ -980,7 +1002,7 @@ describe('MediaFoldersPage', () => {
 
     it('shows the server\'s refusal of a Save that would leave a quarantine outside every media folder above Save, keeping what was typed', async () => {
       // Arrange
-      const sentence = '“/media/.mam-quarantine” still holds replaced copies, so its media folder can\'t be taken out of the list. Restore them or delete them for good first.'
+      const sentence = '“/media/.mam-quarantine” still holds replaced or removed copies, so its media folder can\'t be taken out of the list. Restore them or delete them for good first.'
       storedRoots(allowedRootsOf(['/media'], { quarantines: [quarantineOf()] }))
       vi.mocked(allowedRootsApi.update).mockRejectedValue(apiError(400, sentence))
       const { user } = renderPage()

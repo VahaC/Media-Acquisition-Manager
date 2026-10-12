@@ -480,29 +480,34 @@ public sealed class LibraryDuplicatesByteIdenticalHttpTests : IClassFixture<Medi
         var all = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
         var askedForAll = _factory.Files.DescribedDevices;
         var others = new List<HttpResponseMessage>();
-        // MAM-21 — and a page of decided matches, whatever the class: only a possible match is ever decided.
-        foreach (var query in new[] { "class=SameFile", "class=SameWork", "class=Possible", "decision=Dismissed", "decision=Confirmed", "class=ByteIdentical&decision=Confirmed" })
+        // MAM-21 — and a page of confirmed matches, whatever the class: only a possible match is ever confirmed.
+        foreach (var query in new[] { "class=SameFile", "class=SameWork", "class=Possible", "decision=Confirmed", "class=ByteIdentical&decision=Confirmed" })
             others.Add(await _factory.GetHttpRequest($"{BaseUrl}?{query}", _owner.AccessToken));
         var askedForOthers = _factory.Files.DescribedDevices;
         var byteIdentical = await _factory.GetHttpRequest($"{BaseUrl}?class=ByteIdentical", _owner.AccessToken);
+        var askedForByteIdentical = _factory.Files.DescribedDevices;
+        // MAM-40 — a page of dismissed groups can list byte-identical copies kept as they are, so it asks as well.
+        var dismissed = await _factory.GetHttpRequest($"{BaseUrl}?decision=Dismissed", _owner.AccessToken);
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, all.StatusCode);
         Assert.All(others, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
-        Assert.Equal(HttpStatusCode.OK, byteIdentical.StatusCode);
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (byteIdentical.StatusCode, dismissed.StatusCode));
         Assert.Equal(
             [DuplicateClass.SameFile, DuplicateClass.ByteIdentical],
             (await ReadListAsync(all, cancellationToken)).Items.Select(group => group.Class));
         // Only the copies' devices, each once a request: the episode's disk decides nothing, as removing one of
         // its names frees nothing whatever its file system.
         Assert.Equal([TestMedia.DeviceId, BackupDeviceId], askedForAll.Order());
-        // A page of another class, or of decided matches, shows no estimate, so it asks nothing.
+        // A page of another class, or of confirmed matches, shows no estimate, so it asks nothing.
         Assert.Equal(askedForAll, askedForOthers);
         Assert.Equal(
             new DuplicateRecoverableSpaceDto(TakenSizeBytes, null),
             Assert.Single((await ReadListAsync(byteIdentical, cancellationToken)).Items).Recoverable);
-        // The byte-identical page asks again, for the same devices: nothing is kept between requests.
-        Assert.Equal([TestMedia.DeviceId, BackupDeviceId], _factory.Files.DescribedDevices.Skip(askedForAll.Count).Order());
+        // The byte-identical page asks again, for the same devices: nothing is kept between requests; and so does the
+        // dismissed one.
+        Assert.Equal([TestMedia.DeviceId, BackupDeviceId], askedForByteIdentical.Skip(askedForAll.Count).Order());
+        Assert.Equal([TestMedia.DeviceId, BackupDeviceId], _factory.Files.DescribedDevices.Skip(askedForByteIdentical.Count).Order());
         Assert.DoesNotContain(SeriesDeviceId, _factory.Files.DescribedDevices);
     }
 

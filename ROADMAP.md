@@ -60,7 +60,11 @@ which keeps its number (Vasyl's decision). MAM-39 (built the same day, inside 0.
 decision) then replaced that `user:` line and the `chown` of the data volume by hand with `PUID` and
 `PGID`: the image starts as root only to hand its data directory over to them, then drops to them
 with no capability before the app starts (ADR 0036), and the Media folders page names whose folder
-the app can't write to and which `PUID` and `PGID` to set. All three go out when Vasyl publishes
+the app can't write to and which `PUID` and `PGID` to set. MAM-40 (built the same day, inside 0.3.0
+by Vasyl's decision) follows from production's four groups of one work's copies, which the Duplicates
+page could only show: the owner removes one copy into the quarantine there, through replacement's
+switch, ticks and checks, restores it or deletes it for good under Removed copies, or keeps the
+copies as they are, and the groups have plain names (ADR 0037). All four go out when Vasyl publishes
 0.3.0 again — the image published on 2026-10-11 has none of them. Phase C's heading below stays
 unmarked until that image is published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
@@ -69,9 +73,9 @@ follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28 and MAM-39. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37 and
-MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 go out when 0.3.0 is published
-again, under the same number. The release of Phase D is not decided yet.
+Phase C as MAM-23 to MAM-28, MAM-39 and MAM-40. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37
+and MAM-38, built while 0.2.1 was the version; MAM-28's fixes, MAM-39 and MAM-40 go out when 0.3.0 is
+published again, under the same number. The release of Phase D is not decided yet.
 
 ## Phases
 
@@ -1275,9 +1279,9 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 ### Phase C — Safe replacement
 
 **Release:** 0.3.0, published on 2026-10-11, holds MAM-24 to MAM-27, built while 0.3.0 was the
-version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6 and
-MAM-39, built the same day, go out when 0.3.0 is published again, under the same number.
-**Tickets:** MAM-23 to MAM-28 and MAM-39.
+version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6,
+MAM-39 and MAM-40, built the same day, go out when 0.3.0 is published again, under the same number.
+**Tickets:** MAM-23 to MAM-28, MAM-39 and MAM-40.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
 copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
@@ -1353,9 +1357,10 @@ a quarantine until you delete it for good, and you can put it back.
   (`SwitchedOff`, `Magnet`, `DestinationNotUsable` with the server's sentence — no category, a
   folder not confirmed inside a library, or one MAM-38's check can't look into —, `NoMatchedWork`),
   a work's (`TitleOnly`, `ConflictingIds`, `NoClaimedSeason`, `NoClaimedEpisodes`) and a copy's
-  (`NoAppPath`, `FolderNotTicked`, `OutsideTheClaim`, `AlreadyScheduled`, `NotInspected`,
-  `SharedWithUnavailableWork`, then from a fresh read of the disk `Missing`, `Unreadable` and
-  `ChangedSinceInspection`), one copy per path whatever works list it, with the strictest reason;
+  (`NoAppPath`, `FolderNotTicked`, `OutsideTheClaim`, `AlreadyScheduled`, since MAM-40
+  `HeldByRemoval`, `NotInspected`, `SharedWithUnavailableWork`, then from a fresh read of the disk
+  `Missing`, `Unreadable` and `ChangedSinceInspection`), one copy per path whatever works list it,
+  with the strictest reason;
   edition words and the measured dynamic range per copy, and the edition words of the release's
   title; a copy with another name marked as freeing no room from the first read, in either mode;
   nothing pre-ticked, a season's "Tick every copy that can be replaced"; the title-and-year
@@ -1711,13 +1716,47 @@ a quarantine until you delete it for good, and you can put it back.
   capabilities or a `user:` line, its data handed over by hand; and the ids the hint asks for are
   those of the folder the check refused, the owner of every library file only where one user owns
   them all.
-- **Backup/restore:** replacement jobs, the switch, the ticks and the audit trail live in the
-  database; quarantined files stay on disk in the quarantine folder, outside the database backup.
+- **MAM-40 Settle duplicates on the Duplicates page by removing a copy into quarantine or keeping
+  both** (built on 2026-10-12, release 0.3.0; resting on the tests, not tried on production yet):
+  production's four groups of one work's copies — The Gods Must Be Crazy, «Ніж у воді», Сексмісія
+  and Alien: Romulus — could only be looked at, Phase C could take a copy out only by downloading a
+  release to replace it, a same-work group couldn't even be dismissed, and "Same work" said nothing
+  to Vasyl (Vasyl's decisions of 2026-10-12, inside 0.3.0; [ADR
+  0037](docs/adr/0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md),
+  and the MAM-40 sections of ADR 0028 to ADR 0031 and ADR 0033). *Remove this copy:* on each file of
+  an "Exact copies" or "Same film, different files" group, the owner's, never a copy the app picks;
+  the list gives each such file a verdict from what is stored — the switch, the ticks, an inspected
+  readable file, no disc clip, no other work in it, no open replacement or removal holding it,
+  another file of the group read as media —, and the request, one at a time, checks that again, the
+  identity the page showed, the disk, another copy still there and every download client (check 6),
+  then renames the file and its own companions into `.mam-quarantine/<removal id>/…` as a replaced
+  copy is moved, Jellyfin told; a video that can't move ends it `NotMoved` with nothing moved, a
+  video another file took the place of ends it `NeedsReview`, listed with where to look, and a
+  restart in the middle is found again by the quarantine's pass. A copy an open removal holds can't
+  be ticked for a replacement (`HeldByRemoval`, ADR 0032's MAM-40 section). *Removed copies:* a tab
+  of the Duplicates page, the owner's, with each open removal, the room they take, Restore and
+  Delete for good of the whole removal, both disabled with why and refused while replacement is off
+  (`switchedOff`); replaced copies stay on Jobs. *Keep both:* on the same two classes, the possible
+  match's `Dismissed`, the group's members kept with it, so it moves to "Kept as they are" until a
+  new file joins it; a confirmation of copies and any decision on one file's names are refused.
+  *Plain names:* "One file, two names", "Exact copies", "Same film, different files", "Maybe the
+  same film", "Kept as they are", with one line on each card saying what it is and what can be done.
+  A name in the quarantine counts in no group while its path, device, inode, size and modification
+  time all match the library's file. Stored in `CopyRemovals` and `CopyRemovalNames`, beside the
+  replacements' tables, which keep their shape: the name columns moved into a base class EF doesn't
+  map, and the quarantine's checks, write loop, recovery and notices are shared, not copied.
+  Accepted gaps: a removal whose video got lost stays listed with no button, settled outside the
+  app, holding its copy's path; and a Restore or Delete for good whose video is lost on the way ends
+  with that reason.
+- **Backup/restore:** replacement jobs, the copies removed on the Duplicates page (MAM-40), the
+  decisions on duplicates, the switch, the ticks and the audit trail live in the database;
+  quarantined files stay on disk in the quarantine folder, outside the database backup.
 
 **Out of scope:** automatic quarantine cleanup (it needs retention and disk-space policies first),
 deletion without a quarantine, Jellyfin's `DELETE /Items/{id}`, any write to a download client —
 stopping, removing or moving a torrent included —, copying watched state or collections to the new
-copy in Jellyfin, and replacing a disc folder.
+copy in Jellyfin, and replacing a disc folder; on the Duplicates page (MAM-40), any copy the app
+picks by itself, a bulk removal, and removing a possible match or one file's names.
 
 **Tests:** each failure case of the acceptance bar ends in `NeedsReview` or `Failed` with the old
 file untouched; so do a held old copy, an unclear pair, a multi-episode file, the switch off, an
@@ -1819,7 +1858,20 @@ and `MediaFoldersPage.test.tsx`); and, on a built image, `tools/check-image-user
 scenarios — the default start, `PUID` and `PGID` handing the data over with modes kept and the app
 left no capability and only the `--group-add` group, handing it back with no group left, `--user`,
 the refused ids and root without capabilities (`--cap-drop ALL`), a start with nothing to hand
-over, a media folder mounted inside the data keeping its owner, and `docker stop` within 5 s.
+over, a media folder mounted inside the data keeping its owner, and `docker stop` within 5 s. MAM-40's
+tests prove the Duplicates page's removal behind the same gates: every rule the list reports
+refused again at the request with nothing written, the identity the page showed, a copy changed or
+gone on the disk, the other copy gone, a torrent holding the video and a client that can't be read
+each 409 with nothing moved, a held companion left where it is, the last two copies removed at once
+leaving one, a video that can't move ending `NotMoved`, a stop part-way and a restart's cut found
+again by device and inode, Restore and Delete for good with every refusal and the switch off, a
+member refused on every new route, a quarantined name left out of the groups and a new file at its
+path counted, and Keep both kept until a new file joins (`CopyRemovalHttpTests`,
+`CopyRemovalChecksHttpTests`, `CopyRemovalVerdictsHttpTests`, `CopyRemovalActionsHttpTests`,
+`CopyRemovalListHttpTests`, `CopyRemovalRecoveryHttpTests`, `LibraryDuplicatesQuarantineHttpTests`,
+`LibraryDuplicateKeepBothHttpTests`, `ReplacementsAreOwnerOnlyHttpTests`,
+`AddCopyRemovalsMigrationTests`, and `DuplicateGroupCard.remove.test.tsx` and
+`DuplicatesPage.removed.test.tsx` for the page).
 
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an

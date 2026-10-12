@@ -10,11 +10,14 @@ import { qk } from './keys'
  * never stand in for this tab's (the useRecommendations idiom): Dismissed would show undecided matches
  * with their buttons, and a tab that had none would say "No file has two names" over a tab that has some,
  * for as long as the server takes to group the whole library.
+ *
+ * MAM-40 — not asked for while the page shows Removed copies (`enabled`), which lists no groups.
  */
-export const useLibraryDuplicates = (query: LibraryDuplicatesQuery) =>
+export const useLibraryDuplicates = (query: LibraryDuplicatesQuery, enabled = true) =>
   useQuery({
     queryKey: qk.library.duplicates(query),
     queryFn: () => duplicatesApi.list(query),
+    enabled,
     placeholderData: (previous, previousQuery) => {
       const asked = previousQuery?.queryKey[2]
       return asked?.class === query.class && asked?.decision === query.decision ? keepPreviousData(previous) : undefined
@@ -24,8 +27,9 @@ export const useLibraryDuplicates = (query: LibraryDuplicatesQuery) =>
   })
 
 /**
- * MAM-21 — Confirm or Dismiss of a possible match (owner-only). Every tab is asked for again on success: a
- * dismissed group leaves every list but Dismissed, and a confirmed one shows its decision. A change that
+ * MAM-21 — Confirm or Dismiss of a possible match (owner-only); MAM-40 — and Keep both of copies of a work or
+ * exact copies, which is their Dismissed. Every tab is asked for again on success: a dismissed or kept group
+ * leaves every list but Dismissed (Kept as they are), and a confirmed one shows its decision. A change that
  * keeps the group on screen ends once the list shows it, so its card never flashes its old buttons; one
  * that takes it off the list (`leavesList`) ends at once, so the page puts the group's short row in its
  * place before the list, asked for again, drops it (DuplicatesPage).
@@ -47,9 +51,9 @@ export const useDecideDuplicate = () => {
 }
 
 /**
- * MAM-21 — Undo of a decision (owner-only): the group is undecided again, back in every list it belongs
- * to and out of Dismissed, so every tab is asked for again on success, `leavesList` as for a decision — and
- * on a 404, as for a decision.
+ * MAM-21 — Undo of a decision (owner-only), a possible match's or (MAM-40) a Keep both: the group is
+ * undecided again, back in every list it belongs to and out of Dismissed, so every tab is asked for again on
+ * success, `leavesList` as for a decision — and on a 404, as for a decision.
  */
 export const useUndoDuplicateDecision = () => {
   const queryClient = useQueryClient()

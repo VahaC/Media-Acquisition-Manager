@@ -1,8 +1,6 @@
 using MediaAcquisitionManager.Api.Services.Files;
 using MediaAcquisitionManager.Core.Abstractions.Library;
-using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -68,14 +66,8 @@ public sealed class ReplacementLibraryNotice(
             return;
 
         var notices = await NoticesAsync(replacementJobId, cancellationToken);
-        var waiting = false;
-        var givenUp = false;
-        foreach (var ((integrationId, change), paths) in notices)
-        {
-            var answer = await library.TellAsync(integrationId, paths, change, cancellationToken);
-            waiting |= answer.Status == ReplacementCheckStatus.Wait;
-            givenUp |= answer.Status == ReplacementCheckStatus.Review;
-        }
+        // MAM-40 — told as a removal's notice is (QuarantineNotices).
+        var (waiting, givenUp) = await QuarantineNotices.TellAsync(library, notices, cancellationToken);
 
         // Reckoned after the requests, which can take a library's timeout each.
         var now = time.GetUtcNow().UtcDateTime;
@@ -124,40 +116,12 @@ public sealed class ReplacementLibraryNotice(
             .Where(copy => copy.ReplacementJobId == replacementJobId)
             .ToDictionaryAsync(copy => copy.Id, copy => copy.ServicePath, cancellationToken);
         var folders = (await LibraryFolderReader.LoadAsync(db, cancellationToken)).Mapped;
-        var paths = new Dictionary<(Guid IntegrationId, LibraryFileChange Change), List<string>>();
-        var unplaced = 0;
-        foreach (var name in names)
-        {
-            var change = name.State == ReplacementNameState.Quarantined ? LibraryFileChange.Deleted : LibraryFileChange.Created;
-            var places = NormalizedPath.TryParse(name.AppPath, out var appPath, out _) ? ReplacementLibraryPlaces.Of(appPath, folders) : [];
-            if (places.Count == 0)
-            {
-                // In no library folder the app knows: no library holds it, so none has anything to hear.
-                unplaced++;
-                continue;
-            }
-
-            if (name.Kind == ReplacementNameKind.Video && places is [var only] && copyPaths.TryGetValue(name.ReplacementJobFileId, out var servicePath))
-            {
-                PathsOf(paths, only.IntegrationId, change).Add(servicePath);
-                continue;
-            }
-
-            foreach (var place in places)
-                PathsOf(paths, place.IntegrationId, change).Add(place.LibraryPath);
-        }
-
+        // MAM-40 — the paths built as a removal's are (QuarantineNotices).
+        var (notices, unplaced) = QuarantineNotices.Of(
+            names, name => copyPaths.GetValueOrDefault(name.ReplacementJobFileId), folders);
         if (unplaced > 0)
             logger.LogInformation(
                 "The library notice of replacement {ReplacementJobId} leaves out {UnplacedCount} names no library folder holds.", replacementJobId, unplaced);
-        return paths.ToDictionary(notice => notice.Key, notice => (IReadOnlyList<string>)[.. notice.Value.Distinct(StringComparer.Ordinal)]);
-    }
-
-    private static List<string> PathsOf(
-        Dictionary<(Guid IntegrationId, LibraryFileChange Change), List<string>> paths, Guid integrationId, LibraryFileChange change)
-    {
-        if (!paths.TryGetValue((integrationId, change), out var list))
-            paths[(integrationId, change)] = list = [];
-        return list;
+        return notices;
     }
 }

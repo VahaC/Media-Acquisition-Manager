@@ -326,3 +326,49 @@ flush and arm64's open flags. Nothing was moved on the reference installation; M
 `ReplacementQuarantineFlowHttpTests.Flow_moves_the_old_copy_tells_jellyfin_it_went_then_restore_puts_it_back_with_its_identity_and_tells_jellyfin_it_came_back`,
 `ReplacementSettingsHttpTests.Update_replacing_the_media_folder_by_its_parent_keeps_the_quarantine_reachable_and_is_204`,
 `QuarantineFolderTests` and `QuarantineCompanionsTests` pin it.
+
+## The quarantine also holds the copies the owner removes on the Duplicates page (added 0.3.0, MAM-40)
+
+**A copy the owner removes from a group of exact copies or of one work's copies on the Duplicates
+page goes into the same quarantine, by the same rename, with the same companions and the same
+rows before and after each name, as a replaced copy: under `<allowed folder>/.mam-quarantine/<removal
+id>/<path inside the folder>`, beside the replacements' job folders, kept until the owner restores it
+or deletes it for good, now from the page's **Removed copies** tab ([ADR
+0037](0037-a-copy-is-removed-from-the-duplicates-page-into-the-quarantine-on-the-owners-word-through-replacements-gates-and-checks.md),
+Vasyl's decisions of 2026-10-12).** The Decision's "the old copy the owner picked" now reads "the
+copy the owner picked", and "Each job records its quarantine folder" holds for each removal too.
+
+**The same, written once.** A removal's names (`CopyRemovalNames`) and a replacement's
+(`ReplacementJobNames`) share their columns through `QuarantinedNameEntity`, an abstract base EF
+doesn't map, so the MAM-26 section's rows before and after, its conditional writes, the look-up of a
+cut name by device and inode (`QuarantineNameFinder`), the owner's write loop of Restore and Delete
+for good (`QuarantineWriteLoop`) with its checks (`QuarantineNameChecks`), the companions'
+listing (`QuarantineCompanionListing`) and Jellyfin's notice (`QuarantineNotices`) serve both, moved
+out of the replacement's classes with their behaviour unchanged for replacements, and
+`AddCopyRemovalsMigrationTests.Upgrade_keeps_every_replacement_name_whole` finds
+`ReplacementJobNames` untouched.
+
+**Where a removal differs.** The move runs inside the owner's request, not a background pass, the
+video first: a video that can't move ends the removal `NotMoved` with nothing in the quarantine, where
+a replacement stops for review. Restore and Delete for good act on the whole removal, also from
+`NeedsReview`, and Delete for good takes no list of names: the page's second confirmation names every
+path with its size and the room it frees. A cut is found again by the same pass and the same rules,
+and a removal with nothing left in the quarantine ends rather than waiting for review, as it has no
+Retry (ADR 0037).
+
+**Out of the lists, within reach.** A removal's names count in each quarantine's room on the Media
+folders page, which now says whose they are ("/media/.mam-quarantine: 4 GiB in 4 files, from 1
+replacement and 2 removals."), and in the Save that would leave a quarantine outside every allowed
+folder, now "“/media/.mam-quarantine” still holds replaced or removed copies, so its media folder
+can't be taken out of the list. Restore them or delete them for good first." And a name in the
+quarantine, a replacement's or a removal's, no longer counts in any duplicate group until it is put
+back ([ADR
+0028](0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)'s
+MAM-40 section), where the scan alone kept it out before.
+
+`CopyRemovalHttpTests.Remove_of_a_copy_moves_its_video_and_own_companions_into_the_quarantine_and_answers_the_removal`,
+`CopyRemovalHttpTests.Remove_keeps_a_companion_that_cant_be_renamed_where_it_is_and_still_removes_the_video`,
+`CopyRemovalActionsHttpTests`, `CopyRemovalRecoveryHttpTests`,
+`ReplacementSettingsHttpTests.Get_counts_the_names_a_removal_holds_in_a_quarantine_with_the_replacements_ones`,
+`ReplacementSettingsHttpTests.Update_taking_out_the_media_folder_whose_quarantine_holds_a_removals_names_is_400_naming_it_and_changes_nothing`
+and `AddCopyRemovalsMigrationTests` pin it.

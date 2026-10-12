@@ -30,15 +30,19 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // rows a write would change (every replacement row compared before and after), not only against an empty database: the
 // owner's, and the member's own. The actions look a job up by its sender, so a member's request on the owner's job would
 // write nothing even past a gate that came too late; on his own job Retry, Keep both and Drop would each write, so only
-// that sweep shows the gate comes before them.
+// that sweep shows the gate comes before them. MAM-40 — the owner's removals of a duplicate copy live there too
+// (CopyRemovalsController, api/replacements/removals): the sweeps send their {id} routes a real removal resting in the
+// quarantine, which Restore and Delete for good would each write to, and every removal row is compared too.
 public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     // Spelled out rather than read from the convention: this pins where the replacement controllers live.
     private const string ReplacementsNamespace = "MediaAcquisitionManager.Api.Controllers.Replacements";
+    private const string RemovalsRoute = "api/replacements/removals";
     private const string OwnerOnlyBody = """{"error":"Only the installation owner can do this."}""";
     private const string TheatricalPath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.mkv";
     private const string SubtitlePath = "/media/movies/Alien (1979)/Alien (1979) Theatrical Cut.uk.srt";
     private const string ExtendedPath = "/media/movies/Alien (1979)/Alien (1979) Extended.mkv";
+    private const string RemovedPath = "/media/movies/Alien (1979)/Alien (1979) 2160p.mkv";
     private const string NewName = "Alien.1979.Directors.Cut.2160p.mkv";
     private const string NewPath = "/media/movies/Alien.1979.Directors.Cut.2160p.mkv";
     private const string AlienImdbId = "tt0078748";
@@ -85,6 +89,11 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
                 // MAM-27 — Keep both, and Drop of one ticked copy.
                 "POST api/replacements/{id:guid}/cancel",
                 "POST api/replacements/{id:guid}/copies/{copyId:guid}/drop",
+                // MAM-40 — the owner's removals of a duplicate copy, their Restore and Delete for good.
+                "GET api/replacements/removals",
+                "POST api/replacements/removals",
+                "POST api/replacements/removals/{id:guid}/restore",
+                "POST api/replacements/removals/{id:guid}/delete-for-good",
             },
             endpoints);
     }
@@ -118,6 +127,9 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
             Assert.Equal(0, await db.ReplacementJobNames.CountAsync(cancellationToken));
             Assert.Equal(0, await db.DownloadJobs.CountAsync(cancellationToken));
             Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
+            // MAM-40 — no removal either.
+            Assert.Equal(0, await db.CopyRemovals.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.CopyRemovalNames.CountAsync(cancellationToken));
         });
         Assert.Empty(_factory.QBittorrentHttp.Requests);
         Assert.Empty(_factory.Files.DescribedPaths);
@@ -132,16 +144,18 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        // The owner's own replacement: for him Retry, Keep both and Drop would each write to it.
+        // The owner's own replacement: for him Retry, Keep both and Drop would each write to it. MAM-40 — and his removal,
+        // which Restore and Delete for good would each write to.
         var planted = await PlantStoppedAsync(requestedByUserId: null);
+        var removal = await PlantRemovalAsync();
         var before = await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken);
         var sentBefore = (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count, _factory.Files.DescribedPaths.Count);
 
         //Act
-        var answers = await SweepAsMemberAsync(planted, cancellationToken);
+        var answers = await SweepAsMemberAsync(planted, removal, cancellationToken);
 
         //Assert
-        await AssertRefusedAndUnchangedAsync(planted, answers, before, sentBefore, cancellationToken);
+        await AssertRefusedAndUnchangedAsync(planted, removal, answers, before, sentBefore, cancellationToken);
     }
 
     [Fact]
@@ -153,14 +167,15 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
         // would leave it. The actions find it for him, so Retry, Keep both and Drop would each write to it past a gate that
         // came too late.
         var planted = await PlantStoppedAsync(requestedByUserId: _member.User.Id);
+        var removal = await PlantRemovalAsync();
         var before = await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken);
         var sentBefore = (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count, _factory.Files.DescribedPaths.Count);
 
         //Act
-        var answers = await SweepAsMemberAsync(planted, cancellationToken);
+        var answers = await SweepAsMemberAsync(planted, removal, cancellationToken);
 
         //Assert
-        await AssertRefusedAndUnchangedAsync(planted, answers, before, sentBefore, cancellationToken);
+        await AssertRefusedAndUnchangedAsync(planted, removal, answers, before, sentBefore, cancellationToken);
     }
 
     [Fact]
@@ -220,18 +235,29 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
     }
 
     /// <summary>
+    /// MAM-40 — the owner's removal of a copy of Alien, resting in the quarantine: Restore and Delete for good would each write
+    /// to it.
+    /// </summary>
+    private Task<PlantedRemoval> PlantRemovalAsync() =>
+        new CopyRemovalPlanter(_factory, _harness).PlantAsync(
+            CopyRemovalState.Quarantined, [new PlantedName(ReplacementNameKind.Video, RemovedPath, TestMedia.File(inode: 4))]);
+
+    /// <summary>
     /// Every discovered method of every replacement endpoint, sent as the member to <paramref name="planted"/> — each route
-    /// parameter by its name: the job, and a real copy of it — with no body and no query: the owner check comes before
-    /// binding and lookups, so neither may turn the answer into a 400, 415 or 409.
+    /// parameter by its name: the job, and a real copy of it; MAM-40 — under <c>api/replacements/removals</c>, the
+    /// <paramref name="removal"/> — with no body and no query: the owner check comes before binding and lookups, so neither
+    /// may turn the answer into a 400, 415 or 409.
     /// </summary>
     private async Task<List<(string Url, HttpStatusCode Status, string Body)>> SweepAsMemberAsync(
-        PlantedReplacement planted, CancellationToken cancellationToken)
+        PlantedReplacement planted, PlantedRemoval removal, CancellationToken cancellationToken)
     {
         var rows = new Dictionary<string, Guid>(StringComparer.Ordinal) { ["id"] = planted.Replacement.Id, ["copyId"] = planted.Copies[1].Id };
+        var removalRows = new Dictionary<string, Guid>(StringComparer.Ordinal) { ["id"] = removal.Removal.Id };
         var answers = new List<(string Url, HttpStatusCode Status, string Body)>();
         foreach (var endpoint in ReplacementEndpoints())
         {
-            var url = UrlFor(endpoint.Endpoint.RoutePattern, rows);
+            var isRemoval = endpoint.Endpoint.RoutePattern.RawText?.StartsWith(RemovalsRoute, StringComparison.Ordinal) == true;
+            var url = UrlFor(endpoint.Endpoint.RoutePattern, isRemoval ? removalRows : rows);
             using var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _member.AccessToken);
             var response = await _factory.SendHttpRequest(request);
@@ -248,6 +274,7 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
     /// </summary>
     private async Task AssertRefusedAndUnchangedAsync(
         PlantedReplacement planted,
+        PlantedRemoval removal,
         IReadOnlyList<(string Url, HttpStatusCode Status, string Body)> answers,
         ReplacementRowsSnapshot before,
         (int QBittorrent, int Jellyfin, int Described) sentBefore,
@@ -256,6 +283,8 @@ public sealed class ReplacementsAreOwnerOnlyHttpTests : IClassFixture<MediaAcqui
         // Guards the guard: the routes that name a replacement or a copy were sent the real ones.
         Assert.Contains(answers, answer => answer.Url == $"POST /api/replacements/{planted.Replacement.Id}/cancel");
         Assert.Contains(answers, answer => answer.Url == $"POST /api/replacements/{planted.Replacement.Id}/copies/{planted.Copies[1].Id}/drop");
+        Assert.Contains(answers, answer => answer.Url == $"POST /api/replacements/removals/{removal.Removal.Id}/restore");
+        Assert.Contains(answers, answer => answer.Url == $"POST /api/replacements/removals/{removal.Removal.Id}/delete-for-good");
         Assert.All(answers, answer => Assert.Equal((HttpStatusCode.Forbidden, OwnerOnlyBody), (answer.Status, answer.Body)));
         Assert.Equal(before, await ReplacementRowsSnapshot.TakeAsync(_factory, cancellationToken));
         Assert.Equal(sentBefore, (_factory.QBittorrentHttp.Requests.Count, _factory.JellyfinHttp.Requests.Count, _factory.Files.DescribedPaths.Count));

@@ -7,7 +7,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// </remarks>
 /// <param name="Class">One class by name, in any letter case — <c>SameFile</c>, <c>ByteIdentical</c>, <c>SameWork</c>
 /// or <c>Possible</c> (<see cref="Core.Enums.DuplicateClass"/>), never its number; blank for every class.</param>
-/// <param name="Decision">MAM-21 — the possible matches the owner decided so, by name in any letter case —
+/// <param name="Decision">MAM-21 — the groups the owner decided so (MAM-40: kept copies are dismissed), by name in any letter case —
 /// <c>Confirmed</c> or <c>Dismissed</c> (<see cref="Core.Enums.DuplicateMatchDecision"/>), never its number; blank for
 /// every group except the dismissed ones, which leave the list.</param>
 /// <param name="Page">Which page, counted from 1.</param>

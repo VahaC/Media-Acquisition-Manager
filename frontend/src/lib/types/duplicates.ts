@@ -1,3 +1,4 @@
+import type { CopyRemovalVerdict } from './copy-removals'
 import type { LibraryEpisode, LibraryFile, LibraryIdentifier, LibrarySpace, MediaIdentifierScheme, MediaWorkKind } from './library'
 
 /**
@@ -41,7 +42,9 @@ export type MediaEdition =
 
 /**
  * MAM-21 — what the owner decided about a possible match, by the group's key: kept as checked, or taken
- * off the list. Neither makes the works one, and neither ever authorises a removal.
+ * off the list. Neither makes the works one, and neither ever authorises a removal. MAM-40 — on copies of
+ * a work and exact copies, Dismissed alone: the owner's Keep both, which keeps every copy as it is until a
+ * new copy joins the group.
  */
 export type DuplicateMatchDecision = 'Confirmed' | 'Dismissed'
 
@@ -158,6 +161,11 @@ export interface LibraryDuplicateFile {
   editions: MediaEdition[]
   /** The library works holding it, in title order; none for a name no library reported. */
   works: LibraryDuplicateWork[]
+  /**
+   * MAM-40 — whether the owner may remove this copy into the quarantine now, worked out for every reader;
+   * null on a group of one file's names and on a possible match, which have no copy to remove.
+   */
+  removal: CopyRemovalVerdict | null
 }
 
 /**
@@ -204,7 +212,10 @@ export interface LibraryDuplicateGroup {
    * none for byte-identical files; null for copies of a work and possible matches, which are never redundant.
    */
   recoverable: DuplicateRecoverableSpace | null
-  /** MAM-21 — the owner's decision about a possible match; null when undecided, and for every other class. */
+  /**
+   * MAM-21 — the owner's decision about a possible match; null when undecided. MAM-40 — or his Keep both
+   * of copies of a work or exact copies (Dismissed); always null for one file's names.
+   */
   decision: DuplicateDecision | null
 }
 

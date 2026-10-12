@@ -607,6 +607,152 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("CatalogWorkSeasons");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CopyRemovalEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppPath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GroupClass")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LibraryNoticeDueUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PhysicalFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("QuarantinedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByUserName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ServicePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StateChangedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex(new[] { "State" }, "IX_CopyRemovals_Open")
+                        .HasFilter("\"State\" IN ('Moving', 'Quarantined', 'NeedsReview', 'Restoring', 'Deleting')");
+
+                    b.ToTable("CopyRemovals");
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CopyRemovalNameEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AllowedRoot")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppPath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CopyRemovalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Inode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("LinkCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ModifiedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("MovedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Problem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QuarantinePath")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RestoredUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CopyRemovalId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("CopyRemovalNames");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.DestinationMappingEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -856,6 +1002,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<string>("GroupKey")
                         .IsRequired()
                         .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeptMembers")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -3229,6 +3378,23 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
                         .WithMany()
                         .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CopyRemovalEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.UserEntity", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CopyRemovalNameEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CopyRemovalEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CopyRemovalId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

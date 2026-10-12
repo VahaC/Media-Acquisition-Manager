@@ -286,6 +286,7 @@ public static partial class DuplicateGrouping
                     NeedsReview: distinctions.Count > 0,
                     distinctions,
                     FileIdsOf(partMembers),
+                    PathKeysOf(partMembers),
                     [.. partWorks.Select(work => work.WorkId)],
                     null,
                     null,

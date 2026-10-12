@@ -3,7 +3,8 @@ namespace MediaAcquisitionManager.Core.Enums;
 /// <summary>
 /// MAM-24 — why one old copy can't be ticked for replacement (ADR 0032, ADR 0033). The first that applies in this
 /// order wins — <see cref="NoAppPath"/>, <see cref="FolderNotTicked"/>, <see cref="OutsideTheClaim"/>,
-/// <see cref="AlreadyScheduled"/>, <see cref="NotInspected"/>, <see cref="SharedWithUnavailableWork"/>, then from the
+/// <see cref="AlreadyScheduled"/>, <see cref="HeldByRemoval"/>, <see cref="NotInspected"/>,
+/// <see cref="SharedWithUnavailableWork"/>, then from the
 /// disk <see cref="Missing"/>, <see cref="Unreadable"/> and <see cref="ChangedSinceInspection"/> —, the disk read only
 /// for a copy that passed the stored checks. Written by name.
 /// </summary>
@@ -39,4 +40,11 @@ public enum ReplacementCopyUnavailableReason
     /// conflicting ids): that work's refusal holds for its every copy (ADR 0032), whichever work lists it.
     /// </summary>
     SharedWithUnavailableWork = 9,
+
+    /// <summary>
+    /// MAM-40 — the owner's removal of the file from its duplicate group, not yet ended, holds it: under Removed copies on
+    /// the Duplicates page, on its way into the quarantine, in it, or on its way back or out. Its own reason, not
+    /// <see cref="AlreadyScheduled"/>: no download replaces it, and the owner settles it on the Duplicates page.
+    /// </summary>
+    HeldByRemoval = 10,
 }

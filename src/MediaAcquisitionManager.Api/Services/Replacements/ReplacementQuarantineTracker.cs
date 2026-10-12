@@ -1,9 +1,12 @@
+using MediaAcquisitionManager.Api.Services.CopyRemovals;
+
 namespace MediaAcquisitionManager.Api.Services.Replacements;
 
 /// <summary>
 /// MAM-26 — moves the old copies of the verified replacements into the quarantine, in the background (ADR 0030): a pass
 /// right after the app starts, then one <see cref="PassInterval"/> after each pass ends. Only the loop: each pass is
-/// <see cref="IReplacementQuarantiner"/>'s, in a scope of its own.
+/// <see cref="IReplacementQuarantiner"/>'s, in a scope of its own — MAM-40 — then <see cref="ICopyRemovalRecovery"/>'s,
+/// which settles the owner's removals of a copy a restart cut and sends the notices they owe, in a scope of its own too.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -51,19 +54,40 @@ public sealed class ReplacementQuarantineTracker(
     /// </summary>
     public async Task RunOnceAsync(CancellationToken stoppingToken)
     {
-        await using var scope = scopes.CreateAsyncScope();
-        try
+        await using (var scope = scopes.CreateAsyncScope())
         {
-            await scope.ServiceProvider.GetRequiredService<IReplacementQuarantiner>().QuarantineAsync(stoppingToken);
+            try
+            {
+                await scope.ServiceProvider.GetRequiredService<IReplacementQuarantiner>().QuarantineAsync(stoppingToken);
+            }
+            // A shutdown is not an error: the rows are as the last write left them, and the next start's first pass goes on
+            // from there. Anything else is a bug. Error, with the type and the stack, never the message.
+            catch (Exception exception) when (!(exception is OperationCanceledException && stoppingToken.IsCancellationRequested))
+            {
+                logger.LogError(
+                    "A pass over the replacements to move threw {ExceptionType} {StackTrace}; the next pass runs as usual.",
+                    exception.GetType().FullName,
+                    exception.StackTrace);
+            }
         }
-        // A shutdown is not an error: the rows are as the last write left them, and the next start's first pass goes on
-        // from there. Anything else is a bug. Error, with the type and the stack, never the message.
-        catch (Exception exception) when (!(exception is OperationCanceledException && stoppingToken.IsCancellationRequested))
+
+        // MAM-40 — then the owner's removals of a copy a restart cut, and the notices they owe: in a scope of their own, so a
+        // bug in either pass can't stop the other, and a shutdown during the first leaves the second for the next pass.
+        if (stoppingToken.IsCancellationRequested)
+            return;
+        await using (var scope = scopes.CreateAsyncScope())
         {
-            logger.LogError(
-                "A pass over the replacements to move threw {ExceptionType} {StackTrace}; the next pass runs as usual.",
-                exception.GetType().FullName,
-                exception.StackTrace);
+            try
+            {
+                await scope.ServiceProvider.GetRequiredService<ICopyRemovalRecovery>().SettleAsync(stoppingToken);
+            }
+            catch (Exception exception) when (!(exception is OperationCanceledException && stoppingToken.IsCancellationRequested))
+            {
+                logger.LogError(
+                    "A pass over the cut copy removals threw {ExceptionType} {StackTrace}; the next pass runs as usual.",
+                    exception.GetType().FullName,
+                    exception.StackTrace);
+            }
         }
     }
 }

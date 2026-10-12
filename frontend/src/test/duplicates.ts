@@ -1,4 +1,5 @@
 import type {
+  CopyRemovalVerdict,
   LibraryDuplicateFile,
   LibraryDuplicateGroup,
   LibraryDuplicateList,
@@ -36,7 +37,10 @@ export const aliensHolder: LibraryDuplicateWork = {
   identifiers: aliens.identifiers,
 }
 
-/** A file of a group, read and hashed: the Theatrical Cut by default; `changes` sets the fields a test is about. */
+/**
+ * A file of a group, read and hashed: the Theatrical Cut by default, with no removal verdict, as one file's
+ * names and a possible match have none; `changes` sets the fields a test is about.
+ */
 export function duplicateFileOf(changes: Partial<LibraryDuplicateFile>): LibraryDuplicateFile {
   return {
     file: aliensFile,
@@ -47,9 +51,24 @@ export function duplicateFileOf(changes: Partial<LibraryDuplicateFile>): Library
     sha256: null,
     editions: ['Theatrical'],
     works: [aliensHolder],
+    removal: null,
     ...changes,
   }
 }
+
+/** MAM-40 — the verdict of a copy the owner may remove now. */
+export const removable: CopyRemovalVerdict = { allowed: true, reason: null }
+
+/** MAM-40 — the verdict of a copy the server says can't be removed, with its sentence. */
+export function notRemovable(reason: string): CopyRemovalVerdict {
+  return { allowed: false, reason }
+}
+
+/** MAM-40 — the server's sentence for a file the app hasn't inspected. */
+export const notInspectedReason = 'The app hasn\'t inspected this file yet, so it can\'t tell it is the copy you see.'
+
+/** MAM-40 — the server's sentence for a copy whose group has no other copy the app has read. */
+export const lastReadCopyReason = 'No other copy of this group is inspected and readable, so this one stays.'
 
 /** A name the folder scan found and no library reports, in the download client's folder. */
 export const downloadedAliens = duplicateFileOf({
@@ -101,11 +120,12 @@ export const backedUpAliens = duplicateFileOf({
   linkCount: 1,
   sha256: aliensSha256,
   works: [],
+  removal: removable,
 })
 
 /**
  * The Theatrical Cut and its copy on the backup disk; `recoverable` is what removing all but one would
- * free, ext4 on both by default.
+ * free, ext4 on both by default. MAM-40 — the owner may remove either.
  */
 export function byteIdenticalGroupOf(changes: Partial<LibraryDuplicateGroup> = {}): LibraryDuplicateGroup {
   return {
@@ -114,7 +134,7 @@ export function byteIdenticalGroupOf(changes: Partial<LibraryDuplicateGroup> = {
     needsReview: false,
     distinctions: [],
     evidence: { identity: null, sha256: aliensSha256, identifiers: [], titles: [], durationsAgree: null, runningTimes: null },
-    files: [backedUpAliens, duplicateFileOf({ linkCount: 1, sha256: aliensSha256 })],
+    files: [backedUpAliens, duplicateFileOf({ linkCount: 1, sha256: aliensSha256, removal: removable })],
     space: { sizeBytes: 29_691_416_946, fileCount: 2, nameCount: 2, unmeasuredCount: 0 },
     recoverable: { sizeBytes: 14_845_708_473, gap: null },
     decision: null,
@@ -144,7 +164,8 @@ export const daybreakFileName = 'Yellowstone S01E01 Daybreak WEB-DL.mkv'
 
 /**
  * Yellowstone's first episode in the HD and the 4K library, one episode by its series' TVDB id with its
- * season and episode: the same file name in two folders, an SDR and an HDR10 copy.
+ * season and episode: the same file name in two folders, an SDR and an HDR10 copy. MAM-40 — neither can be
+ * removed: the HD copy isn't inspected, so the 4K one is the only copy the app has read.
  */
 export const sameWorkGroup: LibraryDuplicateGroup = {
   key: '2c3d4e5f60718293a4b5c6d7e8f90a1b',
@@ -178,6 +199,7 @@ export const sameWorkGroup: LibraryDuplicateGroup = {
       linkCount: null,
       editions: [],
       works: [daybreakHolderOf()],
+      removal: notRemovable(notInspectedReason),
     }),
     duplicateFileOf({
       file: libraryFileOf({
@@ -202,6 +224,7 @@ export const sameWorkGroup: LibraryDuplicateGroup = {
           { scheme: 'Tvdb', value: '6468512', sourceName: 'Home Jellyfin', sourceKind: 'MediaLibrary', setUtc: null },
         ],
       })],
+      removal: notRemovable(lastReadCopyReason),
     }),
   ],
   space: { sizeBytes: 9_663_676_416, fileCount: 1, nameCount: 2, unmeasuredCount: 1 },

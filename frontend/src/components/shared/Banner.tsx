@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { CircleAlert, CircleCheck, TriangleAlert, X, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,13 @@ interface BannerProps {
    * inserted already filled is often not read out, so the Download dialog's Send reads its warning.
    */
   id?: string
+  /**
+   * MAM-40 — for a banner that takes the focus when it appears: the result of an action whose button left
+   * with its card (Removed copies), which would otherwise drop the focus to the page's body. With `tabIndex`
+   * -1, so it can hold the focus without joining the tab order.
+   */
+  ref?: Ref<HTMLDivElement>
+  tabIndex?: number
 }
 
 const TONE_ICONS: Record<BannerTone, LucideIcon> = {
@@ -35,12 +42,19 @@ const TONE_ICONS: Record<BannerTone, LucideIcon> = {
  * wait their turn (`status`). The colours live in ui-primitives.css, where the error tone is the
  * banner without a `data-tone`.
  */
-export function Banner({ tone = 'error', children, action, onDismiss, id }: BannerProps) {
+export function Banner({ tone = 'error', children, action, onDismiss, id, ref, tabIndex }: BannerProps) {
   const { t } = useTranslation('common')
   const Icon = TONE_ICONS[tone]
 
   return (
-    <div id={id} className="ui-banner" data-tone={tone === 'error' ? undefined : tone} role={tone === 'error' ? 'alert' : 'status'}>
+    <div
+      ref={ref}
+      id={id}
+      tabIndex={tabIndex}
+      className="ui-banner"
+      data-tone={tone === 'error' ? undefined : tone}
+      role={tone === 'error' ? 'alert' : 'status'}
+    >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       <span className="ui-banner-text">{children}</span>
       {(action || onDismiss) && (

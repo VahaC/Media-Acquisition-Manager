@@ -21,8 +21,9 @@ namespace MediaAcquisitionManager.Api.Tests.Library;
 // whose target is the key as a Guid, the same decision again and an undo of nothing writing nothing. A dismissed match
 // leaves the list, every class's tab included, and is listed with ?decision=Dismissed; a confirmed one stays, shown as
 // confirmed, still needing review. Only the group a key names now is decided — a bare 404 for a key no group has, of
-// any shape — and only a possible match (400 for another class). A decision never follows a group whose members
-// changed, and never touches the library. The list's decision filter sentences are LibraryDuplicatesHttpTests'.
+// any shape. A decision never follows a group whose members changed, and never touches the library. The list's
+// decision filter sentences are LibraryDuplicatesHttpTests'; MAM-40 — keeping copies as they are, and the classes that
+// refuse a decision, LibraryDuplicateKeepBothHttpTests'.
 public sealed class LibraryDuplicateDecisionsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/library/duplicates";
@@ -44,8 +45,6 @@ public sealed class LibraryDuplicateDecisionsHttpTests : IClassFixture<MediaAcqu
     private const string SignInRequiredBody = """{"error":"Sign in to continue."}""";
     private const string DecisionMissingError = "A decision is needed: Confirmed or Dismissed.";
     private const string UnreadableBodyError = "The body must be JSON with a decision, such as { \"decision\": \"Confirmed\" }.";
-    private const string NotAPossibleMatchError =
-        "Only a possible match is confirmed or dismissed: this group is one by its files' identity, bytes or registry ids, which no one has to confirm.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -351,26 +350,6 @@ public sealed class LibraryDuplicateDecisionsHttpTests : IClassFixture<MediaAcqu
         Assert.Equal((HttpStatusCode.NotFound, HttpStatusCode.NotFound), (decide.StatusCode, undo.StatusCode));
         Assert.Empty(await decide.Content.ReadAsStringAsync(cancellationToken));
         Assert.Empty(await undo.Content.ReadAsStringAsync(cancellationToken));
-        await AssertNothingWrittenAsync(cancellationToken);
-    }
-
-    [Fact]
-    public async Task Decide_and_undo_of_a_same_work_group_are_400_with_the_sentence()
-    {
-        //Arrange
-        var cancellationToken = TestContext.Current.CancellationToken;
-        await PlantCopiesAsync("Alien", 1979, AlienImdbId);
-        var key = await KeyOfAsync(DuplicateClass.SameWork, "Alien", cancellationToken);
-
-        //Act
-        var decide = await DecideAsync(key, "Confirmed", _owner.AccessToken);
-        var undo = await _factory.DeleteHttpRequest(DecisionUrl(key), _owner.AccessToken);
-
-        //Assert
-        // One IMDb id makes the copies one work: no one confirms that, and no one dismisses it.
-        Assert.Equal((HttpStatusCode.BadRequest, HttpStatusCode.BadRequest), (decide.StatusCode, undo.StatusCode));
-        Assert.Equal(NotAPossibleMatchError, await decide.ReadErrorAsync(cancellationToken));
-        Assert.Equal(NotAPossibleMatchError, await undo.ReadErrorAsync(cancellationToken));
         await AssertNothingWrittenAsync(cancellationToken);
     }
 

@@ -205,6 +205,7 @@ describe('DownloadDialog — replacing existing copies', () => {
     ['OutsideTheClaim', 'The library places this version outside the episodes this release claims.'],
     ['AlreadyScheduled', 'A replacement scheduled earlier already holds this copy.'],
     ['SharedWithUnavailableWork', 'This file is also a copy of another work this release matched, which can\'t be replaced.'],
+    ['HeldByRemoval', 'A removal under Removed copies on the Duplicates page holds this copy.'],
   ])('disables a copy the server gives a reason, and says it in words: %s', async (reason, sentence) => {
     // Arrange
     answering(replacementOptionsOf([aliensWorkOf({ copies: [{ ...theatricalCopy, unavailable: reason }, specialCopy] })]))
