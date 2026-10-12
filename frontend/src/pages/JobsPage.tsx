@@ -1,29 +1,32 @@
 import { useId, useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { BellRing, ChevronRight, CircleCheck, List, Loader2, type LucideIcon } from 'lucide-react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CancelJobButton } from '@/components/jobs/CancelJobButton'
-import { JobProgress } from '@/components/jobs/JobProgress'
-import { JobStatus } from '@/components/jobs/JobStatus'
+import { DeleteForGoodButton } from '@/components/jobs/DeleteForGoodButton'
+import { JobDownloadSummary } from '@/components/jobs/JobDownloadSummary'
+import { JobRowDetails } from '@/components/jobs/JobRowDetails'
 import { KeepBothButton } from '@/components/jobs/KeepBothButton'
-import { ReplacementCopiesPanel } from '@/components/jobs/ReplacementCopiesPanel'
+import { ReplacementSummary } from '@/components/jobs/ReplacementSummary'
+import { RestoreButton } from '@/components/jobs/RestoreButton'
 import { RetryReplacementButton } from '@/components/jobs/RetryReplacementButton'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
 import { ListPager } from '@/components/shared/ListPager'
+import { PageTabs } from '@/components/shared/PageTabs'
 import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
-import { canCancelJob, DOWNLOAD_JOB_STATUSES } from '@/lib/download-jobs'
-import { formatDateTime } from '@/lib/format'
+import { canCancelJob, JOB_TABS, jobTabFrom, jobTabView, type JobTab } from '@/lib/download-jobs'
+import { formatDateTime, formatNumber } from '@/lib/format'
 import { useDownloadJobs, useJobActionsPending } from '@/lib/queries'
-import type { DownloadJob, DownloadJobStatus } from '@/lib/types'
+import type { DownloadJob } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
-import '@/styles/settings-list.css' // .settings-* — the header, toolbar, table and row actions of this page
+import '@/styles/settings-list.css' // .settings-* — the header, table and row actions of this page
 import '@/styles/library.css' // .library-link — the release title that opens its job, the link to Search
-import '@/styles/jobs.css' // .jobs-stacked-cell — the Status cell that stacks its sentences on a phone; .jobs-copies-row — the row a replacement's copies open in
+import '@/styles/jobs.css' // .jobs-* — the tab panel, the row's chevron and title, its cells' blocks, the details row
 
 /** Per device: a phone and a desktop want different page lengths. */
 const PAGE_SIZE_STORAGE_KEY = 'mam:jobs:pageSize'
@@ -31,51 +34,80 @@ const PAGE_SIZE_STORAGE_KEY = 'mam:jobs:pageSize'
 /** When a job was sent, as the Library's sync lines show an instant. */
 const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
 
-/** The table's columns: a replacement's copies open in one cell that spans them all. */
-const COLUMN_COUNT = 6
+/**
+ * The table's columns for the owner: Release, Download, Replacement, Actions. A member's rows have no
+ * Replacement; a row's details open in one cell that spans them all.
+ */
+const OWNER_COLUMN_COUNT = 4
+
+/** Each tab's icon. */
+const TAB_ICONS: Record<JobTab, LucideIcon> = {
+  NeedsYou: BellRing,
+  InProgress: Loader2,
+  Finished: CircleCheck,
+  All: List,
+}
 
 /**
- * MAM-14 — Jobs: the releases the signed-in user sent to a download client, newest first, filtered
- * by status and paged by the server. Every user sees their own jobs only, the installation owner
- * included (MAM-14's decision 1). Each row says where the job stands, why a followed job isn't moving
- * on, how far it has got, and where it went; its title opens the job's details. A job the app still
- * follows, or one that needs linking, can be cancelled: the app stops following it, and the torrent
- * stays in the client. MAM-26 — the owner's job whose replacement the mover stopped for review offers
- * Retry beside its sentence. MAM-27 — and Retry when the check of its new files stopped, Keep both
- * while none of its old copies has started to move, and a Copies button that opens the replacement's
- * old copies, their new files and Drop under the row (Vasyl's answer of 2026-10-11: everything the
- * ticket lists is on the Jobs page itself, and the list stays light until a row is opened).
+ * MAM-14 — Jobs: the releases the signed-in user sent to a download client, newest first, paged by the
+ * server. Every user sees their own jobs only, the installation owner included (MAM-14's decision 1).
  *
- * While a job on the page is still followed, the list is asked for again every 2 s
+ * MAM-41 — underline tabs in place of the status filter: Needs you — the jobs that wait for the user's
+ * decision: a replacement stopped for review or holding old copies in the quarantine, a job that needs
+ * linking —, In progress, Finished, and All. The server sorts the jobs into them (DownloadJobView) and
+ * counts the first two whatever tab is open, so their names say how many they hold; one that holds none
+ * shows no number. The tab is in the address (`?tab=NeedsYou`, left out for All; one that isn't a tab reads as All), so F5
+ * keeps it, and another tab starts at page 1, as on the Duplicates page. An empty tab says so, with the
+ * way to every job.
+ *
+ * A row is short: the release, with its client, destination and when it was sent under it; where the
+ * download stands (JobDownloadSummary); the owner's — where the replacement stands (ReplacementSummary);
+ * and the actions, verbs only: Retry, Keep both, Restore, Delete for good, Cancel job. Copies was details,
+ * not an action (Vasyl, 2026-10-12): the chevron before the title opens the row's details under it —
+ * every sentence the cells cut short, and the replacement's copies with Drop (JobRowDetails).
+ *
+ * While a job on the page is still worked on, the list is asked for again every 2 s
  * (useDownloadJobs), so statuses and progress move on by themselves.
  */
 export function JobsPage() {
   const { t } = useTranslation(['jobs', 'common'])
-  const [status, setStatus] = useState<DownloadJobStatus | ''>('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = jobTabFrom(searchParams.get('tab'))
+  const idPrefix = useId()
+  const panelId = `${idPrefix}-panel`
+  const tabId = (of: JobTab) => `${idPrefix}-tab-${of}`
+  const isOwner = useAuthStore((state) => state.user?.isOwner === true)
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)
-  // The page remembers the filter it belongs to, so another status starts again at page 1 without
-  // an effect — the idiom of IntegrationsPage.
-  const [paging, setPaging] = useState({ status: '', page: 1 })
+  // The page belongs to the tab it was reached on, so another tab starts at page 1 without an effect.
+  const [paging, setPaging] = useState<{ tab: JobTab; page: number }>({ tab, page: 1 })
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const onFilter = paging.status === status
-  if (!onFilter) setPaging({ status, page: 1 })
-  const page = onFilter ? paging.page : 1
-  const filtered = status !== ''
-  const jobs = useDownloadJobs({ status: status || undefined, page, pageSize })
+  const onTab = paging.tab === tab
+  if (!onTab) setPaging({ tab, page: 1 })
+  const page = onTab ? paging.page : 1
+  const jobs = useDownloadJobs({ view: jobTabView(tab), page, pageSize })
   const { data, dataUpdatedAt, error, isLoading, isPlaceholderData } = jobs
   const load = useLoadRetry(jobs)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
-  // A job that ends or is cancelled can leave a filtered list with fewer pages than the one on
-  // screen: the refetched page is empty, so move to the last one there is. Only on this page's own
-  // answer, not the one kept on screen while it loads.
-  if (onFilter && data && !isPlaceholderData && page > pages) setPaging({ status, page: pages })
+  // A job that leaves the tab (decided, ended or cancelled) can leave it with fewer pages than the one
+  // on screen: move to the last one there is, on this tab's own answer only.
+  if (onTab && data && !isPlaceholderData && page > pages) setPaging({ tab, page: pages })
 
-  const goToPage = (next: number) => setPaging({ status, page: next })
+  const select = (next: JobTab) => {
+    if (next !== tab) setSearchParams(next === 'All' ? {} : { tab: next }, { replace: true })
+  }
+
+  const goToPage = (next: number) => setPaging({ tab, page: next })
 
   const changePageSize = (next: number) => {
     setPageSize(next)
     goToPage(1)
+  }
+
+  /** A tab's name, with how many jobs it holds where the server counts them. */
+  const tabLabel = (of: JobTab) => {
+    const count = of === 'NeedsYou' ? data?.needsYouCount : of === 'InProgress' ? data?.inProgressCount : undefined
+    return count === undefined || count === 0 ? t(`tabs.${of}`) : t('tabs.counted', { name: t(`tabs.${of}`), value: formatNumber(count) })
   }
 
   return (
@@ -87,92 +119,88 @@ export function JobsPage() {
         </div>
       </div>
 
-      <div className="settings-toolbar">
-        <select
-          className="ui-input settings-filter"
-          value={status}
-          aria-label={t('statusFilter.label')}
-          onChange={(event) => setStatus(event.target.value as DownloadJobStatus | '')}
-        >
-          <option value="">{t('statusFilter.all')}</option>
-          {DOWNLOAD_JOB_STATUSES.map((option) => (
-            <option key={option} value={option}>{t(`status.${option}`)}</option>
-          ))}
-        </select>
-      </div>
+      <PageTabs
+        label={t('tabs.label')}
+        tabs={JOB_TABS.map((value) => ({ value, label: tabLabel(value), icon: TAB_ICONS[value] }))}
+        current={tab}
+        panelId={panelId}
+        tabId={tabId}
+        onSelect={select}
+      />
 
-      {/* Outside the ternary below, so a failed refresh or a refused cancel adds a line above the
-          rows instead of replacing them. */}
-      {error && data && !isPlaceholderData && (
-        <Banner action={<RetryButton onRetry={() => jobs.refetch()} />}>
-          {t('refreshFailed')}{' '}
-          {getApiErrorMessage(error)}
-        </Banner>
-      )}
-      {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
+      <div id={panelId} role="tabpanel" aria-labelledby={tabId(tab)} className="jobs-panel">
+        {/* Outside the ternary below, so a failed refresh or a refused action adds a line above the
+            rows instead of replacing them. */}
+        {error && data && !isPlaceholderData && (
+          <Banner action={<RetryButton onRetry={() => jobs.refetch()} />}>
+            {t('refreshFailed')}{' '}
+            {getApiErrorMessage(error)}
+          </Banner>
+        )}
+        {actionError && <Banner onDismiss={() => setActionError(null)}>{actionError}</Banner>}
 
-      {load.error ? (
-        <ErrorState
-          title={t('loadFailed')}
-          onRetry={retryCanHelp(load.error) ? load.retry : undefined}
-          retrying={load.retrying}
-        >
-          {getApiErrorMessage(load.error)}
-        </ErrorState>
-      ) : isLoading ? (
-        <p className="settings-muted">{t('common:loading')}</p>
-      ) : data && data.totalCount === 0 && filtered ? (
-        <div className="settings-empty">
-          <p>{t('noMatch')}</p>
-          <Button type="button" variant="outline" size="sm" onClick={() => setStatus('')}>
-            {t('clearFilters')}
-          </Button>
-        </div>
-      ) : data && data.totalCount === 0 ? (
-        <div className="settings-empty">
-          <p>
-            <Trans t={t} i18nKey="empty" components={{ search: <Link className="library-link" to="/search" /> }} />
-          </p>
-        </div>
-      ) : data ? (
-        <>
-          <div className="settings-table-wrap">
-            <table className="settings-table">
-              <thead>
-                <tr>
-                  <th scope="col">{t('columns.release')}</th>
-                  <th scope="col">{t('columns.status')}</th>
-                  <th scope="col">{t('columns.progress')}</th>
-                  <th scope="col">{t('columns.sentTo')}</th>
-                  <th scope="col">{t('columns.sent')}</th>
-                  <th scope="col">{t('columns.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((job) => (
-                  <JobRow
-                    key={job.id}
-                    job={job}
-                    answeredAt={dataUpdatedAt}
-                    onActionStart={() => setActionError(null)}
-                    onActionError={setActionError}
-                  />
-                ))}
-              </tbody>
-            </table>
+        {load.error ? (
+          <ErrorState
+            title={t('loadFailed')}
+            onRetry={retryCanHelp(load.error) ? load.retry : undefined}
+            retrying={load.retrying}
+          >
+            {getApiErrorMessage(load.error)}
+          </ErrorState>
+        ) : isLoading ? (
+          <p className="settings-muted">{t('common:loading')}</p>
+        ) : data && data.totalCount === 0 && tab !== 'All' ? (
+          <div className="settings-empty">
+            <p>{t(`emptyTab.${tab}`)}</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => select('All')}>
+              {t('showAll')}
+            </Button>
           </div>
+        ) : data && data.totalCount === 0 ? (
+          <div className="settings-empty">
+            <p>
+              <Trans t={t} i18nKey="empty" components={{ search: <Link className="library-link" to="/search" /> }} />
+            </p>
+          </div>
+        ) : data ? (
+          <>
+            <div className="settings-table-wrap">
+              <table className="settings-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('columns.release')}</th>
+                    <th scope="col">{t('columns.download')}</th>
+                    {isOwner && <th scope="col">{t('columns.replacement')}</th>}
+                    <th scope="col">{t('columns.actions')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((job) => (
+                    <JobRow
+                      key={job.id}
+                      job={job}
+                      isOwner={isOwner}
+                      answeredAt={dataUpdatedAt}
+                      onActionStart={() => setActionError(null)}
+                      onActionError={setActionError}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          <ListPager
-            page={page}
-            pages={pages}
-            pageSize={pageSize}
-            pageSizes={PAGE_SIZES}
-            totalCount={data.totalCount}
-            onPage={goToPage}
-            onPageSize={changePageSize}
-          />
-        </>
-      ) : null}
+            <ListPager
+              page={page}
+              pages={pages}
+              pageSize={pageSize}
+              pageSizes={PAGE_SIZES}
+              totalCount={data.totalCount}
+              onPage={goToPage}
+              onPageSize={changePageSize}
+            />
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -181,6 +209,8 @@ export function JobsPage() {
 
 interface JobRowProps {
   job: DownloadJob
+  /** The owner's rows carry the Replacement cell and its actions (ADR 0033). */
+  isOwner: boolean
   /**
    * When the list on screen came back (ms since the epoch): the instant a `Created` job's age is
    * judged at for Cancel (canCancelJob). Not the clock read during render, which a render must not
@@ -190,8 +220,8 @@ interface JobRowProps {
    */
   answeredAt: number
   /**
-   * Cancel, or an action on the job's replacement (MAM-26 Retry; MAM-27 Keep both, Drop), is about to
-   * be sent: the page clears its last refusal.
+   * Cancel, or an action on the job's replacement (Retry, Keep both, Restore, Delete for good, a Drop
+   * from the details), is about to be sent: the page clears its last refusal.
    */
   onActionStart: () => void
   /** One of them was refused: the page shows the sentence above the rows. */
@@ -199,80 +229,88 @@ interface JobRowProps {
 }
 
 /**
- * A table row on a wide screen, a card on a phone: every cell carries its column name in
- * `data-label` for the stacked layout. Sent to is the client and the destination, by the names they
- * had when the job was made; a destination removed since is named by the category actually sent.
+ * A table row on a wide screen, a card on a phone: the title heads the card, and the Download and
+ * Replacement cells carry their column names in `data-label` for the stacked layout. The client and
+ * the destination are named as they were when the job was made; a destination removed since is named
+ * by the category actually sent.
  *
- * MAM-27 — the owner's actions on the replacement the job carries come before Cancel job, which stops
- * following the download too; Keep both ends only the replacement. Last, Copies opens the replacement's
- * old copies in a row of its own under this one, as wide as the table; it is asked for only while it
- * is open.
+ * MAM-41 — the chevron before the title opens the row's details in a row of their own under it, as
+ * wide as the table (aria-expanded, and aria-controls while they are open); the replacement's details
+ * are asked for only while they are. The owner's actions on the replacement come first, the step
+ * forward first: Retry and Keep both while it waits for review, Restore and Delete for good while it
+ * holds old copies in the quarantine — each shown when the server says it can be done (MAM-27's Keep
+ * both ends only the replacement). Cancel job comes last: it stops following the download too.
  */
-function JobRow({ job, answeredAt, onActionStart, onActionError }: JobRowProps) {
+function JobRow({ job, isOwner, answeredAt, onActionStart, onActionError }: JobRowProps) {
   const { t } = useTranslation(['jobs', 'common'])
-  // MAM-26 — a replacement's actions are the owner's (ADR 0033), and MAM-27 its copies too; a member's
-  // job carries no replacement, but the row doesn't rely on that.
-  const isOwner = useAuthStore((state) => state.user?.isOwner === true)
   const replacement = isOwner ? job.replacement : null
-  // One busy flag for the row: while any of its actions is on its way — a Drop from its Copies included
-  // —, the others wait, as on the job's page.
+  // One busy flag for the row: while any of its actions is on its way — a Drop from its details
+  // included —, the others wait, as on the job's page.
   const busy = useJobActionsPending(job.id, replacement?.id ?? null)
-  const copiesId = useId()
-  const [copiesOpen, setCopiesOpen] = useState(false)
+  const detailsId = useId()
+  const [open, setOpen] = useState(false)
   const destination = job.destinationName ?? job.clientDestinationKey ?? t('noDestination')
+  const sent = [job.downloadClientName, destination, formatDateTime(job.createdUtc, INSTANT_FORMAT)].join(t('common:separator'))
+  const cancellable = canCancelJob(job, answeredAt)
+  const anyAction = replacement?.canRetry || replacement?.canCancel || replacement?.canRestore
+    || replacement?.canDeleteForGood || cancellable
 
   return (
     <>
-      <tr>
-        <td data-label={t('columns.release')}>
-          <span className="settings-name">
-            <Link className="settings-name-text library-link" to={`/jobs/${job.id}`}>{job.releaseTitle}</Link>
-          </span>
-        </td>
-        <td data-label={t('columns.status')} className="jobs-stacked-cell">
-          <JobStatus job={job} />
-        </td>
-        <td data-label={t('columns.progress')}>
-          <JobProgress progress={job.progress} />
-        </td>
-        <td data-label={t('columns.sentTo')}>
-          {[job.downloadClientName, destination].join(t('common:separator'))}
-        </td>
-        <td data-label={t('columns.sent')}>{formatDateTime(job.createdUtc, INSTANT_FORMAT)}</td>
-        <td className="settings-actions-cell">
-          <div className="settings-actions">
-            {replacement?.canRetry && (
-              <RetryReplacementButton replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
-            )}
-            {replacement?.canCancel && (
-              <KeepBothButton job={job} replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
-            )}
-            {canCancelJob(job, answeredAt) && (
-              <CancelJobButton job={job} busy={busy} onStart={onActionStart} onError={onActionError} />
-            )}
-            {replacement && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                title={t('oldCopies.copies.title')}
-                aria-expanded={copiesOpen}
-                aria-controls={copiesOpen ? copiesId : undefined}
-                onClick={() => setCopiesOpen(!copiesOpen)}
-              >
-                {copiesOpen
-                  ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-                  : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
-                <span className="label-text">{copiesOpen ? t('oldCopies.copies.hide') : t('oldCopies.copies.show')}</span>
-              </Button>
-            )}
+      <tr className={open ? 'jobs-row-open' : undefined}>
+        <td className="jobs-release-cell">
+          <div className="jobs-release">
+            <button
+              type="button"
+              className="jobs-expand"
+              aria-expanded={open}
+              aria-controls={open ? detailsId : undefined}
+              aria-label={open ? t('row.hideDetails') : t('row.showDetails')}
+              title={open ? t('row.hideDetails') : t('row.showDetails')}
+              onClick={() => setOpen(!open)}
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <div className="jobs-release-text">
+              <Link className="settings-name-text library-link" to={`/jobs/${job.id}`}>{job.releaseTitle}</Link>
+              <span className="ui-hint">{sent}</span>
+            </div>
           </div>
         </td>
+        <td data-label={t('columns.download')} className="jobs-stacked-cell">
+          <JobDownloadSummary job={job} />
+        </td>
+        {isOwner && (
+          <td data-label={t('columns.replacement')} className="jobs-stacked-cell jobs-replacement-cell">
+            <ReplacementSummary replacement={replacement} />
+          </td>
+        )}
+        <td className="settings-actions-cell jobs-actions-cell">
+          {anyAction && (
+            <div className="settings-actions">
+              {replacement?.canRetry && (
+                <RetryReplacementButton replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+              )}
+              {replacement?.canCancel && (
+                <KeepBothButton job={job} replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+              )}
+              {replacement?.canRestore && (
+                <RestoreButton replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+              )}
+              {replacement?.canDeleteForGood && (
+                <DeleteForGoodButton replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+              )}
+              {cancellable && (
+                <CancelJobButton job={job} busy={busy} onStart={onActionStart} onError={onActionError} />
+              )}
+            </div>
+          )}
+        </td>
       </tr>
-      {replacement && copiesOpen && (
-        <tr id={copiesId} className="jobs-copies-row">
-          <td colSpan={COLUMN_COUNT}>
-            <ReplacementCopiesPanel replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
+      {open && (
+        <tr id={detailsId} className="jobs-details-row">
+          <td colSpan={isOwner ? OWNER_COLUMN_COUNT : OWNER_COLUMN_COUNT - 1}>
+            <JobRowDetails job={job} replacement={replacement} busy={busy} onStart={onActionStart} onError={onActionError} />
           </td>
         </tr>
       )}

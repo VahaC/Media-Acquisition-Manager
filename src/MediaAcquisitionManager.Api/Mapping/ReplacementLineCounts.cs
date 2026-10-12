@@ -14,6 +14,9 @@ namespace MediaAcquisitionManager.Api.Mapping;
 /// <param name="DropOnlyCopyCount">Of the copies it would replace, the ones whose problem only a drop settles.</param>
 /// <param name="HoldsTakenNames">One of its names left its folder and hasn't come back
 /// (<see cref="ReplacementNameStates.Taken"/>).</param>
+/// <param name="HoldsQuarantinedNames">MAM-41 — one of its names, a video or a companion, is in the quarantine now.</param>
+/// <param name="VideoDeleted">MAM-41 — one of its videos was deleted for good, by a Delete for good that may have stopped
+/// part-way.</param>
 public sealed record ReplacementLineCounts(
     int CopyCount,
     int CopiesOutsideTickedFolders,
@@ -21,4 +24,6 @@ public sealed record ReplacementLineCounts(
     int StayedFileCount,
     int DroppedCopyCount,
     int DropOnlyCopyCount,
-    bool HoldsTakenNames);
+    bool HoldsTakenNames,
+    bool HoldsQuarantinedNames,
+    bool VideoDeleted);

@@ -1066,11 +1066,11 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
         var replacement = document.RootElement.GetProperty("replacement");
         // Exactly the names the Jobs page and the dialog's sent view read (frontend DownloadJobReplacement), the state by
         // name, as every enum on the wire. MAM-26 — and the replacement's id, its quarantine's counts and Retry. MAM-27 — and
-        // its drops, Keep both, the stop of a review and where a running check is.
+        // its drops, Keep both, the stop of a review and where a running check is. MAM-41 — and Restore and Delete for good.
         Assert.Equal(
             [
                 "state", "copyCount", "reason", "switchedOff", "copiesOutsideTickedFolders", "id", "quarantinedCopyCount", "stayedFileCount", "canRetry",
-                "droppedCopyCount", "dropOnlyCopyCount", "canCancel", "stop", "checkStage", "checkWaitsUntilUtc",
+                "droppedCopyCount", "dropOnlyCopyCount", "canCancel", "stop", "checkStage", "checkWaitsUntilUtc", "canRestore", "canDeleteForGood",
             ],
             replacement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(
@@ -1086,6 +1086,9 @@ public sealed class ReplacementScheduleHttpTests : IClassFixture<MediaAcquisitio
             (replacement.GetProperty("droppedCopyCount").GetInt32(), replacement.GetProperty("dropOnlyCopyCount").GetInt32(),
                 replacement.GetProperty("canCancel").GetBoolean(), replacement.GetProperty("stop").ValueKind, replacement.GetProperty("checkStage").ValueKind,
                 replacement.GetProperty("checkWaitsUntilUtc").ValueKind));
+        Assert.Equal(
+            (false, false),
+            (replacement.GetProperty("canRestore").GetBoolean(), replacement.GetProperty("canDeleteForGood").GetBoolean()));
         var id = replacement.GetProperty("id").GetGuid();
         await _factory.WithDbAsync(async db =>
         {

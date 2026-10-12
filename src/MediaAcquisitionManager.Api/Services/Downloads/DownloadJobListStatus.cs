@@ -6,7 +6,7 @@ public enum DownloadJobListStatus
     /// <summary>The page was read.</summary>
     Listed = 1,
 
-    /// <summary>The page, the page size or the status filter is not one the list takes, which the error
+    /// <summary>The page, the page size, the status filter or (MAM-41) the view is not one the list takes, which the error
     /// names.</summary>
     Invalid = 2,
 }

@@ -283,7 +283,9 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         var root = document.RootElement;
-        Assert.Equal(["items", "totalCount", "page", "pageSize"], root.EnumerateObject().Select(property => property.Name));
+        // MAM-41 — and the counts that label the Jobs page's tabs.
+        Assert.Equal(
+            ["items", "totalCount", "page", "pageSize", "needsYouCount", "inProgressCount"], root.EnumerateObject().Select(property => property.Name));
         var item = root.GetProperty("items")[0];
         Assert.Equal(
             [

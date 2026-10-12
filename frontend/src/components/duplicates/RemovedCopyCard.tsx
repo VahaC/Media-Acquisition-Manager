@@ -114,6 +114,8 @@ export function RemovedCopyCard({ removal, switchedOff, error, onStart, onDone, 
       message: <DeleteForGoodMessage names={quarantinedNames(removal)} freesBytes={removal.freesBytes} />,
       confirmLabel: t('removed.deleteForGood.confirm'),
       destructive: true,
+      // MAM-41 — every Delete for good asks in the wide confirmation: its message lists paths.
+      wide: true,
     })
     if (!confirmed) return
     onStart()

@@ -64,8 +64,12 @@ the app can't write to and which `PUID` and `PGID` to set. MAM-40 (built the sam
 by Vasyl's decision) follows from production's four groups of one work's copies, which the Duplicates
 page could only show: the owner removes one copy into the quarantine there, through replacement's
 switch, ticks and checks, restores it or deletes it for good under Removed copies, or keeps the
-copies as they are, and the groups have plain names (ADR 0037). All four go out when Vasyl publishes
-0.3.0 again — the image published on 2026-10-11 has none of them. Phase C's heading below stays
+copies as they are, and the groups have plain names (ADR 0037). MAM-41 (built the same day, inside
+0.3.0 by Vasyl's decision) sorts the Jobs page into tabs by what waits for the user — Needs you, In
+progress, Finished and All, worked out and counted on the server —, keeps only verbs under a row's
+Actions, Restore and Delete for good now among them, and opens a job's details, the replacement's
+old copies included, under its row. All five go out when Vasyl publishes 0.3.0 again — the image
+published on 2026-10-11 has none of them. Phase C's heading below stays
 unmarked until that image is published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
@@ -73,9 +77,9 @@ follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28, MAM-39 and MAM-40. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37
-and MAM-38, built while 0.2.1 was the version; MAM-28's fixes, MAM-39 and MAM-40 go out when 0.3.0 is
-published again, under the same number. The release of Phase D is not decided yet.
+Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37
+and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-41 go out when 0.3.0
+is published again, under the same number. The release of Phase D is not decided yet.
 
 ## Phases
 
@@ -1280,8 +1284,8 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 **Release:** 0.3.0, published on 2026-10-11, holds MAM-24 to MAM-27, built while 0.3.0 was the
 version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6,
-MAM-39 and MAM-40, built the same day, go out when 0.3.0 is published again, under the same number.
-**Tickets:** MAM-23 to MAM-28, MAM-39 and MAM-40.
+MAM-39 to MAM-41, built the same day, go out when 0.3.0 is published again, under the same number.
+**Tickets:** MAM-23 to MAM-28 and MAM-39 to MAM-41.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
 copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
@@ -1569,8 +1573,10 @@ a quarantine until you delete it for good, and you can put it back.
   waits for Jellyfin, and a review's line what to do next by what stopped it — the download, the
   check or the move — and whether a copy only a drop settles is in it, with the dropped copies
   counted; the owner's row has **Retry**, **Keep both** and a **Copies** toggle that opens the old
-  copies' table under the row. The job's page, its section now **Replacement**, has a box of what
-  the owner can do — for a film Jellyfin gave no id, a link to the Library page searched by its
+  copies' table under the row (MAM-41, below, moved the line and the table into the details a
+  chevron opens under the row, and dropped the toggle, in the same release). The job's page, its
+  section now **Replacement**, has a box of what the owner can do — for a film Jellyfin gave no id,
+  a link to the Library page searched by its
   title —, how far the check got with its times, the old copies — each one's pair, status, problem
   and **Drop** — and the new files — how far each got on the disk and in Jellyfin, the ids its work
   is expected to carry and those it was given —, then MAM-26's names under **Files the move
@@ -1748,6 +1754,36 @@ a quarantine until you delete it for good, and you can put it back.
   Accepted gaps: a removal whose video got lost stays listed with no button, settled outside the
   app, holding its copy's path; and a Restore or Delete for good whose video is lost on the way ends
   with that reason.
+- **MAM-41 Sort the Jobs page by what waits for you, open a job's details under its row, and keep
+  only actions in Actions** (built on 2026-10-12, release 0.3.0; not tried on production, checked in a browser at desktop and
+  phone width with the API's answers stood in for): the
+  Jobs page listed every job under one status filter, so a replacement stopped for review or old
+  copies waiting in the quarantine sat among the finished downloads, a row spread a replacement's
+  whole sentence across the table, and MAM-27's **Copies** sat among the actions though it acts on
+  nothing (Vasyl's decisions of 2026-10-12, inside 0.3.0; the MAM-41 sections of [ADR
+  0014](docs/adr/0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md),
+  ADR 0030 and ADR 0032). *Tabs:* **Needs you** — the job needs linking, or its replacement stopped
+  for review, waits in the quarantine, or is verified while replacement is switched off —, **In
+  progress** — the download still followed, or the replacement still checked or moved, a verified
+  one included while replacement is on —, **Finished** and **All**, a job in the first that fits;
+  the tab in the address (`?tab=`), so a reload and Back keep it. The server sorts and counts:
+  `GET /api/downloads?view=NeedsYou|InProgress|Finished` (anything else 400, left out every job,
+  combined with `status`, which stays), and the list answers `needsYouCount` and `inProgressCount`,
+  the caller's own jobs whatever view, status and page were asked, the switch read once per request.
+  *Rows:* **Release** — the title, with the client, the destination and when it was sent under it
+  —, **Download** — the status in a word, a bar only while the download is followed, "Cancelled at
+  1.8%", a long reason or error cut at two lines —, **Replacement** — the owner's, a few words per
+  state, such as "Check stopped" or "9 old copies in the quarantine" — and **Actions** — verbs only:
+  **Retry**, **Keep both**, **Restore**, **Delete for good** and **Cancel job**; the Progress, Sent
+  to and Sent columns and the status filter are gone. *Details:* a chevron before the title opens,
+  under the row, the whole sentences, the replacement's old copies with their new files and **Drop**,
+  the source, the client's id and a link to the job's page, where **Copies** opened the copies before.
+  *Restore and Delete for good:* also on the row, by the details' rules (`canRestore` and
+  `canDeleteForGood` on a job's `replacement`) and with the job page's confirmations, Delete for good
+  sending exactly the names it listed; every Delete for good confirmation, the Duplicates page's
+  included, is half as wide again, each file's size on its path's line at the right edge. A member sees the same tabs; a member's jobs carry no replacement,
+  so a member's Needs you holds only the jobs that need linking, and the **Replacement** column is the
+  owner's. Accepted gap: the page no longer filters by one status, which the API still does.
 - **Backup/restore:** replacement jobs, the copies removed on the Duplicates page (MAM-40), the
   decisions on duplicates, the switch, the ticks and the audit trail live in the database;
   quarantined files stay on disk in the quarantine folder, outside the database backup.

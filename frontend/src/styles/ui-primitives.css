@@ -182,6 +182,13 @@
   max-width: 26rem;
 }
 
+/* MAM-41 — a confirmation that lists paths (Delete for good's names and sizes): half as wide again as
+   the plain one, so a path fits on fewer lines. A cap only: the dialog is the screen's width below it,
+   so a phone keeps its own. After the plain one, which it overrides at the same specificity. */
+.ui-dialog-content.confirm-dialog-wide {
+  max-width: 39rem;
+}
+
 .confirm-dialog .ui-dialog-description {
   white-space: pre-line;
 }

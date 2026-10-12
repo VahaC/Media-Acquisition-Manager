@@ -487,6 +487,8 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     // Assert
     expect(confirmation).toHaveTextContent(RESTORE_MESSAGE)
     expect(buttons).toEqual(['Restore', 'Cancel'])
+    // MAM-41 — only Delete for good, which lists paths, asks in the wide confirmation.
+    expect(confirmation).not.toHaveClass('confirm-dialog-wide')
     expect(replacementsApi.restore).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
     const result = await screen.findByRole('status')
     expect(result).toHaveTextContent('Restored: 2 files are back where they were.')
@@ -572,7 +574,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
 
   // ── Delete for good ──
 
-  it('asks once more before deleting for good, listing every path in the quarantine with its size and the room it frees, Delete for good first', async () => {
+  it('asks once more before deleting for good, in the wide confirmation, listing every path in the quarantine with its size and the room it frees, Delete for good first', async () => {
     // Arrange
     const completed = jobWith({ state: 'Completed', quarantinedCopyCount: 0 })
     vi.mocked(replacementsApi.deleteForGood).mockResolvedValue(completed)
@@ -598,6 +600,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     expect(confirmation).not.toHaveTextContent(/another name/)
     expect(buttons.map((button) => button.textContent)).toEqual(['Delete for good', 'Cancel'])
     expect(buttons[0]).toHaveClass('ui-button-destructive')
+    expect(confirmation).toHaveClass('confirm-dialog', 'confirm-dialog-wide')
     expect(replacementsApi.deleteForGood).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, [alienVideo.id, alienSubtitle.id])
     expect(await screen.findByRole('status')).toHaveTextContent('Deleted for good: 2 files.')
     expect(replacementsApi.get).toHaveBeenCalledTimes(2)

@@ -278,6 +278,10 @@ export interface DownloadJobReplacement {
   checkStage: ReplacementCheckStage | null
   /** MAM-27 — until when the running check waits for its stage (for Jellyfin, an hour); null unless it is Inspecting. */
   checkWaitsUntilUtc: string | null
+  /** MAM-41 — the owner may press Restore on the Jobs row: ReplacementDetails.canRestore, without asking for the details. */
+  canRestore: boolean
+  /** MAM-41 — the owner may press Delete for good on the Jobs row: ReplacementDetails.canDeleteForGood, likewise. */
+  canDeleteForGood: boolean
 }
 
 /** MAM-26 — a name the move plans: the ticked copy's video, or one of its same-name companions (`Alien.srt`). */

@@ -1,22 +1,11 @@
-import { CircleAlert, CircleCheck, CirclePause, CircleSlash, CircleX, Clock, Loader2, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { CircleAlert, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { STATUS_ICONS, statusTone } from '@/components/jobs/job-status-look'
 import { ReplacementLine } from '@/components/jobs/ReplacementLine'
-import type { DownloadJob, DownloadJobStatus } from '@/lib/types'
+import type { DownloadJob } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import '@/styles/library.css' // .library-source-status, .library-source-warning — the status, reason and error lines
 import '@/styles/jobs.css' // .jobs-status — the lines as one block
-
-/** Each status's icon. Downloading spins while nothing blocks it: the work under way. */
-const STATUS_ICONS: Record<DownloadJobStatus, LucideIcon> = {
-  Created: Clock,
-  Submitted: Clock,
-  Downloading: Loader2,
-  Paused: CirclePause,
-  Downloaded: CircleCheck,
-  Failed: CircleX,
-  NeedsLinking: TriangleAlert,
-  Cancelled: CircleSlash,
-}
 
 /**
  * MAM-14 — where a job stands, as the Jobs list and the details page show it: the status in words,
@@ -30,10 +19,15 @@ const STATUS_ICONS: Record<DownloadJobStatus, LucideIcon> = {
  * The colours follow the Library's status lines: a green icon for Downloaded, a red line for
  * Failed, an amber icon for a job that needs linking; amber never colours text (contrast).
  */
-export function JobStatus({ job, onJobPage = false }: {
+export function JobStatus({ job, onJobPage = false, sentencesOnly = false }: {
   job: DownloadJob
   /** MAM-27 — it is the job's own page, whose Replacement section says what to do (ReplacementLine). */
   onJobPage?: boolean
+  /**
+   * MAM-41 — it is a Jobs row's details (JobRowDetails), under cells that already show the status: the
+   * sentences alone, in full, as the cells cut them short.
+   */
+  sentencesOnly?: boolean
 }) {
   const { t } = useTranslation('jobs')
   const Icon = STATUS_ICONS[job.status]
@@ -43,10 +37,12 @@ export function JobStatus({ job, onJobPage = false }: {
   const notChecked = job.status !== 'Failed' && job.overwriteCheck !== null && job.overwriteCheck !== 'Checked'
     ? job.overwriteCheck
     : null
+  // No empty block in the row's details, which would leave a gap above what follows it.
+  if (sentencesOnly && !job.blockReason && !job.error && !job.replacement && !notChecked) return null
 
   return (
     <div className="jobs-status">
-      {job.status === 'NeedsLinking' ? (
+      {sentencesOnly ? null : job.status === 'NeedsLinking' ? (
         <p className="library-source-warning">
           <Icon className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{label}</span>
@@ -80,11 +76,4 @@ export function JobStatus({ job, onJobPage = false }: {
       )}
     </div>
   )
-}
-
-/** The Library's status-line tone a job status takes: library.css colours these two. */
-function statusTone(status: DownloadJobStatus): 'Succeeded' | 'Failed' | undefined {
-  if (status === 'Downloaded') return 'Succeeded'
-  if (status === 'Failed') return 'Failed'
-  return undefined
 }

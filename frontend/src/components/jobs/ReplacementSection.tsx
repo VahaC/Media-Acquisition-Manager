@@ -16,7 +16,7 @@ import { RetryButton } from '@/components/shared/RetryButton'
 import { useAuthStore } from '@/lib/auth-store'
 import { isReplacementBeingChecked } from '@/lib/download-jobs'
 import { formatFileSize, formatNumber } from '@/lib/format'
-import { dropLeavesOthers } from '@/lib/replacement-details'
+import { dropLeavesOthers, quarantinedNames } from '@/lib/replacement-details'
 import {
   JOBS_POLL_MS,
   useDeleteReplacementForGood,
@@ -29,7 +29,6 @@ import type {
   DownloadJobReplacement,
   ReplacementDetails,
   ReplacementJobState,
-  ReplacementName,
 } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
@@ -155,6 +154,8 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
       message: <DeleteForGoodMessage names={listed} freesBytes={shown.freesBytes} />,
       confirmLabel: t('oldCopies.deleteForGood.confirm'),
       destructive: true,
+      // MAM-41 — every Delete for good asks in the wide confirmation: its message lists paths.
+      wide: true,
     })
     if (!confirmed) return
     onStart()
@@ -279,11 +280,6 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
       {body}
     </section>
   )
-}
-
-/** The names the replacement holds in the quarantine now: what Restore puts back and Delete for good deletes. */
-function quarantinedNames(details: ReplacementDetails): ReplacementName[] {
-  return details.names.filter((name) => name.state === 'Quarantined')
 }
 
 // ── the names ──

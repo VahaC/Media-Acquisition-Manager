@@ -65,7 +65,10 @@ export const downloadsApi = {
   /**
    * MAM-14 — `GET /api/downloads?status=&page=&pageSize=`. 200 with one page of the caller's own
    * jobs, newest first — the installation owner's too (MAM-14's decision 1). 400 `{ error }` for a
-   * page or page size out of range, or a status that isn't one.
+   * page or page size out of range, or a status that isn't one. MAM-41 — `view=` asks for one of the
+   * Jobs page's tabs (NeedsYou, InProgress, Finished; left out for every job), and the answer counts
+   * the caller's jobs that need them and that are in progress whatever the view; 400 `{ error }` for a
+   * view that isn't one.
    */
   list: async (query: DownloadJobsQuery): Promise<DownloadJobList> =>
     (await api.get<DownloadJobList>(BASE_URL, { params: query })).data,

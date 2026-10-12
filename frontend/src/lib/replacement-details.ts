@@ -2,7 +2,7 @@ import { formatDuration, formatFileSize } from './format'
 import { i18n } from './i18n'
 import { episodePlace, seasonName } from './library-episodes'
 import { codecName, resolutionClass } from './media-labels'
-import type { ReplacementDetails, ReplacementJobCopy, ReplacementJobIdentifier, ReplacementJobNewFile, ReplacementJobWork } from './types'
+import type { ReplacementDetails, ReplacementJobCopy, ReplacementJobIdentifier, ReplacementJobNewFile, ReplacementJobWork, ReplacementName } from './types'
 
 // MAM-27 — how a replacement's job page (and the Jobs list's Copies panel) words what the check found:
 // a ticked copy's and a new file's facts, a new file's chips, the works and their ids. Plain functions
@@ -123,4 +123,9 @@ export function anyCopyDroppable(details: ReplacementDetails): boolean {
  */
 export function dropLeavesOthers(details: ReplacementDetails): boolean {
   return details.copies.filter((copy) => copy.droppedUtc === null).length > details.dropOnlyCopyCount
+}
+
+/** The names the replacement holds in the quarantine now: what Restore puts back and Delete for good deletes. */
+export function quarantinedNames(details: ReplacementDetails): ReplacementName[] {
+  return details.names.filter((name) => name.state === 'Quarantined')
 }

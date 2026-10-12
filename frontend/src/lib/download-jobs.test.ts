@@ -5,6 +5,9 @@ import {
   isJobWorkedOn,
   isReplacementBeingChecked,
   isReplacementWorkedOn,
+  JOB_TABS,
+  jobTabFrom,
+  jobTabView,
 } from '@/lib/download-jobs'
 import type { ReplacementJobState } from '@/lib/types'
 import { jobOf } from '@/test/downloads'
@@ -158,5 +161,49 @@ describe('download job statuses', () => {
 
     // Assert
     expect(cancellable).toEqual(jobs)
+  })
+})
+
+// MAM-41 — the Jobs page's tabs: the server's three views first, then every job.
+describe('the Jobs page\'s tabs', () => {
+  it('lists Needs you, In progress, Finished, then All', () => {
+    // Arrange
+    const expected = ['NeedsYou', 'InProgress', 'Finished', 'All']
+
+    // Act
+    const tabs = [...JOB_TABS]
+
+    // Assert
+    expect(tabs).toEqual(expected)
+  })
+
+  it.each([
+    ['NeedsYou', 'NeedsYou'],
+    ['InProgress', 'InProgress'],
+    ['Finished', 'Finished'],
+    ['All', 'All'],
+    [null, 'All'],
+    ['Downloading', 'All'],
+    ['needsyou', 'All'],
+  ])('reads ?tab=%s as the %s tab', (param, expected) => {
+    // Arrange
+    const asked = param
+
+    // Act
+    const tab = jobTabFrom(asked)
+
+    // Assert
+    expect(tab).toBe(expected)
+  })
+
+  it('asks the server for each tab\'s own view, and for none on All', () => {
+    // Arrange
+    const tabs = JOB_TABS
+
+    // Act
+    const views = tabs.map(jobTabView)
+
+    // Assert
+    expect(views).toEqual(['NeedsYou', 'InProgress', 'Finished', undefined])
   })
 })

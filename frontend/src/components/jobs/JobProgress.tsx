@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { formatNumber } from '@/lib/format'
+import { formatProgress } from '@/lib/format'
 import '@/styles/settings-list.css' // .settings-muted — the line that says the progress isn't known
 import '@/styles/jobs.css' // .jobs-progress* — the bar and its percentage
 
@@ -18,13 +18,11 @@ export function JobProgress({ progress }: { progress: number | null }) {
   if (progress === null) return <span className="settings-muted">{t('progress.unknown')}</span>
 
   const value = Math.min(1, Math.max(0, progress))
-  // The tiny nudge undoes binary fractions: 0.57 × 1000 is 569.999…, which would floor to 56.9%.
-  const percent = formatNumber(Math.floor(value * 1000 + 1e-6) / 1000, { style: 'percent', maximumFractionDigits: 1 })
 
   return (
     <span className="jobs-progress">
       <progress className="jobs-progress-bar" value={value} max={1} aria-label={t('progress.label')} />
-      <span className="jobs-progress-value">{percent}</span>
+      <span className="jobs-progress-value">{formatProgress(value)}</span>
     </span>
   )
 }

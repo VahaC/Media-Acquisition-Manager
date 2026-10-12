@@ -749,7 +749,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   dropped, and every count is of the copies still in the replacement. The Download dialog's sent
   view shares the line. On the owner's row a **Copies** button opens, right under the job, the table
   of its old copies, with **Drop** on each the server lets go, asking again every 2 s while the
-  check runs; a refusal shows in the page's banner, while one of the row's actions is on its way the
+  check runs (MAM-41 below moves the line and the table into the details a chevron opens, and drops
+  the button); a refusal shows in the page's banner, while one of the row's actions is on its way the
   others wait, and a member's row has no such button. A job's page names its section
   **Replacement**, where it read **Old copies**, with one row of actions — **Retry**, **Keep both**,
   **Restore**, **Delete for good** —; a box of what the owner can do, by what stopped it ("Fix what
@@ -1204,6 +1205,44 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   file put at that path since counts, and so does one a later download got the inode of a name
   deleted for good; a replacement's old copy no longer waits for the next sync to leave its group.
   `LibraryDuplicatesQuarantineHttpTests` pins it.
+- **The Jobs page sorts the jobs by what waits for you, in tabs the server works out and counts
+  (MAM-41, ADR 0014, Vasyl's decisions of 2026-10-12).** The status filter gives way to underline
+  tabs — **Needs you**, **In progress**, **Finished** and **All** —, the first two saying how many
+  jobs they hold ("Needs you (2)"). A job needs you while it needs linking, while its replacement
+  stopped for review, while its replacement's old copies wait in the quarantine for Restore or Delete
+  for good, and while its replacement is verified with replacement switched off, as nothing moves
+  until the owner switches it on. It is in progress while the app still follows its download —
+  `Created`, `Submitted`, `Downloading` or `Paused` — or still checks or moves its replacement —
+  `Downloaded`, `Inspecting`, `Quarantining`, `Restoring`, `Deleting`, or `Verified` with replacement
+  switched on. Every other job is finished, and All lists every job. A job is in the first of the
+  three that fits it, so in exactly one. The tab is in the address (`/jobs?tab=NeedsYou`, nothing for
+  All), so a reload and Back from a job's page keep it; another tab starts at page 1, and an empty
+  tab says so — "Nothing waits for you: every job moves on by itself or has ended.", "Nothing is in
+  progress." or "No job has finished yet." — with **Show all jobs**. The server sorts the jobs into
+  the tabs and counts them, never the page: `GET /api/downloads` takes `view`, `NeedsYou`,
+  `InProgress` or `Finished` by name in any letter case — left out or blank, every job; anything
+  else, 400 "“x” is not a view of the jobs. Use NeedsYou, InProgress or Finished." —, alone or with
+  `status`, which stays though the page no longer sends it, and its answer gains `needsYouCount` and
+  `inProgressCount`, the caller's own jobs in each of the two whatever view, status and page were
+  asked. The database applies the view, and the switch is read once per request, as it is then, so
+  switching replacement on moves a verified job from Needs you to In progress. A member sees the
+  same tabs; a member's jobs carry no replacement, so a member's Needs you holds only the jobs that
+  need linking. `DownloadsListViewsHttpTests`, `DownloadJobListRulesTests`, `JobsPage.test.tsx` and
+  `JobsPage.polling.test.tsx` pin it. Not tried on the reference installation; the page was checked in
+  a browser at desktop and phone width with the API's answers stood in for.
+- **The owner restores or deletes for good a replacement's old copies from its row on the Jobs page
+  (MAM-41, ADR 0030, ADR 0033, Vasyl's decisions of 2026-10-12).** **Restore** and **Delete for
+  good**, on the job's page alone until now, also sit in the row's actions while the replacement
+  offers them, with the job page's confirmations: Restore asks "Put the old copy back?", and Delete
+  for good lists every file it deletes with its size and the room it frees, read from
+  `GET /api/replacements/{id}` when it is pressed, then sends exactly the names it listed, so a
+  quarantine that changed meanwhile is refused as on the job's page ("What this replacement holds in
+  the quarantine changed since you opened it. Open Delete for good again."). While replacement is
+  switched off both are disabled with "Replacement is switched off on the Media folders page: nothing
+  is put back or deleted while it is off.". A job's `replacement` gains `canRestore` and
+  `canDeleteForGood`, by the rules `GET /api/replacements/{id}` answers them with
+  (`ReplacementJobOffers`), so the row offers what the actions take; a member's row has neither.
+  `ReplacementLineHttpTests` and `JobsPage.actions.test.tsx` pin it.
 
 ### Changed
 
@@ -1469,6 +1508,39 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   confirmation (`DeleteForGoodMessage`) moved out of the job page's **Replacement** section into
   shared components, and the list of files with their sizes that Remove's, Restore's and Delete for
   good's confirmations show is one, `FileSizeList`.
+- **A Jobs row says where the download and the replacement stand in a few words, keeps only verbs
+  under Actions, and opens the job's details under it (MAM-41, ADR 0014, ADR 0032, Vasyl's decisions
+  of 2026-10-12).** The columns are **Release**, **Download**, **Replacement** — the owner's alone —
+  and **Actions**, where they were Release, Status, Progress, Sent to, Sent and Actions. **Release**
+  is the title, with the client, the destination and when it was sent under it. **Download** says the
+  status in a word, with a bar only while the app follows the download, "Cancelled at 1.8%" for a
+  download cancelled part-way, and a block reason or an error cut at two lines. **Replacement** says
+  where the replacement stands in a few words — "Waits for the download: 1 copy", "Checking the new
+  files", "Waits for Jellyfin until 14:05", "Verified, moves next", "Switched off: nothing moves", "9
+  old copies in the quarantine", "Check stopped", "Move stopped", "Can't follow the download",
+  "Undone: the old copy is back", "Replaced: old copy deleted", "Cancelled: nothing moved" —, a dash
+  for a job without one. **Actions** holds verbs only, the step forward first: **Retry**, **Keep
+  both**, **Restore**, **Delete for good** and **Cancel job**. A chevron before the title opens, in a
+  row of its own under the job, what the cells cut short: the whole sentences — why the download
+  isn't moving on or failed, the replacement's line with what to do ("Replacement needs review: …
+  Fix it in Jellyfin or qBittorrent, then press Retry — or see the job."), why the release went
+  unchecked —, the replacement's old copies with their new files and **Drop**, asked for only while
+  open, where it came from ("From Toloka"), the client's id for it and **Open the job page**. MAM-27's
+  **Copies** button is gone, as the copies are details, not an action (Vasyl's word). The job's own
+  page keeps its layout. `JobsPage.details.test.tsx`, `JobDownloadSummary.test.tsx` and
+  `ReplacementSummary.test.tsx` pin it.
+- **Every Delete for good confirmation is half as wide again (MAM-41).** On a Jobs row, on the job's
+  page and under the Duplicates page's **Removed copies**, Delete for good's confirmation, which lists
+  every file with its path and size, is 50% wider than a plain one (`.confirm-dialog-wide`), and each
+  file's size sits on its path's line at the right edge rather than under it, so the list fills the
+  width and runs half as long; a path too long for the line still breaks, its size under it (Vasyl,
+  2026-10-12). Remove's and Restore's lists of files on the Duplicates page take the same lines.
+  `ConfirmDialog.test.tsx` pins the width.
+- **The list of jobs takes a view and counts two, and a job's replacement says what Restore and
+  Delete for good take (MAM-41).** `GET /api/downloads` takes `view` beside `status`, and answers
+  `{ items, totalCount, page, pageSize, needsYouCount, inProgressCount }` where it answered
+  `{ items, totalCount, page, pageSize }`; `replacement` gains, after its other fields, `canRestore`
+  and `canDeleteForGood`.
 
 ### Notes for upgraders
 

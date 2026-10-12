@@ -55,6 +55,17 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
   return value.toLocaleString(i18n.language, options)
 }
 
+/**
+ * MAM-14 — how far a download has got (0 to 1) as a percentage, cut down, never rounded up, to a tenth:
+ * 99.96% must not read 100% while the job still waits for its last piece. MAM-41 — moved out of
+ * JobProgress, so a cancelled job's "Cancelled at 45.6%" on the Jobs page reads as its bar did.
+ */
+export function formatProgress(progress: number): string {
+  const value = Math.min(1, Math.max(0, progress))
+  // The tiny nudge undoes binary fractions: 0.57 × 1000 is 569.999…, which would floor to 56.9%.
+  return formatNumber(Math.floor(value * 1000 + 1e-6) / 1000, { style: 'percent', maximumFractionDigits: 1 })
+}
+
 const FILE_SIZE_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB'] as const
 
 /**

@@ -21,6 +21,8 @@ vi.mock('@/lib/replacements-api')
 // moving (Verified with replacement on, Quarantining, Restoring, Deleting), until it rests
 // (Quarantined) or ends. MAM-27 — an owner's row opened on its replacement's copies asks for them every
 // 2 s while the check runs, and otherwise again only when the list brings its replacement changed.
+// MAM-41 — whatever the tab: Needs you, whose jobs wait for the user, asks nothing more; the copies are
+// in the details the row's chevron opens.
 
 /** A downloaded job carrying a replacement in `state`; `switchedOff` while replacement is switched off. */
 const replacingJob = (state: ReplacementJobState, switchedOff = false) =>
@@ -37,12 +39,12 @@ const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(2_000))
 /** The table row of the job whose release is `title`. */
 const rowOf = (title: string) => screen.getByText(title, { selector: '.settings-name-text' }).closest('tr')!
 
-function renderPage(signedIn: CurrentUser = member) {
+function renderPage(signedIn: CurrentUser = member, path = '/jobs') {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>
         <ConfirmProvider>
           <JobsPage />
         </ConfirmProvider>
@@ -66,10 +68,10 @@ const detailsIn = (state: ReplacementJobState): ReplacementDetails => replacemen
   copies: [jobCopyOf({ status: state === 'Verified' ? 'Paired' : state === 'NeedsReview' ? 'NotPaired' : 'Waiting' })],
 })
 
-/** Opens the Copies of the job's row and waits for its table. */
+/** Opens the details of the job's row and waits for its copies' table. */
 async function openCopies(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByText(downloadingJob.releaseTitle, { selector: '.settings-name-text' })
-  await user.click(within(rowOf(downloadingJob.releaseTitle)).getByRole('button', { name: 'Copies' }))
+  await user.click(within(rowOf(downloadingJob.releaseTitle)).getByRole('button', { name: 'Show details' }))
   await screen.findByRole('region', { name: 'Old copies and their new files' })
 }
 
@@ -201,19 +203,19 @@ describe('JobsPage while a job is followed', () => {
   it('follows a replacement from Inspecting through Verified and the move until its old copy is in the quarantine, then asks nothing more', async () => {
     // Arrange
     listing(replacingJob('Inspecting'))
-    renderPage()
-    await screen.findByText('Replacement checks the new file: 1 copy, kept until it is verified.')
+    renderPage(owner)
+    await screen.findByText('Checking the new files')
     listing(replacingJob('Verified'))
 
     // Act
     await nextPoll()
-    await screen.findByText('New file verified: 1 old copy moves into the quarantine next.')
+    await screen.findByText('Verified, moves next')
     listing(replacingJob('Quarantining'))
     await nextPoll()
-    await screen.findByText('Moving the old copy into the quarantine…')
+    await screen.findByText('Moving into the quarantine…')
     listing(jobOf({ status: 'Downloaded', progress: 1, replacement: replacementOf({ state: 'Quarantined', quarantinedCopyCount: 1 }) }))
     await nextPoll()
-    await screen.findByText('Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.')
+    await screen.findByText('1 old copy in the quarantine')
     await nextPoll()
     await nextPoll()
 
@@ -234,7 +236,7 @@ describe('JobsPage while a job is followed', () => {
     const confirmation = await screen.findByRole('dialog', { name: `Keep both copies of ${job.releaseTitle}?` })
     listing(kept)
     await user.click(within(confirmation).getByRole('button', { name: 'Keep both' }))
-    await screen.findByText('Replacement stopped: You cancelled the replacement, so nothing will be replaced.')
+    await screen.findByText('Cancelled: nothing moved')
     const asked = vi.mocked(downloadsApi.list).mock.calls.length
 
     // Act
@@ -259,7 +261,7 @@ describe('JobsPage while a job is followed', () => {
     const whileStopped = vi.mocked(downloadsApi.list).mock.calls.length
     listing(retried)
     await user.click(within(rowOf(stopped.releaseTitle)).getByRole('button', { name: 'Retry' }))
-    await screen.findByText('Replacement checks the new file: 1 copy, kept until it is verified.')
+    await screen.findByText('Checking the new files')
     const retriedAt = vi.mocked(downloadsApi.list).mock.calls.length
 
     // Act
@@ -316,6 +318,38 @@ describe('JobsPage while a job is followed', () => {
 
     // Assert
     expect(detailsAsked()).toBe(asked)
+  })
+
+  it('asks nothing more on the Needs you tab while every job on it waits for the user', async () => {
+    // Arrange
+    listing(
+      ownersJob({ state: 'NeedsReview', stop: 'Move', reason: 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”.', canRetry: true }),
+      jobOf({ id: 'd0b10000-0000-4000-8000-000000000030', releaseTitle: 'Arrival (2016) 2160p', status: 'NeedsLinking' }),
+      jobOf({ id: 'd0b10000-0000-4000-8000-000000000031', releaseTitle: 'Heat (1995) 2160p', status: 'Downloaded', progress: 1, replacement: replacementOf({ state: 'Quarantined', quarantinedCopyCount: 1, canRestore: true, canDeleteForGood: true }) }),
+    )
+    renderPage(owner, '/jobs?tab=NeedsYou')
+    await screen.findByText('Heat (1995) 2160p', { selector: '.settings-name-text' })
+
+    // Act
+    await nextPoll()
+    await nextPoll()
+
+    // Assert
+    expect(downloadsApi.list).toHaveBeenCalledExactlyOnceWith({ view: 'NeedsYou', page: 1, pageSize: 25 })
+  })
+
+  it('asks again every 2 s on the In progress tab while a job on it is followed', async () => {
+    // Arrange
+    listing(downloadingJob)
+    renderPage(member, '/jobs?tab=InProgress')
+    await screen.findByText(downloadingJob.releaseTitle, { selector: '.settings-name-text' })
+
+    // Act
+    await nextPoll()
+    await nextPoll()
+
+    // Assert
+    expect(vi.mocked(downloadsApi.list).mock.calls.map(([query]) => query.view)).toEqual(['InProgress', 'InProgress', 'InProgress'])
   })
 
   it('asks nothing more while the list is empty', async () => {

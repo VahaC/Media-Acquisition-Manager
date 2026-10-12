@@ -122,7 +122,7 @@
 }
 
 /* Delete for good's list of what it deletes. The confirmation centres its text on a phone
-   (.ui-dialog-header); a list of paths reads from the left, one path above its size. The dialog's
+   (.ui-dialog-header); a list of paths reads from the left, each path with its size. The dialog's
    body is the one scroller, so the list has no scroll of its own. */
 .jobs-quarantine-list {
   display: grid;
@@ -132,14 +132,28 @@
   text-align: left;
 }
 
+/* MAM-41 — a path and its size on one line, the sizes in a column at the right edge: in the wider Delete for good
+   confirmation a size under every path left the right half empty and doubled the list's length (Vasyl, 2026-10-12).
+   A path too long for the line takes the line and breaks anywhere; its size then goes under it, still at the right. */
 .jobs-quarantine-list > li {
-  display: grid;
-  gap: 0.125rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 1rem;
+  row-gap: 0.125rem;
   min-width: 0;
 }
 
+.jobs-quarantine-list > li > .jobs-file-path {
+  flex: 0 1 auto;
+}
+
 .jobs-quarantine-size {
+  flex-shrink: 0;
+  margin-left: auto;
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* An old copy's size on one line: beside a long path the column is narrow, and "29.3 GiB" split over
@@ -154,8 +168,9 @@
 /* The Jobs list's Copies panel: one cell across the job's columns, under its row, holding the job
    page's copies table (ReplacementCopies) — a settings-table of its own, so its rows are rows on a
    wide screen and cards on a phone like any. A faint tint ties it to the row it opened from; the
-   table's own frame sits on it. */
-.settings-table tr.jobs-copies-row > td {
+   table's own frame sits on it. MAM-41 — the row's details now (JobRowDetails), the copies among
+   them: renamed from jobs-copies-row. */
+.settings-table tr.jobs-details-row > td {
   padding: 0.75rem;
   background: color-mix(in oklab, var(--muted) 50%, transparent);
 }
@@ -164,6 +179,112 @@
    read as a copy the replacement still holds. The paths and lines inside set no colour of their own. */
 .settings-table tr.jobs-copy-dropped {
   color: var(--muted-foreground);
+}
+
+/* ── the Jobs list's tabs and rows (MAM-41) ── */
+
+/* The tab panel: the banners, the table and the pager one above the other, as the Duplicates page's
+   (.duplicates-panel). */
+.jobs-panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* The chevron before the title, the title with where it was sent and when under it. */
+.jobs-release {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.jobs-release-text {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* A bare icon button, quieter than an outline button: it opens details, it acts on nothing. Turned a
+   quarter while the details are open. */
+.jobs-expand {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-left: -0.25rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.jobs-expand:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.jobs-expand:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.jobs-expand > svg {
+  transition: transform var(--default-transition-duration) var(--default-transition-timing-function);
+}
+
+.jobs-expand[aria-expanded="true"] > svg {
+  transform: rotate(90deg);
+}
+
+/* A row's cells start at the top, so its lines line up under its title rather than its middle. */
+.settings-table tr > td.jobs-release-cell,
+.settings-table tr > td.jobs-stacked-cell {
+  vertical-align: top;
+}
+
+/* The open row and its details read as one: no line between them. */
+.settings-table tr.jobs-row-open > td {
+  border-bottom-color: transparent;
+}
+
+/* A reason or an error in a row's cell, cut at two lines: the row's details hold the whole sentence. */
+.jobs-clamp > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* What the chevron opens: the row's sentences, the replacement's copies and the facts line, one above
+   the other. */
+.jobs-row-details {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+@media (min-width: 48.0625rem) {
+  /* A row's buttons side by side: the column grows to hold them rather than stacking them. */
+  .settings-table td.jobs-actions-cell > .settings-actions {
+    flex-wrap: nowrap;
+  }
+
+  /* Room for a short replacement line on one line ("Waits for Jellyfin until 7:04 PM"). */
+  .settings-table td.jobs-replacement-cell {
+    min-width: 14rem;
+  }
+}
+
+@media (max-width: 48rem) {
+  /* On a phone the title is the card's heading: from the left, with no caption beside it. */
+  .settings-table td.jobs-release-cell {
+    justify-content: flex-start;
+    text-align: left;
+  }
 }
 
 @media (max-width: 48rem) {
@@ -182,15 +303,16 @@
 
   /* MAM-27 — on a phone the Copies panel is no card of its own: its copies are cards already, and a
      card around cards would take a phone's width twice over. The row goes frameless, and its one cell
-     a plain block — a card's cell lays its children out in a row beside a caption, and it has none. */
-  .settings-table tr.jobs-copies-row {
+     a plain block — a card's cell lays its children out in a row beside a caption, and it has none.
+     MAM-41 — the same for the details that hold it now. */
+  .settings-table tr.jobs-details-row {
     padding: 0;
     border: 0;
     border-radius: 0;
     background: none;
   }
 
-  .settings-table tr.jobs-copies-row > td {
+  .settings-table tr.jobs-details-row > td {
     display: block;
     padding: 0;
     text-align: left;

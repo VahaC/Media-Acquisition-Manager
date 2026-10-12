@@ -25,7 +25,7 @@ public interface IDownloadMapper
     /// actions are addressed by, how many of its copies have their video in the quarantine, how many companion files stayed
     /// in their folder, and whether the owner's Retry is offered. MAM-27 — and the copies dropped and those only a drop
     /// settles, whether Keep both is offered, which stage stopped a review, and where a running check is and until when it
-    /// waits.
+    /// waits. MAM-41 — and whether Restore and Delete for good are offered.
     /// </summary>
     DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, ReplacementLineCounts counts, bool switchedOff);
 

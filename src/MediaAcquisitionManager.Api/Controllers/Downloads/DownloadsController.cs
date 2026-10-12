@@ -93,11 +93,11 @@ public class DownloadsController(IDownloadService downloads) : ControllerBase
         await downloads.GetAsync(id, UserId, cancellationToken) is { } job ? Ok(job) : NotFound();
 
     /// <summary>MAM-14 — one page of the caller's jobs, newest first, filtered by status by the server: the
-    /// Jobs page. No client is asked.</summary>
+    /// Jobs page. No client is asked. MAM-41 — and by the page's tab, with the counts that label the tabs.</summary>
     [HttpGet]
     public async Task<ActionResult<DownloadJobListResponse>> List([FromQuery] DownloadJobListRequest request, CancellationToken cancellationToken)
     {
-        var result = await downloads.ListAsync(request.Status, request.Page, request.PageSize, UserId, cancellationToken);
+        var result = await downloads.ListAsync(request.Status, request.View, request.Page, request.PageSize, UserId, cancellationToken);
         return result.Status switch
         {
             DownloadJobListStatus.Listed => Ok(result.List),

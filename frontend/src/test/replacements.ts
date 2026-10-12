@@ -183,6 +183,8 @@ export function replacementOf(changes: Partial<DownloadJobReplacement> = {}): Do
     stop: null,
     checkStage: null,
     checkWaitsUntilUtc: null,
+    canRestore: false,
+    canDeleteForGood: false,
     ...changes,
   }
 }

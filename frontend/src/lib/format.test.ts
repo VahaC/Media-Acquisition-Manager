@@ -1,4 +1,4 @@
-import { formatBitRate, formatDate, formatDateTime, formatDaysAgo, formatDuration, formatFileSize, formatNumber, formatTimeAgo } from './format'
+import { formatBitRate, formatDate, formatDateTime, formatDaysAgo, formatDuration, formatFileSize, formatNumber, formatProgress, formatTimeAgo } from './format'
 import { i18n } from './i18n'
 
 // A fixed zone, so the expected strings don't depend on the machine running the tests.
@@ -263,5 +263,26 @@ describe('format', () => {
 
     // Assert
     expect(text).toBe('today')
+  })
+
+  // MAM-41 — shared by a download's bar and a cancelled job's "Cancelled at 45.6%".
+  it.each([
+    [0.4567, '45.6%'],
+    [0.018, '1.8%'],
+    [0.57, '57%'],
+    [0.99996, '99.9%'],
+    [1, '100%'],
+    [0, '0%'],
+    [1.2, '100%'],
+    [-0.1, '0%'],
+  ])('writes a download\'s progress of %s as %s, cut down to a tenth, never rounded up', (progress, expected) => {
+    // Arrange
+    const value = progress
+
+    // Act
+    const text = formatProgress(value)
+
+    // Assert
+    expect(text).toBe(expected)
   })
 })

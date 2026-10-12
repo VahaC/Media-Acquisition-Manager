@@ -277,25 +277,38 @@ public sealed class DownloadService(
             : null;
 
     public async Task<DownloadJobListResult> ListAsync(
-        string? status, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
+        string? status, string? view, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         if (PagingRules.Validate(page, pageSize) is { } pagingError)
             return DownloadJobListResult.Invalid(pagingError);
         if (DownloadJobListRules.Validate(status, out var filter) is { } statusError)
             return DownloadJobListResult.Invalid(statusError);
+        if (DownloadJobListRules.ValidateView(view, out var shown) is { } viewError)
+            return DownloadJobListResult.Invalid(viewError);
 
         // MAM-14's decision 1: the caller's own jobs — the owner's too, as GetAsync answers. A job nobody is
         // recorded as sending (its sender's account removed) is nobody's to list.
-        var jobs = db.DownloadJobs.AsNoTracking().Where(job => job.RequestedByUserId == callerUserId);
+        var own = db.DownloadJobs.AsNoTracking().Where(job => job.RequestedByUserId == callerUserId);
+        // MAM-41 — the gates read once, before anything else: the tab a job is counted in and the switch its line shows come
+        // from the same read, and the page's lines reuse it rather than read it again (ADR 0033: fresh, never cached).
+        var gate = await gates.ReadAsync(cancellationToken);
+        var replacementJobs = db.ReplacementJobs.AsNoTracking();
+        // The tabs' labels: the caller's own jobs in each, whatever this request filters and pages — a count each, in SQL.
+        var needsYouCount = await own.Where(DownloadJobViews.Of(DownloadJobView.NeedsYou, replacementJobs, gate.IsEnabled)).CountAsync(cancellationToken);
+        var inProgressCount = await own.Where(DownloadJobViews.Of(DownloadJobView.InProgress, replacementJobs, gate.IsEnabled)).CountAsync(cancellationToken);
+
+        var jobs = own;
         if (filter is { } only)
             jobs = jobs.Where(job => job.Status == only);
+        if (shown is { } tab)
+            jobs = jobs.Where(DownloadJobViews.Of(tab, replacementJobs, gate.IsEnabled));
 
         var totalCount = await jobs.CountAsync(cancellationToken);
         // Past the last page there is nothing to read; and a page far enough out would overflow the offset,
         // which EF Core takes as an int (the UserAccountService guard).
         var offset = (long)(page - 1) * pageSize;
         if (offset >= totalCount)
-            return DownloadJobListResult.Listed(new DownloadJobListResponse([], totalCount, page, pageSize));
+            return DownloadJobListResult.Listed(new DownloadJobListResponse([], totalCount, page, pageSize, needsYouCount, inProgressCount));
 
         // The page's ids first — newest first, the id making the order total — then those jobs with their
         // releases through JobRows, put back in the page's order: EF Core can't order by the JobRow it projects
@@ -309,9 +322,9 @@ public sealed class DownloadService(
             .ToListAsync(cancellationToken);
         var rows = await JobRows(job => ids.Contains(job.Id)).ToListAsync(cancellationToken);
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
-        var answered = (await ToDtosAsync(rows, forOwner, cancellationToken)).ToDictionary(job => job.Id);
+        var answered = (await ToDtosAsync(rows, forOwner, gate, cancellationToken)).ToDictionary(job => job.Id);
         return DownloadJobListResult.Listed(
-            new DownloadJobListResponse([.. ids.Select(id => answered[id])], totalCount, page, pageSize));
+            new DownloadJobListResponse([.. ids.Select(id => answered[id])], totalCount, page, pageSize, needsYouCount, inProgressCount));
     }
 
     public async Task<DownloadJobFileListResult> ListFilesAsync(
@@ -587,7 +600,7 @@ public sealed class DownloadService(
     }
 
     private async Task<DownloadJobDto> ToDtoAsync(JobRow row, bool forOwner, CancellationToken cancellationToken) =>
-        (await ToDtosAsync([row], forOwner, cancellationToken))[0];
+        (await ToDtosAsync([row], forOwner, gate: null, cancellationToken))[0];
 
     /// <summary>
     /// The jobs as the dialog and the Jobs page show them, in <paramref name="rows"/>' order, each with its replacement.
@@ -595,8 +608,10 @@ public sealed class DownloadService(
     /// among the rows and one read of the gates — and neither for rows that carry none, as a page of Keep both sends does.
     /// MAM-26 — and one query for the names their moves planned, for what the quarantine holds of each. MAM-27 — still those
     /// three: what the line says of drops, Keep both and a running check comes from the same rows and the replacement's own.
+    /// MAM-41 — the list hands in the <paramref name="gate"/> it already read for its tabs, so a page reads it once.
     /// </summary>
-    private async Task<IReadOnlyList<DownloadJobDto>> ToDtosAsync(IReadOnlyList<JobRow> rows, bool forOwner, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<DownloadJobDto>> ToDtosAsync(
+        IReadOnlyList<JobRow> rows, bool forOwner, ReplacementGateState? gate, CancellationToken cancellationToken)
     {
         List<Guid> replacementIds = [.. rows.Select(row => row.Replacement?.Id).OfType<Guid>()];
         if (replacementIds.Count == 0)
@@ -616,11 +631,11 @@ public sealed class DownloadService(
                 .ToListAsync(cancellationToken))
             .ToLookup(name => name.ReplacementJobId);
         // Read fresh, never cached (ADR 0033): what the page says about the switch and the ticks is what they are now.
-        var gate = await gates.ReadAsync(cancellationToken);
+        var current = gate ?? await gates.ReadAsync(cancellationToken);
         return
         [
             .. rows.Select(row => row.Replacement is { } replacement
-                ? ToDto(row, forOwner) with { Replacement = ReplacementOf(replacement, [.. copies[replacement.Id]], [.. names[replacement.Id]], gate) }
+                ? ToDto(row, forOwner) with { Replacement = ReplacementOf(replacement, [.. copies[replacement.Id]], [.. names[replacement.Id]], current) }
                 : ToDto(row, forOwner)),
         ];
     }
@@ -642,6 +657,8 @@ public sealed class DownloadService(
     /// MAM-27 — a copy the owner dropped is out of the job: it stays where it is, so it counts neither among the copies it
     /// would replace nor outside a ticked folder, only as dropped; and whether any name left its folder, which Keep both
     /// can't undo.
+    /// MAM-41 — and the two facts Restore and Delete for good are offered by, read as the job's page reads them: whether any
+    /// name is in the quarantine, and whether a video was deleted for good.
     /// </remarks>
     private DownloadJobReplacementDto ReplacementOf(
         ReplacementJobEntity replacement, IReadOnlyList<ReplacementCopyPath> copies, IReadOnlyList<ReplacementNameCount> names, ReplacementGateState gate)
@@ -664,7 +681,9 @@ public sealed class DownloadService(
                 : 0,
             copies.Count - kept.Count,
             kept.Count(copy => copy.OnlyDropSettles),
-            names.Any(name => ReplacementNameStates.Taken.Contains(name.State)));
+            names.Any(name => ReplacementNameStates.Taken.Contains(name.State)),
+            names.Any(name => name.State == ReplacementNameState.Quarantined),
+            names.Any(name => name is { Kind: ReplacementNameKind.Video, State: ReplacementNameState.Deleted }));
         return mapper.ToDto(replacement, counts, !gate.IsEnabled);
     }
 

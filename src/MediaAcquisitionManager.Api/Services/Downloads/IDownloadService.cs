@@ -60,8 +60,13 @@ public interface IDownloadService
     /// any letter case; blank for every one) applied by the server. The caller's own only — the owner's too
     /// (MAM-14's decision 1). <see cref="DownloadJobListStatus.Invalid"/> with the sentence for a page, a page
     /// size or a status the list doesn't take. No client is asked: the rows are what the poller last read.
+    /// MAM-41 — and only the jobs of the Jobs page's tab <paramref name="view"/> (a <c>DownloadJobView</c> by name, in any
+    /// letter case; blank for every job), with the status when both are given; <see cref="DownloadJobListStatus.Invalid"/>
+    /// for a view that isn't one. The answer counts the caller's jobs that need them and that the app still works on,
+    /// whatever the view, the status and the page: the tabs' labels.
     /// </summary>
-    Task<DownloadJobListResult> ListAsync(string? status, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default);
+    Task<DownloadJobListResult> ListAsync(
+        string? status, string? view, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// MAM-14 — one page of the files of the caller's job <paramref name="jobId"/>, in the client's order, as the

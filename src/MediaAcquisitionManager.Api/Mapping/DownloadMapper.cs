@@ -33,7 +33,8 @@ public sealed class DownloadMapper : IDownloadMapper
     // MAM-24 — the reason is the app's own sentence, naming nothing of a service's, and the job is its sender's — the
     // owner's, as only he schedules —, so it is shown as is. MAM-26 — Retry by the one rule its action keeps too. MAM-27 —
     // Keep both too, and the stop, the stage and the wait from the row's own times, by the rules the job's page reads: the
-    // line never tells the owner something its details or the action then contradict.
+    // line never tells the owner something its details or the action then contradict. MAM-41 — Restore and Delete for good
+    // the same way, so the Jobs row offers them by the rules the job's page and the actions apply.
     public DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, ReplacementLineCounts counts, bool switchedOff)
     {
         var stop = ReplacementJobProgress.StopOf(replacement.State, replacement.InspectionStartedUtc, replacement.QuarantineCheckedUtc);
@@ -50,6 +51,8 @@ public sealed class DownloadMapper : IDownloadMapper
             CheckStage = ReplacementJobProgress.StageOf(replacement.State, replacement.LibraryAskedUtc),
             CheckWaitsUntilUtc = ReplacementJobProgress.CheckWaitsUntilUtc(
                 replacement.State, replacement.InspectionStartedUtc, replacement.LibraryAskedUtc),
+            CanRestore = ReplacementJobOffers.CanRestore(replacement.State, counts.HoldsQuarantinedNames, counts.VideoDeleted),
+            CanDeleteForGood = ReplacementJobOffers.CanDeleteForGood(replacement.State, counts.HoldsQuarantinedNames),
         };
     }
 

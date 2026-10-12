@@ -4,6 +4,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 /** Every text is already translated by the caller; the defaults come from the `confirm` resources. */
 export interface ConfirmOptions {
@@ -27,6 +28,12 @@ export interface ConfirmOptions {
    * typing exam.
    */
   requireTyped?: string
+  /**
+   * MAM-41 — half as wide again as a plain confirmation (`.confirm-dialog-wide`), for a message that
+   * lists paths: Delete for good's names and sizes, wherever it is asked. A phone still gets its own
+   * width.
+   */
+  wide?: boolean
 }
 
 type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>
@@ -73,7 +80,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {children}
       <Dialog open={options !== null} onOpenChange={(open) => { if (!open) settle(false) }}>
         {options && (
-          <DialogContent className="confirm-dialog">
+          <DialogContent className={cn('confirm-dialog', options.wide && 'confirm-dialog-wide')}>
             <DialogHeader>
               <DialogTitle>{options.title ?? t('title')}</DialogTitle>
               <DialogDescription asChild>

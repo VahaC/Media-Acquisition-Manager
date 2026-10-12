@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 // CSS, so the sheets are read from disk, as design-tokens.test.ts reads them (a `?raw` import comes
 // back empty under `css: false`). MAM-27 — and what the Jobs page's replacement tables, which show the
 // same chips, need of them, and what its confirmations, which quote a release or a file name, need.
+// MAM-41 — and how wide the confirmation that lists paths is.
 
 interface Rule {
   /** The @media query the rule sits in; null at the top level. */
@@ -113,5 +114,23 @@ describe('the Jobs page\'s confirmations', () => {
     // `anywhere`, not `break-word`: only it also shrinks the min-content size a grid track takes.
     expect(shared['overflow-wrap']).toBeUndefined()
     expect(title).toEqual({ 'line-height': '1.3', 'overflow-wrap': 'anywhere', 'padding-right': '1.5rem' })
+  })
+
+  // MAM-41 — Delete for good's list of paths and sizes asks in a dialog half as wide again, on the job's
+  // page, the Jobs row and the Duplicates page's Removed copies alike.
+  it('make the wide confirmation half as wide again as the plain one, a cap only, so a phone keeps its own width', () => {
+    // Arrange
+    const plain = declared('ui-primitives.css', '.ui-dialog-content.confirm-dialog')
+    const dialog = declared('ui-primitives.css', '.ui-dialog-content')
+
+    // Act
+    const wide = declared('ui-primitives.css', '.ui-dialog-content.confirm-dialog-wide')
+
+    // Assert
+    expect(plain).toEqual({ 'max-width': '26rem' })
+    expect(wide).toEqual({ 'max-width': '39rem' })
+    expect(parseFloat(wide['max-width'])).toBe(parseFloat(plain['max-width']) * 1.5)
+    // The dialog is the screen's width up to its cap, so a phone narrower than the cap keeps its own.
+    expect(dialog).toMatchObject({ width: '100%' })
   })
 })

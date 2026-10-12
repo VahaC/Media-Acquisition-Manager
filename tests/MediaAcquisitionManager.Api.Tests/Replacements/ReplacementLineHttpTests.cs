@@ -16,7 +16,8 @@ namespace MediaAcquisitionManager.Api.Tests.Replacements;
 // copy starts to move, while none of its names left its folder —, which stage stopped a review and whether Retry is
 // offered there — not while a copy only a drop settles is in —, where a running check is and until when it waits, and its
 // copies counted without the dropped ones, which it counts apart. Read from the rows the page already batches: one read of
-// the copies and one of the names for a whole page. Writes nothing.
+// the copies and one of the names for a whole page. Writes nothing. MAM-41 — and whether Restore and Delete for good are
+// offered, exactly as the replacement's own page says it.
 public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string DownloadsUrl = "/api/downloads";
@@ -283,6 +284,81 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
         Assert.Equal((canCancel, true, (ReplacementStop?)ReplacementStop.Move), (line.CanCancel, line.CanRetry, line.Stop));
     }
 
+    // ── MAM-41: Restore and Delete for good ─────────────────────────────────────────────────────
+
+    [Theory]
+    // At rest in the quarantine: both, while replacement is switched off too — the page disables them, saying why.
+    [InlineData("quarantined", true, true)]
+    [InlineData("quarantined, switched off", true, true)]
+    // The mover stopped after Alien moved: Alien goes back through Restore, and nothing is deleted from a review.
+    [InlineData("move stop after a name left", true, false)]
+    // The check stopped it: nothing is in the quarantine.
+    [InlineData("check stop", false, false)]
+    // A Delete for good stopped part-way and retried: what is left of Alien never goes back without its video.
+    [InlineData("a video deleted", false, true)]
+    // A write under way, and the end.
+    [InlineData("deleting", false, false)]
+    [InlineData("restored", false, false)]
+    public async Task Jobs_line_offers_restore_and_delete_for_good_exactly_when_the_replacements_page_does(
+        string which, bool canRestore, bool canDeleteForGood)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        var planted = which switch
+        {
+            "quarantined" or "quarantined, switched off" => await _planter.PlantAsync(
+                ReplacementJobState.Quarantined,
+                [new PlantedName(ReplacementNameKind.Video, AlienPath, TestMedia.File(inode: 1)), new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4))]),
+            "move stop after a name left" => await _planter.PlantAsync(
+                ReplacementJobState.NeedsReview,
+                [
+                    new PlantedName(ReplacementNameKind.Video, AlienPath, TestMedia.File(inode: 1)),
+                    new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4), ReplacementNameState.Stayed, HeldReason),
+                ],
+                quarantineCheckedUtc: now,
+                reason: HeldReason),
+            "check stop" => await _planter.PlantAsync(
+                ReplacementJobState.NeedsReview,
+                [],
+                reason: TooShortProblem,
+                copies: [new PlantedCopy(AlienPath, TestMedia.File(inode: 1))],
+                inspectionStartedUtc: now.AddHours(-2)),
+            "a video deleted" => await _planter.PlantAsync(
+                ReplacementJobState.Quarantined,
+                [
+                    new PlantedName(ReplacementNameKind.Video, AlienPath, TestMedia.File(inode: 1), ReplacementNameState.Deleted),
+                    new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4)),
+                ]),
+            "deleting" => await _planter.PlantAsync(
+                ReplacementJobState.Deleting,
+                [
+                    new PlantedName(ReplacementNameKind.Video, AlienPath, TestMedia.File(inode: 1), ReplacementNameState.Deleting),
+                    new PlantedName(ReplacementNameKind.Video, HeatPath, TestMedia.File(inode: 4)),
+                ]),
+            _ => await _planter.PlantAsync(
+                ReplacementJobState.Restored, [new PlantedName(ReplacementNameKind.Video, AlienPath, TestMedia.File(inode: 1), ReplacementNameState.Restored)]),
+        };
+        if (which == "quarantined, switched off")
+            await SwitchOffAsync(cancellationToken);
+
+        //Act
+        using var listed = await _factory.GetHttpRequest(DownloadsUrl, _harness.Owner.AccessToken);
+        var line = await _harness.LineAsync(planted.Download.Id, cancellationToken);
+        using var described = await _factory.GetHttpRequest($"/api/replacements/{planted.Replacement.Id}", _harness.Owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, listed.StatusCode);
+        var list = (await listed.Content.ReadFromJsonAsync<DownloadJobListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        var listedLine = Assert.Single(list.Items).Replacement!;
+        Assert.Equal(HttpStatusCode.OK, described.StatusCode);
+        var details = (await described.Content.ReadFromJsonAsync<ReplacementDetailsDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+        // The list, the job's read and the replacement's own page say the same: one rule (ReplacementJobOffers).
+        Assert.Equal((canRestore, canDeleteForGood), (details.CanRestore, details.CanDeleteForGood));
+        Assert.Equal((canRestore, canDeleteForGood), (listedLine.CanRestore, listedLine.CanDeleteForGood));
+        Assert.Equal((canRestore, canDeleteForGood), (line!.CanRestore, line.CanDeleteForGood));
+    }
+
     // ── a running check ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -434,4 +510,9 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
         // MAM-24, R10 — batched for the page, never one read per job: MAM-27 adds no read.
         Assert.Equal((1, 1), (copiesRead, namesRead));
     }
+
+    // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    private Task SwitchOffAsync(CancellationToken cancellationToken) =>
+        _factory.WithDbAsync(db => db.ReplacementSettings.ExecuteUpdateAsync(setters => setters.SetProperty(settings => settings.IsEnabled, false), cancellationToken));
 }

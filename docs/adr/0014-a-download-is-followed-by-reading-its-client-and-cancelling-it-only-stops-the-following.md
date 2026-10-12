@@ -266,3 +266,59 @@ as they are, and the copies can be ticked again by another download.
 `ReplacementCancelHttpTests` pins it, with
 `ReplacementCancelHttpTests.Cancel_of_a_replacement_the_follower_moved_on_between_the_read_and_the_write_cancels_it_and_logs_the_state_it_left`
 for the following's move, and `JobsPage.test.tsx` and `JobsPage.polling.test.tsx` the page.
+
+## The Jobs page sorts the jobs by what waits for the user, and the server works it out (added 0.3.0, MAM-41)
+
+**The Jobs page lists the caller's own jobs under four tabs — Needs you, In progress, Finished and
+All — that the server sorts them into and counts when the list is read
+(`GET /api/downloads?view=`, `needsYouCount`, `inProgressCount`), from each job's status, its
+replacement's state and replacement's switch as it is then; the status filter is gone from the page,
+and `status` stays in the API (Vasyl's decisions of 2026-10-12).** A status says where a download
+stands, not whether anything is the user's to do: a replacement stopped for review, or old copies
+waiting in the quarantine, sat among the `Downloaded` jobs, and a job needing linking among the
+others.
+
+**One rule per view.** Needs you: the job needs linking — the Consequences' "`NeedsLinking` still
+has no screen", so cancelling it is the only way to dismiss it, and this is where it waits for that
+—; its replacement stopped for review; its old copies wait in the quarantine, which nothing empties
+by itself ([ADR
+0030](0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md));
+or its replacement is verified while replacement is switched off, as nothing moves until the owner
+switches it on. In progress: this Decision's followed states — `Created`, `Submitted`, `Downloading`
+and `Paused` — and a replacement the app still checks or moves by itself — `Downloaded`,
+`Inspecting`, `Quarantining`, `Restoring`, `Deleting`, and `Verified` with replacement switched on.
+Finished: every other job. All: every job. A job is in the first of the three that fits it, Needs
+you first, so in exactly one.
+
+**Why the server.** The page holds one page of jobs, so it can neither count a tab nor page one it
+filtered itself, and lists are filtered on the server in this app. And a job's view can change with
+nothing written to it — switching replacement on moves a verified job from Needs you to In progress
+—, so it is worked out from the rows and the switch as they are when the list is read: the database
+applies it as a predicate (`DownloadJobViews`), the switch read once per request. The two
+counts are the caller's own jobs whatever view, status and page were asked, so each tab's count
+holds while another tab is open; `view` combines with `status`, and anything but the three views is
+400.
+
+**Still the sender's.** The Decision's "A job stays its sender's" holds for the views and the counts:
+the owner's hold only his own jobs. A member's jobs carry no replacement, so a member's Needs you
+holds only the jobs that need linking, and the row's **Replacement** column is the owner's alone.
+
+**Words in the cells, sentences under the row, verbs in Actions.** A row's **Download** and
+**Replacement** cells say where each stands in a few words; the whole sentences — the block reason,
+the error, the replacement's line with what to do — are in the details a chevron before the title
+opens under the row, with the replacement's old copies and **Drop**, which MAM-27's **Copies** button
+opened ([ADR
+0032](0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)'s
+MAM-41 section). **Copies** left the Actions column, as it acts on nothing — Vasyl's word: the copies
+are details, not an action —, so Actions hold verbs only: **Retry**, **Keep both**, **Restore**,
+**Delete for good** and **Cancel job**, **Restore** and **Delete for good** joining the row from the
+job's page (ADR 0030's MAM-41 section).
+
+| Rejected option | Why not |
+| --- | --- |
+| Counting or filtering the tabs in the browser | The page holds one page of jobs; a count or a page of a tab needs every job, and lists are filtered on the server |
+| Keeping the status filter beside the tabs | It answers where a download stands, which the row's **Download** cell says; the tabs answer what waits for the user |
+| **Copies** as a button under Actions (MAM-27) | It opens details and acts on nothing; Vasyl's word |
+
+The rest stands: the following, its states and Cancel are unchanged, nothing here asks a client, and
+the Anti-consequence holds.

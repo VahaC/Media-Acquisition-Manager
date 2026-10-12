@@ -1,8 +1,8 @@
-import type { DownloadJob, DownloadJobReplacement, DownloadJobStatus, ReplacementJobState } from './types'
+import type { DownloadJob, DownloadJobReplacement, DownloadJobStatus, DownloadJobView, ReplacementJobState } from './types'
 
 /**
- * MAM-14 — every job status, in the order the API lists them: the Jobs page's status filter offers
- * them in this order.
+ * MAM-14 — every job status, in the order the API lists them. MAM-41 — the Jobs page's status filter,
+ * which offered them in this order, gave way to its tabs (JOB_TABS).
  */
 export const DOWNLOAD_JOB_STATUSES: readonly DownloadJobStatus[] = [
   'Created',
@@ -101,4 +101,24 @@ const INTERRUPTED_SEND_AGE_MS = 5 * 60_000
 export function canCancelJob(job: Pick<DownloadJob, 'status' | 'createdUtc'>, now: number): boolean {
   if (job.status === 'Created') return now - Date.parse(job.createdUtc) >= INTERRUPTED_SEND_AGE_MS
   return isJobFollowed(job.status) || job.status === 'NeedsLinking'
+}
+
+/**
+ * MAM-41 — the Jobs page's tabs, in their order: the three views the server sorts every job into
+ * (DownloadJobView), what waits for the user first, then every job. They replace MAM-14's status filter:
+ * a status says where the download stands, not whether anyone has to act.
+ */
+export const JOB_TABS = ['NeedsYou', 'InProgress', 'Finished', 'All'] as const
+
+/** One tab of the Jobs page. */
+export type JobTab = (typeof JOB_TABS)[number]
+
+/** The tab an address's `?tab=` names; anything else, or none, is All — as the Duplicates page reads its own. */
+export function jobTabFrom(param: string | null): JobTab {
+  return JOB_TABS.find((tab) => tab === param) ?? 'All'
+}
+
+/** The view a tab asks the server for: none for All, which lists every job. */
+export function jobTabView(tab: JobTab): DownloadJobView | undefined {
+  return tab === 'All' ? undefined : tab
 }

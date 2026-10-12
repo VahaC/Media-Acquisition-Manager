@@ -149,10 +149,26 @@ export interface DownloadJobList {
   totalCount: number
   page: number
   pageSize: number
+  /** MAM-41 — how many of the caller's jobs wait for their decision, whatever view was asked: the Needs you tab's count. */
+  needsYouCount: number
+  /** MAM-41 — how many of the caller's jobs the app still works on by itself, whatever view was asked: the In progress tab's count. */
+  inProgressCount: number
 }
 
-/** The query of `GET /api/downloads`; a missing status lists every job. */
+/**
+ * MAM-41 — the views the server sorts every job into, the Jobs page's tabs: NeedsYou while it waits for
+ * the caller's decision (its replacement stopped for review or holds copies in the quarantine, or the job
+ * needs linking), InProgress while the app still works on it by itself, Finished otherwise. The server
+ * sorts them, so a tab pages and counts every job of its view, not only the ones on screen.
+ */
+export type DownloadJobView = 'NeedsYou' | 'InProgress' | 'Finished'
+
+/**
+ * The query of `GET /api/downloads`; a missing view or status lists every job. MAM-41 — the Jobs page
+ * asks by view; the API still takes a status.
+ */
 export interface DownloadJobsQuery {
+  view?: DownloadJobView
   status?: DownloadJobStatus
   page: number
   pageSize: number

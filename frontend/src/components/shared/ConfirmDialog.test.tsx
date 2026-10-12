@@ -126,6 +126,23 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('textbox', { name: `Type ${name} to confirm` })).toBeInTheDocument()
   })
 
+  // MAM-41 — Delete for good's names and sizes ask for a wider dialog; every other confirmation keeps its width.
+  it.each<[string, ConfirmOptions, boolean]>([
+    ['a wide one', { ...deleteOptions, wide: true }, true],
+    ['a plain one', deleteOptions, false],
+  ])('shows %s as wide only when asked', async (_, options, wide) => {
+    // Arrange
+    const { user } = renderAsker(options)
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Ask' }))
+
+    // Assert
+    const dialog = screen.getByRole('dialog', { name: 'Delete the library?' })
+    expect(dialog).toHaveClass('confirm-dialog')
+    expect(dialog.classList.contains('confirm-dialog-wide')).toBe(wide)
+  })
+
   it('does not accept a partly typed name', async () => {
     // Arrange
     const { user } = renderAsker({ ...deleteOptions, requireTyped: 'Movies 4K' })

@@ -282,6 +282,8 @@ describe('DuplicatesPage Removed copies', () => {
     ])
     expect(footerButtons(dialog).map((button) => button.textContent)).toEqual(['Restore', 'Cancel'])
     expect(footerButtons(dialog)[0]).not.toHaveClass('ui-button-destructive')
+    // MAM-41 — only Delete for good asks in the wide confirmation, as on the Jobs page.
+    expect(dialog).not.toHaveClass('confirm-dialog-wide')
   })
 
   it('puts the copy back by its id, says so above the list, and asks for what it changed again', async () => {
@@ -318,7 +320,7 @@ describe('DuplicatesPage Removed copies', () => {
     expect(copyRemovalsApi.restore).not.toHaveBeenCalled()
   })
 
-  it('asks once more before deleting for good, naming every path with its size and the room it frees, Delete for good first in red', async () => {
+  it('asks once more before deleting for good, in the wide confirmation, naming every path with its size and the room it frees, Delete for good first in red', async () => {
     // Arrange
     serverWith(removalOf({ freesBytes: 61_440, names: [removedNameOf({ otherNames: true }), removedSubtitle] }))
     const { user } = renderPage()
@@ -341,6 +343,7 @@ describe('DuplicatesPage Removed copies', () => {
     const buttons = footerButtons(dialog)
     expect(buttons.map((button) => button.textContent)).toEqual(['Delete for good', 'Cancel'])
     expect(buttons[0]).toHaveClass('ui-button-destructive')
+    expect(dialog).toHaveClass('confirm-dialog', 'confirm-dialog-wide')
   })
 
   it('deletes the copy for good by its id, with no names, and says so above the list', async () => {

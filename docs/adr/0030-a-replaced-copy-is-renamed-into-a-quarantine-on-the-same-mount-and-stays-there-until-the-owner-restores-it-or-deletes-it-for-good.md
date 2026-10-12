@@ -372,3 +372,31 @@ MAM-40 section), where the scan alone kept it out before.
 `ReplacementSettingsHttpTests.Get_counts_the_names_a_removal_holds_in_a_quarantine_with_the_replacements_ones`,
 `ReplacementSettingsHttpTests.Update_taking_out_the_media_folder_whose_quarantine_holds_a_removals_names_is_400_naming_it_and_changes_nothing`
 and `AddCopyRemovalsMigrationTests` pin it.
+
+## Restore and Delete for good on the Jobs row too (added 0.3.0, MAM-41)
+
+**A replacement's Restore and Delete for good, on the job's page alone until now, are also offered
+on its row on the Jobs page, by the same rules — `ReplacementJobOffers.CanRestore` and
+`CanDeleteForGood`, which the job's `replacement` now carries as `canRestore` and
+`canDeleteForGood` — and with the job page's confirmations (Vasyl's decisions of 2026-10-12).** The
+owner had to open each job to settle what it holds in the quarantine; the row's actions now hold
+every action on a whole replacement, while **Drop**, which acts on one copy, stays with the copies
+in the row's details ([ADR
+0014](0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)'s
+MAM-41 section).
+
+**The confirmed names, still.** Pressed on the row, Delete for good reads the replacement's details
+afresh (`GET /api/replacements/{id}`), lists what the quarantine holds then — every file, its size,
+the room it frees and how many files have another name — and sends exactly those names, so the MAM-26
+section's "only for exactly the names the owner's second confirmation listed" holds on the row: a
+quarantine that changed between the read and the click is refused with nothing deleted. Restore asks
+as on the job's page and acts on the whole job, as before. Both are disabled with the reason while
+replacement is switched off, as the server refuses them then ([ADR
+0033](0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
+
+**What waits is listed.** As nothing empties the quarantine by itself — the Decision's "no timer" —,
+a job whose old copies wait there is listed under the Jobs page's **Needs you** until the owner
+restores them or deletes them for good. Every Delete for good confirmation, a removal's on the
+Duplicates page included, is half as wide again as a plain one, as it lists every path; each file's size sits on its
+path's line at the right edge, so the list fills that width rather than leaving its right half empty under a size on
+a line of its own (Vasyl, 2026-10-12).

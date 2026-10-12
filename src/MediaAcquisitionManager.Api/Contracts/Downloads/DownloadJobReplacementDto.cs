@@ -62,4 +62,14 @@ public sealed record DownloadJobReplacementDto(
     /// <summary>MAM-27 — while its new files are checked, until when the check waits for what it can't settle yet before it
     /// stops for review; <c>null</c> in any other state.</summary>
     public DateTime? CheckWaitsUntilUtc { get; init; }
+
+    /// <summary>MAM-41 — whether the owner's Restore is offered, as the replacement's own page says it
+    /// (<see cref="ReplacementDetailsDto.CanRestore"/>): some of its names are in the quarantine to put back. Offered while
+    /// replacement is switched off too — the page disables it, saying why, as the action refuses then.</summary>
+    public bool CanRestore { get; init; }
+
+    /// <summary>MAM-41 — whether the owner's Delete for good is offered, as the replacement's own page says it
+    /// (<see cref="ReplacementDetailsDto.CanDeleteForGood"/>): it rests in the quarantine and holds names there. Offered
+    /// while replacement is switched off too, as Restore is.</summary>
+    public bool CanDeleteForGood { get; init; }
 }

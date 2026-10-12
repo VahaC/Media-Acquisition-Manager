@@ -17,7 +17,8 @@ interface DeleteForGoodMessageProps {
  * narrow, and centres its text on a phone.
  *
  * MAM-40 — moved out of MAM-26's ReplacementSection, so deleting a copy removed on the Duplicates page asks
- * as deleting a replacement's old copies does.
+ * as deleting a replacement's old copies does. MAM-41 — every caller asks in the wide confirmation
+ * (ConfirmOptions.wide), half as wide again as a plain one, so a path fits on fewer lines.
  */
 export function DeleteForGoodMessage({ names, freesBytes }: DeleteForGoodMessageProps) {
   const { t } = useTranslation('jobs')

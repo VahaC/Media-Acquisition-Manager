@@ -207,7 +207,7 @@ describe('App', () => {
     // Assert
     expect(await screen.findByRole('heading', { level: 1, name: downloadingJob.releaseTitle })).toBeInTheDocument()
     expect(window.location.pathname).toBe(`/jobs/${downloadingJob.id}`)
-    expect(downloadsApi.list).toHaveBeenCalledExactlyOnceWith({ status: undefined, page: 1, pageSize: 25 })
+    expect(downloadsApi.list).toHaveBeenCalledExactlyOnceWith({ view: undefined, page: 1, pageSize: 25 })
     expect(downloadsApi.get).toHaveBeenCalledExactlyOnceWith(downloadingJob.id)
   })
 

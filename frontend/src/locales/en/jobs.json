@@ -1,10 +1,20 @@
 {
   "title": "Jobs",
   "lead": "The releases you sent to a download client, followed there until they finish. Only your own jobs are listed.",
-  "statusFilter": {
-    "label": "Status",
-    "all": "All statuses"
+  "tabs": {
+    "label": "Jobs by what they wait for",
+    "NeedsYou": "Needs you",
+    "InProgress": "In progress",
+    "Finished": "Finished",
+    "All": "All",
+    "counted": "{{name}} ({{value}})"
   },
+  "emptyTab": {
+    "NeedsYou": "Nothing waits for you: every job moves on by itself or has ended.",
+    "InProgress": "Nothing is in progress.",
+    "Finished": "No job has finished yet."
+  },
+  "showAll": "Show all jobs",
   "overwriteCheck": {
     "NotCheckedMagnet": "Not checked for files it would write over: a magnet link names its files only once the client has fetched them.",
     "NotCheckedFileList": "Not checked for files it would write over: the app couldn't read the .torrent's list of files.",
@@ -72,10 +82,8 @@
   },
   "columns": {
     "release": "Release",
-    "status": "Status",
-    "progress": "Progress",
-    "sentTo": "Sent to",
-    "sent": "Sent",
+    "download": "Download",
+    "replacement": "Replacement",
     "actions": "Actions"
   },
   "noDestination": "No destination",
@@ -146,8 +154,6 @@
     },
     "copies": {
       "title": "Old copies and their new files",
-      "show": "Copies",
-      "hide": "Hide copies",
       "columns": {
         "copy": "Old copy",
         "newFile": "New file",
@@ -266,8 +272,6 @@
   "loadFailed": "Could not load your download jobs.",
   "refreshFailed": "Refresh failed, showing the last loaded jobs.",
   "empty": "No download jobs yet. Send a release from <search>Search</search>, and it is followed here until it finishes.",
-  "noMatch": "None of your download jobs has this status.",
-  "clearFilters": "Clear filters",
   "details": {
     "back": "Jobs",
     "notFound": "There is no download job of yours at this address. It may belong to someone else, or the link is wrong.",
@@ -298,5 +302,41 @@
     "loadFailed": "Could not load this job's files.",
     "refreshFailed": "Refresh failed, showing the last loaded files.",
     "empty": "The download client hasn't listed this download's files yet. A magnet link lists them once its metadata has arrived."
+  },
+  "row": {
+    "showDetails": "Show details",
+    "hideDetails": "Hide details",
+    "cancelledAt": "Cancelled at {{progress}}",
+    "source": "From {{source}}",
+    "clientId": "{{client}} id {{id}}…",
+    "noClientId": "{{client}} doesn't list it",
+    "openJob": "Open the job page"
+  },
+  "summary": {
+    "dash": "—",
+    "none": "No replacement",
+    "waiting_one": "Waits for the download: {{value}} copy",
+    "waiting_other": "Waits for the download: {{value}} copies",
+    "switchedOff": "Switched off: nothing moves",
+    "checking": "Checking the new files",
+    "waitsForJellyfin": "Waits for Jellyfin until {{time}}",
+    "verified": "Verified, moves next",
+    "quarantining": "Moving into the quarantine…",
+    "quarantined_one": "{{value}} old copy in the quarantine",
+    "quarantined_other": "{{value}} old copies in the quarantine",
+    "restoring": "Putting back…",
+    "deleting": "Deleting for good…",
+    "restored_one": "Undone: the old copy is back",
+    "restored_other": "Undone: the old copies are back",
+    "completed_one": "Replaced: old copy deleted",
+    "completed_other": "Replaced: old copies deleted",
+    "needsReview": {
+      "Check": "Check stopped",
+      "Move": "Move stopped",
+      "Download": "Can't follow the download",
+      "None": "Needs review"
+    },
+    "stopped": "Stopped",
+    "cancelled": "Cancelled: nothing moved"
   }
 }

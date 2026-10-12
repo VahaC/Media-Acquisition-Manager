@@ -119,6 +119,33 @@ describe('downloadsApi', () => {
     expect(api.getUri(requests[0])).toBe('/api/downloads?status=Downloading&page=2&pageSize=10')
   })
 
+  // MAM-41 — the Jobs page's tabs ask by view, and the answer counts the jobs of two of them whatever the view.
+  it('asks for one page of one of the Jobs page\'s views, and brings back the tabs\' counts', async () => {
+    // Arrange
+    const page = jobsPage({ view: 'NeedsYou', page: 1, pageSize: 25 }, [downloadingJob], 1, { needsYouCount: 1, inProgressCount: 4 })
+    const requests = respondWith(200, page)
+
+    // Act
+    const list = await downloadsApi.list({ view: 'NeedsYou', page: 1, pageSize: 25 })
+
+    // Assert
+    expect(list).toEqual(page)
+    expect(list.needsYouCount).toBe(1)
+    expect(list.inProgressCount).toBe(4)
+    expect(api.getUri(requests[0])).toBe('/api/downloads?view=NeedsYou&page=1&pageSize=25')
+  })
+
+  it('leaves the view out of the list\'s query when every job is asked for', async () => {
+    // Arrange
+    const requests = respondWith(200, jobsPage({ page: 1, pageSize: 25 }, []))
+
+    // Act
+    await downloadsApi.list({ view: undefined, page: 1, pageSize: 25 })
+
+    // Assert
+    expect(api.getUri(requests[0])).toBe('/api/downloads?page=1&pageSize=25')
+  })
+
   it('leaves the status out of the list\'s query when every job is asked for', async () => {
     // Arrange
     const requests = respondWith(200, jobsPage({ page: 1, pageSize: 25 }, []))

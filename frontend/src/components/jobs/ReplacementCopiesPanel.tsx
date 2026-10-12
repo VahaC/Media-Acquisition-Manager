@@ -35,6 +35,9 @@ interface ReplacementCopiesPanelProps {
  * page's banner above the rows, as every row action's does; a drop that went through needs no news of
  * its own: the copy shows dropped here, and the row's line says so. While a drop is on its way the
  * row's Retry, Keep both and Cancel job wait, and every Drop here waits while one of theirs is (`busy`).
+ *
+ * MAM-41 — no longer behind a Copies button: it is part of the details the row's chevron opens
+ * (JobRowDetails), under the row's sentences, as the copies are details, not an action.
  */
 export function ReplacementCopiesPanel({ replacement, busy, onStart, onError }: ReplacementCopiesPanelProps) {
   const { t } = useTranslation(['jobs', 'common'])

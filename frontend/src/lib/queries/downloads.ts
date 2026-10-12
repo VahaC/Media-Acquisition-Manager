@@ -94,6 +94,10 @@ export const useSendDownload = () => {
  * changed, rather than on a timer of their own: a check that ends, or a mover that takes the copies up,
  * would otherwise leave an opened row showing them as they were. Only opened rows ask; another row's
  * details, if cached, are only marked stale.
+ *
+ * MAM-41 — asked by the Jobs page's tab (`view`). The previous page stays on screen only for another
+ * page of the same tab: another tab says Loading… rather than show the last tab's jobs, or its empty
+ * sentence, under its own name — as the Duplicates page's tabs do (useLibraryDuplicates).
  */
 export const useDownloadJobs = (query: DownloadJobsQuery) => {
   const queryClient = useQueryClient()
@@ -107,12 +111,13 @@ export const useDownloadJobs = (query: DownloadJobsQuery) => {
       if (previous !== undefined) askAgainForChangedReplacements(queryClient, previous.items, next.items)
       return next
     },
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3].view === query.view ? keepPreviousData(previous) : undefined,
     refetchInterval: (current) => {
       const list = current.state.data
       return list !== undefined && list.items.some(isJobWorkedOn) ? JOBS_POLL_MS : false
     },
-    // A 400 for a bad page or status won't change on a second try.
+    // A 400 for a bad page or view won't change on a second try.
     retry: false,
   })
 }
@@ -256,6 +261,8 @@ function replacementIdOf(variables: unknown): string | null {
  * the Copies opened under it. The row holds every other one meanwhile — one busy flag, as the job's
  * page's Replacement section has —, as a second would be refused, or act on a replacement the first
  * just changed (a Retry that goes first sends a copy the owner was dropping back to the check).
+ * MAM-41 — the row's Restore and Delete for good too, and the Copies are in the details its chevron
+ * opens.
  */
 export const useJobActionsPending = (jobId: string, replacementId: string | null) => {
   const cancelling = useIsMutating({ mutationKey: qk.actions.cancelJob, predicate: (mutation) => mutation.state.variables === jobId })

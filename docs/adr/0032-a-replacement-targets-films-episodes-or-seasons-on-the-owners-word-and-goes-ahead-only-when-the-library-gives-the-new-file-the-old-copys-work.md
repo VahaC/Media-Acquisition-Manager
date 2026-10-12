@@ -417,3 +417,17 @@ both to download the release." with nothing written or sent. A removal that ende
 and
 `ReplacementScheduleHttpTests.Schedule_of_a_copy_an_open_removal_holds_is_409_naming_the_removal_and_writes_nothing`
 pin it.
+
+## The copies open under the Jobs row's chevron (added 0.3.0, MAM-41)
+
+**The MAM-27 section's "under the Jobs row's **Copies**" now reads "in the details the chevron
+before the job's title opens under its row": the same ticked copies, each with the new file it pairs
+with, its status, its problem and **Drop**, asked for only while open and again every 2 s while the
+check runs, under the replacement's whole line; the **Copies** button left the row's actions, which
+hold verbs only (Vasyl's decision of 2026-10-12: the copies are details, not an action; [ADR
+0014](0014-a-download-is-followed-by-reading-its-client-and-cancelling-it-only-stops-the-following.md)'s
+MAM-41 section).** The row's **Replacement** cell says where the replacement stands in a few words —
+"Check stopped", "Move stopped", "Can't follow the download" for a review — and the details the
+sentence with what to do. Nothing about pairing, dropping or what only a drop settles changes: the
+server still works out each copy's status, a Drop still waits for Retry, and the row still leaves
+**Retry** out while a copy only a drop settles is in the replacement.

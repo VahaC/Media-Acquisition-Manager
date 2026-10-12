@@ -1189,6 +1189,9 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
                 QuarantinedCopyCount = 1,
                 StayedFileCount = 1,
                 CanRetry = false,
+                // MAM-41 — as the replacement's own page offers them.
+                CanRestore = true,
+                CanDeleteForGood = true,
             },
             line);
     }

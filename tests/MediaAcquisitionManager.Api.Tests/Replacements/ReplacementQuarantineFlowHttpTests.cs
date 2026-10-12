@@ -101,9 +101,9 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
 
         //Assert
         // The pass: both names in the quarantine with the identity they had, the job at rest owing nothing, and the Jobs
-        // line counting the copy moved.
+        // line counting the copy moved — MAM-41 — and offering Restore and Delete for good.
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1 },
+            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1, CanRestore = true, CanDeleteForGood = true },
             movedLine);
         Assert.Equal(
             (ReplacementJobState.Quarantined, (DateTime?)now, (DateTime?)null),
@@ -334,7 +334,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         // The next pass: both names moved, the job at rest in the quarantine.
         var line = await _harness.LineAsync(job.Id, cancellationToken);
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1 },
+            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1, CanRestore = true, CanDeleteForGood = true },
             line);
         Assert.Equal(
             [
@@ -426,7 +426,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         // The torrent gone: both names moved, the job at rest in the quarantine.
         Assert.Equal(HttpStatusCode.OK, secondRetry.StatusCode);
         Assert.Equal(
-            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1 },
+            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1, CanRestore = true, CanDeleteForGood = true },
             await _harness.LineAsync(job.Id, cancellationToken));
         Assert.Equal(
             [

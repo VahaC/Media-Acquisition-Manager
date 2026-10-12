@@ -124,9 +124,17 @@ export const downloadedJob = jobOf({
   statusChangedUtc: '2026-10-01T19:42:00Z',
 })
 
-/** The page the server answers `query` with, out of `total` jobs. */
-export function jobsPage(query: DownloadJobsQuery, items: DownloadJob[], total = items.length): DownloadJobList {
-  return { items, totalCount: total, page: query.page, pageSize: query.pageSize }
+/**
+ * The page the server answers `query` with, out of `total` jobs. MAM-41 — with the caller's jobs that
+ * need them and that are in progress counted as `counts` says: none unless a test is about the tabs.
+ */
+export function jobsPage(
+  query: DownloadJobsQuery,
+  items: DownloadJob[],
+  total = items.length,
+  counts: Partial<Pick<DownloadJobList, 'needsYouCount' | 'inProgressCount'>> = {},
+): DownloadJobList {
+  return { items, totalCount: total, page: query.page, pageSize: query.pageSize, needsYouCount: 0, inProgressCount: 0, ...counts }
 }
 
 /** One file of a job, wanted and part-way through; `changes` sets what a test is about. */
