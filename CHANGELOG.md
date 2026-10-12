@@ -709,7 +709,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   would fail: mount the media folder as one read-write mount.", "Mounted read-only, so a move would
   fail: mount the media folders read-write.", "The app's user can't write here or in its media folder,
   so a move would fail: run the app as the media folders' owner.", "The app couldn't check whether a
-  move can work here; the move itself will tell."): a hint, as the rename decides. A new
+  move can work here; the move itself will tell."): a hint, as the rename decides (MAM-39 below
+  rewords the third, and names in it the folder, its owner and the `PUID` and `PGID` to set). A new
   **Quarantine** field lists each quarantine that holds names, from the replacements' rows and never
   a walk of the disk — "/media/.mam-quarantine: 4.2 GiB in 2 files, from 1 replacement." — or "The
   quarantine is empty.", with a link to **Jobs**. A Save that changes the folders so that a
@@ -996,7 +997,88 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   than 5.2 and arm64. The README (**Tested with**) and the release note list both; the README's and
   the roadmap's MAM-24 to MAM-27 lines no longer say MAM-28 does the live check, that nothing was
   tried on a real setup or that they are in no published image, and MAM-37 and MAM-38 are recorded
-  as first published in 0.3.0.
+  as first published in 0.3.0. The `user:` line, `APP_USER_ID`, `APP_GROUP_ID` and the `chown` that
+  production was turned on and off with are 0.3.0 as first published: MAM-39 below replaced them,
+  in the same release, with `PUID` and `PGID`.
+- **The app runs as the media folders' owner through `PUID` and `PGID`, and the image hands its own
+  data over to them (MAM-39, ADR 0036, ADR 0033, Vasyl's decision of 2026-10-12).** The image's new
+  entrypoint, `docker-entrypoint.sh`, reads `PUID` and `PGID`, as the linuxserver.io and hotio
+  images of qBittorrent, Jellyfin and Sonarr do; each is 10001 when unset, so an installation that
+  sets neither runs as before. Started as root, it hands the data directory
+  (`${MAM_Storage__DataDirectory:-/data}`) over to them: only what another id owns changes owner, by
+  `chown -h`, never anything mounted inside it — every folder is asked `mountpoint` and left out
+  with all it holds when it is a mount, as `find -xdev` alone changed the owner of a media folder
+  mounted inside `/data` from the same disk —, and no mode changes, so `/data` stays 0700 and the
+  secrets 0600. Then `exec setpriv --reuid --regid --inh-caps=-all --bounding-set=-all
+  --no-new-privs` starts the app, PID 1, as those ids, with no capability and no way to gain one
+  back, and `HOME=/nonexistent`; the supplementary groups Docker gave the container — compose's
+  `group_add`, `docker run --group-add` — stay the app's through `--groups`, as they were under the
+  image's own user, never root's group 0, and with none it gets `--clear-groups`. Root without
+  Docker's default capabilities — `CHOWN`, `DAC_OVERRIDE`, `SETGID`, `SETUID` and `SETPCAP`, which
+  `cap_drop: ALL` removes — is refused up front, from `CapEff`, before anything changes hands. It
+  writes to standard error, each line starting `[entrypoint]`: "[entrypoint] Handed /data over to
+  4242:4343: 6 files and folders changed owner; permissions are unchanged." ("1 file or folder" for
+  one, and nothing
+  when nothing changes hands); "[entrypoint] PUID is 0: the app never runs as root. Set PUID and
+  PGID to the owner of the media folders, or remove them to run as the image's own 10001." (and
+  `PGID is 0:` alike); "[entrypoint] PGID must be a number from 1 to 4294967294, such as 100, not
+  "abc"." (`PUID`'s says "such as 1000"), which refuses 4294967295 too, as `setresuid` reads it as
+  "keep the current id", root's; "[entrypoint] The container runs as root without the capabilities
+  it takes to switch to 10001:10001 (CHOWN, DAC_OVERRIDE, SETGID, SETUID and SETPCAP; cap_drop: ALL
+  removes them), so the app was not started. Keep Docker's default capabilities, or run the
+  container as a user instead: user: "10001:10001" in docker-compose.yml, with the data volume
+  already theirs." (with the ids it would have switched to); and "[entrypoint] Could not hand /data
+  over to 4242:4343; the app was not started." — each exiting non-zero with no app started, the
+  refusals before anything changes hands. Started as another user, by compose's `user:` or
+  `docker run --user`, it starts the app as that user, and with `PUID` or `PGID` set says "[entrypoint] PUID and PGID are ignored: the
+  container already runs as 1000:100, set by user: in docker-compose.yml or by docker run --user.
+  Remove that to use PUID and PGID.". Taking them out hands the data back to 10001 at the next
+  start. The release note's **Turning it on** now sets `PUID` and `PGID` in step 2 and restarts the
+  app the way it is updated, asking for no `user:` line, backup or `chown`, and says what the log
+  says; its **Going back** takes them out again, and goes back to 0.2.1 only after one start of
+  0.3.0 without them. `tools/check-image-user.sh <image>`, new, checks a built image in eight
+  scenarios, each PASS or FAIL — a default start; `PUID=4242 PGID=4343` with `--group-add 4444`
+  handing the data over with every mode kept and the app left no capability and only group 4444;
+  handing it back, no group left; `--user`; `PUID=0`, `PGID=0`, `PGID=abc`, `PUID=4294967295` and
+  root without capabilities (`--cap-drop ALL`) refused; a start and a `docker restart` with nothing
+  to hand over; a media folder mounted inside `/data` that keeps its owner; `docker stop` within
+  5 s —, and passed all eight on a fresh local build on 2026-10-12; CI doesn't run it, and
+  PUBLISHING.md asks for it before a release. Not tried on production yet.
+- **The Media folders page names the folder the app can't write to, whose it is and which `PUID` and
+  `PGID` to set (MAM-39, ADR 0033).** Where it finds `NotWritable`, `DescribeRenamePlacesAsync` now
+  also reads the refused folder's owner and group by `statx(STATX_UID | STATX_GID)` on the
+  descriptor it already holds, never the path again, and the app's effective ids (`geteuid`,
+  `getegid`) — the ticked folder when its own permissions refuse, also when both do, else its
+  allowed folder's `.mam-quarantine`, or the allowed folder while it has none —, and
+  `GET /api/settings/allowed-roots` gives each library folder a `writeAccess` with them, `null` when
+  they couldn't be read. A folder ticked in the form then says, when another user owns it, "The app
+  runs as user 10001, group 10001, and can't write to /media/movies, which belongs to user 1000,
+  group 100, so a move would fail: set PUID=1000 and PGID=100 for the app in docker-compose.yml or
+  .env, and restart it."; when root owns it, "The app can't write to /media/.mam-quarantine, which
+  belongs to root, so a move would fail here: the app never runs as root, so it can move copies
+  only in folders that belong to the user it runs as (now user 1000, group 100)."; when the app
+  already runs as its owner, "The app already runs as the owner of /media/movies, user 1000, but the
+  folder's permissions don't let its owner write there, so a move would fail: give the owner write
+  permission on it."; and without the ids, or when its owner or group is 65534, the overflow id of
+  user-namespace remapping and NFS root squashing, "The app's user can't write here or in its media
+  folder, so a move would fail: set PUID and PGID for the app to the user and group that own your
+  media folders, and restart it.", where it said "… run the app as the media folders' owner.". The
+  ids are written as plain digits, never grouped the locale's way, and the path as it is. The
+  switch's hint now ends "Moving needs the media folders mounted read-write and the app running as
+  their owner, set with PUID and PGID.". `LocalFileQuarantinePlacesLinuxTests` (a folder the app may
+  not write to, the quarantine under a writable allowed folder, the allowed folder with no
+  quarantine yet, the ticked folder when both refuse, and `/var/mail` and `/var/local`, 0:8 and 0:50
+  in the .NET SDK container, whose owner and group differ, so ids read the wrong way round turn six
+  tests red; each compared with coreutils' `stat` and `/proc/self/status` through `LinuxProbes`),
+  `FakeFileQuarantineTests`, `ReplacementSettingsHttpTests` and `MediaFoldersPage.test.tsx` pin it.
+  Looked at in a browser on 2026-10-12, a local image over a copy of a development database, at
+  desktop width and at 375 px with no sideways scroll: before `PUID` and `PGID`, folders owned by
+  1000:100 gave the other-owner sentence with "set PUID=1000 and PGID=100" and a folder root owns
+  the root sentence; with `PUID=1000` and `PGID=100`, the log said "[entrypoint] Handed /data over
+  to 1000:100: 7 files and folders changed owner; permissions are unchanged.", the folders owned by
+  1000:100 said "A move into the quarantine can work here: …", a folder of 1000 with mode 555 gave
+  the already-owner sentence, and the root folder the root sentence with "(now user 1000, group
+  100)".
 
 ### Changed
 
@@ -1095,7 +1177,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   it for good. Moving needs the media folders mounted read-write and the app running as their owner."
   where it ended "In this version a replacement is scheduled and its new file checked once
   downloaded, but nothing is moved; moving old copies comes in a later version and will also need the
-  media folders mounted read-write.". `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`,
+  media folders mounted read-write." (MAM-39 above adds ", set with PUID and PGID" to its end).
+  `JobsPage.test.tsx`, `JobsPage.polling.test.tsx`,
   `JobDetailsPage.test.tsx`, `download-jobs.test.ts`, `DownloadDialog.replace.test.tsx` and
   `MediaFoldersPage.test.tsx` pin them.
 - **The Media folders API answers the rename hint and the quarantines (MAM-26).**
@@ -1184,7 +1267,27 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   it is. **Replace after verification** is said to be there but disabled until then, rather than to
   appear. A new **Going back** settles the quarantine first, while replacement is on and the app
   runs as the media folders' owner, then hands the volume back with `chown … -R 10001:10001 /data`.
-  The release note alone changed; no code.
+  The release note alone changed; no code. MAM-39 above replaced step 2 and **Going back** again,
+  inside 0.3.0: they set and take out `PUID` and `PGID`, and ask for no `user:` line, backup or
+  `chown`; the rest of this correction stands.
+- **The image has no `USER`, and the app's command moved into `ENTRYPOINT` (MAM-39, ADR 0036).** The
+  container starts as root, and `docker-entrypoint.sh` — root's, mode 0755, let into the build
+  context's allowlist in `.dockerignore` — drops to `PUID` and `PGID` before the app starts.
+  `ENTRYPOINT` is `["/usr/local/bin/docker-entrypoint.sh", "dotnet", "MediaAcquisitionManager.Api.dll"]`,
+  the app's command in it rather than in a `CMD`, so arguments after the image name still reach the
+  app as configuration. The health check's `curl` and `docker exec` now run as root inside the
+  container, unless it is given a user; `docker exec … id` therefore reads root's ids, and
+  `/proc/1/status` the app's.
+- **The compose file has no `user:` line, and `APP_USER_ID` and `APP_GROUP_ID` are gone (MAM-39).**
+  `docker-compose.yml` loses `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` and gains
+  `PUID` and `PGID`, commented out, under `environment:`; `.env.example`'s new **Container user**
+  section replaces the one on `APP_USER_ID`, `APP_GROUP_ID` and the `chown` of the data volume, and
+  the comments of both files name `PUID` and `PGID` for the media's owner.
+- **The Media folders API answers `writeAccess` (MAM-39).** Each `libraryFolders` item of
+  `GET /api/settings/allowed-roots` now also has `writeAccess`,
+  `{ path, ownerUserId, ownerGroupId, appUserId, appGroupId }` or `null`: filled only for an
+  `Available` folder whose `renameProblems` holds `NotWritable`, on Linux, when the owner could be
+  read, `path` in canonical form.
 
 ### Notes for upgraders
 
@@ -1216,30 +1319,28 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   check stopped before the upgrade offers Retry whatever its reason, as no copy carries the
   drop-only mark yet; a Retry that can't help stops again, and marks the copy this time.
 - **Replacement is off, and no folder ticked, after the upgrade, and turning it on takes four steps
-  (MAM-24, MAM-26, ADR 0033).** Members send as before, with Keep both, and so does the owner until
-  he turns it on; the owner's dialog says why Replace can't be picked. To turn it on: (1) mount the
-  media folders read-write — the media mount in `docker-compose.yml` without `:ro`, each allowed
-  folder one mount holding its libraries with nothing mounted inside it, so that its quarantine
-  shares the mount —; (2) make sure the `app` service in `docker-compose.yml` has the line
-  `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` under `restart:` — a compose file taken
-  with 0.2.1 or earlier hasn't got it, `bash deploy.sh` doesn't add it, and without it the ids do
-  nothing (MAM-28 found production's without it) —, set `APP_USER_ID` and `APP_GROUP_ID` in `.env`
-  to the media folders' owner, qBittorrent's PUID and PGID (1000 and 100 on the reference
-  installation), back up `mam.db` and `.secrets/` together with the app stopped, and hand the data
-  volume to them once, from the folder of `docker-compose.yml`: `docker compose down`, then
-  `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 1000:100 /data`, then
-  `bash deploy.sh`, as `.env.example` gives it; (3) user menu → **Media folders** → **Replacing
-  copies**, tick **Replace copies after verification**; (4) tick the library folders it may touch,
-  each saying whether a move into the quarantine can work there, then **Save**. A copy can then be
-  ticked only once the app has inspected it inside the Media folders, and only through a destination
-  whose category saves inside a library folder under them. With the switch on but the mount still
-  `:ro` or the image's own ids, the Media folders page says a move would fail, and a move that is
-  tried stops its replacement for review with nothing moved; so does any move on a host that isn't
-  Linux. To go back, settle the quarantine first, while replacement is on and the app still runs as
-  the media folders' owner — Restore or Delete for good every replacement with a copy there, and
-  Keep both on every other one still under way —, then switch it off and hand the volume back with
-  `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 10001:10001 /data`, as the
-  release note's **Going back** says.
+  (MAM-24, MAM-26, MAM-39, ADR 0033, ADR 0036).** Members send as before, with Keep both, and so
+  does the owner until he turns it on; the owner's dialog says why Replace can't be picked. To turn
+  it on: (1) mount the media folders read-write — the media mount in `docker-compose.yml` without
+  `:ro`, each allowed folder one mount holding its libraries with nothing mounted inside it, so that
+  its quarantine shares the mount —; (2) set `PUID` and `PGID` to the media folders' owner, usually
+  the same as your qBittorrent's (1000 and 100 on the reference installation), under the `app`
+  service's `environment:` or in `.env`, delete a `user:` line if the service has one, and restart
+  the app with `bash deploy.sh` or `docker compose up -d` — `docker compose restart` keeps the old
+  settings —: the container hands its own data over to them as it starts, and its log says so;
+  (3) user menu → **Media folders** → **Replacing copies**, tick **Replace copies after
+  verification**; (4) tick the library folders it may touch, each saying whether a move into the
+  quarantine can work there — or which folder the app can't write to, whose it is and which `PUID`
+  and `PGID` to set —, then **Save**. A copy can then be ticked only once the app has inspected it
+  inside the Media folders, and only through a destination whose category saves inside a library
+  folder under them. With the switch on but the mount still `:ro` or the image's own ids, the Media
+  folders page says a move would fail, and a move that is tried stops its replacement for review
+  with nothing moved; so does any move on a host that isn't Linux. To go back, settle the quarantine
+  first, while replacement is on and the app still runs as the media folders' owner — Restore or
+  Delete for good every replacement with a copy there, and Keep both on every other one still under
+  way —, then switch it off, take `PUID` and `PGID` out and restart the app: it hands its data back
+  to 10001 by itself. To go back to 0.2.1, which runs as 10001 and hands nothing over, let 0.3.0
+  start once that way first, then set `APP_TAG=0.2.1`, as the release note's **Going back** says.
 - **What moves, and what the backup doesn't keep (MAM-24, MAM-25, MAM-26, MAM-27).** Scheduling
   reads the download clients' torrents and the old copies' identities, and the check of the new
   files reads qBittorrent, the new files and Jellyfin, sending Jellyfin only
@@ -1268,6 +1369,30 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   needs it as well (MAM-26): with an older qBittorrent, or torrents it can't place, every move stops
   for review ("The app couldn't tell whether a torrent in “qBittorrent” holds the old copy: This is
   qBittorrent v5.1.4; telling which torrents hold a library file needs qBittorrent 5.2 or later.").
+- **A `docker-compose.yml` of 0.3.0 as first published keeps working, and so does a replacement
+  turned on with it (MAM-39).** Its `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` wins over
+  `PUID` and `PGID`: the app runs as the ids it gives, and the log says `PUID` and `PGID` are ignored
+  while it is there. To move to them, delete the line, set `PUID` and `PGID` to the ids
+  `APP_USER_ID` and `APP_GROUP_ID` held, and restart: a data volume already handed over to them
+  changes nothing. Without the line, `APP_USER_ID` and `APP_GROUP_ID` do nothing and can go. To go
+  back from such a setup, delete the line too: under it the app starts as the ids it gives and can't
+  hand its data back to 10001.
+- **A container run with `cap_drop: ALL` and no `user:` line refuses to start the app (MAM-39, ADR
+  0036).** The container now starts as root, which `cap_drop: ALL` leaves without the `CHOWN`,
+  `DAC_OVERRIDE`, `SETGID`, `SETUID` and `SETPCAP` the hand-over and the switch take, so the
+  entrypoint refuses up front, `PUID` and `PGID` set or not, and changes nothing: "[entrypoint] The
+  container runs as root without the capabilities it takes to switch to 10001:10001 (CHOWN,
+  DAC_OVERRIDE, SETGID, SETUID and SETPCAP; cap_drop: ALL removes them), so the app was not started.
+  Keep Docker's default capabilities, or run the container as a user instead: user: "10001:10001"
+  in docker-compose.yml, with the data volume already theirs." Two ways out: drop the
+  `cap_drop: ALL`, or give the service that `user:` line — the image's 10001, or the media's owner
+  —, with the data volume already theirs; the entrypoint then only starts the app.
+- **`group_add` keeps working (MAM-39).** The supplementary groups Docker gives the container —
+  compose's `group_add`, `docker run --group-add` — stay the app's whoever it runs as, as they did
+  under the image's own user; root's group 0 never does, and with none the app has none.
+- **A bind-mounted data directory changes owner on the host (MAM-39).** With `PUID` and `PGID` set,
+  the container hands it over to them as it starts, and back to 10001 once they are removed; its
+  mode stays as it was made, so create it 0700 first, as before.
 
 ## [0.2.1] — 2026-10-05
 

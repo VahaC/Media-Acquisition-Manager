@@ -29,6 +29,10 @@ namespace MediaAcquisitionManager.Api.Services.Files;
 /// takes, from the replacements' own rows; and a Save that would leave a quarantine holding names outside every allowed
 /// root is refused, so Restore and Delete for good stay within reach (ADR 0030).
 /// </para>
+/// <para>
+/// MAM-39 — where the app's user may not write, the same look also says which folder that is, whose it is and whom the
+/// app runs as, so the page can say which PUID and PGID to set.
+/// </para>
 /// </remarks>
 public sealed class AllowedRootsService(
     ApplicationDbContext db,
@@ -59,18 +63,13 @@ public sealed class AllowedRootsService(
     public async Task<AllowedRootsResponse> GetAsync(CancellationToken cancellationToken = default)
     {
         var gates = await replacementGates.ReadAsync(cancellationToken);
-        var renameProblems = await RenameProblemsAsync(gates, cancellationToken);
+        var renamePlaces = await RenamePlacesAsync(gates, cancellationToken);
         // The stale ticks among the folders, by app path: they can't share one with a folder, which would have
         // matched them.
         IReadOnlyList<ReplacementFolderDto> folders =
         [
             .. gates.Folders
-                .Select(folder => new ReplacementFolderDto(
-                    folder.AppPath.ToString(),
-                    folder.LibraryNames,
-                    folder.Ticked,
-                    folder.Status,
-                    renameProblems.GetValueOrDefault(folder.AppPath.ToString())))
+                .Select(folder => FolderOf(folder, renamePlaces.GetValueOrDefault(folder.AppPath.ToString())))
                 .Concat(gates.StaleTicks.Select(path => new ReplacementFolderDto(path, [], true, ReplacementFolderStatus.NoLongerALibraryFolder)))
                 .OrderBy(folder => folder.AppPath, StringComparer.Ordinal),
         ];
@@ -177,21 +176,36 @@ public sealed class AllowedRootsService(
     /// MAM-26, ADR 0033 — for every library folder whose tick counts where it is (<see cref="ReplacementFolderStatus.Available"/>),
     /// what keeps a rename into its allowed root's quarantine from working there, by app path: one look through the write
     /// contract for all of them — the folders themselves, never their files —, and none at all while there is no such
-    /// folder. A hint for the owner; the rename itself decides.
+    /// folder. A hint for the owner; the rename itself decides. MAM-39 — with, where the app's user may not write, whose
+    /// folder it is.
     /// </summary>
-    private async Task<Dictionary<string, IReadOnlyList<RenamePlaceProblem>>> RenameProblemsAsync(
-        ReplacementGateState gates, CancellationToken cancellationToken)
+    private async Task<Dictionary<string, RenamePlace>> RenamePlacesAsync(ReplacementGateState gates, CancellationToken cancellationToken)
     {
         List<string> available = [.. gates.Folders.Where(folder => folder.Status == ReplacementFolderStatus.Available).Select(folder => folder.AppPath.ToString())];
         if (available.Count == 0)
-            return new Dictionary<string, IReadOnlyList<RenamePlaceProblem>>(StringComparer.Ordinal);
+            return new Dictionary<string, RenamePlace>(StringComparer.Ordinal);
 
         // One answer per folder asked, in the order asked: paired by position, never by the text it echoes.
         var places = await quarantine.DescribeRenamePlacesAsync(available, gates.AllowedRoots, cancellationToken);
         return available
-            .Zip(places, (folder, place) => (Folder: folder, place.Problems))
-            .ToDictionary(pair => pair.Folder, pair => pair.Problems, StringComparer.Ordinal);
+            .Zip(places, (folder, place) => (Folder: folder, Place: place))
+            .ToDictionary(pair => pair.Folder, pair => pair.Place, StringComparer.Ordinal);
     }
+
+    /// <summary>
+    /// One library folder as the page lists it, with what the look found there (MAM-26) — <c>null</c> for a folder it
+    /// didn't look at — and (MAM-39) whose folder the app's user may not write to, only where the look said so.
+    /// </summary>
+    private static ReplacementFolderDto FolderOf(ReplacementGateFolder folder, RenamePlace? place) =>
+        new(
+            folder.AppPath.ToString(),
+            folder.LibraryNames,
+            folder.Ticked,
+            folder.Status,
+            place?.Problems,
+            place?.WriteAccess is { } access
+                ? new ReplacementFolderWriteAccessDto(access.FolderAppPath, access.OwnerUserId, access.OwnerGroupId, access.AppUserId, access.AppGroupId)
+                : null);
 
     /// <summary>
     /// MAM-26, ADR 0030 — every quarantine holding a replacement's names now, with how many replacements and names and

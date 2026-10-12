@@ -168,6 +168,7 @@ public sealed class LocalFileQuarantineTests : IDisposable
         //Assert
         Assert.Equal([movies, _media], places.Select(place => place.FolderAppPath));
         Assert.All(places, place => Assert.Equal([RenamePlaceProblem.CouldNotCheck], place.Problems));
+        Assert.All(places, place => Assert.Null(place.WriteAccess));
     }
 
     private async Task<FileFacts> FactsOfAsync(string path) =>

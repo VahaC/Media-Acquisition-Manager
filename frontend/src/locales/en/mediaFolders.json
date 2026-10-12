@@ -18,7 +18,7 @@
     "title": "Replacing copies",
     "description": "Whether a release you download may replace a copy you already have, and in which library folders. Saved with the folders above.",
     "switch": "Replace copies after verification",
-    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder's quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner.",
+    "switchHint": "Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder's quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.",
     "folders": "Library folders replacement may touch",
     "foldersHint": "The folders of your Jellyfin libraries, as the app sees them. None is ticked by default, and the ticks are kept while replacement is off. A tick counts only inside the media folders as saved: a folder under one you add above can be ticked once you save it.",
     "libraries_one": "In the library {{names, list}}",
@@ -33,7 +33,10 @@
     "renameProblem": {
       "OtherMount": "Not on the same mount as its media folder's quarantine, so a move would fail: mount the media folder as one read-write mount.",
       "ReadOnly": "Mounted read-only, so a move would fail: mount the media folders read-write.",
-      "NotWritable": "The app's user can't write here or in its media folder, so a move would fail: run the app as the media folders' owner.",
+      "NotWritable": "The app's user can't write here or in its media folder, so a move would fail: set PUID and PGID for the app to the user and group that own your media folders, and restart it.",
+      "NotWritableRoot": "The app can't write to {{path}}, which belongs to root, so a move would fail here: the app never runs as root, so it can move copies only in folders that belong to the user it runs as (now user {{appUserId}}, group {{appGroupId}}).",
+      "NotWritableAlreadyOwner": "The app already runs as the owner of {{path}}, user {{appUserId}}, but the folder's permissions don't let its owner write there, so a move would fail: give the owner write permission on it.",
+      "NotWritableOtherOwner": "The app runs as user {{appUserId}}, group {{appGroupId}}, and can't write to {{path}}, which belongs to user {{ownerUserId}}, group {{ownerGroupId}}, so a move would fail: set PUID={{ownerUserId}} and PGID={{ownerGroupId}} for the app in docker-compose.yml or .env, and restart it.",
       "CouldNotCheck": "The app couldn't check whether a move can work here; the move itself will tell."
     },
     "quarantine": "Quarantine",

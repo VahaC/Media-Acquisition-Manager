@@ -28,7 +28,9 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 // already stored; missing fields switch off and untick (fail closed). MAM-26, ADR 0030, ADR 0033 — the page also says, per
 // library folder whose tick counts, what keeps a rename into the quarantine from working there (the write contract faked),
 // and how much room each quarantine takes, from the replacements' rows; and a Save that would leave a quarantine holding
-// names outside every allowed root is refused with its path, nothing saved — a parent root keeps it in reach.
+// names outside every allowed root is refused with its path, nothing saved — a parent root keeps it in reach. MAM-39 —
+// for a folder the app's user may not write to, the page also gets which folder, whose it is and whom the app runs as,
+// so it can say which PUID and PGID to set; null for every other folder.
 public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/allowed-roots";
@@ -671,6 +673,54 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
                 (Media("tv-shows"), "CouldNotCheck"),
             ],
             body.LibraryFolders.Select(folder => (folder.AppPath, folder.RenameProblems is { } problems ? string.Join(", ", problems) : null)));
+        // MAM-39 — Документалки's ids couldn't be read, so no folder names whose it is.
+        Assert.All(body.LibraryFolders, folder => Assert.Null(folder.WriteAccess));
+    }
+
+    [Fact]
+    public async Task Get_says_for_a_folder_the_app_may_not_write_to_which_folder_whose_it_is_and_whom_the_app_runs_as_and_null_for_every_other()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await _roots.Allow(MediaRoot);
+        await SyncSampleLibrariesAsync();
+        await _replacement.Tick(Media("old-films"));
+        // MAM-39 — as the host has them: Фільми belongs to 1000:100 while the app runs as 10001:10001; under Документалки
+        // the quarantine is root's; Мульфільми on a mount of its own and nothing else; Серіали fine. Only a folder whose
+        // hint says NotWritable is named; one outside the Media folders or no longer a library folder is never looked at.
+        _factory.Files.AddFolder(Media("movies"));
+        _factory.Files.AddFolder(Media("cartoons"));
+        _factory.Files.AddFolder(Media("documentary"));
+        _factory.Files.AddFolder(Media("tv-shows"));
+        _factory.Quarantine.SetNotWritable(Media("movies"), 1000, 100, 10001, 10001);
+        _factory.Quarantine.SetNotWritable(Media("documentary"), 0, 0, 10001, 10001, reportedPath: Media(".mam-quarantine"));
+        _factory.Quarantine.SetMount(Media("cartoons"), 2);
+
+        //Act
+        using var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+
+        //Assert
+        // On the wire as the page reads it (frontend ReplacementFolder.writeAccess): an object of exactly these names, or
+        // null — never a missing property.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var folders = JsonNode.Parse(await response.Content.ReadAsStringAsync(cancellationToken))!["libraryFolders"]!.AsArray();
+        Assert.Equal(
+            [
+                (Config("data", "collections"), (string?)null),
+                (Media("cartoons"), null),
+                (Media("documentary"), $"{Media(".mam-quarantine")} owned by 0:0, app 10001:10001"),
+                (Media("movies"), $"{Media("movies")} owned by 1000:100, app 10001:10001"),
+                (Media("old-films"), null),
+                (Media("tv-shows"), null),
+            ],
+            folders.Select(folder => ((string)folder!["appPath"]!, WriteAccessOf(folder.AsObject()))));
+        Assert.All(
+            folders.Select(folder => folder!["writeAccess"]).OfType<JsonObject>(),
+            access => Assert.Equal(["path", "ownerUserId", "ownerGroupId", "appUserId", "appGroupId"], access.Select(property => property.Key)));
+        // What the hint stands on is unchanged: Фільми and Документалки NotWritable, Мульфільми OtherMount.
+        Assert.Equal(
+            [null, "OtherMount", "NotWritable", "NotWritable", null, ""],
+            folders.Select(folder => folder!["renameProblems"] is JsonArray problems ? string.Join(", ", problems.Select(problem => (string)problem!)) : null));
     }
 
     [Fact]
@@ -859,6 +909,15 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
         using var response = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<AllowedRootsResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
+    }
+
+    // MAM-39 — a listed folder's writeAccess on the wire as one line, or null where it is null; it is never left out.
+    private static string? WriteAccessOf(JsonObject folder)
+    {
+        Assert.True(folder.ContainsKey("writeAccess"), $"“{folder["appPath"]}” has no writeAccess property.");
+        return folder["writeAccess"] is JsonObject access
+            ? $"{(string)access["path"]!} owned by {(uint)access["ownerUserId"]!}:{(uint)access["ownerGroupId"]!}, app {(uint)access["appUserId"]!}:{(uint)access["appGroupId"]!}"
+            : null;
     }
 
     // Each listed folder with its library names joined, so lists compare by value.

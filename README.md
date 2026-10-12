@@ -496,10 +496,11 @@ application.
   "Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.",
   "Replacement undone: the old copy is back where it was.", "Replaced: the old copy was deleted for
   good." —; the Media folders page says per ticked folder whether a move can work there (the same
-  mount as the quarantine, mounted read-write, writable by the app), lists the room each quarantine
-  takes, and refuses a Save that would leave one outside every media folder. No timer deletes
-  anything, and the quarantine is outside the database backup (MAM-26, Vasyl's decisions of
-  2026-10-08 and 2026-10-10, [ADR
+  mount as the quarantine, mounted read-write, writable by the app) — where the app's user can't
+  write, which folder that is, whose it is and which `PUID` and `PGID` to set (MAM-39) —, lists the
+  room each quarantine takes, and refuses a Save that would leave one outside every media folder. No
+  timer deletes anything, and the quarantine is outside the database backup (MAM-26, Vasyl's
+  decisions of 2026-10-08 and 2026-10-10, [ADR
   0030](docs/adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md),
   [ADR
   0031](docs/adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md),
@@ -576,8 +577,10 @@ application.
 - **Zero-config start.** On first run the API creates its SQLite database, applies the migrations
   and generates its own secrets. See [Configuration](#configuration).
 - **One Docker container.** `docker compose up -d` runs the published image with nothing to
-  configure; the container reports healthy only when the database is ready. See
-  [Quick start](#quick-start-docker-compose) and [Deployment](#deployment).
+  configure; the container reports healthy only when the database is ready. The app runs as the
+  image's own unprivileged user, or as the user and group `PUID` and `PGID` name — the media
+  folders' owner, for replacement —, the container handing its own data over to them as it starts
+  (MAM-39). See [Quick start](#quick-start-docker-compose) and [Deployment](#deployment).
 
 ### Tested with
 
@@ -593,7 +596,9 @@ working tree over a scratch data directory with answers made up in the page. MAM
 C's acceptance bar on 2026-10-12 on production too, the published 0.3.0 image with replacement
 turned on as the 0.3.0 release note's **Turning it on** says, Vasyl signed in as the owner; the fix
 of check 6 and the corrections of **Turning it on** that MAM-28 made that day came after that image,
-the first resting on the tests alone and the second on what was done on production. The other
+the first resting on the tests alone and the second on what was done on production. MAM-39 then
+replaced those corrections, in the same 0.3.0, with `PUID` and `PGID`, checked on a local build of
+the image on 2026-10-12 and not on production yet. The other
 tickets' live checks are listed too, each with where it ran when that was recorded.
 
 | Service | Version tried | Used as |
@@ -603,7 +608,7 @@ tickets' live checks are listed too, each with where it ran when that was record
 | qBittorrent | 5.2.4, and (on 2026-10-12) MAM-28's film and season downloads followed to `Downloaded`, a third cancelled, and its torrents read before each send and right before each move | Download client |
 | TMDb | API v3, read on 2026-10-05 | Metadata catalog |
 | ffprobe | 6.1.1-3ubuntu5, Ubuntu's package in the 0.2.1 image, read on 2026-10-08 (MAM-22's inspections took every reading from the cache and ran it on no file); the same 6.1.1-3ubuntu5 in the published 0.3.0 image, which read MAM-28's new files on 2026-10-12 | File inspection |
-| Media Acquisition Manager | 0.3.0, the published image `sha256:0b75fdbd7f60…` stamped `0.3.0+2dec720`, on production, Docker 29.9.0 and Compose v5.6.0 on Linux 7.0.14-22-pve (x86_64), `/media` on ext4 (MAM-28; its fix of check 6, made after that image, by the tests alone); 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22); the MAM-37 change built on top of commit 27fcd79, on Windows on a copy of production's database (MAM-37); the MAM-24 working tree, booted on Windows over a copy of the development data directory for its read of qBittorrent (MAM-24); a probe of the MAM-25 design, booted on Windows over a copy of the development data directory (made for the probe and deleted afterwards) for its read of Jellyfin (MAM-25) | The app checked |
+| Media Acquisition Manager | 0.3.0, the published image `sha256:0b75fdbd7f60…` stamped `0.3.0+2dec720`, on production, Docker 29.9.0 and Compose v5.6.0 on Linux 7.0.14-22-pve (x86_64), `/media` on ext4 (MAM-28; its fix of check 6, made after that image, by the tests alone); 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22); the MAM-37 change built on top of commit 27fcd79, on Windows on a copy of production's database (MAM-37); the MAM-24 working tree, booted on Windows over a copy of the development data directory for its read of qBittorrent (MAM-24); a probe of the MAM-25 design, booted on Windows over a copy of the development data directory (made for the probe and deleted afterwards) for its read of Jellyfin (MAM-25); an image built from the MAM-39 working tree, for `tools/check-image-user.sh` (MAM-39) | The app checked |
 
 - **Jellyfin:** the connection test, and syncs of all its movies, collections included (876 items
   on 2026-10-03). The header search "Sherlock Holmes (2009)" found the movie inside
@@ -945,12 +950,12 @@ tickets' live checks are listed too, each with where it ran when that was record
 - **Turning replacement on (MAM-28, 2026-10-12):** with the app still 10001, ticking **Replace
   copies after verification**, `/media/movies` and `/media/tv-shows` without saving showed on both
   rows "The app's user can't write here or in its media folder, so a move would fail: run the app as
-  the media folders' owner." From 09:38 to 09:42 UTC the release note's steps were done as they now
-  read: step 1 was in place already (no `:ro`); for step 2 the line
-  `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` went under `restart:` and a new `.env` got
-  `APP_USER_ID=1000` and `APP_GROUP_ID=100` (`docker compose config` then gave `user: 1000:100`), the
-  data volume was backed up — `mam.db` and `.secrets`, with the app stopped — to `/root/mam-backup`,
-  and the note's `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 1000:100 /data`
+  the media folders' owner." From 09:38 to 09:42 UTC the release note's steps were done as they read
+  then, before `PUID` and `PGID` (MAM-39, below): step 1 was in place already (no `:ro`); for step 2
+  the line `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` went under `restart:` and a new
+  `.env` got `APP_USER_ID=1000` and `APP_GROUP_ID=100` (`docker compose config` then gave
+  `user: 1000:100`), the data volume was backed up — `mam.db` and `.secrets`, with the app stopped
+  — to `/root/mam-backup`, and the note's `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 1000:100 /data`
   handed it over, keeping `/data` at 700 and the secrets at 600; the app then started healthy in
   7.4 s as uid 1000 (`ubuntu`), gid 100 (`users`), allowed to write to `/media`, `/media/movies` and
   `/media/tv-shows`. Ticked again, both rows said "A move into the quarantine can work here: the same
@@ -958,9 +963,9 @@ tickets' live checks are listed too, each with where it ran when that was record
   and wrote `ReplacementSwitchedOn` and `ReplacementFoldersChanged`, no `AllowedRootsChanged`; the
   report found no file changed. The release note as published said nothing of the `user:` line,
   without which the ids do nothing (finding E1 of the check's preparation), nor of the backup; its
-  **Turning it on** now says both, and how to go back. Run inside a `bash` heredoc,
-  `docker compose run` read the rest of the heredoc from its standard input, so a script gives it
-  `-T` or `</dev/null`.
+  **Turning it on** then said both, and how to go back, until MAM-39 replaced them in the same
+  0.3.0 (below). Run inside a `bash` heredoc, `docker compose run` read the rest of the heredoc
+  from its standard input, so a script gives it `-T` or `</dev/null`.
 - **A film replaced on production (MAM-28, 2026-10-12):** the old copy of «Останній бойскаут» (The
   Last Boy Scout, 1991; TMDb 9319, IMDb tt0102266), `/media/movies/The Last Boy Scout (1991) BDRip-AVC.mkv`
   — 2,241,669,589 B, 1024x432 H.264 (Jellyfin's "576p"), inode 390463793, one link, held by no
@@ -1085,9 +1090,9 @@ tickets' live checks are listed too, each with where it ran when that was record
   uid 1000 —, and the image published on 2026-10-11 hasn't got it.
 - **After the check (MAM-28, 2026-10-12):** from 10:49 to 10:53 UTC replacement was saved off
   with both folders unticked, the app saying "The quarantine is empty.", and Vasyl ran the way
-  back on the host in one block: the quarantine held 0 files; `docker compose down`; the release
-  note's `chown` with `10001:10001`; the `docker-compose.yml` from before the check put back from
-  `/root/mam-backup`, with no `user:` line, as before; `.env` removed; the empty
+  back on the host in one block: the quarantine held 0 files; `docker compose down`; the `chown` the
+  release note gave then, with `10001:10001`; the `docker-compose.yml` from before the check put
+  back from `/root/mam-backup`, with no `user:` line, as before; `.env` removed; the empty
   `.mam-quarantine` folders removed; the app started healthy in 7.4 s as uid 10001 (`mam`), its
   volume 10001:10001 with mode 700. In qBittorrent he removed, with their files, the season's 4K
   torrent and the cancelled 10.42 GiB film torrent, and kept "Clarksons Farm Collection", which
@@ -1098,6 +1103,27 @@ tickets' live checks are listed too, each with where it ran when that was record
   (the film's first), 2 `Cancelled` (the season's, by Keep both, and the film's second, by Cancel
   job) and 1 `Failed` (the refused overwrite), and the image stayed the same throughout,
   `0.3.0+2dec720`.
+- **`PUID` and `PGID` (MAM-39, 2026-10-12):** an image built afresh from the working tree passed
+  all eight scenarios of `tools/check-image-user.sh` — a default start as 10001:10001, healthy, its
+  data 10001:10001 and 0700; `PUID=4242 PGID=4343` with `--group-add 4444` handing all of the data
+  over with every mode kept, the app PID 1 as 4242:4343 in all four ids, its only supplementary
+  group 4444, no capability and `NoNewPrivs` 1; the ids taken out, the data handed back and no
+  supplementary group; `--user 1000:100` with `PUID` set, which logged that they are ignored;
+  `PUID=0`, `PGID=0`, `PGID=abc`, `PUID=4294967295` and root without capabilities (`--cap-drop ALL`)
+  refused, each with its line, the data as it was; a start and a `docker restart` with nothing to
+  hand over, silent; a 1000:100 media folder, modes 750 and 640, mounted inside `/data` on a
+  hand-over, keeping its owner and modes; and every `docker stop` within 5 s with exit code 0.
+  Before each mount inside the data directory was skipped with `mountpoint`, `find -xdev` alone had
+  changed the owner of a media folder mounted there from the same disk. The same image, run over a
+  copy of the development database, showed the Media folders page's new lines in a browser at
+  desktop width and at 375 px, with no sideways scroll: before `PUID` and `PGID`, the folders owned
+  by 1000:100 gave the sentence for another owner with "set PUID=1000 and PGID=100", and a folder
+  root owns the sentence for root; with `PUID=1000` and `PGID=100` the log said "[entrypoint]
+  Handed /data over to 1000:100: 7 files and folders changed owner; permissions are unchanged.",
+  the folders owned by 1000:100 said "A move into the quarantine can work here: …", a folder of
+  1000 with mode 555 gave the sentence for the app already running as the owner, and the root
+  folder the sentence for root with "(now user 1000, group 100)". Not tried on production, which
+  MAM-28 turned on and off with a `user:` line and a `chown` before `PUID` and `PGID` existed.
 
 Not tried live yet:
 
@@ -1351,7 +1377,8 @@ These rules apply to any future implementation:
 Decided for Phase C on 2026-10-08 (MAM-23):
 
 - **Off until the owner turns it on.** The media folders mounted read-write, the app running as
-  their owner (`APP_USER_ID`, `APP_GROUP_ID`), the owner's switch in the app and the owner's tick on
+  their owner (`PUID` and `PGID` since MAM-39, `APP_USER_ID` and `APP_GROUP_ID` before), the
+  owner's switch in the app and the owner's tick on
   each library folder replacement may touch; only the owner schedules, restores and deletes for good
   ([ADR
   0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
@@ -1395,8 +1422,9 @@ made one fix: right before a move, a download client the app has sent a replacem
 whatever its path mappings say, so a mapping deleted or pointed outside the Media folders after the
 send can't hide a torrent that holds the old copy ([ADR
 0031](docs/adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)).
-The move needs the read-write mount and `APP_USER_ID` and `APP_GROUP_ID`; see
-[Deployment](#deployment).
+The move needs the read-write mount and `PUID` and `PGID`, which the image reads to run the app as
+the media's owner, handing its own data over to them (MAM-39, [ADR
+0036](docs/adr/0036-the-image-starts-as-root-only-to-hand-its-data-directory-to-puid-and-pgid-then-drops-to-them-with-no-capabilities-before-the-app-starts.md)); see [Deployment](#deployment).
 
 ## Quick start (Docker Compose)
 
@@ -1409,9 +1437,10 @@ docker compose up -d
 
 Open <http://localhost:8118>. With no configuration at all, the app creates its database and
 generates its secrets on the first start, on the `mam-data` volume, and the first page asks you to
-create the owner account, who then adds the other users. To change the image tag, the port or who
-can reach the app, copy [.env.example](.env.example) to `.env` next to the compose file and set only
-what you need; see [Deployment](#deployment).
+create the owner account, who then adds the other users. To change the image tag, the port, who
+can reach the app or the user and group it runs as (`PUID`, `PGID`), copy
+[.env.example](.env.example) to `.env` next to the compose file and set only what you need; see
+[Deployment](#deployment).
 
 To build the image from a checkout of this repository instead of pulling it:
 
@@ -1752,16 +1781,33 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   then share one sign-in limit: ten failed attempts a minute from anyone keep everyone from signing
   in for as long as they keep at it. The app also sees plain HTTP behind a TLS-terminating proxy, so
   the refresh cookie is not marked `Secure` there; `HttpOnly` and `SameSite=Strict` still apply.
-- **The container runs unprivileged.** The app runs as user `mam` (uid 10001), its own files belong
-  to root and are read-only to it, and the only persistent place it can write is `/data` (besides
-  the usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
-  `APP_USER_ID` and `APP_GROUP_ID` run it under other ids, which moving old copies into the
-  quarantine (0.3.0, MAM-26) needs, with the media folders mounted read-write: the media folders'
-  owner's (ADR 0033). With them the kernel lets the app write wherever that owner may, so the
-  replacement switch, the ticks, the walk before every write and the write contract are what keep a
-  move to the ticked folders and the quarantine. An installation that never turns replacement on
-  keeps the default ids and the read-only mount: scheduling a replacement and checking its new file
-  write nothing to the media folders.
+- **The app runs unprivileged.** It runs as user `mam` (uid 10001) by default, its own files belong
+  to root and are read-only to it, and the only persistent place it can write is `/data` (besides the
+  usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
+  `PUID` and `PGID` run it under other ids, which moving old copies into the quarantine (0.3.0,
+  MAM-26) needs, with the media folders mounted read-write: the media folders' owner's (ADR 0033).
+  With them the kernel lets the app write wherever that owner may, so the replacement switch, the
+  ticks, the walk before every write and the write contract are what keep a move to the ticked
+  folders and the quarantine. An installation that never turns replacement on keeps the default ids
+  and the read-only mount: scheduling a replacement and checking its new file write nothing to the
+  media folders.
+- **The container starts as root, for one thing (MAM-39).** Its entrypoint hands the data directory
+  over to `PUID` and `PGID` — 10001 when they are unset —, changing the owner only of what another
+  id owns there, never of anything mounted inside it, and no mode; then it replaces itself with the
+  app through `setpriv`, as those ids, with no capability, an empty bounding set, `no_new_privs`
+  and no supplementary group but those Docker gave the container (`group_add`), never root's group
+  0, so nothing the app runs, a setuid binary included, can gain root back. `PUID` or `PGID` 0,
+  4294967295 (which `setresuid` reads as "keep the current id", root's) or anything but a number is
+  refused, and the app doesn't start ([ADR
+  0036](docs/adr/0036-the-image-starts-as-root-only-to-hand-its-data-directory-to-puid-and-pgid-then-drops-to-them-with-no-capabilities-before-the-app-starts.md)).
+  The hand-over and the switch take Docker's default capabilities (`CHOWN`, `DAC_OVERRIDE`,
+  `SETGID`, `SETUID`, `SETPCAP`): a container run as root with `cap_drop: ALL` is refused up front,
+  changing nothing — "[entrypoint] The container runs as root without the capabilities it takes to
+  switch to 10001:10001 (…), so the app was not started. Keep Docker's default capabilities, or run
+  the container as a user instead: user: "10001:10001" in docker-compose.yml, with the data volume
+  already theirs." —; under a `user:` line, or `docker run --user`, the entrypoint only starts the
+  app as that user. As the image has no `USER`, the health check's `curl` and `docker exec` run as
+  root inside the container; the app never does.
 - **Security headers on every response:** `X-Content-Type-Options: nosniff`,
   `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and a Content Security Policy that
   forbids inline scripts and allows images only from the app itself and `data:` URLs, the
@@ -1798,7 +1844,7 @@ explains each one. Every other variable in `.env` is passed to the app (see
 | `APP_TAG` | `latest` | The image tag to run. Pin a release to update only when you choose to. |
 | `APP_BIND_ADDRESS` | `127.0.0.1` | The host address the port is published on. `0.0.0.0` opens the app to your network, over plain HTTP: create the owner account first, and keep to a network you trust or a reverse proxy that adds HTTPS. |
 | `APP_PORT` | `8118` | The host port. The app listens on 8118 inside the container too. |
-| `APP_USER_ID`, `APP_GROUP_ID` | `10001`, `10001` | The ids the app runs as. Moving old copies into the quarantine (0.3.0, MAM-26) needs the media folders' owner's (qBittorrent's PUID and PGID, 1000 and 100 on the reference installation) and the media folders mounted read-write; scheduling a replacement and checking its new file don't. They take effect only through the `app` service's `user:` line, which a `docker-compose.yml` taken with 0.2.1 or earlier lacks (production's did, MAM-28): add it as the 0.3.0 release note's **Turning it on** says. Hand the data volume to them once first, as [.env.example](.env.example) shows. With them the app may write wherever that owner may. |
+| `PUID`, `PGID` | `10001`, `10001` | The user and group the app runs as, read by the image as the container starts (MAM-39), in `.env` or under the service's `environment:`. Moving old copies into the quarantine (0.3.0, MAM-26) needs the media folders' owner's — usually the same `PUID` and `PGID` as your qBittorrent, 1000 and 100 on the reference installation — and the media folders mounted read-write; scheduling a replacement and checking its new file don't. The container hands its data over to them as it starts, and back to 10001 once they are removed; restart the app with `bash deploy.sh` or `docker compose up -d` after changing them. A `user:` line in the compose file — the one of 0.3.0 as first published, with `APP_USER_ID` and `APP_GROUP_ID`, which are gone — wins over them, and the log says they are ignored: delete it. With them the app may write wherever that owner may. |
 
 **Updating.** Keep [deploy.sh](deploy.sh) next to `docker-compose.yml` and run it from that
 directory:
@@ -1815,6 +1861,9 @@ on startup, so there is no separate migration step.
 seconds during the first 150 seconds after a start), so `docker ps` shows `healthy` only when the app
 answers and its database is open and fully migrated. When it isn't,
 `docker inspect media-acquisition-manager` shows the failing check's reason under `State.Health`.
+The probe's `curl` runs as root inside the container, as the image has no `USER`; the app doesn't
+(MAM-39). The first lines of the container's log, those starting with `[entrypoint]`, say whether
+the app's data was handed over to `PUID` and `PGID`, or why the app wasn't started.
 
 **Data and backups.** Everything the installation keeps is in `/data` inside the container, on the
 `mam-data` volume: `mam.db` and the generated secrets in `.secrets/`, and the recommendations'
@@ -1843,6 +1892,9 @@ with `/data` (the database files inside are otherwise readable by every user on 
 sudo install -d -o 10001 -g 10001 -m 700 <directory>
 ```
 
+With `PUID` and `PGID` set, the container hands it over to them as it starts, and back to 10001 once
+they are removed, keeping its mode; under a `user:` line, create it for that user instead.
+
 **Media folders.** Mount them read-only (`:ro`), unless you turn replacement on (below) — the app
 writes no file into them but a replacement's quarantine; a release you send is written by
 qBittorrent, through its own mount, into its category's folder — at the path Jellyfin sees them at,
@@ -1858,10 +1910,11 @@ explains. The compose file has a commented example. If you can't mount them wher
 them, give the Jellyfin integration path mappings the same way; the Library page shows any file they
 leave without a path in the app. The Destinations page reads both integrations' mappings to tell
 whether each qBittorrent category saves inside a Jellyfin library, and says so when they leave a
-category's folder without a path in the app. The container's user (uid 10001) needs read access:
-files readable by everyone (the usual 644 and 755) need nothing more; otherwise add the group that
-owns them to the service with `group_add`. Mounting is not enough for the app to read a file: the
-owner also adds the folder, as the app sees it (`/media` in the compose file's example), under the
+category's folder without a path in the app. The app's user (uid 10001, unless `PUID` and `PGID`
+say otherwise) needs read access: files readable by everyone (the usual 644 and 755) need nothing
+more; otherwise add the group that owns them to the service with `group_add`, whose groups stay the
+app's whoever it runs as (MAM-39). Mounting is not enough for the app to read a file: the owner
+also adds the folder, as the app sees it (`/media` in the compose file's example), under the
 user menu → **Media folders**. Until then the app reads no file, and **Inspect files** and **Scan
 folders** on the Library page say so. A mount the app doesn't see shows on the Library page as files
 it found nothing at, and to a scan as a media folder it couldn't list or found empty. Replacing
@@ -1869,7 +1922,7 @@ copies is switched on, and its library folders ticked, on the same page — kept
 none ticked by default. Its move of an old copy into the quarantine (MAM-26) renames files in the
 media folders, so turning it on takes the mount read-write — drop `:ro`, each allowed folder one
 mount holding its libraries with nothing mounted inside it, so its `.mam-quarantine` shares the
-mount — and the app running as the media's owner (`APP_USER_ID`, `APP_GROUP_ID`, above); the page
+mount — and the app running as the media's owner (`PUID`, `PGID`, above); the page
 then says, for each ticked folder, whether a move can work there. Until then the mount stays `:ro`
 and nothing is moved ([ADR
 0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
@@ -1933,7 +1986,9 @@ The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCO
 The folders the app may read files in are not configuration: the owner sets them on the **Media
 folders** page, and they live in the database
 ([ADR 0009](docs/adr/0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md)).
-The image brings `ffprobe`; run from source, the app finds it on the `PATH` (install FFmpeg).
+The image brings `ffprobe`; run from source, the app finds it on the `PATH` (install FFmpeg). The
+image also reads `PUID` and `PGID`, the user and group it runs the app as, before the app starts;
+the app itself doesn't use them (see [Deployment](#deployment)).
 
 **First-run secrets.** When `Encryption:Key` or `Jwt:Secret` is blank, the API reads it from
 `<data>/.secrets/encryption-key` or `<data>/.secrets/jwt-secret`, or generates it there on the first
@@ -1979,7 +2034,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
 | `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. A TMDb integration added switched on queues a computation of the recommendations, or joins the one waiting (ADR 0023), and a preparation of the TMDb suggestions (MAM-34); a full queue or a failure there leaves the answer as it is. |
 | `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. Switching a TMDb integration back on queues a computation of the recommendations, or joins the one waiting, and a preparation of the TMDb suggestions (MAM-34); a full queue or a failure there leaves the answer as it is. |
-| `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount, quarantines }`: `paths` the media folders the app may read files in, as the owner entered them, in canonical form, `[]` until the owner adds one; `replacementEnabled` the replacement switch (MAM-24, ADR 0033), `false` until the owner switches it on; `libraryFolders` every library folder the Jellyfin integrations' path mappings bring into the app and every stored tick that is no longer one, in one list by path (ordinal), each `{ appPath, libraryNames, ticked, status, renameProblems }` — `status` `Available` (inside the Media folders: a tick counts), `OutsideMediaFolders` (a tick has no effect until it is inside them) or `NoLongerALibraryFolder` (a stored tick listed, ticked, only so the owner can untick it; `libraryNames` `[]`); `renameProblems` (MAM-26, ADR 0033) for an `Available` folder what keeps a rename into its allowed folder's quarantine from working there, `[]` when nothing does, else `OtherMount`, `ReadOnly`, `NotWritable` or `CouldNotCheck` by name, from one look at the folders and never their files, and `null` for the others —; `unmappedLibraryFolderCount` how many stored library folders the mappings give no path in the app; `quarantines` (MAM-26, ADR 0030) every `.mam-quarantine` holding a replacement's files now, by path, each `{ path, replacementCount, fileCount, sizeBytes }` from the replacements' rows, never a walk of the disk, `[]` while none does. |
+| `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount, quarantines }`: `paths` the media folders the app may read files in, as the owner entered them, in canonical form, `[]` until the owner adds one; `replacementEnabled` the replacement switch (MAM-24, ADR 0033), `false` until the owner switches it on; `libraryFolders` every library folder the Jellyfin integrations' path mappings bring into the app and every stored tick that is no longer one, in one list by path (ordinal), each `{ appPath, libraryNames, ticked, status, renameProblems, writeAccess }` — `status` `Available` (inside the Media folders: a tick counts), `OutsideMediaFolders` (a tick has no effect until it is inside them) or `NoLongerALibraryFolder` (a stored tick listed, ticked, only so the owner can untick it; `libraryNames` `[]`); `renameProblems` (MAM-26, ADR 0033) for an `Available` folder what keeps a rename into its allowed folder's quarantine from working there, `[]` when nothing does, else `OtherMount`, `ReadOnly`, `NotWritable` or `CouldNotCheck` by name, from one look at the folders and never their files, and `null` for the others; `writeAccess` (MAM-39) `{ path, ownerUserId, ownerGroupId, appUserId, appGroupId }` when `renameProblems` holds `NotWritable`, on Linux, and the owner could be read — `path` the folder the app's user may not write to, in canonical form: the library folder itself when its own permissions refuse, else its allowed folder's `.mam-quarantine`, or the allowed folder while it has none; the owner's ids read by `statx` from that very folder; the app's effective ids —, `null` for every other folder —; `unmappedLibraryFolderCount` how many stored library folders the mappings give no path in the app; `quarantines` (MAM-26, ADR 0030) every `.mam-quarantine` holding a replacement's files now, by path, each `{ path, replacementCount, fileCount, sizeBytes }` from the replacements' rows, never a walk of the disk, `[]` while none does. |
 | `PUT /api/settings/allowed-roots` with `{ paths, replacementEnabled, replacementFolders }` | Owner only. 204; replaces, in one transaction, the whole list, `[]` or `null` allowing nothing, the replacement switch, missing being off, and the library folders ticked for it, as `GET` lists them, missing being none (MAM-24, ADR 0033), with an audit row per part that changed — `AllowedRootsChanged`, `ReplacementSwitchedOn` or `ReplacementSwitchedOff`, `ReplacementFoldersChanged` —, and none for a save that changes nothing. 400 with the broken rule's sentence, saving nothing: more than 20 folders, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another; a tick blank, not a full path, longer than 1024 characters, ticked twice or past 50, or a path that is neither a library folder the mappings bring into the app nor a tick already stored ("“/srv/films” isn't a library folder the app knows, so it can't be ticked for replacement."); and, when the folders change, one that would leave a quarantine still holding a replacement's files under none of them (MAM-26): "“/media/.mam-quarantine” still holds replaced copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.", checked inside the transaction — a folder above the old one keeps it in reach, the quarantine itself put in its folder's place doesn't. Starts no inspection. |
 | `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings and, for a release source, the tracker sections mapped to destinations; a media library's imported library goes with it (its titles, identifiers, episode positions, versions, files and libraries, and the works left empty), and so do the owner's TMDb links of its items, nothing being put back in the library, and a release source's newest releases read for the recommendations go with it, while its sync runs, the download jobs sent to it and what any other kind of integration reported — a metadata catalog's cached works included — keep its name. 404. |
 | `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9 or a qBittorrent older than 4.4.1); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
@@ -2799,6 +2854,33 @@ pages were looked at in a browser on 2026-10-11 over made-up answers, and on pro
 2026-10-12 on MAM-28's real replacements, as the owner and as a member (see [Tested
 with](#tested-with)).
 
+The ids in the Media folders page's hint (MAM-39) are tested on Linux folders in the .NET SDK
+container, the permission tests skipped as root (`LocalFileQuarantinePlacesLinuxTests`): a folder
+the app may not write to named with its owner and the app's effective ids, the quarantine named
+under a writable allowed folder, the allowed folder while it has no quarantine, the ticked folder
+when both refuse, and `/var/mail` (0:8) and `/var/local` (0:50), whose owner and group differ, so
+ids read the wrong way round turn the tests red — six of them did, tried by swapping the two —;
+each compares with what coreutils' `stat` and `/proc/self/status` say, read beside the code under
+test rather than through it (`LinuxProbes`). `FakeFileQuarantineTests` covers the stand-in's
+planted owners, `ReplacementSettingsHttpTests` `writeAccess` over HTTP and `null` for every other
+folder, and `MediaFoldersPage.test.tsx` each sentence, the overflow id 65534, a folder without the
+ids, the ids as plain digits and a path with "&" and quotes.
+
+Whom the image runs the app as is checked on a built image, not by `run-tests.sh` or CI, before a
+release ([PUBLISHING.md](PUBLISHING.md)):
+
+```bash
+docker build -t vahac/media-acquisition-manager:local .
+bash tools/check-image-user.sh vahac/media-acquisition-manager:local
+```
+
+It runs eight scenarios in about two minutes — the default start; `PUID` and `PGID` handing the
+data over with every mode kept, the app left with no capability and only the `--group-add` group;
+handing it back, with no group left; `--user`; `PUID=0`, `PGID=0`, `PGID=abc`, `PUID=4294967295`
+and root without capabilities (`--cap-drop ALL`) refused; a start with nothing to hand over; a
+media folder mounted inside the data keeping its owner; `docker stop` within 5 s —,
+prints PASS or FAIL for each, removes every container and volume it made, and pushes nothing.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -2813,11 +2895,13 @@ npm run test
 MediaAcquisitionManager.slnx
 run-tests.sh                                   sharded .NET test runner
 Dockerfile                                     the image: API + built web app + ffprobe
+docker-entrypoint.sh                           hands /data to PUID and PGID, then runs the app
 docker-compose.yml                             runs the published image
 docker-compose.build.yml                       builds the image from the checkout (:local)
 deploy.sh                                      pulls, recreates and waits for healthy
 Jenkinsfile                                    CI: tests every commit to main, pushes nothing
 Jenkinsfile.publish                            a release, started by hand: tests, pushes to Docker Hub
+tools/check-image-user.sh                      checks whom a built image runs the app as
 src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
                                                and sessions, user management, integration
@@ -2881,7 +2965,8 @@ src/
                                                walk of the media folders, its hash and the
                                                mount table's file system types and mount
                                                options, the quarantine's write contract on
-                                               Linux (renameat2, unlinkat), and ffprobe
+                                               Linux (renameat2, unlinkat) with whose folder
+                                               it may not write to (statx), and ffprobe
 tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
@@ -2918,7 +3003,7 @@ no known context), the startup skips both.
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
 of each, and the tickets of Phase A (MAM-1 to MAM-16), Phase B (MAM-17 to MAM-22 and MAM-32 to
-MAM-38) and Phase C (MAM-23 to MAM-28).
+MAM-38) and Phase C (MAM-23 to MAM-28 and MAM-39).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -2943,16 +3028,18 @@ MAM-38) and Phase C (MAM-23 to MAM-28).
 3. **Phase C: safe replacement (release 0.3.0).** Implement the persisted replacement state machine,
    explicit file selection, checks, audit log, and quarantine where a safe atomic move is possible —
    for films, episodes and seasons, the owner's alone, off until switched on, never touching a
-   torrent (decided by MAM-23 on 2026-10-08; tickets MAM-24 to MAM-28). Schedule the replacement of
-   specific old copies in the Download dialog, written with the download, sent strictly and followed
+   torrent (decided by MAM-23 on 2026-10-08; tickets MAM-24 to MAM-28 and MAM-39). Schedule the
+   replacement of specific old copies in the Download dialog, written with the download, sent strictly and followed
    until the download is done (built, 0.3.0, MAM-24); verify each new file — complete, readable, and
    the old copy's work by Jellyfin's ids, every ticked copy paired — before anything is touched
    (built, 0.3.0, MAM-25); check the old copy and its torrents again, move it into the quarantine,
    and let the owner retry a stopped move, restore it or delete it for good (built, 0.3.0, MAM-26);
    show each replacement's copies, pairs, checks and why it stopped on the Jobs page and the job's
    page, and let the owner keep both, retry a stopped check or drop a copy (built, 0.3.0, MAM-27);
-   and try the whole flow on the reference installation (done on 2026-10-12, MAM-28, whose fix of
-   the check before a move goes out when 0.3.0 is published again).
+   try the whole flow on the reference installation (done on 2026-10-12, MAM-28, whose fix of the
+   check before a move goes out when 0.3.0 is published again); and run the app as the media
+   folders' owner through `PUID` and `PGID`, the image handing its own data over to them (built,
+   0.3.0, MAM-39, going out with it).
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different
    capabilities without rewriting the core replacement workflow. Add other media servers when
    needed.

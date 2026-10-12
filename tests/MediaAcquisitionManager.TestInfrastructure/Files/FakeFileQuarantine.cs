@@ -27,9 +27,10 @@ namespace MediaAcquisitionManager.TestInfrastructure.Files;
 /// <para>
 /// A test plants the host's other answers: a folder on another mount (<see cref="SetMount"/>; every folder is on
 /// <see cref="DefaultMount"/> unless set), a read-only mount (<see cref="SetReadOnly"/>), a folder the app's user may not
-/// write in (<see cref="SetNotWritable"/>), any status for one path (<see cref="Refuse"/>), another file taking a name's
+/// write in (<see cref="SetNotWritable(string)"/>), any status for one path (<see cref="Refuse"/>), another file taking a name's
 /// place between the last look and the rename (<see cref="Swap"/>), and a platform that can't rename at all
-/// (<see cref="Capabilities"/>). The same plants answer the Media folders page's hint (<see cref="DescribeRenamePlacesAsync"/>).
+/// (<see cref="Capabilities"/>). The same plants answer the Media folders page's hint (<see cref="DescribeRenamePlacesAsync"/>);
+/// MAM-39 — a folder made unwritable with its owner's ids and the app's names them in the hint, as the host's would.
 /// </para>
 /// <para>
 /// Every rename and deletion done is recorded in order (<see cref="Renames"/>, <see cref="Deletions"/>); one refused is
@@ -49,7 +50,7 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
     private readonly Lock _gate = new();
     private readonly ConcurrentDictionary<NormalizedPath, long> _mounts = new();
     private readonly ConcurrentDictionary<NormalizedPath, byte> _readOnly = new();
-    private readonly ConcurrentDictionary<NormalizedPath, byte> _notWritable = new();
+    private readonly ConcurrentDictionary<NormalizedPath, PlantedOwner?> _notWritable = new();
     private readonly ConcurrentDictionary<string, (FileQuarantineStatus Status, string Error)> _refusals = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, FileFacts> _swaps = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<(string From, string To)> _renames = new();
@@ -95,8 +96,19 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
     public void SetReadOnly(string folderAppPath) => _readOnly[ParseOrThrow(folderAppPath)] = 0;
 
     /// <summary>The app's user may not write in the folder <paramref name="folderAppPath"/> nor anywhere below it
-    /// (<c>EACCES</c>).</summary>
-    public void SetNotWritable(string folderAppPath) => _notWritable[ParseOrThrow(folderAppPath)] = 0;
+    /// (<c>EACCES</c>); the hint names no owner, as where the host's ids can't be read.</summary>
+    public void SetNotWritable(string folderAppPath) => _notWritable[ParseOrThrow(folderAppPath)] = null;
+
+    /// <summary>
+    /// MAM-39 — as <see cref="SetNotWritable(string)"/>, and the hint of a folder at or below
+    /// <paramref name="folderAppPath"/> says whose folder it is (<paramref name="ownerUserId"/>,
+    /// <paramref name="ownerGroupId"/>) and whom the app runs as (<paramref name="appUserId"/>,
+    /// <paramref name="appGroupId"/>), naming <paramref name="reportedPath"/> — the quarantine's side, say — or, without
+    /// one, the folder as asked, as the host does when the folder itself is refused.
+    /// </summary>
+    public void SetNotWritable(
+        string folderAppPath, uint ownerUserId, uint ownerGroupId, uint appUserId, uint appGroupId, string? reportedPath = null) =>
+        _notWritable[ParseOrThrow(folderAppPath)] = new PlantedOwner(ownerUserId, ownerGroupId, appUserId, appGroupId, reportedPath);
 
     /// <summary>
     /// Every write that touches <paramref name="appPath"/> — as the name or where it goes — answers
@@ -229,7 +241,7 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         IReadOnlyList<string> folderAppPaths, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        IReadOnlyList<RenamePlace> places = [.. folderAppPaths.Select(folder => new RenamePlace(folder, ProblemsOf(folder, allowedRoots)))];
+        IReadOnlyList<RenamePlace> places = [.. folderAppPaths.Select(folder => PlaceOf(folder, allowedRoots))];
         return Task.FromResult(places);
     }
 
@@ -408,22 +420,34 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         return null;
     }
 
-    private IReadOnlyList<RenamePlaceProblem> ProblemsOf(string folderAppPath, IReadOnlyList<string> allowedRoots)
+    private RenamePlace PlaceOf(string folderAppPath, IReadOnlyList<string> allowedRoots)
     {
         if (!Capabilities.CanRename
             || Parse(folderAppPath) is not { } folder
             || RootOf(folder, allowedRoots) is not { } root
             || !files.IsFolder(folder))
-            return [RenamePlaceProblem.CouldNotCheck];
+            return new RenamePlace(folderAppPath, [RenamePlaceProblem.CouldNotCheck]);
 
         var problems = new List<RenamePlaceProblem>();
         if (MountOf(folder) != MountOf(QuarantineFolder.Of(root)))
             problems.Add(RenamePlaceProblem.OtherMount);
         if (IsUnderAny(folder, _readOnly))
             problems.Add(RenamePlaceProblem.ReadOnly);
-        if (IsUnderAny(folder, _notWritable) || IsUnderAny(root, _notWritable))
+
+        // The nearest folder made unwritable, at or above the folder: the root, above it, is found this way too.
+        RenamePlaceWriteAccess? writeAccess = null;
+        var notWritable = _notWritable.Where(entry => folder.IsUnder(entry.Key)).OrderByDescending(entry => entry.Key.Segments.Count).ToList();
+        if (notWritable.Count > 0)
+        {
             problems.Add(RenamePlaceProblem.NotWritable);
-        return problems;
+            if (notWritable[0].Value is { } owner)
+            {
+                writeAccess = new RenamePlaceWriteAccess(
+                    owner.ReportedPath ?? folderAppPath, owner.OwnerUserId, owner.OwnerGroupId, owner.AppUserId, owner.AppGroupId);
+            }
+        }
+
+        return new RenamePlace(folderAppPath, problems, writeAccess);
     }
 
     // The nearest folder a test set a mount for, at or above the path.
@@ -431,7 +455,7 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         _mounts.Where(mount => path.IsUnder(mount.Key)).OrderByDescending(mount => mount.Key.Segments.Count).Select(mount => (long?)mount.Value).FirstOrDefault()
         ?? DefaultMount;
 
-    private static bool IsUnderAny(NormalizedPath path, ConcurrentDictionary<NormalizedPath, byte> folders) => folders.Keys.Any(path.IsUnder);
+    private static bool IsUnderAny<T>(NormalizedPath path, ConcurrentDictionary<NormalizedPath, T> folders) => folders.Keys.Any(path.IsUnder);
 
     // The allowed root that holds the path; null when none does.
     private static NormalizedPath? RootOf(NormalizedPath path, IReadOnlyList<string> allowedRoots) =>
@@ -452,4 +476,8 @@ public sealed class FakeFileQuarantine(FakeFileInventory files) : IFileQuarantin
         Parse(text) ?? throw new ArgumentException($"“{text}” is no absolute path.", nameof(text));
 
     private static string NameOf(string appPath) => appPath[(appPath.LastIndexOfAny(['/', '\\']) + 1)..];
+
+    /// <summary>MAM-39 — whose an unwritable folder is and whom the app runs as, and the folder the hint names when the
+    /// test gave one.</summary>
+    private sealed record PlantedOwner(uint OwnerUserId, uint OwnerGroupId, uint AppUserId, uint AppGroupId, string? ReportedPath);
 }

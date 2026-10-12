@@ -68,12 +68,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# A fixed uid and gid, so a bind-mounted data directory can be given the right owner and mode up
-# front (`sudo install -d -o 10001 -g 10001 -m 700 ./data`). The base image already has ubuntu
-# (1000) and app (1654); 10001 is clear of both and of the ids a host usually hands out to people.
+# A fixed uid and gid, the ones the app runs as unless PUID and PGID name others (MAM-39), so a
+# bind-mounted data directory can be given the right owner and mode up front
+# (`sudo install -d -o 10001 -g 10001 -m 700 ./data`). The base image already has ubuntu (1000) and
+# app (1654); 10001 is clear of both and of the ids a host usually hands out to people.
 #
 # /data holds the database and the generated secrets, so it is the owner's alone (0700). An empty
-# named volume mounted there copies this owner and mode on first use.
+# named volume mounted there copies this owner and mode on first use; with PUID and PGID set, the
+# entrypoint below hands it over to them.
 # No --system: it only picks an id from the system range, and with an explicit one above that range
 # useradd warns on every build.
 RUN groupadd --gid 10001 mam \
@@ -88,7 +90,15 @@ WORKDIR /app
 COPY --from=api-build /app/publish ./
 COPY --from=frontend-build /src/frontend/dist ./wwwroot/
 
-USER mam
+# No USER: the container starts as root, and only so that this script can hand the data directory
+# over to PUID and PGID, the media folders' owner, whose ids replacement (0.3.0) needs to rename
+# files there (MAM-39). It changes the owner of /data and of nothing else, then drops to those ids —
+# the mam user above when they are unset — with every capability gone, no supplementary group but
+# those Docker gave the container (group_add), and no way to gain more back, and only then starts
+# the app. A container given a user (compose's
+# user:, docker run --user) starts as that user instead, and the script just starts the app.
+# ADR 0036 says why. Owned by root like the app, so the app can't rewrite it either.
+COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # 8118 rather than the base image's 8080, which qBittorrent's web UI and many other self-hosted
 # services already use; the same number inside and outside the container keeps `docker ps` and the
@@ -111,4 +121,7 @@ EXPOSE 8118
 HEALTHCHECK --interval=30s --timeout=5s --start-period=150s --start-interval=2s --retries=3 \
     CMD curl -sS --fail-with-body http://localhost:8118/api/health/ready || exit 1
 
-ENTRYPOINT ["dotnet", "MediaAcquisitionManager.Api.dll"]
+# The app's command line is part of ENTRYPOINT, not a CMD, so arguments after the image name
+# (docker run, compose's command:) still reach the app as configuration, as they did before the
+# script (MAM-39).
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh", "dotnet", "MediaAcquisitionManager.Api.dll"]

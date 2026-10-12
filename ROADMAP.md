@@ -56,18 +56,22 @@ tried and rest on the tests, and production then went back to the image's own id
 switched off. Preparing that check found that check 6 passed over a download client whose path
 mappings were changed after a replacement went through it, and that the release note's Turning it on
 missed the compose file's `user:` line and a backup; both were fixed on 2026-10-12 under 0.3.0,
-which keeps its number (Vasyl's decision), and go out when Vasyl publishes 0.3.0 again — the image
-published on 2026-10-11 has neither. Phase C's heading below stays unmarked until that image is
-published.
+which keeps its number (Vasyl's decision). MAM-39 (built the same day, inside 0.3.0 by Vasyl's
+decision) then replaced that `user:` line and the `chown` of the data volume by hand with `PUID` and
+`PGID`: the image starts as root only to hand its data directory over to them, then drops to them
+with no capability before the app starts (ADR 0036), and the Media folders page names whose folder
+the app can't write to and which `PUID` and `PGID` to set. All three go out when Vasyl publishes
+0.3.0 again — the image published on 2026-10-11 has none of them. Phase C's heading below stays
+unmarked until that image is published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37 and MAM-38, built
-while 0.2.1 was the version; MAM-28's fixes go out when 0.3.0 is published again, under the same
-number. The release of Phase D is not decided yet.
+Phase C as MAM-23 to MAM-28 and MAM-39. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37 and
+MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 go out when 0.3.0 is published
+again, under the same number. The release of Phase D is not decided yet.
 
 ## Phases
 
@@ -1272,8 +1276,8 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 **Release:** 0.3.0, published on 2026-10-11, holds MAM-24 to MAM-27, built while 0.3.0 was the
 version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6 and
-corrections of the release note go out when 0.3.0 is published again, under the same number.
-**Tickets:** MAM-23 to MAM-28.
+MAM-39, built the same day, go out when 0.3.0 is published again, under the same number.
+**Tickets:** MAM-23 to MAM-28 and MAM-39.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
 copy moves aside only after the new one is downloaded, verified and visible in Jellyfin, it stays in
@@ -1315,7 +1319,8 @@ a quarantine until you delete it for good, and you can put it back.
   - *Gates:* off by default. Replacement moves nothing until the media folders are mounted
     read-write, the app runs as their owner (`APP_USER_ID` and `APP_GROUP_ID`, 1000 and 100 here, as
     `tools/mam23/facts.py` measured; no folder's owner or mode changes, and the data volume is
-    handed over once), the owner has switched it on (a setting in the app) and has ticked the
+    handed over once — since MAM-39 `PUID` and `PGID`, the data volume handed over by the image
+    itself), the owner has switched it on (a setting in the app) and has ticked the
     library folder that holds the old copy, on the Media folders page. Only the owner schedules,
     retries, resolves, restores and deletes for good; members keep **Keep both** ([ADR
     0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
@@ -1657,7 +1662,55 @@ a quarantine until you delete it for good, and you can put it back.
   MAM-28 section): right before a move, every client the app has sent a replacement to is asked
   whatever its mappings say, and a torrent of one listing a file they put outside the Media folders
   with the name of a file that would move, with no size, or with its size unless that file has other
-  names, stops it for review.
+  names, stops it for review. The `user:` line and the `chown` it was turned on and off with are
+  0.3.0 as first published; MAM-39 (below) replaced them in the same release.
+- **MAM-39 Run the app as the media folders' owner through PUID and PGID** (built on 2026-10-12,
+  release 0.3.0; checked on a local build, not on production yet): the app reaches the media's
+  owner's ids the way the rest of a media stack does, through `PUID` and `PGID`, with nothing to do
+  on the host (Vasyl's decision of 2026-10-12, inside 0.3.0; [ADR
+  0036](docs/adr/0036-the-image-starts-as-root-only-to-hand-its-data-directory-to-puid-and-pgid-then-drops-to-them-with-no-capabilities-before-the-app-starts.md)
+  and the MAM-39 section of ADR 0033). *The image:* no `USER`; `docker-entrypoint.sh` starts as root
+  only to hand the data directory (`${MAM_Storage__DataDirectory:-/data}`) over to `PUID` and `PGID`
+  — 10001, the image's `mam`, when unset —, changing the owner only of what another id owns, never
+  of anything mounted inside it (each mount pruned with `mountpoint`, as `find -xdev` alone changed
+  the owner of a media folder mounted there from the same disk), and no mode; then
+  `exec setpriv --reuid --regid --inh-caps=-all --bounding-set=-all --no-new-privs` into the app,
+  keeping the supplementary groups Docker gave the container (`group_add`) but root's 0 through
+  `--groups`, `--clear-groups` when there are none, and `HOME=/nonexistent`. 0, 4294967295
+  (`(uid_t)-1`, which `setresuid` reads as "keep", root) and anything but digits are refused, and so
+  is root without the capabilities it takes (`cap_drop: ALL`), up front with the two ways out — keep
+  Docker's default capabilities, or a `user:` line with the data volume already its ids' —, the app
+  not started and nothing changed; one log line says how many entries
+  changed hands, none when nothing did. Started as another user (`user:`, `docker run --user`), it
+  starts the app as that user and logs that `PUID` and `PGID` are ignored, so a compose file of
+  0.3.0 as first published keeps working. The app's command is in `ENTRYPOINT`, so arguments after
+  the image name still reach it; the health check and `docker exec` now run as root inside the
+  container. The compose file loses its `user:` line, and `APP_USER_ID` and `APP_GROUP_ID` are
+  gone. *The hint:* each
+  library folder of `GET /api/settings/allowed-roots` carries `writeAccess` —
+  `{ path, ownerUserId, ownerGroupId, appUserId, appGroupId }`, for an `Available` folder whose
+  `renameProblems` holds `NotWritable`, on Linux, when the owner could be read (`statx` on the
+  descriptor held, the app's effective ids), else `null` —, the folder named being the ticked one
+  when its own permissions refuse, else the allowed folder's `.mam-quarantine`, or the allowed folder
+  while it has none; the Media folders page says which `PUID` and `PGID` to set ("The app runs as
+  user 10001, group 10001, and can't write to /media/movies, which belongs to user 1000, group 100,
+  so a move would fail: set PUID=1000 and PGID=100 for the app in docker-compose.yml or .env, and
+  restart it."), that a root-owned folder can't be helped by them, that the app already runs as the
+  owner and the folder's permissions are wrong, or, with no ids or the overflow id 65534, the
+  general way out. *The note:* step 2 of the 0.3.0 release note's **Turning it on** sets `PUID` and
+  `PGID` and restarts the app, and **Going back** takes them out; no backup, `chown` or `user:` line.
+  Checked on 2026-10-12 on a fresh local build by `tools/check-image-user.sh`, eight scenarios all
+  passing, and in a browser, that image over a copy of a development database at desktop width and
+  375 px: before `PUID` and `PGID` the folders of 1000:100 gave the other-owner sentence with "set
+  PUID=1000 and PGID=100" and a root-owned folder the root sentence; with `PUID=1000` and
+  `PGID=100` the log said "[entrypoint] Handed /data over to 1000:100: 7 files and folders changed
+  owner; permissions are unchanged.", the folders of 1000:100 "A move into the quarantine can work
+  here: …", a 555 folder of 1000 the already-owner sentence and the root folder the root sentence
+  with "(now user 1000, group 100)". Not tried on production, which was turned on and off by the
+  first way (MAM-28). Accepted gaps: an installation with `cap_drop: ALL` keeps Docker's default
+  capabilities or a `user:` line, its data handed over by hand; and the ids the hint asks for are
+  those of the folder the check refused, the owner of every library file only where one user owns
+  them all.
 - **Backup/restore:** replacement jobs, the switch, the ticks and the audit trail live in the
   database; quarantined files stay on disk in the quarantine folder, outside the database backup.
 
@@ -1754,7 +1807,19 @@ user's job a bare 404, even for the owner; and the line and the details by state
 `ReplacementLineHttpTests`, `ReplacementsAreOwnerOnlyHttpTests`, `ReplacementRestoreHttpTests`,
 `DownloadsGetHttpTests`, `AddReplacementCopyDropsMigrationTests`, the Core rules' own tests, and
 `JobsPage.test.tsx`, `JobDetailsPage.replacement.test.tsx` and `ReplacementCopies.test.tsx` for the
-pages).
+pages). MAM-39's tests prove the hint's ids and the image: the folder the app's user may not write to
+— the ticked folder, the quarantine or the allowed folder — named with its owner and the app's
+effective ids, read on Linux folders by `statx` on the descriptor held and compared with what
+coreutils' `stat` and `/proc/self/status` say, including `/var/mail` (0:8) and `/var/local` (0:50),
+whose owner and group differ, so ids read the wrong way round turn the tests red; `writeAccess`
+over HTTP for a folder the app may not write to and `null` for every other; each sentence of the
+page, the overflow id, a folder without the ids, plain digits and a path with "&" and quotes
+(`LocalFileQuarantinePlacesLinuxTests`, `FakeFileQuarantineTests`, `ReplacementSettingsHttpTests`
+and `MediaFoldersPage.test.tsx`); and, on a built image, `tools/check-image-user.sh`'s eight
+scenarios — the default start, `PUID` and `PGID` handing the data over with modes kept and the app
+left no capability and only the `--group-add` group, handing it back with no group left, `--user`,
+the refused ids and root without capabilities (`--cap-drop ALL`), a start with nothing to hand
+over, a media folder mounted inside the data keeping its owner, and `docker stop` within 5 s.
 
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an

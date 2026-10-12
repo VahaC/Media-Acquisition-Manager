@@ -13,9 +13,13 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="RenameProblems">MAM-26 — for an <see cref="ReplacementFolderStatus.Available"/> folder, what keeps a
 /// rename into the quarantine from working there (ADR 0033's hint), none when it can; <c>null</c> for any other
 /// folder.</param>
+/// <param name="WriteAccess">MAM-39 — when <paramref name="RenameProblems"/> holds <see cref="RenamePlaceProblem.NotWritable"/>,
+/// which folder the app's user may not write to, whose it is and whom the app runs as; <c>null</c> otherwise, and when the
+/// app couldn't read them.</param>
 public sealed record ReplacementFolderDto(
     string AppPath,
     IReadOnlyList<string> LibraryNames,
     bool Ticked,
     ReplacementFolderStatus Status,
-    IReadOnlyList<RenamePlaceProblem>? RenameProblems = null);
+    IReadOnlyList<RenamePlaceProblem>? RenameProblems = null,
+    ReplacementFolderWriteAccessDto? WriteAccess = null);

@@ -12,7 +12,11 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Files;
 // look at each say so; one answer per folder, in the order asked. The write permission asked of the quarantine's side is
 // .mam-quarantine's once it is there, the root's only while it isn't. A read-only bind mount needs root to make, so the
 // mount table is pointed at a file of the test's own for that, with the real mount's id; the parsing itself is in
-// MountTableTests. Linux only: this is where the app runs, and where CI runs the tests.
+// MountTableTests. MAM-39 — a folder the app's user may not write to is named with its owner's ids and the process's
+// effective ids, each read here another way (coreutils' stat, /proc/self/status): the folder itself when it is the one
+// refused, the quarantine's side otherwise — .mam-quarantine once it is there, the root while it isn't —; no folder
+// that is no bar is named. Refusals need a user the permissions bind, so these skip as root. Linux only: this is where
+// the app runs, and where CI runs the tests.
 public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
 {
     private const string LinuxOnly = "The quarantine renames on Linux only; CI runs these tests there.";
@@ -55,6 +59,7 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
         //Assert
         Assert.Equal([shows, movies, _media], places.Select(place => place.FolderAppPath));
         Assert.All(places, place => Assert.Empty(place.Problems));
+        Assert.All(places, place => Assert.Null(place.WriteAccess));
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -94,7 +99,9 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
         var places = await quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal([RenamePlaceProblem.ReadOnly], Assert.Single(places).Problems);
+        var place = Assert.Single(places);
+        Assert.Equal([RenamePlaceProblem.ReadOnly], place.Problems);
+        Assert.Null(place.WriteAccess);
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -113,7 +120,7 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
     [UnsupportedOSPlatform("windows")]
-    public async Task DescribeRenamePlaces_of_a_folder_the_app_may_not_write_to_is_not_writable()
+    public async Task DescribeRenamePlaces_of_a_folder_the_app_may_not_write_to_is_not_writable_naming_it_its_owner_and_the_apps_ids()
     {
         //Arrange
         var movies = _folder.CreateFolder("media", "movies");
@@ -121,12 +128,59 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
         _locked.Add(movies);
         if (CanWrite(movies))
             Assert.Skip("This process writes into a folder with mode 0500 anyway (it runs as root), so it can't see the refusal.");
+        var owner = LinuxProbes.OwnerOf(movies);
+        var app = LinuxProbes.EffectiveIds();
 
         //Act
         var places = await _quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal([RenamePlaceProblem.NotWritable], Assert.Single(places).Problems);
+        var place = Assert.Single(places);
+        Assert.Equal([RenamePlaceProblem.NotWritable], place.Problems);
+        Assert.Equal(new RenamePlaceWriteAccess(movies, owner.UserId, owner.GroupId, app.UserId, app.GroupId), place.WriteAccess);
+    }
+
+    [Theory(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    [InlineData("/var/mail")]
+    [InlineData("/var/local")]
+    [UnsupportedOSPlatform("windows")]
+    public async Task DescribeRenamePlaces_of_a_folder_another_user_owns_names_that_users_ids_beside_the_apps(string folder)
+    {
+        //Arrange
+        // The case the page is for: a media folder that belongs to someone else than the app's user. A test can't give a
+        // folder away without root, so it takes one the system already gave away, under /var: /var/mail, root:mail (0:8),
+        // and /var/local, root:staff (0:50), on Debian and Ubuntu. Their group differs from their owner, so an owner's
+        // user and group read the wrong way round can't pass, and from this process's group, so the app's can't stand in
+        // for them. The owner is asked first, so a run as root skips before it would probe a system folder by writing to
+        // it.
+        const string Root = "/var";
+        if (!Directory.Exists(folder))
+            Assert.Skip($"This system has no {folder}, so it has no other user's folder there.");
+        var owner = LinuxProbes.OwnerOf(folder);
+        var app = LinuxProbes.EffectiveIds();
+        if (owner.UserId == app.UserId)
+            Assert.Skip($"{folder} belongs to this process's own user here (it runs as root), so another user's ids can't be shown.");
+        if (owner.GroupId == owner.UserId || owner.GroupId == app.GroupId)
+            Assert.Skip($"{folder}'s group is {owner.GroupId} here, the same as its owner or this process's group, so a mix-up couldn't be seen.");
+        try
+        {
+            if (CanWrite(folder))
+                Assert.Skip($"This process may write into {folder} all the same (its group, say), so it can't see the refusal.");
+        }
+        catch (IOException)
+        {
+            // EROFS: a read-only mount refuses before the folder's owner is asked.
+            Assert.Skip($"{folder} is on a read-only mount here, so the refusal isn't its owner's.");
+        }
+
+        //Act
+        var places = await _quarantine.DescribeRenamePlacesAsync([folder], [Root], TestContext.Current.CancellationToken);
+
+        //Assert
+        // The folder itself, though /var refuses too: its owner is whom the app should run as.
+        var place = Assert.Single(places);
+        Assert.Contains(RenamePlaceProblem.NotWritable, place.Problems);
+        Assert.Equal(new RenamePlaceWriteAccess(folder, owner.UserId, owner.GroupId, app.UserId, app.GroupId), place.WriteAccess);
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -148,12 +202,14 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
         var places = await _quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Empty(Assert.Single(places).Problems);
+        var place = Assert.Single(places);
+        Assert.Empty(place.Problems);
+        Assert.Null(place.WriteAccess);
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
     [UnsupportedOSPlatform("windows")]
-    public async Task DescribeRenamePlaces_under_a_writable_root_whose_quarantine_the_app_may_not_write_to_is_not_writable()
+    public async Task DescribeRenamePlaces_under_a_writable_root_whose_quarantine_the_app_may_not_write_to_is_not_writable_naming_the_quarantine()
     {
         //Arrange
         // A writable /media with a root-owned .mam-quarantine: every move would fail making its job's folder there.
@@ -164,12 +220,68 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
         _locked.Add(quarantine);
         if (CanWrite(quarantine))
             Assert.Skip("This process writes into a folder with mode 0555 anyway (it runs as root), so it can't see the refusal.");
+        var owner = LinuxProbes.OwnerOf(quarantine);
+        var app = LinuxProbes.EffectiveIds();
 
         //Act
         var places = await _quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal([RenamePlaceProblem.NotWritable], Assert.Single(places).Problems);
+        // As the page knows it: the allowed root's app path and the quarantine's name.
+        var place = Assert.Single(places);
+        Assert.Equal([RenamePlaceProblem.NotWritable], place.Problems);
+        Assert.Equal(
+            new RenamePlaceWriteAccess(_media + "/.mam-quarantine", owner.UserId, owner.GroupId, app.UserId, app.GroupId),
+            place.WriteAccess);
+    }
+
+    [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    [UnsupportedOSPlatform("windows")]
+    public async Task DescribeRenamePlaces_under_a_root_the_app_may_not_write_to_with_no_quarantine_yet_is_not_writable_naming_the_root()
+    {
+        //Arrange
+        // No .mam-quarantine yet: the first move would make it in /media, which the app's user may not write to.
+        var movies = _folder.CreateFolder("media", "movies");
+        File.SetUnixFileMode(_media, UnixFileMode.UserRead | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+        _locked.Add(_media);
+        if (CanWrite(_media))
+            Assert.Skip("This process writes into a folder with mode 0555 anyway (it runs as root), so it can't see the refusal.");
+        var owner = LinuxProbes.OwnerOf(_media);
+        var app = LinuxProbes.EffectiveIds();
+
+        //Act
+        var places = await _quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
+
+        //Assert
+        var place = Assert.Single(places);
+        Assert.Equal([RenamePlaceProblem.NotWritable], place.Problems);
+        Assert.Equal(new RenamePlaceWriteAccess(_media, owner.UserId, owner.GroupId, app.UserId, app.GroupId), place.WriteAccess);
+    }
+
+    [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
+    [UnsupportedOSPlatform("windows")]
+    public async Task DescribeRenamePlaces_where_neither_the_folder_nor_its_root_is_writable_names_the_folder()
+    {
+        //Arrange
+        // Both refuse: the ticked folder is named, as its owner is whom the app should run as.
+        var movies = _folder.CreateFolder("media", "movies");
+        File.SetUnixFileMode(movies, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        File.SetUnixFileMode(_media, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        _locked.Add(movies);
+        _locked.Add(_media);
+        if (CanWrite(movies))
+            Assert.Skip("This process writes into a folder with mode 0500 anyway (it runs as root), so it can't see the refusal.");
+        var owner = LinuxProbes.OwnerOf(movies);
+        var app = LinuxProbes.EffectiveIds();
+
+        //Act
+        var places = await _quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
+
+        //Assert
+        var place = Assert.Single(places);
+        Assert.Equal([RenamePlaceProblem.NotWritable], place.Problems);
+        Assert.Equal(new RenamePlaceWriteAccess(movies, owner.UserId, owner.GroupId, app.UserId, app.GroupId), place.WriteAccess);
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -184,7 +296,9 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
         var places = await _quarantine.DescribeRenamePlacesAsync([movies], [_media], TestContext.Current.CancellationToken);
 
         //Assert
-        Assert.Equal([RenamePlaceProblem.CouldNotCheck], Assert.Single(places).Problems);
+        var place = Assert.Single(places);
+        Assert.Equal([RenamePlaceProblem.CouldNotCheck], place.Problems);
+        Assert.Null(place.WriteAccess);
     }
 
     [Fact(Skip = LinuxOnly, SkipUnless = nameof(IsLinux))]
@@ -206,7 +320,9 @@ public sealed class LocalFileQuarantinePlacesLinuxTests : IDisposable
                 new RenamePlace("movies", [RenamePlaceProblem.CouldNotCheck]),
             ],
             places,
-            (expected, actual) => expected.FolderAppPath == actual.FolderAppPath && expected.Problems.SequenceEqual(actual.Problems));
+            (expected, actual) => expected.FolderAppPath == actual.FolderAppPath
+                && expected.Problems.SequenceEqual(actual.Problems)
+                && expected.WriteAccess == actual.WriteAccess);
     }
 
     private static bool CanWrite(string folder)

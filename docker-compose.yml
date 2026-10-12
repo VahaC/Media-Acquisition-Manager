@@ -22,19 +22,22 @@ services:
     env_file:
       - path: .env
         required: false
-    # The user and group the app runs as: the image's own, 10001, unless .env says otherwise.
-    # Replacing copies (0.3.0) moves an old copy into a quarantine by renaming files in the media
-    # folders, which needs their owner's ids (1000 and 100 on the reference installation,
-    # qBittorrent's PUID and PGID); the data volume then has to change hands once. Leave the default
-    # if you never switch replacement on: scheduling a replacement and checking its new file write
-    # nothing there. .env.example has the commands and the trade-off, docs/adr/0033 says why.
-    user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"
     environment:
       # Pinned here as well as in the image, because environment beats env_file: a
       # MAM_Storage__DataDirectory left in .env from a local run can't point the database away from
       # the volume below — the app would fail to start, or keep its data where the next recreate of
       # the container deletes it.
       MAM_Storage__DataDirectory: /data
+      # The user and group the app runs as (MAM-39). Unset, the image's own 10001, which can write
+      # nowhere in the media. To let replacement (0.3.0) move old copies, set them to the owner of
+      # the media folders — usually the same PUID and PGID as your qBittorrent; 1000 and 100 on the
+      # reference installation — and drop :ro from the media mount below. The app hands its data
+      # volume over to them itself when it starts; remove them to go back, and it hands the volume
+      # back. In .env they work too. A compose file from 0.3.0 (2026-10-11) still has a user: line
+      # above this block: it keeps working as before, and PUID and PGID are ignored until that line
+      # goes (the log says so). .env.example has the trade-off, docs/adr/0036 says why.
+      # PUID: "1000"
+      # PGID: "100"
     volumes:
       # The whole state of the installation: mam.db and the generated secrets in .secrets/. Back
       # them up together.
@@ -42,11 +45,11 @@ services:
       # Media folders, read-only by default: with :ro nothing the app does can write to them. To
       # turn replacement on (0.3.0) drop :ro — its moves rename an old copy into .mam-quarantine at
       # the top of each allowed folder, and back out, and delete from there what the owner deletes
-      # for good —, run the app as the media's owner (above), then switch it on and tick its
-      # folders under Media folders. Mount each allowed folder as one mount that holds its
-      # libraries, with nothing mounted inside it: a move into the quarantine across two mounts
-      # would be a copy, and the app refuses it. Quarantined files stay here, outside the backup of
-      # mam-data. docs/adr/0033 says why.
+      # for good —, set PUID and PGID to the media's owner (environment, above), then switch it on
+      # and tick its folders under Media folders. Mount each allowed folder as one mount that
+      # holds its libraries, with nothing mounted inside it: a move into the quarantine across two
+      # mounts would be a copy, and the app refuses it. Quarantined files stay here, outside the
+      # backup of mam-data. docs/adr/0033 says why.
       # Mount them at the path Jellyfin sees them at. A download client that sees them elsewhere
       # (qBittorrent at /downloads, say) gets a path mapping under Integrations → the client → Path
       # mappings, not a second mount; docs/adr/0003 says why. The app reads files only inside the

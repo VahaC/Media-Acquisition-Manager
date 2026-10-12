@@ -108,7 +108,9 @@ public interface IFileQuarantine
     /// holds it can work there: the same mount as that root (<c>STATX_MNT_ID</c>), mounted read-write in the mount
     /// table, and writable and searchable by the app's user, the folder and the place the quarantine's folders are made
     /// alike — <c>.mam-quarantine</c> once it is there, the root while it isn't. The Media folders page's hint (ADR 0033);
-    /// the rename itself decides. One answer per folder asked, in the order asked; never throws.
+    /// the rename itself decides. One answer per folder asked, in the order asked; never throws. MAM-39 — where the app's
+    /// user may not write, also which folder that is, whose it is and whom the app runs as
+    /// (<see cref="RenamePlace.WriteAccess"/>), so the page can say which PUID and PGID to set.
     /// </summary>
     /// <param name="folderAppPaths">The ticked library folders, each inside an allowed root.</param>
     /// <param name="allowedRoots">The allowed roots, in canonical form.</param>

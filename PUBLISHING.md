@@ -61,9 +61,22 @@ The API inside the image is stamped with the version and the commit, for example
 1. Make sure `frontend/package.json` on `main` has the version you are releasing, that its
    CHANGELOG section and its release note (`frontend/src/release-notes/<version>.md`) describe the
    release, and that CI is green for that commit.
-2. Open `Media-Acquisition-Manager-publish` → *Build with Parameters*, enter the version (e.g.
+2. Build the image from that commit and check whom it runs as (MAM-39, ADR 0036) — the default
+   user; `PUID` and `PGID`, with its data handed over, modes kept, the app left no capability and
+   only its `group_add` group, and back; a `user:` line; the ids it refuses, and root without
+   capabilities (`cap_drop: ALL`); a start with nothing to hand over; a media folder that keeps its
+   owner; and a quick `docker stop` —, about two minutes:
+
+   ```bash
+   docker build -t vahac/media-acquisition-manager:local .
+   bash tools/check-image-user.sh vahac/media-acquisition-manager:local
+   ```
+
+   It pushes nothing and removes every container and volume it made; it must end with "All 8
+   scenarios passed." Neither Jenkins job runs it.
+3. Open `Media-Acquisition-Manager-publish` → *Build with Parameters*, enter the version (e.g.
    `0.1.0`) and start it. When it finishes, `0.1.0`, `0.1` and `latest` point at the new image.
-3. To rebuild a release that is already out — a fix, or newer base images for security updates —
+4. To rebuild a release that is already out — a fix, or newer base images for security updates —
    without a new version number, start the job again with the same version, as often as you need.
    Installations that run that tag pick up the rebuild with their next `bash deploy.sh`.
 

@@ -362,3 +362,108 @@ retried check reaches it.
 `ReplacementCancelHttpTests`
 and `ReplacementDropCopyHttpTests` pin it, and `JobsPage.test.tsx` and
 `JobDetailsPage.replacement.test.tsx` a member's view.
+
+## The media's owner through PUID and PGID, and a hint that names whose folder it is (added 0.3.0, MAM-39)
+
+**The app still runs as the media folders' owner, but reaches those ids through `PUID` and `PGID`,
+which the image's entrypoint reads, handing the app's data directory over to them by itself ([ADR
+0036](0036-the-image-starts-as-root-only-to-hand-its-data-directory-to-puid-and-pgid-then-drops-to-them-with-no-capabilities-before-the-app-starts.md)),
+in place of the compose file's `user:` line, `APP_USER_ID`, `APP_GROUP_ID` and a `chown` by hand;
+and where the app's user may not write, the Media folders page's hint names the folder, whose it
+is and whom the app runs as, so that it says which `PUID` and `PGID` to set (Vasyl's decision of
+2026-10-12).**
+
+**Why.** MAM-28 found on 2026-10-12 that production's `docker-compose.yml`, taken before 0.3.0, had
+no `user:` line, without which the ids in `.env` do nothing and a volume handed over to them leaves
+the app unable to open its data; turning replacement on took a line to add, a backup, a `chown`
+and the same `chown` backwards to go back, all by hand. ADR 0036 has the whole of it. And the hint
+said "run the app as the media folders' owner" without saying who that is, so the owner had to look
+the ids up on the host himself to know what to set.
+
+**The ids, as built.** The decision is the same — the media's owner, 1000 and 100 here, the image's
+own 10001 by default —, and still not one of the owner's files or folders changes owner, group or
+mode for it: the entrypoint changes the owner of the app's data directory alone, every mount inside
+it left out, and no mode. The compose file has no `user:` line; `PUID` and `PGID` sit commented out
+under its `environment:`, or go in `.env`. A compose file of 0.3.0 as first published, with its
+`user:` line, keeps running as the ids that line gives, and the entrypoint's log says `PUID` and
+`PGID` are ignored until it goes.
+
+**`writeAccess`.** `GET /api/settings/allowed-roots` gives each `libraryFolders` item a
+`writeAccess`, `{ path, ownerUserId, ownerGroupId, appUserId, appGroupId }` or `null`. It is filled
+only for an `Available` folder whose `renameProblems` holds `NotWritable`, on Linux, when the owner
+could be read; every other folder, and one whose file system doesn't give the owner, has `null`, and
+the hint is no failure. `DescribeRenamePlacesAsync` reads it where it refuses: the `faccessat`
+error first, then `statx(STATX_UID | STATX_GID)` on the descriptor the check already holds, never
+the path again, so the owner is that of the very folder just refused, whatever its path leads to by
+now; beside it the process's effective ids, `geteuid()` and `getegid()`, the ones
+`faccessat(AT_EACCESS)` judged by. `path` is the ticked folder when its own permissions refuse —
+also when the quarantine's side refuses as well: its files are the ones a move takes, so its owner
+is whom the app should run as —; otherwise the allowed folder's `.mam-quarantine` when it is there,
+the allowed folder itself while it isn't, as the MAM-26 section's hint looks at them.
+
+**What the page says.** For `NotWritable` with `writeAccess`, by its ids — written as plain digits,
+never grouped the locale's way, and the path as it is:
+
+- the owner or the group is 65534, the overflow id a file shows when its real owner lies outside the
+  container's user namespace (Docker's `userns-remap`) or an NFS server squashed it: "set
+  PUID=65534" would send the owner the wrong way, so the general sentence below;
+- the owner is root: "The app can't write to /media/.mam-quarantine, which belongs to root, so a
+  move would fail here: the app never runs as root, so it can move copies only in folders that
+  belong to the user it runs as (now user 1000, group 100).";
+- the app already runs as the owner: "The app already runs as the owner of /media/movies, user
+  1000, but the folder's permissions don't let its owner write there, so a move would fail: give
+  the owner write permission on it.";
+- another user owns it: "The app runs as user 10001, group 10001, and can't write to /media/movies,
+  which belongs to user 1000, group 100, so a move would fail: set PUID=1000 and PGID=100 for the
+  app in docker-compose.yml or .env, and restart it.".
+
+Without `writeAccess`, and for the overflow id, the general sentence: "The app's user can't write
+here or in its media folder, so a move would fail: set PUID and PGID for the app to the user and
+group that own your media folders, and restart it." The switch's hint now ends "Moving needs the
+media folders mounted read-write and the app running as their owner, set with PUID and PGID." The
+other problems keep their sentences beside these.
+
+**Still a hint.** It looks at the ticked folder and the quarantine's side, never at the folders
+inside: a copy in a folder of its own that root owns still stops its move for review, the copy
+where it is. The ids a sentence asks for are those of the folder the check refused, which are the
+owner of every library file only where one user owns them all, as on the reference installation.
+
+**Seen in a browser** on 2026-10-12, a local image of this version over a copy of a development
+database, at desktop width and at 375 px with no sideways scroll: as 10001, the folders owned by
+1000:100 gave the other-owner sentence with "set PUID=1000 and PGID=100" and a root-owned folder the
+root sentence; with `PUID=1000` and `PGID=100` the folders owned by 1000:100 said "A move into the
+quarantine can work here: …", a folder of 1000 with mode 555 gave the already-owner sentence, and
+the root-owned folder the root sentence with "(now user 1000, group 100)". Not on the reference
+installation yet.
+
+**What of the text above no longer holds.** The Decision's "the app runs as their owner
+(`APP_USER_ID` and `APP_GROUP_ID`, 1000 and 100 here)": `PUID` and `PGID`. Of "The app runs as the
+media's owner", "The compose file runs it as `${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}`" and
+the data volume "handed to the new ids once with the container stopped — `docker compose run --rm
+--no-deps --user 0:0 --entrypoint chown app -R 1000:100 /data` … —, and back the same way": the
+entrypoint hands it over at every start that finds it another's, and back to 10001 once `PUID` and
+`PGID` are taken out; the rest of that paragraph holds. The Consequences' "set `APP_USER_ID` and
+`APP_GROUP_ID` to their owner's ids and hand the data volume over once": set `PUID` and `PGID` to
+their owner's ids and restart the app. The MAM-24 section's "The mount, for this version", the
+MAM-25 section's "neither the read-write mount nor `APP_USER_ID` and `APP_GROUP_ID` are needed yet"
+and the MAM-26 section's "The mount and the ids are now needed" mean `PUID` and `PGID` by those
+names. The MAM-26 section's "The hint" now carries `writeAccess` with `NotWritable`, and its
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_the_app_may_not_write_to_is_not_writable`
+is
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_the_app_may_not_write_to_is_not_writable_naming_it_its_owner_and_the_apps_ids`
+since MAM-39, which also asks it whose folder that is.
+
+`ReplacementSettingsHttpTests.Get_says_for_a_folder_the_app_may_not_write_to_which_folder_whose_it_is_and_whom_the_app_runs_as_and_null_for_every_other`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_the_app_may_not_write_to_is_not_writable_naming_it_its_owner_and_the_apps_ids`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_of_a_folder_another_user_owns_names_that_users_ids_beside_the_apps`
+(`/var/mail`, 0:8, and `/var/local`, 0:50, in the .NET SDK container: an owner and a group that
+differ, so ids read the wrong way round can't pass),
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_under_a_writable_root_whose_quarantine_the_app_may_not_write_to_is_not_writable_naming_the_quarantine`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_under_a_root_the_app_may_not_write_to_with_no_quarantine_yet_is_not_writable_naming_the_root`,
+`LocalFileQuarantinePlacesLinuxTests.DescribeRenamePlaces_where_neither_the_folder_nor_its_root_is_writable_names_the_folder`
+and
+`FakeFileQuarantineTests.DescribeRenamePlaces_names_the_planted_owner_of_the_nearest_unwritable_folder_and_none_without_ids`
+pin it, each Linux test reading the owner and the process's ids another way than the code under
+test (coreutils' `stat` and `/proc/self/status`); `MediaFoldersPage.test.tsx` pins each sentence,
+the overflow id, a folder without the ids, the plain digits and a path with "&" and quotes; and
+`tools/check-image-user.sh` the image (ADR 0036).

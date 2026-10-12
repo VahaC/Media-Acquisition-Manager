@@ -346,6 +346,44 @@ public sealed class FakeFileQuarantineTests
                 ("/media/cartoons", "CouldNotCheck"),
             ],
             places.Select(place => (place.FolderAppPath, string.Join(",", place.Problems))));
+        Assert.All(places, place => Assert.Null(place.WriteAccess));
+    }
+
+    [Fact]
+    public async Task DescribeRenamePlaces_names_the_planted_owner_of_the_nearest_unwritable_folder_and_none_without_ids()
+    {
+        //Arrange
+        // MAM-39 — /media planted with ids; Фільми with its own; Серіали refused on the quarantine's side, as the host names
+        // it; Документалки made unwritable with no ids, as where the host's can't be read.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _files.AddFolder("/media/movies");
+        _files.AddFolder("/media/tv-shows");
+        _files.AddFolder("/media/documentary");
+        _files.AddFolder("/media/cartoons");
+        _quarantine.SetNotWritable(Root, 0, 0, 10001, 10001);
+        _quarantine.SetNotWritable("/media/movies", 1000, 100, 10001, 10001);
+        _quarantine.SetNotWritable("/media/tv-shows", 1000, 100, 10001, 10001, reportedPath: "/media/.mam-quarantine");
+        _quarantine.SetNotWritable("/media/documentary");
+
+        //Act
+        var places = await _quarantine.DescribeRenamePlacesAsync(
+            ["/media/movies", "/media/tv-shows", "/media/documentary", "/media/cartoons"], Roots, cancellationToken);
+        _quarantine.Reset();
+        var afterReset = await _quarantine.DescribeRenamePlacesAsync(["/media/movies"], Roots, cancellationToken);
+
+        //Assert
+        // The nearest folder planted wins; the folder as asked unless the test named another.
+        Assert.All(places, place => Assert.Equal([RenamePlaceProblem.NotWritable], place.Problems));
+        Assert.Equal(
+            [
+                new RenamePlaceWriteAccess("/media/movies", 1000, 100, 10001, 10001),
+                new RenamePlaceWriteAccess("/media/.mam-quarantine", 1000, 100, 10001, 10001),
+                null,
+                new RenamePlaceWriteAccess("/media/cartoons", 0, 0, 10001, 10001),
+            ],
+            places.Select(place => place.WriteAccess));
+        var cleared = Assert.Single(afterReset);
+        Assert.Equal((0, (RenamePlaceWriteAccess?)null), (cleared.Problems.Count, cleared.WriteAccess));
     }
 
     [Fact]

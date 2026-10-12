@@ -55,6 +55,10 @@ internal static class LinuxCalls
     /// <summary><c>STATX_INO</c>: the inode is in the answer. Some network file systems leave it out.</summary>
     public const uint InodeReported = 0x100;
 
+    /// <summary><c>STATX_UID | STATX_GID</c>: the owner and the group are in the answer (MAM-39). A file system that
+    /// has neither, as some network ones, leaves the bits out.</summary>
+    public const uint OwnerReported = 0x8 | 0x10;
+
     /// <summary>
     /// <c>STATX_MNT_ID</c>: the mount is in the answer — the id the mount table's first field gives, which tells two
     /// bind mounts of one file system apart where the device can't (ADR 0030). Linux 5.8 or later; an older kernel
@@ -204,4 +208,15 @@ internal static class LinuxCalls
 
     [DllImport("libc.so.6", EntryPoint = "faccessat", SetLastError = true)]
     public static extern int AccessAt(int directoryDescriptor, [MarshalAs(UnmanagedType.LPUTF8Str)] string path, int mode, int flags);
+
+    /// <summary>
+    /// MAM-39 — the process's effective user id: the one <see cref="EffectiveIds"/> asks <c>faccessat</c> to judge by, so
+    /// the id the Media folders page names is the id refused. Never fails, so no <c>errno</c>.
+    /// </summary>
+    [DllImport("libc.so.6", EntryPoint = "geteuid")]
+    public static extern uint EffectiveUserId();
+
+    /// <summary>MAM-39 — the process's effective group id, likewise.</summary>
+    [DllImport("libc.so.6", EntryPoint = "getegid")]
+    public static extern uint EffectiveGroupId();
 }

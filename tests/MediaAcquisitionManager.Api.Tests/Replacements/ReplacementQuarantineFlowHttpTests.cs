@@ -123,7 +123,7 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
         Assert.Equal(["path", "replacementCount", "fileCount", "sizeBytes"], quarantine.EnumerateObject().Select(property => property.Name));
         Assert.All(
             mediaFoldersJson.RootElement.GetProperty("libraryFolders").EnumerateArray(),
-            folder => Assert.Equal(["appPath", "libraryNames", "ticked", "status", "renameProblems"], folder.EnumerateObject().Select(property => property.Name)));
+            folder => Assert.Equal(["appPath", "libraryNames", "ticked", "status", "renameProblems", "writeAccess"], folder.EnumerateObject().Select(property => property.Name)));
 
         // Restore: 200 with the job as it now stands.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

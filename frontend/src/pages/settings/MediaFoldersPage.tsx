@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
+import type { TFunction } from 'i18next'
 import { Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatFileSize, formatNumber } from '@/lib/format'
 import { useAllowedRoots, useUpdateAllowedRoots } from '@/lib/queries'
-import type { AllowedRoots, ReplacementFolder, UpdateAllowedRootsRequest } from '@/lib/types'
+import type { AllowedRoots, RenamePlaceProblem, ReplacementFolder, UpdateAllowedRootsRequest, WriteAccess } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the header and the muted line every settings page shares
@@ -358,7 +359,8 @@ function ReplacementCard({ roots, replacementEnabled, picked, onSwitch, onTick }
  * MAM-26 — a folder ticked in the form, saved or not, says whether a move into the quarantine can
  * work there, as the server found it for every folder inside the media folders: one line that all is
  * clear, or an amber line per problem, each part of the box's description. Spans, not paragraphs: they
- * sit inside the label.
+ * sit inside the label. MAM-39 — NotWritable says what to set, from the ids the server read
+ * (renameProblemText).
  */
 function LibraryFolderRow({ folder, ticked, onTick }: {
   folder: ReplacementFolder
@@ -412,11 +414,42 @@ function LibraryFolderRow({ folder, ticked, onTick }: {
           {renameProblems?.map((problem, index) => (
             <span key={problem} id={`${id}-rename-${index}`} className="library-source-warning">
               <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{t(`replace.renameProblem.${problem}`)}</span>
+              <span>{renameProblemText(problem, folder.writeAccess, t)}</span>
             </span>
           ))}
         </span>
       </label>
     </li>
   )
+}
+
+/** Linux's overflow uid ("nobody"): an owner the app can't see the real id of. */
+const overflowId = 65534
+
+/**
+ * MAM-39 — the sentence of one rename problem. NotWritable names what to change when the server read
+ * the ids (`writeAccess`): the folder belongs to root, which the app never runs as; the app already
+ * runs as the folder's owner, so the folder's permissions are what's wrong; or another user owns it,
+ * whose ids PUID and PGID should be. Without the ids, the general way out.
+ */
+function renameProblemText(problem: RenamePlaceProblem, access: WriteAccess | null, t: TFunction<'mediaFolders'>): string {
+  // Missing as well as null: only a NotWritable folder carries the ids. 65534 is the kernel's overflow id,
+  // what a file shows when its real owner lies outside the container's user namespace or an NFS server
+  // squashed it: "set PUID=65534" would send the owner the wrong way, so it gets the general way out.
+  if (problem !== 'NotWritable' || !access || access.ownerUserId === overflowId || access.ownerGroupId === overflowId) {
+    return t(`replace.renameProblem.${problem}`)
+  }
+  // Ids are names, not amounts: plain digits ("10001") to type into PUID and PGID as they stand, never
+  // grouped the locale's way as formatNumber would. The path is shown as it is, "&" and quotes included
+  // (i18n.ts turns escaping off: React escapes what it renders).
+  const values = {
+    path: access.path,
+    ownerUserId: String(access.ownerUserId),
+    ownerGroupId: String(access.ownerGroupId),
+    appUserId: String(access.appUserId),
+    appGroupId: String(access.appGroupId),
+  }
+  if (access.ownerUserId === 0) return t('replace.renameProblem.NotWritableRoot', values)
+  if (access.appUserId === access.ownerUserId) return t('replace.renameProblem.NotWritableAlreadyOwner', values)
+  return t('replace.renameProblem.NotWritableOtherOwner', values)
 }

@@ -69,6 +69,26 @@ export interface ReplacementFolder {
    * itself decides.
    */
   renameProblems: RenamePlaceProblem[] | null
+  /**
+   * MAM-39 — present only when renameProblems contains 'NotWritable' and the app could read the ids:
+   * the folder the app's user can't write to (the ticked folder itself, or its media folder's
+   * `.mam-quarantine` — the media folder itself while it has none), its owner, and the ids the app
+   * runs as. Null (or missing) everywhere else.
+   */
+  writeAccess: WriteAccess | null
+}
+
+/**
+ * MAM-39 — who owns the folder a move can't write to, and who the app runs as (PUID and PGID), so
+ * the page can say exactly what to set.
+ */
+export interface WriteAccess {
+  /** The folder inside the app the app's user can't write to. */
+  path: string
+  ownerUserId: number
+  ownerGroupId: number
+  appUserId: number
+  appGroupId: number
 }
 
 /**

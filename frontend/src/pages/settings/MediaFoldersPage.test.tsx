@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { allowedRootsApi } from '@/lib/allowed-roots-api'
 import { qk } from '@/lib/queries'
-import type { AllowedRoots, CurrentUser, RenamePlaceProblem } from '@/lib/types'
+import type { AllowedRoots, CurrentUser, RenamePlaceProblem, ReplacementFolder, WriteAccess } from '@/lib/types'
 import { MediaFoldersPage } from '@/pages/settings/MediaFoldersPage'
 import {
   allowedRootsOf,
@@ -14,6 +14,7 @@ import {
   moviesFolder,
   quarantineOf,
   tvShowsFolder,
+  writeAccessOf,
 } from '@/test/allowed-roots'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
@@ -346,7 +347,7 @@ describe('MediaFoldersPage', () => {
 
   // MAM-24 — the replacement gates of ADR 0033, saved by the same Save as the folders.
   describe('replacing copies', () => {
-    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner.'
+    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.'
     const outside = 'Outside the Media folders.'
     const outsideTicked = 'Outside the Media folders: this tick has no effect until the folder is inside one.'
     const noLonger = 'No longer a library folder the app knows, so a tick here has no effect. Saved unticked, it leaves this list.'
@@ -748,7 +749,8 @@ describe('MediaFoldersPage', () => {
     const problems: Record<RenamePlaceProblem, string> = {
       OtherMount: 'Not on the same mount as its media folder\'s quarantine, so a move would fail: mount the media folder as one read-write mount.',
       ReadOnly: 'Mounted read-only, so a move would fail: mount the media folders read-write.',
-      NotWritable: 'The app\'s user can\'t write here or in its media folder, so a move would fail: run the app as the media folders\' owner.',
+      // MAM-39 — when the server couldn't read the ids (writeAccess null).
+      NotWritable: 'The app\'s user can\'t write here or in its media folder, so a move would fail: set PUID and PGID for the app to the user and group that own your media folders, and restart it.',
       CouldNotCheck: 'The app couldn\'t check whether a move can work here; the move itself will tell.',
     }
     const empty = 'The quarantine is empty.'
@@ -788,6 +790,121 @@ describe('MediaFoldersPage', () => {
       // Spans inside the label: a paragraph can't sit in one.
       expect(lines.map((line) => line?.tagName)).toEqual(['SPAN', 'SPAN'])
       expect(box).toHaveAccessibleDescription(`In the library Фільми ${problems.ReadOnly} ${problems.NotWritable}`)
+    })
+
+    // MAM-39 — NotWritable says exactly what to set, from the ids the server read.
+    describe('when the app can\'t write there', () => {
+      /** The folder at `appPath`, ticked, where the app can't write; `access` as the server read it. */
+      const notWritable = (access: WriteAccess | null, appPath = '/media/movies') =>
+        allowedRootsOf(['/media'], {
+          replacementEnabled: true,
+          libraryFolders: [libraryFolderOf(appPath, ['Фільми'], { ticked: true, renameProblems: ['NotWritable'], writeAccess: access })],
+        })
+      /** What `writeAccessOf()` says: user 1000, group 100 own `/media/movies`, the app runs as 10001:10001. */
+      const otherOwner = 'The app runs as user 10001, group 10001, and can\'t write to /media/movies, which belongs to user 1000, group 100, so a move would fail: set PUID=1000 and PGID=100 for the app in docker-compose.yml or .env, and restart it.'
+
+      it.each<[string, WriteAccess | null, string]>([
+        ['another user owns the folder: the ids to set', writeAccessOf(), otherOwner],
+        [
+          'root owns the folder: the app never runs as root',
+          writeAccessOf({ path: '/media/.mam-quarantine', ownerUserId: 0, ownerGroupId: 0 }),
+          'The app can\'t write to /media/.mam-quarantine, which belongs to root, so a move would fail here: the app never runs as root, so it can move copies only in folders that belong to the user it runs as (now user 10001, group 10001).',
+        ],
+        [
+          'the app already runs as the owner: the permissions are wrong',
+          writeAccessOf({ ownerUserId: 10001, ownerGroupId: 100 }),
+          'The app already runs as the owner of /media/movies, user 10001, but the folder\'s permissions don\'t let its owner write there, so a move would fail: give the owner write permission on it.',
+        ],
+        ['the ids couldn\'t be read: the general way out', null, problems.NotWritable],
+        [
+          'the owner is the overflow id 65534: the general way out, never "set PUID=65534"',
+          writeAccessOf({ ownerUserId: 65534, ownerGroupId: 65534 }),
+          problems.NotWritable,
+        ],
+        [
+          'only the group is the overflow id 65534: the general way out, never "PGID=65534"',
+          writeAccessOf({ ownerGroupId: 65534 }),
+          problems.NotWritable,
+        ],
+      ])('says what to change when %s', async (_, access, sentence) => {
+        // Arrange
+        storedRoots(notWritable(access))
+
+        // Act
+        renderPage()
+
+        // Assert
+        const box = await screen.findByRole('checkbox', { name: '/media/movies' })
+        const line = screen.getByText(sentence)
+        expect(line.closest('.library-source-warning')).not.toBeNull()
+        expect(line.closest('.library-source-warning')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+        expect(box).toHaveAccessibleDescription(`In the library Фільми ${sentence}`)
+        expect(screen.queryByText(allClear)).not.toBeInTheDocument()
+      })
+
+      it('reads a folder the server sent without the ids as one whose ids it couldn\'t read', async () => {
+        // Arrange
+        const withoutIds: Partial<ReplacementFolder> = libraryFolderOf('/media/movies', ['Фільми'], { ticked: true, renameProblems: ['NotWritable'] })
+        delete withoutIds.writeAccess
+        storedRoots(allowedRootsOf(['/media'], { libraryFolders: [withoutIds as ReplacementFolder] }))
+
+        // Act
+        renderPage()
+
+        // Assert
+        const box = await screen.findByRole('checkbox', { name: '/media/movies' })
+        expect(box).toHaveAccessibleDescription(`In the library Фільми ${problems.NotWritable}`)
+      })
+
+      it('writes the ids as plain digits, never grouped the locale\'s way', async () => {
+        // Arrange
+        storedRoots(notWritable(writeAccessOf({ ownerUserId: 10001, ownerGroupId: 10001, appUserId: 1000, appGroupId: 100 })))
+
+        // Act
+        renderPage()
+
+        // Assert
+        const box = await screen.findByRole('checkbox', { name: '/media/movies' })
+        const line = box.closest('li')?.querySelector('.library-source-warning')
+        expect(line).toHaveTextContent('The app runs as user 1000, group 100, and can\'t write to /media/movies, which belongs to user 10001, group 10001,')
+        expect(line).toHaveTextContent('set PUID=10001 and PGID=10001 for the app')
+        expect(line?.textContent).not.toMatch(/\d[,.\u00a0\u202f]\d{3}/)
+      })
+
+      it('shows a path with "&" and quotes as it is, not escaped', async () => {
+        // Arrange
+        const path = '/media/cartoons/Tom & Jerry\'s "Classic" Shorts'
+        storedRoots(notWritable(writeAccessOf({ path }), path))
+
+        // Act
+        renderPage()
+
+        // Assert
+        const box = await screen.findByRole('checkbox', { name: path })
+        const sentence = `The app runs as user 10001, group 10001, and can't write to ${path}, which belongs to user 1000, group 100, so a move would fail: set PUID=1000 and PGID=100 for the app in docker-compose.yml or .env, and restart it.`
+        expect(screen.getByText(sentence)).toBeInTheDocument()
+        expect(box).toHaveAccessibleDescription(`In the library Фільми ${sentence}`)
+        expect(box.closest('li')?.textContent).not.toMatch(/&amp;|&quot;|&#39;|&#x27;/)
+      })
+
+      it('keeps the other problems\' sentences next to the one that names the ids', async () => {
+        // Arrange
+        storedRoots(allowedRootsOf(['/media'], {
+          libraryFolders: [libraryFolderOf('/media/movies', ['Фільми'], {
+            ticked: true,
+            renameProblems: ['OtherMount', 'ReadOnly', 'NotWritable'],
+            writeAccess: writeAccessOf(),
+          })],
+        }))
+
+        // Act
+        renderPage()
+
+        // Assert
+        const box = await screen.findByRole('checkbox', { name: '/media/movies' })
+        expect(box).toHaveAccessibleDescription(`In the library Фільми ${problems.OtherMount} ${problems.ReadOnly} ${otherOwner}`)
+        expect(screen.queryByText(problems.NotWritable)).not.toBeInTheDocument()
+      })
     })
 
     it('says all is clear only on a folder ticked in the form, from the tick on, saved or not', async () => {
