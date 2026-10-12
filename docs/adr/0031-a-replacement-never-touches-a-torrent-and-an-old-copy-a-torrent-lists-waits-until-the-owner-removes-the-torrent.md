@@ -247,10 +247,10 @@ no member.
 `ReplacementQuarantineHoldsHttpTests.Quarantine_while_a_torrent_saves_where_no_pair_maps_stops_for_review`,
 `ReplacementQuarantineHoldsHttpTests.Quarantine_while_qbittorrent_does_not_answer_stops_for_review`,
 `ReplacementQuarantineHoldsHttpTests.Quarantine_while_qbittorrent_is_too_old_to_list_the_files_stops_for_review`,
-`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_the_app_never_sent_a_replacement_to_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`,
 `ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_marks_a_name_a_torrent_lists_at_its_path_whatever_size_it_lists`,
 `ReplacementOptionsHoldingsHttpTests.Options_with_holdings_marks_a_copy_a_torrent_lists_at_its_path_whatever_size_it_lists`,
-`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`,
 `ReplacementQuarantineFlowHttpTests.Flow_of_a_copy_a_torrent_holds_stops_for_review_and_once_the_torrent_is_removed_retry_lets_the_next_pass_move_it`
 and `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
 pin it.
@@ -273,12 +273,146 @@ files is not this Retry (409): that one stays MAM-27's": a stop of the check is 
 the check ([ADR
 0035](0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)'s
 MAM-27 section). Of the tests above,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`
+was
 `ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`
-is now
-`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`.
+until MAM-27, and pinned that 409.
 
 `ReplacementReviewFlowHttpTests`,
 `ReplacementDroppedCopyHttpTests`
 and
 `DownloadClientNeverRemovesTests.No_download_client_member_is_named_for_removing_deleting_stopping_or_pausing`
 pin it, and `JobDetailsPage.replacement.test.tsx` the job's page.
+
+## The clients a replacement went through are asked whatever their mappings (added 0.3.0, MAM-28)
+
+**Right before a move, check 6 also asks every download client the app has sent a replacement to,
+whatever its path mappings say now, and a torrent of such a client that lists a file its mappings
+put outside the Media folders — with the file name of a name the move would rename, in any letter
+case, with no size, or with that name's size unless the name's file has other names — can't be
+ruled out: the job stops at `NeedsReview`
+with "“qBittorrent”'s path mappings put 1 of its torrents outside the Media folders, so the app
+can't tell whether that torrent holds the old copy: check those mappings under Integrations, then
+press Retry." (Vasyl's decisions of 2026-10-12).** Several torrents read "“qBittorrent”'s path
+mappings put 2 of its torrents outside the Media folders, so the app can't tell whether one of them
+holds the old copy: check those mappings under Integrations, then press Retry.", the client named by
+its integration's own name.
+
+**Why.** Preparing MAM-28's live check on 2026-10-12 found that a path mapping changed after a
+replacement was sent hid the old copy from check 6. A qBittorrent whose one pair was pointed outside
+the allowed folders — `/downloads` → `/srv/elsewhere` — was left out unasked by the MAM-26 section's
+"Which clients"; one whose pairs were deleted was asked, but with no pairs its paths are the app's
+own ([ADR
+0003](0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md)'s
+identity), so `/downloads/movies/…` lay outside `/media`, where no torrent file is looked at. Either
+way a seeding old copy would have moved without the Decision's stop: a rename, never a deletion,
+but the torrent loses its file, which is what the Decision rules out, and specification §6's
+acceptance bar counts an "invalid mount mapping" among what must never cause a silent deletion.
+Integrations refuse no such mapping — a seedbox needs one that leads elsewhere, and no pairs are the
+identity —, and a destination such a mapping puts outside every library folder already keeps
+automatic replacement off for a new send, so only a replacement already scheduled or verified, or
+retried, met the gap.
+
+**Which clients.** A client the app has sent a replacement to is one a replacement's download went
+to and took — the download carries the client's own id for it — whose integration still exists. The
+set is read from the database at each read that decides, once a pass has a name to rename, from
+every replacement in any state, so a seedbox an earlier replacement went through, long completed,
+counts for every later move. Such a client is asked like any other: switched off, of a type this
+version can't read, or not answering, it is not read, and the job stops with the MAM-26 sentence —
+"The app couldn't tell whether a torrent in “seedbox” holds the old copy: “seedbox” is switched
+off." —, where a client mapped elsewhere was left out before. Every other client keeps the MAM-26
+rule, left out and asked nothing while none of its pairs reaches an allowed folder, and the Download
+dialog's read, which answers for every client, counts nothing outside the Media folders.
+
+**Only when it matters.** A file outside the Media folders is still never looked at ([ADR
+0009](0009-the-app-reads-a-file-only-inside-the-allowed-roots-and-keeps-each-reading-by-the-files-identity.md));
+only what the listing says counts it. A prefix mapping never changes a file's name, so an old copy
+behind a broken mapping is listed under its own name; the size catches one a torrent reaches under
+another file name through a symbolic link, which leaves its link count at 1, and a file of no listed
+size can't be ruled out. But a file only of the size of a name whose file has other names — its link
+count above 1, read fresh with its identity right before the move, of a companion an earlier run left
+waiting too rather than taken from its row — is taken for the torrent's own name of that file, a
+hardlink twin outside the Media folders, as `/data/torrents` hardlinked into `/data/media` seeds it:
+moving the library's name leaves the torrent seeding, which the Decision's "A second name is not the
+torrent's path" allows, so it counts for nothing and the copy moves. A link count the disk doesn't
+give is no proof of other names, so the size still counts then. A torrent counts once, however
+many of its files match. One that lists nothing like a name — another film, a sample of another
+size — counts for nothing, and the copy still moves: a broken mapping stops a move only when a
+torrent there may hold the copy. Nothing else warns of it: the Media folders page gains no line,
+and the Destinations page and the Download dialog keep theirs, "“/downloads/movies” is outside every
+media library folder, so automatic replacement stays off for this destination.". A client that also
+has torrents it couldn't place gets the MAM-26 sentence first, then this one. The stop is the job's:
+no copy gets a problem, and the job's page advises as for any stop of the move.
+
+**After the fix.** With the mapping put back under Integrations (`/downloads` → `/media`), **Retry**
+reads the clients again, the torrent is placed, and the Decision's sentence names it — "Still held
+by the torrent “Alien.1979.Theatrical” in “qBittorrent”: remove that torrent there without its
+files, then press Retry." —; once the owner has removed it, the next Retry moves the copy.
+
+**Nothing changes on the reference installation.** Every one of its 848 torrent files maps under
+`/media` through `/downloads` → `/media` (the MAM-24 section's live read), so none lies outside, and
+until production has a replacement the set is empty; each client still gets its one listing, and the
+only work added is one SQLite query per read that decides. A client of the set logs a line of its
+own, ids and counts only — "Holdings listing of integration {IntegrationId} ({AdapterType}), a
+client the app sent a replacement to, found {OutsideCount} torrents listing a file outside the
+allowed folders that may be an old copy." —, and the MAM-26 line keeps its words. No API field,
+page, locale or migration changes. 0.3.0 keeps its number (Vasyl's decision of 2026-10-12), so the
+0.3.0 image published on 2026-10-11 is one without it.
+
+**Gaps it leaves.**
+
+- **A client the app never sent a replacement to**, with a broken mapping, is still not caught: one
+  only Radarr fills, or a qBittorrent integration deleted and added again, which gets a new id while
+  the downloads sent through the old one lose theirs. Closing it means asking every client, which
+  was rejected: a switched-off or unreachable seedbox whose mappings lead elsewhere would stop every
+  move.
+- **A mapping pointed at a wrong folder still inside the Media folders** isn't caught by this rule:
+  there the MAM-26 reading decides, a file of a name's size the disk doesn't show leaving its torrent
+  unplaced and one it shows judged by its device and inode.
+- **A hardlink outside the Media folders** — a torrent's file under `/data/torrents`, its second
+  name in the library under `/data/media`, a client the app sent a replacement to rightly mapping
+  the first outside the Media folders — no longer stops a move by its size alone: the old copy's
+  link count above 1 marks it as the torrent's own name. It still stops one where that name is also
+  the old copy's file name, in any letter case, where the torrent lists it with no size, or where
+  the disk gives no link count; Retry can't clear it then, as the sentence points at mappings that
+  may be right, and only removing the torrent, dropping the copy or Keep both settles it. No file on
+  the reference installation has a second name ([ADR
+  0018](0018-a-file-is-a-duplicate-whatever-a-torrent-client-does-with-it-and-its-space-counts-once-per-identity.md)).
+- **A symbolic link to a copy with other names.** A torrent behind a broken mapping that reaches an
+  old copy of several names through a symbolic link under another file name is taken for a hardlink
+  twin, and the copy moves from under the link.
+
+**Not met by the tests.** Nothing of it has run on a real setup.
+
+`ReplacementQuarantineHoldsHttpTests.Quarantine_after_qbittorrents_path_mapping_was_deleted_stops_for_review_while_a_torrent_lists_the_copy`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_after_qbittorrents_path_mapping_was_pointed_outside_the_media_folders_stops_for_review_while_a_torrent_lists_the_copy`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_after_qbittorrents_path_mapping_was_deleted_counts_each_torrent_listing_a_name_the_move_would_rename_in_any_letter_case`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_after_qbittorrents_path_mapping_was_pointed_outside_the_media_folders_says_what_it_couldnt_place_then_what_lies_outside`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_after_qbittorrents_path_mapping_was_deleted_or_pointed_outside_the_media_folders_moves_a_copy_no_torrent_lists_like_it`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_while_qbittorrent_seeds_a_second_name_of_the_video_outside_the_media_folders_moves_the_video`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_retried_with_subtitles_left_waiting_reads_their_link_count_again_and_stops_while_a_torrent_outside_the_media_folders_lists_their_size`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_while_a_seedbox_an_earlier_replacement_went_through_lists_the_copy_outside_the_media_folders_stops_for_review_naming_its_mappings`,
+`ReplacementQuarantineHoldsHttpTests.Quarantine_while_a_seedbox_the_app_never_sent_a_replacement_to_saves_outside_the_media_folders_moves_the_video_and_asks_it_nothing`,
+`ReplacementQuarantineFlowHttpTests.Flow_after_qbittorrents_path_mapping_was_deleted_stops_until_the_owner_puts_it_back_then_names_the_torrent_and_moves_once_it_is_removed`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_the_app_never_sent_a_replacement_to_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_asks_a_client_the_app_sent_a_replacement_to_whatever_its_mappings_and_counts_a_torrent_they_put_outside_the_allowed_roots`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_counts_a_torrent_outside_the_allowed_roots_only_for_a_file_of_a_names_file_name_or_size_or_of_no_size`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_counts_no_torrent_outside_the_allowed_roots_for_a_client_the_app_never_sent_a_replacement_to`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_counts_a_torrent_outside_the_allowed_roots_for_a_client_the_app_sent_a_replacement_to_whose_mappings_also_reach_them_but_not_a_second_name_of_a_video_with_several_by_its_size`,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_counts_no_torrent_whose_file_a_mapping_puts_at_a_bare_root_for_its_name_and_never_throws`
+and
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_answers_for_a_switched_off_client_the_app_sent_a_replacement_to_whatever_its_mappings`
+pin it, and `ReplacementOptionsHoldingsHttpTests`, unchanged, the dialog's read.
+
+**What of the text above no longer holds.** The Decision's "from each download client whose paths
+reach the allowed folders": also from every client the app has sent a replacement to, whatever its
+paths. The MAM-26 section's "Which clients", which leaves out a client none of whose pairs reaches
+an allowed folder "as none of its torrents can hold a file there": a pair pointed elsewhere after a
+replacement went through the client can put the very copy there, so only a client the app never
+sent a replacement to is left out. Its "Uncertain stops it", "one sentence per client": a client
+read in part has up to two, the torrents it couldn't place, then those its mappings put outside the
+Media folders. Of the MAM-26 section's tests,
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_the_app_never_sent_a_replacement_to_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`
+was
+`ReplacementHoldingReaderTargetsTests.Read_of_the_names_before_a_move_leaves_out_a_client_whose_mappings_reach_no_allowed_root_and_asks_it_nothing`
+until MAM-28, which tells it that the app sent a replacement to qBittorrent alone.

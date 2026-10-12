@@ -251,8 +251,8 @@ request, its paths sent as `Deleted` where this check sends the new files' as `C
 
 `ReplacementVerificationHttpTests.Verify_while_replacement_is_switched_off_still_verifies_and_moves_nothing`,
 `ReplacementQuarantineChecksHttpTests.Quarantine_whose_new_file_changed_since_it_was_verified_stops_for_review`,
-`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`,
-`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_nothing`
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`,
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_retry_and_keep_both`
 and
 `ReplacementQuarantineFlowHttpTests.Flow_moves_the_old_copy_tells_jellyfin_it_went_then_restore_puts_it_back_with_its_identity_and_tells_jellyfin_it_came_back`
 pin it, and `JobsPage.test.tsx` the line.
@@ -313,13 +313,14 @@ it is; a pass that read the job before loses its conditional write and writes no
 **What of the text above no longer holds.** The MAM-26 section's "Retry is split" — a stop of this
 check answered 409, and the job's page offering nothing for it —: Retry and Keep both are offered.
 Of the tests above,
-`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`
-is now
-`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`,
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_sends_it_back_to_the_check_and_is_200`
+was
+`ReplacementRetryHttpTests.Retry_of_a_replacement_the_check_of_its_new_files_stopped_is_409_and_writes_nothing`,
 and
-`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_nothing`
-is now
-`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_retry_and_keep_both`.
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_retry_and_keep_both`
+was
+`ReplacementDetailsHttpTests.Get_of_a_replacement_the_check_of_its_new_files_stopped_offers_nothing`,
+until MAM-27, and pinned that 409 and that nothing was offered.
 
 **Not met by the tests.** No replacement was retried on the reference installation; MAM-28 checks
 it.

@@ -9,7 +9,7 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 
 // The checks right before a move, which only read: check 5 of every ticked copy still to move, its own companions, the
 // companions an earlier run left waiting, and check 6 — every download client's torrents, for every name the move would
-// rename (ADR 0030, ADR 0031, ADR 0033).
+// rename, the clients the app sent a replacement to whatever their mappings (ADR 0030, ADR 0031, ADR 0033).
 public sealed partial class ReplacementQuarantiner
 {
     /// <summary>
@@ -120,16 +120,28 @@ public sealed partial class ReplacementQuarantiner
             .. checkedCopies.SelectMany(copy => companionsOf[copy.Copy.Id]
                 .Select(companion => new ReplacementHoldingTarget(companion.AppPath, companion.Facts))
                 .Prepend(new ReplacementHoldingTarget(copy.AppPath, copy.Fresh))),
+            // MAM-28 — with its facts read now, as a video's are: its link count may have changed since the plan wrote
+            // its row, and a file outside the Media folders only of its size counts for nothing while it has other names.
             .. leftovers
                 .Where(leftover => leftover.State == ReplacementNameState.Planned)
-                .Select(leftover => new ReplacementHoldingTarget(leftover.AppPath!, ExpectedOf(leftover.Name))),
+                .Select(leftover => new ReplacementHoldingTarget(leftover.AppPath!, leftover.Fresh!)),
         ];
         // Nothing left to rename — a Retry of a job whose every video is in the quarantine already or deleted from it —
         // asks no client: no torrent can hold what doesn't move, and a client that is down would stop the job for nothing.
         if (targets.Count == 0)
             return MoveCheck.Planned([], leftovers);
 
-        var holdings = await holdingReader.ReadAsync(targets, gate.AllowedRoots, cancellationToken);
+        // MAM-28 — every client the app sent a replacement to that still exists: asked whatever its mappings say now, as one
+        // deleted or pointed outside the Media folders since may hide an old copy it lists. A client deleted and added again
+        // has a new id, and a send that never reached its client has no id there.
+        var libraryClients = await db.ReplacementJobs
+            .AsNoTracking()
+            .Join(db.DownloadJobs.AsNoTracking(), replacement => replacement.DownloadJobId, download => download.Id, (replacement, download) => download)
+            .Where(download => download.ClientJobId != null && download.DownloadClientConnectionId != null)
+            .Select(download => download.DownloadClientConnectionId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var holdings = await holdingReader.ReadAsync(targets, gate.AllowedRoots, libraryClients, cancellationToken);
 
         // Anything uncertain is never an all-clear (ADR 0031): a client not read, or read in part, stops the job.
         var uncertain = holdings.Clients.Where(client => client.Status != ReplacementClientCheck.Read).ToList();
@@ -235,7 +247,7 @@ public sealed partial class ReplacementQuarantiner
             { Status: FileInventoryStatus.NotFound } => new WaitingCompanion(name, appPath, ReplacementNameState.Lost, GoneReason(name.AppPath)),
             { Status: FileInventoryStatus.Found, Value: { } fresh }
                 when fresh.DeviceId == name.DeviceId && fresh.Inode == name.Inode && fresh.SizeBytes == name.SizeBytes && fresh.ModifiedUtc == name.ModifiedUtc =>
-                new WaitingCompanion(name, appPath, ReplacementNameState.Planned, null),
+                new WaitingCompanion(name, appPath, ReplacementNameState.Planned, null, fresh),
             { Status: FileInventoryStatus.Found } => new WaitingCompanion(name, appPath, ReplacementNameState.Stayed, ChangedReason(name.AppPath)),
             _ => new WaitingCompanion(name, appPath, ReplacementNameState.Stayed, NotReadReason(name.AppPath, described.Error)),
         };
@@ -261,8 +273,10 @@ public sealed partial class ReplacementQuarantiner
     private sealed record PlannedCompanion(NormalizedPath AppPath, FileFacts Facts, string? HeldBy);
 
     /// <summary>A companion an earlier run left waiting, as checked now (its path parsed, <c>null</c> when it no longer
-    /// does): still <c>Planned</c> to move, or the state it takes instead — <c>Stayed</c> or <c>Lost</c> — with why.</summary>
-    private sealed record WaitingCompanion(ReplacementJobNameEntity Name, NormalizedPath? AppPath, ReplacementNameState State, string? Problem);
+    /// does): still <c>Planned</c> to move, with what the disk says of it now (<paramref name="Fresh"/>, set only then), or
+    /// the state it takes instead — <c>Stayed</c> or <c>Lost</c> — with why.</summary>
+    private sealed record WaitingCompanion(
+        ReplacementJobNameEntity Name, NormalizedPath? AppPath, ReplacementNameState State, string? Problem, FileFacts? Fresh = null);
 
     /// <summary>The checks' word on a job: the copies to move with their companions and the companions an earlier run left
     /// waiting (<paramref name="Waiting"/>), or why nothing moves — the job's reason, and each copy's own

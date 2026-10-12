@@ -49,16 +49,39 @@ public sealed partial class ReplacementQuarantiner
 
     // ── check 6 ──
 
-    /// <summary>One sentence per client not read, or read in part, in the clients' order: each says what the app couldn't
-    /// tell, and why.</summary>
+    /// <summary>One sentence per client not read, in the clients' order, and up to two per client read in part — the
+    /// torrents it couldn't place, then (MAM-28) the ones its mappings put outside the Media folders: each says what the
+    /// app couldn't tell, and why.</summary>
     private static string UncertainReason(IReadOnlyList<ReplacementClientReading> clients) =>
-        string.Join(
-            " ",
-            clients.Select(client => client.Status == ReplacementClientCheck.NotRead
-                ? $"The app couldn't tell whether a torrent in {ReplacementText.Quote(client.ClientName)} holds the old copy: {client.Error}"
-                : string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"The app couldn't place {client.UnplacedTorrents} of {ReplacementText.Quote(client.ClientName)}'s torrents in its folders, so it can't tell whether one of them holds the old copy.")));
+        string.Join(" ", clients.SelectMany(UncertainSentences));
+
+    // One client's sentences: a read in part always has unplaced or outside torrents, or both.
+    private static IEnumerable<string> UncertainSentences(ReplacementClientReading client)
+    {
+        if (client.Status == ReplacementClientCheck.NotRead)
+        {
+            yield return $"The app couldn't tell whether a torrent in {ReplacementText.Quote(client.ClientName)} holds the old copy: {client.Error}";
+            yield break;
+        }
+
+        if (client.UnplacedTorrents > 0)
+            yield return string.Create(
+                CultureInfo.InvariantCulture,
+                $"The app couldn't place {client.UnplacedTorrents} of {ReplacementText.Quote(client.ClientName)}'s torrents in its folders, so it can't tell whether one of them holds the old copy.");
+        if (client.OutsideTorrents > 0)
+            yield return OutsideReason(client);
+    }
+
+    // MAM-28 — torrents of a client the app sent a replacement to, which its mappings put outside the Media folders, each
+    // listing a file that may be a name the move would rename: never looked at there, so never ruled out. The owner's way
+    // on is the mappings, under Integrations.
+    private static string OutsideReason(ReplacementClientReading client) =>
+        client.OutsideTorrents == 1
+            ? $"{ReplacementText.Quote(client.ClientName)}'s path mappings put 1 of its torrents outside the Media folders, so the app can't tell whether "
+                + "that torrent holds the old copy: check those mappings under Integrations, then press Retry."
+            : string.Create(
+                CultureInfo.InvariantCulture,
+                $"{ReplacementText.Quote(client.ClientName)}'s path mappings put {client.OutsideTorrents} of its torrents outside the Media folders, so the app can't tell whether one of them holds the old copy: check those mappings under Integrations, then press Retry.");
 
     /// <summary>
     /// ADR 0031's sentence for the videos <paramref name="holds"/> keep: every torrent once — told apart by its client and

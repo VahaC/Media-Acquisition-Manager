@@ -480,10 +480,22 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   *Check 6:* one read of every download client's torrents with their files for every name the move
   would rename, through the holdings reader's new overload for names, which leaves out a client none
   of whose path mappings reaches an allowed folder and asks it nothing (a client without mappings is
-  read). A client not read, or read in part, stops the job ("The app couldn't tell whether a torrent
-  in “qBittorrent” holds the old copy: This is qBittorrent v5.1.4; telling which torrents hold a
-  library file needs qBittorrent 5.2 or later.", "The app couldn't place 1 of “qBittorrent”'s
-  torrents in its folders, so it can't tell whether one of them holds the old copy."); a video any
+  read) — but never a client the app has sent a replacement to (MAM-28, ADR 0031, Vasyl's decisions
+  of 2026-10-12): every client a replacement's download went to and took, whose integration still
+  exists, is asked whatever its mappings say, as one deleted or pointed outside the Media folders
+  since puts its torrents' files outside them, where the app never looks. A client not read, or read
+  in part, stops the job ("The app couldn't tell whether a torrent in “qBittorrent” holds the old
+  copy: This is qBittorrent v5.1.4; telling which torrents hold a library file needs qBittorrent 5.2
+  or later.", "The app couldn't place 1 of “qBittorrent”'s torrents in its folders, so it can't tell
+  whether one of them holds the old copy."), and so does a torrent of a client the app has sent a
+  replacement to that lists a file its mappings put outside the Media folders with the file name of
+  a name the move would rename, in any letter case, no size, or that name's size unless the name's
+  file has other names ("“qBittorrent”'s path mappings put 1 of its torrents outside the Media
+  folders, so the app can't tell whether that torrent holds the old copy: check those mappings under
+  Integrations, then press Retry.", after the couldn't-place sentence when a client has both), while
+  a torrent that lists nothing like a name stops nothing and the copy moves, and so does one listing
+  only the size of a copy with other names — its hardlink twin there, `/data/torrents` hardlinked
+  into `/data/media`, is the torrent's own name, which the move leaves seeding; a video any
   torrent lists, in any state, stops it with ADR 0031's sentence, each torrent once by client and id
   ("Still held by the torrent “Alien.1979.Theatrical” in “qBittorrent”: remove that torrent there
   without its files, then press Retry.", or "Still held by the torrents “…” in “qBittorrent” and “…”
@@ -499,7 +511,11 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `ReplacementQuarantineChecksHttpTests` (every reason of check 5, a listing refused, a companion
   without an identity), `ReplacementQuarantineHoldsHttpTests` (a video held in any state, two
   torrents, a held companion, a second name, Retry once the torrent is gone, a path no mapping
-  places, qBittorrent unreachable, switched off or too old), `ReplacementHoldingReaderTargetsTests`,
+  places, qBittorrent unreachable, switched off or too old, and, for MAM-28, qBittorrent's mapping
+  deleted or pointed outside the Media folders, a hardlink twin seeding outside them, subtitles left
+  waiting whose other name went, a seedbox an earlier replacement went through and one the app never
+  sent a replacement to), `ReplacementQuarantineFlowHttpTests` (a mapping deleted, put
+  back under Integrations, then the torrent removed), `ReplacementHoldingReaderTargetsTests`,
   `QuarantineCompanionsTests`, `DiscFoldersTests` and `ReplacementJobsInHandTests` pin it.
 - **The old copy and its own companions move into `.mam-quarantine`, one `renameat2` each, through
   a new write contract, and the replacement rests `Quarantined` (MAM-26, ADR 0030, ADR 0033, ADR
@@ -918,6 +934,69 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   bare 404, even for the owner. `ReplacementsAreOwnerOnlyHttpTests`,
   `ControllerAccessDeclarationTests` (both new actions), `ReplacementRestoreHttpTests` (a member's
   own quarantined job) and `DownloadsGetHttpTests` pin it.
+- **Phase C's acceptance bar checked on the reference installation, and the README and the release
+  note say what was tried live and what wasn't (MAM-28, Vasyl's decisions of 2026-10-12).** Checked
+  on 2026-10-12 on production, the published 0.3.0 image (Docker Hub's `0.3.0`, `0.3` and `latest`,
+  digest `sha256:0b75fdbd7f6029b6ea84b829c344e30e16106ea14a4dfdfbdb4ddd16b0d163be`, stamped
+  `0.3.0+2dec720`, published on 2026-10-11), against Jellyfin 12.2.0 and qBittorrent 5.2.4, with
+  ffprobe 6.1.1-3ubuntu5, on Docker 29.9.0 and Compose v5.6.0 under Linux 7.0.14-22-pve x86_64,
+  `/media` a read-write bind of one ext4 disk; Vasyl signed in as the owner. Replacement was turned
+  on as **Turning it on** says, from 09:38 to 09:42 UTC: the mount was read-write already; the
+  host's compose file, which had no `user:` line, got one, and a new `.env` `APP_USER_ID=1000` and
+  `APP_GROUP_ID=100`; the data volume was backed up and handed over with the note's `chown`, keeping
+  `/data` at 700 and the secrets at 600, and the app came up healthy in 7.4 s as 1000:100. The Media
+  folders page, which with 10001 had said "The app's user can't write here or in its media folder,
+  so a move would fail: run the app as the media folders' owner.", said "A move into the quarantine
+  can work here: the same mount as the quarantine, mounted read-write, and writable by the app." for
+  `/media/movies` and `/media/tv-shows`, and Save wrote `ReplacementSwitchedOn` and
+  `ReplacementFoldersChanged`. The film «Останній бойскаут» (1991), its 576p H.264 copy
+  (2,241,669,589 B, inode 390463793) held by no torrent, was scheduled from Toloka's 1080p H.265
+  release with its work confirmed (`DownloadRequested`, `ReplacementScheduled`,
+  `ReplacementWorkConfirmed`), downloaded in about 3 minutes, its new file (7,245,507,785 B,
+  1920x800 HEVC, 1:45:26) verified 18 s after the app asked Jellyfin to look (IMDb tt0102266, TMDb
+  9319), and its old copy moved into
+  `/media/.mam-quarantine/e989e08c-bd05-41d3-bfd9-aad52043f034/movies/` keeping its inode
+  (`QuarantineStarted`, `NameMoving`, `NameMoved`, `Quarantined`, in 0.6 s); Jellyfin's search then
+  listed only the new item. Restore put it back the same way (`RestoreStarted`, `NameRestoring`,
+  `NameRestored`, `Restored`), and Jellyfin listed both items again, the old one under its old id;
+  the copy put back read "Couldn't be read / Not inspected yet" in the Download dialog until Refresh
+  all inspected it again. Clarkson's Farm season 2, eight 1080p copies ticked for a 2160p release,
+  was verified with each copy paired by the series' ids, then stopped with "Still held by the
+  torrent “Clarksons Farm Collection” in “qBittorrent”: remove that torrent there without its files,
+  then press Retry."; that torrent seeds seasons 1 to 5, so Vasyl pressed Keep both. Staged, each
+  leaving the old file where it was: three restarts at rest points — downloading, checking with
+  Jellyfin down ("(started 12:56 PM)" kept, the hour not started again) and quarantined —;
+  Jellyfin's container stopped for 2 min 55 s during the check ("… (jellyfin) failed: Unreachable."
+  on each pass, the library never asked); the switch off before the move ("New file verified, but
+  replacement is switched off: nothing will move while it is off.") and with the copy quarantined
+  (Restore and Delete for good disabled); `/media/movies` unticked ("Replacement needs review:
+  “/media/movies/The Last Boy Scout (1991) BDRip-AVC.mkv” is no longer in a folder ticked for
+  replacement, so it stays where it is."), then ticked again and Retry, which moved it; a temporary
+  member's Jobs page, job address and Download dialog; and a release whose one file would land on
+  the restored copy, refused before anything reached qBittorrent ("“qBittorrent” would write over
+  “The Last Boy Scout (1991) BDRip-AVC.mkv” in the folder of the category “Movies”: …"). A second
+  replacement of the film, both copies ticked and the HEVC one marked as held by its own torrent,
+  was cancelled with Cancel job at 1.8 % of its download ("Replacement stopped: You cancelled the
+  download, so nothing will be replaced."; the job's page kept the replacement section's "Keep both"
+  and "Waits for the download." until reloaded), so no copy was left in the quarantine for Delete
+  for good; Vasyl then deleted the 576p copy by hand on the host, leaving the film one copy, the
+  1080p H.265. At the end replacement was switched off, both folders unticked and the quarantine
+  empty, and production went back to the image's own ids — the note's `chown` with `10001:10001`,
+  the compose file from before without the `user:` line, no `.env` —, healthy in 7.4 s as uid 10001.
+  `tools/mam28/report.py`, run before anything changed, after each stage and at the end, found of
+  1,619 entries only the 576p file gone, the 1080p H.265 file added and the modification times of
+  `/media`, `/media/movies` and `/media/tv-shows` changed; the replacement jobs end as 1 `Restored`,
+  2 `Cancelled` and 1 `Failed` (the refused overwrite). Not tried live yet: Delete for good, a held
+  copy moving once its torrent is removed and Retry pressed, a restart in the middle of a move, a
+  restore or a deletion, a failed download, an unknown new path, an unclear pair, a multi-episode
+  file or a half, a failed ffprobe, a wrong id, Jellyfin out of reach for the whole hour, a changed
+  old copy, another or a read-only mount, a client whose mappings changed after a send (the fix
+  above, by the tests alone and not in the image published on 2026-10-11), the check's Retry after a
+  fix in Jellyfin, a Drop done, a copy with another name, going back to 0.2.1, a qBittorrent older
+  than 5.2 and arm64. The README (**Tested with**) and the release note list both; the README's and
+  the roadmap's MAM-24 to MAM-27 lines no longer say MAM-28 does the live check, that nothing was
+  tried on a real setup or that they are in no published image, and MAM-37 and MAM-38 are recorded
+  as first published in 0.3.0.
 
 ### Changed
 
@@ -1089,6 +1168,23 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   Drop's alike — pushed the dialog past its right edge, cutting off the message and the buttons, at
   1280 px and at 375 px; the title of a confirmation now wraps anywhere, clear of the close button
   (`.confirm-dialog .ui-dialog-title`, pinned in `downloads.test.ts`).
+- **The release note's Turning it on names the compose file's `user:` line, a backup first, every
+  hint and the way back (MAM-28, found preparing the live check and confirmed on production on
+  2026-10-12).** Production's `docker-compose.yml`, taken before 0.3.0, had no `user:` line, without
+  which `APP_USER_ID` and `APP_GROUP_ID` do nothing and the app, its volume handed over, can't open
+  its data. Step 1 now says a mount without `:ro` is read-write already; step 2 gives the line
+  `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` to add under `restart:`, says that
+  `bash deploy.sh` doesn't add it and `docker compose config | grep 'user:'` shows whether it took,
+  backs up `mam.db` and `.secrets/` together with the app stopped before the `chown`, and says what a
+  start that logs `Permission denied` means; step 3 says a Media folder added there is saved before
+  its library folders can be ticked; step 4 quotes each line the Media folders page can give, "The
+  app couldn't check whether a move can work here; the move itself will tell." among them, and says
+  that it never looks into the folders inside a ticked one, so a copy in a folder the app's user
+  can't write to — four of production's belong to root — stops its replacement with the copy where
+  it is. **Replace after verification** is said to be there but disabled until then, rather than to
+  appear. A new **Going back** settles the quarantine first, while replacement is on and the app
+  runs as the media folders' owner, then hands the volume back with `chown … -R 10001:10001 /data`.
+  The release note alone changed; no code.
 
 ### Notes for upgraders
 
@@ -1124,10 +1220,13 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   he turns it on; the owner's dialog says why Replace can't be picked. To turn it on: (1) mount the
   media folders read-write — the media mount in `docker-compose.yml` without `:ro`, each allowed
   folder one mount holding its libraries with nothing mounted inside it, so that its quarantine
-  shares the mount —; (2) set `APP_USER_ID` and `APP_GROUP_ID` in `.env` to the media folders'
-  owner, qBittorrent's PUID and PGID (1000 and 100 on the reference installation), and hand the data
-  volume to them once with the app stopped, from the folder of `docker-compose.yml`:
-  `docker compose down`, then
+  shares the mount —; (2) make sure the `app` service in `docker-compose.yml` has the line
+  `user: "${APP_USER_ID:-10001}:${APP_GROUP_ID:-10001}"` under `restart:` — a compose file taken
+  with 0.2.1 or earlier hasn't got it, `bash deploy.sh` doesn't add it, and without it the ids do
+  nothing (MAM-28 found production's without it) —, set `APP_USER_ID` and `APP_GROUP_ID` in `.env`
+  to the media folders' owner, qBittorrent's PUID and PGID (1000 and 100 on the reference
+  installation), back up `mam.db` and `.secrets/` together with the app stopped, and hand the data
+  volume to them once, from the folder of `docker-compose.yml`: `docker compose down`, then
   `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 1000:100 /data`, then
   `bash deploy.sh`, as `.env.example` gives it; (3) user menu → **Media folders** → **Replacing
   copies**, tick **Replace copies after verification**; (4) tick the library folders it may touch,
@@ -1136,7 +1235,11 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   whose category saves inside a library folder under them. With the switch on but the mount still
   `:ro` or the image's own ids, the Media folders page says a move would fail, and a move that is
   tried stops its replacement for review with nothing moved; so does any move on a host that isn't
-  Linux.
+  Linux. To go back, settle the quarantine first, while replacement is on and the app still runs as
+  the media folders' owner — Restore or Delete for good every replacement with a copy there, and
+  Keep both on every other one still under way —, then switch it off and hand the volume back with
+  `docker compose run --rm --no-deps --user 0:0 --entrypoint chown app -R 10001:10001 /data`, as the
+  release note's **Going back** says.
 - **What moves, and what the backup doesn't keep (MAM-24, MAM-25, MAM-26, MAM-27).** Scheduling
   reads the download clients' torrents and the old copies' identities, and the check of the new
   files reads qBittorrent, the new files and Jellyfin, sending Jellyfin only

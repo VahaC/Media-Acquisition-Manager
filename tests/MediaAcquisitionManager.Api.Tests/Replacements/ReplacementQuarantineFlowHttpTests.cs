@@ -24,8 +24,10 @@ namespace MediaAcquisitionManager.Api.Tests.Replacements;
 // both went ("Deleted"); Restore puts both back with their device and inode and Jellyfin hears they came back ("Created");
 // the job's details list what the quarantine holds, and Delete for good of exactly those ids completes the job, the trail
 // reading the app's own rows (no actor) then the owner's; a copy a torrent holds stops for review until the owner removes
-// the torrent and presses Retry, and the next pass moves it. Each step's own cases are the other ReplacementQuarantine*,
-// ReplacementRestore, ReplacementDeleteForGood, ReplacementRetry, ReplacementDetails and ReplacementLibraryNotice tests'.
+// the torrent and presses Retry, and the next pass moves it. MAM-28 — with qBittorrent's mapping deleted on Integrations, it
+// stops naming the mappings instead, and once the owner puts the mapping back, Retry names the torrent. Each step's own
+// cases are the other ReplacementQuarantine*, ReplacementRestore, ReplacementDeleteForGood, ReplacementRetry,
+// ReplacementDetails and ReplacementLibraryNotice tests'.
 public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/replacements";
@@ -53,6 +55,11 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
     // Sentences the Jobs page shows, spelled out rather than read from product code.
     private const string HeldReason =
         "Still held by the torrent “Alien.1979.Theatrical” in “qBittorrent”: remove that torrent there without its files, then press Retry.";
+    private const string OutsideReason =
+        "“qBittorrent”'s path mappings put 1 of its torrents outside the Media folders, so the app can't tell whether that torrent holds the old copy: "
+        + "check those mappings under Integrations, then press Retry.";
+    private const string IntegrationsUrl = "/api/settings/integrations";
+    private const string TorrentsListing = "GET /api/v2/torrents/info?includeFiles=true";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private ReplacementVerificationHarness _harness = null!;
@@ -357,6 +364,108 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
             await _harness.QuarantineAuditsAsync(cancellationToken));
     }
 
+    // ── a path mapping deleted, then put back (MAM-28) ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Flow_after_qbittorrents_path_mapping_was_deleted_stops_until_the_owner_puts_it_back_then_names_the_torrent_and_moves_once_it_is_removed()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var (job, replacement) = await VerifiedFilmAsync(cancellationToken);
+        var torrent = TorrentHolding("Alien.1979.Theatrical", TheatricalInTorrent, TheatricalSize);
+        _harness.QBittorrent.AddTorrent(torrent);
+        var addRequests = _harness.QBittorrent.AddRequests.Count;
+        var qbittorrentMark = _factory.QBittorrentHttp.Requests.Count;
+
+        //Act
+        // The owner deletes qBittorrent's mapping on Integrations: its /downloads is no folder of the app's Media folders now.
+        using var deleted = await SaveClientMappingsAsync([]);
+        await QuarantineAsync(cancellationToken);
+        var outsideLine = await _harness.LineAsync(job.Id, cancellationToken);
+        var renamesWhileOutside = _factory.Quarantine.Renames.Count;
+        // He puts /downloads → /media back, as the sentence says, and presses Retry: the torrent is found where it is now.
+        using var restored = await SaveClientMappingsAsync([new PathMappingRequest("/downloads", ReplacementVerificationHarness.MediaRoot)]);
+        using var firstRetry = await _factory.PostHttpRequest($"{BaseUrl}/{replacement.Id}/retry", _harness.Owner.AccessToken);
+        _factory.Time.Advance(ReplacementQuarantineTracker.PassInterval);
+        await QuarantineAsync(cancellationToken);
+        var heldLine = await _harness.LineAsync(job.Id, cancellationToken);
+        var renamesWhileHeld = _factory.Quarantine.Renames.Count;
+        // He removes the torrent in qBittorrent without its files and presses Retry again.
+        _harness.QBittorrent.RemoveTorrent(torrent.Hash);
+        using var secondRetry = await _factory.PostHttpRequest($"{BaseUrl}/{replacement.Id}/retry", _harness.Owner.AccessToken);
+        _factory.Time.Advance(ReplacementQuarantineTracker.PassInterval);
+        await QuarantineAsync(cancellationToken);
+
+        //Assert
+        // The mapping gone: stopped for review naming the mappings, Retry and Keep both offered, nothing renamed.
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(
+            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, OutsideReason, false, 0)
+            {
+                Id = replacement.Id,
+                CanRetry = true,
+                CanCancel = true,
+                Stop = ReplacementStop.Move,
+            },
+            outsideLine);
+        Assert.Equal(0, renamesWhileOutside);
+
+        // The mapping back: the next pass names the torrent that holds the copy, still renaming nothing.
+        Assert.Equal((HttpStatusCode.NoContent, HttpStatusCode.OK), (restored.StatusCode, firstRetry.StatusCode));
+        Assert.Equal(
+            new DownloadJobReplacementDto(ReplacementJobState.NeedsReview, 1, HeldReason, false, 0)
+            {
+                Id = replacement.Id,
+                CanRetry = true,
+                CanCancel = true,
+                Stop = ReplacementStop.Move,
+            },
+            heldLine);
+        Assert.Equal(0, renamesWhileHeld);
+
+        // The torrent gone: both names moved, the job at rest in the quarantine.
+        Assert.Equal(HttpStatusCode.OK, secondRetry.StatusCode);
+        Assert.Equal(
+            new DownloadJobReplacementDto(ReplacementJobState.Quarantined, 1, null, false, 0) { Id = replacement.Id, QuarantinedCopyCount = 1 },
+            await _harness.LineAsync(job.Id, cancellationToken));
+        Assert.Equal(
+            [
+                (TheatricalPath, QuarantinePathOf(replacement, TheatricalPath)),
+                (TheatricalSrtPath, QuarantinePathOf(replacement, TheatricalSrtPath)),
+            ],
+            _factory.Quarantine.Renames);
+        Assert.Null(Assert.Single(await _harness.CopiesAsync(cancellationToken)).Problem);
+
+        // ADR 0031 — nothing was ever written to qBittorrent, which was listed once a pass, each time asked whatever its
+        // mapping said; and the library heard only of the move.
+        var calls = _factory.QBittorrentHttp.Requests.Skip(qbittorrentMark).Select(request => $"{request.Method} {request.Uri.PathAndQuery}").ToList();
+        Assert.All(calls, call => Assert.True(call.StartsWith("GET ", StringComparison.Ordinal) || call == "POST /api/v2/auth/login", call));
+        Assert.Equal(3, calls.Count(call => call == TorrentsListing));
+        Assert.Equal(addRequests, _harness.QBittorrent.AddRequests.Count);
+        Assert.Equal([LookRequest], _harness.Writes());
+        // ADR 0009 — nothing outside the Media folders was ever looked at on the disk, whatever the mapping said.
+        Assert.All(
+            _factory.Files.DescribedPaths,
+            path => Assert.StartsWith(ReplacementVerificationHarness.MediaRoot + "/", path, StringComparison.Ordinal));
+
+        // The trail: each stop the mover's, each Retry the owner's, then the mover's move.
+        var names = await NamesAsync(cancellationToken);
+        Assert.Equal(
+            [
+                JobAudited(AuditAction.ReplacementNeedsReview, replacement.Id, null),
+                JobAudited(AuditAction.ReplacementRetried, replacement.Id, _harness.Owner.User.Id),
+                JobAudited(AuditAction.ReplacementNeedsReview, replacement.Id, null),
+                JobAudited(AuditAction.ReplacementRetried, replacement.Id, _harness.Owner.User.Id),
+                JobAudited(AuditAction.ReplacementQuarantineStarted, replacement.Id, null),
+                NameAudited(AuditAction.ReplacementNameMoving, names[0], null),
+                NameAudited(AuditAction.ReplacementNameMoved, names[0], null),
+                NameAudited(AuditAction.ReplacementNameMoving, names[1], null),
+                NameAudited(AuditAction.ReplacementNameMoved, names[1], null),
+                JobAudited(AuditAction.ReplacementQuarantined, replacement.Id, null),
+            ],
+            await _harness.QuarantineAuditsAsync(cancellationToken));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -376,6 +485,18 @@ public sealed class ReplacementQuarantineFlowHttpTests : IClassFixture<MediaAcqu
             cancellationToken);
         return (job, await _harness.ReplacementAsync(cancellationToken));
     }
+
+    /// <summary>
+    /// MAM-28 — the owner's Save of qBittorrent on Integrations with <paramref name="pathMappings"/> in place of its
+    /// mappings, everything else as it is (<c>PUT /api/settings/integrations/{id}</c>): the user name sent again, the password
+    /// and the switch left out, which keeps them.
+    /// </summary>
+    private Task<HttpResponseMessage> SaveClientMappingsAsync(IReadOnlyList<PathMappingRequest> pathMappings) =>
+        _factory.PutHttpRequest(
+            $"{IntegrationsUrl}/{_harness.Client.Id}",
+            _harness.Owner.AccessToken,
+            new UpdateIntegrationRequest(
+                ReplacementVerificationHarness.ClientName, _harness.Client.BaseUrl, FakeQBittorrentServer.DefaultUserName, PathMappings: pathMappings));
 
     /// <summary>One pass of the mover, which must not have logged an error.</summary>
     private async Task QuarantineAsync(CancellationToken cancellationToken)

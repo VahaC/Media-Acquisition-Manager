@@ -41,9 +41,15 @@ public static class ClientFilePlaces
     /// are the app's own and may lie anywhere; with pairs, one of their app-side paths must lie under a root or hold one.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Every path a client names maps through its pairs (<see cref="PathMapper"/>), so a client whose pairs all lead
     /// elsewhere — a seedbox mapped to <c>/srv/seedbox</c> — names nothing inside the roots, and its torrents saving where
     /// no pair reaches are no uncertainty about them. An app-side path that doesn't parse reaches nothing.
+    /// </para>
+    /// <para>
+    /// MAM-28 — alone it no longer decides before a move: a client the app sent a replacement to is asked whatever its
+    /// pairs say (<see cref="ReplacementHoldingReader"/>), as pairs pointed elsewhere since may hide an old copy it lists.
+    /// </para>
     /// </remarks>
     public static bool Reaches(IReadOnlyList<PathMappingPair> pairs, IReadOnlyList<NormalizedPath> roots)
     {

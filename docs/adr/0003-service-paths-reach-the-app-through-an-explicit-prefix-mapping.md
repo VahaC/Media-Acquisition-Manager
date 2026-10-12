@@ -256,3 +256,17 @@ qBittorrent 5.2.4 shows nothing until a restart turns the torrent into `missingF
 then downloads the old copy back into the library. So the app never moves a file a torrent lists:
 the owner removes the torrent first
 ([ADR 0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)).
+
+**A mapping changed after a replacement was sent (MAM-28).** Preparing MAM-28's live check on
+2026-10-12 found that qBittorrent's pair deleted, or pointed outside the allowed folders, after a
+replacement went through it put the client's torrent files outside the Media folders, where the
+check before a move never looks, so a seeding old copy would have moved. A mapping is still never
+refused at save — a seedbox needs one that leads elsewhere, and no pairs remain the identity —, and
+a path is still never mapped by a guess: right before a move, a client the app has sent a
+replacement to is asked whatever its pairs say, and a torrent file it lists that its pairs put
+outside the allowed folders, with the file name of a name the move would rename, no size, or that
+name's size unless the name's file has other names, stops the move for review naming the client's
+path mappings (Vasyl's decisions of 2026-10-12; [ADR
+0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)'s
+MAM-28 section). That match by name or size only stops a move and maps nothing, so it is not the
+tail matching rejected above.

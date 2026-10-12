@@ -10,7 +10,10 @@ public enum ReplacementClientCheck
     Read = 1,
 
     /// <summary>The client answered, but some torrents' files couldn't be placed: no save path, no metadata yet, a path
-    /// no mapping covers or two cover differently, an unknown size, or a file the disk didn't show.</summary>
+    /// no mapping covers or two cover differently, an unknown size, or a file the disk didn't show. MAM-28 — or, right
+    /// before a move, a client the app sent a replacement to lists a file its mappings put outside the allowed folders
+    /// that may be an old copy: of an old copy's file name, of no size, or of its size unless its file has several
+    /// names.</summary>
     Partial = 2,
 
     /// <summary>The client wasn't read: switched off, a type this version can't use, a secret it can't open, or its own

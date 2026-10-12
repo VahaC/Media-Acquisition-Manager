@@ -27,6 +27,16 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// client whose paths reach the allowed folders"); the Download dialog's read still answers for every client.
 /// </para>
 /// <para>
+/// MAM-28 — but before a move every library client — one the app sent a replacement to — is asked whatever its mappings
+/// say: a mapping deleted since takes the client's paths as the app's own, one pointed elsewhere leads outside the roots,
+/// and either way an old copy it lists would lie outside them, where the app never looks. So a library client's torrent
+/// file outside the roots of a name's file name (in any letter case), of its size or of no size counts its torrent
+/// outside (<see cref="ReplacementClientReading.OutsideTorrents"/>) and the client read in part; a file like none of them
+/// still counts for nothing, so a broken mapping stops a move only when it matters. Nor does a file only of the size of a
+/// name whose file has several names (its link count above 1): that is the torrent's own name of it, a hardlink twin
+/// outside the roots, which moving the library's name leaves seeding.
+/// </para>
+/// <para>
 /// Whether a type is a download client is asked of the adapter registry, and the stored secrets are opened by
 /// <see cref="IIntegrationSettingsFactory"/>, as <c>DestinationChecker</c> does.
 /// </para>
@@ -51,24 +61,33 @@ public sealed class ReplacementHoldingReader(
                 .Select(copy => new ReplacementHoldingTarget(copy.AppPath!, copy.Fresh!)),
         ];
         // The dialog answers for every client, one whose mappings reach no allowed root included: it only marks, and says
-        // what it couldn't tell.
-        return ReadHoldsAsync(targets, allowedRoots, reachingOnly: false, cancellationToken);
+        // what it couldn't tell. No library clients: what lies outside the roots counts only right before a move (MAM-28).
+        return ReadHoldsAsync(targets, allowedRoots, libraryClients: [], reachingOnly: false, cancellationToken);
     }
 
     public Task<ReplacementHoldings> ReadAsync(
-        IReadOnlyList<ReplacementHoldingTarget> targets, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default) =>
-        ReadHoldsAsync(targets, allowedRoots, reachingOnly: true, cancellationToken);
+        IReadOnlyList<ReplacementHoldingTarget> targets,
+        IReadOnlyList<string> allowedRoots,
+        IReadOnlyCollection<Guid> libraryClients,
+        CancellationToken cancellationToken = default) =>
+        ReadHoldsAsync(targets, allowedRoots, libraryClients, reachingOnly: true, cancellationToken);
 
     /// <summary>
     /// The read itself: every download client's holds of <paramref name="targets"/> inside <paramref name="allowedRoots"/>;
     /// with <paramref name="reachingOnly"/>, only the clients whose mappings reach those roots
-    /// (<see cref="ClientFilePlaces.Reaches"/>).
+    /// (<see cref="ClientFilePlaces.Reaches"/>) and, whatever their mappings, the <paramref name="libraryClients"/>, whose
+    /// torrents' files outside the roots that may be a name are counted (MAM-28).
     /// </summary>
     private async Task<ReplacementHoldings> ReadHoldsAsync(
-        IReadOnlyList<ReplacementHoldingTarget> targets, IReadOnlyList<string> allowedRoots, bool reachingOnly, CancellationToken cancellationToken)
+        IReadOnlyList<ReplacementHoldingTarget> targets,
+        IReadOnlyList<string> allowedRoots,
+        IReadOnlyCollection<Guid> libraryClients,
+        bool reachingOnly,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(targets);
         ArgumentNullException.ThrowIfNull(allowedRoots);
+        ArgumentNullException.ThrowIfNull(libraryClients);
 
         // Every download client, switched off or not: one the app may not ask can still hold the copies (R2). Read before
         // the clients are asked, as the context is not safe to share between the calls below.
@@ -81,8 +100,10 @@ public sealed class ReplacementHoldingReader(
             .ToListAsync(cancellationToken);
         var roots = allowedRoots.Select(root => NormalizedPath.TryParse(root, out var path, out _) ? path : null).OfType<NormalizedPath>().ToList();
         // MAM-26 — before a move, a client whose every mapping leads outside the allowed roots can name no file inside them
-        // (ADR 0031): left out, unasked, rather than counted uncertain for torrents it saves elsewhere.
-        var clients = reachingOnly ? stored.Where(client => Reaches(client, roots)).ToList() : stored;
+        // (ADR 0031): left out, unasked, rather than counted uncertain for torrents it saves elsewhere. MAM-28 — but never a
+        // client the app sent a replacement to: its mapping may have been pointed elsewhere since, and it is asked whatever
+        // its mappings say, with no "did not ask it" line.
+        var clients = reachingOnly ? stored.Where(client => libraryClients.Contains(client.Id) || Reaches(client, roots)).ToList() : stored;
         // Once per path: one file several works list is one copy.
         List<ReplacementHoldingTarget> names =
         [
@@ -107,11 +128,15 @@ public sealed class ReplacementHoldingReader(
                 continue;
             }
 
-            var unplaced = 0;
+            var libraryClient = libraryClients.Contains(client.Id);
+            var (unplaced, outside) = (0, 0);
             foreach (var job in jobs)
             {
-                if (!await PlaceAsync(client, job, names, roots, allowedRoots, described, holds, cancellationToken))
+                var (placed, outsideRoots) = await PlaceAsync(client, libraryClient, job, names, roots, allowedRoots, described, holds, cancellationToken);
+                if (!placed)
                     unplaced++;
+                if (outsideRoots)
+                    outside++;
             }
 
             // Information: ids and counts only, never a torrent's name or a path.
@@ -121,8 +146,19 @@ public sealed class ReplacementHoldingReader(
                 client.AdapterType,
                 jobs.Count,
                 unplaced);
+            // MAM-28 — a line of its own, and only where the count was taken: a client the app sent a replacement to, right
+            // before a move. The dialog's read and every other client count nothing outside the roots, so say nothing of it.
+            if (libraryClient)
+            {
+                logger.LogInformation(
+                    "Holdings listing of integration {IntegrationId} ({AdapterType}), a client the app sent a replacement to, found {OutsideCount} torrents listing a file outside the allowed folders that may be an old copy.",
+                    client.Id,
+                    client.AdapterType,
+                    outside);
+            }
+
             readings.Add(new ReplacementClientReading(
-                client.Name, unplaced > 0 ? ReplacementClientCheck.Partial : ReplacementClientCheck.Read, null, unplaced));
+                client.Name, unplaced > 0 || outside > 0 ? ReplacementClientCheck.Partial : ReplacementClientCheck.Read, null, unplaced, outside));
         }
 
         return new ReplacementHoldings(holds.ToDictionary(held => held.Key, held => (IReadOnlyList<ReplacementHold>)held.Value), readings);
@@ -200,13 +236,17 @@ public sealed class ReplacementHoldingReader(
     }
 
     /// <summary>
-    /// Places one torrent's files in the app's folders and marks the copies it holds; <c>false</c> when any of its files
-    /// couldn't be placed — no save path, no metadata, no mapping, an unknown size, nothing the disk shows —, which makes
-    /// its client's answer uncertain. A file outside the allowed roots, or of a size no copy has, holds none of them; a
-    /// file at a copy's own path holds it whatever its size (MAM-26), and is placed.
+    /// Places one torrent's files in the app's folders and marks the copies it holds. <c>Placed</c> is <c>false</c> when
+    /// any of its files couldn't be placed — no save path, no metadata, no mapping, an unknown size, nothing the disk shows
+    /// —, which makes its client's answer uncertain. A file outside the allowed roots, or of a size no copy has, holds none
+    /// of them; a file at a copy's own path holds it whatever its size (MAM-26), and is placed. MAM-28 — <c>Outside</c> is
+    /// <c>true</c> when <paramref name="libraryClient"/>, a client the app sent a replacement to, lists a file outside the
+    /// allowed roots that may be one of <paramref name="targets"/> — of its file name, of no size, or of its size unless its
+    /// file has several names —, which makes its answer uncertain too.
     /// </summary>
-    private async Task<bool> PlaceAsync(
+    private async Task<(bool Placed, bool Outside)> PlaceAsync(
         IntegrationConnectionEntity client,
+        bool libraryClient,
         ClientJobWithFiles job,
         IReadOnlyList<ReplacementHoldingTarget> targets,
         IReadOnlyList<NormalizedPath> roots,
@@ -218,10 +258,10 @@ public sealed class ReplacementHoldingReader(
         if (job.Job.ServiceSavePath is not { } servicePath
             || !NormalizedPath.TryParse(servicePath, out var savePath, out _)
             || job.Files is not { } jobFiles)
-            return false;
+            return (false, false);
 
         var pairs = ClientFilePlaces.PairsOf(client);
-        var placed = true;
+        var (placed, outside) = (true, false);
         foreach (var file in jobFiles)
         {
             var mapped = ClientFilePlaces.Map(savePath, file.RelativePath, pairs);
@@ -232,7 +272,19 @@ public sealed class ReplacementHoldingReader(
             }
 
             if (!roots.Any(appPath.IsUnder))
+            {
+                // MAM-28 — never looked at there (ADR 0009), but a library client's file of a name's file name or size, or of
+                // no size, may be that name behind a mapping deleted or pointed elsewhere since: the torrent can't be ruled
+                // out. A prefix mapping never changes a file's name; the size catches the name reached through a link. But
+                // of a name whose file has several names, a file only of its size is the torrent's own name of it — a
+                // hardlink twin outside the roots —, which moving the library's leaves seeding; a count the disk doesn't
+                // tell may be one name.
+                if (libraryClient && targets.Any(target => file.SizeBytes is not { } outsideSize
+                        || (outsideSize == target.Fresh.SizeBytes && target.Fresh.LinkCount is not > 1)
+                        || SameFileName(appPath, target.AppPath)))
+                    outside = true;
                 continue;
+            }
 
             // MAM-26 — the name's own path is a hold whatever size the torrent lists (ADR 0031: "an old copy any torrent
             // lists, in any state"): an errored torrent, one missing its files or a companion edited since lists another
@@ -268,8 +320,14 @@ public sealed class ReplacementHoldingReader(
             }
         }
 
-        return placed;
+        return (placed, outside);
     }
+
+    /// <summary>MAM-28 — whether <paramref name="path"/> and <paramref name="other"/> end in the same file name, in any
+    /// letter case. A root names no file, so it ends in none: a client's file a mapping puts at a bare root is no name's by
+    /// its name, and reading its name never throws.</summary>
+    private static bool SameFileName(NormalizedPath path, NormalizedPath other) =>
+        path.Segments is [.., var name] && other.Segments is [.., var otherName] && string.Equals(name, otherName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Adds <paramref name="hold"/> to <paramref name="target"/>'s holds, once.</summary>
     private static void Hold(Dictionary<NormalizedPath, List<ReplacementHold>> holds, ReplacementHoldingTarget target, ReplacementHold hold)

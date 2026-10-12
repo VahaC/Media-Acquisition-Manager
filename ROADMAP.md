@@ -23,43 +23,51 @@ page's Sources card as a status bar, and Refresh all), MAM-20 (the library's fil
 four duplicate classes of the specification) and MAM-21 (the Duplicates page, where the owner
 confirms or dismisses a possible match). MAM-22 checked Phase B's acceptance criteria on the
 reference installation on 2026-10-08, so Phase B has shipped as 0.2.1. MAM-37 (built while 0.2.1 was
-the version, checked the same day on a copy of production's database, and in no published image
-yet) follows from that check: the Duplicates page lists only real copies of one film or episode —
-4 of the 46 groups production listed — and flags for review the copies of one work whose measured
+the version, checked the same day on a copy of production's database, and first published in 0.3.0)
+follows from that check: the Duplicates page lists only real copies of one film or episode — 4 of
+the 46 groups production listed — and flags for review the copies of one work whose measured
 running times differ widely. MAM-38 (built the same day while 0.2.1 was the version, resting on the
-tests, and in no published image yet) refuses a download whose files would land on a different file
+tests, and first published in 0.3.0) refuses a download whose files would land on a different file
 already in the destination's folder before anything reaches qBittorrent, which would otherwise
-download into that file in place. MAM-23 settled on 2026-10-08 what a Phase C replacement may touch
-— specification §7 questions 3, 4 and 6, the write access and the gates (ADR 0030 to ADR 0033) —,
-and MAM-24 (built on 2026-10-09 while 0.3.0 is the version, resting on the tests and a read-only
-live read of qBittorrent's torrents with their files, and in no published image yet) lets the owner
-schedule, in the Download dialog, the replacement of specific old copies, which follows its download
-to `Downloaded`; MAM-25 (built on 2026-10-10 while 0.3.0 is the version, resting on the tests and a
-read-only live read of Jellyfin's items, and in no published image yet) then checks each new file
-before anything is touched — complete by qBittorrent's word, readable by ffprobe, and identified by
-Jellyfin's own ids as the old copy's work, every ticked copy paired with exactly one new file —, and
-ends the replacement `Verified`, or stops it for review with the reason; and MAM-26 (built on
-2026-10-10 while 0.3.0 is the version, resting on the tests — over HTTP with a stand-in for the
-disk, and the real renames and deletions on Linux folders in Docker —, tried on no real setup, and in
-no published image yet) then checks the old copy and every client's torrents again right before the
-move, renames the old copy with its own companions into `.mam-quarantine` at the top of its media
-folder, where it stays until the owner restores it or deletes it for good, and finds a move, a
-restore or a deletion a restart cut again by device and inode. MAM-27 (built on 2026-10-11 while
-0.3.0 is the version, resting on the tests and a look at its pages in a browser at 1280 px and
-375 px over made-up answers, tried on no real setup, and in no published image yet) then shows, on
-the Jobs page and each job's page, where each replacement stands, its ticked copies with the new
-file each pairs with, what the check found and why it stopped, and lets the owner keep both copies,
-retry a stopped check or drop one old copy, each with an audit row. MAM-28 (Phase C's live check)
-is still to do.
-
+download into that file in place. Phase C was published as release 0.3.0 on 2026-10-11 (Docker
+Hub's `0.3.0`, `0.3` and `latest`, digest `sha256:0b75fdbd7f60…`, stamped `0.3.0+2dec720`), and
+production has run it since that day. MAM-23 settled on 2026-10-08 what a Phase C replacement may
+touch — specification §7 questions 3, 4 and 6, the write access and the gates (ADR 0030 to ADR
+0033) —, and 0.3.0 holds MAM-24 (built on 2026-10-09: the owner schedules, in the Download dialog,
+the replacement of specific old copies, which follows its download to `Downloaded`), MAM-25 (built
+on 2026-10-10: each new file is checked before anything is touched — complete by qBittorrent's
+word, readable by ffprobe, and identified by Jellyfin's own ids as the old copy's work, every ticked
+copy paired with exactly one new file —, and the replacement ends `Verified`, or stops for review
+with the reason), MAM-26 (built on 2026-10-10: the old copy and every client's torrents checked
+again right before the move, the old copy renamed with its own companions into `.mam-quarantine` at
+the top of its media folder, where it stays until the owner restores it or deletes it for good, and
+a move, a restore or a deletion a restart cut found again by device and inode) and MAM-27 (built on
+2026-10-11: the Jobs page and each job's page show where each replacement stands, its ticked copies
+with the new file each pairs with, what the check found and why it stopped, and the owner keeps both
+copies, retries a stopped check or drops one old copy, each with an audit row). MAM-28 checked Phase
+C's acceptance criteria on the reference installation on 2026-10-12, on production running the
+published 0.3.0 with replacement turned on: a film's old copy moved into the quarantine and came
+back with Restore, a season's replacement stopped for the torrent that seeds its old copies and was
+kept with Keep both, and three restarts, Jellyfin stopped during a check, the switch off, a folder
+unticked, a member's view and a release that would land on a file already there were staged, each
+leaving the old file where it was; a second replacement of the film, ticking both its copies, was
+cancelled at 1.8 % of its download, so a held copy moving after Retry and Delete for good weren't
+tried and rest on the tests, and production then went back to the image's own ids with replacement
+switched off. Preparing that check found that check 6 passed over a download client whose path
+mappings were changed after a replacement went through it, and that the release note's Turning it on
+missed the compose file's `user:` line and a backup; both were fixed on 2026-10-12 under 0.3.0,
+which keeps its number (Vasyl's decision), and go out when Vasyl publishes 0.3.0 again — the image
+published on 2026-10-11 has neither. Phase C's heading below stays unmarked until that image is
+published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24, MAM-25, MAM-26 and MAM-27; the release
-of the rest of Phase C, and of Phase D, is not decided yet.
+Phase C as MAM-23 to MAM-28. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37 and MAM-38, built
+while 0.2.1 was the version; MAM-28's fixes go out when 0.3.0 is published again, under the same
+number. The release of Phase D is not decided yet.
 
 ## Phases
 
@@ -799,7 +807,7 @@ episode, and how much space could really be recovered — without the app guessi
   (MAM-35). What was tried live, and what wasn't, is in the README's
   [Tested with](README.md#tested-with) and the release note.
 - **MAM-37 Running times differ, and real copies only** (built, release 0.2.1; checked on 2026-10-08
-  on a copy of production's database, in no published image yet): the Duplicates page lists only
+  on a copy of production's database, first published in 0.3.0): the Duplicates page lists only
   real copies of one film or episode, and flags for review the copies of one work whose measured
   running times differ widely (Vasyl's decisions 1 to 4 of 2026-10-08;
   [ADR 0028](docs/adr/0028-duplicates-are-worked-out-on-every-read-in-four-classes-by-one-file-one-hash-one-registry-key-or-one-title-and-year-and-a-group-only-shows.md)
@@ -872,10 +880,10 @@ episode, and how much space could really be recovered — without the app guessi
   those lists. A copy in two parts, a copy unmeasured or whose reading failed beside measured ones,
   a hardlinked file whose names say different editions, a whole episode file beside an "a" file, a
   film item linked as an episode at another place, a part's own key and a possible match, none of
-  which production has, rest on the tests; production shows all of it once Vasyl publishes and
-  deploys an image that holds it.
-- **MAM-38 Downloads that would write over a file** (built, release 0.2.1; not tried against
-  qBittorrent or the reference installation, in no published image yet): a release whose files would
+  which production has, rest on the tests; production has run an image that holds it, the published
+  0.3.0, since 2026-10-11.
+- **MAM-38 Downloads that would write over a file** (built, release 0.2.1; first published in
+  0.3.0; met on 2026-10-12 only in a replacement's strict send, MAM-28): a release whose files would
   land on a different file already in the destination's folder is refused before anything reaches
   the client (Vasyl's decisions of 2026-10-08;
   [ADR 0034](docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).
@@ -1147,7 +1155,10 @@ two files of one size, the space adding up to the byte, and inspections that rea
 no file was a candidate for hashing. For MAM-32: a sync of the reference installation lists each
 show once with its seasons; a search for a series through Toloka lists its TV releases matched to it
 with the episodes held; and a TV release sent from there lands in the destination its section is
-mapped to. For MAM-18: a scan of the reference installation's `/media` finds the video files MAM-17
+mapped to (MAM-28 since: on 2026-10-12 the Download dialog offered a season of Clarkson's Farm the
+Documentary destination its section is mapped to, and sent to TV Shows, picked by hand, it landed
+in a new folder at the top of `/media/tv-shows`).
+For MAM-18: a scan of the reference installation's `/media` finds the video files MAM-17
 counted, every file Jellyfin lists — an episode's included — counts as reported, and the files in no
 library are the ones Jellyfin doesn't list; and the inspection after a second scan reads nothing
 new. Checked on 2026-10-05 with an image of the change beside production, on a copy of its data with
@@ -1215,8 +1226,8 @@ Duplicates page "1–4 of 4", and the badge and "The shortest copy runs 26:41, u
 the longest, 1:35:32." on that card alone, with no sideways scroll at desktop width and 375px; and
 the 14 tables the duplicates are read from unchanged at the start and after the check. A copy in two
 parts, a copy unmeasured or whose reading failed beside measured ones, the keys of a split group and
-a possible match, none of which production has, rest on the tests; production shows it once an image
-that holds MAM-37 is published and deployed.
+a possible match, none of which production has, rest on the tests; production has run an image that
+holds MAM-37, the published 0.3.0, since 2026-10-11.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify
@@ -1259,7 +1270,9 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 ### Phase C — Safe replacement
 
-**Release:** 0.3.0 holds MAM-24, MAM-25, MAM-26 and MAM-27; the rest of Phase C not decided.
+**Release:** 0.3.0, published on 2026-10-11, holds MAM-24 to MAM-27, built while 0.3.0 was the
+version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6 and
+corrections of the release note go out when 0.3.0 is published again, under the same number.
 **Tickets:** MAM-23 to MAM-28.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
@@ -1306,8 +1319,8 @@ a quarantine until you delete it for good, and you can put it back.
     library folder that holds the old copy, on the Media folders page. Only the owner schedules,
     retries, resolves, restores and deletes for good; members keep **Keep both** ([ADR
     0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
-- **MAM-24 Scheduling in the Download dialog** (built, release 0.3.0; tried live only for
-  qBittorrent's whole listing, read only, on 2026-10-09; in no published image yet): the owner
+- **MAM-24 Scheduling in the Download dialog** (built, release 0.3.0; tried on production on
+  2026-10-12, MAM-28, which scheduled a film, a season and the film again there): the owner
   schedules the replacement of specific old copies with a download, and the replacement follows that
   download to `Downloaded`, where MAM-25's check takes it up; MAM-24 itself verifies and moves
   nothing, and writes nothing to the media folders (Vasyl's decisions of 2026-10-08 and 2026-10-09;
@@ -1374,9 +1387,13 @@ a quarantine until you delete it for good, and you can put it back.
   ADR 0013's kind of gap —, the second then finding the copy gone when it comes to move. Tried live:
   the reference installation's qBittorrent answered the whole listing in 355 ms, 358 torrents with
   848 files, every path mapped into the app through `/downloads` → `/media`; no replacement was
-  scheduled, and no mark met a real file.
-- **MAM-25 Verifying the new files** (built, release 0.3.0; tried live only as a read-only read of
-  the reference installation's Jellyfin on 2026-10-10; in no published image yet): once its download
+  scheduled, and no mark met a real file. On production on 2026-10-12 (MAM-28) three replacements
+  were scheduled — a film, a season of eight copies and the film again with two copies —, the film
+  and the season confirmed by title and year, the copy the first film replacement had brought marked
+  "Held by" a real torrent's file, the strict send let the three through and refused a fourth whose
+  file would land on the restored copy, and a member's dialog offered Keep both only.
+- **MAM-25 Verifying the new files** (built, release 0.3.0; tried on production on 2026-10-12,
+  MAM-28, where the film's new file and the season's eight passed it): once its download
   is done, a replacement checks each new file before anything is touched, and ends `Verified`, or
   `NeedsReview` / `Failed` with the reason, both copies staying (Vasyl's decisions of 2026-10-10;
   [ADR
@@ -1440,14 +1457,17 @@ a quarantine until you delete it for good, and you can put it back.
   2026-10-10 a read-only probe read the reference installation's Jellyfin 12.2.0 with the app's
   stored settings — the computed id right for 880 of 880 movies and 440 of 440 episode files, a
   hidden alternate version answered by its id and by no `Items?ids=`, `LibraryMonitorDelay` 60 s,
-  the real-time monitor on in all four media libraries, no file with an end number —; no replacement
-  was downloaded anywhere, which MAM-28 checks. Accepted gaps: a torrent added after the check isn't
+  the real-time monitor on in all four media libraries, no file with an end number —; on 2026-10-12
+  (MAM-28) the film's new file passed it on production, verified 18 s after the app asked
+  Jellyfin to look — Jellyfin had been stopped during the check and started again —, and the
+  season's eight new files each paired with their old copy by the series' ids and the same running
+  time to the second. Accepted gaps: a torrent added after the check isn't
   seen by it; names Jellyfin 12.2 reads as no range (`S02E05-S02E06`) give none, and only `a` and
   `b` are halves; a Jellyfin with case-insensitive ids or path substitution never lists a new file,
   and no Jellyfin lists a sample file, which it ignores, so such checks end in review after the
   hour.
-- **MAM-26 The quarantine** (built, release 0.3.0; tried on no real setup — the tests stand in for
-  it, and MAM-28 is the live check —; in no published image yet): right before the move the app
+- **MAM-26 The quarantine** (built, release 0.3.0; tried on production on 2026-10-12, MAM-28, a
+  film's old copy moved in and put back, nothing deleted for good): right before the move the app
   checks the old copy and every download client's torrents again, then renames the picked video and
   its own companions into `.mam-quarantine` at the top of the allowed folder that holds it, one
   `renameat2(RENAME_NOREPLACE)` per name through a new write contract beside the read-only
@@ -1467,7 +1487,8 @@ a quarantine until you delete it for good, and you can put it back.
   identity, and its paired new file still the one verified (`ReplacementNewFileCheck`, shared with the
   check). *Check 6:* the copy's own companions listed through the write contract
   (`QuarantineCompanions`), then one read of every download client's torrents with their files — a
-  client whose mappings reach no allowed folder left out — for every name the move would rename; a
+  client whose mappings reach no allowed folder left out unless the app has sent a replacement to it
+  (MAM-28 below) — for every name the move would rename; a
   client not read or read in part stops the job, a video any torrent lists stops it with ADR 0031's
   "Still held by the torrent … then press Retry.", a companion a torrent lists stays, named on the
   job, and a second name of a torrent's file moves. A stop before the move is `NeedsReview` with
@@ -1513,15 +1534,22 @@ a quarantine until you delete it for good, and you can put it back.
   `Restored` or `Deleting` → `Completed`, or `NeedsReview`; every job step and every name's intent
   and outcome with an audit row — sixteen new actions, the mover's with no actor, the owner's with
   him —, and the client contract's forbidden words now also moving, relocating, renaming and setting
-  a location. Migration `AddReplacementQuarantine` rebuilds no table. Tried live: nothing — no file
-  was moved, put back or deleted on the reference installation, and the new parts of the pages
-  weren't looked at in a browser. Not tried by the tests either: `EXDEV`, `EINVAL`, `EROFS` and
-  `EOVERFLOW` from the real calls (the mount check stops a cross-mount rename first, and the
-  container's file systems all have `RENAME_NOREPLACE`), a real read-only bind mount (read from a
-  mount table instead), a mount at `.mam-quarantine`, a kernel without `STATX_MNT_ID`, an fsync that
-  fails (the rename stands and is recorded) and arm64's open flags.
-- **MAM-27 Replacements on the Jobs page** (built, release 0.3.0; tried on no real setup — the tests
-  stand in for it, and MAM-28 is the live check —; in no published image yet): the Jobs page and
+  a location. Migration `AddReplacementQuarantine` rebuilds no table. Tried live on 2026-10-12
+  (MAM-28): the film's old copy moved into `/media/.mam-quarantine` on production's ext4 under
+  kernel 7.0.14-22-pve, its one file by one rename keeping inode 390463793, the quarantine's folders
+  made 1000:100 with mode 755, and came back with Restore the same way; check 6 stopped the season
+  for the torrent that seeds it; the Media folders page's hint read for folders the app's user
+  couldn't write to and then for writable ones, and the room of the quarantine; Restore and Delete
+  for good disabled while switched off and still offered after a restart. Not tried live: Delete for
+  good, as no copy was left in the quarantine to delete — the film's second replacement was
+  cancelled at 1.8 % of its download —, and a held copy moving once its torrent is removed and Retry
+  pressed. Not tried by the tests either: `EXDEV`, `EINVAL`, `EROFS` and `EOVERFLOW` from the real
+  calls (the mount check stops a cross-mount rename first, and the container's file systems all have
+  `RENAME_NOREPLACE`), a real read-only bind mount (read from a mount table instead), a mount at
+  `.mam-quarantine`, a kernel without `STATX_MNT_ID`, an fsync that fails (the rename stands and is
+  recorded) and arm64's open flags.
+- **MAM-27 Replacements on the Jobs page** (built, release 0.3.0; tried on production on 2026-10-12,
+  MAM-28, on the film's and the season's replacements and a member's view): the Jobs page and
   each job's page show where a replacement stands, its ticked copies with the new file each pairs
   with, what the check found and why it stopped, and the owner keeps both copies, retries a stopped
   check or drops one old copy, each with an audit row (Vasyl's decisions of 2026-10-08 and
@@ -1563,9 +1591,14 @@ a quarantine until you delete it for good, and you can put it back.
   — the last aimed at the copy, a new target kind —, the owner's with him; each action one
   transaction writing nothing to the media or a client, owner-only by where its route lives, and
   usable while replacement is switched off. Migration `AddReplacementCopyDrops` rebuilds no table.
-  Tried live: nothing — no replacement was kept, retried or dropped on the reference installation;
-  the pages were looked at in a browser at 1280 px and 375 px over made-up answers. Accepted gaps: a
-  copy ticked by mistake can't be dropped while the download runs, only the whole replacement kept;
+  Tried live on 2026-10-12 (MAM-28): the lines and the **Replacement** section on production's real
+  replacements, Keep both on the season held by its torrent, Retry of the film's stop for an
+  unticked folder, Drop only as disabled for the last copy, a member's view, and Cancel job on the
+  film's second replacement, after which the job's page kept the **Replacement** section's "Keep
+  both" and "Waits for the download." until it was reloaded; the check's Retry after a fix in
+  Jellyfin, a Drop done and the drop-only stops rest on the tests and the look at 1280 px and 375 px
+  over made-up answers. Accepted gaps: a copy ticked by mistake can't be dropped while the download
+  runs, only the whole replacement kept;
   a dropped copy can't be taken back in; until the owner presses Retry after a drop, the line keeps
   the old reason; a new file of a dropped copy still holds the job until Jellyfin has listed, read
   and identified it, as any new file does, since it may be a second file of a copy left — a fix in
@@ -1573,7 +1606,58 @@ a quarantine until you delete it for good, and you can put it back.
   its "no id to compare" stop, which can only stop again; and a stop of the move because the new
   file changed after it was verified keeps MAM-26's Retry, which can only stop again — a drop or
   Keep both is the way out.
-- **MAM-28 Live check** (to do): the acceptance bar on the reference installation.
+- **MAM-28 Phase C acceptance** (checked on 2026-10-12): the acceptance bar below checked on
+  2026-10-12 on production — the MAM container on the media host, a Proxmox LXC on Linux
+  7.0.14-22-pve x86_64 with Docker 29.9.0 and Compose v5.6.0 — running the published 0.3.0 image
+  (`sha256:0b75fdbd7f60…`, stamped `0.3.0+2dec720`, published by Vasyl on 2026-10-11), with Jellyfin
+  12.2.0, qBittorrent 5.2.4, Toloka's releases and ffprobe 6.1.1-3ubuntu5, Vasyl signed in as the
+  owner. Replacement was turned on as the 0.3.0 release note's **Turning it on** says: `/media` was
+  a read-write bind of one ext4 disk already, the host's compose file got the `user:` line it lacked
+  and a new `.env` the ids 1000 and 100, the data volume was backed up and handed over with the
+  note's `chown`, keeping its modes, and the app came up healthy in 7.4 s as 1000:100; with 10001
+  the Media folders page had said "The app's user can't write here or in its media folder, so a move
+  would fail: run the app as the media folders' owner.", and then said "A move into the quarantine
+  can work here: …" for `/media/movies` and `/media/tv-shows`, ticked and saved. The film, «Останній
+  бойскаут» (1991), was scheduled from Toloka with its 576p copy ticked and its work confirmed,
+  downloaded in about 3 minutes, its new file checked and identified by Jellyfin's ids (IMDb
+  tt0102266, TMDb 9319) 18 s after Jellyfin was asked to look, and its old copy moved into
+  `.mam-quarantine` keeping its inode, each step in the audit trail, from `DownloadRequested`,
+  `ReplacementScheduled` and `ReplacementWorkConfirmed` to `ReplacementVerified`,
+  `QuarantineStarted`, `NameMoving`, `NameMoved` and `Quarantined`; Jellyfin's search then listed
+  only the new item. Restore put it back (`RestoreStarted`, `NameRestoring`, `NameRestored`,
+  `Restored`), and Jellyfin listed both items again, the old one under its old id. Clarkson's Farm
+  season 2, eight copies, verified and paired, then stopped with "Still held by the torrent
+  “Clarksons Farm Collection” in “qBittorrent”: remove that torrent there without its files, then
+  press Retry."; as that torrent seeds seasons 1 to 5, Vasyl kept both copies. Staged on production,
+  each leaving the old file where it was: three restarts at rest points (downloading, checking with
+  Jellyfin down, quarantined), Jellyfin stopped for about three minutes during the check, the switch
+  off before and after the move, `/media/movies` unticked with the replacement verified (a stop for
+  review, then Retry), a temporary member's view, and a release whose one file would land on the
+  restored copy, refused before anything reached qBittorrent. A second replacement of the film,
+  ticking the restored 576p copy and the HEVC one, which the dialog marked as held by its own
+  torrent ("Held by …"), was cancelled with Cancel job at 1.8 % of its download, as Vasyl wouldn't
+  wait ("Replacement stopped: You cancelled the download, so nothing will be replaced."); so a held
+  copy moving after its torrent's removal and Retry, and Delete for good — no copy was left in the
+  quarantine to delete —, rest on the tests with the other cases of the bar (below). Vasyl then
+  deleted the 576p copy by hand on the host, so the film ends as one copy, the 1080p H.265. At the
+  end replacement was switched off with both folders unticked and the quarantine empty, and
+  production went back to the image's own ids: the note's `chown` with `10001:10001`, the compose
+  file from before the check without the `user:` line, no `.env`, and the app healthy in 7.4 s as
+  uid 10001. `tools/mam28/report.py`, run before anything changed, after each stage and at the end,
+  found of 1,619 entries only the 576p file gone, the 1080p H.265 file added and the modification
+  times of `/media`, `/media/movies` and `/media/tv-shows` changed between the first and the last;
+  the replacement jobs end as 1 `Restored`, 2 `Cancelled` and 1 `Failed` (the refused overwrite).
+  What was tried live, and what wasn't, is in the README's [Tested with](README.md#tested-with) and
+  the release note. Preparing it on 2026-10-12 found that check 6 passed over the torrents of a
+  client whose path mappings had been deleted or pointed outside the Media folders since a
+  replacement went through it, so a seeding old copy would have moved; fixed in release 0.3.0, which
+  keeps its number, by the tests alone, and not in the image published on 2026-10-11 (Vasyl's
+  decisions of 2026-10-12; [ADR
+  0031](docs/adr/0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)'s
+  MAM-28 section): right before a move, every client the app has sent a replacement to is asked
+  whatever its mappings say, and a torrent of one listing a file they put outside the Media folders
+  with the name of a file that would move, with no size, or with its size unless that file has other
+  names, stops it for review.
 - **Backup/restore:** replacement jobs, the switch, the ticks and the audit trail live in the
   database; quarantined files stay on disk in the quarantine folder, outside the database backup.
 
@@ -1675,7 +1759,18 @@ pages).
 **Acceptance bar:** a process restart, a failed download, an unknown new path, a multifile torrent,
 a failed ffprobe, a wrong ID, an unavailable Jellyfin, a changed old file, active seeding and an
 invalid mount mapping never cause silent deletion. A successful unambiguous replacement leaves an
-audit trail and a way to restore the quarantined copy.
+audit trail and a way to restore the quarantined copy. Checked on the reference installation on
+2026-10-12 (MAM-28), on the published 0.3.0: the film replaced, each step in the audit trail, and
+its old copy restored from the quarantine, while Delete for good wasn't tried, no copy being left in
+the quarantine to delete, and rests on the tests; of the ten cases, active seeding was met
+naturally (the season), a multi-file torrent on its passing side, an invalid mount as the Media
+folders page's hint before the handover, and three restarts at rest points and Jellyfin unavailable
+for about three minutes were staged, each leaving the old file where it was; a restart in the middle
+of a move, a restore or a deletion, a failed download, an unknown new path, an unclear pair, a
+failed ffprobe, a wrong id, Jellyfin unavailable for the whole hour, a changed old file, a held copy
+moving once its torrent is removed and Retry pressed, another or a read-only mount and a mapping
+changed after a send rest on the tests, as the **Tests** paragraph above and the README's
+[Tested with](README.md#tested-with) list.
 
 ### Phase D — Practical extensibility
 
