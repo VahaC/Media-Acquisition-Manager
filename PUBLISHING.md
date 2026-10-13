@@ -29,7 +29,7 @@ It has no trigger: pushing to Docker Hub is a release, and a release is a decisi
 1. **Checkout** — a fresh clone of `main`. `VERSION` must be `X.Y.Z` and equal the version in
    `frontend/package.json`, or the job stops.
 2. **Backend** and **Frontend** — the same checks as CI, none skipped, on the tree the image is
-   built from.
+   built from, and run the same way: at the same time, with the same package caches.
 3. **Publish** — builds the image for `linux/amd64` and `linux/arm64` and pushes it to
    `vahac/media-acquisition-manager` as `X.Y.Z`, `X.Y` and `latest`. A version that is already on
    Docker Hub is rebuilt, and its tags move to the new image.

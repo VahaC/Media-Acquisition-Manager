@@ -60,35 +60,51 @@ pipeline {
         }
 
         // The same checks as CI (Jenkinsfile), none of them skipped: a release must pass the gate
-        // every commit passes, on the exact tree the image is built from.
-        stage('Backend') {
-            agent {
-                docker { image 'mcr.microsoft.com/dotnet/sdk:10.0' }
-            }
-            steps {
-                unstash 'source'
-                sh 'dotnet restore MediaAcquisitionManager.slnx'
-                sh 'dotnet build MediaAcquisitionManager.slnx -c Release --no-restore'
-                sh 'NO_BUILD=1 bash run-tests.sh'
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: 'tests/**/TestResults/test-results-*.xml'
+        // every commit passes, on the exact tree the image is built from. Run the same way too, side
+        // by side with cached packages and the tests' databases on a RAM disk; the Jenkinsfile says why.
+        stage('Checks') {
+            parallel {
+                stage('Backend') {
+                    agent {
+                        docker {
+                            image 'mcr.microsoft.com/dotnet/sdk:10.0'
+                            args '--tmpfs /mam-test-tmp:rw,exec,mode=1777'
+                        }
+                    }
+                    steps {
+                        // Parallel stages on one agent get separate workspaces, and only Checkout's
+                        // was cleaned.
+                        deleteDir()
+                        unstash 'source'
+                        withEnv(["NUGET_PACKAGES=${env.WORKSPACE_TMP}/nuget"]) {
+                            sh 'dotnet restore MediaAcquisitionManager.slnx'
+                            sh 'dotnet build MediaAcquisitionManager.slnx -c Release --no-restore'
+                            sh 'TMPDIR=/mam-test-tmp NO_BUILD=1 bash run-tests.sh'
+                        }
+                    }
+                    post {
+                        always {
+                            junit allowEmptyResults: true, testResults: 'tests/**/TestResults/test-results-*.xml'
+                        }
+                    }
                 }
-            }
-        }
 
-        stage('Frontend') {
-            agent {
-                docker { image 'node:24-alpine' }
-            }
-            steps {
-                unstash 'source'
-                dir('frontend') {
-                    sh 'npm ci'
-                    sh 'npm run lint'
-                    sh 'npm run build'
-                    sh 'npm run test'
+                stage('Frontend') {
+                    agent {
+                        docker { image 'node:24-alpine' }
+                    }
+                    steps {
+                        deleteDir()
+                        unstash 'source'
+                        withEnv(["npm_config_cache=${env.WORKSPACE_TMP}/npm"]) {
+                            dir('frontend') {
+                                sh 'npm ci --prefer-offline'
+                                sh 'npm run lint'
+                                sh 'npm run build'
+                                sh 'npm run test'
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -97,6 +113,10 @@ pipeline {
             // Reached only when every stage above passed.
             agent any
             steps {
+                // With the checks in parallel this stage may get a workspace other than Checkout's,
+                // one an earlier build left behind: a source file deleted since must not reach the
+                // image.
+                deleteDir()
                 unstash 'source'
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
                     sh '''
