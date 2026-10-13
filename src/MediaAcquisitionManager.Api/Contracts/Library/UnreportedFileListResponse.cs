@@ -8,6 +8,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="CountedCount">The files in no library the app counts: the first tab's, and the Media folders row's.</param>
 /// <param name="ProblemCount">Those of them the app's last look couldn't read: the Problems tab's.</param>
 /// <param name="IgnoredCount">The files the owner told the app to stop counting: the Ignored tab's.</param>
+/// <param name="ExtrasCount">MAM-44 — the files the library takes for a film's extras, not ignored: the Extras tab's.</param>
 public sealed record UnreportedFileListResponse(
     IReadOnlyList<UnreportedFileDto> Items,
     int TotalCount,
@@ -15,4 +16,5 @@ public sealed record UnreportedFileListResponse(
     int PageSize,
     int CountedCount,
     int ProblemCount,
-    int IgnoredCount);
+    int IgnoredCount,
+    int ExtrasCount);

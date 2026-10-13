@@ -12,4 +12,8 @@ public enum UnreportedFileView
 
     /// <summary>The files the owner told the app to stop counting.</summary>
     Ignored = 2,
+
+    /// <summary>MAM-44 — the files the library takes for a film's extras, by their folder or their name, not ignored:
+    /// listed apart, warning of nothing.</summary>
+    Extras = 3,
 }

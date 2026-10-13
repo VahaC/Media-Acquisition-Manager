@@ -113,6 +113,8 @@
     "notInspected_other": "{{value}} not inspected yet",
     "ignored_one": "{{value}} ignored",
     "ignored_other": "{{value}} ignored",
+    "extras_one": "{{value}} extra",
+    "extras_other": "{{value}} extras",
     "problemsOwner_one": "{{value}} file couldn't be read: {{problem}}",
     "problemsOwner_other": "{{value}} files couldn't be read: {{problem}}",
     "problemsMember_one": "{{value}} file couldn't be read. The owner can see why.",
@@ -346,22 +348,25 @@
       "label": "Files in no library",
       "All": "In no library",
       "Problems": "Couldn't be read",
+      "Extras": "Extras",
       "Ignored": "Ignored",
       "withCount": "{{name}} ({{count}})"
     },
     "empty": {
       "All": "No file is in no library.",
       "Problems": "Every file in no library could be read.",
+      "Extras": "No file is taken for a film's extra.",
       "Ignored": "No file is ignored."
     },
+    "extrasNote": "Files a library takes for a film's extras, by their folder or their name. They warn of nothing, and still count in the room your files take.",
     "loadFailed": "Could not load the files in no library.",
     "refreshFailed": "Could not refresh the files in no library.",
     "place": {
       "NoLibraryFolder": "No library's folders hold it, so no library looks for it there.",
       "LibraryFolder": "In {{library}}'s folders, but {{library}} didn't list it: a library lists a file added after its last scan only after the next one.",
       "FoldersUnknown": "The app doesn't know the libraries' folders yet. Sync a library first.",
-      "ExtrasFolder": "In a folder named “{{name}}” in {{library}}'s folders: {{library}} takes the videos in a folder so named for a film's extras, not for films of their own.",
-      "ExtraName": "Named as an extra (“{{name}}”) in {{library}}'s folders: {{library}} takes a video so named for a film's extra, not for a film of its own."
+      "ExtrasFolder": "In a folder named “{{name}}” in {{library}}'s folders: {{library}} takes such a folder for the extras of the one film in the folder above it, and shows them nowhere when that folder holds no single film.",
+      "ExtraName": "Named as an extra (“{{name}}”) in {{library}}'s folders: {{library}} takes such a video for an extra of the one film in its folder, and shows it nowhere when that folder holds no single film."
     },
     "ignoredAt": "Ignored {{time}}.",
     "ignore": "Ignore",

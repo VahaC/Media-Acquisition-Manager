@@ -32,7 +32,7 @@ public static class UnreportedFileListRules
         var text = view.Trim();
         var name = Enum.GetNames<UnreportedFileView>().FirstOrDefault(candidate => candidate.Equals(text, StringComparison.OrdinalIgnoreCase));
         if (name is null)
-            return $"“{Echo(text)}” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every file.";
+            return $"“{Echo(text)}” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.";
 
         filter = Enum.Parse<UnreportedFileView>(name);
         return null;

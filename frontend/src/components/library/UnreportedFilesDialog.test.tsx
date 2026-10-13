@@ -43,7 +43,7 @@ const sample = fileOf({
 })
 
 function listOf(items: UnreportedFile[], changes: Partial<UnreportedFileList> = {}): UnreportedFileList {
-  return { items, totalCount: items.length, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0, ...changes }
+  return { items, totalCount: items.length, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0, extrasCount: 0, ...changes }
 }
 
 function renderDialog(signedIn: CurrentUser = owner, initialTab: UnreportedFilesTab = 'All') {
@@ -107,9 +107,9 @@ describe('UnreportedFilesDialog', () => {
 
     // Assert
     const short = within(await rowOf('[01] Hawaiian Vacation (2011).mkv'))
-    expect(short.getByText('In a folder named “Shorts” in Мульфільми\'s folders: Мульфільми takes the videos in a folder so named for a film\'s extras, not for films of their own.')).toBeInTheDocument()
+    expect(short.getByText('In a folder named “Shorts” in Мульфільми\'s folders: Мульфільми takes such a folder for the extras of the one film in the folder above it, and shows them nowhere when that folder holds no single film.')).toBeInTheDocument()
     const trailer = within(await rowOf('Dune (2021)-trailer.mkv'))
-    expect(trailer.getByText('Named as an extra (“-trailer”) in Фільми\'s folders: Фільми takes a video so named for a film\'s extra, not for a film of its own.')).toBeInTheDocument()
+    expect(trailer.getByText('Named as an extra (“-trailer”) in Фільми\'s folders: Фільми takes such a video for an extra of the one film in its folder, and shows it nowhere when that folder holds no single film.')).toBeInTheDocument()
   })
 
   it('says the libraries\' folders aren\'t known yet, and that a file wasn\'t looked at yet', async () => {
@@ -144,10 +144,11 @@ describe('UnreportedFilesDialog', () => {
   it.each<[UnreportedFilesTab, string]>([
     ['All', 'In no library (17)'],
     ['Problems', 'Couldn\'t be read (1)'],
+    ['Extras', 'Extras (12)'],
     ['Ignored', 'Ignored (2)'],
   ])('opens on the %s tab it is given, every tab with its count', async (tab, selected) => {
     // Arrange
-    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue(listOf([fileOf({})], { ignoredCount: 2 }))
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue(listOf([fileOf({})], { ignoredCount: 2, extrasCount: 12 }))
 
     // Act
     renderDialog(owner, tab)
@@ -156,8 +157,21 @@ describe('UnreportedFilesDialog', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Files in no library' })
     expect(await within(dialog).findByRole('tab', { name: selected })).toHaveAttribute('aria-selected', 'true')
     expect(within(dialog).getAllByRole('tab').map((element) => element.textContent))
-      .toEqual(['In no library (17)', 'Couldn\'t be read (1)', 'Ignored (2)'])
+      .toEqual(['In no library (17)', 'Couldn\'t be read (1)', 'Extras (12)', 'Ignored (2)'])
     expect(libraryApi.unreportedFiles).toHaveBeenCalledWith({ view: tab === 'All' ? undefined : tab, page: 1, pageSize: 25 })
+  })
+
+  it('says on the Extras tab what it holds and that it warns of nothing (MAM-44)', async () => {
+    // Arrange
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue(listOf([], { extrasCount: 0 }))
+
+    // Act
+    renderDialog(member, 'Extras')
+
+    // Assert
+    expect(await screen.findByText('Files a library takes for a film\'s extras, by their folder or their name. They warn of nothing, and still count in the room your files take.')).toHaveClass('settings-muted')
+    expect(await screen.findByText('No file is taken for a film\'s extra.')).toBeInTheDocument()
+    expect(libraryApi.unreportedFiles).toHaveBeenCalledWith({ view: 'Extras', page: 1, pageSize: 25 })
   })
 
   it('asks the server for another tab from its first page, and for another page of a tab', async () => {

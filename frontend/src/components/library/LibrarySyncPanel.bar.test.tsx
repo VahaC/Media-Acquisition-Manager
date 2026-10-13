@@ -141,7 +141,7 @@ describe('LibrarySyncPanel status bar', () => {
   ])('opens the files in no library on its tab from the Folders chip %s', async (chip, tab, view) => {
     // Arrange
     vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
-      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0,
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0, extrasCount: 0,
     })
     serveWith({ files: { inspectedCount: 16, problemCount: 1, notInspectedCount: 0, problem: null } }, {})
     const { user } = renderPanel(member)

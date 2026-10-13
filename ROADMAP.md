@@ -77,7 +77,10 @@ on the disk (ADR 0021's MAM-42 section). MAM-43 (built the same day, inside 0.3.
 follows from that list: 16 of its 17 files were four Blu-ray clips of films Фільми does list and twelve
 shorts in `Shorts` folders, all with one vague reason. A disc's clips are now its film's files, listed by
 the sync (ADR 0038), and the list names the extras folder or extra's name that made a library skip a file.
-All seven go out when Vasyl publishes 0.3.0 again — the image published on 2026-10-11 has none of
+MAM-44 (built the same day, inside 0.3.0, a Phase B ticket) follows from production's list after MAM-43,
+which still warned of those twelve shorts, which Jellyfin shows nowhere: the files a library takes for
+extras sit on an Extras tab and warn of nothing.
+All eight go out when Vasyl publishes 0.3.0 again — the image published on 2026-10-11 has none of
 them. Phase C's heading below stays
 unmarked until that image is published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
@@ -85,9 +88,9 @@ This file lists unshipped phases only. When a phase ships, its heading becomes
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38, MAM-42
-and MAM-43, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and
-MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes, MAM-39 to MAM-41, MAM-42 and MAM-43 go
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
+MAM-42 to MAM-44, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-44 go
 out when 0.3.0 is published again, under the same number. The release of Phase D is not decided yet.
 
 ## Phases
@@ -494,9 +497,9 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
 **Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21,
-MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42 and MAM-43, built on 2026-10-13, go out in
-0.3.0 when it is published again (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38,
-MAM-42 and MAM-43.
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42 to MAM-44, built on 2026-10-13, go out in
+0.3.0 when it is published again (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38 and
+MAM-42 to MAM-44.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -1003,6 +1006,17 @@ episode, and how much space could really be recovered — without the app guessi
   library lists a file added after its last scan only after the next one". Accepted gaps: a disc reached
   only after a sync gets its files at the next sync, and the Library page's sort by size still counts a
   disc as 0, as its clips carry no reported size.
+- **MAM-44 Keep the files Jellyfin takes for extras on an Extras tab of their own, without a
+  warning** (built on 2026-10-13, release 0.3.0; not tried on production): after MAM-43 production's
+  list still warned of twelve shorts in `Shorts` folders, and a read of Jellyfin found them nowhere,
+  neither as items nor as any film's special features (Vasyl's decisions of 2026-10-13: extras by
+  name too, no warning even for one that couldn't be read; ADR 0021's MAM-44 section). The files
+  whose place is `ExtrasFolder` or `ExtraName` leave the counted files, the problems, the bar's
+  chips and the Media folders row's warning. They sit on a fourth tab, **Extras**
+  (`GET /api/library/unreported-files?view=Extras`, `extrasCount`), and the counts line adds
+  "· 12 extras" (`scan.extrasCount`). Their room still counts, and Ignore takes one to Ignored. The
+  two reasons now say Jellyfin shows such files nowhere when the folder above holds no single film.
+  One set, `UnreportedFileSet`, feeds the list and the counts.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -1311,14 +1325,16 @@ is never walked, and a second sync forgets a clip gone and every clip once Jelly
 The folder walk refuses a folder outside the roots, a link leading out and, inside the disc, a link
 out of it, and answers a missing folder as unlisted. The adapter keeps a local disc's folder and
 nothing else. Each extras folder name and rule is checked, the library's root excepted, and the list
-says which one made the library skip a file. A copy in two
+says which one made the library skip a file. MAM-44: the extras leave the counted list and every
+count of the sources, one ffprobe couldn't read included, and their room stays; the Extras view lists
+them with their places; an ignored extra is listed under Ignored and no longer under Extras. A copy in two
 parts, a copy unmeasured or whose reading failed beside measured ones, the keys of a split group and
 a possible match, none of which production has, rest on the tests; production has run an image that
 holds MAM-37, the published 0.3.0, since 2026-10-11.
 MAM-42 has no bar; it was checked on 2026-10-13 on a scratch installation on Windows with real
 ffprobe and a scratch media folder holding an ISO and two short videos — the chips and rows, the
 dialog, Ignore, a rescan keeping the mark, Stop ignoring and a member's view, at desktop and phone
-width —, not on production. MAM-43 has no bar either, and was not tried on production.
+width —, not on production. MAM-43 has no bar either, and was not tried on production; nor was MAM-44.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify

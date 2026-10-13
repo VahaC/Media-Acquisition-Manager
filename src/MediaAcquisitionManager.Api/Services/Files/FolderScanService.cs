@@ -104,9 +104,10 @@ public sealed class FolderScanService(
             .FirstOrDefaultAsync(cancellationToken);
         var hasQueuedRun = await db.FolderScanRuns.AnyAsync(run => run.Status == FolderScanStatus.Queued, cancellationToken);
         // MAM-18, ADR 0021 — the names no library name leads to now, in path order, so "the first problem" is the same
-        // one on every poll. MAM-42 — the ignored ones leave the counts but not the room: they still take it.
-        var unreported = await UnreportedFileReader.LoadAsync(db, cancellationToken);
-        var counted = unreported.Where(name => name.IgnoredUtc is null).ToList();
+        // one on every poll. MAM-42 — the ignored ones leave the counts but not the room: they still take it. MAM-44 —
+        // and so do the extras.
+        var unreported = await UnreportedFileReader.LoadSetAsync(db, cancellationToken);
+        var counted = unreported.Counted;
         return new FolderScanOverviewDto(
             active is null ? null : mapper.ToDto(active, forOwner),
             lastFinished is null ? null : mapper.ToDto(lastFinished, forOwner),
@@ -115,8 +116,9 @@ public sealed class FolderScanService(
                 [.. counted.Select(name => (name.InspectionStatus, name.InspectionError, UnreportedFileReader.HasAppPathOf(name)))],
                 forOwner),
             // MAM-19 — the room the files behind those same names take, by the same rule.
-            FileSpace.Of(unreported.Select(name => (name.DeviceId, name.Inode, name.ReadSizeBytes))),
-            unreported.Count - counted.Count);
+            FileSpace.Of(unreported.All.Select(name => (name.DeviceId, name.Inode, name.ReadSizeBytes))),
+            unreported.Ignored.Count,
+            unreported.Extras.Count);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────

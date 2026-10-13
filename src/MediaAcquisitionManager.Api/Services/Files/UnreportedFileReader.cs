@@ -1,5 +1,7 @@
+using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -40,7 +42,48 @@ public static class UnreportedFileReader
         ];
     }
 
+    /// <summary>
+    /// MAM-44 — every such name with its place among the libraries' folders, sorted into counted, extras and ignored
+    /// (<see cref="UnreportedFileSet"/>): one read of the folders for them all.
+    /// </summary>
+    public static async Task<UnreportedFileSet> LoadSetAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
+    {
+        var names = await LoadAsync(db, cancellationToken);
+        if (names.Count == 0)
+            return new UnreportedFileSet(names, new Dictionary<Guid, UnreportedFilePlaceDto>());
+
+        var folders = (await LibraryFolderReader.LoadAsync(db, cancellationToken)).Mapped
+            .Select(folder => (folder.LibraryName, Path: NormalizedPath.TryParse(folder.AppPath, out var path, out _) ? path : null))
+            .Where(folder => folder.Path is not null)
+            .Select(folder => (folder.LibraryName, Path: folder.Path!))
+            .ToList();
+        return new UnreportedFileSet(names, names.ToDictionary(name => name.Id, name => PlaceOf(name, folders)));
+    }
+
     /// <summary>Whether the name's own path is one the app can use: the scan stores the app's path, which maps as it
     /// is.</summary>
     public static bool HasAppPathOf(PhysicalFileEntity name) => PathMapper.Map(name.ServicePath, []).HasAppPath;
+
+    /// <summary>
+    /// MAM-42 — where <paramref name="name"/> sits among <paramref name="folders"/> — the libraries' folders with a path
+    /// in the app, by library name (<see cref="LibraryFolderReader"/>): under the first that holds it, under none, or
+    /// unknown when there are none to compare with. MAM-43 — under one, an extras folder's name or an extra's name says
+    /// why the library skipped it (<see cref="LibraryExtraNames"/>), the folder first, as it covers every video in it.
+    /// </summary>
+    private static UnreportedFilePlaceDto PlaceOf(PhysicalFileEntity name, List<(string LibraryName, NormalizedPath Path)> folders)
+    {
+        if (folders.Count == 0)
+            return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.FoldersUnknown, null);
+        if (NormalizedPath.TryParse(PathMapper.Map(name.ServicePath, []).AppPath, out var path, out _)
+            && folders.FirstOrDefault(folder => path.IsUnder(folder.Path)) is { LibraryName: { } libraryName, Path: { } libraryFolder })
+        {
+            if (LibraryExtraNames.ExtrasFolderOf(path, libraryFolder) is { } extrasFolder)
+                return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtrasFolder, libraryName, extrasFolder);
+            if (LibraryExtraNames.ExtraNameOf(path.Segments[^1]) is { } extraName)
+                return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, libraryName, extraName);
+            return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.LibraryFolder, libraryName);
+        }
+
+        return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.NoLibraryFolder, null);
+    }
 }

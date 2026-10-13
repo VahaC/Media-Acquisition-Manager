@@ -502,11 +502,13 @@ function RunIcon({ run }: { run: LibrarySyncRun | FolderScanRun }) {
  * MAM-18 — the Media folders row counts the names its scans stored in the same parts; `frame` puts
  * them in each row's own sentence.
  */
-function InspectionCounts({ inspection, frame, ignoredCount = 0, children }: {
+function InspectionCounts({ inspection, frame, ignoredCount = 0, extrasCount = 0, children }: {
   inspection: LibrarySourceInspection
   frame: (counts: string) => string
   /** MAM-42 — the Media folders row's files the owner ignored, which the counts leave out. */
   ignoredCount?: number
+  /** MAM-44 — the Media folders row's files a library takes for extras, which the counts leave out. */
+  extrasCount?: number
   /** MAM-42 — what follows the sentence on its line (the Media folders row's Show files). */
   children?: ReactNode
 }) {
@@ -517,6 +519,7 @@ function InspectionCounts({ inspection, frame, ignoredCount = 0, children }: {
     problemCount > 0 && t('inspection.problems', { count: problemCount, value: formatNumber(problemCount) }),
     notInspectedCount > 0
       && t('inspection.notInspected', { count: notInspectedCount, value: formatNumber(notInspectedCount) }),
+    extrasCount > 0 && t('inspection.extras', { count: extrasCount, value: formatNumber(extrasCount) }),
     ignoredCount > 0 && t('inspection.ignored', { count: ignoredCount, value: formatNumber(ignoredCount) }),
   ].filter((part) => typeof part === 'string')
   if (parts.length === 0) return null
@@ -852,9 +855,17 @@ function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan,
             </span>
           </p>
         )}
-        {/* With no file counted, the ignored ones are still listed: Show files goes on the counts line. */}
-        <InspectionCounts inspection={scan.files} frame={(counts) => t('scan.files', { counts })} ignoredCount={scan.ignoredCount}>
-          {unreported === 0 && scan.ignoredCount > 0 && <ShowFilesButton onClick={() => onShowFiles('Ignored')} />}
+        {/* With no file counted, the extras and the ignored ones are still listed: Show files goes on the counts line,
+            on the extras first (MAM-44). */}
+        <InspectionCounts
+          inspection={scan.files}
+          frame={(counts) => t('scan.files', { counts })}
+          ignoredCount={scan.ignoredCount}
+          extrasCount={scan.extrasCount}
+        >
+          {unreported === 0 && (scan.extrasCount > 0 || scan.ignoredCount > 0) && (
+            <ShowFilesButton onClick={() => onShowFiles(scan.extrasCount > 0 ? 'Extras' : 'Ignored')} />
+          )}
         </InspectionCounts>
         {/* The owner's sentence for the first of those names that couldn't be read, as a source's row
             shows its own; MAM-42 — with how many, for everyone. */}

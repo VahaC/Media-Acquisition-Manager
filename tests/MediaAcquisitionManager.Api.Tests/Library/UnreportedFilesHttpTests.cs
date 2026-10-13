@@ -30,6 +30,9 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
     private const string SamplePath = "/media/movies/Dune (2021)/Dune (2021) sample.mkv";
     private const string MovedIsoPath = "/media/software/Adobe Premiere Rush 2.10.0.30.iso";
     private const long IsoSizeBytes = 1_288_490_189;
+    private const string ShortPath = "/media/movies/Alien. Collection/Shorts/[01] Alien. Containment (2019) WEBRip 1080p H.265 [ENG] [Hurtom].mkv";
+    private const string TrailerPath = "/media/movies/Dune (2021)/Dune (2021)-trailer.mkv";
+    private const string ExtraSamplePath = "/media/movies/Dune (2021)/Sample2.mkv";
 
     private static readonly string IsoError = string.Format(FakeFileInventory.UnreadableMediaError, IsoPath);
 
@@ -79,35 +82,70 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
     }
 
     [Fact]
-    public async Task List_says_which_extras_folder_or_extras_name_made_the_library_skip_a_file()
+    public async Task List_keeps_the_files_the_library_takes_for_extras_on_the_extras_view_with_why_and_counts_none_of_them()
     {
         //Arrange
-        // MAM-43 — production's Alien shorts and two names Jellyfin takes for extras, in Фільми's folder.
+        // MAM-43, MAM-44 — production's Alien short and two names Jellyfin takes for extras, in Фільми's folder.
         var cancellationToken = TestContext.Current.CancellationToken;
-        const string shortPath = "/media/movies/Alien. Collection/Shorts/[01] Alien. Containment (2019) WEBRip 1080p H.265 [ENG] [Hurtom].mkv";
-        const string trailerPath = "/media/movies/Dune (2021)/Dune (2021)-trailer.mkv";
-        const string samplePath = "/media/movies/Dune (2021)/Sample2.mkv";
-        await SeedLibraryFolderAsync();
-        await new AllowedRootSeeder(_factory.Scope).Allow(Root);
-        _factory.Files.AddFile(shortPath, TestMedia.File(inode: 121));
-        _factory.Files.AddFile(trailerPath, TestMedia.File(inode: 122));
-        _factory.Files.AddFile(samplePath, TestMedia.File(inode: 123));
-        _factory.Files.AddFile(BirthdayPath, TestMedia.File(inode: 103));
-        await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
+        await ScanExtrasAsync(cancellationToken);
 
         //Act
-        var response = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+        var all = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+        var extras = await _factory.GetHttpRequest($"{BaseUrl}?view=extras", _member.AccessToken);
 
         //Assert
-        var list = await ReadListAsync(response, cancellationToken);
+        var counted = await ReadListAsync(all, cancellationToken);
+        Assert.Equal([BirthdayPath], counted.Items.Select(file => file.AppPath));
+        Assert.Equal((1, 0, 0, 3), (counted.CountedCount, counted.ProblemCount, counted.IgnoredCount, counted.ExtrasCount));
+        var list = await ReadListAsync(extras, cancellationToken);
         Assert.Equal(
             [
-                (BirthdayPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.NoLibraryFolder, null)),
-                (shortPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtrasFolder, "Фільми", "Shorts")),
-                (trailerPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, "Фільми", "-trailer")),
-                (samplePath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, "Фільми", "sample")),
+                (ShortPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtrasFolder, "Фільми", "Shorts")),
+                (TrailerPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, "Фільми", "-trailer")),
+                (ExtraSamplePath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, "Фільми", "sample")),
             ],
             list.Items.Select(file => (file.AppPath, file.Place)));
+        Assert.Equal(3, list.TotalCount);
+    }
+
+    [Fact]
+    public async Task Sources_leave_the_extras_out_of_every_warning_even_one_that_couldnt_be_read_and_keep_their_room()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ScanExtrasAsync(cancellationToken);
+
+        //Act
+        var scan = (await ReadSourcesAsync(cancellationToken)).Scan;
+        var problems = await ReadListAsync(await _factory.GetHttpRequest($"{BaseUrl}?view=problems", _owner.AccessToken), cancellationToken);
+
+        //Assert
+        // The trailer has no media ffprobe could read, yet warns of nothing: it is an extra (Vasyl's decision).
+        Assert.Equal((new LibrarySourceInspectionDto(1, 0, 0, null), 0, 3), (scan.Files, scan.IgnoredCount, scan.ExtrasCount));
+        Assert.Equal((4, 4), (scan.Space.FileCount, scan.Space.NameCount));
+        Assert.Empty(problems.Items);
+        var trailer = await FileAtAsync(TrailerPath, cancellationToken);
+        Assert.Equal(FileInspectionStatus.MediaUnreadable, trailer.InspectionStatus);
+    }
+
+    [Fact]
+    public async Task Ignore_an_extra_lists_it_under_ignored_and_no_longer_under_extras()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ScanExtrasAsync(cancellationToken);
+        var alienShort = await FileAtAsync(ShortPath, cancellationToken);
+
+        //Act
+        var response = await _factory.PutHttpRequest($"{BaseUrl}/{alienShort.Id}/ignored", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var ignored = await ReadListAsync(await _factory.GetHttpRequest($"{BaseUrl}?view=ignored", _owner.AccessToken), cancellationToken);
+        Assert.Equal([ShortPath], ignored.Items.Select(file => file.AppPath));
+        Assert.Equal((1, 1, 2), (ignored.CountedCount, ignored.IgnoredCount, ignored.ExtrasCount));
+        var scan = (await ReadSourcesAsync(cancellationToken)).Scan;
+        Assert.Equal((1, 2), (scan.IgnoredCount, scan.ExtrasCount));
     }
 
     [Fact]
@@ -190,8 +228,8 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
     }
 
     [Theory]
-    [InlineData("?view=Duplicates", "“Duplicates” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every file.")]
-    [InlineData("?view=1", "“1” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every file.")]
+    [InlineData("?view=Duplicates", "“Duplicates” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.")]
+    [InlineData("?view=1", "“1” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.")]
     [InlineData("?page=0", "Page must be 1 or more.")]
     [InlineData("?pageSize=101", "Page size must be between 1 and 100.")]
     public async Task List_with_a_view_or_page_it_doesnt_take_is_400_with_the_sentence(string query, string error)
@@ -403,6 +441,22 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
         await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
         await _factory.RunQueuedInspectionsAsync(cancellationToken);
         return scannedUtc;
+    }
+
+    /// <summary>
+    /// MAM-44 — Фільми's folder holding the Alien short in a Shorts folder, a trailer ffprobe can't read and a sample,
+    /// with the birthday video outside every library folder: scanned and inspected.
+    /// </summary>
+    private async Task ScanExtrasAsync(CancellationToken cancellationToken)
+    {
+        await SeedLibraryFolderAsync();
+        await new AllowedRootSeeder(_factory.Scope).Allow(Root);
+        _factory.Files.AddFile(ShortPath, TestMedia.File(inode: 121), TestMedia.Taken());
+        _factory.Files.AddFile(TrailerPath, TestMedia.File(inode: 122));
+        _factory.Files.AddFile(ExtraSamplePath, TestMedia.File(inode: 123), TestMedia.Taken());
+        _factory.Files.AddFile(BirthdayPath, TestMedia.File(inode: 103), TestMedia.Continental());
+        await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
+        await _factory.RunQueuedInspectionsAsync(cancellationToken);
     }
 
     private async Task<PhysicalFileEntity> FileAtAsync(string path, CancellationToken cancellationToken)

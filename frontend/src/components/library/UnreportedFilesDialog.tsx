@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { isAxiosError } from 'axios'
-import { CircleAlert, Eye, EyeOff, FileQuestion, Loader2, TriangleAlert } from 'lucide-react'
+import { CircleAlert, Clapperboard, Eye, EyeOff, FileQuestion, Loader2, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { InspectionLines } from '@/components/library/FileLines'
 import { Banner } from '@/components/shared/Banner'
@@ -27,18 +27,24 @@ import '@/styles/unreported-files.css' // .unreported-files* — the width, the 
 /** Date and time without the seconds, as the Sources card says when its runs ended. */
 const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }
 
-/** MAM-42 — the dialog's tabs: every file the app counts, then the API's two views. */
+/** MAM-42 — the dialog's tabs: every file the app counts, then the API's views (MAM-44: Extras among them). */
 export type UnreportedFilesTab = 'All' | UnreportedFileView
 
 const TABS: readonly { value: UnreportedFilesTab; icon: typeof FileQuestion }[] = [
   { value: 'All', icon: FileQuestion },
   { value: 'Problems', icon: TriangleAlert },
+  { value: 'Extras', icon: Clapperboard },
   { value: 'Ignored', icon: EyeOff },
 ]
 
-/** How many files a tab holds, from the latest answer of any tab: each answer counts all three. */
+/** How many files a tab holds, from the latest answer of any tab: each answer counts them all. */
 function countOf(list: UnreportedFileList, tab: UnreportedFilesTab): number {
-  return tab === 'All' ? list.countedCount : tab === 'Problems' ? list.problemCount : list.ignoredCount
+  switch (tab) {
+    case 'All': return list.countedCount
+    case 'Problems': return list.problemCount
+    case 'Extras': return list.extrasCount
+    case 'Ignored': return list.ignoredCount
+  }
 }
 
 interface UnreportedFilesDialogProps {
@@ -130,6 +136,8 @@ export function UnreportedFilesDialog({ initialTab, onClose }: UnreportedFilesDi
               {getApiErrorMessage(error)}
             </Banner>
           )}
+          {/* MAM-44 — what the Extras tab holds, and that it warns of nothing. */}
+          {tab === 'Extras' && <p className="settings-muted">{t('unreported.extrasNote')}</p>}
           {load.error ? (
             <ErrorState
               title={t('unreported.loadFailed')}

@@ -257,7 +257,7 @@ describe('LibrarySyncPanel media folders scan', () => {
     // Arrange
     // MAM-42 — the bar shows "17 in no library" and "1 couldn't be read" on Folders: the row says both.
     vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
-      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0,
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0, extrasCount: 0,
     })
     serveScan({ lastFinishedRun: scanRunOf({ filesUnreported: 17 }), files: { inspectedCount: 16, problemCount: 1, notInspectedCount: 0, problem } })
     const { user } = await renderPanel(signedIn)
@@ -281,7 +281,7 @@ describe('LibrarySyncPanel media folders scan', () => {
   it('counts the ignored files in the files line and, with none counted, offers them there', async () => {
     // Arrange
     vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
-      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 0, problemCount: 0, ignoredCount: 1,
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 0, problemCount: 0, ignoredCount: 1, extrasCount: 0,
     })
     serveScan({ files: { inspectedCount: 0, problemCount: 0, notInspectedCount: 0, problem: null }, ignoredCount: 1 })
     const { user } = await renderPanel()
@@ -297,6 +297,26 @@ describe('LibrarySyncPanel media folders scan', () => {
     expect(row.queryByText(/in no library\.$/)).not.toBeInTheDocument()
     const dialog = await screen.findByRole('dialog', { name: 'Files in no library' })
     expect(await within(dialog).findByRole('tab', { name: 'Ignored (1)' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('counts the extras in the files line, warns of none of them and, with none counted, opens them there (MAM-44)', async () => {
+    // Arrange
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 0, problemCount: 0, ignoredCount: 1, extrasCount: 12,
+    })
+    serveScan({ files: { inspectedCount: 0, problemCount: 0, notInspectedCount: 0, problem: null }, ignoredCount: 1, extrasCount: 12 })
+    const { user } = await renderPanel()
+
+    // Act
+    const row = within(await findScanRow())
+    const line = row.getByText(/^Files in no library: 12 extras · 1 ignored/)
+    await user.click(within(line).getByRole('button', { name: 'Show files' }))
+
+    // Assert
+    expect(line).toHaveClass('settings-muted')
+    expect(row.queryByText(/in no library\.$/)).not.toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Files in no library' })
+    expect(await within(dialog).findByRole('tab', { name: 'Extras (12)' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it.each<[string, FolderScanOverview['files'], string]>([

@@ -447,13 +447,16 @@ export interface FolderScanOverview {
   space: LibrarySpace
   /** MAM-42: how many of those names the owner told the app to stop counting; `files` leaves them out. */
   ignoredCount: number
+  /** MAM-44: how many of those names, not ignored, the library takes for a film's extras; `files` leaves them out. */
+  extrasCount: number
 }
 
 /**
  * MAM-42 — the tabs of the Files in no library dialog besides its first (no view: every file the app
- * counts): the counted files the app couldn't read, and the ignored ones.
+ * counts): the counted files the app couldn't read, and the ignored ones. MAM-44 — and the files the
+ * library takes for a film's extras, which warn of nothing.
  */
-export type UnreportedFileView = 'Problems' | 'Ignored'
+export type UnreportedFileView = 'Problems' | 'Extras' | 'Ignored'
 
 /**
  * MAM-42 — where a file in no library sits among the libraries' folders: under none of them, under one
@@ -507,6 +510,8 @@ export interface UnreportedFileList {
   /** Those of them the app couldn't read: the Problems tab's. */
   problemCount: number
   ignoredCount: number
+  /** MAM-44 — the files the library takes for a film's extras, not ignored: the Extras tab's. */
+  extrasCount: number
 }
 
 /** MAM-18 — one scan of the media folders, from the request to its outcome. */

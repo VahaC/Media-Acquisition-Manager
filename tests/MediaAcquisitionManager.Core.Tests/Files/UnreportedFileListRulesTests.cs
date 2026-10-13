@@ -28,6 +28,7 @@ public sealed class UnreportedFileListRulesTests
     [InlineData("Problems", UnreportedFileView.Problems)]
     [InlineData("problems", UnreportedFileView.Problems)]
     [InlineData(" IGNORED ", UnreportedFileView.Ignored)]
+    [InlineData("Extras", UnreportedFileView.Extras)]
     public void ValidateView_reads_a_view_by_its_name_in_any_letter_case(string view, UnreportedFileView expected)
     {
         //Arrange
@@ -54,7 +55,7 @@ public sealed class UnreportedFileListRulesTests
         var error = UnreportedFileListRules.ValidateView(view, out var filter);
 
         //Assert
-        Assert.Equal($"“{echoed}” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every file.", error);
+        Assert.Equal($"“{echoed}” is not a view of the files in no library. Use Problems, Extras or Ignored, or leave it out for every file.", error);
         Assert.Null(filter);
     }
 

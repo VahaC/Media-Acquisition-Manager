@@ -35,29 +35,30 @@ public sealed class UnreportedFileService(
 
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         // Every file in no library at once and paged here: whether a library reports a name is worked out through the
-        // current mappings (LibraryAppPaths), which SQL can't do — the Media folders row's counts read the same.
-        var files = await UnreportedFileReader.LoadAsync(db, cancellationToken);
-        var counted = files.Where(file => file.IgnoredUtc is null).ToList();
-        var problems = counted.Where(file => FileInspectionCounts.IsProblem(file.InspectionStatus, UnreportedFileReader.HasAppPathOf(file))).ToList();
-        var ignored = files.Where(file => file.IgnoredUtc is not null).ToList();
+        // current mappings (LibraryAppPaths), which SQL can't do — the Media folders row's counts read the same set.
+        // MAM-44 — an extra is neither counted nor a problem: it has its own tab.
+        var files = await UnreportedFileReader.LoadSetAsync(db, cancellationToken);
+        var problems = files.Counted.Where(file => FileInspectionCounts.IsProblem(file.InspectionStatus, UnreportedFileReader.HasAppPathOf(file))).ToList();
         var listed = filter switch
         {
             UnreportedFileView.Problems => problems,
-            UnreportedFileView.Ignored => ignored,
-            _ => counted,
+            UnreportedFileView.Extras => files.Extras,
+            UnreportedFileView.Ignored => files.Ignored,
+            _ => files.Counted,
         };
         // In long arithmetic: page × size of a page far past the end would overflow an int.
         var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
         var onPage = listed.Skip(skip).Take(pageSize).ToList();
 
         return UnreportedFileListResult.Listed(new UnreportedFileListResponse(
-            await MapAsync(onPage, forOwner, cancellationToken),
+            await MapAsync(onPage, files, forOwner, cancellationToken),
             listed.Count,
             page,
             pageSize,
-            counted.Count,
+            files.Counted.Count,
             problems.Count,
-            ignored.Count));
+            files.Ignored.Count,
+            files.Extras.Count));
     }
 
     public Task<UnreportedFileIgnoreStatus> IgnoreAsync(Guid fileId, Guid ownerUserId, CancellationToken cancellationToken = default) =>
@@ -118,18 +119,15 @@ public sealed class UnreportedFileService(
         db.PhysicalFiles.Where(name => name.SourceKind == ProvenanceSourceKind.FileInspection && name.MediaVersionId == null);
 
     /// <summary>
-    /// The page's files as the list shows them: each with its place among the libraries' folders and the full facts of
-    /// its reading — two queries for the readings and tracks of the page, one read of the folders.
+    /// The page's files as the list shows them: each with its place among the libraries' folders (<paramref name="set"/>)
+    /// and the full facts of its reading — two queries for the readings and tracks of the page.
     /// </summary>
-    private async Task<List<UnreportedFileDto>> MapAsync(List<PhysicalFileEntity> files, bool forOwner, CancellationToken cancellationToken)
+    private async Task<List<UnreportedFileDto>> MapAsync(
+        List<PhysicalFileEntity> files, UnreportedFileSet set, bool forOwner, CancellationToken cancellationToken)
     {
         if (files.Count == 0)
             return [];
 
-        var folders = (await LibraryFolderReader.LoadAsync(db, cancellationToken)).Mapped
-            .Select(folder => (folder.LibraryName, Path: NormalizedPath.TryParse(folder.AppPath, out var path, out _) ? path : null))
-            .Where(folder => folder.Path is not null)
-            .ToList();
         var readingIds = files.Select(file => file.MediaInspectionId).OfType<Guid>().Distinct().ToList();
         var readings = await db.MediaInspections.AsNoTracking()
             .Where(reading => EF.Parameter(readingIds).Contains(reading.Id))
@@ -143,33 +141,10 @@ public sealed class UnreportedFileService(
         [
             .. files.Select(file => mapper.ToDto(
                 file,
-                PlaceOf(file, folders),
+                set.PlaceOf(file),
                 file.MediaInspectionId is { } readingId ? readings.GetValueOrDefault(readingId) : null,
                 file.MediaInspectionId is { } trackReadingId ? [.. tracks[trackReadingId]] : [],
                 forOwner)),
         ];
-    }
-
-    /// <summary>
-    /// Where <paramref name="file"/> sits among <paramref name="folders"/> — the libraries' folders with a path in the
-    /// app, by library name (<see cref="LibraryFolderReader"/>): under the first that holds it, under none, or unknown
-    /// when there are none to compare with. MAM-43 — under one, an extras folder's name or an extra's name says why the
-    /// library skipped it (<see cref="LibraryExtraNames"/>), the folder first, as it covers every video in it.
-    /// </summary>
-    private static UnreportedFilePlaceDto PlaceOf(PhysicalFileEntity file, List<(string LibraryName, NormalizedPath? Path)> folders)
-    {
-        if (folders.Count == 0)
-            return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.FoldersUnknown, null);
-        if (NormalizedPath.TryParse(PathMapper.Map(file.ServicePath, []).AppPath, out var path, out _)
-            && folders.FirstOrDefault(folder => path.IsUnder(folder.Path!)) is { LibraryName: { } libraryName, Path: { } libraryFolder })
-        {
-            if (LibraryExtraNames.ExtrasFolderOf(path, libraryFolder) is { } extrasFolder)
-                return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtrasFolder, libraryName, extrasFolder);
-            if (LibraryExtraNames.ExtraNameOf(path.Segments[^1]) is { } extraName)
-                return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, libraryName, extraName);
-            return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.LibraryFolder, libraryName);
-        }
-
-        return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.NoLibraryFolder, null);
     }
 }

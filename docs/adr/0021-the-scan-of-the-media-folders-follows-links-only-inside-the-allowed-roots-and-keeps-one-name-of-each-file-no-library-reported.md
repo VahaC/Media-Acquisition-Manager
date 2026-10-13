@@ -296,3 +296,26 @@ them.
 
 `UnreportedFilesHttpTests.List_says_which_extras_folder_or_extras_name_made_the_library_skip_a_file` and
 `LibraryExtraNamesTests` pin it.
+
+## Extras warn of nothing (added 0.3.0, MAM-44)
+
+**A name the library takes for a film's extra — `ExtrasFolder` or `ExtraName` — is no longer a file in
+no library the app counts or warns of. The list shows it on a tab of its own, Extras, and its room still
+counts (Vasyl's decisions of 2026-10-13).** After MAM-43, production's list still warned of twelve shorts
+in `Shorts` folders. A read of Jellyfin the same day found them nowhere: no item by their titles, and no
+special feature on any Toy Story or Alien film. Jellyfin takes a `Shorts` folder for the extras of the one
+film in the folder above it, and a folder of several films has none, so it drops them. A warning for such
+a file asks the owner to settle something Jellyfin decides by its own rule.
+
+**One set for every reader.** `UnreportedFileReader.LoadSetAsync` works out each name's place once and
+sorts the names into ignored (the owner's mark first, an ignored extra included), extras and counted
+(`UnreportedFileSet`). The Media folders row's counts, the bar's chips and the list's views all read it,
+so they can't disagree.
+
+**No warning at all.** An extra the app couldn't read isn't a problem either. The owner chose this, since
+a file Jellyfin skips by name needs nothing from the owner. The reasons now say that Jellyfin shows such
+a file nowhere when the folder above holds no single film.
+
+`UnreportedFilesHttpTests.List_keeps_the_files_the_library_takes_for_extras_on_the_extras_view_with_why_and_counts_none_of_them`,
+`UnreportedFilesHttpTests.Sources_leave_the_extras_out_of_every_warning_even_one_that_couldnt_be_read_and_keep_their_room`
+and `UnreportedFilesHttpTests.Ignore_an_extra_lists_it_under_ignored_and_no_longer_under_extras` pin it.

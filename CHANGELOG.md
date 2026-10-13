@@ -1300,7 +1300,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   version no file, as before, and the sync succeeds; with no media folder allowed nothing is walked.
   *Extras:* a file in a library's folders now says why the library skipped it when its name is an
   extra's by Jellyfin's own rules (`NamingOptions.VideoExtraRules`, `LibraryExtraNames`), checked
-  in this order:
+  in this order (MAM-44 below rewords both sentences and moves these files to a tab of their own):
   - its own folder is named `Shorts`, `Trailers`, `Extras`, `Featurettes`, `Behind The Scenes`,
     `Deleted Scenes`, `Interviews`, `Scenes`, `Samples`, `Sample`, `Clips`, `Other`, `Extra` or
     `Backdrops` (letter case ignored, never the library's root): "In a folder named “Shorts” in
@@ -1320,6 +1320,34 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `LocalFileInventoryFolderListingTests`, `JellyfinAdapterItemsTests`, `LibraryExtraNamesTests`,
   `DiscFoldersTests`, `UnreportedFilesHttpTests` and `UnreportedFilesDialog.test.tsx` pin it. Not
   tried on the reference installation.
+- **The files a library takes for extras have an Extras tab of their own and warn of nothing (MAM-44,
+  ADR 0021's MAM-44 section, Vasyl's decisions of 2026-10-13).** After MAM-43, production's Files in
+  no library still warned of the twelve Toy Story and Alien shorts in `Shorts` folders. A read of
+  Jellyfin the same day found them nowhere: a search for "Hawaiian", "Containment" or "Lamp Life"
+  gave no item, and no Toy Story or Alien film had a special feature. Jellyfin takes a `Shorts`
+  folder for the extras of the one film in the folder above it, and a folder of several films has
+  none. Every file a library takes for a film's extra now leaves the counted files and every warning:
+  "In no library", "Couldn't be read" (even when ffprobe couldn't read it), the bar's chips and the
+  Media folders row's "N files are in no library.". That covers its folder (`ExtrasFolder`) and its
+  name (`ExtraName`). The dialog lists these files on a fourth tab, **Extras (12)**, between
+  **Couldn't be read** and **Ignored**, under "Files a library takes for a film's extras, by their
+  folder or their name. They warn of nothing, and still count in the room your files take.", with
+  "No file is taken for a film's extra." when it is empty. The Media folders row's counts line adds
+  them, "Files in no library: 4 inspected · 12 extras · 1 ignored"; with nothing else counted,
+  **Show files** there opens **Extras**. They still count in the room the files take, and **Ignore**
+  still takes one to **Ignored**. The two reasons now say what Jellyfin does:
+  - "In a folder named “Shorts” in Мульфільми's folders: Мульфільми takes such a folder for the
+    extras of the one film in the folder above it, and shows them nowhere when that folder holds no
+    single film.";
+  - "Named as an extra (“-trailer”) in Фільми's folders: Фільми takes such a video for an extra of
+    the one film in its folder, and shows it nowhere when that folder holds no single film."
+
+  `GET /api/library/unreported-files` takes `view=Extras`, and its answer gains `extrasCount` after
+  `ignoredCount`; `scan` in `GET /api/library/sources` gains `extrasCount` after `ignoredCount`. The
+  list and the counts read one set (`UnreportedFileSet`), so they can't disagree.
+  `UnreportedFilesHttpTests`, `LibrarySourcesScanHttpTests`, `UnreportedFileListRulesTests`,
+  `UnreportedFilesDialog.test.tsx` and `LibrarySyncPanel.scan.test.tsx` pin it. Not tried on the
+  reference installation.
 
 ### Changed
 

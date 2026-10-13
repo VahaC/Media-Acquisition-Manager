@@ -106,12 +106,15 @@ public sealed class LibraryDiscClipsHttpTests : IClassFixture<MediaAcquisitionMa
 
         //Assert
         var unreported = await ReadUnreportedAsync(cancellationToken);
-        // Only the sample beside the disc's folders: the clips are Jellyfin's now.
-        Assert.Equal([SampleBeside], unreported.Items.Select(file => file.AppPath));
+        // The clips are Jellyfin's now. MAM-44 — the sample beside the disc's folders, in a folder named Sample, is an
+        // extra: in no library, yet counted with the extras rather than warned of.
+        Assert.Empty(unreported.Items);
+        var extras = await ReadUnreportedAsync(cancellationToken, "?view=Extras");
+        Assert.Equal([SampleBeside], extras.Items.Select(file => file.AppPath));
         var sources = await ReadSourcesAsync(cancellationToken);
         var jellyfinRow = Assert.Single(sources.Items);
         Assert.Equal((FirstClipSizeBytes + 2_000_000_000L, 2), (jellyfinRow.Space.SizeBytes, jellyfinRow.Space.FileCount));
-        Assert.Equal((1, 1), (sources.Scan.Space.FileCount, sources.Scan.Files.InspectedCount));
+        Assert.Equal((1, 0, 1), (sources.Scan.Space.FileCount, sources.Scan.Files.InspectedCount, sources.Scan.ExtrasCount));
     }
 
     [Fact]
@@ -272,9 +275,9 @@ public sealed class LibraryDiscClipsHttpTests : IClassFixture<MediaAcquisitionMa
         return id;
     }
 
-    private async Task<UnreportedFileListResponse> ReadUnreportedAsync(CancellationToken cancellationToken)
+    private async Task<UnreportedFileListResponse> ReadUnreportedAsync(CancellationToken cancellationToken, string query = "")
     {
-        var response = await _factory.GetHttpRequest("/api/library/unreported-files", _owner.AccessToken);
+        var response = await _factory.GetHttpRequest("/api/library/unreported-files" + query, _owner.AccessToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<UnreportedFileListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
     }

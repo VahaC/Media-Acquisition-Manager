@@ -449,6 +449,7 @@ export function scanOf(changes: Partial<FolderScanOverview>): FolderScanOverview
     files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 0, problem: null },
     space: scannedSpace,
     ignoredCount: 0,
+    extrasCount: 0,
     ...changes,
   }
 }
