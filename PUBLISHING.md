@@ -13,11 +13,15 @@ never pushes anything.
 
 1. **Checkout** — a fresh clone of `main`, noting which files changed since the last successful
    build.
-2. **Backend** — `dotnet build -c Release` and the whole test suite (`run-tests.sh`); the JUnit
-   reports appear on the build page. Skipped when every change since the last successful build is
-   documentation (`*.md` files and `docs/`).
+2. **Backend** — `dotnet build -c Release` and the whole test suite (`run-tests.sh`), with the
+   tests' temporary databases on a RAM disk; the JUnit reports appear on the build page. Skipped
+   when every change since the last successful build is documentation (`*.md` files and `docs/`).
 3. **Frontend** — `npm ci`, `npm run lint`, `npm run build` (which also type-checks) and
    `npm run test`.
+
+Backend and Frontend run at the same time. NuGet and npm packages are cached between builds in the
+workspace's `@tmp` directory on the Jenkins host; deleting that directory only makes the next build
+download them again.
 
 **Release — [Jenkinsfile.publish](Jenkinsfile.publish).** Started only by hand, with a `VERSION`.
 It has no trigger: pushing to Docker Hub is a release, and a release is a decision.
