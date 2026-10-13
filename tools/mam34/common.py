@@ -438,7 +438,7 @@ class Jellyfin:
 # redaction here must pass that test).
 KEY_LIKE_NAMES = ("apikey|api_key|api_token|apitoken|jackett_apikey|passkey|pk|uk|tp|token|access_token|link|"
                   "authkey|torrent_pass|rsskey|key|secret|password|passwd|pwd|pass|auth|sig|signature|x-plex-token")
-_CREDENTIAL_KEY = re.compile(r"[A-Za-z_-]*(?:api_?key|access_?token|password|passwd|passkey|secret|cookie|X-Emby-Token)",
+_CREDENTIAL_KEY = re.compile(r"[A-Za-z_-]*(?:api_?key|access_?token|password|passwd|passkey|secret|cookie|X-Emby-Token|session-id)",
                              re.IGNORECASE)
 
 _REDACTIONS = [
@@ -450,6 +450,11 @@ _REDACTIONS = [
     (re.compile(r"(\bMediaBrowser\b[^\r\n]*?\bToken=\")(?!REDACTED\")[^\"]*", re.IGNORECASE), r"\1REDACTED"),
     (re.compile(r"(\b(?:X-Api-Key|X-Emby-Token)\s*:\s*)(?!REDACTED)\S+", re.IGNORECASE), r"\1REDACTED"),
     (re.compile(r"(\bAuthorization[\"']?\s*:\s*[\"']?Bearer\s+)(?!REDACTED\b)[^\s\"']+", re.IGNORECASE), r"\1REDACTED"),
+    # MAM-29: Transmission's Basic credential and CSRF session id, Jackett's download token, a cookie header
+    (re.compile(r"(\bAuthorization[\"']?\s*:\s*[\"']?Basic\s+)(?!REDACTED\b)[^\s\"']+", re.IGNORECASE), r"\1REDACTED"),
+    (re.compile(r"(\bX-Transmission-Session-Id\s*:\s*)(?!REDACTED)[^\s<\"']+", re.IGNORECASE), r"\1REDACTED"),
+    (re.compile(r"([?&;]path=)(?!REDACTED)[^&\"'<>\s]+", re.IGNORECASE), r"\1REDACTED"),
+    (re.compile(r"(\b(?:Set-)?Cookie\s*:\s*)(?!REDACTED)[^\r\n]+", re.IGNORECASE), r"\1REDACTED"),
 ]
 
 
@@ -521,10 +526,16 @@ _LEAK_RULES = [
     ("tracker path", r"\"tracker\"\s*:\s*\"[a-z]+://[^/\"]+/(?!REDACTED\")[^\"]"),
     ("user info in a URL", r"://(?!REDACTED@[^/\s\"<>@]*(?:[/\s\"<>]|$))[^/\s\"<>]*@"),
     ("URL-encoded URL", r"(?:https?|udp|wss?)%3A%2F%2F"),
-    ("credential field", r"\"[A-Za-z_-]*(?:api_?key|access_?token|password|passwd|passkey|secret|cookie|X-Emby-Token)\""
+    ("credential field", r"\"[A-Za-z_-]*(?:api_?key|access_?token|password|passwd|passkey|secret|cookie|X-Emby-Token|session-id)\""
                          r"\s*:\s*\"(?!REDACTED\"|\")"),
     ("credential header", r"\b(?:X-Api-Key|X-Emby-Token)\s*:\s*(?!REDACTED)\S|\bMediaBrowser\b[^\r\n]*\bToken=\"(?!REDACTED\")"),
     ("bearer token", r"\bAuthorization[\"']?\s*:\s*[\"']?Bearer\s+(?!REDACTED\b)[^\s\"']"),
+    # MAM-29 (the same five as tools/mam29/common.py)
+    ("Basic credentials", r"\bAuthorization[\"']?\s*:\s*[\"']?Basic\s+(?!REDACTED\b)[^\s\"']"),
+    ("Transmission session id", r"\bX-Transmission-Session-Id\s*:\s*(?!REDACTED)[^\s<\"']"),
+    ("Jackett download token", r"[?&;]path=(?!REDACTED)[^&\"'<>\s]"),
+    ("cookie", r"\b(?:Set-)?Cookie\s*:\s*(?!REDACTED)\S"),
+    ("the content of a .torrent", r"d8:announce|4:infod"),
 ]
 _LEAK_PATTERNS = [(name, re.compile(pattern, re.IGNORECASE)) for name, pattern in _LEAK_RULES]
 

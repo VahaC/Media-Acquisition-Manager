@@ -20,7 +20,10 @@ their image lists — every one recorded, none made by hand. MAM-35 adds, from a
 asks for each item's primary image tag, and the image route's answers for a poster, for an item without one and for an
 id Jellyfin doesn't know — every one recorded, none made by hand. MAM-25 adds, from a read-only live check of
 2026-10-10 against the same Jellyfin, by then 12.2.0, made through the app's own Jellyfin integration, an episode Jellyfin
-holds as a hidden alternate version, read by its id — recorded, not made by hand.
+holds as a hidden alternate version, read by its id — recorded, not made by hand. MAM-29 adds, for Phase D, the
+answers of Transmission 4.1.3, of a temporary Transmission 4.0.6 and of Jackett v0.24.2830 with its Toloka.to indexer,
+recorded on 2026-10-13 by the scripts in `tools/mam29`, which Vasyl ran on his PC against containers set up for it on
+the media host — every one recorded, none made by hand.
 `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
@@ -30,6 +33,14 @@ holds as a hidden alternate version, read by its id — recorded, not made by ha
 | Prowlarr | 2.6.5.5623, serving the Toloka.to indexer as Torznab |
 | ffprobe | jellyfin-ffmpeg inside the Jellyfin image |
 | TMDb | API v3 at `api.themoviedb.org`, read on 2026-10-05 with `language=uk-UA` |
+| Transmission | 4.1.3 (838877323f), `rpc-version` 19, `rpc-version-semver` 6.0.1 (`lscr.io/linuxserver/transmission:4.1.3-r0-ls363`); 4.0.6 (38c164933e), `rpc-version` 17, `rpc-version-semver` 5.3.0 (`4.0.6-r6-ls326`) for the files whose names begin with `4.0.6-`. Both read through the legacy RPC dialect |
+| Jackett | v0.24.2830, the pinned image's version, not typed during the run (`lscr.io/linuxserver/jackett:v0.24.2830-ls3`, no auto-update), serving the Toloka.to indexer as Torznab with "Strip Cyrillic Letters" ticked, Jackett's default |
+
+The Transmission and Jackett containers are not the reference installation's services: one Stashboard project
+(`tools/mam29/docker-compose.yml`) runs them beside it. Transmission was given public test torrents only — Big Buck
+Bunny, which it downloaded, Sintel, which it refused, and a magnet for a made-up hash — in a scratch folder outside the
+media folders. Jackett only searched Toloka and handed over one .torrent, which the script read in memory and didn't
+keep. An answer 4.0.6 gave byte for byte as 4.1.3 did is kept once, as 4.1.3's.
 
 How the services see the media folder, and what follows from it, is in
 [ADR 0003](../../../docs/adr/0003-service-paths-reach-the-app-through-an-explicit-prefix-mapping.md);
@@ -45,12 +56,20 @@ the same way, or `VendorSamplesTests` fails the build:
   info (`scheme://REDACTED@host`) and any URL percent-encoded inside another one; a bearer token
   (TMDb's API Read Access Token), whether recorded as an `Authorization: Bearer` header line or as
   JSON, keeps only `REDACTED` after the scheme. The TMDb samples are answers alone and carry none.
+  Since MAM-29 also: Transmission's Basic credential (`Authorization: Basic REDACTED`) and its CSRF session id
+  (`X-Transmission-Session-Id: REDACTED`, in the 409's header and again in the page that quotes it, and the
+  `session-id` field a `session-get` without a fields list would return), Jackett's API key in
+  its download links (`jackett_apikey=`) and its download token (`path=`), which opens a download with the key as
+  Prowlarr's `link=` does, and a cookie header whole (`Cookie: REDACTED`).
 - **Cut to the host:** a tracker URL keeps its scheme and host, and its path becomes `/REDACTED`
   (`http://bt.toloka.to/REDACTED`), because the passkey can sit in the path.
 - **Removed:** the tracker parameters of a magnet link (`tr`, `ws`, `xs`, `as`); only `xt`, `dn` and
   `xl` stay.
 - **Left out:** every qBittorrent preference except those about paths and seeding, and the values of
-  Prowlarr's indexer settings.
+  Prowlarr's indexer settings; the bytes of a downloaded .torrent, whose announce URLs carry the passkey: a download's
+  sample keeps its status line and headers only (MAM-29).
+- **Indented, nothing else:** Transmission answers compact JSON. Its `.json` samples are those answers indented, with
+  the keys in Transmission's order and the numbers as it wrote them: 4.0.6's `1` and 4.1.3's `1.0` stay apart.
 
 ## Files
 
@@ -118,6 +137,30 @@ the same way, or `VendorSamplesTests` fails the build:
 | `QBittorrent/torrents-info.json` | `GET /api/v2/torrents/info` (four picked) | A three-movie pack, and a single-file torrent for each category that has torrents (the documentary one has none) |
 | `QBittorrent/torrent-files-multi.json` | `GET /api/v2/torrents/files?hash=…` | The pack's files: one torrent, three movies, each named with the torrent's root folder and a double space the app keeps, and sized beyond 32 bits. Read whole by `QBittorrentAdapterFilesTests` (MAM-14) |
 | `QBittorrent/expired-session-response.txt` | `GET /api/v2/torrents/categories` and `GET /api/v2/app/version`, each with a session cookie qBittorrent doesn't know (2026-10-01, MAM-11) | The status line, headers and body of the one answer both got: `403 Forbidden` with the text `Forbidden`. Read by `VendorResponses.Recorded` |
+| `Transmission/handshake-response.txt` | `POST /transmission/rpc` with `{"method": "session-get", …}`, the Basic credential and no `X-Transmission-Session-Id` (2026-10-13, MAM-29). Every Transmission request goes to that address, and every answer echoes the request's `tag` | `409 Conflict`, `text/html; charset=ISO-8859-1`: the session id in `X-Transmission-Session-Id` and again in the page's `<code>` line, both `REDACTED`, and `X-Transmission-Rpc-Version: 6.0.1`. The page says "invalid session_id header" |
+| `Transmission/4.0.6-handshake-response.txt` | The same on 4.0.6 | The same 409 and page, but "invalid session-id header", and `Access-Control-Allow-Origin: *` and `Access-Control-Expose-Headers: X-Transmission-Session-Id` where 4.1.3 sends `X-Transmission-Rpc-Version` |
+| `Transmission/session-get.json` | `session-get` with `fields` `version`, `rpc-version`, `rpc-version-minimum`, `rpc-version-semver`, `download-dir`, `incomplete-dir`, `incomplete-dir-enabled`, `start-added-torrents`, `rename-partial-files` | "4.1.3 (838877323f)", `rpc-version` 19, `rpc-version-minimum` 14, `rpc-version-semver` "6.0.1"; `download-dir` `/scratch`, the temporary folder `/scratch/incomplete` off, `start-added-torrents` and `rename-partial-files` true |
+| `Transmission/4.0.6-session-get.json` | The same on 4.0.6 | "4.0.6 (38c164933e)", `rpc-version` 17, `rpc-version-minimum` 14, `rpc-version-semver` "5.3.0"; the same settings |
+| `Transmission/free-space-download-dir.json` | `free-space` of `/scratch`, Transmission's default download folder | `path`, `size-bytes` 52,361,691,136 and `total_size`, in snake case, 67,049,664,512. A second read of the same folder answered the same and is not kept |
+| `Transmission/free-space-missing-folder.json` | `free-space` of `/scratch/mam29-missing-folder`, which doesn't exist | HTTP 200 with `result` "No such file or directory", `size-bytes` -1 and `totalSize`, in camel case, -1. `/downloads`, which this Transmission couldn't see (not mounted), answered the same and is not kept |
+| `Transmission/torrent-get-all.json` | `torrent-get` of every torrent (`fields` `id`, `name`, `hashString`, `status`, `percentDone`, `downloadDir`, `labels`), before anything was added | `{"torrents": []}`, `success` |
+| `Transmission/torrent-get-unknown-hash.json` | The same with `ids` a made-up 40-hex hash. From the short run against 4.1.3 at 15:06, which overwrote the full run's answer | `{"torrents": []}`, `success`: not there, not an error. 4.0.6 answered byte for byte the same |
+| `Transmission/torrent-add-added.json` | `torrent-add` of Big Buck Bunny: `metainfo`, `download-dir` `/scratch`, `labels` `["MAM29 Samples"]`, `paused` false | `torrent-added` with `hashString`, `id` 1 and `name`, `success` |
+| `Transmission/4.0.6-torrent-add-added.json` | The same on 4.0.6 | The same `torrent-added`: 4.0.6 takes `labels` in the add |
+| `Transmission/torrent-add-duplicate.json` | The same add again. From the short run against 4.1.3 at 15:06, which overwrote the full run's answer: its third add of Big Buck Bunny, by then complete and stopped | `torrent-duplicate` with the same three fields, `success`. 4.0.6 answered byte for byte the same |
+| `Transmission/torrent-get-downloading.json` | `torrent-get` of Big Buck Bunny after its add and the duplicate add, `fields` `id`, `name`, `hashString`, `downloadDir`, `status`, `percentDone`, `leftUntilDone`, `sizeWhenDone`, `totalSize`, `isFinished`, `isStalled`, `error`, `errorString`, `labels`, `metadataPercentComplete`, `addedDate`, `doneDate`, `files`, `fileStats` | `status` 4 (downloading), `percentDone` 0.0089, `doneDate` 0, the label as sent; three `files`, each named `Big Buck Bunny/…` under `downloadDir` `/scratch` and with `begin_piece` and `end_piece` |
+| `Transmission/4.0.6-torrent-get-verifying.json` | The same on 4.0.6, read straight after the add, before the duplicate add. Recorded as `torrent-get-downloading.json`, renamed for what it shows | `status` 2 (verifying), `percentDone` 0, `leftUntilDone` the whole size, `isStalled` true, the label as sent; `files` without `begin_piece` and `end_piece`; `metadataPercentComplete` written `1`, where 4.1.3 writes `1.0` |
+| `Transmission/torrent-add-corrupt-metainfo.json` | `torrent-add` with `metainfo` the base64 of the 13 bytes `not a torrent` | HTTP 200, `arguments` `{}`, `result` "unrecognized info": nothing added |
+| `Transmission/torrent-add-relative-download-dir.json` | `torrent-add` of Sintel with `download-dir` `relative/path` | HTTP 200, `arguments` `{}`, `result` "download directory path is not absolute" |
+| `Transmission/torrent-add-magnet-added.json` | `torrent-add` with `filename` a magnet with no tracker, `xt` a made-up hash and `dn` `mam29-no-metadata` | `torrent-added`, `id` 2, `name` from `dn` |
+| `Transmission/torrent-get-magnet-no-metadata.json` | `torrent-get` of it right after | `status` 4, `metadataPercentComplete` 0.0, `files` `[]`, `sizeWhenDone` 0 and `leftUntilDone` **0** at `percentDone` 0.0; the label and `downloadDir` already set |
+| `Transmission/torrent-add-stale-session-response.txt` | `torrent-add` of Sintel with a stale `X-Transmission-Session-Id`, not sent again | The handshake's `409 Conflict` and page |
+| `Transmission/torrent-get-after-stale-session.json` | `torrent-get` with `ids` Sintel's hash, right after | `{"torrents": []}`: the refused add added nothing |
+| `Transmission/torrent-get-seeding.json` | `torrent-get` of Big Buck Bunny once complete | `status` 6 (seeding), `percentDone` 1.0, `leftUntilDone` 0, `doneDate` set, and `isFinished` **false** |
+| `Transmission/torrent-stop.json` | `torrent-stop` with `ids` Big Buck Bunny's hash | `arguments` `{}`, `success` |
+| `Transmission/torrent-get-stopped.json` | `torrent-get` of it after the stop | `status` 0 (stopped) at `percentDone` 1.0, `isFinished` still false |
+| `Transmission/wrong-password-response.txt` | `session-get` with the right user name and a wrong password, once, the password set | `401 Unauthorized`, `WWW-Authenticate: Basic realm="Transmission"`, `text/html` `<h1>401: Unauthorized</h1>` |
+| `Transmission/wrong-host-allowed-response.txt` | `session-get` with `Host: mam29-not-whitelisted.invalid`, the password set | `200 OK` with the version: with a password set Transmission checks no Host name, so no 421 was recorded |
 | `Torznab/prowlarr-toloka-caps.xml` | `GET /1/api?t=caps` | Toloka's categories and search modes |
 | `Torznab/prowlarr-toloka-search.xml` | `GET /1/api?t=search&q=Interstellar` | 17 releases, not all of them movies |
 | `Torznab/prowlarr-toloka-movie-search.xml` | `GET /1/api?t=movie&q=Interstellar` | The same releases through the movie search, this time with topic links that carry no `sid` |
@@ -128,6 +171,21 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Torznab/prowlarr-toloka-latest-tv.xml` | The same with `cat=5000` | The first 25 of 90: anime in TV/Anime (`5070`) with season or episode markers, a Ukrainian-only documentary series in TV/Documentary (`5080`) whose title Prowlarr cut to "(2026) WEB-DL 1080p (S1E1-25 of ?)", sport in TV/Sport |
 | `Torznab/prowlarr-toloka-movie-search-film-in-tv-category.xml` | `GET /1/api?t=movie&q=Schumacher '94 - Die Geburt einer Legende 2026&cat=2000,2020,2040,2070,5070,5080` (2026-10-05, MAM-33) | 5 releases of one documentary film: once in Movies, four times in Toloka's «Документальні фільми в HD», which Prowlarr lists as TV/Documentary (`5080`) |
 | `Torznab/prowlarr-wrong-key-response.txt` | `GET /1/api?t=caps`, `GET /1/api?t=search&q=Interstellar` and `GET /1/download?link=x`, each with a wrong `apikey` (2026-10-01, MAM-10) | The status line and headers of the one answer all three got: a bare 401 with no body. Read by `VendorResponses.Recorded` |
+| `Torznab/jackett-toloka-caps.xml` | `GET /api/v2.0/indexers/toloka/results/torznab/api?t=caps` on Jackett (2026-10-13, MAM-29). The Jackett rows' `…/api` is that address | 155 categories, 154 ids (`100137` twice, as in Prowlarr's): every one of Prowlarr's with the same id, name and order, and 20 more, `8000 Other` among them. The same search modes, without `searchEngine="raw"`; `<server title="Jackett" />` |
+| `Torznab/jackett-toloka-movie-search.xml` | `…/api?t=movie&q=Interstellar`. `t=search&q=Interstellar` and `t=movie&q=Інтерстеллар` answered the same bytes, so they are not kept | 18 releases: Prowlarr's 17 and a trailer in `8000`. `<rss version="2.0">`, a `jackettindexer` element, `grabs` as an element, Toloka's whole topic title in every `<description>`, no `sid` in any link. Each `<link>` is `http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&path=REDACTED&file=…`, at the host's root |
+| `Torznab/jackett-toloka-tv-search.xml` | `…/api?t=tvsearch&q=Yellowstone` | 12 releases (Prowlarr's file: 9); the extra ones are subtitles (`3020`) and archive sections (`8000`) |
+| `Torznab/jackett-toloka-tv-season-search.xml` | The same with `&season=1` | 7 releases (Prowlarr's file: 6): Toloka barely narrows by the season here either |
+| `Torznab/jackett-toloka-tv-cartoon-search.xml` | `…/api?t=tvsearch&q=Mickey Mouse Clubhouse` | The 4 releases of Prowlarr's file |
+| `Torznab/jackett-toloka-tv-cartoon-search-ukrainian-title.xml` | `…/api?t=tvsearch&q=Клуб Міккі Мауса` | 6 releases: the same 4, a book (`7000`) and an archive scan (`8000`). No `<title>` holds Cyrillic |
+| `Torznab/jackett-toloka-tv-search-ukrainian-only.xml` | `…/api?t=tvsearch&q=Розслідування з Андрієм Данілевичем`, a Ukrainian-only show among Prowlarr's newest TV of 2026-10-05 | An empty channel: no release |
+| `Torznab/jackett-toloka-movie-search-film-in-tv-category.xml` | `…/api?t=movie&q=Schumacher '94 - Die Geburt einer Legende 2026&cat=2000,2020,2040,2070,5070,5080` | The 5 releases of Prowlarr's file: once in Movies, four times in TV/Documentary (`5080`) |
+| `Torznab/jackett-toloka-latest.xml` | `…/api?t=search`, no `q` and no `cat` | Toloka's newest 90 in every section, books (`7000`) and software (`4000`) among them |
+| `Torznab/jackett-toloka-latest-movies.xml` | `…/api?t=search&cat=2000&limit=100` | The newest 90 in the movie categories, 2026-10-13 back to 10-06, kept whole (Prowlarr's file keeps 25) |
+| `Torznab/jackett-toloka-latest-tv.xml` | The same with `cat=5000` | The newest 90 in the TV categories, 10-13 back to 10-08, 61 of them TV/Anime (`5070`) |
+| `Torznab/jackett-wrong-key-response.txt` | `…/api?t=caps` and `…/api?t=search&q=Interstellar`, each with a wrong `apikey`. Recorded as `jackett-wrong-key-caps-response.txt` and `jackett-wrong-key-search-response.txt`, the same bytes | `200 OK`, `application/xml`, `<error code="100" description="Invalid API Key" />`: not Prowlarr's bare 401 |
+| `Torznab/jackett-wrong-key-download-response.txt` | `GET /dl/toloka/?jackett_apikey=…&path=…&file=…` of a real release with a wrong `jackett_apikey` | `401 Unauthorized` with no body, not error 100 |
+| `Torznab/jackett-download-bad-path-response.txt` | The same with the right key and a mangled `path` | `404 Not Found` with no body |
+| `Torznab/jackett-download-response.txt` | The download link of "Interstellar (2014) BDRemux 1080p Ukr/Eng \| Sub Eng [IMAX Edition]" | `200 OK`, `application/x-bittorrent`, 350,636 bytes, a `Content-Disposition` naming the file with `/` turned into `_`. The status line and headers only: the .torrent was read in memory and not kept |
 | `Tmdb/authentication.json` | `GET /3/authentication` with the token | `{"success":true}`: the connection test's answer |
 | `Tmdb/configuration.json` | `GET /3/configuration` | The image host (`https://image.tmdb.org/t/p/`) and its sizes, `w342` among the poster sizes |
 | `Tmdb/movie-details.json` | `GET /3/movie/118340?append_to_response=credits,recommendations` | Guardians of the Galaxy (2014): in collection 284433, directed by James Gunn, with its IMDb id `tt2015381`, its whole cast and crew and 20 recommendations |
@@ -243,6 +301,40 @@ The four movies in `movies-page.json`:
   adapter confirmed it without recording the answer: 358 torrents, every one with `files`, 848
   files, each `name` relative to the save path with the torrent's folder first, as `torrents/files`
   names them.
+- **Transmission 4.0.6 and 4.1.3 answered the legacy RPC alike in the short set recorded on both** (MAM-29): the
+  handshake's 409 with the session id, `session-get`, `torrent-add` with labels, the duplicate and an unknown hash.
+  Free space, the refusals, the magnet, the stop and seeding were recorded on 4.1.3 alone. Both took
+  `labels` in `torrent-add`, so a send is one write on both
+  ([ADR 0013](../../../docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+  The version is in `session-get`: `rpc-version` 17 and 19, `rpc-version-semver` "5.3.0" and "6.0.1". Only 4.1 sends
+  `X-Transmission-Rpc-Version` and lists `begin_piece` and `end_piece` in `files`. 4.0.6 writes a whole number as `1`,
+  4.1.3 as `1.0`.
+- **The session id comes in the 409's header** (MAM-29), on both versions. The HTML page around it differs by version
+  and isn't JSON. A `torrent-add` refused with a 409 added nothing: Sintel's hash, read right after, answered `[]`.
+- **Transmission refuses with HTTP 200 and a sentence in `result`** (MAM-29): "unrecognized info", "download directory
+  path is not absolute", "No such file or directory". Anything but `success` is a refusal, whatever the status.
+  `torrent-add` answers `torrent-added` or `torrent-duplicate`, both `success`; a torrent `torrent-get` doesn't know is
+  `[]`, not an error.
+- **`isFinished` doesn't mean complete, and `leftUntilDone` alone doesn't either** (MAM-29). `isFinished` stayed false
+  at 100 %, seeding and stopped. A magnet without metadata had `leftUntilDone` 0 at 0 %. Complete is
+  `metadataPercentComplete` 1 with `leftUntilDone` 0; `doneDate` turns from 0 to a time then.
+- **4.0.6, read straight after its add, was verifying** (MAM-29): `status` 2 at 0 % with `isStalled` true. 4.1.3 was
+  read later, after the duplicate add, and was downloading (`status` 4, 0.9 %). The order of the steps differed, so
+  this isn't shown to be a difference between the versions. In the short run against 4.1.3 at 15:06, which gave the
+  kept duplicate and unknown-hash answers, a duplicate `torrent-add` with `paused` false left a stopped torrent stopped.
+- **`free-space` names its total two ways and can't tell a hidden folder from a missing one** (MAM-29,
+  [ADR 0039](../../../docs/adr/0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)).
+  Success answers `total_size`, a failure `totalSize`; `size-bytes` and `result` are spelled the same both times.
+  `/downloads`, not mounted in the container, answered exactly like a folder that doesn't exist.
+- **`session-get` tells the settings MAM depends on** (MAM-29): `incomplete-dir-enabled` (the linuxserver image ships it
+  on; the MAM-29 containers turned it off), `start-added-torrents` and `rename-partial-files`, true on both versions.
+  By Transmission's documentation, `rename-partial-files` names an unfinished file `….part` on disk, while the
+  downloading answer's `files[].name` has no `.part`. The disk wasn't looked at; MAM-30 checks it. A multi-file
+  torrent lands in a folder named after it under `download-dir`.
+- **Without a password Transmission takes any credentials** (MAM-29). The first recording of a wrong password, made
+  while `USER` and `PASS` hadn't reached the container, got 200 and isn't kept. With the password set, a wrong one got
+  401 with `WWW-Authenticate: Basic realm="Transmission"`, and an unknown Host name still got 200: Transmission checks
+  the Host only when it has no password, so no 421 was recorded.
 - **Prowlarr's download link carries its API key** (`/1/download?apikey=…&link=…`), and a Toloka
   topic link can carry the owner's forum session (`?sid=…`): every one in the `t=search` answer did,
   none in the `t=movie` answer taken seconds later. Toloka's movie search takes only `q`, so it
@@ -283,6 +375,32 @@ The four movies in `movies-page.json`:
   marker alone wouldn't tell them apart. A movie search sent with `5070` and `5080` among its
   categories found the documentary "Schumacher '94" that Toloka files in TV/Documentary, which the
   movie categories alone (the MAM-10 bullet above) would have left out.
+- **Jackett's Toloka answers read like Prowlarr's** (MAM-29,
+  [ADR 0004](../../../docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
+  The two gateways' answers share 38 releases (61 item pairs across the answers). Their titles, descriptions, standard
+  and Toloka category ids are the same, but for two topics Toloka retitled between the recordings of 10-05 and 10-13:
+  t699912 "(4 of 163)" became "(5 of 163)", and t681968 "(S1E01 of XX)" became "(S1E01-02 of XX)". On the rest, MAM's
+  `TorznabAdapter` read the same kind, categories, title, description, claims and quality from each. It read all 322
+  items of the kept Jackett files (358 across all its answers). The `|-` mark of a subsection is the Toloka
+  definition's: Jackett's caps carry it on the same ids. Jackett lists 20 more sections, `8000 Other` among them,
+  which MAM never asks.
+- **Around the release, Jackett's answer differs** (MAM-29): `<rss version="2.0">`, a `jackettindexer` element, `grabs`
+  as an element, and the download link at the host's root, `/dl/toloka/?jackett_apikey=…&path=…&file=…`, not under the
+  feed's address. No link carries a forum session. `t=search` and `t=movie` answered the same bytes, and the Ukrainian
+  title found the same 18 releases.
+- **"Strip Cyrillic Letters" strips letters, not the Ukrainian title** (MAM-29). No `<title>` of the 322 kept holds
+  Cyrillic, but some keep only what stood around it: "« » (2026) WEB-DL-AVC Ukr | Sub Ukr/Eng". Every `<description>`
+  keeps Toloka's whole title. Prowlarr's samples show the same leftovers, so its Toloka strips alike. An answer with the
+  box unticked isn't recorded: Vasyl decided on 2026-10-13 that MAM supports Jackett's default, ticked, and its README
+  tells installers to leave it so.
+- **Jackett refuses a wrong key two ways** (MAM-29). Caps and searches get HTTP 200 and
+  `<error code="100" description="Invalid API Key" />`; a download link gets a bare 401. A download token that doesn't
+  unprotect is a bare 404.
+- **A Toloka .torrent through Jackett** (MAM-29), read in memory and not kept: one file of 36,714,224,757 bytes where
+  the listing said 36,711,232,962 (Toloka rounds), trackers bt.toloka.to, bt.hurtom.com and bt.toloka.tv, and not
+  marked private.
+- **A TV search by a Ukrainian-only title found nothing** (MAM-29), and the reason isn't known. The show was among
+  Prowlarr's newest TV on 2026-10-05, and Cyrillic searches work: «Клуб Міккі Мауса» found 6.
 - **TMDb takes its v4 token as a bearer header** (MAM-33,
   [ADR 0005](../../../docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
   Vasyl's API Read Access Token is 239 characters, inside the 256 an integration's key may hold, and

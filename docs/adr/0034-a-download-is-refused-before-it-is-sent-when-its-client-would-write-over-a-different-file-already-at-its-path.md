@@ -237,3 +237,18 @@ added after the check isn't seen by it; MAM-26 reads the old copy's torrents aga
 and
 `ReplacementVerificationFilesHttpTests.Verify_where_qbittorrent_is_too_old_to_list_its_other_downloads_stops_for_review`
 pin it.
+
+## One client per send (added 0.4.0, MAM-29)
+
+**The check reads the one download client a send goes to, and no other.** A check across several
+clients — another client's torrent writing to the same place — was considered while Phase D was
+decided, and dropped on 2026-10-13 (Vasyl's decision). Phase D's case is Transmission in place of
+qBittorrent, not two clients side by side, so this check isn't built for a second client.
+
+For Transmission the check runs before every send, as for qBittorrent. The three content layouts and
+libtorrent's name cleaning above are qBittorrent's. Transmission doesn't use libtorrent, so its layout
+and its cleaning are MAM-30's to read from Transmission's source. MAM-29's samples showed a
+multi-file torrent landing in a folder named after it below `download-dir`; a single-file torrent
+wasn't recorded. `rename-partial-files` was on in both versions recorded. By Transmission's
+documentation that names an unfinished file with `.part` on the disk; MAM-30 checks it and lets the
+check allow for it.

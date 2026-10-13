@@ -9,8 +9,9 @@ namespace MediaAcquisitionManager.Infrastructure.Tests.Conventions;
 // tested against what the services actually send. A real answer can carry the credentials that
 // fetched it: Prowlarr's API key in every download link, a tracker passkey in a magnet or a tracker
 // URL, the Toloka forum session in a topic link; MAM-33 — TMDb's API Read Access Token in a recorded
-// Authorization header. A sample refreshed by hand could bring one back into the repository, so each of
-// those shapes fails the build here.
+// Authorization header; MAM-29 — Transmission's Basic credential and its CSRF session id, Jackett's
+// download token, a cookie, the bytes of a downloaded .torrent. A sample refreshed by hand could bring
+// one back into the repository, so each of those shapes fails the build here.
 public sealed partial class VendorSamplesTests
 {
     private const string ReadmeFileName = "README.md";
@@ -19,7 +20,7 @@ public sealed partial class VendorSamplesTests
     private const string KeyLikeNames =
         "apikey|api_key|api_token|apitoken|jackett_apikey|passkey|pk|uk|tp|token|access_token|link|authkey|torrent_pass|rsskey|key|secret|password|passwd|pwd|pass|auth|sig|signature|x-plex-token";
 
-    private static readonly string[] Integrations = ["Jellyfin", "QBittorrent", "Torznab", "Ffprobe", "Tmdb"];
+    private static readonly string[] Integrations = ["Jellyfin", "QBittorrent", "Transmission", "Torznab", "Ffprobe", "Tmdb"];
 
     public static TheoryData<string> Samples() => new(SampleFiles());
 
@@ -88,11 +89,21 @@ public sealed partial class VendorSamplesTests
     [InlineData("\"AccessToken\": \"0123456789abcdef0123456789abcdef\"", "credential field")]
     [InlineData("\"apiKey\": \"0123456789abcdef0123456789abcdef\"", "credential field")]
     [InlineData("\"proxy_password\": \"hunter2secret\"", "credential field")]
+    [InlineData("\"session-id\": \"4Yk0eLz9pQ2mN7sT1uV3wX5yZ8aB6cD0eF2gH4iJ6kL8mN0o\"", "credential field")]
     [InlineData("Authorization: MediaBrowser Client=\"MAM\", Token=\"0123456789abcdef\"", "credential header")]
     [InlineData("X-Api-Key: 0123456789abcdef", "credential header")]
     [InlineData("Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwMTIzIn0.c2lnbmF0dXJl", "bearer token")]
     [InlineData("authorization:bearer 0123456789abcdef", "bearer token")]
     [InlineData("\"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwMTIzIn0.c2lnbmF0dXJl\"", "bearer token")]
+    [InlineData("Authorization: Basic dmFoYWM6aHVudGVyMg==", "Basic credentials")]
+    [InlineData("\"Authorization\": \"Basic dmFoYWM6aHVudGVyMg==\"", "Basic credentials")]
+    [InlineData("X-Transmission-Session-Id: 4Yk0eLz9pQ2mN7sT1uV3wX5yZ8aB6cD0eF2gH4iJ6kL8mN0o", "Transmission session id")]
+    [InlineData("<p><code>X-Transmission-Session-Id: 4Yk0eLz9pQ2mN7sT1uV3wX5yZ8aB6cD0eF2gH4iJ6kL8mN0o</code></p>", "Transmission session id")]
+    [InlineData("<link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=Q2ZESjhQcm90ZWN0ZWQ&amp;file=Interstellar</link>", "Jackett download token")]
+    [InlineData("Set-Cookie: Jackett=CfDJ8Protected; path=/; httponly", "cookie")]
+    [InlineData("Cookie: Jackett=CfDJ8Protected", "cookie")]
+    [InlineData("d8:announce5:x/abc13:creation datei1791903931e", "the content of a .torrent")]
+    [InlineData("d10:created by13:Transmission4:infod6:lengthi140e4:name6:poster", "the content of a .torrent")]
     public void Leak_rules_flag_a_planted_credential(string text, string rule)
     {
         //Arrange
@@ -116,6 +127,16 @@ public sealed partial class VendorSamplesTests
     [InlineData("\"title\": \"Брати по зброї / Brothers in Arms\"")]
     [InlineData("Authorization: Bearer REDACTED")]
     [InlineData("\"overview\": \"A bearer of bad news\"")]
+    [InlineData("Authorization: Basic REDACTED")]
+    [InlineData("WWW-Authenticate: Basic realm=\"Transmission\"")]
+    [InlineData("X-Transmission-Session-Id: REDACTED")]
+    [InlineData("<p><code>X-Transmission-Session-Id: REDACTED</code></p>")]
+    [InlineData("Access-Control-Expose-Headers: X-Transmission-Session-Id\nDate: Tue, 13 Oct 2026 15:14:54 GMT")]
+    [InlineData("<li> When reading a response, get its X-Transmission-Session-Id header and remember it")]
+    [InlineData("<link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Interstellar+(2014)</link>")]
+    [InlineData("\"name\": \"Big Buck Bunny/Big Buck Bunny.en.srt\", \"downloadDir\": \"/scratch\"")]
+    [InlineData("Set-Cookie: REDACTED")]
+    [InlineData("\"session-id\": \"REDACTED\"")]
     public void Leak_rules_let_redacted_and_ordinary_text_through(string text)
     {
         //Arrange
@@ -181,6 +202,11 @@ public sealed partial class VendorSamplesTests
         ("credential field", CredentialField()),
         ("credential header", CredentialHeader()),
         ("bearer token", BearerToken()),
+        ("Basic credentials", BasicCredentials()),
+        ("Transmission session id", TransmissionSessionId()),
+        ("Jackett download token", JackettDownloadToken()),
+        ("cookie", Cookie()),
+        ("the content of a .torrent", TorrentContent()),
     ];
 
     [GeneratedRegex(@"[?&;](?:" + KeyLikeNames + @")(?:=|%3D)(?!REDACTED)[^&""'<>\s]", RegexOptions.IgnoreCase)]
@@ -212,8 +238,9 @@ public sealed partial class VendorSamplesTests
     private static partial Regex EncodedUrl();
 
     // A string value under a credential-like JSON key: Jellyfin's AccessToken, Prowlarr's apiKey,
-    // qBittorrent's proxy and mail passwords.
-    [GeneratedRegex(@"""[A-Za-z_-]*(?:api_?key|access_?token|password|passwd|passkey|secret|cookie|X-Emby-Token)""\s*:\s*""(?!REDACTED""|"")", RegexOptions.IgnoreCase)]
+    // qBittorrent's proxy and mail passwords; MAM-29 — Transmission's session-id, which a session-get
+    // without a fields list returns.
+    [GeneratedRegex(@"""[A-Za-z_-]*(?:api_?key|access_?token|password|passwd|passkey|secret|cookie|X-Emby-Token|session-id)""\s*:\s*""(?!REDACTED""|"")", RegexOptions.IgnoreCase)]
     private static partial Regex CredentialField();
 
     [GeneratedRegex(@"\b(?:X-Api-Key|X-Emby-Token)\s*:\s*(?!REDACTED)\S|\bMediaBrowser\b[^\r\n]*\bToken=""(?!REDACTED"")", RegexOptions.IgnoreCase)]
@@ -223,4 +250,24 @@ public sealed partial class VendorSamplesTests
     // REDACTED may follow the scheme.
     [GeneratedRegex(@"\bAuthorization[""']?\s*:\s*[""']?Bearer\s+(?!REDACTED\b)[^\s""']", RegexOptions.IgnoreCase)]
     private static partial Regex BearerToken();
+
+    // MAM-29 — Transmission takes its user name and password as HTTP Basic: the token is both, base64-encoded.
+    [GeneratedRegex(@"\bAuthorization[""']?\s*:\s*[""']?Basic\s+(?!REDACTED\b)[^\s""']", RegexOptions.IgnoreCase)]
+    private static partial Regex BasicCredentials();
+
+    // MAM-29 — Transmission's CSRF session id, in its header and in the <code> line of the 409 page that quotes it.
+    [GeneratedRegex(@"\bX-Transmission-Session-Id\s*:\s*(?!REDACTED)[^\s<""']", RegexOptions.IgnoreCase)]
+    private static partial Regex TransmissionSessionId();
+
+    // MAM-29 — Jackett's download link carries a protected token in path=; with the key it opens the download,
+    // as Prowlarr's link= does.
+    [GeneratedRegex(@"[?&;]path=(?!REDACTED)[^&""'<>\s]", RegexOptions.IgnoreCase)]
+    private static partial Regex JackettDownloadToken();
+
+    [GeneratedRegex(@"\b(?:Set-)?Cookie\s*:\s*(?!REDACTED)\S", RegexOptions.IgnoreCase)]
+    private static partial Regex Cookie();
+
+    // MAM-29 — a downloaded .torrent's announce URLs carry the tracker passkey; a sample keeps its headers only.
+    [GeneratedRegex(@"d8:announce|4:infod", RegexOptions.IgnoreCase)]
+    private static partial Regex TorrentContent();
 }

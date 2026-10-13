@@ -680,3 +680,33 @@ no adapter type and no product name; `CoreIsVendorNeutralTests` scans it with th
 `FakeJellyfinServerFilesTests.Media_updated_records_each_requests_update_types_beside_its_paths`
 and `FilesInfrastructureExtensionsTests.AddFilesInfrastructure_registers_the_local_quarantine_as_one_singleton`
 pin it, and `CoreIsVendorNeutralTests` the contract's names.
+
+## Phase D's adapters (added 0.4.0, MAM-29)
+
+**Transmission is the second download-client adapter type, and Jackett is no new type (Vasyl's
+decisions of 2026-10-13).** An installer may run Transmission 4.0 or newer, through its legacy RPC
+dialect, instead of qBittorrent, and Jackett instead of Prowlarr. Transmission gets a type id and a
+class of its own, as the Consequences planned. Jackett speaks Torznab, so it is an integration of the
+`torznab` type already registered, and no search adapter is added. MAM-29's samples showed the app's
+Torznab parsing reads Jackett's Toloka answers as it reads Prowlarr's. So Transmission is the
+specification's "one" second adapter. Its user name and password fit the slots the Consequences
+named for it.
+
+**What the Consequences' prediction missed.** "One class …, one registration and one named HTTP
+client; the settings page, the rules, the encryption and the registry need nothing" holds for the
+adapter itself. It missed what sits around one:
+- Tests pin the registered types by name
+  (`IntegrationsInfrastructureExtensionsTests.The_registry_lists_jellyfin_torznab_qbittorrent_and_tmdb_once_each_with_their_descriptors`,
+  the test harness's and the app factory's adapter lists), and `DownloadJobMissingHttpTests` and
+  `ReplacementOptionsHoldingsHttpTests` use `transmission` as the id of a type no build registers.
+- A new vendor brings new secrets to keep out of the samples — Transmission's
+  `X-Transmission-Session-Id` header and Basic authentication — and a new samples folder in
+  `VendorSamplesTests`.
+- The Torznab tests' fakes assume Prowlarr's download links (`TorznabSamples`, `FakeTorznabServer`).
+  Jackett's are `/dl/<indexer>/?jackett_apikey=…&path=…&file=…` at the host's root.
+- The destination model. ADR 0010's category can't serve a client without categories, so
+  [ADR 0039](0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)
+  amends it.
+
+MAM-30 makes these changes. The kind contracts and the core state machine are not expected to change;
+MAM-31 diffs the core's following and replacement code to show it.

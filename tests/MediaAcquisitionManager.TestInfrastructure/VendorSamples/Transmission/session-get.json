@@ -1,0 +1,15 @@
+{
+  "arguments": {
+    "download-dir": "/scratch",
+    "incomplete-dir": "/scratch/incomplete",
+    "incomplete-dir-enabled": false,
+    "rename-partial-files": true,
+    "rpc-version": 19,
+    "rpc-version-minimum": 14,
+    "rpc-version-semver": "6.0.1",
+    "start-added-torrents": true,
+    "version": "4.1.3 (838877323f)"
+  },
+  "result": "success",
+  "tag": 2
+}

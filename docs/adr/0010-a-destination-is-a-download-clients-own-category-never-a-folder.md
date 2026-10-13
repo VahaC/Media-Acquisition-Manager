@@ -199,3 +199,16 @@ of its sections of that rank mapped to different destinations, on none
 ([ADR 0020](0020-a-release-is-tv-by-its-category-matches-only-series-and-its-tracker-section-picks-the-destination-offered-first.md)).
 A destination is still a client's category and nothing else: a section only says which one is
 offered first, and the person can pick another. `DownloadOptionsSuggestionHttpTests` pins it.
+
+## A client without categories (added 0.4.0, MAM-29)
+
+**This record is about a download client with categories. For one without them — Transmission, which
+Phase D puts in place of qBittorrent —
+[ADR 0039](0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)
+amends it: a destination is a Jellyfin library folder the client can reach, or the client's own
+default folder, and a send names that folder and carries the destination's name as a label (Vasyl's
+decisions of 2026-10-13).** This record's reasons against a folder assume a category: a stored folder
+goes stale when the category changes, a `savepath` overrides the owner's category, and a typed folder
+can disagree with the client's. Transmission has no category. A folder the owner types stays rejected
+there too. qBittorrent keeps everything above: its category alone, sent with automatic management,
+never a folder.

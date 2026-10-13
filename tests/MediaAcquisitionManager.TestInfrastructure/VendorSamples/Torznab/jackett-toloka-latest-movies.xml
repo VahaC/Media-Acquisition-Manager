@@ -1,0 +1,2081 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <atom:link href="http://192.168.1.195:9117/" rel="self" type="application/rss+xml" />
+    <title>Toloka.to</title>
+    <description>Toloka is a UKRAINIAN Semi-Private site with a thriving file-sharing community</description>
+    <link>https://toloka.to/</link>
+    <language>en-US</language>
+    <category>search</category>
+    <item>
+      <title>Fall 2: Deadpoint (2026) WEB-DL 4K 2160p Dolby Vision P8.1 HDR10 H.265 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700874</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700874</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>18575733555</size>
+      <grabs>0</grabs>
+      <description>Над безоднею 2 / Fall 2: Deadpoint (2026) WEB-DL 4K 2160p Dolby Vision P8.1 HDR10 H.265 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL+4K+2160p+Dolby+Vision+P8.1+HDR10+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL+4K+2160p+Dolby+Vision+P8.1+HDR10+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="18575733555" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="19" />
+      <torznab:attr name="peers" value="33" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 1080p 2Ukr/Eng | Sub 3xUkr/Eng [IMAX]</title>
+      <guid>https://toloka.to/t700822</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700822</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>18124761989</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DLRip 1080p 2хUkr/Eng | Sub 3xUkr/Eng [IMAX]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+1080p+2Ukr%2FEng+%7C+Sub+3xUkr%2FEng+%5BIMAX%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+1080p+2Ukr%2FEng+%7C+Sub+3xUkr%2FEng+%5BIMAX%5D" length="18124761989" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="23" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 720p 2xUkr/Eng | Sub 3xUkr/Eng</title>
+      <guid>https://toloka.to/t700743</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700743</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>11274289152</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DLRip 720p 2xUkr/Eng | Sub 3xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+720p+2xUkr%2FEng+%7C+Sub+3xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+720p+2xUkr%2FEng+%7C+Sub+3xUkr%2FEng" length="11274289152" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>A Knight's Tale (2001) BDRip 1080p H.265 3xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t662379</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t662379</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>14194866913</size>
+      <grabs>0</grabs>
+      <description>Історія лицаря / A Knight's Tale (2001) BDRip 1080p H.265 3xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=A+Knight%27s+Tale+(2001)+BDRip+1080p+H.265+3xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=A+Knight%27s+Tale+(2001)+BDRip+1080p+H.265+3xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="14194866913" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>One Night Only (2026) BDRip-AVC 2xUkr/Eng | Sub 2xUkr/Eng</title>
+      <guid>https://toloka.to/t700430</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700430</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2340757176</size>
+      <grabs>0</grabs>
+      <description>Лише одна ніч / One Night Only (2026) BDRip-AVC 2xUkr/Eng | Sub 2xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRip-AVC+2xUkr%2FEng+%7C+Sub+2xUkr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRip-AVC+2xUkr%2FEng+%7C+Sub+2xUkr%2FEng" length="2340757176" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="17" />
+      <torznab:attr name="peers" value="24" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Body Heat (1981) BDRip-AVC Eng | sub Ukr</title>
+      <guid>https://toloka.to/t700682</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700682</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1943472701</size>
+      <grabs>0</grabs>
+      <description>Жар тіла  / Body Heat (1981) BDRip-AVC Eng | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Body+Heat+(1981)+BDRip-AVC+Eng+%7C+sub+Ukr</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Body+Heat+(1981)+BDRip-AVC+Eng+%7C+sub+Ukr" length="1943472701" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="11" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Attack (1956) BDRip-AVC Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700611</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700611</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3231962890</size>
+      <grabs>0</grabs>
+      <description>До бою! / Атака / Attack (1956) BDRip-AVC Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Attack+(1956)+BDRip-AVC+Eng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Attack+(1956)+BDRip-AVC+Eng+%7C+Sub+Ukr%2FEng" length="3231962890" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL-AVC 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700720</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700720</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3146063544</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DLRip-AVC 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="3146063544" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="23" />
+      <torznab:attr name="peers" value="25" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 720p 2xUkr/Eng | Sub Ukr/Eng | AMZN</title>
+      <guid>https://toloka.to/t700858</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700858</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5207647846</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 720p 2xUkr/Eng | Sub Ukr/Eng | AMZN</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+720p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%7C+AMZN</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+720p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%7C+AMZN" length="5207647846" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="14" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 1080p 2xUkr/Eng | Sub Ukr/Eng | AMZN</title>
+      <guid>https://toloka.to/t700857</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700857</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10866267258</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 1080p 2xUkr/Eng | Sub Ukr/Eng | AMZN</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%7C+AMZN</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%7C+AMZN" length="10866267258" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="34" />
+      <torznab:attr name="peers" value="37" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p Dolby Vision TV P5 H.265 2xUkr/Eng | Sub Ukr/Eng | iT</title>
+      <guid>https://toloka.to/t700719</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700719</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>17598628495</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p Dolby Vision TV P5 H.265 2xUkr/Eng | Sub Ukr/Eng | iT</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+Dolby+Vision+TV+P5+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%7C+iT</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+Dolby+Vision+TV+P5+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%7C+iT" length="17598628495" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="13" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Barfly (1987) BDRip 1080p Ukr/Eng | Sub Eng [AUS Transfer, Cinema Cult]</title>
+      <guid>https://toloka.to/t700854</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700854</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>13894219202</size>
+      <grabs>0</grabs>
+      <description>П'янь / Barfly (1987) BDRip 1080p Ukr/Eng | Sub Eng [AUS Transfer, Cinema Cult]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Barfly+(1987)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BAUS+Transfer%2C+Cinema+Cult%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Barfly+(1987)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng+%5BAUS+Transfer%2C+Cinema+Cult%5D" length="13894219202" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="15" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>One Night Only (2026) BDRemux 4K 2160p HDR10+ H.265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700849</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700849</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>54921894297</size>
+      <grabs>0</grabs>
+      <description>Лише одна ніч / One Night Only (2026) BDRemux 4K 2160p HDR10+ H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRemux+4K+2160p+HDR10%2B+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRemux+4K+2160p+HDR10%2B+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="54921894297" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="15" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>One Night Only (2026) BDRemux 1080p 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700848</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700848</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>29033978920</size>
+      <grabs>0</grabs>
+      <description>Лише одна ніч / One Night Only (2026) BDRemux 1080p 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRemux+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRemux+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="29033978920" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>One Night Only (2026) BDRip 1080p 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700847</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700847</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>16632260853</size>
+      <grabs>0</grabs>
+      <description>Лише одна ніч / One Night Only (2026) BDRip 1080p 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRip+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Night+Only+(2026)+BDRip+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="16632260853" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="17" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>WEB-DL-AVC Ukr | Sub Ukr (2014)</title>
+      <guid>https://toloka.to/t700846</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700846</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2093796556</size>
+      <grabs>0</grabs>
+      <description>Поводир (2014) WEB-DLRip-AVC Ukr | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=WEB-DL-AVC+Ukr+%7C+Sub+Ukr+(2014)</link>
+      <category>2000</category>
+      <category>100042</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=WEB-DL-AVC+Ukr+%7C+Sub+Ukr+(2014)" length="2093796556" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100042" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dad (1989) BDRip 1080p Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t700842</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700842</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>11789685227</size>
+      <grabs>0</grabs>
+      <description>Тато / Dad (1989) BDRip 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dad+(1989)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dad+(1989)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng" length="11789685227" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ice Road: Vengeance (2025) BDRemux 4K 2160p HDR10 H.265 Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t700832</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700832</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>53429393162</size>
+      <grabs>0</grabs>
+      <description>Льодовий дрифт: Помста / Ice Road: Vengeance (2025) BDRemux 4K 2160p HDR10 H.265 Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ice+Road%3A+Vengeance+(2025)+BDRemux+4K+2160p+HDR10+H.265+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ice+Road%3A+Vengeance+(2025)+BDRemux+4K+2160p+HDR10+H.265+Ukr%2FEng+%7C+Sub+Eng" length="53429393162" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ice Road: Vengeance (2025) BDRip 1080p Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t700830</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700830</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>14098230149</size>
+      <grabs>0</grabs>
+      <description>Льодовий дрифт: Помста / Ice Road: Vengeance (2025) BDRip 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ice+Road%3A+Vengeance+(2025)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ice+Road%3A+Vengeance+(2025)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng" length="14098230149" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="11" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Going My Way (1944) WEB-DL 720p Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700210</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700210</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4101693767</size>
+      <grabs>0</grabs>
+      <description>Йти своїм шляхом / Going My Way (1944) WEB-DL 720p Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Going+My+Way+(1944)+WEB-DL+720p+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Going+My+Way+(1944)+WEB-DL+720p+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="4101693767" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="10" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Moana (2026) BDRip 1080p H.265 Ukr/Eng | sub 3xUkr/Eng</title>
+      <guid>https://toloka.to/t700834</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700834</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7752415969</size>
+      <grabs>0</grabs>
+      <description>Ваяна / Moana (2026) BDRip 1080p H.265 Ukr/Eng | sub 3xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRip+1080p+H.265+Ukr%2FEng+%7C+sub+3xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRip+1080p+H.265+Ukr%2FEng+%7C+sub+3xUkr%2FEng" length="7752415969" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Onslaught (2026) WEB-DL-AVC 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700753</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700753</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2330019758</size>
+      <grabs>0</grabs>
+      <description>Ідеальна зброя / Onslaught (2026) WEB-DLRip-AVC 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="2330019758" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="33" />
+      <torznab:attr name="peers" value="37" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>V/H/S/Mixtape (2026) WEB-DL 1080p Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700825</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700825</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6753836072</size>
+      <grabs>0</grabs>
+      <description>Відеокасета жахів: Мікстейп / V/H/S/Mixtape (2026) WEB-DL 1080p Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=V%2FH%2FS%2FMixtape+(2026)+WEB-DL+1080p+Eng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=V%2FH%2FS%2FMixtape+(2026)+WEB-DL+1080p+Eng+%7C+Sub+Ukr%2FEng" length="6753836072" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>V/H/S/2 / VHS 2 (2013) BDRemux 1080p Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t700823</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700823</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>17093969838</size>
+      <grabs>0</grabs>
+      <description>З/Л/О/2 / ЗЛО 2 / V/H/S/2 / VHS 2 (2013) BDRemux 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=V%2FH%2FS%2F2+%2F+VHS+2+(2013)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=V%2FH%2FS%2F2+%2F+VHS+2+(2013)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng" length="17093969838" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="0" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Onslaught (2026) WEB-DL 4K 2160p SDR H.265 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700752</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700752</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>11188389806</size>
+      <grabs>0</grabs>
+      <description>Ідеальна зброя / Onslaught (2026) WEB-DL 4K 2160p SDR H.265 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL+4K+2160p+SDR+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL+4K+2160p+SDR+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="11188389806" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="11" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Onslaught (2026) WEB-DL 4K 2160p DV HDR10+ H.265 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700742</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700742</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>18103287152</size>
+      <grabs>0</grabs>
+      <description>Ідеальна зброя / Onslaught (2026) WEB-DL 4K 2160p DV HDR10+ H.265 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL+4K+2160p+DV+HDR10%2B+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL+4K+2160p+DV+HDR10%2B+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="18103287152" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Onslaught (2026) WEB-DL 1080p 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700741</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700741</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7548405022</size>
+      <grabs>0</grabs>
+      <description>Ідеальна зброя / Onslaught (2026) WEB-DL 1080p 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onslaught+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="7548405022" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="19" />
+      <torznab:attr name="peers" value="25" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Toy Story 5 (2026) BDRemux 4K 2160p DV7 HDR10 H265 Ukr/Eng | Sub Ukr/Eng/Multi</title>
+      <guid>https://toloka.to/t700441</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700441</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>52602611957</size>
+      <grabs>0</grabs>
+      <description>Історія іграшок 5 / Toy Story 5 (2026) BDRemux 4K 2160p DV7 HDR10 H265 Ukr/Eng | Sub Ukr/Eng/Multi</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Toy+Story+5+(2026)+BDRemux+4K+2160p+DV7+HDR10+H265+Ukr%2FEng+%7C+Sub+Ukr%2FEng%2FMulti</link>
+      <category>2040</category>
+      <category>100139</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Toy+Story+5+(2026)+BDRemux+4K+2160p+DV7+HDR10+H265+Ukr%2FEng+%7C+Sub+Ukr%2FEng%2FMulti" length="52602611957" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100139" />
+      <torznab:attr name="seeders" value="12" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>I Want Your Sex (2026) WEB-DL 4K 2160p HDR10+ H.265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700324</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700324</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>13980118548</size>
+      <grabs>0</grabs>
+      <description>Я хочу від тебе сексу / I Want Your Sex (2026) WEB-DL 4K 2160p HDR10+ H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=I+Want+Your+Sex+(2026)+WEB-DL+4K+2160p+HDR10%2B+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=I+Want+Your+Sex+(2026)+WEB-DL+4K+2160p+HDR10%2B+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="13980118548" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="19" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>No Country for Old Men (2007) BDRemux 4K 2160p H.265 HDR10 DV 3xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t699969</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699969</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>89431956520</size>
+      <grabs>0</grabs>
+      <description>Старим тут не місце / No Country for Old Men (2007) BDRemux 4K 2160p H.265 HDR10 DV 3xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=No+Country+for+Old+Men+(2007)+BDRemux+4K+2160p+H.265+HDR10+DV+3xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=No+Country+for+Old+Men+(2007)+BDRemux+4K+2160p+H.265+HDR10+DV+3xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="89431956520" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Rebel Moon: A Child of Fire (2023) WEB-DL 1080p 60FPS HDR10 H.265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t676651</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676651</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5744518758</size>
+      <grabs>0</grabs>
+      <description>Бунтівний місяць: Частина перша - Дитя вогню / Rebel Moon: A Child of Fire (2023) WEB-DL 1080p 60FPS HDR10 H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Rebel+Moon%3A+A+Child+of+Fire+(2023)+WEB-DL+1080p+60FPS+HDR10+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Rebel+Moon%3A+A+Child+of+Fire+(2023)+WEB-DL+1080p+60FPS+HDR10+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="5744518758" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Beekeeper (2024) WEB-DL 1080p 60FPS HDR10 H.265 Ukr/Eng | sub Eng</title>
+      <guid>https://toloka.to/t676644</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676644</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4402341478</size>
+      <grabs>0</grabs>
+      <description>Бджоляр / The Beekeeper (2024) WEB-DL 1080p 60FPS HDR10 H.265 Ukr/Eng | sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Beekeeper+(2024)+WEB-DL+1080p+60FPS+HDR10+H.265+Ukr%2FEng+%7C+sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Beekeeper+(2024)+WEB-DL+1080p+60FPS+HDR10+H.265+Ukr%2FEng+%7C+sub+Eng" length="4402341478" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>In the Land of Saints and Sinners (2023) WEB-DL 1080p 60FPS H.265 Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t676643</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676643</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3274912563</size>
+      <grabs>0</grabs>
+      <description>На землі святих і грішних / In the Land of Saints and Sinners (2023) WEB-DL 1080p 60FPS H.265 Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=In+the+Land+of+Saints+and+Sinners+(2023)+WEB-DL+1080p+60FPS+H.265+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=In+the+Land+of+Saints+and+Sinners+(2023)+WEB-DL+1080p+60FPS+H.265+Ukr%2FEng+%7C+Sub+Eng" length="3274912563" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Rambo: Last Blood [Extended Cut] (2019) BDRemux 4K 2160p HDR10 H265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t676401</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676401</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>59968480870</size>
+      <grabs>0</grabs>
+      <description>Рембо: Остання кров [Розширена версія] / Rambo: Last Blood [Extended Cut] (2019) BDRemux 4K 2160p HDR10 H265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Rambo%3A+Last+Blood+%5BExtended+Cut%5D+(2019)+BDRemux+4K+2160p+HDR10+H265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Rambo%3A+Last+Blood+%5BExtended+Cut%5D+(2019)+BDRemux+4K+2160p+HDR10+H265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="59968480870" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Accountant (2016) BDRemux 4K 2160p HDR10 H265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t676382</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676382</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>50261854781</size>
+      <grabs>0</grabs>
+      <description>Аудитор / The Accountant (2016) BDRemux 4K 2160p HDR10 H265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Accountant+(2016)+BDRemux+4K+2160p+HDR10+H265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Accountant+(2016)+BDRemux+4K+2160p+HDR10+H265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="50261854781" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="23" />
+      <torznab:attr name="peers" value="24" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Killers of the Flower Moon (2023) BDRemux 4K 2160p HDR Dolby Vision H.265 Ukr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t676188</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676188</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>89034672046</size>
+      <grabs>0</grabs>
+      <description>Вбивці квіткової повні / Killers of the Flower Moon (2023) BDRemux 4K 2160p HDR Dolby Vision H.265 Ukr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Killers+of+the+Flower+Moon+(2023)+BDRemux+4K+2160p+HDR+Dolby+Vision+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Killers+of+the+Flower+Moon+(2023)+BDRemux+4K+2160p+HDR+Dolby+Vision+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng" length="89034672046" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="23" />
+      <torznab:attr name="peers" value="23" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Serbuan maut (2011) BDRemux 4K 2160p HDR10 Dolby Vision H.265 3xUkr/Ind | Sub Ind/Eng</title>
+      <guid>https://toloka.to/t676136</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676136</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>66421669232</size>
+      <grabs>0</grabs>
+      <description>Рейд: Спокута / Serbuan maut (2011) BDRemux 4K 2160p HDR10 Dolby Vision H.265 3xUkr/Ind | Sub Ind/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Serbuan+maut+(2011)+BDRemux+4K+2160p+HDR10+Dolby+Vision+H.265+3xUkr%2FInd+%7C+Sub+Ind%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Serbuan+maut+(2011)+BDRemux+4K+2160p+HDR10+Dolby+Vision+H.265+3xUkr%2FInd+%7C+Sub+Ind%2FEng" length="66421669232" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Im Westen nichts Neues (2022) BDRemux 4K 2160p HDR10 Dolby Vision H.265 Ukr/Ger | Sub Ukr/Ger</title>
+      <guid>https://toloka.to/t676113</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676113</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>78383153152</size>
+      <grabs>0</grabs>
+      <description>На західному фронті без змін / Im Westen nichts Neues (2022) BDRemux 4K 2160p HDR10 Dolby Vision H.265 Ukr/Ger | Sub Ukr/Ger</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Im+Westen+nichts+Neues+(2022)+BDRemux+4K+2160p+HDR10+Dolby+Vision+H.265+Ukr%2FGer+%7C+Sub+Ukr%2FGer</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Im+Westen+nichts+Neues+(2022)+BDRemux+4K+2160p+HDR10+Dolby+Vision+H.265+Ukr%2FGer+%7C+Sub+Ukr%2FGer" length="78383153152" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Avatar: The Way of Water (2022) BDRemux 4K 2160p DolbyVision HDR10 H265 2xUkr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t676094</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676094</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>77126875217</size>
+      <grabs>0</grabs>
+      <description>Аватар: Шлях води / Avatar: The Way of Water (2022) BDRemux 4K 2160p DolbyVision HDR10 H265 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Avatar%3A+The+Way+of+Water+(2022)+BDRemux+4K+2160p+DolbyVision+HDR10+H265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Avatar%3A+The+Way+of+Water+(2022)+BDRemux+4K+2160p+DolbyVision+HDR10+H265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng" length="77126875217" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="19" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Gladiator [Extended Cut] (2000) BDRip 1080p H.265 60FPS Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t676053</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676053</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>14098230149</size>
+      <grabs>0</grabs>
+      <description>Гладіатор [Розширена Версія] / Gladiator [Extended Cut] (2000) BDRip 1080p H.265 60FPS Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Gladiator+%5BExtended+Cut%5D+(2000)+BDRip+1080p+H.265+60FPS+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Gladiator+%5BExtended+Cut%5D+(2000)+BDRip+1080p+H.265+60FPS+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="14098230149" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="32" />
+      <torznab:attr name="peers" value="32" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>WEB-DL 1080p H.265 60FPS (2023)</title>
+      <guid>https://toloka.to/t676028</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t676028</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3983582167</size>
+      <grabs>0</grabs>
+      <description>Довбуш (2023) WEB-DL 1080p H.265 60FPS</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=WEB-DL+1080p+H.265+60FPS+(2023)</link>
+      <category>2000</category>
+      <category>100042</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=WEB-DL+1080p+H.265+60FPS+(2023)" length="3983582167" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100042" />
+      <torznab:attr name="seeders" value="36" />
+      <torznab:attr name="peers" value="36" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Napoleon (2023) WEB-DL 1080p H.265 60FPS Ukr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t675919</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675919</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4649302097</size>
+      <grabs>0</grabs>
+      <description>Наполеон / Napoleon (2023) WEB-DLRip 1080p H.265 60FPS Ukr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Napoleon+(2023)+WEB-DL+1080p+H.265+60FPS+Ukr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Napoleon+(2023)+WEB-DL+1080p+H.265+60FPS+Ukr%2FEng+%7C+sub+Ukr%2FEng" length="4649302097" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Napoleon (2023) WEB-DL 1080p H.265 Ukr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t675899</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675899</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6399501271</size>
+      <grabs>0</grabs>
+      <description>Наполеон / Napoleon (2023) WEB-DLRip 1080p H.265 Ukr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Napoleon+(2023)+WEB-DL+1080p+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Napoleon+(2023)+WEB-DL+1080p+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng" length="6399501271" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="14" />
+      <torznab:attr name="peers" value="14" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Creator (2023) WEB-DL 1080p 60FPS H.265 Ukr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t675838</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675838</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5325759447</size>
+      <grabs>0</grabs>
+      <description>Творець / The Creator (2023) WEB-DL 1080p 60FPS H.265 Ukr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Creator+(2023)+WEB-DL+1080p+60FPS+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Creator+(2023)+WEB-DL+1080p+60FPS+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng" length="5325759447" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>American Pastoral (2016) WEB-DL 4K 2160p Dolby Vision HDR H.265 Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t675829</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675829</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>12863427051</size>
+      <grabs>0</grabs>
+      <description>Американська пастораль / American Pastoral (2016) WEB-DL 4K 2160p Dolby Vision HDR H.265 Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=American+Pastoral+(2016)+WEB-DL+4K+2160p+Dolby+Vision+HDR+H.265+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=American+Pastoral+(2016)+WEB-DL+4K+2160p+Dolby+Vision+HDR+H.265+Ukr%2FEng+%7C+Sub+Eng" length="12863427051" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>River Wild (2023) BDRemux 1080p Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t675757</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675757</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>27326729420</size>
+      <grabs>0</grabs>
+      <description>Дика річка / River Wild (2023) BDRemux 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=River+Wild+(2023)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=River+Wild+(2023)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Eng" length="27326729420" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="0" />
+      <torznab:attr name="peers" value="0" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>River Wild (2023) BDRip 1080p Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t675754</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675754</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>8289286881</size>
+      <grabs>0</grabs>
+      <description>Дика річка / River Wild (2023) BDRip 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=River+Wild+(2023)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=River+Wild+(2023)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Eng" length="8289286881" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>A Hard Problem (2021) WEB-DL 1080p Ukr/Eng</title>
+      <guid>https://toloka.to/t675744</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t675744</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4498978242</size>
+      <grabs>0</grabs>
+      <description>Складна проблема / A Hard Problem (2021) WEB-DL 1080p Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=A+Hard+Problem+(2021)+WEB-DL+1080p+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=A+Hard+Problem+(2021)+WEB-DL+1080p+Ukr%2FEng" length="4498978242" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL-AVC Ukr/Eng | Sub 2xUkr/Eng [IMAX]</title>
+      <guid>https://toloka.to/t700817</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700817</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3672197038</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DLRip-AVC Ukr/Eng | Sub 2xUkr/Eng [IMAX]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+2xUkr%2FEng+%5BIMAX%5D</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+2xUkr%2FEng+%5BIMAX%5D" length="3672197038" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="45" />
+      <torznab:attr name="peers" value="48" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Winx Club - Il mistero degli abissi (2014) BDRip 1080p 2xUkr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t700810</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700810</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7752415969</size>
+      <grabs>0</grabs>
+      <description>Клуб Вінкс: Таємниця морської Безодні (Клуб Вінкс: Таємниця океану) / Winx Club - Il mistero degli abissi (2014) BDRip 1080p 2xUkr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Winx+Club+-+Il+mistero+degli+abissi+(2014)+BDRip+1080p+2xUkr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100139</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Winx+Club+-+Il+mistero+degli+abissi+(2014)+BDRip+1080p+2xUkr%2FEng+%7C+Sub+Eng" length="7752415969" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100139" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Animals (2026) WEB-DL 4K 2160p Dolby Vision TV P5 H.265 Ukr/Eng | Sub Eng/Ukr</title>
+      <guid>https://toloka.to/t700804</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700804</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>15440407429</size>
+      <grabs>0</grabs>
+      <description>Тварини / Animals (2026) WEB-DL 4K 2160p Dolby Vision TV P5 H.265 Ukr/Eng | Sub Eng/Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+4K+2160p+Dolby+Vision+TV+P5+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+4K+2160p+Dolby+Vision+TV+P5+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="15440407429" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="22" />
+      <torznab:attr name="peers" value="26" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Animals (2026) WEB-DL 4K 2160p HDR10 Dolby Vision P8 H.265 Ukr/Eng | Sub Eng/Ukr</title>
+      <guid>https://toloka.to/t700803</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700803</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>13722420510</size>
+      <grabs>0</grabs>
+      <description>Тварини / Animals (2026) WEB-DL 4K 2160p HDR10 Dolby Vision P8 H.265 Ukr/Eng | Sub Eng/Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+4K+2160p+HDR10+Dolby+Vision+P8+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+4K+2160p+HDR10+Dolby+Vision+P8+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="13722420510" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="49" />
+      <torznab:attr name="peers" value="57" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Vegas Vacation (1997) DVDRip-AVC 2Ukr/Eng | Sub Eng [Fullscreen]</title>
+      <guid>https://toloka.to/t700808</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700808</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2308544921</size>
+      <grabs>0</grabs>
+      <description>Відпустка у Веґасі / Канікули у Веґасі / Vegas Vacation (1997) DVDRip-AVC 2хUkr/Eng | Sub Eng [Fullscreen]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Vegas+Vacation+(1997)+DVDRip-AVC+2Ukr%2FEng+%7C+Sub+Eng+%5BFullscreen%5D</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Vegas+Vacation+(1997)+DVDRip-AVC+2Ukr%2FEng+%7C+Sub+Eng+%5BFullscreen%5D" length="2308544921" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Animals (2026) WEB-DL 4K 2160p SDR H.265 Ukr/Eng | Sub Eng/Ukr</title>
+      <guid>https://toloka.to/t700802</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700802</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>21195663605</size>
+      <grabs>0</grabs>
+      <description>Тварини / Animals (2026) WEB-DL 4K 2160p SDR H.265 Ukr/Eng | Sub Eng/Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+4K+2160p+SDR+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+4K+2160p+SDR+H.265+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="21195663605" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="27" />
+      <torznab:attr name="peers" value="34" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Animals (2026) WEB-DL-AVC Ukr/Eng | Sub Eng/Ukr</title>
+      <guid>https://toloka.to/t700801</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700801</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2029372047</size>
+      <grabs>0</grabs>
+      <description>Тварини / Animals (2026) WEB-DLRip-AVC Ukr/Eng | Sub Eng/Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="2029372047" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="100" />
+      <torznab:attr name="peers" value="105" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Animals (2026) WEB-DL 1080p Ukr/Eng | Sub Eng/Ukr</title>
+      <guid>https://toloka.to/t700800</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700800</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5196910428</size>
+      <grabs>0</grabs>
+      <description>Тварини / Animals (2026) WEB-DL 1080p Ukr/Eng | Sub Eng/Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng%2FUkr</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animals+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng%2FUkr" length="5196910428" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="70" />
+      <torznab:attr name="peers" value="76" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Vacation (1983) DVDRip-AVC 2Ukr/Eng | Sub Eng [Fullscreen]</title>
+      <guid>https://toloka.to/t700806</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700806</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2501818449</size>
+      <grabs>0</grabs>
+      <description>Відпустка / Божевільні канікули / Vacation (1983) DVDRip-AVC 2хUkr/Eng | Sub Eng [Fullscreen]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Vacation+(1983)+DVDRip-AVC+2Ukr%2FEng+%7C+Sub+Eng+%5BFullscreen%5D</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Vacation+(1983)+DVDRip-AVC+2Ukr%2FEng+%7C+Sub+Eng+%5BFullscreen%5D" length="2501818449" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>BDRip 1080p Ukr | Sub Ukr/Multi (1964)</title>
+      <guid>https://toloka.to/t700798</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700798</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>12004433592</size>
+      <grabs>0</grabs>
+      <description>Тіні забутих предків (1964) BDRip 1080p Ukr | Sub Ukr/Multi</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=BDRip+1080p+Ukr+%7C+Sub+Ukr%2FMulti+(1964)</link>
+      <category>2000</category>
+      <category>100042</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=BDRip+1080p+Ukr+%7C+Sub+Ukr%2FMulti+(1964)" length="12004433592" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100042" />
+      <torznab:attr name="seeders" value="11" />
+      <torznab:attr name="peers" value="15" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Moana (2026) BDRip-AVC Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700153</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700153</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2609192632</size>
+      <grabs>0</grabs>
+      <description>Ваяна / Moana (2026) BDRip-AVC Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRip-AVC+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRip-AVC+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="2609192632" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="27" />
+      <torznab:attr name="peers" value="29" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>« » (2026) WEB-DL-AVC Ukr | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700794</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700794</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1964947537</size>
+      <grabs>0</grabs>
+      <description>Потяг «Червона Рута» (2026) WEB-DLRip-AVC Ukr | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C2%AB+%C2%BB+(2026)+WEB-DL-AVC+Ukr+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100042</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C2%AB+%C2%BB+(2026)+WEB-DL-AVC+Ukr+%7C+Sub+Ukr%2FEng" length="1964947537" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100042" />
+      <torznab:attr name="seeders" value="58" />
+      <torznab:attr name="peers" value="61" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tôkyô nagaremono (1966) BDRip 1080p Ukr/Jap | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700792</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700792</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10447507947</size>
+      <grabs>0</grabs>
+      <description>Токійський мандрівник / Tôkyô nagaremono (1966) BDRip 1080p Ukr/Jap | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=T%C3%B4ky%C3%B4+nagaremono+(1966)+BDRip+1080p+Ukr%2FJap+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=T%C3%B4ky%C3%B4+nagaremono+(1966)+BDRip+1080p+Ukr%2FJap+%7C+Sub+Ukr%2FEng" length="10447507947" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tôkyô nagaremono (1966) BDRemux 1080p Ukr/Jap | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700791</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700791</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>22677427322</size>
+      <grabs>0</grabs>
+      <description>Токійський мандрівник / Tôkyô nagaremono (1966) BDRemux 1080p Ukr/Jap | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=T%C3%B4ky%C3%B4+nagaremono+(1966)+BDRemux+1080p+Ukr%2FJap+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=T%C3%B4ky%C3%B4+nagaremono+(1966)+BDRemux+1080p+Ukr%2FJap+%7C+Sub+Ukr%2FEng" length="22677427322" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="0" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Fear and Desire (1953) BDRemux 1080p Ukr/Eng | Sub Ukr/Eng [Premiere Cut]</title>
+      <guid>https://toloka.to/t700785</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700785</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>17319455621</size>
+      <grabs>0</grabs>
+      <description>Страх і жадання / Fear and Desire (1953) BDRemux 1080p Ukr/Eng | Sub Ukr/Eng [Premiere Cut]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fear+and+Desire+(1953)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+%5BPremiere+Cut%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fear+and+Desire+(1953)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+%5BPremiere+Cut%5D" length="17319455621" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>« » (2026) WEB-DL 1080p Ukr | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700783</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700783</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3822520893</size>
+      <grabs>0</grabs>
+      <description>Потяг «Червона Рута» (2026) WEB-DL 1080p Ukr | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C2%AB+%C2%BB+(2026)+WEB-DL+1080p+Ukr+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100042</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C2%AB+%C2%BB+(2026)+WEB-DL+1080p+Ukr+%7C+Sub+Ukr%2FEng" length="3822520893" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100042" />
+      <torznab:attr name="seeders" value="80" />
+      <torznab:attr name="peers" value="84" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dracula: A Love Tale (2025) BDRip 1080p H.265 Ukr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700782</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700782</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7591354695</size>
+      <grabs>0</grabs>
+      <description>Граф Дракула. Історія кохання / Dracula: A Love Tale (2025) BDRip 1080p H.265 Ukr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dracula%3A+A+Love+Tale+(2025)+BDRip+1080p+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dracula%3A+A+Love+Tale+(2025)+BDRip+1080p+H.265+Ukr%2FEng+%7C+sub+Ukr%2FEng" length="7591354695" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="11" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Fall 2: Deadpoint (2026) WEB-DL-AVC 2xUkr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700771</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700771</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2179695902</size>
+      <grabs>0</grabs>
+      <description>Над безоднею 2 / Fall 2: Deadpoint (2026) WEB-DLRip-AVC 2xUkr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL-AVC+2xUkr%2FEng+%7C+sub+Ukr%2FEng" length="2179695902" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="77" />
+      <torznab:attr name="peers" value="84" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Leviticus (2026) WEB-DL 4K 2160p H.265 HDR Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700770</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700770</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>12938588979</size>
+      <grabs>0</grabs>
+      <description>Левіт / Leviticus (2026) WEB-DL 4K 2160p H.265 HDR Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Leviticus+(2026)+WEB-DL+4K+2160p+H.265+HDR+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Leviticus+(2026)+WEB-DL+4K+2160p+H.265+HDR+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="12938588979" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="17" />
+      <torznab:attr name="peers" value="20" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEBRip 1080p HDR H.265 Ukr/Eng | Sub 3xUkr/Eng [IMAX]</title>
+      <guid>https://toloka.to/t700769</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700769</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>17920751042</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEBRip 1080p HDR H.265 Ukr/Eng | Sub 3xUkr/Eng [IMAX]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEBRip+1080p+HDR+H.265+Ukr%2FEng+%7C+Sub+3xUkr%2FEng+%5BIMAX%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEBRip+1080p+HDR+H.265+Ukr%2FEng+%7C+Sub+3xUkr%2FEng+%5BIMAX%5D" length="17920751042" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="65" />
+      <torznab:attr name="peers" value="69" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Moana (2026) BDRemux 4K 2160p HDR10 Dolby Vision P7 H.265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700763</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700763</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>46192373268</size>
+      <grabs>0</grabs>
+      <description>Ваяна / Moana (2026) BDRemux 4K 2160p HDR10 Dolby Vision P7 H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRemux+4K+2160p+HDR10+Dolby+Vision+P7+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRemux+4K+2160p+HDR10+Dolby+Vision+P7+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="46192373268" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="18" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Moana (2026) BDRemux 1080p Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700762</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700762</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>32534377267</size>
+      <grabs>0</grabs>
+      <description>Ваяна / Moana (2026) BDRemux 1080p Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="32534377267" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Moana (2026) BDRip 1080p Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700761</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700761</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>17491254312</size>
+      <grabs>0</grabs>
+      <description>Ваяна / Moana (2026) BDRip 1080p Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Moana+(2026)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="17491254312" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="17" />
+      <torznab:attr name="peers" value="18" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The X-Files: I Want to Believe - Vrach Frankenshteyn (2008/2026) WEB-DL 4K 2160p H.265 DV 8.1 HDR10+ HEVC Ukr/Eng | Sub/Eng</title>
+      <guid>https://toloka.to/t700765</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700765</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>12272869048</size>
+      <grabs>0</grabs>
+      <description>Секретні матеріали: Хочу вірити / Цілком таємно: Я хочу вірити / The X-Files: I Want to Believe – Vrach Frankenshteyn (2008/2026) WEB-DL 4K 2160p H.265 DV 8.1 HDR10+ HEVC Ukr/Eng | Sub/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+X-Files%3A+I+Want+to+Believe+-+Vrach+Frankenshteyn+(2008%2F2026)+WEB-DL+4K+2160p+H.265+DV+8.1+HDR10%2B+HEVC+Ukr%2FEng+%7C+Sub%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+X-Files%3A+I+Want+to+Believe+-+Vrach+Frankenshteyn+(2008%2F2026)+WEB-DL+4K+2160p+H.265+DV+8.1+HDR10%2B+HEVC+Ukr%2FEng+%7C+Sub%2FEng" length="12272869048" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="19" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Fall 2: Deadpoint (2026) WEB-DL 1080p 2xUkr/Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700740</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700740</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6871947673</size>
+      <grabs>0</grabs>
+      <description>Над безоднею 2 / Fall 2: Deadpoint (2026) WEB-DL 1080p 2xUkr/Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+sub+Ukr%2FEng" length="6871947673" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="87" />
+      <torznab:attr name="peers" value="97" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>La chienne (1931) BDRip-AVC Fre | Sub Ukr/En</title>
+      <guid>https://toloka.to/t698459</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698459</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1417339207</size>
+      <grabs>0</grabs>
+      <description>Сука / La chienne (1931) BDRip-AVC Fre | Sub Ukr/En</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=La+chienne+(1931)+BDRip-AVC+Fre+%7C+Sub+Ukr%2FEn</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=La+chienne+(1931)+BDRip-AVC+Fre+%7C+Sub+Ukr%2FEn" length="1417339207" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Get on Up (2014) BDRip 1080p H.265 Ukr/Eng | Sub Ukr/Eng [GER Transfer]</title>
+      <guid>https://toloka.to/t700758</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700758</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>9481140305</size>
+      <grabs>0</grabs>
+      <description>Король соулу: Джеймс Браун (Шлях нагору) / Get on Up (2014) BDRip 1080p H.265 Ukr/Eng | Sub Ukr/Eng [GER Transfer]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Get+on+Up+(2014)+BDRip+1080p+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng+%5BGER+Transfer%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Get+on+Up+(2014)+BDRip+1080p+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng+%5BGER+Transfer%5D" length="9481140305" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p HDR H.265 Ukr/Eng | Sub 3xUkr/Eng [IMAX]</title>
+      <guid>https://toloka.to/t700746</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700746</comments>
+      <pubDate>Wed, 07 Oct 2026 00:00:00 +0300</pubDate>
+      <size>86543591014</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p HDR H.265 Ukr/Eng | Sub 3xUkr/Eng [IMAX]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+HDR+H.265+Ukr%2FEng+%7C+Sub+3xUkr%2FEng+%5BIMAX%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+HDR+H.265+Ukr%2FEng+%7C+Sub+3xUkr%2FEng+%5BIMAX%5D" length="86543591014" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="169" />
+      <torznab:attr name="peers" value="177" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tom and Jerry: Classic Collection (5 of 163) (1940-1967) BDRemux/WEB-DL 1080p Eng | sub Ukr/Eng</title>
+      <guid>https://toloka.to/t699912</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699912</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5476083302</size>
+      <grabs>0</grabs>
+      <description>Том і Джеррі: Класична колекція (5 зі 163) / Tom and Jerry: Classic Collection (5 of 163) (1940-1967) BDRemux/WEB-DL 1080p Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tom+and+Jerry%3A+Classic+Collection+(5+of+163)+(1940-1967)+BDRemux%2FWEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100197</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tom+and+Jerry%3A+Classic+Collection+(5+of+163)+(1940-1967)+BDRemux%2FWEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng" length="5476083302" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100197" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Fall 2: Deadpoint (2026) WEB-DL 1080p Eng | sub Ukr/Eng/Fre</title>
+      <guid>https://toloka.to/t700737</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700737</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6592774799</size>
+      <grabs>0</grabs>
+      <description>Падіння 2: Мертва точка / Fall 2: Deadpoint (2026) WEB-DL 1080p Eng | sub Ukr/Eng/Fre</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng%2FFre</link>
+      <category>2000</category>
+      <category>100070</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fall+2%3A+Deadpoint+(2026)+WEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng%2FFre" length="6592774799" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100070" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Animal Farm (2025) BDRip-AVC Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700736</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700736</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2211908157</size>
+      <grabs>0</grabs>
+      <description>Звіроферма: Місія на виживання / Animal Farm (2025) BDRip-AVC Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animal+Farm+(2025)+BDRip-AVC+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>2000</category>
+      <category>100019</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Animal+Farm+(2025)+BDRip-AVC+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="2211908157" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100019" />
+      <torznab:attr name="seeders" value="14" />
+      <torznab:attr name="peers" value="17" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p DV HDR10+ H.265 Ukr/Eng | Sub 3xUkr/Eng</title>
+      <guid>https://toloka.to/t700734</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700734</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>28411208663</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p DV HDR10+ H.265 Ukr/Eng | Sub 3xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+DV+HDR10%2B+H.265+Ukr%2FEng+%7C+Sub+3xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+DV+HDR10%2B+H.265+Ukr%2FEng+%7C+Sub+3xUkr%2FEng" length="28411208663" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="268" />
+      <torznab:attr name="peers" value="285" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEBRip 1080p Ukr/Eng | Sub 3xUkr/Eng</title>
+      <guid>https://toloka.to/t700733</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700733</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>21303037788</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEBRip 1080p Ukr/Eng | Sub 3xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEBRip+1080p+Ukr%2FEng+%7C+Sub+3xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEBRip+1080p+Ukr%2FEng+%7C+Sub+3xUkr%2FEng" length="21303037788" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="55" />
+      <torznab:attr name="peers" value="58" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p H.265 Ukr/Eng | Sub 2xUkr/Eng</title>
+      <guid>https://toloka.to/t700732</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700732</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>28464895754</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 4K 2160p H.265 Ukr/Eng | Sub 2xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+H.265+Ukr%2FEng+%7C+Sub+2xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+4K+2160p+H.265+Ukr%2FEng+%7C+Sub+2xUkr%2FEng" length="28464895754" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="79" />
+      <torznab:attr name="peers" value="87" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spider-Man: Brand New Day (2026) WEB-DL 1080p Ukr/Eng | Sub 2xUkr/Eng</title>
+      <guid>https://toloka.to/t700731</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700731</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10060960890</size>
+      <grabs>0</grabs>
+      <description>Людина-павук: Абсолютно новий день / Spider-Man: Brand New Day (2026) WEB-DL 1080p Ukr/Eng | Sub 2xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+2xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spider-Man%3A+Brand+New+Day+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+2xUkr%2FEng" length="10060960890" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="200" />
+      <torznab:attr name="peers" value="212" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Insidious: Out of the Further (2026) WEB-DL-AVC Ukr/Eng | Sub 2xUkr/Eng</title>
+      <guid>https://toloka.to/t700716</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700716</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2287070085</size>
+      <grabs>0</grabs>
+      <description>Астрал: За межами Потойбіччя / Insidious: Out of the Further (2026) WEB-DLRip-AVC Ukr/Eng | Sub 2xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Insidious%3A+Out+of+the+Further+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+2xUkr%2FEng</link>
+      <category>2000</category>
+      <category>100016</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Insidious%3A+Out+of+the+Further+(2026)+WEB-DL-AVC+Ukr%2FEng+%7C+Sub+2xUkr%2FEng" length="2287070085" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2000" />
+      <torznab:attr name="category" value="100016" />
+      <torznab:attr name="seeders" value="40" />
+      <torznab:attr name="peers" value="41" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Gunche (군체) (2026) BDRemux 4K 2160p H.265 SDR Ukr/Kor | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700725</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700725</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>75194139934</size>
+      <grabs>0</grabs>
+      <description>Колонія / Gunche (군체) (2026) BDRemux 4K 2160p H.265 SDR Ukr/Kor | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Gunche+(%EA%B5%B0%EC%B2%B4)+(2026)+BDRemux+4K+2160p+H.265+SDR+Ukr%2FKor+%7C+Sub+Ukr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Gunche+(%EA%B5%B0%EC%B2%B4)+(2026)+BDRemux+4K+2160p+H.265+SDR+Ukr%2FKor+%7C+Sub+Ukr%2FEng" length="75194139934" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Insidious: Out of the Further (2026) WEB-DL 4K 2160p SDR H.265 Ukr/Eng | Sub 2xUkr/Eng</title>
+      <guid>https://toloka.to/t700724</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700724</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10855529840</size>
+      <grabs>0</grabs>
+      <description>Астрал: За межами Потойбіччя / Insidious: Out of the Further (2026) WEB-DL 4K 2160p SDR H.265 Ukr/Eng | Sub 2xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Insidious%3A+Out+of+the+Further+(2026)+WEB-DL+4K+2160p+SDR+H.265+Ukr%2FEng+%7C+Sub+2xUkr%2FEng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Insidious%3A+Out+of+the+Further+(2026)+WEB-DL+4K+2160p+SDR+H.265+Ukr%2FEng+%7C+Sub+2xUkr%2FEng" length="10855529840" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="20" />
+      <torznab:attr name="peers" value="21" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Imitation Game (2014) BDRemux 1080p 2xUkr/Eng | Sub Ukr/Eng [CAN Transfer]</title>
+      <guid>https://toloka.to/t700722</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700722</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>29484950487</size>
+      <grabs>0</grabs>
+      <description>Гра в імітацію / The Imitation Game (2014) BDRemux 1080p 2xUkr/Eng | Sub Ukr/Eng [CAN Transfer]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Imitation+Game+(2014)+BDRemux+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%5BCAN+Transfer%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Imitation+Game+(2014)+BDRemux+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%5BCAN+Transfer%5D" length="29484950487" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Imitation Game (2014) BDRip 1080p H.265 2xUkr/Eng | Sub Ukr/Eng [CAN Transfer]</title>
+      <guid>https://toloka.to/t667708</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t667708</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7999376588</size>
+      <grabs>0</grabs>
+      <description>Гра в імітацію / The Imitation Game (2014) BDRip 1080p H.265 2xUkr/Eng | Sub Ukr/Eng [CAN Transfer]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Imitation+Game+(2014)+BDRip+1080p+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%5BCAN+Transfer%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Imitation+Game+(2014)+BDRip+1080p+H.265+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+%5BCAN+Transfer%5D" length="7999376588" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="19" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Insidious: Out of the Further (2026) WEB-DL 1080p Ukr/Eng | Sub 2xUkr/Eng [MA]</title>
+      <guid>https://toloka.to/t700721</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700721</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7687991459</size>
+      <grabs>0</grabs>
+      <description>Астрал: За межами Потойбіччя / Insidious: Out of the Further (2026) WEB-DL 1080p Ukr/Eng | Sub 2xUkr/Eng [MA]</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Insidious%3A+Out+of+the+Further+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+2xUkr%2FEng+%5BMA%5D</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Insidious%3A+Out+of+the+Further+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+2xUkr%2FEng+%5BMA%5D" length="7687991459" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="33" />
+      <torznab:attr name="peers" value="39" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dave Made a Maze (2017) WEB-DL 1080p Ukr/Eng | Sub Eng</title>
+      <guid>https://toloka.to/t700715</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700715</comments>
+      <pubDate>Tue, 06 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6152540651</size>
+      <grabs>0</grabs>
+      <description>Дейв зробив лабіринт / Dave Made a Maze (2017)  WEB-DL 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dave+Made+a+Maze+(2017)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng</link>
+      <category>2040</category>
+      <category>100096</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dave+Made+a+Maze+(2017)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng" length="6152540651" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2040" />
+      <torznab:attr name="category" value="100096" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+  </channel>
+</rss>

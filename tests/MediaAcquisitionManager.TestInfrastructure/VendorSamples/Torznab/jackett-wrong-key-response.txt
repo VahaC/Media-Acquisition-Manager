@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Content-Length: 89
+Connection: close
+Content-Type: application/xml
+Date: Tue, 13 Oct 2026 15:07:43 GMT
+Server: Kestrel
+Cache-Control: no-store,no-cache
+Pragma: no-cache
+Vary: Accept-Encoding
+
+<?xml version="1.0" encoding="UTF-8"?>
+<error code="100" description="Invalid API Key" />

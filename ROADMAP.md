@@ -89,9 +89,12 @@ follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
-MAM-42 to MAM-44, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and
+MAM-42 to MAM-44, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41, Phase D as MAM-29 to MAM-31.
+Release 0.3.0 holds MAM-24 to MAM-27, and
 MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-44 go
-out when 0.3.0 is published again, under the same number. The release of Phase D is not decided yet.
+out when 0.3.0 is published again, under the same number. Phase D is release 0.4.0, with
+Transmission instead of qBittorrent and Jackett instead of Prowlarr (Vasyl's decisions of
+2026-10-13, MAM-29).
 
 ## Phases
 
@@ -2022,21 +2025,100 @@ changed after a send rest on the tests, as the **Tests** paragraph above and the
 
 ### Phase D — Practical extensibility
 
+**Release:** 0.4.0 (Vasyl's decision of 2026-10-13). **Tickets:** MAM-29 to MAM-31.
+
 **Complexity:** Medium
-**Value:** use the app with other tools than Prowlarr and qBittorrent without losing any of the
-safety of the first workflow.
+**Value:** use the app with other tools than Prowlarr and qBittorrent — Transmission instead of
+qBittorrent, Jackett instead of Prowlarr — without losing any of the safety of the first workflow.
 
 **Scope:**
 
-- One second search or download client adapter with different capabilities (for example
-  Newznab with SABnzbd, or Transmission), added without changing the core state machine.
+- **MAM-29 Transmission and Jackett samples, and the choice** (decided 2026-10-13): Vasyl's
+  decisions. The app isn't tied to qBittorrent or Prowlarr: an installer can run an analogue
+  **instead of** either. Phase D's case is an analogue in place of qBittorrent or Prowlarr, not two
+  download clients side by side.
+  - *Transmission instead of qBittorrent:* Transmission 4.0 or newer, through its legacy RPC
+    dialect (kebab-case methods such as `torrent-add`, camelCase fields such as `hashString`). 4.0
+    takes labels in `torrent-add`, so a send stays one write
+    ([ADR 0013](docs/adr/0013-a-download-is-written-down-before-anything-is-sent-and-one-request-sends-it-at-most-once.md)).
+    An older Transmission gets a sentence with the version it reports and "needs 4.0 or newer".
+    The JSON-RPC 2.0 dialect of Transmission 4.1 gets a ticket of its own when the legacy one is
+    removed. Transmission is the specification's one new adapter (the MAM-29 section of
+    [ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
+  - *Jackett instead of Prowlarr:* through the same Torznab adapter, with no new search adapter.
+    What in it fits only Prowlarr is MAM-30's to fix. ADR 0004's "keep Prowlarr rather than add
+    Jackett" of 2026-09-29 was about the reference installation, which keeps Prowlarr; Jackett
+    instead of Prowlarr is a supported route from Phase D (the MAM-29 section of
+    [ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
+  - *Destinations:* Transmission has no categories. Its destinations are the Jellyfin library
+    folders it can reach — each library's root mapped back into Transmission's paths through its
+    integration's path mappings, and confirmed by Transmission's free-space answer — plus its own
+    default download folder, marked "outside the libraries, replacement off". A library folder
+    Transmission can't see stays listed with a sentence saying how to fix it, never hidden. A send
+    is one `torrent-add` with the folder and the destination's name as its label: a film sent to
+    Movies shows in Transmission in, say, `/downloads/movies` with the label "Movies". This amends
+    [ADR 0010](docs/adr/0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)
+    for a client without categories, and qBittorrent keeps its categories
+    ([ADR 0039](docs/adr/0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)).
+  - *The overwrite guard* reads the one client a send goes to. A guard across several clients was
+    dropped, as two clients side by side isn't Phase D's case (the MAM-29 section of
+    [ADR 0034](docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)).
+  - *Not chosen:* Deluge, which takes two writes per send and applies its label's folder only when
+    the download completes. SABnzbd, which needs a Newznab source, can be followed only by hash and
+    can't be replaced before unpacking, so Usenet is out of Phase D. A direct Toloka adapter, which
+    is a ticket of its own, later.
+  - *The live instances:* one Stashboard project on media-stack, `tools/mam29/docker-compose.yml`:
+    Transmission 4.1.3 (`lscr.io/linuxserver/transmission:4.1.3-r0-ls363`), a temporary 4.0.6
+    (`4.0.6-r6-ls326`) for a short second set, and Jackett v0.24.2830
+    (`lscr.io/linuxserver/jackett:v0.24.2830-ls3`, no automatic update) with the Toloka.to indexer
+    Vasyl added and "Strip Cyrillic Letters" ticked, Jackett's default. Vasyl ran the scripts in
+    `tools/mam29/` on 2026-10-13; they stay in the repo. The test torrents were public (Big Buck
+    Bunny and Sintel from webtorrent.io), in a scratch folder outside the media folders.
+    Transmission 4.1.3 had no password at the first recording, so a wrong password got 200. Steps
+    15 and 16 were recorded again at 15:21 with the password set: a wrong password got 401 with
+    `WWW-Authenticate: Basic`, and an unknown Host got 200. No 421 is recorded live: Transmission
+    checks the Host only when no password is set, and MAM-30 takes the 421's shape from
+    Transmission's source.
+  - *What the samples taught:* Transmission 4.0.6 and 4.1.3 answered alike in the short set
+    recorded on both: the handshake, `session-get`, `torrent-add` with labels, the duplicate and an
+    unknown hash. A `torrent-add` refused with a 409 added nothing. `isFinished` stays false at
+    100 %, and a magnet without metadata has `leftUntilDone` 0, so completion needs the metadata
+    too. Jackett's Toloka answers carry Prowlarr's titles, descriptions and category ids: of the 38
+    releases both listed, all but two that Toloka retitled between the recordings read alike in the
+    app's Torznab parsing. "Strip Cyrillic Letters" leaves a Ukrainian-only release's `<title>` as
+    punctuation, its name kept in `<description>` alone. The rest is under "What the samples
+    taught" in
+    [`VendorSamples/README.md`](tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/README.md#what-the-samples-taught).
+  - *Toloka and Transmission:* Toloka's rules, FAQ and help section restrict no client, and its
+    topic on Linux clients recommends Transmission (read on 2026-10-13). MAM-31's real download is
+    the final check: a refusal would show as a tracker error in Transmission.
+  - *The live check:* MAM-31 runs on a second, clean MAM on media-stack, set up from zero with
+    Jellyfin, Jackett and Transmission only, never on production.
+- **MAM-30 Transmission instead of qBittorrent, Jackett instead of Prowlarr:** the Transmission
+  adapter — connect, destinations, send, follow, and what holds a copy —, the Torznab adapter's
+  Prowlarr-only parts fixed for Jackett, and no "qBittorrent" or "category" where the client is
+  Transmission, added without changing the core state machine. Vasyl's decisions of 2026-10-13,
+  after the samples: the Search page also reads a release's `<description>`, as Recommendations
+  do, so a Ukrainian-only release whose `<title>` "Strip Cyrillic Letters" left as punctuation
+  matches its library copy, through Jackett or Prowlarr alike; and only Jackett's default for that
+  box, ticked, is supported, which the README tells installers.
+- **MAM-31 Phase D on a clean installation:** the clean MAM above, set up by the README alone:
+  search through Jackett, the Search and Recommendations pages, a send to Transmission, and one
+  real film replaced through the quarantine.
 - Plex or Emby later, if needed.
-- **Backup/restore:** only the new adapter's settings, stored like the existing ones.
+- **Backup/restore:** only the new adapter's settings, and Transmission's destinations with their
+  folders, stored like the existing ones.
 
-**Out of scope:** any change to the core replacement workflow to fit the new adapter.
+**Out of scope:** any change to the core replacement workflow to fit the new adapter; two download
+clients side by side, and an overwrite guard across several clients; Usenet (SABnzbd, Newznab); a
+direct Toloka adapter and Transmission's JSON-RPC 2.0 dialect, each a ticket of its own.
 
-**Tests:** the adapter contract tests pass for both implementations; logical destinations, error
-handling and the UI do not depend on qBittorrent-specific fields.
+**Tests:** the adapter contract tests pass for both implementations, qBittorrent and Transmission,
+and the Torznab adapter's tests pass on Jackett's answers as on Prowlarr's; logical destinations,
+error handling and the UI do not depend on qBittorrent-specific fields.
 
 **Acceptance bar:** the second adapter works end to end — search or submit, track, and (for a
-client) replace — with the core workflow unchanged.
+client) replace — with the core workflow unchanged: on a clean installation with Jellyfin, Jackett
+and Transmission only (MAM-31), Toloka is searched through Jackett, a release lands in a library
+folder through Transmission with the destination's label, and a film is replaced through the
+quarantine.

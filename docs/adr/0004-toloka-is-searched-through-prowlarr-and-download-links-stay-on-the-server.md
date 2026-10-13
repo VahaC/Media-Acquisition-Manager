@@ -312,3 +312,28 @@ it first. A release stored before 0.2.1 has none.
 `SearchReleasesListHttpTests.Releases_lists_each_releases_description_as_the_search_stored_it` pin
 it, against the recorded `prowlarr-toloka-latest-movies.xml`, `prowlarr-toloka-latest-tv.xml` and
 `prowlarr-toloka-movie-search-film-in-tv-category.xml`.
+
+## Jackett instead of Prowlarr (added 0.4.0, MAM-29)
+
+**The owner's choice of 2026-09-29 to keep Prowlarr rather than add Jackett, and the rejected "Add a
+Jackett container" above, were about the reference installation: a second indexer manager beside the
+Prowlarr already there. From Phase D, Jackett instead of Prowlarr is a supported route for any
+installation, through the same Torznab adapter (Vasyl's decision of 2026-10-13). The decision itself
+doesn't change: the reference installation keeps Prowlarr, and download links stay on the server.**
+
+MAM-29 recorded Jackett v0.24.2830 with its Toloka.to indexer and "Strip Cyrillic Letters" ticked,
+Jackett's default. "Jackett or any other Torznab source should work the same way" held for what the
+app reads: Jackett's Toloka answers carry Prowlarr's titles, descriptions and category ids. Of the 38
+releases both listed, the app's parsing read all alike but two, which Toloka retitled between the
+recordings of 10-05 and 10-13. The differences, for MAM-30:
+- The download link is `/dl/toloka/?jackett_apikey=…&path=…&file=…` at the host's root. It stays on
+  the server like Prowlarr's, and its `path` is a protected link like Prowlarr's `link`.
+- No topic link carried a forum session (`sid`).
+- A wrong key is HTTP 200 with `<error code="100">` on caps and searches, and a bare 401 on a download
+  link. Prowlarr answers a bare 401 to all three.
+- "Strip Cyrillic Letters" removes letters, not the Ukrainian title as a whole, so a Ukrainian-only
+  `<title>` keeps only punctuation (`« » (2026) WEB-DL-AVC …`). Toloka's whole title stays in
+  `<description>`. Prowlarr's answers have the same leftovers.
+
+A direct Toloka adapter, which the Note for future readers keeps open, is a ticket of its own after
+Phase D.

@@ -1,0 +1,2081 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <atom:link href="http://192.168.1.195:9117/" rel="self" type="application/rss+xml" />
+    <title>Toloka.to</title>
+    <description>Toloka is a UKRAINIAN Semi-Private site with a thriving file-sharing community</description>
+    <link>https://toloka.to/</link>
+    <language>en-US</language>
+    <category>search</category>
+    <item>
+      <title>Ted Lasso (S4) (2026) WEB-DL 4K 2160p H.265 DV HDR10+ [Hybrid] 2xUkr/Eng | Sub Ukr/Eng (S4)</title>
+      <guid>https://toloka.to/t699457</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699457</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>89485643612</size>
+      <grabs>0</grabs>
+      <description>Тед Лассо (Сезон 4) / Ted Lasso (Season 4) (2026) WEB-DL 4K 2160p H.265 DV HDR10+ [Hybrid] 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ted+Lasso+(S4)+(2026)+WEB-DL+4K+2160p+H.265+DV+HDR10%2B+%5BHybrid%5D+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+(S4)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ted+Lasso+(S4)+(2026)+WEB-DL+4K+2160p+H.265+DV+HDR10%2B+%5BHybrid%5D+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+(S4)" length="89485643612" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Reacher (S4) (2026) WEB-DL 2160p 4K DV HDR10+ H265 Ukr/Eng | Sub Eng/Pol (S4)</title>
+      <guid>https://toloka.to/t700876</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700876</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>53085795778</size>
+      <grabs>0</grabs>
+      <description>Річер (Сезон 4) / Reacher (Season 4) (2026) WEB-DL 2160p 4K DV HDR10+ H265 Ukr/Eng | Sub Eng/Pol</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Reacher+(S4)+(2026)+WEB-DL+2160p+4K+DV+HDR10%2B+H265+Ukr%2FEng+%7C+Sub+Eng%2FPol+(S4)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Reacher+(S4)+(2026)+WEB-DL+2160p+4K+DV+HDR10%2B+H265+Ukr%2FEng+%7C+Sub+Eng%2FPol+(S4)" length="53085795778" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Koi wa Ameagari no You ni (S1) (2018) BDRip 1080p H.265 Ukr/Jpn | Sub Eng (S1)</title>
+      <guid>https://toloka.to/t700875</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700875</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>13851269529</size>
+      <grabs>0</grabs>
+      <description>Кохання наче відчуття після дощу (Сезон 1) / Koi wa Ameagari no You ni (Season 1) (2018) BDRip 1080p H.265 Ukr/Jpn | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Koi+wa+Ameagari+no+You+ni+(S1)+(2018)+BDRip+1080p+H.265+Ukr%2FJpn+%7C+Sub+Eng+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Koi+wa+Ameagari+no+You+ni+(S1)+(2018)+BDRip+1080p+H.265+Ukr%2FJpn+%7C+Sub+Eng+(S1)" length="13851269529" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2 (2 season)(10 12 ) WEB-DL 1080p Ukr/jap | Sub ukr (2 )</title>
+      <guid>https://toloka.to/t696413</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t696413</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2716566814</size>
+      <grabs>0</grabs>
+      <description>Янгол по сусідству мене розбещує (2 сезон) | Otonari no Tenshi-sama ni Itsunomanika Dame Ningen ni Sareteita Ken 2 (2 season)(10 із 12 серій) WEBDL-Rip 1080p Ukr/jap | Sub ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Otonari+no+Tenshi-sama+ni+Itsunomanika+Dame+Ningen+ni+Sareteita+Ken+2+(2+season)(10+12+)+WEB-DL+1080p+Ukr%2Fjap+%7C+Sub+ukr+(2+)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Otonari+no+Tenshi-sama+ni+Itsunomanika+Dame+Ningen+ni+Sareteita+Ken+2+(2+season)(10+12+)+WEB-DL+1080p+Ukr%2Fjap+%7C+Sub+ukr+(2+)" length="2716566814" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kanata kara (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1E1-2 of XX)</title>
+      <guid>https://toloka.to/t700871</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700871</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>704643072</size>
+      <grabs>0</grabs>
+      <description>З іншого боку (Сезон 1, серії 1-2 з ХХ) / Kanata kara (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kanata+kara+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kanata+kara+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+XX)" length="704643072" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Psyren (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1E1-2 of XX)</title>
+      <guid>https://toloka.to/t700870</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700870</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>757071872</size>
+      <grabs>0</grabs>
+      <description>Псайрен (Сезон 1, серії 1-2 з ХХ) / Psyren (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Psyren+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Psyren+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+XX)" length="757071872" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="10" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tari Tari (S1) (2012) BDRip 1080p H.265 Ukr/Jap | Sub Ukr (S1E01-05 of 12)</title>
+      <guid>https://toloka.to/t700006</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700006</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2619930050</size>
+      <grabs>0</grabs>
+      <description>І те, і се (Сезон 1, серії 01-05 з 12) / Tari Tari (Season 1) (2012) BDRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tari+Tari+(S1)+(2012)+BDRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E01-05+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tari+Tari+(S1)+(2012)+BDRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E01-05+of+12)" length="2619930050" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Doumo, Suki na Hito ni Horegusuri wo Irai sareta Majo desu. (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (C 02 12)</title>
+      <guid>https://toloka.to/t700698</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700698</comments>
+      <pubDate>Tue, 13 Oct 2026 00:00:00 +0300</pubDate>
+      <size>555745280</size>
+      <grabs>0</grabs>
+      <description>Привіт, я відьма і мій краш хоче від мене зілля-привороту (Cерії 02 з 12) / Doumo, Suki na Hito ni Horegusuri wo Irai sareta Majo desu. (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Doumo%2C+Suki+na+Hito+ni+Horegusuri+wo+Irai+sareta+Majo+desu.+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(C+02+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Doumo%2C+Suki+na+Hito+ni+Horegusuri+wo+Irai+sareta+Majo+desu.+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(C+02+12)" length="555745280" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kusuriya no Hitorigoto (S3) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S3E02 of 12)</title>
+      <guid>https://toloka.to/t700709</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700709</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>550502400</size>
+      <grabs>0</grabs>
+      <description>Монолог травниці (Сезон 3, серії 02 з 12) / Kusuriya no Hitorigoto (Season 3) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S3E02+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S3E02+of+12)" length="550502400" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="22" />
+      <torznab:attr name="peers" value="28" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Outer Banks (S5) (2026) WEB-DL 1080p Ukr/Eng | Sub 2xUkr/Eng (S5)</title>
+      <guid>https://toloka.to/t700859</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700859</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>26124138577</size>
+      <grabs>0</grabs>
+      <description>Зовнішні мілини (Сезон 5) / Outer Banks (Season 5) (2026) WEB-DL 1080p Ukr/Eng | Sub 2xUkr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Outer+Banks+(S5)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+2xUkr%2FEng+(S5)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Outer+Banks+(S5)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+2xUkr%2FEng+(S5)" length="26124138577" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="12" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>NASCAR | S2026 | 32 | Bank of America 400 Charlotte | | MAINCAST SPORT (11.10.2026) WEB-DL 1080p</title>
+      <guid>https://toloka.to/t700868</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700868</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>14098230149</size>
+      <grabs>0</grabs>
+      <description>NASCAR | Сезон 2026 | Етап 32 | Bank of America 400 Charlotte | Гонка | MAINCAST SPORT (11.10.2026) WEB-DL 1080p</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=NASCAR+%7C+S2026+%7C+32+%7C+Bank+of+America+400+Charlotte+%7C+%7C+MAINCAST+SPORT+(11.10.2026)+WEB-DL+1080p</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=NASCAR+%7C+S2026+%7C+32+%7C+Bank+of+America+400+Charlotte+%7C+%7C+MAINCAST+SPORT+(11.10.2026)+WEB-DL+1080p" length="14098230149" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dragon Ball Super: Beerus (S1) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr (S1E1 of 12)</title>
+      <guid>https://toloka.to/t700867</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700867</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>779091968</size>
+      <grabs>0</grabs>
+      <description>Яйця Дракона Супер: Пивус  (Сезон 1, серії 1 з 12) / Dragon Ball Super: Beerus (Season 1) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dragon+Ball+Super%3A+Beerus+(S1)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dragon+Ball+Super%3A+Beerus+(S1)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1+of+12)" length="779091968" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>School Rumble (S2) (2006) DVDRip-AVC Ukr/Jap | Sub Ukr (S2E1-20 of 26)</title>
+      <guid>https://toloka.to/t694195</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t694195</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6055903887</size>
+      <grabs>0</grabs>
+      <description>Шкільний гармидер (Сезон 2, серії 1-20 з 26) / School Rumble (Season 2) (2006) DVDRip-AVC Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=School+Rumble+(S2)+(2006)+DVDRip-AVC+Ukr%2FJap+%7C+Sub+Ukr+(S2E1-20+of+26)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=School+Rumble+(S2)+(2006)+DVDRip-AVC+Ukr%2FJap+%7C+Sub+Ukr+(S2E1-20+of+26)" length="6055903887" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>' (S2E1-13 of 24) / Yozakura-san Chi no Daisakusen (S2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</title>
+      <guid>https://toloka.to/t697697</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t697697</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5111011082</size>
+      <grabs>0</grabs>
+      <description>Місія Сім'ї Йодзакура (Сезон 2, серії 1-13 з 24) / Yozakura-san Chi no Daisakusen (Season 2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%27+(S2E1-13+of+24)+%2F+Yozakura-san+Chi+no+Daisakusen+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%27+(S2E1-13+of+24)+%2F+Yozakura-san+Chi+no+Daisakusen+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr" length="5111011082" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Re:Zero kara Hajimeru Isekai Seikatsu (S4) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S4)</title>
+      <guid>https://toloka.to/t698904</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698904</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6238439997</size>
+      <grabs>0</grabs>
+      <description>Переродження: життя з нуля в іншому світі (Сезон 4) / Re:Zero kara Hajimeru Isekai Seikatsu (Season 4) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Re%3AZero+kara+Hajimeru+Isekai+Seikatsu+(S4)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S4)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Re%3AZero+kara+Hajimeru+Isekai+Seikatsu+(S4)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S4)" length="6238439997" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Coven Academy (S1) (2026) WEB-DL 1080p Ukr/Eng | sub Eng (S1E1-4 of 21)</title>
+      <guid>https://toloka.to/t700790</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700790</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2351494594</size>
+      <grabs>0</grabs>
+      <description>Академія відьом (Сезон 1, серії 1-4 з 21) / Coven Academy (Season 1) (2026) WEB-DL 1080p Ukr/Eng | sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Coven+Academy+(S1)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+sub+Eng+(S1E1-4+of+21)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Coven+Academy+(S1)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+sub+Eng+(S1E1-4+of+21)" length="2351494594" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="11" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Seitokai ni mo Ana wa Aru! (S1) (2026) WEB-DL 1080p Jap | Sub Ukr (S1E01 of 12)</title>
+      <guid>https://toloka.to/t700856</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700856</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>619708416</size>
+      <grabs>0</grabs>
+      <description>І в учнівській раді є свої дивацтва! (Сезон 1, серії 01 з 12) / Seitokai ni mo Ana wa Aru! (Season 1) (2026) WEBDL 1080p Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Seitokai+ni+mo+Ana+wa+Aru!+(S1)+(2026)+WEB-DL+1080p+Jap+%7C+Sub+Ukr+(S1E01+of+12)</link>
+      <category>5070</category>
+      <category>100194</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Seitokai+ni+mo+Ana+wa+Aru!+(S1)+(2026)+WEB-DL+1080p+Jap+%7C+Sub+Ukr+(S1E01+of+12)" length="619708416" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100194" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kidou Senshi Gundam Iron-Blooded Orphans (S1, 2) (2015-2016) BDRip 1080p Ukr/Jap | Sub Ukr (S1, S2: 01-13 25)</title>
+      <guid>https://toloka.to/t688336</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t688336</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>47126528655</size>
+      <grabs>0</grabs>
+      <description>Мобільна броня Ґандам: Залізнокровні сироти (Сезон 1, Сезон 2: 01-13 з 25) / Kidou Senshi Gundam Iron-Blooded Orphans (Season 1, 2) (2015-2016) BDRip 1080p Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kidou+Senshi+Gundam+Iron-Blooded+Orphans+(S1%2C+2)+(2015-2016)+BDRip+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1%2C+S2%3A+01-13+25)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kidou+Senshi+Gundam+Iron-Blooded+Orphans+(S1%2C+2)+(2015-2016)+BDRip+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1%2C+S2%3A+01-13+25)" length="47126528655" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>NASCAR | S2026 | 32 | Bank of America 400 Charlotte | | MAINCAST SPORT (11.10.2026) WEB-DL 720p</title>
+      <guid>https://toloka.to/t700855</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700855</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4799625953</size>
+      <grabs>0</grabs>
+      <description>NASCAR | Сезон 2026 | Етап 32 | Bank of America 400 Charlotte | Гонка | MAINCAST SPORT (11.10.2026) WEB-DL 720p</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=NASCAR+%7C+S2026+%7C+32+%7C+Bank+of+America+400+Charlotte+%7C+%7C+MAINCAST+SPORT+(11.10.2026)+WEB-DL+720p</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=NASCAR+%7C+S2026+%7C+32+%7C+Bank+of+America+400+Charlotte+%7C+%7C+MAINCAST+SPORT+(11.10.2026)+WEB-DL+720p" length="4799625953" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tensei shitara Ken deshita (S2) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S2E02 of 12)</title>
+      <guid>https://toloka.to/t700727</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700727</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1148903751</size>
+      <grabs>0</grabs>
+      <description>Моє переродження в меч (Сезон 2, серії 02 з 12) / Tensei shitara Ken deshita (Season 2) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tensei+shitara+Ken+deshita+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E02+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tensei+shitara+Ken+deshita+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E02+of+12)" length="1148903751" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="6" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Seitokai ni mo Ana wa Aru! (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1E1-2 of 12)</title>
+      <guid>https://toloka.to/t700853</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700853</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>611319808</size>
+      <grabs>0</grabs>
+      <description>В учнівській раді теж є дірка! (Сезон 1, серії 1-2 з 12) / Seitokai ni mo Ana wa Aru! (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Seitokai+ni+mo+Ana+wa+Aru!+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Seitokai+ni+mo+Ana+wa+Aru!+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+12)" length="611319808" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dark Summoner to Dekiteiru (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1E1-2 of 12)</title>
+      <guid>https://toloka.to/t700851</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700851</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>356515840</size>
+      <grabs>0</grabs>
+      <description>Я зустрічаюся з темною заклиначкою (Сезон 1, серії 1-2 з 12) / Dark Summoner to Dekiteiru (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dark+Summoner+to+Dekiteiru+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dark+Summoner+to+Dekiteiru+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-2+of+12)" length="356515840" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="12" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 17 | - | | 5 Sport 4k (11.10.2026) IPTV 2160p Ukr</title>
+      <guid>https://toloka.to/t700850</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700850</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>10254234419</size>
+      <grabs>0</grabs>
+      <description>Формула-1 | Сезон 2026 | Етап 17 | Гран-Прі Сингапуру | Гонка | 5 Sport 4k (11.10.2026) IPTV 2160p Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+5+Sport+4k+(11.10.2026)+IPTV+2160p+Ukr</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+5+Sport+4k+(11.10.2026)+IPTV+2160p+Ukr" length="10254234419" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="10" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Sora wa Akai Kawa no Hotori (S1) (2026) WEB-DL 1080p H.265 (S1E01-14 of 24)</title>
+      <guid>https://toloka.to/t698768</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698768</comments>
+      <pubDate>Mon, 12 Oct 2026 00:00:00 +0300</pubDate>
+      <size>5111011082</size>
+      <grabs>0</grabs>
+      <description>Небо на берегах червоної річки (Сезон 1; серії 01-14 з 24) / Sora wa Akai Kawa no Hotori (Season 1) (2026) WEB-DL 1080p H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Sora+wa+Akai+Kawa+no+Hotori+(S1)+(2026)+WEB-DL+1080p+H.265+(S1E01-14+of+24)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Sora+wa+Akai+Kawa+no+Hotori+(S1)+(2026)+WEB-DL+1080p+H.265+(S1E01-14+of+24)" length="5111011082" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Slow Horses (S6) (2026) WEBRip 1080p H.265 Ukr/Eng | Sub Ukr/Eng (S6E1-4)</title>
+      <guid>https://toloka.to/t700595</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700595</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>8557722337</size>
+      <grabs>0</grabs>
+      <description>Повільні коні / Кульгаві коні (Сезон 6, серії 1-4) / Slow Horses (Season 6) (2026) WEBRip 1080p H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Slow+Horses+(S6)+(2026)+WEBRip+1080p+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S6E1-4)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Slow+Horses+(S6)+(2026)+WEBRip+1080p+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S6E1-4)" length="8557722337" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="66" />
+      <torznab:attr name="peers" value="75" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 17 | - | | Setanta Sports+ HD (11.10.2026) IPTVRip 720p Ukr/int</title>
+      <guid>https://toloka.to/t700841</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700841</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3446711255</size>
+      <grabs>0</grabs>
+      <description>Формула-1 | Сезон 2026 | Етап 17 | Гран-Прі Сингапуру | Гонка | Setanta Sports+ HD (11.10.2026) IPTVRip 720p Ukr/int</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+Setanta+Sports%2B+HD+(11.10.2026)+IPTVRip+720p+Ukr%2Fint</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+Setanta+Sports%2B+HD+(11.10.2026)+IPTVRip+720p+Ukr%2Fint" length="3446711255" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="38" />
+      <torznab:attr name="peers" value="38" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>86 Eighty Six (S1, Part 1-2) (2021-2022) BDRip 1080p H.265 Ukr/Jap | Sub Ukr (S1E1-9 of 23)</title>
+      <guid>https://toloka.to/t700138</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700138</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>21206401024</size>
+      <grabs>0</grabs>
+      <description>Вісімдесят шість (Сезон 1, Частина 1-2, серії 1-9 з 23) / 86 Eighty Six (Season 1, Part 1-2) (2021-2022) BDRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=86+Eighty+Six+(S1%2C+Part+1-2)+(2021-2022)+BDRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-9+of+23)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=86+Eighty+Six+(S1%2C+Part+1-2)+(2021-2022)+BDRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-9+of+23)" length="21206401024" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Black Clover (S2E1-2 of 12) (2026) WEB-DL 1080</title>
+      <guid>https://toloka.to/t700655</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700655</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2147483648</size>
+      <grabs>0</grabs>
+      <description>Чорна конюшина / Black Clover (Сезон 2, частина 1, серії 1-2 з 12) (2026) WEBDL 1080р</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Black+Clover+(S2E1-2+of+12)+(2026)+WEB-DL+1080</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Black+Clover+(S2E1-2+of+12)+(2026)+WEB-DL+1080" length="2147483648" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tsuihou sareta Tensei Juukishi wa Game Chishiki de (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1E1-15 of 26)</title>
+      <guid>https://toloka.to/t698730</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698730</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>9513352560</size>
+      <grabs>0</grabs>
+      <description>Вигнаний важкоозброєний лицар стає непереможним завдяки (Сезон 1, серії 1-15 з 26) / Tsuihou sareta Tensei Juukishi wa Game Chishiki de (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tsuihou+sareta+Tensei+Juukishi+wa+Game+Chishiki+de+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-15+of+26)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tsuihou+sareta+Tensei+Juukishi+wa+Game+Chishiki+de+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1-15+of+26)" length="9513352560" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="11" />
+      <torznab:attr name="peers" value="15" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Magical★Explorer: (S1E1-3 of 13) / Magical★Explorer: Eroge no Yuujin Chara ni Tensei Shita Kedo (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</title>
+      <guid>https://toloka.to/t700839</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700839</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>969932800</size>
+      <grabs>0</grabs>
+      <description>Magical★Explorer: Переродився другом головного героя в ероге (Сезон 1, серії 1-3 з 13) / Magical★Explorer: Eroge no Yuujin Chara ni Tensei Shita Kedo (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Magical%E2%98%85Explorer%3A+(S1E1-3+of+13)+%2F+Magical%E2%98%85Explorer%3A+Eroge+no+Yuujin+Chara+ni+Tensei+Shita+Kedo+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Magical%E2%98%85Explorer%3A+(S1E1-3+of+13)+%2F+Magical%E2%98%85Explorer%3A+Eroge+no+Yuujin+Chara+ni+Tensei+Shita+Kedo+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr" length="969932800" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Dragon Ball Kai (S1) (2009-2011) BDRip 1080p H.265 Ukr/Jap | Sub Ukr (S1E01-50 of 97)</title>
+      <guid>https://toloka.to/t691931</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t691931</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>48951889756</size>
+      <grabs>0</grabs>
+      <description>Яйця Дракона Кай (Сезон 1, серії 01-50 з 97) / Dragon Ball Kai (Season 1) (2009-2011) BDRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dragon+Ball+Kai+(S1)+(2009-2011)+BDRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E01-50+of+97)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Dragon+Ball+Kai+(S1)+(2009-2011)+BDRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E01-50+of+97)" length="48951889756" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Doumo, Suki na Hito ni Horegusuri wo Irai sareta Majo desu (S1) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr (S1E1 of 12)</title>
+      <guid>https://toloka.to/t700837</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700837</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>248512512</size>
+      <grabs>0</grabs>
+      <description>Любовне зілля для коханого (Сезон 1, серії 1 з 12) / Doumo, Suki na Hito ni Horegusuri wo Irai sareta Majo desu (Season 1) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Doumo%2C+Suki+na+Hito+ni+Horegusuri+wo+Irai+sareta+Majo+desu+(S1)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Doumo%2C+Suki+na+Hito+ni+Horegusuri+wo+Irai+sareta+Majo+desu+(S1)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1+of+12)" length="248512512" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Spaced (S1) (1999) WEB-DL 1080p Eng | sub Ukr (S1E1-2 of 7)</title>
+      <guid>https://toloka.to/t700654</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700654</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1138166333</size>
+      <grabs>0</grabs>
+      <description>Довбануті (Сезон 1, серії 1-2 з 7) / Spaced (Season 1) (1999) WEB-DL 1080p Eng | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spaced+(S1)+(1999)+WEB-DL+1080p+Eng+%7C+sub+Ukr+(S1E1-2+of+7)</link>
+      <category>5000</category>
+      <category>100192</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Spaced+(S1)+(1999)+WEB-DL+1080p+Eng+%7C+sub+Ukr+(S1E1-2+of+7)" length="1138166333" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5000" />
+      <torznab:attr name="category" value="100192" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ao no Hako (S1-2) (2024-2026) WEB-DL 1080p H.265 (S1E01-02 of XX)</title>
+      <guid>https://toloka.to/t681968</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t681968</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>8020851425</size>
+      <grabs>0</grabs>
+      <description>Блакитна коробка (Сезон 1, Сезон 2: серії 01-02 з хх) / Ao no Hako (Season 1,2) (2024-2026) WEB-DL 1080p H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ao+no+Hako+(S1-2)+(2024-2026)+WEB-DL+1080p+H.265+(S1E01-02+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ao+no+Hako+(S1-2)+(2024-2026)+WEB-DL+1080p+H.265+(S1E01-02+of+XX)" length="8020851425" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Librarians: The Next Chapter (S1) (2025) BDRemux 1080p Ukr/Eng | sub Eng (S1)</title>
+      <guid>https://toloka.to/t700829</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700829</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>59184649338</size>
+      <grabs>0</grabs>
+      <description>Бібліотекарі: Наступний Розділ (Сезон 1) / The Librarians: The Next Chapter (Season 1) (2025) BDRemux 1080p Ukr/Eng | sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Librarians%3A+The+Next+Chapter+(S1)+(2025)+BDRemux+1080p+Ukr%2FEng+%7C+sub+Eng+(S1)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Librarians%3A+The+Next+Chapter+(S1)+(2025)+BDRemux+1080p+Ukr%2FEng+%7C+sub+Eng+(S1)" length="59184649338" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1/2 (S3E1 of XX) / Ranma 1/2 (S3) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr</title>
+      <guid>https://toloka.to/t700828</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700828</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>439353344</size>
+      <grabs>0</grabs>
+      <description>Рамма (Ранма) 1/2 (Сезон 3, серії 1 з хх) / Ranma 1/2 (Season 3) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1%2F2+(S3E1+of+XX)+%2F+Ranma+1%2F2+(S3)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1%2F2+(S3E1+of+XX)+%2F+Ranma+1%2F2+(S3)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr" length="439353344" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kikansha no Mahou wa Tokubetsu desu (S2) (2026) WEBRip 1080p Ukr/Jap | Sub Ukr (S2E1 of 12)</title>
+      <guid>https://toloka.to/t700827</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700827</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>443547648</size>
+      <grabs>0</grabs>
+      <description>Маг, що повернувся, — особливий (Сезон 2, серії 1 з 12) / Kikansha no Mahou wa Tokubetsu desu (Season 2) (2026) WEBRip 1080p Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kikansha+no+Mahou+wa+Tokubetsu+desu+(S2)+(2026)+WEBRip+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S2E1+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kikansha+no+Mahou+wa+Tokubetsu+desu+(S2)+(2026)+WEBRip+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S2E1+of+12)" length="443547648" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="10" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tiger &amp; Bunny (S1) (2011) BDRip 1080p H.265 (S1E01-23 of 25)</title>
+      <guid>https://toloka.to/t691929</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t691929</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>13271448944</size>
+      <grabs>0</grabs>
+      <description>Тигр та Кролик (Сезон 1, серії 01-23 з 25) / Tiger &amp; Bunny (Season 1) (2011) BDRip 1080p H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tiger+%26+Bunny+(S1)+(2011)+BDRip+1080p+H.265+(S1E01-23+of+25)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tiger+%26+Bunny+(S1)+(2011)+BDRip+1080p+H.265+(S1E01-23+of+25)" length="13271448944" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ao no Hako (S2) (2026) WEB-DL H.265 1080p Ukr/Jap | Sub Ukr (S2)</title>
+      <guid>https://toloka.to/t700760</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700760</comments>
+      <pubDate>Sun, 11 Oct 2026 00:00:00 +0300</pubDate>
+      <size>529530880</size>
+      <grabs>0</grabs>
+      <description>Блакитна коробка (Сезон 2) | Ao no Hako (Season 2) (2026) WEBDLRip H.265 1080p Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ao+no+Hako+(S2)+(2026)+WEB-DL+H.265+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ao+no+Hako+(S2)+(2026)+WEB-DL+H.265+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S2)" length="529530880" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Hotaru no Yomeiri (S1) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr (S1E1 of 12)</title>
+      <guid>https://toloka.to/t700820</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700820</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>364904448</size>
+      <grabs>0</grabs>
+      <description>Весілля світлячків (Сезон 1, серії 1 з 12) / Hotaru no Yomeiri (Season 1) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Hotaru+no+Yomeiri+(S1)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Hotaru+no+Yomeiri+(S1)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1E1+of+12)" length="364904448" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Gentlemen (S2) (2026) WEB-DL 4K 2160p HDR10 DV8 H.265 Ukr/Eng | Sub Ukr/Eng (S2)</title>
+      <guid>https://toloka.to/t700033</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700033</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>67602785239</size>
+      <grabs>0</grabs>
+      <description>Джентльмени (Сезон 2) / The Gentlemen (Season 2) (2026) WEB-DL 4K 2160p HDR10 DV8 H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Gentlemen+(S2)+(2026)+WEB-DL+4K+2160p+HDR10+DV8+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S2)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Gentlemen+(S2)+(2026)+WEB-DL+4K+2160p+HDR10+DV8+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S2)" length="67602785239" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="48" />
+      <torznab:attr name="peers" value="52" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Turning Point: Generation 9/11 (2026) WEB-DL 4K 2160p H.265 HDR Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700386</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700386</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7709466296</size>
+      <grabs>0</grabs>
+      <description>Поворотний момент: Покоління 9/11 / Turning Point: Generation 9/11 (2026) WEB-DL 4K 2160p H.265 HDR Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Turning+Point%3A+Generation+9%2F11+(2026)+WEB-DL+4K+2160p+H.265+HDR+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>5080</category>
+      <category>100140</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Turning+Point%3A+Generation+9%2F11+(2026)+WEB-DL+4K+2160p+H.265+HDR+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="7709466296" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5080" />
+      <torznab:attr name="category" value="100140" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Wire (S1-5) (2002-2008) BDRip 720p H.265 10bit Ukr/Eng | Sub Ukr/Eng (S1-5)</title>
+      <guid>https://toloka.to/t698414</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698414</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>81067507712</size>
+      <grabs>0</grabs>
+      <description>Прослуховування (Сезон 1-5) / The Wire (Season 1-5) (2002–2008) BDRip 720p H.265 10bit Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Wire+(S1-5)+(2002-2008)+BDRip+720p+H.265+10bit+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S1-5)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Wire+(S1-5)+(2002-2008)+BDRip+720p+H.265+10bit+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S1-5)" length="81067507712" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ôkami Kodomo no Ame to Yuki (2012) BDRip 1080p 3xUkr/Jap | Sub 3xUkr/Eng/Jap</title>
+      <guid>https://toloka.to/t700819</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700819</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>12401718067</size>
+      <grabs>0</grabs>
+      <description>Вовченята Аме та Юкі / Ôkami Kodomo no Ame to Yuki (2012) BDRip 1080p 3xUkr/Jap | Sub 3xUkr/Eng/Jap</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C3%94kami+Kodomo+no+Ame+to+Yuki+(2012)+BDRip+1080p+3xUkr%2FJap+%7C+Sub+3xUkr%2FEng%2FJap</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C3%94kami+Kodomo+no+Ame+to+Yuki+(2012)+BDRip+1080p+3xUkr%2FJap+%7C+Sub+3xUkr%2FEng%2FJap" length="12401718067" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Youjo Senki (S2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S2)</title>
+      <guid>https://toloka.to/t700815</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700815</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4402341478</size>
+      <grabs>0</grabs>
+      <description>Військова історія маленької дівчинки (Сезон 2) / Youjo Senki (Season 2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Youjo+Senki+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Youjo+Senki+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)" length="4402341478" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Avatar: Seven Havens (S1) (2026) WEB-DL 1080p Ukr/Eng | Sub Eng (S1E1-3)</title>
+      <guid>https://toloka.to/t700814</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700814</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2695091978</size>
+      <grabs>0</grabs>
+      <description>Аватар: Сім гаваней (Сезон 1, Епізоди 1-3) / Avatar: Seven Havens (Season 1) (2026) WEB-DL 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Avatar%3A+Seven+Havens+(S1)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng+(S1E1-3)</link>
+      <category>5040</category>
+      <category>100174</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Avatar%3A+Seven+Havens+(S1)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng+(S1E1-3)" length="2695091978" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100174" />
+      <torznab:attr name="seeders" value="21" />
+      <torznab:attr name="peers" value="22" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Nijusseiki Denki Mokuroku: Eureka Evrika (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <guid>https://toloka.to/t700813</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700813</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>6195490324</size>
+      <grabs>0</grabs>
+      <description>Каталог електрики ХХ століття: Еврика, еурика (Сезон 1) / Nijusseiki Denki Mokuroku: Eureka Evrika (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Nijusseiki+Denki+Mokuroku%3A+Eureka+Evrika+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Nijusseiki+Denki+Mokuroku%3A+Eureka+Evrika+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="6195490324" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="6" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Snowfall (S3) (2018) WEB-DL 1080p Eng | sub Ukr/Eng (S3)</title>
+      <guid>https://toloka.to/t699496</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699496</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>15171971973</size>
+      <grabs>0</grabs>
+      <description>Снігопад (Сезон 3) / Snowfall (Season 3) (2018) WEB-DL 1080p Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Snowfall+(S3)+(2018)+WEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng+(S3)</link>
+      <category>5000</category>
+      <category>100192</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Snowfall+(S3)+(2018)+WEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng+(S3)" length="15171971973" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5000" />
+      <torznab:attr name="category" value="100192" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 17 | - | | Setanta Sports+ HD (10.10.2026) WEB-DL 720p Ukr</title>
+      <guid>https://toloka.to/t700812</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700812</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2093796556</size>
+      <grabs>0</grabs>
+      <description>Формула-1 | Сезон 2026 | Етап 17 | Гран-Прі Сингапуру | Кваліфікація | Setanta Sports+ HD (10.10.2026) WEB-DL 720p Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+Setanta+Sports%2B+HD+(10.10.2026)+WEB-DL+720p+Ukr</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+Setanta+Sports%2B+HD+(10.10.2026)+WEB-DL+720p+Ukr" length="2093796556" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="21" />
+      <torznab:attr name="peers" value="21" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>« »: (S7E2-3) / JoJo no Kimyou na Bouken: Steel Ball Run (S7E2-3) (2026) WEB-DL 1080p Ukr/Jap | sub Ukr/Jap</title>
+      <guid>https://toloka.to/t700483</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700483</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2823940997</size>
+      <grabs>0</grabs>
+      <description>Перегони «Сталева куля»: Химерні пригоди ДжоДжо (Сезон 7, серія 2-3) / JoJo no Kimyou na Bouken: Steel Ball Run (Season 7, episode 2-3) (2026) WEB-DL 1080p Ukr/Jap | sub Ukr/Jap</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C2%AB+%C2%BB%3A+(S7E2-3)+%2F+JoJo+no+Kimyou+na+Bouken%3A+Steel+Ball+Run+(S7E2-3)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+sub+Ukr%2FJap</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%C2%AB+%C2%BB%3A+(S7E2-3)+%2F+JoJo+no+Kimyou+na+Bouken%3A+Steel+Ball+Run+(S7E2-3)+(2026)+WEB-DL+1080p+Ukr%2FJap+%7C+sub+Ukr%2FJap" length="2823940997" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>One Tree Hill (S3) (2005-2006) WEB-DL 1080p Ukr/Eng | Sub Eng (S3)</title>
+      <guid>https://toloka.to/t700811</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700811</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>41521596334</size>
+      <grabs>0</grabs>
+      <description>Пагорб одного дерева / Школа виживання (Сезон 3) / One Tree Hill (Season 3) (2005-2006) WEB-DL 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Tree+Hill+(S3)+(2005-2006)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng+(S3)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=One+Tree+Hill+(S3)+(2005-2006)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng+(S3)" length="41521596334" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0.5" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>(S1E1) / Wild Isles (S1E1) (2023) WEB-DL 4K 2160p HDR (HLG) H.265 Ukr/Eng | Sub Ukr/Eng</title>
+      <guid>https://toloka.to/t700238</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700238</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>8181912698</size>
+      <grabs>0</grabs>
+      <description>[ЗБІР КОШТІВ] Дика природа Британських островів (Сезон 1, серія 1) / Wild Isles (Season 1, episode 1) (2023) WEB-DL 4K 2160p HDR (HLG) H.265 Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=(S1E1)+%2F+Wild+Isles+(S1E1)+(2023)+WEB-DL+4K+2160p+HDR+(HLG)+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng</link>
+      <category>5080</category>
+      <category>100140</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=(S1E1)+%2F+Wild+Isles+(S1E1)+(2023)+WEB-DL+4K+2160p+HDR+(HLG)+H.265+Ukr%2FEng+%7C+Sub+Ukr%2FEng" length="8181912698" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5080" />
+      <torznab:attr name="category" value="100140" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kusuriya no Hitorigoto (S3) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S3E02 of 12)</title>
+      <guid>https://toloka.to/t700614</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700614</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>668991488</size>
+      <grabs>0</grabs>
+      <description>Монолог травниці (Сезон 3, серії 02 з 12) / Kusuriya no Hitorigoto (Season 3) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S3E02+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S3E02+of+12)" length="668991488" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 17 | - | | Setanta Sports+ HD (10.10.2026) IPTVRip 720p Ukr/int</title>
+      <guid>https://toloka.to/t700809</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700809</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2383706849</size>
+      <grabs>0</grabs>
+      <description>Формула-1 | Сезон 2026 | Етап 17 | Гран-Прі Сингапуру | Спринт | Setanta Sports+ HD (10.10.2026) IPTVRip 720p Ukr/int</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+Setanta+Sports%2B+HD+(10.10.2026)+IPTVRip+720p+Ukr%2Fint</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+%7C+Setanta+Sports%2B+HD+(10.10.2026)+IPTVRip+720p+Ukr%2Fint" length="2383706849" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="20" />
+      <torznab:attr name="peers" value="20" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Seihantai na Kimi to Boku (S2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S2)</title>
+      <guid>https://toloka.to/t699947</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699947</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4048006676</size>
+      <grabs>0</grabs>
+      <description>Ми з тобою повні протилежності (Сезон 2) / Seihantai na Kimi to Boku (Season 2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Seihantai+na+Kimi+to+Boku+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Seihantai+na+Kimi+to+Boku+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)" length="4048006676" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Migawari Reijou wo Sukutta no wa Reikoku Mujihi (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <guid>https://toloka.to/t700807</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700807</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1546188226</size>
+      <grabs>0</grabs>
+      <description>Панночку-двійницю врятувала любов холодного (Сезон 1) / Migawari Reijou wo Sukutta no wa Reikoku Mujihi (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Migawari+Reijou+wo+Sukutta+no+wa+Reikoku+Mujihi+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Migawari+Reijou+wo+Sukutta+no+wa+Reikoku+Mujihi+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="1546188226" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Fushigi Yuugi (1995-1996) DVDRip H.265 1080p Ukr/Jap | Sub Ukr</title>
+      <guid>https://toloka.to/t673258</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t673258</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>35261681500</size>
+      <grabs>0</grabs>
+      <description>Таємнича гра (01-41 з 52) / Fushigi Yuugi (1995-1996) DVDRip H.265 1080p Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fushigi+Yuugi+(1995-1996)+DVDRip+H.265+1080p+Ukr%2FJap+%7C+Sub+Ukr</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Fushigi+Yuugi+(1995-1996)+DVDRip+H.265+1080p+Ukr%2FJap+%7C+Sub+Ukr" length="35261681500" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Californication (S7E1-4) (2014) BDRip 1080p Ukr/Eng | Sub Ukr/Eng/Fre (S7E1-4)</title>
+      <guid>https://toloka.to/t672661</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t672661</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>9738838343</size>
+      <grabs>0</grabs>
+      <description>Секс і Каліфорнія / Хтива Каліфорнія (Сезон 7, Серія 1-4) / Californication (Season 7, Episode 1-4) (2014) BDRip 1080p Ukr/Eng | Sub Ukr/Eng/Fre</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Californication+(S7E1-4)+(2014)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng%2FFre+(S7E1-4)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Californication+(S7E1-4)+(2014)+BDRip+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng%2FFre+(S7E1-4)" length="9738838343" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Candy Candy (E01-41 of 115) (1976-1979) DVDRip 720p</title>
+      <guid>https://toloka.to/t669770</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t669770</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>23139136307</size>
+      <grabs>0</grabs>
+      <description>Кенді Кенді / Candy Candy (серії 01-41 з 115) (1976-1979) DVDRip 720p</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Candy+Candy+(E01-41+of+115)+(1976-1979)+DVDRip+720p</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Candy+Candy+(E01-41+of+115)+(1976-1979)+DVDRip+720p" length="23139136307" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Californication (S3) (2009) BDRemux 1080p Ukr/Eng | Sub Ukr/Eng (S3)</title>
+      <guid>https://toloka.to/t700799</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700799</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>74796855459</size>
+      <grabs>0</grabs>
+      <description>Секс і Каліфорнія (Сезон 3) / Californication (Season 3) (2009) BDRemux 1080p Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Californication+(S3)+(2009)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S3)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Californication+(S3)+(2009)+BDRemux+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S3)" length="74796855459" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="0" />
+      <torznab:attr name="peers" value="0" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Hotaru no Yomeiri (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (C 01 12)</title>
+      <guid>https://toloka.to/t700796</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700796</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>422576128</size>
+      <grabs>0</grabs>
+      <description>Весілля світлячків (Cерії 01 з 12) / Hotaru no Yomeiri (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Hotaru+no+Yomeiri+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(C+01+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Hotaru+no+Yomeiri+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(C+01+12)" length="422576128" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="10" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Nige Jouzu no Wakagimi (S2) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr (S2)</title>
+      <guid>https://toloka.to/t699065</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699065</comments>
+      <pubDate>Sat, 10 Oct 2026 00:00:00 +0300</pubDate>
+      <size>7945689497</size>
+      <grabs>0</grabs>
+      <description>Невловимий самурай (Сезон 2) / Nige Jouzu no Wakagimi (Season 2) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Nige+Jouzu+no+Wakagimi+(S2)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Nige+Jouzu+no+Wakagimi+(S2)+(2026)+WEBRip+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S2)" length="7945689497" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="12" />
+      <torznab:attr name="peers" value="12" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kusuriya no Hitorigoto (S3) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S3E1-2 of 12)</title>
+      <guid>https://toloka.to/t700625</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700625</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>580911104</size>
+      <grabs>0</grabs>
+      <description>Монолог травниці (Сезон 3, серії 1-2 з 12) / Kusuriya no Hitorigoto (Season 3) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S3E1-2+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S3E1-2+of+12)" length="580911104" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="7" />
+      <torznab:attr name="peers" value="7" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Kusuriya no Hitorigoto (S3) (2026) WEB-DL 1080p (S3E1-2 of 12)</title>
+      <guid>https://toloka.to/t700626</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700626</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>593494016</size>
+      <grabs>0</grabs>
+      <description>Монолог травниці (Сезон 3, частина 1, серії 1-2 з 12) / Kusuriya no Hitorigoto (Season 3) (2026) WEB-DL 1080p</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEB-DL+1080p+(S3E1-2+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Kusuriya+no+Hitorigoto+(S3)+(2026)+WEB-DL+1080p+(S3E1-2+of+12)" length="593494016" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Chainsaw Man (S1) (2022) BDRip 1080p H.265 15xUkr/Jap | sub 4xUkr/Eng/Jap (S1)</title>
+      <guid>https://toloka.to/t669531</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t669531</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>19982335344</size>
+      <grabs>0</grabs>
+      <description>Людина-бензопила (Сезон 1) / Chainsaw Man (Season 1) (2022) BDRip 1080p H.265 15xUkr/Jap | sub 4xUkr/Eng/Jap</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Chainsaw+Man+(S1)+(2022)+BDRip+1080p+H.265+15xUkr%2FJap+%7C+sub+4xUkr%2FEng%2FJap+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Chainsaw+Man+(S1)+(2022)+BDRip+1080p+H.265+15xUkr%2FJap+%7C+sub+4xUkr%2FEng%2FJap+(S1)" length="19982335344" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tokyo Revengers (S4) (2026) WEB-DL 1080 (S4E1-2 of XX)</title>
+      <guid>https://toloka.to/t700627</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700627</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1148903751</size>
+      <grabs>0</grabs>
+      <description>Токійські месники (Сезон 4, серії 1-2 з ХХ) / Tokyo Revengers (Season 4) (2026) WEB-DL 1080р</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tokyo+Revengers+(S4)+(2026)+WEB-DL+1080+(S4E1-2+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tokyo+Revengers+(S4)+(2026)+WEB-DL+1080+(S4E1-2+of+XX)" length="1148903751" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Drop: A Snowfall Saga (2026) WEB-DL 1080p Eng | sub Ukr/Eng (S1E1 of 8)</title>
+      <guid>https://toloka.to/t700788</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700788</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2383706849</size>
+      <grabs>0</grabs>
+      <description>Дроп: Після Снігопаду (Сезон 1, серії 1 з 8) / The Drop: A Snowfall Saga (2026) WEB-DL 1080p Eng | sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Drop%3A+A+Snowfall+Saga+(2026)+WEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng+(S1E1+of+8)</link>
+      <category>5000</category>
+      <category>100192</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Drop%3A+A+Snowfall+Saga+(2026)+WEB-DL+1080p+Eng+%7C+sub+Ukr%2FEng+(S1E1+of+8)" length="2383706849" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5000" />
+      <torznab:attr name="category" value="100192" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="3" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>RJ Decker (S2) (2026) WEB-DL 1080p Ukr/Eng | Sub Eng (S2E1-4)</title>
+      <guid>https://toloka.to/t700659</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700659</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>11199127224</size>
+      <grabs>0</grabs>
+      <description>Ар-Джей Декер / Декер / Р. Джей Декер (Сезон 2, серії 1-4) / RJ Decker (Season 2) (2026) WEB-DL 1080p Ukr/Eng | Sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=RJ+Decker+(S2)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng+(S2E1-4)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=RJ+Decker+(S2)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Eng+(S2E1-4)" length="11199127224" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="16" />
+      <torznab:attr name="peers" value="17" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ted Lasso (S4) (2026) WEB-DL 1080p 2xUkr/Eng | Sub Ukr/Eng (S4)</title>
+      <guid>https://toloka.to/t699555</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699555</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>39771397160</size>
+      <grabs>0</grabs>
+      <description>Тед Лассо (Сезон 4) / Ted Lasso (Season 4) (2026) WEB-DL 1080p 2xUkr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ted+Lasso+(S4)+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+(S4)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ted+Lasso+(S4)+(2026)+WEB-DL+1080p+2xUkr%2FEng+%7C+Sub+Ukr%2FEng+(S4)" length="39771397160" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="114" />
+      <torznab:attr name="peers" value="162" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>The Ribbon Hero (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</title>
+      <guid>https://toloka.to/t699519</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699519</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2609192632</size>
+      <grabs>0</grabs>
+      <description>Героїня зі стрічкою / The Ribbon Hero (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Ribbon+Hero+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=The+Ribbon+Hero+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr" length="2609192632" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>1 | S2026 | 17 | - | - | Setanta Sports+ HD (09.10.2026) WEB-DL 720p Ukr</title>
+      <guid>https://toloka.to/t700781</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700781</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2233382993</size>
+      <grabs>0</grabs>
+      <description>Формула-1 | Сезон 2026 | Етап 17 | Гран-Прі Сингапуру | Спринт-кваліфікація | Setanta Sports+ HD (09.10.2026) WEB-DL 720p Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+-+%7C+Setanta+Sports%2B+HD+(09.10.2026)+WEB-DL+720p+Ukr</link>
+      <category>5060</category>
+      <category>100160</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=1+%7C+S2026+%7C+17+%7C+-+%7C+-+%7C+Setanta+Sports%2B+HD+(09.10.2026)+WEB-DL+720p+Ukr" length="2233382993" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5060" />
+      <torznab:attr name="category" value="100160" />
+      <torznab:attr name="seeders" value="16" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Sasaki to Pii-chan (S1-2) (2024-2026) WEB-DL 1080p Ukr/Jap | Sub Ukr (S1E01 of 12)</title>
+      <guid>https://toloka.to/t700780</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700780</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4767413698</size>
+      <grabs>0</grabs>
+      <description>Сасакі та Пі (Сезон 1, Сезон 2; серії 01 з 12) / Sasaki to Pii-chan (Season 1,2) (2024-2026) WEB-DL 1080p Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Sasaki+to+Pii-chan+(S1-2)+(2024-2026)+WEB-DL+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1E01+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Sasaki+to+Pii-chan+(S1-2)+(2024-2026)+WEB-DL+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1E01+of+12)" length="4767413698" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="3" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Onaji Zemi no Someya-san ga Sexy Joyuu datta Hanashi (S1) (2026) WEBRip 1080p Ukr/Jap | Sub Ukr (S1)</title>
+      <guid>https://toloka.to/t700777</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700777</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1975684956</size>
+      <grabs>0</grabs>
+      <description>Моя однокурсниця — акторка пікантного кіно (Сезон 1) / Onaji Zemi no Someya-san ga Sexy Joyuu datta Hanashi (Season 1) (2026) WEBRip 1080p Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onaji+Zemi+no+Someya-san+ga+Sexy+Joyuu+datta+Hanashi+(S1)+(2026)+WEBRip+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Onaji+Zemi+no+Someya-san+ga+Sexy+Joyuu+datta+Hanashi+(S1)+(2026)+WEBRip+1080p+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="1975684956" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="10" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>' (S2) / Kabushikigaisha Magi-Lumière (S2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</title>
+      <guid>https://toloka.to/t699855</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699855</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4209067950</size>
+      <grabs>0</grabs>
+      <description>Акціонерне товариство Магілюм'єр (Сезон 2) / Kabushikigaisha Magi-Lumière (Season 2) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%27+(S2)+%2F+Kabushikigaisha+Magi-Lumi%C3%A8re+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=%27+(S2)+%2F+Kabushikigaisha+Magi-Lumi%C3%A8re+(S2)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr" length="4209067950" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="4" />
+      <torznab:attr name="peers" value="4" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ushiro no Shoumen Kamui-san (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <guid>https://toloka.to/t698698</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698698</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2748779069</size>
+      <grabs>0</grabs>
+      <description>Камуї, стоїть позаду (Сезон 1) / Ushiro no Shoumen Kamui-san (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ushiro+no+Shoumen+Kamui-san+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ushiro+no+Shoumen+Kamui-san+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="2748779069" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="15" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Reiwa no Dara-san (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <guid>https://toloka.to/t699103</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699103</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4670776934</size>
+      <grabs>0</grabs>
+      <description>Пані Дара з епохи Рейва (Сезон 1) / Reiwa no Dara-san (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Reiwa+no+Dara-san+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Reiwa+no+Dara-san+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="4670776934" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="10" />
+      <torznab:attr name="peers" value="11" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai (S1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr (S1)</title>
+      <guid>https://toloka.to/t698672</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t698672</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>4756676280</size>
+      <grabs>0</grabs>
+      <description>Дякую за гру: Панночки в файтинги не грають (Сезон 1) / Tai-Ari deshita. Ojousama wa Kakutou Game nante Shinai (Season 1) (2026) WEBRip Ai Rem 1080p H.265 Ukr/Jap | Sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tai-Ari+deshita.+Ojousama+wa+Kakutou+Game+nante+Shinai+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tai-Ari+deshita.+Ojousama+wa+Kakutou+Game+nante+Shinai+(S1)+(2026)+WEBRip+Ai+Rem+1080p+H.265+Ukr%2FJap+%7C+Sub+Ukr+(S1)" length="4756676280" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="8" />
+      <torznab:attr name="peers" value="8" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ao no Hako (S2) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S2E01 of 12)</title>
+      <guid>https://toloka.to/t700756</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700756</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>412090368</size>
+      <grabs>0</grabs>
+      <description>Блакитна коробка (Сезон 2, серії 01 з 12) / Ao no Hako (Season 2) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ao+no+Hako+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E01+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ao+no+Hako+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E01+of+12)" length="412090368" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>President Curtis (S1) (2026) WEB-DL 1080p 4xUkr/Eng | sub Eng (S1)</title>
+      <guid>https://toloka.to/t699498</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t699498</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>8933531975</size>
+      <grabs>0</grabs>
+      <description>Президент Кертіс (Сезон 1) / President Curtis (Season 1) (2026) WEB-DL 1080p 4xUkr/Eng | sub Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=President+Curtis+(S1)+(2026)+WEB-DL+1080p+4xUkr%2FEng+%7C+sub+Eng+(S1)</link>
+      <category>5040</category>
+      <category>100174</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=President+Curtis+(S1)+(2026)+WEB-DL+1080p+4xUkr%2FEng+%7C+sub+Eng+(S1)" length="8933531975" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100174" />
+      <torznab:attr name="seeders" value="15" />
+      <torznab:attr name="peers" value="19" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="0" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tensei shitara Ken Deshita (S2) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S2E02 of XX)</title>
+      <guid>https://toloka.to/t700583</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700583</comments>
+      <pubDate>Fri, 09 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1095216660</size>
+      <grabs>0</grabs>
+      <description>Моє переродження в меч (Сезон 2, серії 02 з ХХ) / Tensei shitara Ken Deshita (Season 2) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tensei+shitara+Ken+Deshita+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E02+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tensei+shitara+Ken+Deshita+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E02+of+XX)" length="1095216660" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="11" />
+      <torznab:attr name="peers" value="16" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Psyren (E1 of 12) (2026) WEB-DL 1080 H.265</title>
+      <guid>https://toloka.to/t700767</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700767</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>482344960</size>
+      <grabs>0</grabs>
+      <description>Псайрен / Psyren (серія 1 з 12) (2026) WEB-DL 1080р H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Psyren+(E1+of+12)+(2026)+WEB-DL+1080+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Psyren+(E1+of+12)+(2026)+WEB-DL+1080+H.265" length="482344960" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Tensei Kizoku, Kantei Skill de Nariagaru (2026) WEB-DL 1080p H.265 (S3E1-2 of 12)</title>
+      <guid>https://toloka.to/t700558</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700558</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>621805568</size>
+      <grabs>0</grabs>
+      <description>Перероджений дворянином: Піднесення через навичку оцінки (сезон 3, серії 1-2 з 12) / Tensei Kizoku, Kantei Skill de Nariagaru (2026) WEBDL 1080p H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tensei+Kizoku%2C+Kantei+Skill+de+Nariagaru+(2026)+WEB-DL+1080p+H.265+(S3E1-2+of+12)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Tensei+Kizoku%2C+Kantei+Skill+de+Nariagaru+(2026)+WEB-DL+1080p+H.265+(S3E1-2+of+12)" length="621805568" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="9" />
+      <torznab:attr name="peers" value="9" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Neko to Ryuu (E1-6 of 12) (2026) WEB-DL 1080p H.265</title>
+      <guid>https://toloka.to/t700378</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700378</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1739461754</size>
+      <grabs>0</grabs>
+      <description>Котодракон / Neko to Ryuu (серії 1-6 з 12) (2026) WEBDL 1080p H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Neko+to+Ryuu+(E1-6+of+12)+(2026)+WEB-DL+1080p+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Neko+to+Ryuu+(E1-6+of+12)+(2026)+WEB-DL+1080p+H.265" length="1739461754" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Choujun! Choujo-senpai (E1 of 12) (2026) WEB-DL 1080 H.265</title>
+      <guid>https://toloka.to/t700766</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700766</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>359661568</size>
+      <grabs>0</grabs>
+      <description>Екстрасенс Чьоджьо-семпай / Choujun! Choujo-senpai (серія 1 з 12)  (2026) WEB-DL 1080р H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Choujun!+Choujo-senpai+(E1+of+12)+(2026)+WEB-DL+1080+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Choujun!+Choujo-senpai+(E1+of+12)+(2026)+WEB-DL+1080+H.265" length="359661568" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Senki Zesshou Symphogear (S1E1-8 of 13) (2012) WEB-DL 1080 H.265</title>
+      <guid>https://toloka.to/t700143</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700143</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>3274912563</size>
+      <grabs>0</grabs>
+      <description>Симфоґір / Senki Zesshou Symphogear (Сезон 1, серії 1-8 з 13) (2012) WEB-DL 1080р H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Senki+Zesshou+Symphogear+(S1E1-8+of+13)+(2012)+WEB-DL+1080+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Senki+Zesshou+Symphogear+(S1E1-8+of+13)+(2012)+WEB-DL+1080+H.265" length="3274912563" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="2" />
+      <torznab:attr name="peers" value="2" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>86 (E1-8 of 11) (2021) WEB-DL 1080 H.265</title>
+      <guid>https://toloka.to/t700086</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700086</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2770253905</size>
+      <grabs>0</grabs>
+      <description>Вісімдесят шість / 86 (серії 1-8 з 11) (2021) WEBDL 1080р H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=86+(E1-8+of+11)+(2021)+WEB-DL+1080+H.265</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=86+(E1-8+of+11)+(2021)+WEB-DL+1080+H.265" length="2770253905" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Muv-Luv Alternative Total Eclipse (2022) BDRip 1080p H.265 (E1-4 of 24)</title>
+      <guid>https://toloka.to/t700252</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700252</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>1385126952</size>
+      <grabs>0</grabs>
+      <description>Істинне кохання: Альтернатива. Повне затемнення (серії 1-4 з 24) / Muv-Luv Alternative Total Eclipse (2022) BDRip 1080p H.265</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Muv-Luv+Alternative+Total+Eclipse+(2022)+BDRip+1080p+H.265+(E1-4+of+24)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Muv-Luv+Alternative+Total+Eclipse+(2022)+BDRip+1080p+H.265+(E1-4+of+24)" length="1385126952" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Below (S1) (2026) WEB-DL 1080p Ukr/Eng | Sub Ukr/Eng (S1)</title>
+      <guid>https://toloka.to/t700764</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700764</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>11048803368</size>
+      <grabs>0</grabs>
+      <description>З глибини (Сезон 1) / Below (Season 1) (2026) WEB-DL 1080p Ukr/Eng | Sub Ukr/Eng</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Below+(S1)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S1)</link>
+      <category>5040</category>
+      <category>100173</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Below+(S1)+(2026)+WEB-DL+1080p+Ukr%2FEng+%7C+Sub+Ukr%2FEng+(S1)" length="11048803368" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5040" />
+      <torznab:attr name="category" value="100173" />
+      <torznab:attr name="seeders" value="103" />
+      <torznab:attr name="peers" value="119" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Ninja Sentai Kakuranger (S1E1-8 out of 53) (1994) DVDRip-AVC Jap | sub Ukr (S1E1-8 of 53)</title>
+      <guid>https://toloka.to/t700616</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700616</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>2201170739</size>
+      <grabs>0</grabs>
+      <description>Загін Нінджя Какурейнджер (Сезон 1. Серії 1-8 з 53) / Ninja Sentai Kakuranger (Season 1. Episodes 1-8 out of 53) (1994) DVDRip-AVC Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ninja+Sentai+Kakuranger+(S1E1-8+out+of+53)+(1994)+DVDRip-AVC+Jap+%7C+sub+Ukr+(S1E1-8+of+53)</link>
+      <category>5000</category>
+      <category>100192</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Ninja+Sentai+Kakuranger+(S1E1-8+out+of+53)+(1994)+DVDRip-AVC+Jap+%7C+sub+Ukr+(S1E1-8+of+53)" length="2201170739" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5000" />
+      <torznab:attr name="category" value="100192" />
+      <torznab:attr name="seeders" value="1" />
+      <torznab:attr name="peers" value="1" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+    <item>
+      <title>Black Clover (S2) (2026) WEB-DL 1080p H.265 Ukr/Jap | sub Ukr (S2E01 of XX)</title>
+      <guid>https://toloka.to/t700728</guid>
+      <jackettindexer id="toloka">Toloka.to</jackettindexer>
+      <type>semi-private</type>
+      <comments>https://toloka.to/t700728</comments>
+      <pubDate>Thu, 08 Oct 2026 00:00:00 +0300</pubDate>
+      <size>955252736</size>
+      <grabs>0</grabs>
+      <description>Чорна Конюшина (Сезон 2, серії 01 з ХХ) / Black Clover (Season 2) (2026) WEBDLRip 1080p H.265 Ukr/Jap | sub Ukr</description>
+      <link>http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Black+Clover+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E01+of+XX)</link>
+      <category>5070</category>
+      <category>100127</category>
+      <enclosure url="http://192.168.1.195:9117/dl/toloka/?jackett_apikey=REDACTED&amp;path=REDACTED&amp;file=Black+Clover+(S2)+(2026)+WEB-DL+1080p+H.265+Ukr%2FJap+%7C+sub+Ukr+(S2E01+of+XX)" length="955252736" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="5070" />
+      <torznab:attr name="category" value="100127" />
+      <torznab:attr name="seeders" value="5" />
+      <torznab:attr name="peers" value="5" />
+      <torznab:attr name="minimumratio" value="1" />
+      <torznab:attr name="minimumseedtime" value="0" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
+    </item>
+  </channel>
+</rss>

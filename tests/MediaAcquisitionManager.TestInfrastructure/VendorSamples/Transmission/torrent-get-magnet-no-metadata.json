@@ -1,0 +1,31 @@
+{
+  "arguments": {
+    "torrents": [
+      {
+        "addedDate": 1791903940,
+        "doneDate": 0,
+        "downloadDir": "/scratch",
+        "error": 0,
+        "errorString": "",
+        "fileStats": [],
+        "files": [],
+        "hashString": "d1d1735ea40e68f43caa49ee04a0db5901651e6a",
+        "id": 2,
+        "isFinished": false,
+        "isStalled": false,
+        "labels": [
+          "MAM29 Samples"
+        ],
+        "leftUntilDone": 0,
+        "metadataPercentComplete": 0.0,
+        "name": "mam29-no-metadata",
+        "percentDone": 0.0,
+        "sizeWhenDone": 0,
+        "status": 4,
+        "totalSize": 0
+      }
+    ]
+  },
+  "result": "success",
+  "tag": 18
+}

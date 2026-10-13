@@ -1,0 +1,63 @@
+{
+  "arguments": {
+    "torrents": [
+      {
+        "addedDate": 1791904497,
+        "doneDate": 0,
+        "downloadDir": "/scratch",
+        "error": 0,
+        "errorString": "",
+        "fileStats": [
+          {
+            "bytesCompleted": 0,
+            "priority": 0,
+            "wanted": true
+          },
+          {
+            "bytesCompleted": 0,
+            "priority": 0,
+            "wanted": true
+          },
+          {
+            "bytesCompleted": 0,
+            "priority": 0,
+            "wanted": true
+          }
+        ],
+        "files": [
+          {
+            "bytesCompleted": 0,
+            "length": 140,
+            "name": "Big Buck Bunny/Big Buck Bunny.en.srt"
+          },
+          {
+            "bytesCompleted": 0,
+            "length": 276134947,
+            "name": "Big Buck Bunny/Big Buck Bunny.mp4"
+          },
+          {
+            "bytesCompleted": 0,
+            "length": 310380,
+            "name": "Big Buck Bunny/poster.jpg"
+          }
+        ],
+        "hashString": "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c",
+        "id": 1,
+        "isFinished": false,
+        "isStalled": true,
+        "labels": [
+          "MAM29 Samples"
+        ],
+        "leftUntilDone": 276445467,
+        "metadataPercentComplete": 1,
+        "name": "Big Buck Bunny",
+        "percentDone": 0,
+        "sizeWhenDone": 276445467,
+        "status": 2,
+        "totalSize": 276445467
+      }
+    ]
+  },
+  "result": "success",
+  "tag": 7
+}

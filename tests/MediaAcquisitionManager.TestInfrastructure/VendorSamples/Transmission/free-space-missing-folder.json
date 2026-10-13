@@ -1,0 +1,9 @@
+{
+  "arguments": {
+    "path": "/scratch/mam29-missing-folder",
+    "size-bytes": -1,
+    "totalSize": -1
+  },
+  "result": "No such file or directory",
+  "tag": 6
+}

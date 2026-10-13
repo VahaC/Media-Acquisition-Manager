@@ -3211,8 +3211,10 @@ MAM-38 and MAM-42 to MAM-44) and Phase C (MAM-23 to MAM-28 and MAM-39 to MAM-41)
    and sort the Jobs page by what waits for the user, with a job's details under its row and Restore
    and Delete for good on it (built, 0.3.0, MAM-41, going out with it).
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different
-   capabilities without rewriting the core replacement workflow. Add other media servers when
-   needed.
+   capabilities without rewriting the core replacement workflow: Transmission 4.0 or newer instead
+   of qBittorrent, its destinations the library folders it can reach, and Jackett instead of
+   Prowlarr through the same Torznab adapter (decided by MAM-29 on 2026-10-13; tickets MAM-29 to
+   MAM-31, release 0.4.0). Add other media servers when needed.
 
 ## Project documentation
 
