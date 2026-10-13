@@ -82,9 +82,34 @@ describe('UnreportedFilesDialog', () => {
     expect(iso.getByText(isoError).closest('p')).toHaveClass('library-file-problem')
     const dune = within(await rowOf('Dune (2021) sample.mkv'))
     expect(dune.getByText('/media/movies/Dune (2021)')).toBeInTheDocument()
-    expect(dune.getByText(/^In Фільми's folders, but Фільми didn't list it: a library skips samples, trailers and extras/)).toBeInTheDocument()
+    expect(dune.getByText('In Фільми\'s folders, but Фільми didn\'t list it: a library lists a file added after its last scan only after the next one.')).toBeInTheDocument()
     expect(dune.getByText('1:00')).toBeInTheDocument()
     expect(libraryApi.unreportedFiles).toHaveBeenCalledExactlyOnceWith({ view: undefined, page: 1, pageSize: 25 })
+  })
+
+  it('says which extras folder or extra\'s name made the library skip a file (MAM-43)', async () => {
+    // Arrange
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue(listOf([
+      fileOf({
+        id: 'f0000000-0000-4000-8000-000000000003',
+        appPath: '/media/cartoons/Toy Story. Collection (1995-2022)/Shorts/[01] Hawaiian Vacation (2011).mkv',
+        place: { kind: 'ExtrasFolder', libraryName: 'Мульфільми', extraName: 'Shorts' },
+      }),
+      fileOf({
+        id: 'f0000000-0000-4000-8000-000000000004',
+        appPath: '/media/movies/Dune (2021)/Dune (2021)-trailer.mkv',
+        place: { kind: 'ExtraName', libraryName: 'Фільми', extraName: '-trailer' },
+      }),
+    ]))
+
+    // Act
+    renderDialog(member)
+
+    // Assert
+    const short = within(await rowOf('[01] Hawaiian Vacation (2011).mkv'))
+    expect(short.getByText('In a folder named “Shorts” in Мульфільми\'s folders: Мульфільми takes the videos in a folder so named for a film\'s extras, not for films of their own.')).toBeInTheDocument()
+    const trailer = within(await rowOf('Dune (2021)-trailer.mkv'))
+    expect(trailer.getByText('Named as an extra (“-trailer”) in Фільми\'s folders: Фільми takes a video so named for a film\'s extra, not for a film of its own.')).toBeInTheDocument()
   })
 
   it('says the libraries\' folders aren\'t known yet, and that a file wasn\'t looked at yet', async () => {

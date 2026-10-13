@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Downloads;
@@ -263,6 +264,33 @@ internal sealed class LocalFileInventory(IMediaProbeProcess probe) : IFileInvent
     public IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(
         IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default) =>
         FolderWalker.WalkAsync(UsableRoots(allowedRoots), Reader, MaximumListedFolders, MaximumListedEntries, cancellationToken);
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The folder is located as a file is for a look (<see cref="Locate"/>), so a folder that is a link leading out of
+    /// the roots is refused before anything is listed; the walk then takes the folder for its only root, so a link in it
+    /// leading anywhere else is refused too.
+    /// </remarks>
+    public async IAsyncEnumerable<FileListingEntry> ListMediaFilesUnderAsync(
+        string appFolder, IReadOnlyList<string> allowedRoots, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var located = Locate(appFolder, allowedRoots);
+        var parsed = NormalizedPath.TryParse(appFolder, out var folder, out _);
+        if (located.Value is null || folder is null)
+        {
+            // In canonical form where it parses, as every path a walk gives.
+            yield return new FileListingEntry(
+                located.Status == FileInventoryStatus.OutsideAllowedRoots ? FileListingStatus.Skipped : FileListingStatus.Unlisted,
+                parsed ? folder!.ToString() : appFolder,
+                null,
+                located.Error);
+            yield break;
+        }
+
+        await foreach (var entry in FolderWalker.WalkAsync([folder], Reader, MaximumListedFolders, MaximumListedEntries, cancellationToken))
+            yield return entry;
+    }
 
     /// <inheritdoc/>
     /// <remarks>

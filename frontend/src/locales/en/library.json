@@ -358,8 +358,10 @@
     "refreshFailed": "Could not refresh the files in no library.",
     "place": {
       "NoLibraryFolder": "No library's folders hold it, so no library looks for it there.",
-      "LibraryFolder": "In {{library}}'s folders, but {{library}} didn't list it: a library skips samples, trailers and extras by their names, and lists a file added after its last scan only after the next one.",
-      "FoldersUnknown": "The app doesn't know the libraries' folders yet. Sync a library first."
+      "LibraryFolder": "In {{library}}'s folders, but {{library}} didn't list it: a library lists a file added after its last scan only after the next one.",
+      "FoldersUnknown": "The app doesn't know the libraries' folders yet. Sync a library first.",
+      "ExtrasFolder": "In a folder named “{{name}}” in {{library}}'s folders: {{library}} takes the videos in a folder so named for a film's extras, not for films of their own.",
+      "ExtraName": "Named as an extra (“{{name}}”) in {{library}}'s folders: {{library}} takes a video so named for a film's extra, not for a film of its own."
     },
     "ignoredAt": "Ignored {{time}}.",
     "ignore": "Ignore",

@@ -468,3 +468,13 @@ removed library's pictures stop being served.
 `MediaModelPersistenceTests.Deleting_an_integration_keeps_the_posters_it_reported_with_its_source_name`
 and `LibrarySnapshotPostersHttpTests.Sync_of_the_samples_with_images_stores_each_items_own_poster_tag_on_its_work_with_its_provenance`
 pin it.
+
+## A disc's clips (added 0.3.0, MAM-43)
+
+**A DVD or Blu-ray folder is still never stored as a file, but its version now gets the media files of
+the disc's own `BDMV` or `VIDEO_TS` folder, one row per clip, named in the library's terms.** The sync
+lists them on the disk, inside the media folders and through the integration's mappings, because Jellyfin
+names none
+([ADR 0038](0038-a-disc-a-library-reports-by-its-folder-gets-the-clips-of-its-bdmv-or-video-ts-folder-as-its-files-listed-by-the-sync.md)).
+Each row is still one name of a file, with the library's provenance. Its size is unknown as reported,
+since the library reported none. A `.strm` link and a remote stream still give a version no file.

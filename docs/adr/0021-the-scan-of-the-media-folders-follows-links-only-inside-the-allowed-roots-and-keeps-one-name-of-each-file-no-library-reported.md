@@ -268,3 +268,31 @@ app settles the warning and touches nothing else.
 `UnreportedFilesHttpTests.Ignore_or_UndoIgnore_of_an_id_no_scanned_name_has_is_a_bare_404_and_writes_nothing`
 and `UnreportedFilesHttpTests.Scan_again_keeps_an_ignored_file_ignored_and_a_moved_one_counts_again_under_its_new_path`
 pin it.
+
+## Why a library skipped a name: extras and discs (added 0.3.0, MAM-43)
+
+**Under a library's folder, the list now says when an extra's name is why the library skipped a name,
+and a disc's clips are no longer names in no library (Vasyl's order of 2026-10-13).** On the reference
+installation 16 of the 17 names in no library were six Toy Story shorts and six Alien shorts in folders
+named `Shorts`, and four Blu-ray clips. The list said of every one "a library skips samples, trailers
+and extras by their names, and lists a file added after its last scan only after the next one". That
+named neither the cause nor the folder, and for the clips it was false.
+
+**Extras, by Jellyfin's own rules.** Emby.Naming's `NamingOptions.VideoExtraRules` take a video for a
+film's extra in three cases, and Jellyfin lists it as no film:
+- in a folder named `Shorts`, `Trailers`, `Extras`, `Featurettes`, `Behind The Scenes`, `Samples` and
+  the other folder names, compared with the file's own folder only and never at the library's root;
+- named `trailer` or `sample`;
+- named with a suffix such as `-trailer` or `-sample`.
+
+`LibraryExtraNames` applies the same rules, and the place gains two kinds: `ExtrasFolder` with the
+folder's name as on the disk, and `ExtraName` with the rule the name matches. The folder comes first.
+`LibraryFolder` keeps the rest and says only "a library lists a file added after its last scan only after
+the next one". The names are only ever an explanation: nothing is grouped, counted or hidden by them
+(ADR 0017).
+
+**Discs.** ADR 0038 makes a disc's clips its version's files, so the scan no longer stores a name for
+them.
+
+`UnreportedFilesHttpTests.List_says_which_extras_folder_or_extras_name_made_the_library_skip_a_file` and
+`LibraryExtraNamesTests` pin it.

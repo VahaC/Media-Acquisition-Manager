@@ -38,6 +38,9 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
     private const string AliensSpecialEditionPath =
         "/media/movies/Alien. Collection/[02.2] Aliens (1986) [Special Edition] BDRip 1080p H.265 [2xUKR_ENG] [Hurtom, UTOPIA].mkv";
 
+    // MAM-43 — a Blu-ray remux as production's Фільми holds it: a folder with BDMV inside.
+    private const string DirtyDozenFolder = "/media/movies/DIRTY_DOZEN_1967_RMX";
+
     private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, ApiKey);
 
     private static readonly LibraryPageRequest FirstPage = new(MediaWorkKind.Movie, 0, 50);
@@ -510,6 +513,67 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
     }
 
     [Theory]
+    [InlineData("\"BluRay\"")]
+    [InlineData("\"Dvd\"")]
+    public async Task ListItems_keeps_the_folder_of_a_local_blu_ray_or_dvd_as_its_disc_folder(string videoType)
+    {
+        //Arrange
+        // Jellyfin's own path of a disc: the folder that holds BDMV (or VIDEO_TS), never a file in it.
+        ArmMovies(TheatricalWith(("VideoType", videoType), ("Path", $"\"{DirtyDozenFolder}\"")));
+
+        //Act
+        var result = await Library.ListItemsAsync(Settings, FirstPage, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
+        var version = Assert.Single(Assert.Single(result.Value!.Items).Versions);
+        Assert.Equal(JellyfinSamples.AliensTheatricalId, version.SourceVersionId);
+        Assert.Equal(DirtyDozenFolder, version.DiscFolderPath);
+        // The clips are the sync's to list (LibraryDiscClips): the library names none.
+        Assert.Empty(version.Files);
+    }
+
+    [Theory]
+    [InlineData("Protocol", "\"Http\"")]
+    [InlineData("Protocol", "7")]
+    [InlineData("IsRemote", "true")]
+    [InlineData("Path", "\"  \"")]
+    [InlineData("Path", "\"/media/movies/DIRTY_DOZEN_1967_RMX.strm\"")]
+    [InlineData("Path", "12")]
+    [InlineData("Path", null)]
+    public async Task ListItems_gives_a_blu_ray_that_is_not_a_local_folder_no_disc_folder(string property, string? value)
+    {
+        //Arrange
+        ArmMovies(TheatricalWith(("VideoType", "\"BluRay\""), ("Path", $"\"{DirtyDozenFolder}\""), (property, value)));
+
+        //Act
+        var result = await Library.ListItemsAsync(Settings, FirstPage, TestContext.Current.CancellationToken);
+
+        //Assert
+        var version = Assert.Single(Assert.Single(result.Value!.Items).Versions);
+        Assert.Null(version.DiscFolderPath);
+        Assert.Empty(version.Files);
+    }
+
+    [Theory]
+    [InlineData("\"VideoFile\"")]
+    [InlineData("\"Iso\"")]
+    [InlineData("3")]
+    [InlineData("null")]
+    [InlineData(null)]
+    public async Task ListItems_gives_a_media_source_of_any_other_video_type_no_disc_folder(string? videoType)
+    {
+        //Arrange
+        ArmMovies(TheatricalWith("VideoType", videoType));
+
+        //Act
+        var result = await Library.ListItemsAsync(Settings, FirstPage, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.Null(Assert.Single(Assert.Single(result.Value!.Items).Versions).DiscFolderPath);
+    }
+
+    [Theory]
     [InlineData("-1")]
     [InlineData("\"14845708473\"")]
     [InlineData("14845708473.5")]
@@ -950,6 +1014,22 @@ public sealed class JellyfinAdapterItemsTests : IDisposable
             source.Remove(property);
         else
             source[property] = JsonNode.Parse(value);
+        return movie;
+    }
+
+    // The theatrical "Чужі" with several properties of its media source set, each in turn, the last of one name winning.
+    private static JsonObject TheatricalWith(params (string Property, string? Value)[] changes)
+    {
+        var movie = JellyfinSamples.Movie(JellyfinSamples.AliensTheatricalId);
+        var source = movie["MediaSources"]![0]!.AsObject();
+        foreach (var (property, value) in changes)
+        {
+            if (value is null)
+                source.Remove(property);
+            else
+                source[property] = JsonNode.Parse(value);
+        }
+
         return movie;
     }
 

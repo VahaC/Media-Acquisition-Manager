@@ -48,7 +48,10 @@ opens a job's details, the replacement's old copies included, under its row. MAM
 ticket built on 2026-10-13 under 0.3.0 and going out with it, makes the Library page's Sources card
 show the same warnings with Details open or closed, lists the files in no library in a dialog with
 why a library most likely doesn't list each, and lets the owner ignore the ones that aren't media;
-it wasn't tried on production. MAM-5 (personal access tokens, Phase A) is still to do. Today
+it wasn't tried on production. MAM-43, built the same day under 0.3.0 and going out with it, gives a
+Blu-ray or DVD film the clips of its disc folder as its files, so they leave that list, and names the
+extras folder (`Shorts`, `Trailers`…) or the extra's name that made a library skip a file (ADR 0038);
+it wasn't tried on production either. MAM-5 (personal access tokens, Phase A) is still to do. Today
 the app is an API and a web app that report their own health, with accounts,
 integration settings and the library: the installation owner created on first run, the users the owner manages, sign-in,
 and a Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
@@ -228,7 +231,8 @@ application.
   replacement's `.mam-quarantine`, at any depth (MAM-26), a link followed only when it ends inside
   them, a loop walked once, no file opened — for video files by
   their extension, Blu-ray and DVD clips included. A file Jellyfin lists, a movie's or an
-  episode's, is recognised by its path through the current path mappings, never by its name; each
+  episode's — since MAM-43 a disc's clips too, which each sync takes from the disc folder Jellyfin
+  lists —, is recognised by its path through the current path mappings, never by its name; each
   file no library lists is remembered by one name of its own, with no work, and the file inspection
   then reads it like the library's files. The row shows how far the scan has got, how many files it
   found, how many are in no library and how far the inspection of those has got, and how many
@@ -363,13 +367,22 @@ application.
   library, Couldn't be read and Ignored, counted and paged on the server, each file with its name
   over its folder, its size as the app's last look read it, what that look found (the reason it
   couldn't read it the owner's), and why a library most likely doesn't list it — under no library's
-  folders, in a library's folders but skipped by its name or added after its last scan, or the
-  libraries' folders not known yet. The installation owner's **Ignore** sets a mark on the scan's
+  folders, in a library's folders but added after its last scan, or the libraries' folders not known
+  yet; since MAM-43 also in a folder Jellyfin takes for a film's extras ("In a folder named “Shorts”
+  in Мульфільми's folders: …") or named as an extra ("Named as an extra (“-trailer”) …"), by
+  Jellyfin's own rules. The installation owner's **Ignore** sets a mark on the scan's
   name: the file leaves every count of files in no library and of files that couldn't be read, and
   still counts in the room the files take, as it still takes it; nothing changes on the disk or in a
   library. It holds while a scan keeps the name; moved or renamed, the file counts again. **Stop
   ignoring** puts it back, each change with an audit row
   ([ADR 0021](docs/adr/0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+- **A Blu-ray or DVD film's files (MAM-43).** Jellyfin lists a disc folder as one film and names no
+  file in it. Each sync looks inside the disc's own `BDMV` or `VIDEO_TS` folder, through the Jellyfin
+  integration's path mappings and inside the media folders only, and stores the clips there as the
+  film's files in Jellyfin's terms. The Library page shows them under the film, the Jellyfin row
+  counts their room, and the scan no longer lists them in no library. A disc the app can't reach gives
+  the film no file, and the sync still succeeds
+  ([ADR 0038](docs/adr/0038-a-disc-a-library-reports-by-its-folder-gets-the-clips-of-its-bdmv-or-video-ts-folder-as-its-files-listed-by-the-sync.md)).
 - **Search: your library and the release sources side by side.** Every signed-in user types a title
   in the search field at the top of every page (`/` jumps to it) and presses Enter; the Search page
   looks for it in the library and in every enabled release source at once. A year in brackets at
@@ -2151,7 +2164,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/library/inspections/{runId}` | 200 `{ id, trigger, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesTotal, filesChecked, filesProbed, hashing, error }`, `trigger` being `Requested`, `LibrarySynced`, `AppStarted` or `FolderScanned` (queued by a scan once it stored its names). `hashing` `{ candidates, checked, read, problemCount, problem }` is the run's last step (ADR 0022): how many files need a hash — files whose size a file of another identity shares and whose media facts don't tell them apart, each once however many names lead to it; `null` until the step has listed them —, how many it has dealt with, how many it read in full in this run (the rest came from the cache or couldn't be hashed), how many it couldn't hash, and the first one's sentence. `requestedByUserName`, `hashing.problem` and `error` only for the owner. 404. |
 | `POST /api/library/scans` | Owner only. 202 with the queued scan of the media folders and its `Location`, or with the one already waiting, which the request joins; one asked for while a scan runs is queued behind it. The scan walks every allowed folder in the background, follows a link only when it ends inside them, opens no file, stores one name with no version for each media file no library reported, then queues a file inspection (ADR 0021). 409 `{ "error": "No media folders are allowed yet. Add the folders the app may read under Media folders in the user menu, then scan again." }`; 503 `{ "error": "Too many folder scans are waiting. Try again in a minute." }`, the run kept as failed with it. |
 | `GET /api/library/scans/{runId}` | 200 `{ id, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, filesFound, filesUnreported, problemCount, problem, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`: `filesFound` is how many media files the walk has reached so far, each once however many links lead to it, `filesUnreported` how many of them no library reported (`null` until the scan stored them), `problemCount` how many folders, links and names it didn't go into or through, and `problem` the first one's sentence; `requestedByUserName`, `problem` and `error` only for the owner, `null` for everyone else. A bare 404 for an unknown run. |
-| `GET /api/library/unreported-files?view=&page=1&pageSize=25` | Every signed-in user (MAM-42, ADR 0021). The files the scans stored that no library reports now — the Library page's **Files in no library** —: 200 `{ items, totalCount, page, pageSize, countedCount, problemCount, ignoredCount }`, items by path (ordinal), then id, each `{ id, appPath, sizeBytes, firstSeenUtc, ignoredUtc, place: { kind, libraryName }, inspection }`. `view` is `Problems` (the counted files the app's last look couldn't read) or `Ignored` (the files the owner ignored), by name in any letter case, never a number; blank or left out, every file the app counts. `countedCount`, `problemCount` and `ignoredCount` are the three views' totals, whatever view and page were asked, `countedCount` and `problemCount` the Media folders row's own counts. `sizeBytes` is the size the app's last look read, `null` until read; `ignoredUtc` `null` while the file counts. `place.kind` says why a library most likely doesn't list it: `NoLibraryFolder` (under none of the folders the libraries listed at their last sync), `LibraryFolder` (under one, `libraryName` the first such library by name) or `FoldersUnknown` (no library folder the syncs stored maps into the app); `libraryName` is `null` but for `LibraryFolder`. `inspection` is as a library file's in `GET /api/library/works` — `status`, `problem`, `inspectedUtc`, `media` —, `problem` only for the owner, `null` until the app has looked. 400 "Page must be 1 or more.", "Page size must be between 1 and 100." or "“x” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every file." (the value cut to 32 characters and "…"), checked in that order; a page past the end is empty with the totals. Writes nothing. |
+| `GET /api/library/unreported-files?view=&page=1&pageSize=25` | Every signed-in user (MAM-42, ADR 0021). The files the scans stored that no library reports now — the Library page's **Files in no library** —: 200 `{ items, totalCount, page, pageSize, countedCount, problemCount, ignoredCount }`, items by path (ordinal), then id, each `{ id, appPath, sizeBytes, firstSeenUtc, ignoredUtc, place: { kind, libraryName, extraName }, inspection }`. `view` is `Problems` (the counted files the app's last look couldn't read) or `Ignored` (the files the owner ignored), by name in any letter case, never a number; blank or left out, every file the app counts. `countedCount`, `problemCount` and `ignoredCount` are the three views' totals, whatever view and page were asked, `countedCount` and `problemCount` the Media folders row's own counts. `sizeBytes` is the size the app's last look read, `null` until read; `ignoredUtc` `null` while the file counts. `place.kind` says why a library most likely doesn't list it: `NoLibraryFolder` (under none of the folders the libraries listed at their last sync), `LibraryFolder` (under one, `libraryName` the first such library by name), since MAM-43 `ExtrasFolder` (under one, in a folder whose name Jellyfin takes for a film's extras, `extraName` that folder's name as on the disk, "Shorts") and `ExtraName` (under one, named as Jellyfin names an extra, `extraName` the rule it matches, "-trailer" or "sample"), checked in that order, or `FoldersUnknown` (no library folder the syncs stored maps into the app); `libraryName` is `null` for `NoLibraryFolder` and `FoldersUnknown`, and `extraName` `null` but for the two extra kinds. `inspection` is as a library file's in `GET /api/library/works` — `status`, `problem`, `inspectedUtc`, `media` —, `problem` only for the owner, `null` until the app has looked. 400 "Page must be 1 or more.", "Page size must be between 1 and 100." or "“x” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every file." (the value cut to 32 characters and "…"), checked in that order; a page past the end is empty with the totals. Writes nothing. |
 | `PUT /api/library/unreported-files/{id}/ignored` | Installation owner only (MAM-42, `RequireInstallationOwner`). **Ignore**: sets `PhysicalFiles.IgnoredUtc` on the name the scan stored, with an audit row `UnreportedFileIgnored` (target kind `UnreportedFile`, named by the file's own name) in one transaction, so the file leaves `scan.files` in `GET /api/library/sources` and the list's counted and problem views, and keeps counting in `scan.space`. The app's own note: nothing changes on the disk or in a library. 204, also when it was already ignored, which writes nothing; a bare 404 for an id no name the scan stored has, a library's file included; 403 `{ error }` for anyone else. |
 | `DELETE /api/library/unreported-files/{id}/ignored` | Installation owner only (MAM-42). **Stop ignoring**: clears the mark with an audit row `UnreportedFileIgnoreUndone`, so the file counts again. 204, also when it wasn't ignored, which writes nothing; a bare 404 and 403 as for `PUT`. |
 | `GET /api/library/syncs/{runId}` | 200 `{ id, integrationId, integrationName, status, requestedByUserName, createdUtc, startedUtc, finishedUtc, itemsRead, itemsTotal, worksCount, seriesCount, versionsCount, filesCount, error }`, `status` being `Queued`, `Running`, `Succeeded` or `Failed`; the items are the library's movies, series and episodes, the works its movies and episodes, and `seriesCount` `null` for a run that didn't succeed or ran before 0.2.0; `requestedByUserName` and `error` only for the owner, `null` for everyone else. 404. |
@@ -3148,7 +3161,7 @@ no known context), the startup skips both.
 
 Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
 of each, and the tickets of Phase A (MAM-1 to MAM-16), Phase B (MAM-17 to MAM-22, MAM-32 to
-MAM-38 and MAM-42) and Phase C (MAM-23 to MAM-28 and MAM-39 to MAM-41).
+MAM-38, MAM-42 and MAM-43) and Phase C (MAM-23 to MAM-28 and MAM-39 to MAM-41).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -3171,7 +3184,9 @@ MAM-38 and MAM-42) and Phase C (MAM-23 to MAM-28 and MAM-39 to MAM-41).
    folder before anything reaches the client, as qBittorrent would download into it in place
    (built, 0.2.1, MAM-38; first published in 0.3.0). List the files in no library, with why a
    library most likely doesn't list each, and let the owner ignore the ones that aren't media
-   (built, 0.3.0, MAM-42, going out with it).
+   (built, 0.3.0, MAM-42, going out with it). Give a Blu-ray or DVD film its disc's clips as its
+   files, and name the extras folder or extra's name that made a library skip a file (built, 0.3.0,
+   MAM-43, going out with it).
 3. **Phase C: safe replacement (release 0.3.0).** Implement the persisted replacement state machine,
    explicit file selection, checks, audit log, and quarantine where a safe atomic move is possible —
    for films, episodes and seasons, the owner's alone, off until switched on, never touching a

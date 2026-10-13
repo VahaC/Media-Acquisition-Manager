@@ -93,6 +93,20 @@ public interface IFileInventory
         IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// MAM-43 — walks the one folder <paramref name="appFolder"/> as <see cref="ListMediaFilesAsync"/> walks a root, after
+    /// the checks of <see cref="DescribeAsync"/>: inside <paramref name="allowedRoots"/> by its text and still inside once
+    /// every link on the way is followed. What lists a Blu-ray or DVD folder a library reports as one version, without
+    /// walking every media folder for it. A folder that fails the checks gives one entry, <see cref="FileListingStatus.Skipped"/>
+    /// when it lies outside the roots and <see cref="FileListingStatus.Unlisted"/> when it can't be looked at now; links
+    /// inside it that lead out of it are refused, as out of a root.
+    /// </summary>
+    /// <param name="appFolder">The folder's absolute path inside the app.</param>
+    /// <param name="allowedRoots">The folders it may read inside, in canonical form; none refuses every folder.</param>
+    /// <param name="cancellationToken">Cancels the walk.</param>
+    IAsyncEnumerable<FileListingEntry> ListMediaFilesUnderAsync(
+        string appFolder, IReadOnlyList<string> allowedRoots, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// MAM-20, ADR 0028 — the type of file system each of <paramref name="deviceIds"/> holds, as the system's mount table
     /// names it: one answer per device asked, in the order asked. What decides whether removing a byte-identical copy
     /// frees its room — a file system that can share blocks between files (reflinks, snapshots) may give none back.

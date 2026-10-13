@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Files;
+using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paging;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Infrastructure.Persistence;
@@ -152,15 +153,20 @@ public sealed class UnreportedFileService(
     /// <summary>
     /// Where <paramref name="file"/> sits among <paramref name="folders"/> — the libraries' folders with a path in the
     /// app, by library name (<see cref="LibraryFolderReader"/>): under the first that holds it, under none, or unknown
-    /// when there are none to compare with.
+    /// when there are none to compare with. MAM-43 — under one, an extras folder's name or an extra's name says why the
+    /// library skipped it (<see cref="LibraryExtraNames"/>), the folder first, as it covers every video in it.
     /// </summary>
     private static UnreportedFilePlaceDto PlaceOf(PhysicalFileEntity file, List<(string LibraryName, NormalizedPath? Path)> folders)
     {
         if (folders.Count == 0)
             return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.FoldersUnknown, null);
         if (NormalizedPath.TryParse(PathMapper.Map(file.ServicePath, []).AppPath, out var path, out _)
-            && folders.FirstOrDefault(folder => path.IsUnder(folder.Path!)) is { LibraryName: { } libraryName })
+            && folders.FirstOrDefault(folder => path.IsUnder(folder.Path!)) is { LibraryName: { } libraryName, Path: { } libraryFolder })
         {
+            if (LibraryExtraNames.ExtrasFolderOf(path, libraryFolder) is { } extrasFolder)
+                return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtrasFolder, libraryName, extrasFolder);
+            if (LibraryExtraNames.ExtraNameOf(path.Segments[^1]) is { } extraName)
+                return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, libraryName, extraName);
             return new UnreportedFilePlaceDto(UnreportedFilePlaceKind.LibraryFolder, libraryName);
         }
 

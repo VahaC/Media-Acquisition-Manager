@@ -1257,7 +1257,8 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   13, 2026, 10:26 AM." on the Ignored tab, and why a library most likely doesn't list it: "No
   library's folders hold it, so no library looks for it there.", "In Фільми's folders, but Фільми
   didn't list it: a library skips samples, trailers and extras by their names, and lists a file added
-  after its last scan only after the next one." or, while no library folder the last syncs stored
+  after its last scan only after the next one." (MAM-43 below shortens it and adds two reasons for
+  extras) or, while no library folder the last syncs stored
   maps into the app, "The app doesn't know the libraries' folders yet. Sync a library first." Every
   signed-in user opens it, as the Library page already shows paths;
   `GET /api/library/unreported-files?view=&page=1&pageSize=25` answers it, `view` `Problems` or
@@ -1279,6 +1280,46 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   browser on 2026-10-13 on a scratch installation with real ffprobe, an ISO and two short videos —
   the chips, the rows, the dialog, Ignore, a rescan keeping the mark, Stop ignoring and a member's
   view, at desktop and phone width —; not tried on the reference installation.
+- **A Blu-ray or DVD folder's clips are its film's files, and Files in no library says when an
+  extra's name made a library skip a file (MAM-43, ADR 0038, ADR 0021's MAM-43 section, Vasyl's order
+  of 2026-10-13).** On 2026-10-13, 16 of the 17 files in no library were four
+  `BDMV/STREAM/00000.m2ts` clips — Dirty Dozen and the three Matrix films — and the twelve Toy Story
+  and Alien shorts in folders named `Shorts`. All of them carried the same reason, "a library skips
+  samples, trailers and extras by their names, and lists a file added after its last scan only after
+  the next one". For the clips that was false: Фільми lists those films. Jellyfin reports a disc by its
+  folder (the one holding `BDMV`, or `VIDEO_TS`), so the adapter gave the version no file, and the
+  scan found the clip with no library name to match it. *Discs:* the adapter now keeps a local disc's
+  folder (`VideoType` `BluRay` or `Dvd`). The sync maps it into the app through the integration's path
+  mappings and walks it inside the media folders (`IFileInventory.ListMediaFilesUnderAsync`, checked as
+  a file is for a look: inside an allowed root by its text and once every link is followed). It stores
+  each media file in the disc's own `BDMV` or `VIDEO_TS` folder as the version's file, named in
+  Jellyfin's terms, with no size as reported. So the Library page lists the clip under its film with
+  its library, the app's reading and its size as read. The Jellyfin row counts its room, and the scan
+  no longer lists it in no library. A sample beside the disc's folders stays in no library. A disc
+  folder that doesn't map, lies outside the media folders, is a link leading out or is away gives the
+  version no file, as before, and the sync succeeds; with no media folder allowed nothing is walked.
+  *Extras:* a file in a library's folders now says why the library skipped it when its name is an
+  extra's by Jellyfin's own rules (`NamingOptions.VideoExtraRules`, `LibraryExtraNames`), checked
+  in this order:
+  - its own folder is named `Shorts`, `Trailers`, `Extras`, `Featurettes`, `Behind The Scenes`,
+    `Deleted Scenes`, `Interviews`, `Scenes`, `Samples`, `Sample`, `Clips`, `Other`, `Extra` or
+    `Backdrops` (letter case ignored, never the library's root): "In a folder named “Shorts” in
+    Мульфільми's folders: Мульфільми takes the videos in a folder so named for a film's extras, not
+    for films of their own.";
+  - its name, trailing digits aside, is `trailer` or `sample`, or ends with `-trailer`, `.trailer`,
+    `_trailer`, `- trailer`, the same four for `sample`, `-scene`, `-clip`, `-interview`,
+    `-behindthescenes`, `-deleted`, `-deletedscene`, `-featurette`, `-short`, `-extra` or `-other`:
+    "Named as an extra (“-trailer”) in Фільми's folders: Фільми takes a video so named for a film's
+    extra, not for a film of its own."
+
+  Any other file in a library's folders now reads "In Фільми's folders, but Фільми didn't list it: a
+  library lists a file added after its last scan only after the next one." In
+  `GET /api/library/unreported-files`, `place.kind` gains `ExtrasFolder` and `ExtraName`, and `place`
+  gains `extraName` (the folder's name as on the disk, or the rule the name matches); `libraryName`
+  is now given for those two kinds too. `LibraryDiscClipsHttpTests`,
+  `LocalFileInventoryFolderListingTests`, `JellyfinAdapterItemsTests`, `LibraryExtraNamesTests`,
+  `DiscFoldersTests`, `UnreportedFilesHttpTests` and `UnreportedFilesDialog.test.tsx` pin it. Not
+  tried on the reference installation.
 
 ### Changed
 
@@ -1727,6 +1768,10 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   to 0.2.1, settle **Removed copies** too — Restore or Delete for good every removal there — while
   replacement is still on, as the release note's **Going back** says for replacements: 0.2.1 knows
   nothing of the quarantine.
+- **A Blu-ray or DVD film gets its files at the first sync after the upgrade (MAM-43, ADR 0038).** No
+  migration: the clips become their films' files when the sync lists them, so until **Sync** or
+  **Refresh all** runs, Files in no library still lists them. A disc the app can only reach through a
+  path mapping needs that mapping on the Jellyfin integration, as any file does.
 
 ## [0.2.1] — 2026-10-05
 

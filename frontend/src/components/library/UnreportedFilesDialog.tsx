@@ -207,9 +207,7 @@ function UnreportedFileRow({ file, isOwner, pending, error, onToggle }: Unreport
   const label = pending
     ? ignored ? t('unreported.undoing') : t('unreported.ignoring')
     : ignored ? t('unreported.undoIgnore') : t('unreported.ignore')
-  const place = file.place.kind === 'LibraryFolder'
-    ? t('unreported.place.LibraryFolder', { library: file.place.libraryName })
-    : t(`unreported.place.${file.place.kind}`)
+  const place = t(`unreported.place.${file.place.kind}`, { library: file.place.libraryName, name: file.place.extraName })
 
   return (
     <li className="unreported-file">

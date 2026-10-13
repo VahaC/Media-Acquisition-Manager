@@ -14,5 +14,9 @@ public static class DiscFolders
     /// <summary>Whether <paramref name="appPath"/> lies inside a <c>BDMV</c> or <c>VIDEO_TS</c> folder, letter case
     /// ignored: discs are authored in upper case, and copied ones keep it on any file system.</summary>
     public static bool HoldsClip(NormalizedPath appPath) =>
-        appPath.Segments.SkipLast(1).Any(segment => Names.Contains(segment, StringComparer.OrdinalIgnoreCase));
+        appPath.Segments.SkipLast(1).Any(IsDiscFolderName);
+
+    /// <summary>MAM-43 — whether <paramref name="name"/>, one folder's own name, is <c>BDMV</c> or <c>VIDEO_TS</c>, letter
+    /// case ignored, as Jellyfin compares them.</summary>
+    public static bool IsDiscFolderName(string name) => Names.Contains(name, StringComparer.OrdinalIgnoreCase);
 }

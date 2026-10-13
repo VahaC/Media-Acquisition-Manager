@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Api.Services.Integrations;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Files;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
 using MediaAcquisitionManager.Core.Enums;
@@ -24,6 +25,7 @@ public sealed class LibrarySyncRunner(
     IIntegrationAdapterRegistry adapters,
     IIntegrationSettingsFactory settingsFactory,
     ILibrarySnapshotStore snapshots,
+    IFileInventory inventory,
     IFileInspectionService inspections,
     IRecommendationRunService recommendations,
     ILibraryLinkSuggestionRunService linkSuggestions,
@@ -134,7 +136,9 @@ public sealed class LibrarySyncRunner(
             return;
         }
 
-        var snapshot = await snapshots.ApplyAsync(runId, integration.Id, locations.Value!, read.Items, cancellationToken);
+        // MAM-43 — a disc's clips, which the library names by their folder only, become its version's files.
+        var items = await LibraryDiscClips.FillAsync(db, inventory, integration.Id, read.Items, cancellationToken);
+        var snapshot = await snapshots.ApplyAsync(runId, integration.Id, locations.Value!, items, cancellationToken);
         switch (snapshot.Status)
         {
             case LibrarySnapshotStatus.Applied:

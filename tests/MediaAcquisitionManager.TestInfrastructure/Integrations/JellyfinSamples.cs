@@ -531,6 +531,20 @@ public static class JellyfinSamples
     }
 
     /// <summary>
+    /// MAM-43 — a film Jellyfin makes of a Blu-ray or DVD folder (<paramref name="videoType"/> <c>BluRay</c> or <c>Dvd</c>):
+    /// <see cref="MovieWith"/> whose path, and its media source's, is <paramref name="folder"/> itself — the folder holding
+    /// <c>BDMV</c> or <c>VIDEO_TS</c> — as Jellyfin's video resolver gives it, with no file of the disc named anywhere.
+    /// </summary>
+    public static JsonObject DiscMovieWith(string id, string title, int year, string folder, string videoType = "BluRay", string? imdbId = null)
+    {
+        var movie = MovieWith(id, title, null, year, folder, imdbId);
+        var source = movie["MediaSources"]![0]!.AsObject();
+        source["VideoType"] = videoType;
+        source.Remove("Container");
+        return movie;
+    }
+
+    /// <summary>
     /// MAM-25 — the film item Jellyfin makes of the file at <paramref name="path"/>: <see cref="MovieWith"/> at that path,
     /// under the id the path computes as a film's (<see cref="JellyfinItemIds"/>), which is where the adapter looks for it.
     /// <paramref name="refreshed"/> <c>false</c> is the item before Jellyfin's refresh has read the file

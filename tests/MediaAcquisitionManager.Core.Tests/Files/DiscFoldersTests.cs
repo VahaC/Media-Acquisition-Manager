@@ -46,6 +46,25 @@ public sealed class DiscFoldersTests
         Assert.False(holdsClip);
     }
 
+    [Theory]
+    [InlineData("BDMV", true)]
+    [InlineData("bdmv", true)]
+    [InlineData("VIDEO_TS", true)]
+    [InlineData("Video_TS", true)]
+    [InlineData("BDMV2", false)]
+    [InlineData("STREAM", false)]
+    [InlineData("VIDEO_TS.mkv", false)]
+    public void IsDiscFolderName_is_true_for_bdmv_and_video_ts_in_any_letter_case(string name, bool expected)
+    {
+        //Arrange
+
+        //Act
+        var isDiscFolder = DiscFolders.IsDiscFolderName(name);
+
+        //Assert
+        Assert.Equal(expected, isDiscFolder);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     private static NormalizedPath PathOf(string text)

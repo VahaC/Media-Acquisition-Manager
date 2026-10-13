@@ -73,17 +73,21 @@ a Phase B ticket) follows from the Library page's Sources card warning of a file
 read with Details closed and not with them open: every warning now sits on the item whose row holds
 it, the files in no library are listed in a dialog with why a library most likely doesn't list each,
 and the owner ignores the ones that aren't media, which the app then stops counting, nothing changed
-on the disk (ADR 0021's MAM-42 section). All six go out when Vasyl publishes 0.3.0 again — the image
-published on 2026-10-11 has none of them. Phase C's heading below stays
+on the disk (ADR 0021's MAM-42 section). MAM-43 (built the same day, inside 0.3.0, a Phase B ticket)
+follows from that list: 16 of its 17 files were four Blu-ray clips of films Фільми does list and twelve
+shorts in `Shorts` folders, all with one vague reason. A disc's clips are now its film's files, listed by
+the sync (ADR 0038), and the list names the extras folder or extra's name that made a library skip a file.
+All seven go out when Vasyl publishes 0.3.0 again — the image published on 2026-10-11 has none of
+them. Phase C's heading below stays
 unmarked until that image is published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
-MAM-42, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and
-MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes, MAM-39 to MAM-41 and MAM-42 go
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38, MAM-42
+and MAM-43, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes, MAM-39 to MAM-41, MAM-42 and MAM-43 go
 out when 0.3.0 is published again, under the same number. The release of Phase D is not decided yet.
 
 ## Phases
@@ -490,9 +494,9 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
 **Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21,
-MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42, built on 2026-10-13, goes out in 0.3.0
-when it is published again (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38 and
-MAM-42.
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42 and MAM-43, built on 2026-10-13, go out in
+0.3.0 when it is published again (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38,
+MAM-42 and MAM-43.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -981,6 +985,24 @@ episode, and how much space could really be recovered — without the app guessi
   keeps the name and a moved or renamed file counts again. `scan.files` in `GET /api/library/sources`
   leaves the ignored names out and `scan.ignoredCount` counts them. Accepted gap: an ignored file is
   still inspected and hashed, and still offered as a possible match on the Duplicates page.
+- **MAM-43 Count a Blu-ray or DVD folder's clips as its film's files, and say when a file sits in an
+  extras folder** (built on 2026-10-13, release 0.3.0; not tried on production): on 2026-10-13 Files
+  in no library listed four `BDMV/STREAM/00000.m2ts` clips of films Фільми does list, and twelve
+  shorts in folders named `Shorts`, all with the reason "a library skips samples, trailers and extras
+  by their names, and lists a file added after its last scan only after the next one" (Vasyl's order
+  of 2026-10-13;
+  [ADR 0038](docs/adr/0038-a-disc-a-library-reports-by-its-folder-gets-the-clips-of-its-bdmv-or-video-ts-folder-as-its-files-listed-by-the-sync.md)
+  and ADR 0021's MAM-43 section). *Discs:* the Jellyfin adapter keeps a local disc's folder
+  (`VideoType` `BluRay` or `Dvd`), and the sync walks it inside the media folders through the
+  integration's mappings (`IFileInventory.ListMediaFilesUnderAsync`). It stores the media files of the
+  disc's own `BDMV` or `VIDEO_TS` folder as the version's files in Jellyfin's terms, so the scan, the
+  Jellyfin row's room, the inspection and the duplicates count them as any reported file. No
+  migration. *Extras:* Jellyfin's `NamingOptions.VideoExtraRules` (`LibraryExtraNames`) give two new
+  places, `ExtrasFolder` ("In a folder named “Shorts” in Мульфільми's folders: …") and `ExtraName`
+  ("Named as an extra (“-trailer”) …"), with `place.extraName`. `LibraryFolder` keeps only "a
+  library lists a file added after its last scan only after the next one". Accepted gaps: a disc reached
+  only after a sync gets its files at the next sync, and the Library page's sort by size still counts a
+  disc as 0, as its clips carry no reported size.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -1280,14 +1302,23 @@ with `runningTimes` — The Gods Must Be Crazy (1980), «Ніж у воді» (1
 Alien: Romulus (2024) —; `RunningTimes` on «Ніж у воді»'s alone, the 1 group needing review; on the
 Duplicates page "1–4 of 4", and the badge and "The shortest copy runs 26:41, under three quarters of
 the longest, 1:35:32." on that card alone, with no sideways scroll at desktop width and 375px; and
-the 14 tables the duplicates are read from unchanged at the start and after the check. A copy in two
+the 14 tables the duplicates are read from unchanged at the start and after the check. MAM-43: a
+sync stores a Blu-ray folder's clips as its version's files in its library, the works list shows
+them, a scan after it lists none in no library and the Jellyfin row counts their room, a DVD gives
+only its `VIDEO_TS` files, the clips are named in Jellyfin's terms through a path mapping, a disc
+outside the media folders or with none allowed gets no file and the sync succeeds, a film with a file
+is never walked, and a second sync forgets a clip gone and every clip once Jellyfin drops the disc.
+The folder walk refuses a folder outside the roots, a link leading out and, inside the disc, a link
+out of it, and answers a missing folder as unlisted. The adapter keeps a local disc's folder and
+nothing else. Each extras folder name and rule is checked, the library's root excepted, and the list
+says which one made the library skip a file. A copy in two
 parts, a copy unmeasured or whose reading failed beside measured ones, the keys of a split group and
 a possible match, none of which production has, rest on the tests; production has run an image that
 holds MAM-37, the published 0.3.0, since 2026-10-11.
 MAM-42 has no bar; it was checked on 2026-10-13 on a scratch installation on Windows with real
 ffprobe and a scratch media folder holding an ISO and two short videos — the chips and rows, the
 dialog, Ignore, a rescan keeping the mark, Stop ignoring and a member's view, at desktop and phone
-width —, not on production.
+width —, not on production. MAM-43 has no bar either, and was not tried on production.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify

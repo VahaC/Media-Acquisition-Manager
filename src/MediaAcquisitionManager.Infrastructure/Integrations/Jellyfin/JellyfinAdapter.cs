@@ -614,8 +614,31 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
             .. kept.Select(entry => new LibraryVersion(
                 entry.Id,
                 labelled && TextProperty(entry.Source, "Name", MediaVersionEntity.EditionLabelMaximumLength, secrets) is { Length: > 0 } label ? label : null,
-                FileOf(entry.Source) is { } file ? [file] : [])),
+                FileOf(entry.Source) is { } file ? [file] : [],
+                DiscFolderOf(entry.Source))),
         ];
+    }
+
+    /// <summary>
+    /// MAM-43 — the folder of a local Blu-ray or DVD media source (<c>VideoType</c> <c>BluRay</c> or <c>Dvd</c>): Jellyfin
+    /// takes a folder holding <c>BDMV</c>, or <c>VIDEO_TS</c> with a <c>.vob</c>, for one disc and gives the folder itself
+    /// as the path, never a file of it. Not streamed, not remote and a path the app can keep (<see cref="FilePath"/>), as
+    /// for a file; any other video type, a number included, is none.
+    /// </summary>
+    private static string? DiscFolderOf(JsonElement source)
+    {
+        if (source.TryGetProperty("Protocol", out var protocol)
+            && protocol.ValueKind != JsonValueKind.Null
+            && !(protocol.ValueKind == JsonValueKind.String && string.Equals(protocol.GetString(), "File", StringComparison.Ordinal)))
+            return null;
+        if (source.TryGetProperty("IsRemote", out var isRemote) && isRemote.ValueKind == JsonValueKind.True)
+            return null;
+        if (!source.TryGetProperty("VideoType", out var videoType)
+            || videoType.ValueKind != JsonValueKind.String
+            || videoType.GetString() is not ("BluRay" or "Dvd"))
+            return null;
+
+        return FilePath(source);
     }
 
     /// <summary>

@@ -457,14 +457,20 @@ export type UnreportedFileView = 'Problems' | 'Ignored'
 
 /**
  * MAM-42 — where a file in no library sits among the libraries' folders: under none of them, under one
- * (which then didn't list it), or the app knows no library folder to compare with.
+ * (which then didn't list it), or the app knows no library folder to compare with. MAM-43 — under one, in a
+ * folder whose name makes the library take its videos for extras, or named as an extra.
  */
-export type UnreportedFilePlaceKind = 'NoLibraryFolder' | 'LibraryFolder' | 'FoldersUnknown'
+export type UnreportedFilePlaceKind = 'NoLibraryFolder' | 'LibraryFolder' | 'FoldersUnknown' | 'ExtrasFolder' | 'ExtraName'
 
 export interface UnreportedFilePlace {
   kind: UnreportedFilePlaceKind
-  /** The library whose folder holds it ("Фільми"); null unless `kind` is LibraryFolder. */
+  /** The library whose folder holds it ("Фільми"); null for NoLibraryFolder and FoldersUnknown. */
   libraryName: string | null
+  /**
+   * MAM-43 — what makes it an extra: the folder's name as on the disk ("Shorts") for ExtrasFolder, the rule its
+   * name matches ("-trailer", "sample") for ExtraName; null otherwise.
+   */
+  extraName?: string | null
 }
 
 /** MAM-42 — one file the scan found that no library reports now. */

@@ -77,6 +77,7 @@ public sealed class FakeFileInventory : IFileInventory
     private readonly ConcurrentDictionary<string, string> _linkedNames = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, FileListingEntry> _listingProblems = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<IReadOnlyList<string>> _listedRoots = new();
+    private readonly ConcurrentQueue<string> _listedFolders = new();
     private readonly ConcurrentQueue<string> _hashed = new();
     private readonly ConcurrentQueue<IReadOnlyList<string>> _hashRootsGiven = new();
     private readonly ConcurrentDictionary<long, string?> _fileSystems = new();
@@ -127,6 +128,9 @@ public sealed class FakeFileInventory : IFileInventory
 
     /// <summary>MAM-18 — the allowed roots each walk was given, in call order: one entry per walk.</summary>
     public IReadOnlyList<IReadOnlyList<string>> ListedRoots => [.. _listedRoots];
+
+    /// <summary>MAM-43 — every folder walked on its own (<see cref="ListMediaFilesUnderAsync"/>), in call order.</summary>
+    public IReadOnlyList<string> ListedFolders => [.. _listedFolders];
 
     /// <summary>The most reads that were under way at the same moment.</summary>
     public int MostReadsAtOnce => Volatile.Read(ref _mostReadsAtOnce);
@@ -351,6 +355,7 @@ public sealed class FakeFileInventory : IFileInventory
         _read.Clear();
         _rootsGiven.Clear();
         _listedRoots.Clear();
+        _listedFolders.Clear();
         _hashed.Clear();
         _hashRootsGiven.Clear();
         _piecesHashed.Clear();
@@ -454,6 +459,31 @@ public sealed class FakeFileInventory : IFileInventory
             .Select(piece => TorrentPieceHash.Of(content.AsSpan((int)piece.Offset, piece.Length), piece.Hashing, piece.TreeLeafCount))
             .ToList();
         return new FileInventoryResult<FilePieceHashes>(FileInventoryStatus.Found, new FilePieceHashes(facts, hashes), null);
+    }
+
+    /// <summary>
+    /// MAM-43 — the walk of one folder: what <see cref="ListMediaFilesAsync"/> gives under it, after the text check of a
+    /// look (a folder outside the roots gives one <c>Skipped</c> entry). Recorded in <see cref="ListedFolders"/>.
+    /// </summary>
+    public async IAsyncEnumerable<FileListingEntry> ListMediaFilesUnderAsync(
+        string appFolder, IReadOnlyList<string> allowedRoots, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _listedFolders.Enqueue(appFolder);
+        if (!IsInside(appFolder, allowedRoots) || !NormalizedPath.TryParse(appFolder, out var folder, out _))
+        {
+            yield return new FileListingEntry(FileListingStatus.Skipped, appFolder, null, $"“{appFolder}” is outside the media folders the app may read.");
+            yield break;
+        }
+
+        foreach (var entry in EntriesUnder(folder))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return entry;
+            if (entry.Status == FileListingStatus.LimitReached)
+                yield break;
+        }
+
+        await Task.CompletedTask;
     }
 
     public async IAsyncEnumerable<FileListingEntry> ListMediaFilesAsync(

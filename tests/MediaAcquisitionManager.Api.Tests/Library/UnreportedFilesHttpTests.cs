@@ -73,9 +73,41 @@ public sealed class UnreportedFilesHttpTests : IClassFixture<MediaAcquisitionMan
         Assert.Equal((FileInspectionStatus.MediaUnreadable, IsoError, (MediaFactsDto?)null), (iso.Inspection!.Status, iso.Inspection.Problem, iso.Inspection.Media));
         Assert.Equal(new UnreportedFilePlaceDto(UnreportedFilePlaceKind.NoLibraryFolder, null), birthday.Place);
         Assert.Equal((FileInspectionStatus.Inspected, 5_179_168L), (birthday.Inspection!.Status, birthday.Inspection.Media!.DurationMilliseconds));
-        // Under the folder Фільми listed, yet Фільми didn't report it: Jellyfin skipped it by its name.
+        // Under the folder Фільми listed, yet Фільми didn't report it; " sample" with a space is no extra's name (MAM-43).
         Assert.Equal(new UnreportedFilePlaceDto(UnreportedFilePlaceKind.LibraryFolder, "Фільми"), sample.Place);
         Assert.Equal((FileInspectionStatus.Inspected, 5_604_672L, null), (sample.Inspection!.Status, sample.Inspection.Media!.DurationMilliseconds, sample.Inspection.Problem));
+    }
+
+    [Fact]
+    public async Task List_says_which_extras_folder_or_extras_name_made_the_library_skip_a_file()
+    {
+        //Arrange
+        // MAM-43 — production's Alien shorts and two names Jellyfin takes for extras, in Фільми's folder.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        const string shortPath = "/media/movies/Alien. Collection/Shorts/[01] Alien. Containment (2019) WEBRip 1080p H.265 [ENG] [Hurtom].mkv";
+        const string trailerPath = "/media/movies/Dune (2021)/Dune (2021)-trailer.mkv";
+        const string samplePath = "/media/movies/Dune (2021)/Sample2.mkv";
+        await SeedLibraryFolderAsync();
+        await new AllowedRootSeeder(_factory.Scope).Allow(Root);
+        _factory.Files.AddFile(shortPath, TestMedia.File(inode: 121));
+        _factory.Files.AddFile(trailerPath, TestMedia.File(inode: 122));
+        _factory.Files.AddFile(samplePath, TestMedia.File(inode: 123));
+        _factory.Files.AddFile(BirthdayPath, TestMedia.File(inode: 103));
+        await _factory.ScanFoldersAsync(_owner.AccessToken, cancellationToken);
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, _member.AccessToken);
+
+        //Assert
+        var list = await ReadListAsync(response, cancellationToken);
+        Assert.Equal(
+            [
+                (BirthdayPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.NoLibraryFolder, null)),
+                (shortPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtrasFolder, "Фільми", "Shorts")),
+                (trailerPath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, "Фільми", "-trailer")),
+                (samplePath, new UnreportedFilePlaceDto(UnreportedFilePlaceKind.ExtraName, "Фільми", "sample")),
+            ],
+            list.Items.Select(file => (file.AppPath, file.Place)));
     }
 
     [Fact]

@@ -9,11 +9,19 @@ public enum UnreportedFilePlaceKind
     /// <summary>Under none of the folders the libraries listed at their last sync: no library looks there.</summary>
     NoLibraryFolder = 1,
 
-    /// <summary>Under a library's folder, yet that library didn't report it: the library skipped it by its name (a
-    /// sample, a trailer, an extra), or it came after the library's last scan.</summary>
+    /// <summary>Under a library's folder, yet that library didn't report it, and no extra's name says why: most likely it
+    /// came after the library's last scan.</summary>
     LibraryFolder = 2,
 
     /// <summary>The app knows no library folder with a path in the app — no sync stored one, or none maps — so it can't
     /// tell.</summary>
     FoldersUnknown = 3,
+
+    /// <summary>MAM-43 — under a library's folder, in a folder whose name makes the library take its videos for a film's
+    /// extras ("Shorts", "Trailers", <see cref="Library.LibraryExtraNames"/>).</summary>
+    ExtrasFolder = 4,
+
+    /// <summary>MAM-43 — under a library's folder, named as the library names a film's extra ("trailer.mkv",
+    /// "…-sample.mkv", <see cref="Library.LibraryExtraNames"/>).</summary>
+    ExtraName = 5,
 }
