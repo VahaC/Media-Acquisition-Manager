@@ -7,6 +7,14 @@
   max-width: 48rem;
 }
 
+/* The tabs keep their height. In the dialog's flex column every child shrinks when a long list overflows
+   its max-height, and the row's `overflow-x: auto` lets it shrink to nothing — it ended a few pixels high,
+   with a scrollbar of its own, and the list's first file drew over it and the description. Only the body
+   scrolls. */
+.unreported-files-dialog .modal-tabs {
+  flex-shrink: 0;
+}
+
 /* The pager under the list scrolls with it; the tabs and the footer stay. */
 .settings-dialog-body.unreported-files-body {
   align-content: start;
