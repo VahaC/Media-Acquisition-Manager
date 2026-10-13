@@ -1,0 +1,49 @@
+/* MAM-42 — the Files in no library dialog: what the shared sheets don't have (settings-dialog.css for its
+   scroller and footer, library.css for a file's lines) — its width, the list and each file's row. */
+
+/* Wider than a settings dialog, for a path and its button on one line. Three classes, so it wins over
+   `.ui-dialog-content.settings-dialog` whichever sheet loads first (the reason of .search-details-dialog). */
+.ui-dialog-content.settings-dialog.unreported-files-dialog {
+  max-width: 48rem;
+}
+
+/* The pager under the list scrolls with it; the tabs and the footer stay. */
+.settings-dialog-body.unreported-files-body {
+  align-content: start;
+}
+
+.unreported-files {
+  display: grid;
+}
+
+/* A file beside its button, parted from the next by a line, as the Library's sources are. */
+.unreported-file {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.unreported-file:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.unreported-file-body {
+  flex: 1;
+}
+
+.unreported-file-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* On a phone the button goes under the file, at the left, keeping its label: beside a long path it would
+   leave the name a few characters a line. */
+@media (max-width: 560px) {
+  .unreported-file {
+    flex-direction: column;
+  }
+}

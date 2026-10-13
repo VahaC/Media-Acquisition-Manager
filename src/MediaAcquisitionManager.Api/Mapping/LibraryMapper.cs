@@ -190,6 +190,22 @@ public sealed class LibraryMapper : ILibraryMapper
             ToInspectionDto(file, path.HasAppPath, reading, tracks, forOwner));
     }
 
+    public UnreportedFileDto ToDto(
+        PhysicalFileEntity file,
+        UnreportedFilePlaceDto place,
+        MediaInspectionEntity? reading,
+        IReadOnlyList<MediaInspectionTrackEntity> tracks,
+        bool forOwner) =>
+        new(
+            file.Id,
+            // MAM-18 — the scan stores the app's own path, which no mapping applies to.
+            file.ServicePath,
+            file.ReadSizeBytes,
+            file.CreatedUtc,
+            file.IgnoredUtc,
+            place,
+            ToInspectionDto(file, PathMapper.Map(file.ServicePath, []).HasAppPath, reading, tracks, forOwner));
+
     public LibraryLocationDto ToDto(LibraryLocationEntity location) => new(location.Id, location.Name, location.SourceName);
 
     public LibrarySyncRunDto ToDto(LibrarySyncRunEntity run, bool forOwner) =>

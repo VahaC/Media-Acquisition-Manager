@@ -111,6 +111,14 @@
     "problems_other": "{{value}} couldn't be read",
     "notInspected_one": "{{value}} not inspected yet",
     "notInspected_other": "{{value}} not inspected yet",
+    "ignored_one": "{{value}} ignored",
+    "ignored_other": "{{value}} ignored",
+    "problemsOwner_one": "{{value}} file couldn't be read: {{problem}}",
+    "problemsOwner_other": "{{value}} files couldn't be read: {{problem}}",
+    "problemsMember_one": "{{value}} file couldn't be read. The owner can see why.",
+    "problemsMember_other": "{{value}} files couldn't be read. The owner can see why.",
+    "problemsCount_one": "{{value}} file couldn't be read.",
+    "problemsCount_other": "{{value}} files couldn't be read.",
     "hashing": {
       "running_one": "Hashing the files that could be copies… {{checked}} of {{total}}",
       "running_other": "Hashing the files that could be copies… {{checked}} of {{total}}",
@@ -131,8 +139,11 @@
     "running_one": "Scanning the media folders… {{found}} file found",
     "running_other": "Scanning the media folders… {{found}} files found",
     "followedBy": "{{line}}; another scan starts after this one.",
-    "succeeded_one": "Scanned {{time}}: {{found}} file, {{unreported}} in no library.",
-    "succeeded_other": "Scanned {{time}}: {{found}} files, {{unreported}} in no library.",
+    "succeeded_one": "Scanned {{time}}: {{found}} file.",
+    "succeeded_other": "Scanned {{time}}: {{found}} files.",
+    "unreported_one": "{{value}} file is in no library.",
+    "unreported_other": "{{value}} files are in no library.",
+    "showFiles": "Show files",
     "failed": "Scan failed {{time}}: {{error}}",
     "failedHidden": "The last scan failed. The owner can see why.",
     "never": "The media folders have not been scanned yet.",
@@ -303,6 +314,9 @@
     "noLibrary_other": "{{value}} in no library",
     "skipped_one": "{{value}} folder not scanned",
     "skipped_other": "{{value}} folders not scanned",
+    "notHashed_one": "{{value}} couldn't be hashed",
+    "notHashed_other": "{{value}} couldn't be hashed",
+    "showFiles": "Show these files",
     "total_one": "{{value}} file · {{size}}",
     "total_other": "{{value}} files · {{size}}",
     "noFolders": "No media folder is allowed yet."
@@ -324,5 +338,39 @@
     "scanFailed": "The scan of the media folders failed.",
     "inspectFailed": "The file inspection failed.",
     "failed": "Something went wrong."
+  },
+  "unreported": {
+    "title": "Files in no library",
+    "description": "Files the scan found in the media folders that no library lists. Ignore a file that isn't media, such as an installer's ISO: the app stops counting it, and nothing changes on the disk.",
+    "tabs": {
+      "label": "Files in no library",
+      "All": "In no library",
+      "Problems": "Couldn't be read",
+      "Ignored": "Ignored",
+      "withCount": "{{name}} ({{count}})"
+    },
+    "empty": {
+      "All": "No file is in no library.",
+      "Problems": "Every file in no library could be read.",
+      "Ignored": "No file is ignored."
+    },
+    "loadFailed": "Could not load the files in no library.",
+    "refreshFailed": "Could not refresh the files in no library.",
+    "place": {
+      "NoLibraryFolder": "No library's folders hold it, so no library looks for it there.",
+      "LibraryFolder": "In {{library}}'s folders, but {{library}} didn't list it: a library skips samples, trailers and extras by their names, and lists a file added after its last scan only after the next one.",
+      "FoldersUnknown": "The app doesn't know the libraries' folders yet. Sync a library first."
+    },
+    "ignoredAt": "Ignored {{time}}.",
+    "ignore": "Ignore",
+    "ignoreTitle": "Stop counting this file, as it isn't media. Nothing changes on the disk.",
+    "ignoring": "Ignoring…",
+    "undoIgnore": "Stop ignoring",
+    "undoIgnoreTitle": "Count this file again.",
+    "undoing": "Counting again…",
+    "notOwner": "Only the owner can ignore files.",
+    "ignoreFailed": "Could not ignore the file.",
+    "undoIgnoreFailed": "Could not count the file again.",
+    "gone": "This file is no longer in no library: a scan or a sync changed it meanwhile."
   }
 }

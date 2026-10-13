@@ -215,6 +215,48 @@ describe('libraryApi', () => {
     await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 409, data: { error: sentence } } })
   })
 
+  it('asks for one page of one tab of the files in no library with the query in the address', async () => {
+    // Arrange
+    const list = { items: [], totalCount: 0, page: 2, pageSize: 50, countedCount: 17, problemCount: 1, ignoredCount: 0 }
+    const requests = respondWith(200, list)
+
+    // Act
+    const page = await libraryApi.unreportedFiles({ view: 'Problems', page: 2, pageSize: 50 })
+
+    // Assert
+    expect(page).toEqual(list)
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe('/api/library/unreported-files?view=Problems&page=2&pageSize=50')
+  })
+
+  it.each<['ignoreUnreportedFile' | 'undoIgnoreUnreportedFile', string]>([
+    ['ignoreUnreportedFile', 'put'],
+    ['undoIgnoreUnreportedFile', 'delete'],
+  ])('%s sends a %s without a body to the file\'s ignored mark', async (call, method) => {
+    // Arrange
+    const requests = respondWith(204, '')
+
+    // Act
+    await libraryApi[call]('f0000000-0000-4000-8000-000000000001')
+
+    // Assert
+    expect(requests).toHaveLength(1)
+    expect(requests[0].method).toBe(method)
+    expect(requests[0].data).toBeUndefined()
+    expect(api.getUri(requests[0])).toBe('/api/library/unreported-files/f0000000-0000-4000-8000-000000000001/ignored')
+  })
+
+  it('rejects an Ignore of a file a scan forgot with the bare 404', async () => {
+    // Arrange
+    respondWith(404, '')
+
+    // Act
+    const result = libraryApi.ignoreUnreportedFile('f0000000-0000-4000-8000-000000000001')
+
+    // Assert
+    await expect(result).rejects.toMatchObject({ isAxiosError: true, response: { status: 404 } })
+  })
+
   it('fetches a work\'s poster from its library through the API client as a blob', async () => {
     // Arrange
     const poster = new Blob(['jpeg bytes'], { type: 'image/jpeg' })

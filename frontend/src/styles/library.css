@@ -235,6 +235,27 @@
   color: var(--status-attention);
 }
 
+/* MAM-42 — a warning chip that opens the files it counts: the badge's look, with a pointer, an amber
+   border on hover and the focus ring of a link. */
+.ui-badge.library-badge-button {
+  cursor: pointer;
+}
+
+.ui-badge.library-badge-button:hover {
+  border-color: var(--status-attention);
+}
+
+.library-badge-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* MAM-42 — a link-like button inside a sentence ("Show files"): .library-link's look on a button, whose
+   reset leaves it no colour or underline. */
+button.library-link {
+  cursor: pointer;
+}
+
 /* MAM-16 — a work's card as the approved layout draws it: one grid of the head and the versions,
    with padding of its own, rather than .ui-card-header over .ui-card-content. Two classes win over
    `.ui-card` whichever sheet loads first. */

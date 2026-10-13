@@ -1243,6 +1243,42 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `canDeleteForGood`, by the rules `GET /api/replacements/{id}` answers them with
   (`ReplacementJobOffers`), so the row offers what the actions take; a member's row has neither.
   `ReplacementLineHttpTests` and `JobsPage.actions.test.tsx` pin it.
+- **The files in no library are listed, and the owner ignores the ones that aren't media (MAM-42,
+  ADR 0021, Vasyl's decisions of 2026-10-13).** On 2026-10-13 the Sources card warned "17 in no
+  library" and "1 couldn't be read" with nothing to show which files they were or how to settle them.
+  A **Files in no library** dialog now lists them, opened from the Folders item's chips on the closed
+  bar and from **Show files** on the Media folders row: "Files the scan found in the media folders
+  that no library lists. Ignore a file that isn't media, such as an installer's ISO: the app stops
+  counting it, and nothing changes on the disk." Underline tabs "In no library (17)", "Couldn't be
+  read (1)" and "Ignored (0)", counted by the server, each paged there, 25 to a page, in path order.
+  Each file shows its name over its folder, its size as the app's last look read it ("Size unknown"
+  until read), what that look found — ffprobe's reading as on the Library page, why it couldn't read
+  it (the sentence the owner's, a status sentence a member's) or "Not inspected yet" —, "Ignored Oct
+  13, 2026, 10:26 AM." on the Ignored tab, and why a library most likely doesn't list it: "No
+  library's folders hold it, so no library looks for it there.", "In Фільми's folders, but Фільми
+  didn't list it: a library skips samples, trailers and extras by their names, and lists a file added
+  after its last scan only after the next one." or, while no library folder the last syncs stored
+  maps into the app, "The app doesn't know the libraries' folders yet. Sync a library first." Every
+  signed-in user opens it, as the Library page already shows paths;
+  `GET /api/library/unreported-files?view=&page=1&pageSize=25` answers it, `view` `Problems` or
+  `Ignored` by name in any letter case and blank for every file the app counts, anything else 400
+  "“x” is not a view of the files in no library. Use Problems or Ignored, or leave it out for every
+  file.". **Ignore** and **Stop ignoring** are the installation owner's (`PUT` and `DELETE` on
+  `/api/library/unreported-files/{id}/ignored`, 204 also when already so, a bare 404 for an id no
+  name the scan stored has, a library's file included; a member sees them disabled with "Only the
+  owner can ignore files."). Ignore sets `PhysicalFiles.IgnoredUtc` on the scan's name — the app's
+  own note: nothing changes on the disk or in a library (specification §1). An ignored file leaves
+  every count of files in no library and of files that couldn't be read at once, but still counts in
+  the room the files take, as it still takes that room, and the inspection still reads it. It stays
+  ignored while a scan keeps its row; moved or renamed, it is a new name and counts again. Each change
+  writes an audit row, `UnreportedFileIgnored` (75) or `UnreportedFileIgnoreUndone` (76), target kind
+  `UnreportedFile` (12), named by the file's own name; a repeat records nothing. A refused action shows
+  on its file's row, a bare 404 as "This file is no longer in no library: a scan or a sync changed it
+  meanwhile.". `UnreportedFilesHttpTests`, `UnreportedFileListRulesTests`,
+  `LibraryWritesAreOwnerOnlyHttpTests` and `UnreportedFilesDialog.test.tsx` pin it. Checked in a
+  browser on 2026-10-13 on a scratch installation with real ffprobe, an ISO and two short videos —
+  the chips, the rows, the dialog, Ignore, a rescan keeping the mark, Stop ignoring and a member's
+  view, at desktop and phone width —; not tried on the reference installation.
 
 ### Changed
 
@@ -1541,6 +1577,31 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   `{ items, totalCount, page, pageSize, needsYouCount, inProgressCount }` where it answered
   `{ items, totalCount, page, pageSize }`; `replacement` gains, after its other fields, `canRestore`
   and `canDeleteForGood`.
+- **The Sources card shows the same warnings with Details open or closed (MAM-42, Vasyl's decisions of
+  2026-10-13).** With Details closed the bar warned "17 in no library" and "1 couldn't be read"; open,
+  only the first, as the Inspection item's chip summed every file no look could read, the libraries'
+  and the scan's. Every amber chip on the bar now sits on the item whose row under Details holds its
+  amber line, and the other way round. A library's item keeps "N files without an app path" and gains
+  "N couldn't be read" for its own files, its row a count line for them — the owner's with the first
+  sentence, "1 file couldn't be read: …", a member's "… The owner can see why." — that doesn't repeat
+  the path problem its "no path in this app" warning already quotes. The Folders item says "N in no
+  library", counted now — the scan's names no library reports and the owner hasn't ignored — where it
+  showed the last scan's stored `filesUnreported`, "N folders not scanned" as before and, new, "N
+  couldn't be read" for the files in no library; the two file chips are buttons, "Show these files",
+  that open the dialog (above) on the matching tab. The Inspection item carries only "N couldn't be
+  hashed", the hashing's own problems once its run has succeeded, as its row's hashing warning does.
+  The Media folders row's status line ends with the files found, "Scanned Oct 12, 2026, 6:24 PM: 1,404
+  files." (it added ", 17 in no library."), followed by an amber "17 files are in no library." with
+  **Show files**; the counts line adds the ignored ones, "Files in no library: 16 inspected · 1
+  couldn't be read · 1 ignored" (with every file ignored, **Show files** ends it and opens Ignored);
+  and the files that couldn't be read are one amber line with a count and **Show files**. The rule
+  for "couldn't be read" is one, `FileInspectionCounts.IsProblem`, and the Media folders row's counts
+  and the dialog read the same files (`UnreportedFileReader`). `LibrarySyncPanel.bar.test.tsx`,
+  `LibrarySyncPanel.scan.test.tsx` and `LibrarySyncPanel.inspection.test.tsx` pin it.
+- **The sources leave the ignored files out of their counts (MAM-42).** In `GET /api/library/sources`,
+  `scan.files` leaves out the names the owner ignored, and `scan` gains `ignoredCount` after `space`,
+  how many of the scan's names no library reports are ignored; `scan.space` still counts them.
+  `GET /api/library/scans/{runId}`'s `filesUnreported` is still what that scan stored.
 
 ### Notes for upgraders
 
@@ -1654,6 +1715,9 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   through whole (`AddCopyRemovalsMigrationTests`). `AddKeptDuplicateMembers` adds one nullable
   column, `DuplicateMatchDecisions.KeptMembers`: every decision on a possible match comes through as
   it was, with none.
+- **Applying `AddIgnoredUnreportedFiles` rebuilds no table, so it logs no warning 20410 (MAM-42).**
+  It adds one nullable column, `PhysicalFiles.IgnoredUtc`, and no index: every file in no library
+  comes through counted, none ignored.
 - **Removing a copy from the Duplicates page needs replacement turned on, and nothing more (MAM-40,
   ADR 0033).** It stands behind the same four steps as a replacement — the media folders mounted
   read-write, `PUID` and `PGID` set to their owner, the switch on and the library folder ticked —,

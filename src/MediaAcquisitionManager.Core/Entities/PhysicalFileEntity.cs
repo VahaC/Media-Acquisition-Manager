@@ -126,4 +126,17 @@ public class PhysicalFileEntity : ProvenancedEntity
     /// is <see cref="FileInspectionStatus.Inspected"/>. No foreign key: see <c>ApplicationDbContext</c>.
     /// </summary>
     public Guid? MediaInspectionId { get; set; }
+
+    /// <summary>
+    /// MAM-42 — when the installation owner told the app to stop counting this name as a file in no library;
+    /// <c>null</c> while it counts. Only ever set on a name the scan found itself (no version): a file that is
+    /// no media at all, such as an installer's ISO, would otherwise keep a warning for good.
+    /// </summary>
+    /// <remarks>
+    /// The app's own note, never a change on the disk or in a library (specification §1). It lives on the row,
+    /// so it holds while a scan keeps the row — the file still at one of its names (ADR 0021) — and goes with
+    /// it: a file moved or renamed is a new row and counts again, and a file a library starts reporting leaves
+    /// the scan's names altogether.
+    /// </remarks>
+    public DateTime? IgnoredUtc { get; set; }
 }

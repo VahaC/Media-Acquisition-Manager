@@ -223,3 +223,48 @@ The walk still writes nothing: the quarantine's renames go through a contract of
 `LocalFileInventoryListingTests.List_never_follows_a_link_into_a_quarantine`,
 `LocalFileInventoryListingTests.List_of_a_root_that_lies_in_a_quarantine_gives_nothing_for_it_and_walks_the_others`
 and `QuarantineFolderTests.Holds_a_quarantine_folder_and_anything_inside_one_at_any_depth` pin it.
+
+## The names in no library are listed, and the owner may ignore one (added 0.3.0, MAM-42)
+
+**The page now lists the names it counts, and the installation owner may mark a name ignored: the
+app stops counting it as a file in no library, and nothing changes on the disk or in a library
+(Vasyl's decisions of 2026-10-13).** The Consequences said the page "counts the names in no library
+and doesn't list them yet"; on 2026-10-13 its warnings — 17 files in no library, one of them a file
+ffprobe couldn't read — gave the owner no way to see which files they were or to settle them.
+
+**Listed as counted.** `GET /api/library/unreported-files` lists, for every signed-in user, the very
+names the Media folders row counts: one reader, `UnreportedFileReader`, gives both the scan's names
+no library name maps to now through `LibraryAppPaths`, so the list and the row never disagree, and
+the "couldn't be read" view applies the row's own rule (`FileInspectionCounts.IsProblem`). Why a
+library most likely doesn't list a name is worked out when read, never stored, as "no library
+reported it" never is: under none of the folders the libraries listed at their last sync, under one
+of them — the library skipped it by its name, or it came after the library's last scan —, or not
+known while no stored library folder maps into the app.
+
+**The mark is the app's own note, on the scan's row.** Ignore sets `PhysicalFiles.IgnoredUtc` on a
+name with no version, the scan's alone; a library's file is never ignored. The row keeps it as it
+keeps the name's readings: a scan that keeps the row — the file still at one of its names — keeps
+the mark, and a file moved or renamed is a new row and counts again, as the walk looked where it was
+and found nothing. A file a library starts reporting leaves the scan's names altogether, mark and
+all. Stop ignoring clears it. Each change writes an audit row, `UnreportedFileIgnored` or
+`UnreportedFileIgnoreUndone`, and a repeat writes nothing.
+
+**What an ignored name leaves, and what it doesn't.** It leaves every count of files in no library
+and of files that couldn't be read, and the first problem's sentence; it stays in the room the files
+take (`scan.space`, and the totals), as it still takes that room, and the inspection still reads it.
+`GET /api/library/sources` says how many are ignored (`scan.ignoredCount`).
+
+**Why.** A file that isn't media at all — on the reference installation a software disc image, one
+of the 17 in no library and the one file ffprobe couldn't read when MAM-22 checked it on 2026-10-08 —
+has a video extension, so every scan finds it and every inspection fails to read it, and it would
+warn forever. Specification §1 rules out settling it in the library: the app never moves, renames or
+deletes a library's files, nor tells a library what to list. A mark the owner sets and clears in the
+app settles the warning and touches nothing else.
+
+`UnreportedFilesHttpTests.List_gives_every_counted_file_in_path_order_with_its_size_its_look_and_its_place_among_the_library_folders`,
+`UnreportedFilesHttpTests.List_says_the_library_folders_are_unknown_while_no_sync_stored_one`,
+`UnreportedFilesHttpTests.List_leaves_out_a_scanned_file_once_a_sync_reports_its_path`,
+`UnreportedFilesHttpTests.Ignore_takes_the_file_off_the_media_folders_counts_and_lists_it_under_ignored_with_an_audit_row`,
+`UnreportedFilesHttpTests.Ignore_or_UndoIgnore_of_an_id_no_scanned_name_has_is_a_bare_404_and_writes_nothing`
+and `UnreportedFilesHttpTests.Scan_again_keeps_an_ignored_file_ignored_and_a_moved_one_counts_again_under_its_new_path`
+pin it.

@@ -392,4 +392,12 @@ public enum AuditAction
     /// <summary>MAM-40 — the owner's Delete for good removed every quarantined name of a removal (Deleting to Deleted). Its
     /// actor the owner — none after a restart —, its target the removal.</summary>
     CopyRemovalDeletedForGood = 74,
+
+    /// <summary>MAM-42 — the owner told the app to stop counting a file in no library (its <c>IgnoredUtc</c> set). Its
+    /// actor the owner, its target the file's name.</summary>
+    UnreportedFileIgnored = 75,
+
+    /// <summary>MAM-42 — the owner's Stop ignoring: a file in no library counts again. Its actor the owner, its target the
+    /// file's name.</summary>
+    UnreportedFileIgnoreUndone = 76,
 }

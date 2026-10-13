@@ -69,6 +69,9 @@ public sealed class LibraryWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcqu
                 // MAM-21 — the owner's Confirm or Dismiss of a possible match, and its Undo.
                 "PUT api/library/duplicates/{key}/decision",
                 "DELETE api/library/duplicates/{key}/decision",
+                // MAM-42 — the owner's Ignore of a file in no library, and Stop ignoring.
+                "PUT api/library/unreported-files/{id:guid}/ignored",
+                "DELETE api/library/unreported-files/{id:guid}/ignored",
             },
             writes);
     }

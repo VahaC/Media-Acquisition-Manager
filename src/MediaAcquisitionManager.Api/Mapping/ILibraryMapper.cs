@@ -69,6 +69,18 @@ public interface ILibraryMapper
         IReadOnlyList<MediaInspectionTrackEntity> tracks,
         bool forOwner);
 
+    /// <summary>
+    /// MAM-42 — a name the scan stored that no library reports, at <paramref name="place"/> among the libraries' folders,
+    /// with what the app's last look at it found as a library's file has it: the facts of <paramref name="reading"/> and
+    /// its <paramref name="tracks"/>, and the sentence saying why it didn't read them only <paramref name="forOwner"/>.
+    /// </summary>
+    UnreportedFileDto ToDto(
+        PhysicalFileEntity file,
+        UnreportedFilePlaceDto place,
+        MediaInspectionEntity? reading,
+        IReadOnlyList<MediaInspectionTrackEntity> tracks,
+        bool forOwner);
+
     /// <summary>A library as the works filter offers it.</summary>
     LibraryLocationDto ToDto(LibraryLocationEntity location);
 

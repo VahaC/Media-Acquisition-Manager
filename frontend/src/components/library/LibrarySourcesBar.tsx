@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, CircleDashed, Loader2, TriangleAlert } from '
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { formatDateTime, formatFileSize, formatNumber } from '@/lib/format'
+import { unreportedCountOf } from '@/lib/library-runs'
 import type {
   FileInspectionOverview,
   FileInspectionRun,
@@ -13,6 +14,7 @@ import type {
   LibrarySourceList,
   LibrarySyncRun,
   LibrarySyncStatus,
+  UnreportedFileView,
 } from '@/lib/types'
 import '@/styles/library.css' // .library-bar-* — the items, their icons and the chips
 
@@ -22,6 +24,8 @@ const BAR_INSTANT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric'
 interface LibrarySourcesBarProps {
   data: LibrarySourceList
   isOwner: boolean
+  /** MAM-42 — opens the Files in no library dialog on a view; none for every file the app counts. */
+  onShowFiles: (view?: UnreportedFileView) => void
 }
 
 /**
@@ -30,10 +34,16 @@ interface LibrarySourcesBarProps {
  * amber chips, what needs a look — and what all the files take on disk. The same facts the rows under
  * Details tell in full sentences, which is where the buttons are.
  *
+ * MAM-42 — each chip sits on the item whose row under Details holds its amber line, so the two views
+ * always show the same warnings: a library's files without an app path and those that couldn't be read
+ * on the library, the files in no library, the folders not scanned and the files in no library that
+ * couldn't be read on Folders, the files the hashing couldn't read on Inspection. The Folders chips open
+ * the Files in no library dialog, the only place that lists those files.
+ *
  * Without a media folder there is no scan and no inspection to tell of: one sentence says so, with
  * the way to the settings for the owner.
  */
-export function LibrarySourcesBar({ data, isOwner }: LibrarySourcesBarProps) {
+export function LibrarySourcesBar({ data, isOwner, onShowFiles }: LibrarySourcesBarProps) {
   const { t } = useTranslation(['library', 'common'])
   const { scan, inspection } = data
   const { fileCount, sizeBytes } = inspection.space
@@ -43,8 +53,8 @@ export function LibrarySourcesBar({ data, isOwner }: LibrarySourcesBarProps) {
       {data.items.map((source) => <SourceItem key={source.integrationId} source={source} />)}
       {inspection.hasAllowedRoots ? (
         <>
-          <FoldersItem scan={scan} />
-          <InspectionItem overview={inspection} problemCount={fileProblemCount(data)} />
+          <FoldersItem scan={scan} onShowFiles={onShowFiles} />
+          <InspectionItem overview={inspection} />
         </>
       ) : (
         <li className="library-bar-item">
@@ -69,11 +79,6 @@ export function LibrarySourcesBar({ data, isOwner }: LibrarySourcesBarProps) {
   )
 }
 
-/** The files no run could read: those of the libraries and those the scan stored. */
-function fileProblemCount(data: LibrarySourceList): number {
-  return data.items.reduce((sum, source) => sum + source.inspection.problemCount, 0) + data.scan.files.problemCount
-}
-
 // ── the items ──
 
 function SourceItem({ source }: { source: LibrarySource }) {
@@ -82,24 +87,35 @@ function SourceItem({ source }: { source: LibrarySource }) {
   const usable = source.isEnabled && source.canReadLibrary
   const status = usable ? run?.status ?? null : null
   const missing = source.filesWithoutAppPathCount
+  const problems = source.inspection.problemCount
 
   return (
     <BarItem
       name={source.name}
       detail={usable ? syncDetail(run, t) : source.isEnabled ? t('bar.cannotRead') : t('bar.disabled')}
       status={status}
-      chips={missing > 0 && (
-        <WarningChip>{t('bar.withoutPath', { count: missing, value: formatNumber(missing) })}</WarningChip>
+      chips={(
+        <>
+          {missing > 0 && (
+            <WarningChip>{t('bar.withoutPath', { count: missing, value: formatNumber(missing) })}</WarningChip>
+          )}
+          {problems > 0 && (
+            <WarningChip>{t('inspection.problems', { count: problems, value: formatNumber(problems) })}</WarningChip>
+          )}
+        </>
       )}
     />
   )
 }
 
-function FoldersItem({ scan }: { scan: FolderScanOverview }) {
+function FoldersItem({ scan, onShowFiles }: { scan: FolderScanOverview; onShowFiles: (view?: UnreportedFileView) => void }) {
   const { t } = useTranslation('library')
   const run = scan.activeRun ?? scan.lastFinishedRun
-  const unreported = run?.status === 'Succeeded' ? run.filesUnreported ?? 0 : 0
+  // MAM-42 — counted now, as the row under Details counts them: the names a scan stored that no library
+  // reports and the owner hasn't ignored, not what the last scan found.
+  const unreported = unreportedCountOf(scan)
   const skipped = run?.problemCount ?? 0
+  const problems = scan.files.problemCount
 
   return (
     <BarItem
@@ -109,10 +125,17 @@ function FoldersItem({ scan }: { scan: FolderScanOverview }) {
       chips={(
         <>
           {unreported > 0 && (
-            <WarningChip>{t('bar.noLibrary', { count: unreported, value: formatNumber(unreported) })}</WarningChip>
+            <WarningChip onClick={() => onShowFiles()}>
+              {t('bar.noLibrary', { count: unreported, value: formatNumber(unreported) })}
+            </WarningChip>
           )}
           {skipped > 0 && (
             <WarningChip>{t('bar.skipped', { count: skipped, value: formatNumber(skipped) })}</WarningChip>
+          )}
+          {problems > 0 && (
+            <WarningChip onClick={() => onShowFiles('Problems')}>
+              {t('inspection.problems', { count: problems, value: formatNumber(problems) })}
+            </WarningChip>
           )}
         </>
       )}
@@ -120,17 +143,20 @@ function FoldersItem({ scan }: { scan: FolderScanOverview }) {
   )
 }
 
-function InspectionItem({ overview, problemCount }: { overview: FileInspectionOverview; problemCount: number }) {
+function InspectionItem({ overview }: { overview: FileInspectionOverview }) {
   const { t } = useTranslation('library')
   const run = overview.activeRun ?? overview.lastFinishedRun
+  // MAM-42 — the files the hashing couldn't read, which the row under Details warns of once the run has
+  // succeeded; the files no look could read are their own source's chips.
+  const notHashed = run?.status === 'Succeeded' ? run.hashing.problemCount : 0
 
   return (
     <BarItem
       name={t('bar.inspection')}
       detail={inspectionDetail(run, t)}
       status={run?.status ?? null}
-      chips={problemCount > 0 && (
-        <WarningChip>{t('inspection.problems', { count: problemCount, value: formatNumber(problemCount) })}</WarningChip>
+      chips={notHashed > 0 && (
+        <WarningChip>{t('bar.notHashed', { count: notHashed, value: formatNumber(notHashed) })}</WarningChip>
       )}
     />
   )
@@ -171,13 +197,22 @@ function BarIcon({ status }: { status: LibrarySyncStatus | null }) {
   }
 }
 
-function WarningChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="ui-badge library-badge-warning">
+/** An amber chip; MAM-42 — a button when it opens the files it counts. */
+function WarningChip({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+  const { t } = useTranslation('library')
+  const content = (
+    <>
       <TriangleAlert className="h-3 w-3" aria-hidden="true" />
       {children}
-    </span>
+    </>
   )
+  return onClick === undefined
+    ? <span className="ui-badge library-badge-warning">{content}</span>
+    : (
+      <button type="button" className="ui-badge library-badge-warning library-badge-button" title={t('bar.showFiles')} onClick={onClick}>
+        {content}
+      </button>
+    )
 }
 
 // ── what each item says of its run ──

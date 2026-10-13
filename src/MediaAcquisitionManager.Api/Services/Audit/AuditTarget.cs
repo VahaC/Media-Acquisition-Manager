@@ -81,6 +81,14 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     public static AuditTarget CopyRemovalName(CopyRemovalNameEntity name) =>
         new(AuditTargetKind.CopyRemovalName, name.Id, Cut(ReplacementText.FileNameOf(name.AppPath)));
 
+    /// <summary>
+    /// MAM-42 — a file in no library the owner ignored or counts again, by its name's row, named by the file's own name
+    /// (<c>Adobe Premiere Rush 2.10.0.30.iso</c>): the row keeps the path. Cut to the column with an ellipsis, as a file's
+    /// name runs to 255 bytes.
+    /// </summary>
+    public static AuditTarget UnreportedFile(PhysicalFileEntity file) =>
+        new(AuditTargetKind.UnreportedFile, file.Id, Cut(ReplacementText.FileNameOf(file.ServicePath)));
+
     /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
     /// what tells two works apart within it.</summary>
     public const int TargetNameMaximumLength = 200;

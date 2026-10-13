@@ -2100,6 +2100,9 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<long?>("DeviceId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("IgnoredUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("Inode")
                         .HasColumnType("INTEGER");
 

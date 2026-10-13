@@ -107,7 +107,7 @@ describe('LibraryPage while the media folders are scanned', () => {
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     scanIs({ lastFinishedRun: succeeded })
     await nextPoll()
-    await screen.findByText(/^Scanned .*: 1,394 files, 12 in no library\.$/)
+    await screen.findByText(/^Scanned .*: 1,394 files\.$/)
     const pollsUntilDone = vi.mocked(libraryApi.sources).mock.calls.length
 
     // Act
@@ -132,7 +132,7 @@ describe('LibraryPage while the media folders are scanned', () => {
     await screen.findByRole('heading', { level: 2, name: 'Чужі' })
     scannedAndInspectionIs({})
     await nextPoll()
-    await screen.findByText(/^Scanned .*: 1,394 files, 12 in no library\.$/)
+    await screen.findByText(/^Scanned .*: 1,394 files\.$/)
     const pollsWhenTheScanEnded = vi.mocked(libraryApi.sources).mock.calls.length
     const inspectionWhenTheScanEnded = inspectionStatus().textContent
     scannedAndInspectionIs({ activeRun: inspecting })

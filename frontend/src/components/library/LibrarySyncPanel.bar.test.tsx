@@ -41,6 +41,10 @@ const findItems = async () => within(await screen.findByRole('list', { name: 'St
 /** The item that starts with `name`: a library's name, "Folders" or "Inspection". */
 const findItem = async (name: string) => (await findItems()).find((item) => item.textContent?.startsWith(name))!
 
+/** The text of the item's amber chips, in their order. */
+const chipsOf = async (name: string) =>
+  Array.from((await findItem(name)).querySelectorAll('.library-badge-warning'), (chip) => chip.textContent)
+
 const queued = runOf({ status: 'Queued', startedUtc: null, finishedUtc: null, itemsRead: 0, itemsTotal: null })
 
 describe('LibrarySyncPanel status bar', () => {
@@ -82,31 +86,79 @@ describe('LibrarySyncPanel status bar', () => {
     expect(items.at(-1)).toHaveTextContent(/^882 files · 6\.5\d TiB$/)
   })
 
-  it('marks what needs a look with amber chips: files without a path, in no library, folders not scanned and files that couldn\'t be read', async () => {
+  it.each([['owner', owner], ['member', member]] as const)('marks what needs a look with amber chips, each on the item whose row warns of it, for the %s', async (_, signedIn) => {
     // Arrange
+    // MAM-42 — the library's own files that couldn't be read on the library, the files in no library that
+    // couldn't be read on Folders, and only what the hashing couldn't read on Inspection.
     serveWith(
       {
         lastFinishedRun: scanRunOf({ filesUnreported: 17, problemCount: 2 }),
         files: { inspectedCount: 16, problemCount: 1, notInspectedCount: 0, problem: null },
       },
-      {},
+      { lastFinishedRun: inspectionRunOf({ hashing: { candidates: 40, checked: 40, read: 2, problemCount: 2, problem: null } }) },
       sourceOf({ filesWithoutAppPathCount: 3, inspection: { inspectedCount: 867, problemCount: 2, notInspectedCount: 0, problem: null } }),
+    )
+
+    // Act
+    renderPanel(signedIn)
+
+    // Assert
+    expect(await chipsOf('Home Jellyfin')).toEqual(['3 files without an app path', '2 couldn\'t be read'])
+    expect(await chipsOf('Folders')).toEqual(['17 in no library', '2 folders not scanned', '1 couldn\'t be read'])
+    expect(await chipsOf('Inspection')).toEqual(['2 couldn\'t be hashed'])
+  })
+
+  it('counts the files in no library now, not what the last scan found, leaving the ignored ones out', async () => {
+    // Arrange
+    // The scan found 17; since then the owner ignored one and a sync took two more on.
+    serveWith(
+      { lastFinishedRun: scanRunOf({ filesUnreported: 17 }), files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 2, problem: null }, ignoredCount: 1 },
+      {},
     )
 
     // Act
     renderPanel()
 
     // Assert
-    const chipsOf = async (name: string) =>
-      Array.from((await findItem(name)).querySelectorAll('.library-badge-warning'), (chip) => chip.textContent)
-    expect(await chipsOf('Home Jellyfin')).toEqual(['3 files without an app path'])
-    expect(await chipsOf('Folders')).toEqual(['17 in no library', '2 folders not scanned'])
-    expect(await chipsOf('Inspection')).toEqual(['3 couldn\'t be read'])
+    expect(await chipsOf('Folders')).toEqual(['14 in no library'])
+  })
+
+  it('has no Inspection chip for the hashing of a run still under way', async () => {
+    // Arrange
+    // A running run's hashing has not finished: the row under Details tells its outcome only after.
+    serveWith({}, { activeRun: inspectionRunOf({ status: 'Running', finishedUtc: null, hashing: { candidates: 40, checked: 20, read: 2, problemCount: 1, problem: null } }) })
+
+    // Act
+    renderPanel()
+
+    // Assert
+    expect(await chipsOf('Inspection')).toEqual([])
+  })
+
+  it.each<[string, string, string | undefined]>([
+    ['17 in no library', 'In no library (17)', undefined],
+    ['1 couldn\'t be read', 'Couldn\'t be read (1)', 'Problems'],
+  ])('opens the files in no library on its tab from the Folders chip %s', async (chip, tab, view) => {
+    // Arrange
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0,
+    })
+    serveWith({ files: { inspectedCount: 16, problemCount: 1, notInspectedCount: 0, problem: null } }, {})
+    const { user } = renderPanel(member)
+
+    // Act
+    await user.click(within(await findItem('Folders')).getByRole('button', { name: chip }))
+
+    // Assert
+    const dialog = await screen.findByRole('dialog', { name: 'Files in no library' })
+    expect(await within(dialog).findByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true')
+    expect(libraryApi.unreportedFiles).toHaveBeenCalledWith({ view, page: 1, pageSize: 25 })
   })
 
   it('has no chip for a library and folders that are as they should be', async () => {
     // Arrange
-    serveWith({ lastFinishedRun: scanRunOf({ filesUnreported: 0 }) }, {})
+    // MAM-42 — ignored files alone are no warning.
+    serveWith({ lastFinishedRun: scanRunOf({ filesUnreported: 0 }), files: { inspectedCount: 0, problemCount: 0, notInspectedCount: 0, problem: null }, ignoredCount: 2 }, {})
 
     // Act
     renderPanel()

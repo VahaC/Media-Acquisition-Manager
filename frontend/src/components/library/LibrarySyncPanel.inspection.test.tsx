@@ -101,7 +101,22 @@ describe('LibrarySyncPanel file inspection', () => {
     await renderPanel()
 
     // Assert
-    const line = (await screen.findByText(problem)).closest('p')!
+    // MAM-42 — with how many, as the bar's chip on the library counts them.
+    const line = (await screen.findByText(`1 file couldn't be read: ${problem}`)).closest('p')!
+    expect(line).toHaveClass('library-source-warning')
+    expect(rowOf('Home Jellyfin')).toContainElement(line)
+  })
+
+  it('tells a member how many of a source\'s files could not be read, and that the owner can see why', async () => {
+    // Arrange
+    // MAM-42 — the bar's "2 couldn't be read" chip on the library has its line for a member too.
+    serveInspection({}, sourceOf({ inspection: { inspectedCount: 868, problemCount: 2, notInspectedCount: 0, problem: null } }))
+
+    // Act
+    await renderPanel(member)
+
+    // Assert
+    const line = (await screen.findByText('2 files couldn\'t be read. The owner can see why.')).closest('p')!
     expect(line).toHaveClass('library-source-warning')
     expect(rowOf('Home Jellyfin')).toContainElement(line)
   })
@@ -121,7 +136,9 @@ describe('LibrarySyncPanel file inspection', () => {
     // Assert
     expect(await screen.findByText(/1 file has no path in this app/)).toBeInTheDocument()
     expect(screen.getByText(/1 file has no path in this app/)).toHaveTextContent(problem)
-    expect(screen.queryByText(problem)).not.toBeInTheDocument()
+    // MAM-42 — the count still shows, as the bar's chip does, without the sentence a second time.
+    expect(screen.getByText('1 file couldn\'t be read.').closest('p')).toHaveClass('library-source-warning')
+    expect(screen.queryByText(new RegExp(`couldn't be read: `))).not.toBeInTheDocument()
   })
 
   it.each<[string, Partial<FileInspectionOverview>, string | RegExp, FileInspectionRun['status'] | undefined]>([

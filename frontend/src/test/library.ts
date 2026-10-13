@@ -448,6 +448,7 @@ export function scanOf(changes: Partial<FolderScanOverview>): FolderScanOverview
     hasQueuedRun: false,
     files: { inspectedCount: 12, problemCount: 0, notInspectedCount: 0, problem: null },
     space: scannedSpace,
+    ignoredCount: 0,
     ...changes,
   }
 }

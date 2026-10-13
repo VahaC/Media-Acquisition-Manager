@@ -42,4 +42,8 @@ public enum AuditTargetKind
     /// <summary>MAM-40 — one name a removal moves into the quarantine, restores or deletes (its <c>CopyRemovalNames</c>
     /// row), named by the file's own name.</summary>
     CopyRemovalName = 11,
+
+    /// <summary>MAM-42 — a name the scan of the media folders stored that no library reported (its <c>PhysicalFiles</c>
+    /// row), named by the file's own name.</summary>
+    UnreportedFile = 12,
 }

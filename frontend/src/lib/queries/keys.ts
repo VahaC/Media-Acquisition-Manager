@@ -13,6 +13,7 @@ import type {
   LibraryWorksQuery,
   RecommendationsQuery,
   SearchReleasesQuery,
+  UnreportedFilesQuery,
   UsersQuery,
 } from '../types'
 
@@ -72,6 +73,14 @@ export const qk = {
     episodes: (seriesId: string, query: LibraryEpisodesQuery) => ['library', 'works', seriesId, 'episodes', query] as const,
     locations: ['library', 'locations'] as const,
     sources: ['library', 'sources'] as const,
+    /**
+     * MAM-42 — every page of every tab of the Files in no library dialog: what an Ignore or Stop ignoring
+     * invalidates, as the file moves between tabs. Beside `works` rather than under it: an inspection under
+     * way invalidates the works every 2 s.
+     */
+    unreportedFilesAll: ['library', 'unreported-files'] as const,
+    /** MAM-42 — one page of one tab; the whole query object is part of the key. */
+    unreportedFiles: (query: UnreportedFilesQuery) => ['library', 'unreported-files', query] as const,
     /**
      * MAM-35 — one work's library poster as a `data:` URL, by the URL the works gave. Beside `works`
      * rather than under it, as the links are: a finished sync, an inspection under way, a link change,

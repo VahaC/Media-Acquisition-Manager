@@ -8,6 +8,8 @@ import type {
   LibrarySyncRun,
   LibraryWorkList,
   LibraryWorksQuery,
+  UnreportedFileList,
+  UnreportedFilesQuery,
 } from './types'
 
 const BASE_URL = '/api/library'
@@ -100,6 +102,32 @@ export const libraryApi = {
    */
   startScan: async (): Promise<FolderScanRun> =>
     (await api.post<FolderScanRun>(`${BASE_URL}/scans`)).data,
+
+  /**
+   * MAM-42 — `GET /api/library/unreported-files?view=&page=&pageSize=`, every signed-in user. One page of
+   * the files the scan found that no library reports now, by path: every file the app counts, or the
+   * `Problems` or `Ignored` view, with what each view holds. 400 `{ error }` for a view that isn't one, a
+   * page below 1 or a page size outside 1–100.
+   */
+  unreportedFiles: async (query: UnreportedFilesQuery): Promise<UnreportedFileList> =>
+    (await api.get<UnreportedFileList>(`${BASE_URL}/unreported-files`, { params: query })).data,
+
+  /**
+   * MAM-42 — `PUT /api/library/unreported-files/{id}/ignored`, owner-only: the app stops counting the
+   * file; nothing changes on the disk. 204, also when it already was ignored; a bare 404 when no file in
+   * no library has the id (a scan forgot it meanwhile); 403 `{ error }` for anyone but the owner.
+   */
+  ignoreUnreportedFile: async (id: string): Promise<void> => {
+    await api.put(`${BASE_URL}/unreported-files/${id}/ignored`)
+  },
+
+  /**
+   * MAM-42 — `DELETE /api/library/unreported-files/{id}/ignored`, owner-only: the file counts again. 204,
+   * also when it wasn't ignored; the same 404 and 403 as Ignore.
+   */
+  undoIgnoreUnreportedFile: async (id: string): Promise<void> => {
+    await api.delete(`${BASE_URL}/unreported-files/${id}/ignored`)
+  },
 
   /**
    * MAM-35 — `GET /api/library/posters/{itemId}-{tag}.jpg`, every signed-in user: a work's own image

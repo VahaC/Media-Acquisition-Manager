@@ -3,7 +3,7 @@ import { dataUrlOf } from '../data-url'
 import { libraryApi } from '../library-api'
 import { LIBRARY_POLL_MS } from '../library-links'
 import { isSyncUnderWay } from '../library-runs'
-import type { LibraryEpisodesQuery, LibrarySourceList, LibraryWorksQuery } from '../types'
+import type { LibraryEpisodesQuery, LibrarySourceList, LibraryWorksQuery, UnreportedFilesQuery } from '../types'
 import { qk } from './keys'
 
 /**
@@ -207,6 +207,39 @@ export const useStartFolderScan = () => {
       })
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: qk.library.sources }),
+  })
+}
+
+/**
+ * MAM-42 — one page of one tab of the Files in no library dialog, paged by the server; asked for only
+ * while the dialog is open (`enabled`). The page on screen stays while the next page of its tab loads,
+ * but another tab's files never stand in for this tab's, which would offer Ignore on ignored files.
+ */
+export const useUnreportedFiles = (query: UnreportedFilesQuery, enabled: boolean) =>
+  useQuery({
+    queryKey: qk.library.unreportedFiles(query),
+    queryFn: () => libraryApi.unreportedFiles(query),
+    enabled,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2].view === query.view ? keepPreviousData(previous) : undefined,
+    // A 400 for a bad page or view won't change on a second try.
+    retry: false,
+  })
+
+/**
+ * MAM-42 — the owner's Ignore or Stop ignoring of a file in no library. Every tab is asked for again,
+ * as the file moves from one to another, and so are the sources, whose Media folders row counts it —
+ * on a 404 too: a scan forgot the file meanwhile, and the lists show what there is now.
+ */
+export const useSetUnreportedFileIgnored = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ignored }: { id: string; ignored: boolean }) =>
+      ignored ? libraryApi.ignoreUnreportedFile(id) : libraryApi.undoIgnoreUnreportedFile(id),
+    onSettled: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.library.unreportedFilesAll }),
+      queryClient.invalidateQueries({ queryKey: qk.library.sources }),
+    ]),
   })
 }
 

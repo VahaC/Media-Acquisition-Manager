@@ -47,7 +47,7 @@ export function FileLines({ file }: { file: LibraryFile }) {
  * warning, like a missing app path: the owner reads the API's sentence (it can quote paths inside
  * the app), everyone else a sentence for the status.
  */
-function InspectionLines({ inspection }: { inspection: LibraryFileInspection | null }) {
+export function InspectionLines({ inspection }: { inspection: LibraryFileInspection | null }) {
   const { t } = useTranslation('library')
 
   if (inspection === null) return <p className="library-file-facts"><span>{t('media.notInspected')}</span></p>

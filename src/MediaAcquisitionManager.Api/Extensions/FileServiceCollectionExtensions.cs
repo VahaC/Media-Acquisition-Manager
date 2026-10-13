@@ -16,6 +16,8 @@ public static class FileServiceCollectionExtensions
         services.AddScoped<IFileInspectionRunner, FileInspectionRunner>();
         services.AddScoped<IFolderScanService, FolderScanService>();
         services.AddScoped<IFolderScanRunner, FolderScanRunner>();
+        // MAM-42 — the files in no library and the owner's Ignore.
+        services.AddScoped<IUnreportedFileService, UnreportedFileService>();
         // Singleton: the one queue the triggers write to and the worker reads.
         services.AddSingleton<FileInspectionQueue>();
         // Singleton: the one queue the owner's Scan folders writes to and the worker reads.

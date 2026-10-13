@@ -440,8 +440,67 @@ export interface FolderScanOverview {
    * reports under the current path mappings, so a sync that starts reporting one takes it off at once.
    */
   files: LibrarySourceInspection
-  /** MAM-19: how much room the files behind those same names take on disk, each file once. */
+  /**
+   * MAM-19: how much room the files behind those same names take on disk, each file once — MAM-42: the
+   * ignored ones included, as they still take it.
+   */
   space: LibrarySpace
+  /** MAM-42: how many of those names the owner told the app to stop counting; `files` leaves them out. */
+  ignoredCount: number
+}
+
+/**
+ * MAM-42 — the tabs of the Files in no library dialog besides its first (no view: every file the app
+ * counts): the counted files the app couldn't read, and the ignored ones.
+ */
+export type UnreportedFileView = 'Problems' | 'Ignored'
+
+/**
+ * MAM-42 — where a file in no library sits among the libraries' folders: under none of them, under one
+ * (which then didn't list it), or the app knows no library folder to compare with.
+ */
+export type UnreportedFilePlaceKind = 'NoLibraryFolder' | 'LibraryFolder' | 'FoldersUnknown'
+
+export interface UnreportedFilePlace {
+  kind: UnreportedFilePlaceKind
+  /** The library whose folder holds it ("Фільми"); null unless `kind` is LibraryFolder. */
+  libraryName: string | null
+}
+
+/** MAM-42 — one file the scan found that no library reports now. */
+export interface UnreportedFile {
+  /** The name's id, which Ignore and Stop ignoring take. */
+  id: string
+  appPath: string
+  /** Its size as the app's last look read it; null until read. */
+  sizeBytes: number | null
+  firstSeenUtc: string
+  /** When the owner told the app to stop counting it; null while it counts. */
+  ignoredUtc: string | null
+  place: UnreportedFilePlace
+  /** What the app's last look found, `problem` the owner's only; null until it has looked. */
+  inspection: LibraryFileInspection | null
+}
+
+/** MAM-42 — the query string of the Files in no library list. */
+export interface UnreportedFilesQuery {
+  /** Absent: every file the app counts. */
+  view?: UnreportedFileView
+  page: number
+  pageSize: number
+}
+
+/** MAM-42 — one page of the Files in no library list, with what each of its tabs holds. */
+export interface UnreportedFileList {
+  items: UnreportedFile[]
+  totalCount: number
+  page: number
+  pageSize: number
+  /** The files in no library the app counts: the first tab's. */
+  countedCount: number
+  /** Those of them the app couldn't read: the Problems tab's. */
+  problemCount: number
+  ignoredCount: number
 }
 
 /** MAM-18 — one scan of the media folders, from the request to its outcome. */

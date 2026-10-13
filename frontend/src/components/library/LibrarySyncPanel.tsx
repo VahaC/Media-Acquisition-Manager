@@ -1,10 +1,11 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, FolderSearch, Loader2, RefreshCw, ScanSearch, TriangleAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { LibrarySourcesBar } from '@/components/library/LibrarySourcesBar'
+import { UnreportedFilesDialog, type UnreportedFilesTab } from '@/components/library/UnreportedFilesDialog'
 import { Banner } from '@/components/shared/Banner'
 import { DisabledReason } from '@/components/shared/DisabledReason'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -12,7 +13,7 @@ import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/lib/auth-store'
 import { formatDateTime, formatFileSize, formatNumber } from '@/lib/format'
-import { isSyncUnderWay } from '@/lib/library-runs'
+import { isSyncUnderWay, unreportedCountOf } from '@/lib/library-runs'
 import { qk, useLibrarySources, useStartFileInspection, useStartFolderScan, useStartLibrarySync } from '@/lib/queries'
 import type {
   FileHashing,
@@ -26,6 +27,7 @@ import type {
   LibrarySpace,
   LibrarySyncRun,
   LibrarySyncStatus,
+  UnreportedFileView,
 } from '@/lib/types'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { useRefreshAll, type RefreshStep } from '@/lib/use-refresh-all'
@@ -73,6 +75,10 @@ interface StartError {
  * above is the Details it opens: closed to begin with, on every visit. What a state of its own says —
  * loading, a failed load or refresh, no media library connected, a stopped Refresh all — stays in
  * view with the details closed.
+ *
+ * MAM-42 — the bar and the rows show the same warnings, each chip on the item whose row holds its amber
+ * line, and the files in no library open in a dialog of their own (UnreportedFilesDialog): from the
+ * bar's Folders chips or the row's Show files.
  */
 export function LibrarySyncPanel() {
   const { t } = useTranslation(['library', 'common'])
@@ -91,6 +97,9 @@ export function LibrarySyncPanel() {
   const [startError, setStartError] = useState<StartError | null>(null)
   const [inspectError, setInspectError] = useState<string | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
+  // MAM-42 — the tab the Files in no library dialog opened on; null while it is closed.
+  const [filesTab, setFilesTab] = useState<UnreportedFilesTab | null>(null)
+  const showFiles = (view?: UnreportedFileView) => setFilesTab(view ?? 'All')
 
   const startScan = async () => {
     setScanError(null)
@@ -177,7 +186,7 @@ export function LibrarySyncPanel() {
             <div className="library-bar">
               {open
                 ? <p className="settings-muted library-bar-note">{t('sources.description')}</p>
-                : <LibrarySourcesBar data={data} isOwner={isOwner} />}
+                : <LibrarySourcesBar data={data} isOwner={isOwner} onShowFiles={showFiles} />}
               <div className="library-bar-actions">
                 <Button
                   type="button"
@@ -222,6 +231,7 @@ export function LibrarySyncPanel() {
                     starting={scanFolders.isPending}
                     startError={scanError}
                     onScan={() => void startScan()}
+                    onShowFiles={showFiles}
                   />
                 </ul>
                 {/* Under the sources and the Media folders row, as one run reads the files of them all. */}
@@ -237,6 +247,8 @@ export function LibrarySyncPanel() {
           </>
         ) : null}
       </div>
+      {/* Mounted only while open, so each opening starts on its tab's first page. */}
+      {filesTab !== null && <UnreportedFilesDialog initialTab={filesTab} onClose={() => setFilesTab(null)} />}
     </section>
   )
 }
@@ -354,13 +366,13 @@ function SourceRow({ source, isOwner, starting, startError, onSync }: SourceRowP
           </p>
         )}
         {/* MAM-9 — the owner's sentence for the first file that couldn't be read, unless it is the
-            path problem the warning above already quotes. */}
-        {source.inspection.problem && source.inspection.problem !== source.pathProblem && (
-          <p className="library-source-warning">
-            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{source.inspection.problem}</span>
-          </p>
-        )}
+            path problem the warning above already quotes. MAM-42 — with how many, for everyone: the
+            bar's chip for this library counts them. */}
+        <ProblemLine
+          inspection={source.inspection}
+          problem={source.inspection.problem === source.pathProblem ? null : source.inspection.problem}
+          isOwner={isOwner}
+        />
         {/* MAM-19 — after the warnings, which belong to the files line above them. */}
         <SpaceLine space={source.space} />
         {startError && <StartErrorLine message={startError} />}
@@ -490,9 +502,13 @@ function RunIcon({ run }: { run: LibrarySyncRun | FolderScanRun }) {
  * MAM-18 — the Media folders row counts the names its scans stored in the same parts; `frame` puts
  * them in each row's own sentence.
  */
-function InspectionCounts({ inspection, frame }: {
+function InspectionCounts({ inspection, frame, ignoredCount = 0, children }: {
   inspection: LibrarySourceInspection
   frame: (counts: string) => string
+  /** MAM-42 — the Media folders row's files the owner ignored, which the counts leave out. */
+  ignoredCount?: number
+  /** MAM-42 — what follows the sentence on its line (the Media folders row's Show files). */
+  children?: ReactNode
 }) {
   const { t } = useTranslation(['library', 'common'])
   const { inspectedCount, problemCount, notInspectedCount } = inspection
@@ -501,9 +517,53 @@ function InspectionCounts({ inspection, frame }: {
     problemCount > 0 && t('inspection.problems', { count: problemCount, value: formatNumber(problemCount) }),
     notInspectedCount > 0
       && t('inspection.notInspected', { count: notInspectedCount, value: formatNumber(notInspectedCount) }),
+    ignoredCount > 0 && t('inspection.ignored', { count: ignoredCount, value: formatNumber(ignoredCount) }),
   ].filter((part) => typeof part === 'string')
   if (parts.length === 0) return null
-  return <p className="settings-muted">{frame(parts.join(t('common:separator')))}</p>
+  return <p className="settings-muted">{frame(parts.join(t('common:separator')))}{children}</p>
+}
+
+/**
+ * MAM-42 — a row's files that couldn't be read, as one amber line: how many, then the owner's sentence
+ * for the first (`problem`, which quotes paths inside the app); a member reads that the owner can see
+ * why. The line the bar's "couldn't be read" chip stands for, so it shows whenever the chip does. The way
+ * the hashing and the scan's folders word theirs.
+ */
+function ProblemLine({ inspection, problem, isOwner, children }: {
+  inspection: LibrarySourceInspection
+  /** The sentence to quote; null when there is none to show, or another line already quotes it. */
+  problem: string | null
+  isOwner: boolean
+  /** What follows the sentence (the Media folders row's Show files). */
+  children?: ReactNode
+}) {
+  const { t } = useTranslation('library')
+  const count = inspection.problemCount
+  if (count === 0) return null
+  const values = { count, value: formatNumber(count) }
+
+  return (
+    <p className="library-source-warning">
+      <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+      <span>
+        {problem !== null
+          ? t('inspection.problemsOwner', { ...values, problem })
+          : isOwner ? t('inspection.problemsCount', values) : t('inspection.problemsMember', values)}
+        {children}
+      </span>
+    </p>
+  )
+}
+
+/** MAM-42 — "Show files" after a sentence: opens the Files in no library dialog. */
+function ShowFilesButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation('library')
+  return (
+    <>
+      {' '}
+      <button type="button" className="library-link" onClick={onClick}>{t('scan.showFiles')}</button>
+    </>
+  )
 }
 
 interface InspectionRowProps {
@@ -731,6 +791,8 @@ interface ScanRowProps {
   /** The API's refusal of the last Scan folders. */
   startError: string | null
   onScan: () => void
+  /** MAM-42 — opens the Files in no library dialog on a view; none for every file the app counts. */
+  onShowFiles: (view?: UnreportedFileView) => void
 }
 
 /**
@@ -739,7 +801,7 @@ interface ScanRowProps {
  * reported by what the app's look at each found, and Scan folders. A running scan leaves the button
  * on: another one queues behind it.
  */
-function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan }: ScanRowProps) {
+function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan, onShowFiles }: ScanRowProps) {
   const { t } = useTranslation('library')
   // The first reason that applies; the API would refuse the start with the same one, except for a
   // queued scan — on its own or behind the running one — which it would answer with that scan again.
@@ -757,6 +819,8 @@ function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan 
   const problems = run !== null && run.problemCount > 0
     ? { count: run.problemCount, value: formatNumber(run.problemCount) }
     : null
+  // MAM-42 — counted now, as the bar's chip counts them; the ignored ones are left out.
+  const unreported = unreportedCountOf(scan)
 
   return (
     <li className="library-source library-scan">
@@ -777,15 +841,26 @@ function ScanRow({ scan, hasAllowedRoots, isOwner, starting, startError, onScan 
             </span>
           </p>
         )}
-        <InspectionCounts inspection={scan.files} frame={(counts) => t('scan.files', { counts })} />
-        {/* The owner's sentence for the first of those names that couldn't be read, as a source's row
-            shows its own. */}
-        {scan.files.problem && (
+        {/* MAM-42 — the files in no library as a warning of their own, the bar's chip in words, rather
+            than a number in the scan's line: the app counts them now, and the scan's line is history. */}
+        {unreported > 0 && (
           <p className="library-source-warning">
             <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{scan.files.problem}</span>
+            <span>
+              {t('scan.unreported', { count: unreported, value: formatNumber(unreported) })}
+              <ShowFilesButton onClick={() => onShowFiles()} />
+            </span>
           </p>
         )}
+        {/* With no file counted, the ignored ones are still listed: Show files goes on the counts line. */}
+        <InspectionCounts inspection={scan.files} frame={(counts) => t('scan.files', { counts })} ignoredCount={scan.ignoredCount}>
+          {unreported === 0 && scan.ignoredCount > 0 && <ShowFilesButton onClick={() => onShowFiles('Ignored')} />}
+        </InspectionCounts>
+        {/* The owner's sentence for the first of those names that couldn't be read, as a source's row
+            shows its own; MAM-42 — with how many, for everyone. */}
+        <ProblemLine inspection={scan.files} problem={scan.files.problem} isOwner={isOwner}>
+          <ShowFilesButton onClick={() => onShowFiles('Problems')} />
+        </ProblemLine>
         {/* MAM-19 — after the warning, which belongs to the files line above it. */}
         <SpaceLine space={scan.space} />
         {startError && <StartErrorLine message={startError} />}
@@ -853,8 +928,6 @@ function ScanLine({ scan, hasAllowedRoots, isOwner }: {
           count: run.filesFound,
           time: formatDateTime(finishedAt(run), INSTANT_FORMAT),
           found: formatNumber(run.filesFound),
-          // Stored with the success; null only before it.
-          unreported: formatNumber(run.filesUnreported ?? 0),
         })
       case 'Failed':
         // Null for anyone but the owner, like a failed sync's.

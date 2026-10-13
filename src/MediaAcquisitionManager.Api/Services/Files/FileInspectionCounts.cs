@@ -29,7 +29,7 @@ public static class FileInspectionCounts
             .Where(file => !(file.Status == FileInspectionStatus.NoAppPath && file.HasAppPath))
             .ToList();
         var problems = looks
-            .Where(file => file.Status is { } status && status != FileInspectionStatus.Inspected)
+            .Where(file => IsProblem(file.Status, file.HasAppPath))
             .ToList();
         return new LibrarySourceInspectionDto(
             looks.Count(file => file.Status == FileInspectionStatus.Inspected),
@@ -37,4 +37,12 @@ public static class FileInspectionCounts
             files.Count - looks.Count + looks.Count(file => file.Status is null),
             forOwner && problems.Count > 0 ? problems[0].Error : null);
     }
+
+    /// <summary>
+    /// Whether a name's last look counts as "couldn't be read": it looked, didn't read the streams, and — for a name it
+    /// found no app path for — the mappings still give it none. MAM-42 — the Files in no library list's Problems tab
+    /// asks the same, so its count is the row's.
+    /// </summary>
+    public static bool IsProblem(FileInspectionStatus? status, bool hasAppPath) =>
+        status is { } look && look != FileInspectionStatus.Inspected && !(look == FileInspectionStatus.NoAppPath && hasAppPath);
 }

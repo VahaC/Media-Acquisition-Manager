@@ -109,11 +109,12 @@ describe('LibrarySyncPanel media folders scan', () => {
     ['queued', { activeRun: queued, hasQueuedRun: true }, 'Waiting to scan the media folders…', 'Queued'],
     ['running, one file found', { activeRun: { ...running, filesFound: 1 } }, 'Scanning the media folders… 1 file found', 'Running'],
     ['running, many files found', { activeRun: { ...running, filesFound: 1_200 } }, 'Scanning the media folders… 1,200 files found', 'Running'],
-    ['finished', {}, /^Scanned Sep 30, 2026, 11:12\sAM: 1,394 files, 12 in no library\.$/, 'Succeeded'],
+    // MAM-42 — the files in no library are a line of their own, counted now.
+    ['finished', {}, /^Scanned Sep 30, 2026, 11:12\sAM: 1,394 files\.$/, 'Succeeded'],
     [
       'finished with one file',
       { lastFinishedRun: scanRunOf({ filesFound: 1, filesUnreported: 1 }) },
-      /^Scanned Sep 30, 2026, 11:12\sAM: 1 file, 1 in no library\.$/,
+      /^Scanned Sep 30, 2026, 11:12\sAM: 1 file\.$/,
       'Succeeded',
     ],
     [
@@ -245,7 +246,57 @@ describe('LibrarySyncPanel media folders scan', () => {
     const row = within(await findScanRow())
     expect(row.getByText('Files in no library: 14 inspected · 2 couldn\'t be read · 1,203 not inspected yet'))
       .toHaveClass('settings-muted')
-    expect(row.getByText(problem).closest('p')).toHaveClass('library-source-warning')
+    // MAM-42 — with how many, as the bar's chip counts them.
+    expect(row.getByText(`2 files couldn't be read: ${problem}`).closest('p')).toHaveClass('library-source-warning')
+  })
+
+  it.each<[string, CurrentUser, string | null, string]>([
+    ['the owner, with the first file\'s sentence', owner, 'ffprobe couldn\'t read “/media/Adobe Premiere Rush 2.10.0.30.iso” as media.', '1 file couldn\'t be read: ffprobe couldn\'t read “/media/Adobe Premiere Rush 2.10.0.30.iso” as media.'],
+    ['a member, who reads that the owner can see why', member, null, '1 file couldn\'t be read. The owner can see why.'],
+  ])('warns of the files in no library and of those that couldn\'t be read, each line with Show files, for %s', async (_, signedIn, problem, problemLine) => {
+    // Arrange
+    // MAM-42 — the bar shows "17 in no library" and "1 couldn't be read" on Folders: the row says both.
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 17, problemCount: 1, ignoredCount: 0,
+    })
+    serveScan({ lastFinishedRun: scanRunOf({ filesUnreported: 17 }), files: { inspectedCount: 16, problemCount: 1, notInspectedCount: 0, problem } })
+    const { user } = await renderPanel(signedIn)
+
+    // Act
+    const row = within(await findScanRow())
+    const unreported = row.getByText('17 files are in no library.').closest('p')!
+    const problems = row.getByText(problemLine).closest('p')!
+    // Before the click: the open dialog hides the page from the accessibility tree.
+    const unreportedButton = within(unreported).getByRole('button', { name: 'Show files' })
+    await user.click(within(problems).getByRole('button', { name: 'Show files' }))
+
+    // Assert
+    expect(unreported).toHaveClass('library-source-warning')
+    expect(unreportedButton).toHaveClass('library-link')
+    expect(problems).toHaveClass('library-source-warning')
+    const dialog = await screen.findByRole('dialog', { name: 'Files in no library' })
+    expect(await within(dialog).findByRole('tab', { name: 'Couldn\'t be read (1)' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('counts the ignored files in the files line and, with none counted, offers them there', async () => {
+    // Arrange
+    vi.mocked(libraryApi.unreportedFiles).mockResolvedValue({
+      items: [], totalCount: 0, page: 1, pageSize: 25, countedCount: 0, problemCount: 0, ignoredCount: 1,
+    })
+    serveScan({ files: { inspectedCount: 0, problemCount: 0, notInspectedCount: 0, problem: null }, ignoredCount: 1 })
+    const { user } = await renderPanel()
+
+    // Act
+    const row = within(await findScanRow())
+    const line = row.getByText(/^Files in no library: 1 ignored/)
+    await user.click(within(line).getByRole('button', { name: 'Show files' }))
+
+    // Assert
+    // Nothing to warn of: an ignored file is the owner's decision.
+    expect(line).toHaveClass('settings-muted')
+    expect(row.queryByText(/in no library\.$/)).not.toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Files in no library' })
+    expect(await within(dialog).findByRole('tab', { name: 'Ignored (1)' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it.each<[string, FolderScanOverview['files'], string]>([
@@ -332,7 +383,8 @@ describe('LibrarySyncPanel media folders scan', () => {
     const row = within(await findScanRow())
     expect(await row.findByText('Waiting to scan the media folders…')).toBeInTheDocument()
     expect(disabledWhileStarting).toBe(true)
-    expect(row.getByRole('button').parentElement).toHaveAttribute('title', 'A scan is already waiting to start.')
+    // Its own button, not a Show files: the label says Starting… until the sources asked for again come back, which they never do here.
+    expect(row.getByRole('button', { name: /^(Scan folders|Starting…)$/ }).parentElement).toHaveAttribute('title', 'A scan is already waiting to start.')
     expect(libraryApi.startScan).toHaveBeenCalledExactlyOnceWith()
     await vi.waitFor(() => expect(libraryApi.sources).toHaveBeenCalledTimes(2))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

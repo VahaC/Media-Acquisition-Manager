@@ -68,7 +68,12 @@ copies as they are, and the groups have plain names (ADR 0037). MAM-41 (built th
 0.3.0 by Vasyl's decision) sorts the Jobs page into tabs by what waits for the user — Needs you, In
 progress, Finished and All, worked out and counted on the server —, keeps only verbs under a row's
 Actions, Restore and Delete for good now among them, and opens a job's details, the replacement's
-old copies included, under its row. All five go out when Vasyl publishes 0.3.0 again — the image
+old copies included, under its row. MAM-42 (built on 2026-10-13, inside 0.3.0 by Vasyl's decision,
+a Phase B ticket) follows from the Library page's Sources card warning of a file that couldn't be
+read with Details closed and not with them open: every warning now sits on the item whose row holds
+it, the files in no library are listed in a dialog with why a library most likely doesn't list each,
+and the owner ignores the ones that aren't media, which the app then stops counting, nothing changed
+on the disk (ADR 0021's MAM-42 section). All six go out when Vasyl publishes 0.3.0 again — the image
 published on 2026-10-11 has none of them. Phase C's heading below stays
 unmarked until that image is published.
 This file lists unshipped phases only. When a phase ships, its heading becomes
@@ -76,10 +81,10 @@ This file lists unshipped phases only. When a phase ships, its heading becomes
 follow §6 of the
 [development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22 and MAM-32 to MAM-38,
-Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and MAM-37
-and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-41 go out when 0.3.0
-is published again, under the same number. The release of Phase D is not decided yet.
+MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
+MAM-42, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41. Release 0.3.0 holds MAM-24 to MAM-27, and
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes, MAM-39 to MAM-41 and MAM-42 go
+out when 0.3.0 is published again, under the same number. The release of Phase D is not decided yet.
 
 ## Phases
 
@@ -485,8 +490,9 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
 **Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21,
-MAM-37 and MAM-38, built while 0.2.1 was the version. **Tickets:** MAM-17 to MAM-22 and MAM-32 to
-MAM-38.
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42, built on 2026-10-13, goes out in 0.3.0
+when it is published again (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38 and
+MAM-42.
 
 **Complexity:** Medium
 **Value:** see which files are true duplicates, which are other versions of the same movie or
@@ -947,6 +953,34 @@ episode, and how much space could really be recovered — without the app guessi
   replacement is sent with the check made strict — any file already there, and any place it can't
   look at, refuses it —, and the dialog's summary now reads "Kept: nothing is replaced or removed,
   and a release that would write over a different file isn't sent.")
+- **MAM-42 List the files in no library, let the owner ignore the ones that aren't media, and show
+  the same warnings with Details open or closed** (built on 2026-10-13, release 0.3.0; not tried on
+  production, checked in a browser on a scratch installation with real ffprobe at desktop and phone
+  width): on 2026-10-13 the Sources card warned "17 in no library" and "1 couldn't be read" with
+  Details closed and only the first with them open, as the Inspection item summed every file no look
+  could read, and nothing showed which files they were (Vasyl's decisions of 2026-10-13, inside
+  0.3.0; the MAM-42 section of
+  [ADR 0021](docs/adr/0021-the-scan-of-the-media-folders-follows-links-only-inside-the-allowed-roots-and-keeps-one-name-of-each-file-no-library-reported.md)).
+  *One rule for the bar:* every amber chip sits on the item whose row under Details holds its amber
+  line, and the other way round — a library's item its files without an app path and its own files
+  that couldn't be read, the Folders item the files in no library (counted now, no longer the last
+  scan's stored count), the folders not scanned and the files in no library that couldn't be read,
+  and the Inspection item only the files it couldn't hash; the Media folders row's status line ends
+  with the files found, followed by "17 files are in no library." with **Show files**, the counts
+  line adds the ignored ones, and the files that couldn't be read are one line with a count.
+  *Files in no library:* a dialog for every signed-in user, opened from the Folders item's two file
+  chips and **Show files**, with tabs In no library, Couldn't be read and Ignored, counted and paged
+  on the server (`GET /api/library/unreported-files?view=Problems|Ignored`), each file with its
+  name, folder, size, what the app's look found and why a library most likely doesn't list it —
+  under no library's folders, in a library's folders but not listed (skipped by its name, or added
+  after its last scan), or the libraries' folders not known yet —, worked out when read from the
+  folders the last syncs stored. *Ignore:* the installation owner's (`PUT` and `DELETE …/{id}/ignored`),
+  `PhysicalFiles.IgnoredUtc` on the scan's name (migration `AddIgnoredUnreportedFiles`), with an audit
+  row each way: the file leaves every count of files in no library and that couldn't be read but not
+  the room the files take, nothing changes on the disk or in a library, the mark holds while a scan
+  keeps the name and a moved or renamed file counts again. `scan.files` in `GET /api/library/sources`
+  leaves the ignored names out and `scan.ignoredCount` counts them. Accepted gap: an ignored file is
+  still inspected and hashed, and still offered as a possible match on the Duplicates page.
 
 **Out of scope:** removing anything, and bulk deletion of any kind; replacing a selected copy is
 Phase C. Searching releases for one episode by its number (a source's `ep=`), which no phase plans
@@ -983,7 +1017,9 @@ redundant; and writing anything to the library, a file or a download client, or 
 to change Jellyfin's ids or their links. For MAM-38: any write to a download client — stopping,
 removing or re-adding a torrent —; a content layout or a save path the app picks; reading
 qBittorrent's preferences; fetching a magnet's files before sending it; and doing anything to, or
-suggesting anything about, the file already there.
+suggesting anything about, the file already there. For MAM-42: moving, renaming or deleting a file
+in no library, or telling a library to scan; ignoring a library's file, a folder or a pattern of
+names; ignoring several files at once; and storing why a library doesn't list a file.
 
 **Tests:** two hardlink names count their space once; a changed size or modification time
 invalidates the cached hash; similar titles or years are not merged; different cuts stay separate
@@ -1154,7 +1190,15 @@ widths, the bencode parser, the destination rule, the save path's read and the h
 real files, a chunk at a time, have their own tests; the dialog holds Send until the first answer
 about the folder, never after a failed one, warns before Send, read with it, and still sends, and
 takes a warning away for a folder that can be checked; and a job sent unchecked shows its amber
-line for every reason, never on a failed job.
+line for every reason, never on a failed job. MAM-42: the list gives every counted file in path
+order with its size, its look and its place among the library folders, the reason it couldn't be
+read to the owner alone, pages on the server and counts every view on every page, says the folders
+are unknown while no sync stored one, leaves out a file once a sync reports its path, and answers a
+view or page it doesn't take with its sentence; Ignore takes the file off the Media folders row's
+counts and lists it under Ignored with an audit row, twice records one, Stop ignoring counts it
+again, an id no scanned name has — a library's file included — is a bare 404 writing nothing, a
+member is refused, and a rescan keeps an ignored file ignored while a moved one counts again; and
+the bar's chips match the rows, the dialog's tabs, reasons, Ignore and refusals.
 
 **Acceptance bar:** two hardlink names do not inflate occupied space; movies and episodes with
 similar names or years are not merged incorrectly; different cuts are not deleted; conflicting IDs
@@ -1240,6 +1284,10 @@ the 14 tables the duplicates are read from unchanged at the start and after the 
 parts, a copy unmeasured or whose reading failed beside measured ones, the keys of a split group and
 a possible match, none of which production has, rest on the tests; production has run an image that
 holds MAM-37, the published 0.3.0, since 2026-10-11.
+MAM-42 has no bar; it was checked on 2026-10-13 on a scratch installation on Windows with real
+ffprobe and a scratch media folder holding an ISO and two short videos — the chips and rows, the
+dialog, Ignore, a rescan keeping the mark, Stop ignoring and a member's view, at desktop and phone
+width —, not on production.
 
 **Repair plan for MAM-34 (for the owner's approval; nothing is sent to Jellyfin before his yes).**
 Publish 0.2.1; its migration adds `LibraryItemLinks.IdentifiedUtc`. First, with his yes, identify
