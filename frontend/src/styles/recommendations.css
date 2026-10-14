@@ -1,9 +1,9 @@
 /* MAM-33 — the Recommendations page: what the shared sheets (settings-list.css for the page frame,
    the toolbar and the empty states; library.css for the run panel's row and status line;
    modal-tabs.css for the tabs; ui-primitives.css for cards and badges) don't have — the grid of
-   cards, a card's poster beside its text, the reason chips, the availability line, the row a hidden
-   card leaves and the catalog's attribution. Imported by each component that uses it. Tokens only,
-   so dark mode needs nothing of its own. */
+   cards, a card's poster beside its text, the rating in its corner, the reason chips, the
+   availability line, the row a hidden card leaves and the catalog's attribution. Imported by each
+   component that uses it. Tokens only, so dark mode needs nothing of its own. */
 
 /* The current tab's toolbar, banner, cards and pager, spaced like the page around them. */
 .recommendation-panel {
@@ -29,14 +29,19 @@
   min-width: 0;
 }
 
-/* The poster beside the text, on a phone too: at 6rem the text keeps about 14rem at 375px. Two
+/* The poster beside the text, on a phone too: at 7rem the text keeps about 13rem at 375px. Two
    classes, so the padding wins over `.ui-card` whichever sheet loads first. */
 .ui-card.recommendation-card {
   display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr);
+  grid-template-columns: 7rem minmax(0, 1fr);
   align-items: start;
   gap: 0.75rem 1rem;
   padding: 1rem;
+}
+
+/* 7rem, a little larger than PosterBox's 6rem: Vasyl's choice of 2026-10-14. */
+.recommendation-card .poster-box {
+  width: 7rem;
 }
 
 .recommendation-body {
@@ -44,6 +49,32 @@
   align-content: start;
   gap: 0.375rem;
   min-width: 0;
+}
+
+/* The title beside the rating, which keeps the card's top-right corner however long the title is. */
+.recommendation-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.5rem;
+}
+
+/* The rating and its votes, on the height of the title's first line; the star is the amber of the
+   status palette. */
+.recommendation-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.3rem;
+  white-space: nowrap;
+}
+
+.recommendation-rating svg {
+  flex-shrink: 0;
+  color: var(--status-update-available);
+  fill: currentColor;
 }
 
 /* The title and the Downloading badge beside it; the badge drops under a title that fills the line. */

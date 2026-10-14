@@ -133,6 +133,7 @@
     }
   },
   "release": {
+    "source": "Source: {{name}}",
     "sizeUnknown": "Size unknown",
     "seeders_one": "{{value}} seeder",
     "seeders_other": "{{value}} seeders",
@@ -140,6 +141,9 @@
     "peers_one": "{{value}} peer",
     "peers_other": "{{value}} peers",
     "peersUnknown": "Peers unknown",
+    "countUnknown": "?",
+    "seedersHint": "Seeders: people who have the whole release and are sharing it now. The more there are, the faster it downloads.",
+    "peersHint": "Peers: everyone connected to this torrent, seeders and those still downloading together, as the source counts them.",
     "published": "Published {{date}}",
     "publishedUnknown": "Publish date unknown",
     "library": "In your library",
@@ -151,6 +155,8 @@
   },
   "claimed": {
     "label": "Claimed",
+    "hint": "What the release's title claims, not checked against a file",
+    "languageSeparator": ", ",
     "tv": "TV",
     "seasons": "Seasons {{first}}–{{last}}",
     "episodes": "Episodes {{first}}–{{last}}",

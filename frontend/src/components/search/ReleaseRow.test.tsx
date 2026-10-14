@@ -29,12 +29,15 @@ function renderRow(release: SearchRelease, library: LibraryMatch[] = [aliensMatc
 const badgeTexts = () =>
   within(screen.getByRole('list', { name: 'Why it matched' })).getAllByRole('listitem').map((item) => item.textContent)
 
-/** The chips of the row's "Claimed" line, in order. */
-const claimedChips = () =>
+/** The groups of the row's claims line — the picture, the audio, the subtitles — in order. */
+const claimedGroups = () =>
   within(screen.getByRole('list', { name: 'Claimed' })).getAllByRole('listitem').map((item) => item.textContent)
 
+const SEEDERS_HINT = 'Seeders: people who have the whole release and are sharing it now. The more there are, the faster it downloads.'
+const PEERS_HINT = 'Peers: everyone connected to this torrent, seeders and those still downloading together, as the source counts them.'
+
 describe('ReleaseRow', () => {
-  it('shows the title as a heading and what the listing says: source, size, seeders, peers and the publish date', () => {
+  it('shows the title as a heading, and the seeders, the peers, the size and under it the publish date in its corner', () => {
     // Arrange
     const release = tolokaRemux
 
@@ -44,9 +47,26 @@ describe('ReleaseRow', () => {
     // Assert
     expect(screen.getByRole('heading', { level: 3, name: tolokaRemux.title })).toBeInTheDocument()
     expect(row).toHaveAccessibleName(tolokaRemux.title)
-    const facts = screen.getByText('Toloka').closest('p')!
-    expect([...facts.children].map((part) => part.textContent))
-      .toEqual(['Toloka', '29.5 GiB', '12 seeders', '15 peers', 'Published 9/28/2026'])
+    const seeders = screen.getByTitle(SEEDERS_HINT)
+    const peers = screen.getByTitle(PEERS_HINT)
+    expect(within(seeders).getByText('12')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(seeders).getByText('12 seeders')).toHaveClass('sr-only')
+    expect(within(peers).getByText('15')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(peers).getByText('15 peers')).toHaveClass('sr-only')
+    const size = screen.getByText('29.5 GiB')
+    expect(size.previousElementSibling).toContainElement(seeders)
+    expect(size.nextElementSibling).toHaveTextContent('Published 9/28/2026')
+  })
+
+  it('names the source that listed it at the foot, beside the actions', () => {
+    // Arrange
+    const release = tolokaRemux
+
+    // Act
+    renderRow(release)
+
+    // Assert
+    expect(screen.getByText('Source: Toloka').nextElementSibling).toBe(screen.getByRole('group', { name: 'Actions' }))
   })
 
   it('shows the listing\'s own description right under the title when it gives one', () => {
@@ -75,7 +95,19 @@ describe('ReleaseRow', () => {
 
     // Assert
     expect(row.querySelector('.search-release-description')).toBeNull()
-    expect(screen.getByRole('heading', { level: 3 }).nextElementSibling).toHaveClass('library-file-facts')
+    expect(screen.getByRole('heading', { level: 3 }).nextElementSibling).toBe(screen.getByRole('list', { name: 'Claimed' }))
+  })
+
+  it('says on hover what the seeders and the peers count', () => {
+    // Arrange
+    const release = tolokaRemux
+
+    // Act
+    renderRow(release)
+
+    // Assert
+    expect(screen.getByTitle(SEEDERS_HINT)).toHaveTextContent(/^12/)
+    expect(screen.getByTitle(PEERS_HINT)).toHaveTextContent(/^15/)
   })
 
   it('names every fact the listing left out as unknown', () => {
@@ -86,9 +118,13 @@ describe('ReleaseRow', () => {
     renderRow(release)
 
     // Assert
-    const facts = screen.getByText('Other').closest('p')!
-    expect([...facts.children].map((part) => part.textContent))
-      .toEqual(['Other', 'Size unknown', 'Seeders unknown', 'Peers unknown', 'Publish date unknown'])
+    expect(within(screen.getByTitle(SEEDERS_HINT)).getByText('?')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(screen.getByTitle(SEEDERS_HINT)).getByText('Seeders unknown')).toHaveClass('sr-only')
+    expect(within(screen.getByTitle(PEERS_HINT)).getByText('?')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(screen.getByTitle(PEERS_HINT)).getByText('Peers unknown')).toHaveClass('sr-only')
+    expect(screen.getByText('Size unknown')).toBeVisible()
+    expect(screen.getByText('Publish date unknown')).toBeVisible()
+    expect(screen.getByText('Source: Other')).toBeInTheDocument()
   })
 
   it('counts one seeder and one peer in the singular', () => {
@@ -103,7 +139,7 @@ describe('ReleaseRow', () => {
     expect(screen.getByText('1 peer')).toBeInTheDocument()
   })
 
-  it('lists what the title claims as chips under a visible Claimed label', () => {
+  it('groups what the title claims after their icons — the picture, the audio, the subtitles — saying on hover they are claims', () => {
     // Arrange
     const release = tolokaRemux
 
@@ -111,18 +147,14 @@ describe('ReleaseRow', () => {
     renderRow(release)
 
     // Assert
-    expect(screen.getByText('Claimed')).toBeVisible()
-    expect(claimedChips()).toEqual([
-      '1080p',
-      'BDRemux',
-      'HEVC',
-      'HDR unknown',
-      'Audio: Ukrainian · English',
-      'Subtitles: English',
-    ])
+    const claims = screen.getByRole('list', { name: 'Claimed' })
+    expect(claims).toHaveAttribute('title', 'What the release\'s title claims, not checked against a file')
+    expect(claimedGroups()).toEqual(['1080p · BDRemux · HEVC', 'Ukrainian, English', 'English'])
+    expect(within(claims).getByLabelText('Audio').closest('li')).toHaveTextContent('Ukrainian, English')
+    expect(within(claims).getByLabelText('Subtitles').closest('li')).toHaveTextContent('English')
   })
 
-  it('names every claim the title does not make as unknown, and each dynamic range it names', () => {
+  it('leaves out every claim the title does not make, and names each dynamic range it does', () => {
     // Arrange
     const release = otherUhd
 
@@ -130,15 +162,20 @@ describe('ReleaseRow', () => {
     renderRow(release)
 
     // Assert
-    expect(claimedChips()).toEqual([
-      '2160p',
-      'Medium unknown',
-      'Codec unknown',
-      'HDR10',
-      'Dolby Vision',
-      'Audio language unknown',
-      'Subtitles unknown',
-    ])
+    expect(claimedGroups()).toEqual(['2160p · HDR10 · Dolby Vision'])
+  })
+
+  it('leaves no claims line when the title claims nothing', () => {
+    // Arrange
+    const release = releaseOf({
+      claimed: { resolution: null, medium: null, videoCodec: null, dynamicRanges: [], audioLanguages: [], subtitleLanguages: [] },
+    })
+
+    // Act
+    renderRow(release)
+
+    // Assert
+    expect(screen.queryByRole('list', { name: 'Claimed' })).not.toBeInTheDocument()
   })
 
   it('says the release is in the library with the evidence, naming the copy and its year in the text a phone shows', () => {
@@ -301,7 +338,7 @@ describe('ReleaseRow', () => {
     renderRow(release, [yellowstoneMatch])
 
     // Assert
-    expect(claimedChips().slice(0, 2)).toEqual(['TV', 'Seasons 1–5'])
+    expect(claimedGroups()[0]).toBe('TV · Seasons 1–5 · WEB-DL · H.264')
     expect(badgeTexts()).toEqual([
       'In your library: Єллоустоун (2018) — matched by title and year',
       '19 of its episodes in your library',
@@ -318,14 +355,14 @@ describe('ReleaseRow', () => {
     renderRow(release, [yellowstoneMatch])
 
     // Assert
-    expect(claimedChips().slice(0, 3)).toEqual(['TV', 'Season 1', 'Episodes 1–9'])
+    expect(claimedGroups()[0]).toMatch(/^TV · Season 1 · Episodes 1–9( · |$)/)
     expect(badgeTexts()).toEqual([
       'In your library: Єллоустоун (2018) — matched by title and year',
       'None of its episodes in your library',
     ])
   })
 
-  it('gives a movie release no TV chip and no episode count', () => {
+  it('gives a movie release no TV claim and no episode count', () => {
     // Arrange
     const release = tolokaRemux
 
@@ -333,7 +370,7 @@ describe('ReleaseRow', () => {
     renderRow(release)
 
     // Assert
-    expect(claimedChips()[0]).toBe('1080p')
+    expect(claimedGroups()[0]).toBe('1080p · BDRemux · HEVC')
     expect(screen.queryByText(/of its episodes in your library$/)).not.toBeInTheDocument()
   })
 })

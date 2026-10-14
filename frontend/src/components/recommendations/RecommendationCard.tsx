@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { Download, EyeOff, Loader2, Search, Undo2 } from 'lucide-react'
+import { Download, EyeOff, Loader2, Search, Star, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { RecommendationAvailabilityLine } from '@/components/recommendations/RecommendationAvailabilityLine'
@@ -25,7 +25,8 @@ interface RecommendationCardProps {
 
 /**
  * MAM-33 — one recommended work: the poster beside its title (the catalog's Ukrainian one, the
- * original under it when it differs), year, genres and rating, why it is recommended, what the release
+ * original under it when it differs), the rating with its votes in the card's top-right corner, year,
+ * the genres on a line of their own, why it is recommended, what the release
  * sources had at their last check, and a Downloading badge while a download job someone follows
  * matches it. "Releases" opens the Search page searched for it — with its TMDb id when it is a film,
  * which narrows the search to it. "Not interested" hides it for this user only.
@@ -93,6 +94,10 @@ export function RecommendationCard({ item, hidden, onHidden, onRestored }: Recom
   }
 
   const showOriginalTitle = item.originalTitle !== null && item.originalTitle !== item.title
+  const rating = item.rating === null
+    ? null
+    : formatNumber(item.rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const ratingInFull = t('card.rating', { count: item.voteCount, rating, votes: formatNumber(item.voteCount) })
   // Encoded, so a `&` or a `#` in a title stays part of it. The Search page makes the search from
   // `q` (a bracketed year ending it is the year) and narrows a film by its TMDb id.
   const releasesUrl = `/search?q=${encodeURIComponent(item.searchText)}`
@@ -102,29 +107,38 @@ export function RecommendationCard({ item, hidden, onHidden, onRestored }: Recom
     <article className="ui-card recommendation-card" aria-labelledby={titleId}>
       <CatalogPoster url={item.posterUrl} title={item.title} kind={item.kind} />
       <div className="recommendation-body">
-        <div className="recommendation-head">
-          <h2 id={titleId} className="recommendation-title">{item.title}</h2>
-          {item.downloading && (
-            <span className="ui-badge ui-badge-secondary">
-              <Download className="h-3 w-3" aria-hidden="true" />
-              {t('card.downloading')}
+        <div className="recommendation-top">
+          <div className="recommendation-head">
+            <h2 id={titleId} className="recommendation-title">{item.title}</h2>
+            {item.downloading && (
+              <span className="ui-badge ui-badge-secondary">
+                <Download className="h-3 w-3" aria-hidden="true" />
+                {t('card.downloading')}
+              </span>
+            )}
+          </div>
+          {rating !== null && (
+            // The votes in short ("8.9K"), so the title keeps its room beside it on a phone; the full
+            // count is on hover and is what a screen reader reads.
+            <span className="recommendation-rating" title={ratingInFull}>
+              <Star className="h-3.5 w-3.5" aria-hidden="true" />
+              <span aria-hidden="true">
+                {t('card.ratingShort', {
+                  rating,
+                  votes: formatNumber(item.voteCount, { notation: 'compact', maximumFractionDigits: 1 }),
+                })}
+              </span>
+              <span className="sr-only">{ratingInFull}</span>
             </span>
           )}
         </div>
-        <p className="recommendation-meta">
-          {showOriginalTitle && <span>{t('card.originalTitle', { title: item.originalTitle })}</span>}
-          {item.year !== null && <span>{item.year}</span>}
-          {item.genres.length > 0 && <span>{item.genres.join(t('card.genreSeparator'))}</span>}
-          {item.rating !== null && (
-            <span>
-              {t('card.rating', {
-                count: item.voteCount,
-                rating: formatNumber(item.rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
-                votes: formatNumber(item.voteCount),
-              })}
-            </span>
-          )}
-        </p>
+        {(showOriginalTitle || item.year !== null) && (
+          <p className="recommendation-meta">
+            {showOriginalTitle && <span>{t('card.originalTitle', { title: item.originalTitle })}</span>}
+            {item.year !== null && <span>{item.year}</span>}
+          </p>
+        )}
+        {item.genres.length > 0 && <p className="recommendation-meta">{item.genres.join(t('card.genreSeparator'))}</p>}
         <RecommendationReasons reasons={item.reasons} />
         <RecommendationAvailabilityLine availability={item.availability} />
         <div className="recommendation-actions" role="group" aria-label={t('card.actions')}>

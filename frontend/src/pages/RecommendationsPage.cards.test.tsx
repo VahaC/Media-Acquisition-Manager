@@ -80,6 +80,32 @@ describe('RecommendationsPage cards', () => {
     expect(within(film).getByText(`7.9 (${formatNumber(8905)} votes)`)).toBeInTheDocument()
   })
 
+  it('puts the genres on a line of their own', async () => {
+    // Arrange
+    const items = [guardians]
+
+    // Act
+    renderPage(items)
+
+    // Assert
+    const genres = within(await cardOnScreen(guardians.title)).getByText('Фантастика, Пригоди, Комедія')
+    expect(genres.tagName).toBe('P')
+  })
+
+  it('shows the rating beside the title with its votes in short, and the full count on hover', async () => {
+    // Arrange
+    const items = [guardians]
+
+    // Act
+    renderPage(items)
+
+    // Assert
+    const film = await cardOnScreen(guardians.title)
+    const rating = within(film).getByTitle(`7.9 (${formatNumber(8905)} votes)`)
+    expect(rating.previousElementSibling).toContainElement(within(film).getByRole('heading', { level: 2 }))
+    expect(within(rating).getByText('7.9 (8.9K)')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('leaves out an original title that is the title, a rating nobody gave and a year the catalog lacks', async () => {
     // Arrange
     const items = [{ ...guardians, originalTitle: guardians.title, rating: null, voteCount: 0, year: null, genres: [] }]

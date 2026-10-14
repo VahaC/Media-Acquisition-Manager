@@ -499,6 +499,30 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   and fields (`delete-for-good`, `canDeleteForGood`) are unchanged. `JobDetailsPage.replacement.test.tsx`
   and `JobsPage.actions.test.tsx` pin the labels for one copy and for several, and the pages', the
   components' and the Api tests that pinned "for good" pin the new sentences.
+- **A recommendation's rating sits in the card's top-right corner, its genres on a line of their own,
+  and its poster is larger (Vasyl, 2026-10-14).** The rating and its votes moved from the line under
+  the title to the top-right corner beside the title, after an amber star, the votes in short so the
+  title keeps its room on a phone ("★ 8.2 (29K)"); the full count — "8.2 (28,968 votes)" — shows on
+  hover and is what a screen reader reads. The genres left the line of the original title and the year
+  for a line under it, and the poster is 7rem wide, up from 6rem. `RecommendationsPage.cards.test.tsx`
+  pins the rating and the genres.
+- **A release's row on the Search page reads its listing from the top-right corner, its claims as
+  three groups, and names its source (Vasyl, 2026-10-14).** The seeders (an up arrow in the status
+  green) and the peers (a people icon) moved into the row's top-right corner, each saying on hover what
+  it counts — "Seeders: people who have the whole release and are sharing it now. The more there are,
+  the faster it downloads." and "Peers: everyone connected to this torrent, seeders and those still
+  downloading together, as the source counts them." — and read in full to a screen reader ("46
+  seeders"); the size sits under them, larger, and the publish date under the size. A phone puts the
+  three on one line under the text. The "Claimed" label and its chips gave way to up to three groups
+  of plain text, each after its icon: the picture ("1080p · BDRip · H.264", a TV release's "TV" and
+  seasons first), the audio languages and the subtitle languages ("Ukrainian, English"). A value the
+  title doesn't state is left out rather than named as unknown, and a title that states nothing
+  leaves no line; the line says on hover "What the release's title claims, not checked against a
+  file". Vasyl picked the groups on a prototype of three layouts (chips, groups, the resolution picked
+  out). The Details dialog and the replacement's works keep the full list with its unknowns
+  (ClaimedQuality). The source moved from the facts line to the row's bottom left, beside the
+  actions, as "Source: Prowlarr". `ReleaseRow.test.tsx` pins the corner, the hovers, the groups and
+  the source.
 
 ### Notes for upgraders
 

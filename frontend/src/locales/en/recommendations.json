@@ -92,6 +92,7 @@
     "genreSeparator": ", ",
     "rating_one": "{{rating}} ({{votes}} vote)",
     "rating_other": "{{rating}} ({{votes}} votes)",
+    "ratingShort": "{{rating}} ({{votes}})",
     "downloading": "Downloading",
     "actions": "Actions",
     "releases": "Releases",

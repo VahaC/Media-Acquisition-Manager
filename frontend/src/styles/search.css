@@ -170,10 +170,87 @@
   min-width: 0;
 }
 
+/* The title, its description, source, claims and match beside the swarm, the size and the date in
+   the top-right corner. */
+.search-release-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+}
+
 .search-release-body {
   display: grid;
   gap: 0.375rem;
   min-width: 0;
+}
+
+.search-release-stats {
+  display: grid;
+  justify-items: end;
+  gap: 0.125rem;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.search-release-swarm {
+  display: flex;
+  gap: 0.75rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.search-release-seeders,
+.search-release-peers {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: help;
+}
+
+/* The icon in the status green, the count in the text colour: text in that green reaches about 3.3:1
+   on the light card, short of the 4.5:1 WCAG AA wants. */
+.search-release-seeders svg {
+  color: var(--status-up);
+}
+
+.search-release-peers svg {
+  color: var(--muted-foreground);
+}
+
+.search-release-size {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+
+/* What the release's title claims, on its row: the picture, the audio and the subtitles, each a
+   group of plain text after its icon; a group too long for the line wraps whole to the next. */
+.release-claims {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+  cursor: help;
+}
+
+.release-claims > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.release-claims svg {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
 }
 
 /* A release title is a scene name, often without spaces: it breaks anywhere rather than widening
@@ -191,8 +268,24 @@
   overflow-wrap: anywhere;
 }
 
-/* A release's actions under its facts, laid out like `.settings-actions` — a row of its own, so
-   its label-hiding rule below applies to these buttons only. */
+/* The source that listed the release at the bottom left, its actions at the right; the actions keep
+   the right when the source fills the line. */
+.search-release-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+}
+
+.search-release-source {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+/* A release's actions, laid out like `.settings-actions` — a group of its own, so its label-hiding
+   rule below applies to these buttons only. */
 .search-release-actions {
   display: flex;
   flex-wrap: wrap;
@@ -200,6 +293,7 @@
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
+  margin-left: auto;
 }
 
 /* ── the Details dialog ── */
@@ -288,5 +382,22 @@
   /* The icon only on a phone; each action keeps its label in title=, which also names it. */
   .search-release-actions .label-text {
     display: none;
+  }
+
+  /* No room beside the title on a phone: the swarm, the size and the date make one line under it. */
+  .search-release-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .search-release-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+    text-align: left;
+  }
+
+  .search-release-size {
+    font-size: var(--text-sm);
   }
 }
