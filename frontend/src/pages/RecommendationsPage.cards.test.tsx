@@ -227,7 +227,7 @@ describe('RecommendationsPage cards', () => {
 
     // Assert
     const actions = within(await cardOnScreen(guardians.title)).getByRole('group', { name: 'Actions' })
-    expect([...actions.children].map((action) => action.getAttribute('title'))).toEqual(['Releases', 'Not interested'])
+    expect([...actions.children].map((action) => action.getAttribute('title'))).toEqual(['Releases', 'Description', 'Not interested'])
   })
 
   it('hides a work on Not interested, leaving a line with Undo in its place, and asks for no list again', async () => {

@@ -626,7 +626,9 @@ episode, and how much space could really be recovered — without the app guessi
   result shared by every user and checked again after a day when found and a week when not, and its
   newest 90 releases are read every 3 hours for "New on Toloka" ([ADR
   0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)). A
-  card's **Releases** opens the Search page with the work; nothing is sent by itself. "Not interested"
+  card's **Releases** opens the Search page with the work; nothing is sent by itself. Its **Description**
+  opens the catalog's overview of it, in English for now, asked on the click and kept per language
+  (0.4.0, Vasyl, 2026-10-14). "Not interested"
   is each user's own (Vasyl's decision 3), and each user's Profile switches the tabs and sets the limit,
   every tab on until they save (decision 5). A film Toloka files in TV/Anime or
   TV/Documentary is a movie unless its title or description names seasons or episodes, and the movie

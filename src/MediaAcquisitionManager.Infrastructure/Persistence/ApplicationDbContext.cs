@@ -110,6 +110,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<CatalogWorkAlternativeTitleEntity> CatalogWorkAlternativeTitles => Set<CatalogWorkAlternativeTitleEntity>();
 
+    public DbSet<CatalogWorkOverviewEntity> CatalogWorkOverviews => Set<CatalogWorkOverviewEntity>();
+
     public DbSet<LibraryItemLinkEntity> LibraryItemLinks => Set<LibraryItemLinkEntity>();
 
     public DbSet<LibraryItemLinkFileEntity> LibraryItemLinkFiles => Set<LibraryItemLinkFileEntity>();
@@ -643,6 +645,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasIndex(x => new { x.CatalogWorkId, x.Position }).IsUnique();
             // Cascade: part of the work's details. The recommended work is named by kind and id, with no key
             // of its own (the entity says why).
+            e.HasOne<CatalogWorkEntity>().WithMany()
+                .HasForeignKey(x => x.CatalogWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CatalogWorkOverviewEntity>(e =>
+        {
+            // One overview per language asked; leading with the work, for the foreign key.
+            e.HasIndex(x => new { x.CatalogWorkId, x.Language }).IsUnique();
+            // Cascade: what the work is about goes with the work.
             e.HasOne<CatalogWorkEntity>().WithMany()
                 .HasForeignKey(x => x.CatalogWorkId)
                 .OnDelete(DeleteBehavior.Cascade);

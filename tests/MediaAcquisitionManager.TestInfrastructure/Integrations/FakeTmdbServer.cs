@@ -209,6 +209,9 @@ public sealed class FakeTmdbServer
             return NotFound();
 
         var details = kind == MediaWorkKind.Series ? ShowDetails(work) : MovieDetails(work);
+        // In the language asked, when the work has its overview by language: TMDb's "" for one it has none in.
+        if (work.OverviewsByLanguage is { } overviews)
+            details["overview"] = query.TryGetValue("language", out var language) && overviews.TryGetValue(language, out var overview) ? overview : "";
         var appended = query.TryGetValue("append_to_response", out var append) ? append.Split(',') : [];
         if (appended.Contains("credits"))
             details["credits"] = Credits(work);

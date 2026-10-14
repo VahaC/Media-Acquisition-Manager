@@ -1,4 +1,5 @@
 import type {
+  CatalogWorkKind,
   ConfidentSuggestionsQuery,
   CopyRemovalsQuery,
   DestinationsQuery,
@@ -58,6 +59,9 @@ export const qk = {
     latestRun: ['recommendations', 'runs', 'latest'] as const,
     /** One poster as a `data:` URL, by the URL the list gave; a poster file never changes. */
     poster: (url: string) => ['recommendations', 'posters', url] as const,
+    /** What a work is about, in one language. */
+    overview: (kind: CatalogWorkKind, catalogId: string, language: string) =>
+      ['recommendations', 'overviews', kind, catalogId, language] as const,
   },
   library: {
     /** The works, the library filter and the sources: what a change to an integration drops. */

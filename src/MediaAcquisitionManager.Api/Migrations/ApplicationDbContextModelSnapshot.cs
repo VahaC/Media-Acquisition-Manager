@@ -521,6 +521,35 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.ToTable("CatalogWorkGenres");
                 });
 
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkOverviewEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CatalogWorkId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FetchedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Overview")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogWorkId", "Language")
+                        .IsUnique();
+
+                    b.ToTable("CatalogWorkOverviews");
+                });
+
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkPersonEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3354,6 +3383,15 @@ namespace MediaAcquisitionManager.Api.Migrations
                 });
 
             modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkGenreEntity", b =>
+                {
+                    b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CatalogWorkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MediaAcquisitionManager.Core.Entities.CatalogWorkOverviewEntity", b =>
                 {
                     b.HasOne("MediaAcquisitionManager.Core.Entities.CatalogWorkEntity", null)
                         .WithMany()

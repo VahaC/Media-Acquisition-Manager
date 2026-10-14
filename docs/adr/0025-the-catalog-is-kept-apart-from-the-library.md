@@ -214,3 +214,30 @@ user's token, as a `data:` URL — is shared.
 `LibraryPostersHttpTests.Poster_first_asked_for_by_a_member_is_fetched_from_the_saved_jellyfin_with_the_key_in_the_header_and_kept`
 and `RecommendationPostersHttpTests.Poster_first_asked_for_is_fetched_from_the_image_host_without_the_token_and_kept`,
 unchanged, pin it.
+
+## A work's description (added 0.4.0)
+
+**The Recommendations page's Description shows TMDb's overview, asked for on the click, in the reader's
+language, and kept apart from the details' own.** Vasyl's decisions of 2026-10-14: a card's
+**Description** opens the work's overview; it is asked of the catalog when someone opens it, not with
+the lists — every card has one at once, at the cost of a short wait the first time — and in English
+for now, as not every user of an installation reads Ukrainian.
+
+`CatalogWorks.Overview` can't serve it. It is part of the details, read in the catalog's language
+(Ukrainian, `uk-UA`) for the works whose details a run or the owner's TMDb links read — 45 of 3,732
+recommended works on Vasyl's installation that day —, and TMDb had a Ukrainian overview for 730 of the
+1,296 works whose details were read. Filling it in English would change what the owner's suggestions
+are ranked by. So a description has its own table, `CatalogWorkOverviews`: one row per work and
+language, the text `null` when TMDb has none in it — that answer kept too, so a work with nothing to
+say isn't asked about on every click —, removed with the work, read again once older than the
+catalog's refresh age (30 days), and served however old while the catalog can't be asked.
+
+**The language is the reader's, with English beneath it.** The endpoint takes the language (`en`,
+`uk-UA`; English when none is given) and falls back to English when TMDb has none in it, saying in the
+answer which language the text is in. The web app sends its UI language's code — `en` today — so a
+UI that speaks Ukrainian or another language one day asks in it, and gets English where TMDb has
+nothing in it, with no change here; the dialog marks the text with its language for screen readers.
+Only a code of the shape TMDb takes reaches the request, and only a work the catalog has is asked
+about, so the endpoint is no open proxy to TMDb.
+
+`RecommendationOverviewsHttpTests` and `TmdbAdapterOverviewTests` pin it.

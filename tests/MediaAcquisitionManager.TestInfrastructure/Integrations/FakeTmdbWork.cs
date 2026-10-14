@@ -34,6 +34,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <c>""</c>.</param>
 /// <param name="AlternativeTitles">MAM-34 — the titles of its <c>alternative_titles</c> (a film's <c>titles</c>, a
 /// show's <c>results</c>), when the details are asked to append them; none when <c>null</c>.</param>
+/// <param name="OverviewsByLanguage">Its details' <c>overview</c> by the <c>language</c> they are asked in (<c>en</c>,
+/// <c>uk-UA</c>); a language not in it answers TMDb's <c>""</c>, as TMDb does for one it has no overview in. When
+/// <c>null</c>, <paramref name="Overview"/> answers whatever the language.</param>
 public sealed record FakeTmdbWork(
     MediaWorkKind Kind,
     int Id,
@@ -51,4 +54,5 @@ public sealed record FakeTmdbWork(
     int[]? RecommendationIds = null,
     int? RuntimeMinutes = null,
     string? Overview = null,
-    string[]? AlternativeTitles = null);
+    string[]? AlternativeTitles = null,
+    IReadOnlyDictionary<string, string>? OverviewsByLanguage = null);

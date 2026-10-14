@@ -1,8 +1,9 @@
 import { useId, useState } from 'react'
-import { Download, EyeOff, Loader2, Search, Star, Undo2 } from 'lucide-react'
+import { BookOpenText, Download, EyeOff, Loader2, Search, Star, Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { RecommendationAvailabilityLine } from '@/components/recommendations/RecommendationAvailabilityLine'
+import { RecommendationOverviewDialog } from '@/components/recommendations/RecommendationOverviewDialog'
 import { RecommendationReasons } from '@/components/recommendations/RecommendationReasons'
 import { CatalogPoster } from '@/components/shared/CatalogPoster'
 import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
@@ -29,7 +30,8 @@ interface RecommendationCardProps {
  * the genres on a line of their own, why it is recommended, what the release
  * sources had at their last check, and a Downloading badge while a download job someone follows
  * matches it. "Releases" opens the Search page searched for it — with its TMDb id when it is a film,
- * which narrows the search to it. "Not interested" hides it for this user only.
+ * which narrows the search to it. "Description" opens what it is about (RecommendationOverviewDialog).
+ * "Not interested" hides it for this user only.
  *
  * Once hidden, the card stays in its place as one line with Undo, rather than the grid closing up
  * under the pointer; the page asks for its lists again when the person leaves (RecommendationsPage).
@@ -45,6 +47,7 @@ export function RecommendationCard({ item, hidden, onHidden, onRestored }: Recom
   // The button the person pressed goes away with the card or the line, so the focus moves to the one
   // that takes its place. Not on the first render: a card that simply loads takes no focus.
   const [focusAction, setFocusAction] = useState(false)
+  const [describing, setDescribing] = useState(false)
   const target = { kind: item.kind, catalogId: item.catalogId }
 
   const hide = async () => {
@@ -148,6 +151,10 @@ export function RecommendationCard({ item, hidden, onHidden, onRestored }: Recom
               <span className="label-text">{t('card.releases')}</span>
             </Link>
           </Button>
+          <Button type="button" variant="outline" size="sm" title={t('card.description')} onClick={() => setDescribing(true)}>
+            <BookOpenText className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="label-text">{t('card.description')}</span>
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -165,6 +172,7 @@ export function RecommendationCard({ item, hidden, onHidden, onRestored }: Recom
         </div>
         {error && <FieldErrorLine>{error}</FieldErrorLine>}
       </div>
+      {describing && <RecommendationOverviewDialog item={item} onClose={() => setDescribing(false)} />}
     </article>
   )
 }

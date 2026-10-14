@@ -96,6 +96,7 @@
     "downloading": "Downloading",
     "actions": "Actions",
     "releases": "Releases",
+    "description": "Description",
     "notInterested": "Not interested",
     "hiding": "Hiding…",
     "dismissFailed": "Could not hide it.",
@@ -146,5 +147,10 @@
     "startFailed": "Could not start a computation.",
     "noCatalog": "Connect a metadata catalog under Integrations first."
   },
-  "attribution": "Film and show data from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB."
+  "attribution": "Film and show data from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.",
+  "overview": {
+    "description": "What it is about, from the metadata catalog.",
+    "none": "The metadata catalog has no description of it.",
+    "loadFailed": "Could not load the description."
+  }
 }

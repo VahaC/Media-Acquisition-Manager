@@ -5,13 +5,15 @@ using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Media;
+using MediaAcquisitionManager.Core.Recommendations;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 
 // MAM-33 — the catalog's single resources: a work's details with its credits and recommendations in one
 // call, a collection with its parts, a person with the works they directed or created. MAM-34 — the same call
 // also brings a work's other titles and its external ids, for the owner linking a library work to it; and one
-// episode of a show with its own IMDb id, for the owner linking a film item to that episode.
+// episode of a show with its own IMDb id, for the owner linking a film item to that episode. And a work's overview in
+// the language of whoever opens its description on the Recommendations page.
 internal sealed partial class TmdbAdapter
 {
     /// <summary>
@@ -45,6 +47,39 @@ internal sealed partial class TmdbAdapter
                 $"{segment}/{id}?append_to_response=credits,recommendations,alternative_titles,external_ids&language={CatalogLanguage}",
                 WorkNotFoundError(kind, id),
                 (root, secrets) => ReadWork(root, kind, secrets),
+                token),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// <c>GET /3/{movie|tv}/{id}?language={language}</c> with nothing appended: the details in that language, of which
+    /// only the <c>overview</c> is read. TMDb answers <c>""</c> for a work it has no overview of in the language asked
+    /// (movie-details-short.json) — it never falls back to another language there — which is no overview.
+    /// </summary>
+    public Task<IntegrationCallResult<CatalogOverview>> GetOverviewAsync(
+        IntegrationConnectionSettings settings, MediaWorkKind kind, string id, string language, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(language);
+        // A caller's mistake, not TMDb's answer: nothing is sent, and nothing but a language code reaches the query.
+        var segment = KindSegment(kind);
+        RequireTmdbId(id, nameof(id));
+        if (!RecommendationOverviewRules.IsLanguage(language))
+            throw new ArgumentException($"“{language}” is not a language code such as en or uk-UA.", nameof(language));
+
+        return CallAsync<CatalogOverview>(
+            settings,
+            (client, sessionSecrets, token) => GetJsonAsync(
+                client,
+                settings,
+                sessionSecrets,
+                $"{segment}/{id}?language={language}",
+                WorkNotFoundError(kind, id),
+                (root, secrets) =>
+                {
+                    var overview = TextProperty(root, "overview", CatalogWorkEntity.OverviewMaximumLength, secrets);
+                    return new CatalogOverview(overview.Length > 0 ? overview : null);
+                },
                 token),
             cancellationToken);
     }

@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { CatalogWorkKind, RecommendationList, RecommendationRun, RecommendationsQuery } from './types'
+import type { CatalogWorkKind, RecommendationList, RecommendationOverview, RecommendationRun, RecommendationsQuery } from './types'
 
 const BASE_URL = '/api/recommendations'
 
@@ -52,6 +52,16 @@ export const recommendationsApi = {
   undismiss: async (kind: CatalogWorkKind, catalogId: string): Promise<void> => {
     await api.delete(`${BASE_URL}/dismissals/${kind}/${encodeURIComponent(catalogId)}`)
   },
+
+  /**
+   * `GET /api/recommendations/overviews/{kind}/{catalogId}?language=` — what the work is about, in
+   * `language` (a code such as `en`), else in English, else none: kept by the server, or asked of the
+   * catalog the first time. 400 `{ error }` for a kind, id or language it can't read; a bare 404 for a
+   * work the catalog doesn't have; 409 `{ error }` with nothing kept and no catalog connected; 502
+   * `{ error }` when the catalog couldn't answer.
+   */
+  overview: async (kind: CatalogWorkKind, catalogId: string, language: string): Promise<RecommendationOverview> =>
+    (await api.get<RecommendationOverview>(`${BASE_URL}/overviews/${kind}/${encodeURIComponent(catalogId)}`, { params: { language } })).data,
 
   /**
    * `GET /api/recommendations/posters/{fileName}` — the poster bytes (JPEG or PNG), as the list's

@@ -6,7 +6,7 @@ namespace MediaAcquisitionManager.Api.Extensions;
 public static class RecommendationServiceCollectionExtensions
 {
     /// <summary>MAM-33 — the metadata catalog's cache and the recommendations' computation, availability check and feed;
-    /// the lists, "Not interested", the posters and the Profile's settings. The worker, the reconciler and the two loops
+    /// the lists, "Not interested", the posters, the descriptions and the Profile's settings. The worker, the reconciler and the two loops
     /// are hosted services, registered in <see cref="HostedServiceCollectionExtensions"/> with the others; the catalog's
     /// adapter is Infrastructure's.</summary>
     public static IServiceCollection AddRecommendationFeatures(this IServiceCollection services)
@@ -23,6 +23,7 @@ public static class RecommendationServiceCollectionExtensions
         services.AddScoped<IRecommendationListService, RecommendationListService>();
         services.AddScoped<IRecommendationDismissalService, RecommendationDismissalService>();
         services.AddScoped<IRecommendationPosterService, RecommendationPosterService>();
+        services.AddScoped<IRecommendationOverviewService, RecommendationOverviewService>();
         services.AddScoped<IRecommendationSettingsService, RecommendationSettingsService>();
         // Singleton: the one queue the triggers write to and the worker reads.
         services.AddSingleton<RecommendationRunQueue>();

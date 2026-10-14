@@ -113,6 +113,19 @@ export const useUndismissRecommendation = () =>
   })
 
 /**
+ * What a recommended work is about, in `language` (else English), for its card's Description dialog.
+ * Asked for only while the dialog is open — the dialog mounts it — and kept for the page's life: the
+ * server keeps it for a month. A failure isn't retried by itself; the dialog offers Try again.
+ */
+export const useRecommendationOverview = ({ kind, catalogId }: RecommendationDismissal, language: string) =>
+  useQuery({
+    queryKey: qk.recommendations.overview(kind, catalogId, language),
+    queryFn: () => recommendationsApi.overview(kind, catalogId, language),
+    staleTime: Infinity,
+    retry: false,
+  })
+
+/**
  * MAM-33 — a poster as a `data:` URL, the only image source besides the app's own the CSP allows
  * (`img-src 'self' data:`): an `<img src="/api/…">` couldn't carry the bearer token, and a `blob:` URL
  * is blocked. A poster file never changes, so it is never asked for twice while cached; nothing is

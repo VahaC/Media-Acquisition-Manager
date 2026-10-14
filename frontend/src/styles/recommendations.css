@@ -2,7 +2,8 @@
    the toolbar and the empty states; library.css for the run panel's row and status line;
    modal-tabs.css for the tabs; ui-primitives.css for cards and badges) don't have — the grid of
    cards, a card's poster beside its text, the rating in its corner, the reason chips, the
-   availability line, the row a hidden card leaves and the catalog's attribution. Imported by each
+   availability line, the row a hidden card leaves, the Description dialog and the catalog's
+   attribution. Imported by each
    component that uses it. Tokens only, so dark mode needs nothing of its own. */
 
 /* The current tab's toolbar, banner, cards and pager, spaced like the page around them. */
@@ -209,4 +210,23 @@
 .recommendation-sources {
   display: grid;
   gap: 0.25rem;
+}
+
+/* The Description dialog: a little wider than a settings dialog, for a paragraph to read. */
+.ui-dialog-content.settings-dialog.recommendation-overview-dialog {
+  max-width: 36rem;
+}
+
+/* A long title wraps clear of the close button. */
+.ui-dialog-title.recommendation-overview-title {
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  padding-right: 1.5rem;
+}
+
+/* The overview as written, its own line breaks kept. */
+.recommendation-overview {
+  line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }

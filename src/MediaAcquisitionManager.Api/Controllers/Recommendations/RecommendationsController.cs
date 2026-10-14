@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MediaAcquisitionManager.Api.Controllers.Recommendations;
 
-/// <summary>MAM-33 — the recommendations: each user's lists, their "Not interested" marks, the works' posters, and the
-/// computation runs.</summary>
+/// <summary>MAM-33 — the recommendations: each user's lists, their "Not interested" marks, the works' posters and
+/// descriptions, and the computation runs.</summary>
 /// <remarks>
 /// <para>
 /// Recommendations are every signed-in user's, so this controller lives outside <c>Controllers/Settings</c> and
@@ -27,7 +27,8 @@ public class RecommendationsController(
     IRecommendationRunService runs,
     IRecommendationListService lists,
     IRecommendationDismissalService dismissals,
-    IRecommendationPosterService posters) : ControllerBase
+    IRecommendationPosterService posters,
+    IRecommendationOverviewService overviews) : ControllerBase
 {
     /// <summary>
     /// How long the browser may keep a poster without asking again: 30 days, <c>immutable</c> — a catalog's poster path
@@ -97,6 +98,28 @@ public class RecommendationsController(
             default:
                 return this.BadGatewayError(result.Error);
         }
+    }
+
+    /// <summary>
+    /// What a catalog work is about, for its card's Description dialog: in <paramref name="language"/> (English when
+    /// none is given), else in English, else none — kept, or asked of the catalog on the first request. 400 for a kind,
+    /// an id or a language the request doesn't take; a bare 404 for a work the catalog doesn't have, as for a missing
+    /// row; 409 when nothing is kept and no catalog is connected; 502 when the catalog couldn't answer.
+    /// </summary>
+    [HttpGet("overviews/{kind}/{catalogId}")]
+    public async Task<ActionResult<RecommendationOverviewResponse>> Overview(
+        string kind, string catalogId, [FromQuery] string? language, CancellationToken cancellationToken)
+    {
+        var result = await overviews.GetAsync(kind, catalogId, language, UserId, cancellationToken);
+        return result.Status switch
+        {
+            RecommendationOverviewStatus.Found => Ok(result.Overview),
+            RecommendationOverviewStatus.NotFound => NotFound(),
+            RecommendationOverviewStatus.Invalid => this.BadRequestError(result.Error),
+            // Nothing to ask: a state the owner changes under Integrations, not a bad request.
+            RecommendationOverviewStatus.NoCatalog => this.ConflictError(result.Error),
+            _ => this.BadGatewayError(result.Error),
+        };
     }
 
     /// <summary>The run under way, else the latest one; 204 before the first. Its requester and error for the owner

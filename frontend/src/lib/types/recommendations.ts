@@ -128,6 +128,14 @@ export interface RecommendationDismissal {
   catalogId: string
 }
 
+/** What a recommended work is about, for its card's Description dialog. */
+export interface RecommendationOverview {
+  /** The catalog's overview; null when it has none in the language asked nor in English. */
+  overview: string | null
+  /** The language it is in — the one asked, or `en` when the catalog had none in that one; null with no overview. */
+  language: string | null
+}
+
 /** MAM-33 — a reason kind and how many of the tab's works have it. */
 export interface RecommendationReasonFacet {
   kind: RecommendationReasonKind

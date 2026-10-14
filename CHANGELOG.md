@@ -303,6 +303,27 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   send to Transmission wasn't tried, and ADR 0004, ADR 0005, the specification's Phase D note and the
   vendor samples' README give MAM-31's results where they said it would try or diff.
 
+- **A recommendation's Description: what the work is about, in a dialog (Vasyl, 2026-10-14; ADR 0025's
+  description section).** Each card on the Recommendations page has a **Description** button, between
+  **Releases** and **Not interested** (its icon alone on a phone), that opens a dialog with the work's
+  title, its original title and year, and TMDb's overview of it; "The metadata catalog has no
+  description of it." when TMDb has none, and "Could not load the description." with the server's
+  sentence — and **Try again** when another try can help — when it fails. Vasyl's choices: the overview
+  is asked for on the click, not with the lists, so every card has one at once at the cost of a short
+  wait the first time; and in English for now, as not every user reads Ukrainian (TMDb has a Ukrainian
+  overview for about half the films). `GET /api/recommendations/overviews/{kind}/{catalogId}?language=`
+  asks TMDb for the work's details in that language (`/3/movie/{id}?language=`, nothing appended),
+  else in English, and keeps each answer — the "none" too — in the new `CatalogWorkOverviews` table
+  (migration `AddCatalogWorkOverviews`), one row per work and language, removed with the work; it is
+  asked again once older than the catalog's 30 days, and a kept one is served, however old, while TMDb
+  can't be asked. The web app asks in its UI language's code, so a translated UI asks in its own and
+  falls back to English with no change on the server. Every signed-in user may ask; only a work the
+  catalog has is asked about (a bare 404 otherwise); 400 for a kind, an id or a language code it
+  doesn't take; 409 with nothing kept and no catalog; 502 with TMDb's sentence for the owner and "The
+  metadata catalog couldn't send this description." for everyone else. `IMetadataCatalog` gains
+  `GetOverviewAsync`. `RecommendationOverviewsHttpTests`, `TmdbAdapterOverviewTests` and
+  `RecommendationsPage.overview.test.tsx` pin it.
+
 ### Changed
 
 - **"Folder" for a client without categories, and the client's own name where qBittorrent was named

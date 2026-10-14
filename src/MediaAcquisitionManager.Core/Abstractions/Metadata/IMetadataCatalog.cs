@@ -33,6 +33,15 @@ public interface IMetadataCatalog
     Task<IntegrationCallResult<CatalogWork>> GetWorkAsync(IntegrationConnectionSettings settings, MediaWorkKind kind, string id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// What a film or a show is about, in <paramref name="language"/> (<c>en</c>, <c>uk-UA</c>) and that language only:
+    /// <see cref="CatalogOverview.Text"/> is <c>null</c> when the source has none in it, never another language's.
+    /// <see cref="IntegrationCallStatus.NotFound"/> when the source knows no such work. A malformed id or language is a
+    /// caller's mistake and throws before anything is sent.
+    /// </summary>
+    Task<IntegrationCallResult<CatalogOverview>> GetOverviewAsync(
+        IntegrationConnectionSettings settings, MediaWorkKind kind, string id, string language, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// MAM-34 — the episode <paramref name="episodeNumber"/> of season <paramref name="seasonNumber"/> of the show
     /// <paramref name="showId"/>, with its own IMDb id. <see cref="IntegrationCallStatus.NotFound"/> when the source knows
     /// no such episode — of no such season, or of no such show. A malformed show id or a negative number is a caller's
