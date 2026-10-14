@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 
 namespace MediaAcquisitionManager.Api.Mapping;
@@ -11,7 +12,8 @@ public interface IDownloadMapper
     /// A job as the dialog shows it, with its release's <paramref name="releaseTitle"/> and
     /// <paramref name="sourceName"/>, read with it by the caller. A service's sentence of why it failed only
     /// when the reader is the installation owner (<paramref name="forOwner"/>); anyone else reads the app's
-    /// sentence naming that service. MAM-14 — the same for the client's sentence of why it isn't moving on.
+    /// sentence naming that service. MAM-14 — the same for the client's sentence of why it isn't moving on. MAM-30 — and
+    /// a folder job's folder only for the owner (D13).
     /// </summary>
     DownloadJobDto ToDto(DownloadJobEntity job, string releaseTitle, string sourceName, bool forOwner);
 
@@ -30,6 +32,8 @@ public interface IDownloadMapper
     DownloadJobReplacementDto ToDto(ReplacementJobEntity replacement, ReplacementLineCounts counts, bool switchedOff);
 
     /// <summary>A client the dialog offers: its name, what it is (<paramref name="typeName"/>) and its
-    /// <paramref name="destinations"/>, in the order given.</summary>
-    DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations);
+    /// <paramref name="destinations"/>, in the order given. MAM-30 — and what its destinations are
+    /// (<paramref name="destinationKind"/>); a folder client's come without their folders, whoever reads them (D13).</summary>
+    DownloadClientOptionDto ToOption(
+        IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations, DownloadDestinationKind destinationKind);
 }

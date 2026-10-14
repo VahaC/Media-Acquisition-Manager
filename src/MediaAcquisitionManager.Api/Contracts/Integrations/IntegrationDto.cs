@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Contracts;
@@ -21,6 +22,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="HasApiKey">Whether an API key is stored.</param>
 /// <param name="PathMappings">Its path mappings, in the order they were entered.</param>
 /// <param name="CreatedUtc">When it was added.</param>
+/// <param name="DestinationKind">MAM-30 — for a download client, what its destinations are: its own categories or the
+/// folders it can reach (ADR 0039); <c>null</c> for any other integration, and for one whose type this version of the
+/// app no longer connects to.</param>
 public sealed record IntegrationDto(
     Guid Id,
     string Name,
@@ -33,4 +37,5 @@ public sealed record IntegrationDto(
     bool HasPassword,
     bool HasApiKey,
     IReadOnlyList<PathMappingDto> PathMappings,
-    DateTime CreatedUtc);
+    DateTime CreatedUtc,
+    DownloadDestinationKind? DestinationKind = null);

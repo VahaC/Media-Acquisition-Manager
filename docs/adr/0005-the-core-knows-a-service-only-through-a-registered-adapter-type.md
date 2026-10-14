@@ -710,3 +710,35 @@ adapter itself. It missed what sits around one:
 
 MAM-30 makes these changes. The kind contracts and the core state machine are not expected to change;
 MAM-31 diffs the core's following and replacement code to show it.
+
+## Transmission, as built (added 0.4.0, MAM-30)
+
+**Transmission is registered as the MAM-29 section said: one class (`TransmissionAdapter`, internal and
+sealed, in partial files), one registration, one named HTTP client, type id `transmission`, kind
+`DownloadClient`, a user name and password both optional and no API key. Where the prediction missed,
+the kind contract grew by what a second client needed to say about itself, never by a product name:**
+
+- `DownloadClientCapabilities` gains `DestinationKind` (`Category` or `Folder`,
+  [ADR 0039](0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)),
+  `FilePlacement` (`AnyOfThreeLayouts` for qBittorrent, `OwnLayoutOnly` for Transmission, ADR 0034),
+  `PartialFileSuffix` (`.part` for Transmission), `TakesV2OnlyTorrents` (false for Transmission 4.0 and
+  4.1) and `JobIdsMayChange` (qBittorrent's libtorrent 2 renames, ADR 0014);
+- `ListDestinationsAsync` takes the folders the app proposes — a category client ignores them —,
+  `ClientDestination` says whether an entry is the client's default folder and why the client can't use
+  one, and `DownloadSubmission` carries the label;
+- the UI decides "category" or "folder" by `destinationKind` on the integration, adapter-type,
+  destination, download-option and job DTOs, never by the type id, as the ROADMAP's Phase D Tests line
+  asks.
+
+`CoreIsVendorNeutralTests` still finds no product word in a Core name. The registry tests list five
+types
+(`IntegrationsInfrastructureExtensionsTests.The_registry_lists_jellyfin_torznab_qbittorrent_transmission_and_tmdb_once_each_with_their_descriptors`,
+`The_registry_finds_qbittorrent_and_transmission_and_nothing_else_as_a_download_client`), the test
+harness and the app factory register Transmission's handler, and one behavioural contract suite,
+`DownloadClientContractTests` (`Integrations/DownloadClients/`), runs the same cases against both
+clients through `QBittorrentDownloadClientContractTests` and `TransmissionDownloadClientContractTests`.
+`DownloadJobMissingHttpTests` and `ReplacementOptionsHoldingsHttpTests` name an unregistered type
+`retired-client` ("Old client") now, as the web app's `retiredClient` fixture does. The kind
+contracts' members are otherwise unchanged, and the core state machine too: `DownloadJobFollowing.cs`
+and `Core/Replacements/` are as they were at 082c84e, and the replacement services changed only their
+wording and their reads — MAM-31 diffs them to show it.

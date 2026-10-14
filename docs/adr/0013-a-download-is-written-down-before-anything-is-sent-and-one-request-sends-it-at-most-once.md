@@ -211,3 +211,42 @@ and
 pin it, and
 `DownloadsSendHttpTests.Create_records_what_the_release_turned_out_to_be_and_never_reads_the_whole_client`
 the payload kind of a Keep both send.
+
+## A request Transmission never read is sent once more (added 0.4.0, MAM-30)
+
+**A `torrent-add` Transmission answered with a 409 is sent once more, with the session id that 409
+carried in its `X-Transmission-Session-Id` header: Transmission checks the session id before it reads
+the request, so the first one added nothing, and "sent once" still holds.** Transmission renews its
+session id every hour and at every restart, so a 409 may follow any call. Its source answers 401, 403,
+421 and 409 before it reads the body, and MAM-29 recorded it: after a stale session's 409, Sintel's hash
+was nowhere. A second 409, or one without a usable id, fails the job with "Transmission refused the
+session id it had just sent." and is never a status the sender's "may have been taken" look accepts.
+Every other unclear answer is read back, never resent, as the Decision says. `IDownloadClient`'s
+`SubmitAsync` documents the exception.
+
+**A duplicate is the client's no.** As for qBittorrent, the sender first asks the client for the
+release's hashes, and a torrent Transmission already has — it keys each by its v1 `hashString` — is
+refused before anything is sent: "“Transmission” already has this torrent, so nothing was sent." Only a
+torrent Transmission takes between that look and the add reaches it as a duplicate. Transmission
+answers that with `torrent-duplicate` and changes nothing of the torrent it has, whatever folder, label
+or `paused` the add carried. The app never adopts a download it didn't add (owner's decision 4), so the
+job fails with where the torrent is, read with one `torrent-get` of its `downloadDir` and `labels`:
+"Transmission already has this torrent, in “/downloads/movies” with the label “Movies”, so it added
+nothing." — or "Transmission already has this torrent, so it added nothing." when that read fails —,
+whatever that read answers.
+
+**The job keeps its client's kind of destination** (`DownloadJobs.DestinationKind`, by name, `null` for
+a job sent before), written with the job, so its folder reads as a folder, and stays the owner's, even
+once its client is gone.
+
+`TransmissionAdapterSubmitTests.Submit_whose_session_rotated_right_before_the_add_sends_the_add_once_more_with_the_new_id`,
+`Submit_whose_add_is_answered_409_twice_is_refused_and_the_add_is_sent_no_third_time`,
+`Submit_whose_add_is_answered_409_without_a_usable_id_is_refused_and_not_sent_again`,
+`Submit_of_a_torrent_transmission_already_has_is_refused_with_where_it_is_and_changes_nothing`,
+`Submit_of_a_duplicate_whose_read_after_fails_is_still_refused_in_fewer_words`,
+`Submit_of_a_duplicate_whose_read_after_never_answers_is_refused_and_the_add_is_not_sent_again` and
+`Submit_whose_answer_never_comes_is_timed_out_and_not_sent_again`,
+`DownloadClientContractTests.Submit_whose_session_the_client_forgot_right_before_the_add_adds_the_release_at_most_once`
+for both clients,
+`DownloadJobPersistenceTests.A_job_keeps_the_kind_of_its_destination_by_name_and_an_older_job_none`,
+and end to end through `FakeTransmissionServer` `DownloadsSendTransmissionHttpTests` pin it.

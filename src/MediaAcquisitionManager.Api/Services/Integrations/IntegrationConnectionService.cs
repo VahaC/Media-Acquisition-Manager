@@ -5,6 +5,7 @@ using MediaAcquisitionManager.Api.Services.Library;
 using MediaAcquisitionManager.Api.Services.LibraryLinks;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -96,7 +97,7 @@ public sealed partial class IntegrationConnectionService(
     }
 
     public IntegrationAdapterTypeListResponse ListAdapterTypes() =>
-        new([.. adapters.Descriptors.Select(descriptor => mapper.ToDto(descriptor))]);
+        new([.. adapters.Descriptors.Select(descriptor => mapper.ToDto(descriptor, DestinationKindOf(descriptor.TypeId)))]);
 
     public async Task<IntegrationDto?> GetAsync(Guid integrationId, CancellationToken cancellationToken = default)
     {
@@ -177,7 +178,7 @@ public sealed partial class IntegrationConnectionService(
             await QueueRecommendationsAsync(integration.Id, cancellationToken);
             await QueueLinkSuggestionsAsync(integration.Id, cancellationToken);
         }
-        return IntegrationChangeResult.Succeeded(mapper.ToDto(integration, descriptor));
+        return IntegrationChangeResult.Succeeded(mapper.ToDto(integration, descriptor, DestinationKindOf(integration.AdapterType)));
     }
 
     public async Task<IntegrationChangeResult> UpdateAsync(Guid integrationId, UpdateIntegrationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
@@ -349,7 +350,12 @@ public sealed partial class IntegrationConnectionService(
     }
 
     private IntegrationDto ToDto(IntegrationConnectionEntity integration) =>
-        mapper.ToDto(integration, adapters.Find(integration.AdapterType)?.Descriptor);
+        mapper.ToDto(integration, adapters.Find(integration.AdapterType)?.Descriptor, DestinationKindOf(integration.AdapterType));
+
+    // MAM-30 — what a download client type's destinations are, asked of the registry by capability (ADR 0005), so the
+    // descriptor every adapter gives stays as it is; null for any other type and for one this build doesn't register.
+    private DownloadDestinationKind? DestinationKindOf(string? adapterType) =>
+        adapters.Find<IDownloadClient>(adapterType)?.Capabilities.DestinationKind;
 
     // The adapter a new integration or a new draft names, or the sentence saying why there is none.
     // An exact match: the id is stored on the row and compared byte for byte (ADR 0005).

@@ -6,7 +6,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <remarks>
 /// Where to download it from never comes here (ADR 0004): the server keeps the link, sealed, and fetches
 /// the payload itself when the release is sent to a client (MAM-13). Every value is the listing's claim;
-/// the quality, the work and the matches are read from its title and its listing's ids on every read.
+/// the quality, the work and the matches are read from its title and its listing's ids on every read —
+/// MAM-30, the matches from its description too, by an id or a title and year.
 /// </remarks>
 /// <param name="Id">The stored release, for sending it to a download client.</param>
 /// <param name="SourceId">The search's source that listed it (<see cref="SearchSourceDto.Id"/>).</param>
@@ -32,6 +33,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// release, then its TVDB id; claims like its title.</param>
 /// <param name="LibraryMatches">The search's library works it matches, strongest evidence first; empty when
 /// it matches none of them.</param>
+/// <param name="DescriptionWork">MAM-30 — the titles and the year its <paramref name="Description"/> claims, read as
+/// <paramref name="ClaimedWork"/> is: a match its title doesn't explain came from here. <c>null</c> when the listing
+/// gave no description.</param>
 public sealed record SearchReleaseDto(
     Guid Id,
     Guid? SourceId,
@@ -48,4 +52,5 @@ public sealed record SearchReleaseDto(
     ClaimedReleaseQualityDto Claimed,
     ReleaseWorkClaimDto ClaimedWork,
     IReadOnlyList<ReleaseIdentifierDto> Identifiers,
-    IReadOnlyList<ReleaseLibraryMatchDto> LibraryMatches);
+    IReadOnlyList<ReleaseLibraryMatchDto> LibraryMatches,
+    ReleaseWorkClaimDto? DescriptionWork);

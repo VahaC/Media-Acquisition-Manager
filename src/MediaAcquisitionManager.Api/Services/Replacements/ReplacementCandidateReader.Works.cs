@@ -17,10 +17,12 @@ public sealed partial class ReplacementCandidateReader
     /// <summary>
     /// One matched work: its name, why none of its copies can be replaced, and — a series — its held episodes the
     /// release claims, each at its first claimed place in the Library's order (R3: an episode two items place in two
-    /// seasons is listed in the one the release claims), by season, then number, then title.
+    /// seasons is listed in the one the release claims), by season, then number, then title. MAM-30 — the release claims
+    /// what the claim that matched the work names, or the other when it names none (<see cref="ReleaseLibraryMatch.Episodes"/>).
     /// </summary>
-    private static WorkPlan PlanOf(ReleaseLibraryMatch match, LibraryWorkMatch work, bool isTv, ClaimedEpisodes? claimed, LibraryRows rows)
+    private static WorkPlan PlanOf(ReleaseLibraryMatch match, LibraryWorkMatch work, bool isTv, LibraryRows rows)
     {
+        var claimed = isTv ? match.Episodes : null;
         var title = work.Work.Title ?? work.Work.OriginalTitle;
         List<EpisodePlan> episodes = isTv && claimed is not null
             ? [.. rows.ClaimedPositionsBySeries[match.WorkId]
@@ -56,7 +58,7 @@ public sealed partial class ReplacementCandidateReader
     /// way. A TV copy is tied to its own library item's place (R3): a version whose item places its episode outside the
     /// claim, or under another series, can't be ticked, and the place a version keeps is its own.
     /// </summary>
-    private static List<Listing> ListingsOf(IReadOnlyList<WorkPlan> plans, ClaimedEpisodes? claimed, LibraryRows rows)
+    private static List<Listing> ListingsOf(IReadOnlyList<WorkPlan> plans, LibraryRows rows)
     {
         var listings = new List<Listing>();
         for (var workIndex = 0; workIndex < plans.Count; workIndex++)
@@ -79,7 +81,7 @@ public sealed partial class ReplacementCandidateReader
                         && string.Equals(position.SourceItemId, version.SourceItemId, StringComparison.Ordinal));
                     var inClaim = own is not null
                         && own.SeriesWorkId == plan.Match.WorkId
-                        && claimed is not null
+                        && plan.Match.Episodes is { } claimed
                         && claimed.Holds(own.SeasonNumber, own.EpisodeNumber);
                     listings.Add(new Listing(
                         workIndex,

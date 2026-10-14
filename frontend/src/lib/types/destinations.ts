@@ -1,7 +1,14 @@
 /**
+ * MAM-30 — what a download client's destinations are (ADR 0010, ADR 0039): its own categories, each of
+ * which decides the folder (qBittorrent), or folders the client saves to directly (Transmission).
+ */
+export type DownloadDestinationKind = 'Category' | 'Folder'
+
+/**
  * MAM-11 — where a destination's folder lands, as the API checks it live (ADR 0003): inside a media
  * library folder, or why automatic replacement stays off for it. Only InLibrary comes without a
- * problem sentence.
+ * problem sentence. MAM-30 — `FolderNotSeen`: the client can't see or use the folder, so nothing is
+ * sent to it.
  */
 export type DestinationPathStatus =
   | 'InLibrary'
@@ -11,15 +18,22 @@ export type DestinationPathStatus =
   | 'CategoryMissing'
   | 'ClientDisabled'
   | 'ClientUnavailable'
+  | 'FolderNotSeen'
 
-/** The live check of one destination, or of one category the client offers. Never stored. */
+/** The live check of one destination, or of one category or folder the client offers. Never stored. */
 export interface DestinationCheck {
   status: DestinationPathStatus
   /** The folder as the download client sees it; null when the client doesn't say or wasn't asked. */
   servicePath: string | null
-  /** The same folder inside this app, through the client's path mappings; null when they give none. */
+  /**
+   * The same folder inside this app, through the client's path mappings; null when they give none.
+   * MAM-30 — always null for FolderNotSeen, so nothing treats a folder the client can't see as one to check.
+   */
   appPath: string | null
-  /** The media libraries whose folders hold it, by name; empty unless the status is InLibrary. */
+  /**
+   * The media libraries whose folders hold it, by name; empty unless the status is InLibrary or
+   * (MAM-30) FolderNotSeen, where they name the libraries the unseen folder belongs to.
+   */
   libraryNames: string[]
   /** One readable sentence for every status but InLibrary; null then. */
   problem: string | null
@@ -33,11 +47,16 @@ export interface Destination {
   isDefault: boolean
   downloadClientId: string
   downloadClientName: string
-  /** The client's own category name, exactly as the client spells it; never a folder. */
+  /**
+   * The client's own category name, exactly as the client spells it. MAM-30 — for a Folder client, the
+   * folder as the client sees it.
+   */
   clientDestinationKey: string
   check: DestinationCheck
   /** UTC with a trailing `Z`. */
   createdUtc: string
+  /** MAM-30 — what the client's destinations are; null when this build no longer registers its type. */
+  destinationKind: DownloadDestinationKind | null
 }
 
 /** One page of `GET /api/settings/destinations`. */
@@ -122,13 +141,27 @@ export interface DestinationSectionList {
   sources: DestinationSectionSource[]
 }
 
-/** A category the download client offers, with the check its folder would get. */
+/** A category or (MAM-30) folder the download client offers, with the check its folder would get. */
 export interface ClientDestination {
-  /** What a destination stores and a download sends: the client's own name for it. */
+  /** What a destination stores and a download sends: the client's own name for it, or the folder as it sees it. */
   key: string
   /** The name to show; product text, never translated. */
   displayName: string
   check: DestinationCheck
+  /** MAM-30 — the folder is the client's own download folder (a Folder client's default). */
+  isClientDefaultFolder: boolean
+}
+
+/**
+ * MAM-30 — a media library folder a Folder client offers no destination for: no path mapping of the
+ * client leads back to it, or Jellyfin's can't place it. Listed so the owner can fix it, never hidden.
+ */
+export interface UnplacedLibraryFolder {
+  libraryName: string
+  /** The library's folder, as `problem` names it. */
+  folder: string
+  /** The sentence saying why it can't be a destination and how to fix that. */
+  problem: string
 }
 
 /**
@@ -138,4 +171,8 @@ export interface ClientDestination {
 export interface ClientDestinationList {
   items: ClientDestination[]
   error: string | null
+  /** MAM-30 — what the client's destinations are; null when the app can't tell (its type isn't registered). */
+  destinationKind: DownloadDestinationKind | null
+  /** MAM-30 — the library folders a Folder client offers no destination for; empty for a Category client. */
+  unplaced: UnplacedLibraryFolder[]
 }

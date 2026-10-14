@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
@@ -57,8 +58,8 @@ public class DownloadJobEntity : AuditableEntity
     public string? DestinationName { get; set; }
 
     /// <summary>
-    /// The client destination key actually sent (the category), so "the category determines the
-    /// destination" stays auditable after the mapping changes.
+    /// The client destination key actually sent — the category or, for a folder client, the folder (MAM-30, see
+    /// <see cref="DestinationKind"/>) —, so where the job was sent stays auditable after the mapping changes.
     /// </summary>
     [MaxLength(256)]
     public string? ClientDestinationKey { get; set; }
@@ -138,4 +139,11 @@ public class DownloadJobEntity : AuditableEntity
     /// job sent before it was kept, and for one whose payload couldn't be fetched.
     /// </summary>
     public ReleasePayloadKind? PayloadKind { get; set; }
+
+    /// <summary>
+    /// MAM-30 — what <see cref="ClientDestinationKey"/> is, as the client's type said when the job was made (ADR 0039): a
+    /// category, compared by its exact name, or a folder, compared folder name by folder name — so the job still reads
+    /// right after its client's type is gone. <c>null</c> for a job of an older build, which only knew categories.
+    /// </summary>
+    public DownloadDestinationKind? DestinationKind { get; set; }
 }

@@ -119,7 +119,7 @@ public sealed class DownloadService(
                 continue;
             var own = destinations[client.Id].ToList();
             if (own.Count > 0)
-                options.Add(mapper.ToOption(client, adapter.Descriptor.DisplayName, own));
+                options.Add(mapper.ToOption(client, adapter.Descriptor.DisplayName, own, downloadClient.Capabilities.DestinationKind));
         }
 
         var offered = options.SelectMany(option => option.Destinations).ToList();
@@ -139,13 +139,13 @@ public sealed class DownloadService(
             return DownloadOverwriteCheckResult.DestinationMissing(DownloadErrors.DestinationGone);
 
         // MAM-38 — through the Destinations' own listing, as the send reads it: a client that is switched off or
-        // can't be asked leaves the folder unknown, never a guess.
+        // can't be asked leaves the folder unknown, never a guess. MAM-30 — a folder client is proposed this destination's
+        // folder and finds it by folder; one it can't see is unknown too (D5).
         CheckedClientDestination? listed = null;
         if (await FindDownloadClientAsync(destination.DownloadClientConnectionId, cancellationToken) is { } client
-            && await destinations.ListAsync(client, cancellationToken) is { Status: ClientDestinationsStatus.Listed } listing)
+            && await destinations.ListAsync(client, [destination.ClientDestinationKey], cancellationToken) is { Status: ClientDestinationsStatus.Listed } listing)
         {
-            listed = listing.Destinations.FirstOrDefault(candidate =>
-                string.Equals(candidate.Destination.Key, destination.ClientDestinationKey, StringComparison.Ordinal));
+            listed = listing.Find(destination.ClientDestinationKey);
         }
 
         return DownloadOverwriteCheckResult.Answered(
@@ -262,7 +262,8 @@ public sealed class DownloadService(
 
         // The job and its audit row are committed: from here the request is sent once, and its retries
         // answer this job.
-        await sender.SendAsync(job.Id, release, source!, client, destination.ClientDestinationKey, replacement: plan is not null);
+        // MAM-30 — with the destination's name: a folder client's label, and what the app's sentences call it.
+        await sender.SendAsync(job.Id, release, source!, client, destination.ClientDestinationKey, destination.Name, replacement: plan is not null);
         if (plan is not null)
             await FollowReplacementAsync(job.Id);
 
@@ -729,6 +730,9 @@ public sealed class DownloadService(
             DestinationName = destination.Name,
             // As the client spells it, never trimmed: it is what the submission sends (DestinationRules).
             ClientDestinationKey = destination.ClientDestinationKey,
+            // MAM-30 — what that key is, as the client's type says now: the job reads right after the type is gone. The
+            // client refusal above made sure this build registers the type.
+            DestinationKind = adapters.Find<IDownloadClient>(client.AdapterType)?.Capabilities.DestinationKind,
             Status = DownloadJobStatus.Created,
             StatusChangedUtc = now,
             CreatedUtc = now,

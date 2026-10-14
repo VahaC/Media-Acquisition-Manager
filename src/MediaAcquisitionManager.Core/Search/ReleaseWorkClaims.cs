@@ -299,6 +299,13 @@ public static partial class ReleaseWorkClaims
     /// серії 1-9 з 9") or of two ("S01E05-S02E03"). The short forms are written without spaces, so
     /// "S1 - 2160p" is season 1 alone; a number has at most four digits.
     /// </summary>
+    /// <remarks>
+    /// MAM-30 — the episodes' total may be unknown, "of ?", "з ?", "of XX", "з хх", as in a marker of episodes alone
+    /// (<see cref="EpisodeMarkerPattern"/>): taken with the marker, so its bracket is too, and a title cut at it keeps no
+    /// "(". "Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026)" is "Розслідування з Андрієм
+    /// Данілевичем", where it read "Розслідування з Андрієм Данілевичем (", which the Search page shows as what the
+    /// release's description claims.
+    /// </remarks>
     [GeneratedRegex(
         """
         (?<![\p{L}\p{N}])
@@ -306,11 +313,11 @@ public static partial class ReleaseWorkClaims
         (?:
             S(?<season>[0-9]{1,4})E(?<episode>[0-9]{1,4})
                 (?:-?(?:S(?<lastSeason>[0-9]{1,4}))?E(?<lastEpisode>[0-9]{1,4})|-(?<lastEpisode>[0-9]{1,4}))?
-                (?:\s+(?:of|з|із)\s+[0-9]{1,4})?
+                (?:\s+(?:of|з|із)\s+(?:[0-9]{1,4}|\?|[xх]{1,2}))?
           | S(?<season>[0-9]{1,4})(?:-S?(?<lastSeason>[0-9]{1,4}))?
           | (?:Seasons?|Сезон(?:и|ів)?)\s*(?<season>[0-9]{1,4})(?:\s*-\s*(?<lastSeason>[0-9]{1,4}))?
                 (?:\s*[,;]?\s*(?:Episodes?|Сері[яїй]|Епізод(?:и|ів)?)\s*(?<episode>[0-9]{1,4})(?:\s*-\s*(?<lastEpisode>[0-9]{1,4}))?
-                    (?:\s+(?:of|з|із)\s+[0-9]{1,4})?)?
+                    (?:\s+(?:of|з|із)\s+(?:[0-9]{1,4}|\?|[xх]{1,2}))?)?
         )
         (?(open)\s*[)\]])
         (?![\p{L}\p{N}])

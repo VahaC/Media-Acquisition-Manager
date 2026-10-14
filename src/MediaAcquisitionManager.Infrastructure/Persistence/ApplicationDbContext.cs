@@ -505,6 +505,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.Property(x => x.OverwriteCheck).HasConversion<string>().HasMaxLength(48);
             // MAM-24 — by name; a column added at the end, so the upgrade rebuilds nothing.
             e.Property(x => x.PayloadKind).HasConversion<string>().HasMaxLength(32);
+            // MAM-30 — by name too, the same way; null on the rows of older builds, which sent to categories only.
+            e.Property(x => x.DestinationKind).HasConversion<string>().HasMaxLength(32);
             // Restrict: the release snapshot is the job's evidence of what was sent; it can't go
             // while a job points at it.
             e.HasOne<ReleaseEntity>().WithMany()

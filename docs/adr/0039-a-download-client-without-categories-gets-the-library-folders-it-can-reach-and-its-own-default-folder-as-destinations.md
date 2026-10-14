@@ -94,3 +94,110 @@ still sends its category alone, with automatic management (ADR 0010's MAM-13 sec
 `free-space` confirms is where to send, not proof of where a file is. Phase C still checks each file by
 its identity (ADR 0003). And it isn't built for two clients side by side: Phase D's case is
 Transmission in place of qBittorrent.
+
+## Implementation (added 0.4.0, MAM-30)
+
+**Built as decided: a client says what its destinations are (`DownloadClientCapabilities.DestinationKind`,
+`Category` or `Folder`), and for a `Folder` client — Transmission — the app proposes the library folders
+mapped back into the client's paths, the client lists its own `download-dir` and each proposed folder,
+each confirmed by one `free-space`, and a destination keeps the folder as the client names it (Vasyl's
+decisions of 2026-10-13).** The Decision's "No code implements this yet" no longer holds, and the
+tests are named below. qBittorrent is a `Category` client and ignores the proposed folders; nothing of
+ADR 0010 changed for it.
+
+**How the row holds the folder.** In `DestinationMappingEntity.ClientDestinationKey`, the column a
+category's name lives in (256 characters at most), as the client names the folder, in `NormalizedPath`'s
+canonical text; no column was added. A folder key is compared as a path (`NormalizedPath.IsSameAs`: any
+letter case for a Windows folder, exact for a POSIX one), a category's name ordinally, as before. Each
+job keeps its client's kind (`DownloadJobs.DestinationKind`, migration `AddDownloadJobDestinationKind`,
+`null` for a job sent before, read as a category), so its folder is shown as a folder even once the
+client is gone.
+
+**The way back.** `PathMapper.MapBack(appPath, pairs)` mirrors `Map` step for step: every pair whose app
+prefix covers the path is applied, results that agree (`IsSameAs`) are one, none is `NotCovered`, two or
+more are `Ambiguous` and named, never the longest prefix; a folder name holding `\` under a Windows
+service prefix is `Invalid`; it never throws. Mapped back, then forward again, a folder always lands on
+the library folder it came from (`PathMapperBackTests`, the round trip over every pair set
+`PathMappingRules` accepts among them).
+
+**The list.** The checker reads the library folders first, maps each back, and proposes the distinct
+results; the client answers its default folder and each proposed one, merged by `IsSameAs`, with
+`Problem` set where `free-space` failed or the default doesn't parse. Each entry is then checked forward
+as before (`DestinationPathCheck`), so a library folder is `InLibrary` with its libraries' names, and the
+default folder outside them is `OutsideLibraries` or `PathUnknown`, replacement off either way. An entry
+with a `Problem` is `FolderNotSeen` — listed with the client's sentence, its libraries named, no path in
+the app, not pickable, and a send to it refused. A library folder with no folder in the client — no pair
+leads back to it, two lead back from different places, Jellyfin's own pairs can't place it, or its
+folder is longer than 256 characters — is listed apart as unplaced, with the integration, the library and
+the fix. Jellyfin's Collections and playlists libraries (`CollectionType` `boxsets`, `playlists`) hold no
+media files of their own: the sync keeps the library and stores no folder for it
+(`LibraryLocation.HoldsMediaFiles`), so neither is ever proposed.
+
+**Save and every look.** Save takes a new or changed folder only when it is among the live candidates
+and confirmed — the request's own key is never proposed, so a folder can't be typed — and stores the
+listed entry's canonical key; an update that keeps the client and the folder asks nobody (decision 3 of
+MAM-11). Every later look proposes the stored keys concerned too, so a stored folder is checked as
+itself: one that doesn't parse, or that the client no longer lists or can't see, is `FolderNotSeen` for
+that row alone, never the whole client failing. The Edit dialog's list proposes the destination's own
+folder, so a mapping edit never shows it as missing: the dialog asks
+`GET /api/settings/destinations/client-destinations/{clientId}?destinationId={id}`, and a folder
+client's list then proposes that destination's stored key when it parses — one that doesn't is listed
+with why and never proposed; a destination of another client proposes nothing more, and a malformed
+id is 400, nobody asked.
+
+**What MAM-29 left to verify, answered.**
+- *The comma rule.* Transmission refuses a label with a comma — "labels cannot contain comma (,)
+  character", and an empty one, "labels cannot be empty" —, and trims the rest (`makeLabels`, 4.0.6 and
+  4.1.3 `rpcimpl.cc`). A name with a comma is refused for a `Folder` client before it is saved, on
+  create and every update, a rename included (`DestinationRules.ValidateLabel`;
+  `DestinationRulesTests.ValidateLabel_refuses_a_name_with_a_comma`). Names were never blank.
+- *A torrent of one file* lands straight in `download-dir`, with no folder (`torrent-metainfo.cc`'s
+  `finish()`); a torrent of several lands in a folder named after it, as recorded. No setting changes
+  this, so the overwrite check reads that one layout (ADR 0034's MAM-30 section;
+  `TorrentTargetPathsTests.For_own_layout_only_of_one_file_is_its_name_in_the_folder_alone`).
+- *A duplicate `torrent-add` with another folder or label* changes nothing: `tr_torrentNew` finds the hash
+  before it reads the add's folder, labels or `paused`. The sender's look for the release's hashes,
+  made before every send, refuses such a torrent first ("“Transmission” already has this torrent, so
+  nothing was sent."); one Transmission takes between that look and the add fails the job, naming
+  where that torrent lies and its labels, read with one `torrent-get` (ADR 0013's MAM-30 section).
+- *The incomplete folder.* `incomplete-dir-enabled` on refuses every call, with how to turn it off. A
+  torrent that started there moves into its folder only once it is done, which no answer shows, so the
+  README says to turn it off before anything is sent and never on while downloads run.
+- *A default folder that is also a library folder* is listed once, as that library's, marked as the
+  client's folder too (`isClientDefaultFolder`). One inside a library folder but not its root keeps its
+  honest forward status, `InLibrary`, and so can take a replacement: an edge the Decision's "marked
+  outside the libraries" didn't foresee. One outside every library is `OutsideLibraries` or
+  `PathUnknown` and takes none.
+
+Each item is pinned: the comma by `DestinationsFolderSaveHttpTests.Create_with_a_comma_in_the_name_is_400_and_asks_no_client`,
+`Update_renaming_alone_to_a_name_with_a_comma_is_400_and_asks_no_client` and
+`Update_moving_a_destination_whose_name_has_a_comma_to_a_folder_client_is_400`; the torrent of one
+file by `TorrentTargetPathsTests.For_own_layout_only_of_one_file_is_its_name_in_the_folder_alone` and
+`DownloadsSendOverwriteFolderClientHttpTests.Create_looks_only_where_the_client_writes_a_torrent_of_one_file`;
+the duplicate by `TransmissionAdapterSubmitTests.Submit_of_a_torrent_transmission_already_has_is_refused_with_where_it_is_and_changes_nothing`
+and `Submit_of_a_duplicate_whose_read_after_fails_is_still_refused_in_fewer_words`; the incomplete
+folder by `TransmissionAdapterTests.TestConnection_with_the_temporary_folder_on_is_refused_with_how_to_turn_it_off`,
+`TransmissionAdapterDestinationsTests.ListDestinations_with_the_temporary_folder_on_is_refused_with_how_to_turn_it_off`
+and `IntegrationsRealAdaptersHttpTests.Test_of_transmission_with_its_temporary_folder_on_says_how_to_turn_it_off`;
+the default folder by `DestinationsFolderClientHttpTests.ClientDestinations_lists_a_download_folder_that_is_a_library_folder_once_as_that_librarys_row`,
+`ClientDestinations_shows_a_download_folder_inside_a_library_folder_in_that_library` and
+`ClientDestinations_names_on_the_wire_that_an_entry_is_the_clients_own_download_folder` (the raw
+`"isClientDefaultFolder":true`), and
+`TransmissionAdapterDestinationsTests.ListDestinations_lists_a_proposed_folder_that_is_transmissions_own_once_as_its_download_folder`.
+
+`PathMapperBackTests.MapBack_of_the_adr_0003_samples_puts_every_jellyfin_library_into_the_client_folder_of_its_category`,
+`PathMapperBackTests.MapBack_then_Map_lands_on_the_same_app_folder_for_every_set_of_pairs_the_save_rules_accept`,
+`DestinationPathCheckTests.Check_of_a_folder_the_client_can_not_see_is_folder_not_seen_naming_its_library_with_no_app_path`,
+`DestinationPathCheckTests.Check_by_key_of_a_folder_the_client_did_not_list_is_folder_not_seen_for_that_row_naming_its_library`,
+`DestinationPathCheckTests.Check_by_key_of_a_folder_that_is_not_a_full_path_is_folder_not_seen_never_a_missing_category`,
+`DestinationPathCheckTests.Check_by_key_of_a_folder_finds_the_same_folder_however_it_is_spelt`
+and `DestinationsClientDestinationsHttpTests.ClientDestinations_names_on_the_wire_each_field_the_dialog_reads_for_a_category_client`
+pin the contract and the checks; the folder client's flow is pinned over HTTP against a fake folder
+client the app factory adds (`FolderClientApiFactory`, `FakeFolderDownloadClient`):
+`DestinationsFolderClientHttpTests`, `DestinationsFolderSaveHttpTests`,
+`DownloadsSendFolderClientHttpTests`, `DownloadsSendOverwriteFolderClientHttpTests`,
+`DownloadJobTrackingFolderClientHttpTests` and `ReplacementScheduleSendFolderClientHttpTests`; and
+Transmission's side of the contract by `TransmissionAdapterDestinationsTests` and
+`TransmissionDownloadClientContractTests` against `FakeTransmissionServer`, and end to end over HTTP
+through the real adapter by `DestinationsTransmissionHttpTests`, `DownloadsSendTransmissionHttpTests`
+and `ReplacementTransmissionFlowHttpTests`.

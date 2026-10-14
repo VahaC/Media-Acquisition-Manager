@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
+using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ public sealed class IntegrationAdapterHarness : IDisposable
     private static readonly string[] ClientNames =
     [
         JellyfinAdapter.HttpClientName, JellyfinAdapter.IdentifyHttpClientName, TorznabAdapter.HttpClientName,
-        QBittorrentAdapter.HttpClientName, TmdbAdapter.HttpClientName,
+        QBittorrentAdapter.HttpClientName, TransmissionAdapter.HttpClientName, TmdbAdapter.HttpClientName,
     ];
 
     private readonly ServiceProvider _services;
@@ -55,6 +56,7 @@ public sealed class IntegrationAdapterHarness : IDisposable
             UsePrimaryHandler(services, JellyfinAdapter.IdentifyHttpClientName, JellyfinHttp);
             UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
             UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
+            UsePrimaryHandler(services, TransmissionAdapter.HttpClientName, TransmissionHttp);
             UsePrimaryHandler(services, TmdbAdapter.HttpClientName, TmdbHttp);
         }
 
@@ -76,6 +78,9 @@ public sealed class IntegrationAdapterHarness : IDisposable
 
     /// <summary>The network behind the <c>qbittorrent</c> client.</summary>
     public RecordingHttpHandler QBittorrentHttp { get; } = new();
+
+    /// <summary>MAM-30 — the network behind the <c>transmission</c> client.</summary>
+    public RecordingHttpHandler TransmissionHttp { get; } = new();
 
     /// <summary>MAM-33 — the network behind the <c>tmdb</c> client: TMDb's API and its image host alike.</summary>
     public RecordingHttpHandler TmdbHttp { get; } = new();

@@ -229,6 +229,11 @@ export interface SearchRelease {
   payloadKind: ReleasePayloadKind | null
   claimed: ClaimedReleaseQuality
   claimedWork: ReleaseWorkClaim
+  /**
+   * MAM-30 — the work `description` claims, read the way the title is for `claimedWork`; the library
+   * matches read both. Null without a description.
+   */
+  descriptionWork: ReleaseWorkClaim | null
   identifiers: ReleaseIdentifier[]
   /** Strongest first; empty when it matches nothing in the library. */
   libraryMatches: ReleaseLibraryMatch[]

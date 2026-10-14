@@ -13,7 +13,7 @@ const BASE_URL = '/api/settings/destinations'
 
 /**
  * MAM-11 — the download destinations: each one a category of a download client, never a folder of
- * the app's own (ADR 0010). Owner-only: every call answers 403 `{ error }` for anyone else, the reads
+ * the app's own (ADR 0010) — MAM-30: or a folder of a client that saves to folders, as it sees it. Owner-only: every call answers 403 `{ error }` for anyone else, the reads
  * included — a row quotes the client's folders and the owner's path mappings.
  */
 export const destinationsApi = {
@@ -58,9 +58,18 @@ export const destinationsApi = {
    * `GET /api/settings/destinations/client-destinations/{downloadClientId}`: the categories the
    * client offers right now, each with its check. 200 whatever the client said — `error` carries the
    * sentence when it couldn't be asked. A bare 404 when the id is not a download client integration.
+   *
+   * MAM-30 — for a client that saves to folders: the media library folders it can reach through its
+   * path mappings and its own download folder, each confirmed by the client (one it can't see is listed
+   * as FolderNotSeen, never hidden), plus `unplaced`, the libraries it offers no folder for.
+   * `?destinationId=` (the Edit dialog's, on its own client) has the client asked about that
+   * destination's stored folder too, so a mapping edit doesn't show it as missing (design D4); 400
+   * `{ error }` for one that isn't an id.
    */
-  clientDestinations: async (downloadClientId: string): Promise<ClientDestinationList> =>
-    (await api.get<ClientDestinationList>(`${BASE_URL}/client-destinations/${downloadClientId}`)).data,
+  clientDestinations: async (downloadClientId: string, destinationId?: string): Promise<ClientDestinationList> =>
+    (await api.get<ClientDestinationList>(`${BASE_URL}/client-destinations/${downloadClientId}`, {
+      params: { destinationId },
+    })).data,
 
   /**
    * MAM-32 — `GET /api/settings/destinations/sections`: every release source's sections, each with

@@ -461,7 +461,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         // The version read just confirmed the session; qBittorrent refuses the write all the same.
         _qbittorrent.Intercept = request => request.RequestUri!.AbsolutePath == AddPath
             ? VendorResponses.Recorded(FakeQBittorrentServer.ExpiredSessionResponseFile)
@@ -470,7 +470,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
         //Act
         var result = await Client.SubmitAsync(Saved, TorrentSubmission("Movies"), cancellationToken);
         _qbittorrent.Intercept = null;
-        var next = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var next = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // Never signed in for and sent again: a write sent twice may act twice (house rule 8). The refused
@@ -554,7 +554,7 @@ public sealed class QBittorrentAdapterSubmitTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         // qBittorrent restarted, or the session sat idle past its timeout.
         _qbittorrent.ExpireSessions();
 

@@ -151,6 +151,8 @@ describe('DestinationDialog', () => {
     vi.mocked(destinationsApi.clientDestinations).mockResolvedValue({
       items: [],
       error: '“Spare qBittorrent” is switched off. Switch it on under Integrations to use its categories.',
+      destinationKind: 'Category',
+      unplaced: [],
     })
     const { dialog, user } = renderDialog()
 
@@ -183,7 +185,7 @@ describe('DestinationDialog', () => {
 
   it('says when the client has no categories at all', async () => {
     // Arrange
-    vi.mocked(destinationsApi.clientDestinations).mockResolvedValue({ items: [], error: null })
+    vi.mocked(destinationsApi.clientDestinations).mockResolvedValue({ ...sampleCategories, items: [] })
     const { dialog, user } = renderDialog()
 
     // Act
@@ -225,7 +227,7 @@ describe('DestinationDialog', () => {
   it('forgets the category picked for one client when another is picked', async () => {
     // Arrange
     vi.mocked(destinationsApi.clientDestinations).mockImplementation(async (id) =>
-      id === localQbittorrent.id ? sampleCategories : { items: [sampleCategories.items[0]], error: null })
+      id === localQbittorrent.id ? sampleCategories : { ...sampleCategories, items: [sampleCategories.items[0]] })
     const { dialog, user } = renderDialog()
     await pickClient(user, dialog, localQbittorrent.id)
     await pickCategory(user, dialog, 'Movies')
@@ -308,6 +310,8 @@ describe('DestinationDialog', () => {
     vi.mocked(destinationsApi.clientDestinations).mockResolvedValue({
       items: [],
       error: 'qBittorrent didn\'t answer at http://127.0.0.1:9/qbt. Check the address and that qBittorrent is running.',
+      destinationKind: 'Category',
+      unplaced: [],
     })
 
     // Act
@@ -377,7 +381,7 @@ describe('DestinationDialog', () => {
     // Assert
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
     expect(client.getQueryState(qk.settings.destinations.list(listQuery))?.isInvalidated).toBe(true)
-    expect(client.getQueryState(qk.settings.destinations.clientDestinations(localQbittorrent.id))?.isInvalidated).toBe(false)
+    expect(client.getQueryState(qk.settings.destinations.clientDestinations(localQbittorrent.id, movies.id))?.isInvalidated).toBe(false)
   })
 
   it('puts the primary button first and Cancel last', async () => {

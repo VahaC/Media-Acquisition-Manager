@@ -92,8 +92,9 @@ internal sealed partial class TorznabAdapter
             HttpStatusCode.OK => IsTorrentFile(body)
                 ? IntegrationCallResult<ReleasePayload>.Succeeded(new ReleasePayload(ReleasePayloadKind.TorrentFile, body, null))
                 : IntegrationCallResult<ReleasePayload>.Failed(IntegrationCallStatus.UnexpectedResponse, NotATorrentError),
+            // Jackett's answer to a wrong jackett_apikey in a download link, as Prowlarr's to a wrong apikey.
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => IntegrationCallResult<ReleasePayload>.Failed(
-                IntegrationCallStatus.AuthenticationFailed, $"The Torznab feed refused the API key ({StatusText(response)})."),
+                IntegrationCallStatus.AuthenticationFailed, RefusedKeySentence(StatusText(response))),
             HttpStatusCode.NotFound => IntegrationCallResult<ReleasePayload>.Failed(IntegrationCallStatus.NotFound, DownloadNotFoundError),
             HttpStatusCode.Gone => IntegrationCallResult<ReleasePayload>.Failed(
                 IntegrationCallStatus.NotFound, $"The Torznab feed can't hand over this release any more ({StatusText(response)}). Search again."),

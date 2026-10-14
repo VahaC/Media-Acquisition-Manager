@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -30,15 +32,16 @@ public sealed class DestinationsClientDestinationsHttpTests : IClassFixture<Medi
 
     public DestinationsClientDestinationsHttpTests(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
 
-    /// <summary>Each way a client couldn't be asked, and the sentence the dialog then shows.</summary>
-    public static TheoryData<string, string> UnavailableClients => new()
+    /// <summary>Each way a client couldn't be asked, the sentence the dialog then shows, and — MAM-30 — what its
+    /// destinations are by its type, which a type this build doesn't register can't say.</summary>
+    public static TheoryData<string, string, DownloadDestinationKind?> UnavailableClients => new()
     {
-        { "unreachable", "Couldn't reach qBittorrent at http://qbittorrent.test:8080: nothing accepted the connection. Check the address and port, and that qBittorrent is running." },
-        { "refused sign-in", "qBittorrent refused the user name or password." },
-        { "old version", "This is qBittorrent v4.3.9; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again." },
-        { "switched off", "“qBittorrent” is switched off. Switch it on under Integrations to use it for destinations." },
-        { "type not registered", "This version of the app can't send downloads to “retired-client”." },
-        { "secret unreadable", "The stored API key of “qBittorrent” can't be read with this installation's encryption key. Enter the API key again and save." },
+        { "unreachable", "Couldn't reach qBittorrent at http://qbittorrent.test:8080: nothing accepted the connection. Check the address and port, and that qBittorrent is running.", DownloadDestinationKind.Category },
+        { "refused sign-in", "qBittorrent refused the user name or password.", DownloadDestinationKind.Category },
+        { "old version", "This is qBittorrent v4.3.9; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", DownloadDestinationKind.Category },
+        { "switched off", "“qBittorrent” is switched off. Switch it on under Integrations to use it for destinations.", DownloadDestinationKind.Category },
+        { "type not registered", "This version of the app can't send downloads to “retired-client”.", null },
+        { "secret unreadable", "The stored API key of “qBittorrent” can't be read with this installation's encryption key. Enter the API key again and save.", DownloadDestinationKind.Category },
     };
 
     public async ValueTask InitializeAsync()
@@ -74,9 +77,42 @@ public sealed class DestinationsClientDestinationsHttpTests : IClassFixture<Medi
                     new ClientDestinationDto("Movies", "Movies", InLibrary("/downloads/movies", "/media/movies", "Фільми")),
                     new ClientDestinationDto("TV Shows", "TV Shows", InLibrary("/downloads/tv-shows", "/media/tv-shows", "Серіали")),
                 ],
-                Error: null),
+                Error: null,
+                DestinationKind: DownloadDestinationKind.Category,
+                Unplaced: []),
             body,
             strict: true);
+    }
+
+    [Fact]
+    public async Task ClientDestinations_names_on_the_wire_each_field_the_dialog_reads_for_a_category_client()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await SyncSampleLibrariesAsync();
+        var client = await CreateClientAsync();
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}/client-destinations/{client.Id}", _owner.AccessToken);
+
+        //Assert
+        // MAM-30 — the dialog reads these by name: what the destinations are, the library folders the client has no
+        // folder for (never null), and whether each entry is the client's own download folder — never one for a
+        // category client. A DTO default would hide a field the server left out, so the text is read as it came.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var root = document.RootElement;
+        Assert.Equal(["items", "error", "destinationKind", "unplaced"], PropertyNames(root));
+        Assert.Equal("Category", root.GetProperty("destinationKind").GetString());
+        Assert.Equal(JsonValueKind.Array, root.GetProperty("unplaced").ValueKind);
+        Assert.Equal(0, root.GetProperty("unplaced").GetArrayLength());
+        var items = root.GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(4, items.Count);
+        Assert.All(items, item =>
+        {
+            Assert.Equal(["key", "displayName", "check", "isClientDefaultFolder"], PropertyNames(item));
+            Assert.Equal(JsonValueKind.False, item.GetProperty("isClientDefaultFolder").ValueKind);
+        });
     }
 
     [Fact]
@@ -130,7 +166,8 @@ public sealed class DestinationsClientDestinationsHttpTests : IClassFixture<Medi
 
     [Theory]
     [MemberData(nameof(UnavailableClients))]
-    public async Task ClientDestinations_of_a_client_that_could_not_be_asked_is_200_with_its_sentence_and_no_items(string unavailable, string expectedError)
+    public async Task ClientDestinations_of_a_client_that_could_not_be_asked_is_200_with_its_sentence_and_no_items(
+        string unavailable, string expectedError, DownloadDestinationKind? expectedKind)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -143,7 +180,7 @@ public sealed class DestinationsClientDestinationsHttpTests : IClassFixture<Medi
         // ADR 0005: "it couldn't be asked, because …" is the answer, not a failure of this API.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ClientDestinationListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equivalent(new ClientDestinationListResponse([], expectedError), body, strict: true);
+        Assert.Equivalent(new ClientDestinationListResponse([], expectedError, expectedKind, []), body, strict: true);
     }
 
     [Theory]
@@ -283,4 +320,6 @@ public sealed class DestinationsClientDestinationsHttpTests : IClassFixture<Medi
 
     private static DestinationCheckDto InLibrary(string servicePath, string appPath, string libraryName) =>
         new(DestinationPathStatus.InLibrary, servicePath, appPath, [libraryName], null);
+
+    private static List<string> PropertyNames(JsonElement element) => [.. element.EnumerateObject().Select(property => property.Name)];
 }

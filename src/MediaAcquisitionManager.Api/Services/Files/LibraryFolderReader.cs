@@ -1,4 +1,4 @@
-using MediaAcquisitionManager.Core.Downloads;
+﻿using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
@@ -22,7 +22,8 @@ public static class LibraryFolderReader
 {
     /// <summary>
     /// Every stored library folder that maps into the app — a folder the mappings give no app path is left out, as it
-    /// can't hold anything the app can name — and how many were stored in all.
+    /// can't hold anything the app can name — and how many were stored in all. MAM-30 — the folders left out come back
+    /// apart, each with its library, its integration and the mapper's sentence (<see cref="LibraryFolders.Unmapped"/>).
     /// </summary>
     public static async Task<LibraryFolders> LoadAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
     {
@@ -39,6 +40,12 @@ public static class LibraryFolderReader
                     LibraryName = location.Name,
                     LibraryId = location.Id,
                     IntegrationId = location.SourceConnectionId!.Value,
+                    // MAM-30 — the integration's name now, which is what Integrations lists, for an unmapped folder's
+                    // sentence.
+                    IntegrationName = db.IntegrationConnections
+                        .Where(integration => integration.Id == location.SourceConnectionId)
+                        .Select(integration => integration.Name)
+                        .FirstOrDefault(),
                     folder.Position,
                     folder.ServicePath,
                 })
@@ -47,7 +54,7 @@ public static class LibraryFolderReader
             .ThenBy(folder => folder.Position)
             .ToListAsync(cancellationToken);
         if (stored.Count == 0)
-            return new LibraryFolders([], 0);
+            return new LibraryFolders([], 0, []);
 
         // Batched, no N+1: the mappings of every integration that reported a library, in one query.
         var integrationIds = stored.Select(folder => folder.IntegrationId).Distinct().ToList();
@@ -59,14 +66,18 @@ public static class LibraryFolderReader
             .ToDictionary(group => group.Key, group => ToPairs(group));
 
         var mapped = new List<LibraryFolder>();
+        var unmapped = new List<UnmappedLibraryFolder>();
         foreach (var folder in stored)
         {
             var pairs = pairsByIntegration.TryGetValue(folder.IntegrationId, out var found) ? found : [];
-            if (PathMapper.Map(folder.ServicePath, pairs) is { HasAppPath: true } result)
+            var result = PathMapper.Map(folder.ServicePath, pairs);
+            if (result.HasAppPath)
                 mapped.Add(new LibraryFolder(folder.LibraryName, result.AppPath!, folder.IntegrationId, folder.ServicePath));
+            else
+                unmapped.Add(new UnmappedLibraryFolder(folder.LibraryName, folder.ServicePath, folder.IntegrationName ?? "", result.Reason!));
         }
 
-        return new LibraryFolders(mapped, stored.Count);
+        return new LibraryFolders(mapped, stored.Count, unmapped);
     }
 
     private static List<PathMappingPair> ToPairs(IEnumerable<PathMappingEntity> mappings) =>

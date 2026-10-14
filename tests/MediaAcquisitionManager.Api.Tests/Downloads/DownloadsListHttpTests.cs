@@ -293,9 +293,13 @@ public sealed class DownloadsListHttpTests : IClassFixture<MediaAcquisitionManag
                 "progress", "clientJobId", "error", "blockReason", "overwriteCheck", "createdUtc", "statusChangedUtc",
                 // MAM-24 — the replacement it carries; null for a Keep both send.
                 "replacement",
+                // MAM-30 — what its key is: a category or a folder.
+                "destinationKind",
             ],
             item.EnumerateObject().Select(property => property.Name));
         Assert.Equal("NeedsLinking", item.GetProperty("status").GetString());
+        // A job planted as an older build wrote it, before the kind was kept: a category's, unsaid.
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("destinationKind").ValueKind);
         Assert.EndsWith("Z", item.GetProperty("createdUtc").GetString(), StringComparison.Ordinal);
         Assert.EndsWith("Z", item.GetProperty("statusChangedUtc").GetString(), StringComparison.Ordinal);
     }

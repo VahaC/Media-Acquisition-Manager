@@ -858,6 +858,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DestinationKind")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("DestinationMappingId")
                         .HasColumnType("TEXT");
 

@@ -66,18 +66,23 @@ public sealed class SearchMapper(ILibraryMapper libraryMapper, IReleaseSearchMap
             release.Release.SourcePageUrl,
             release.Release.PayloadKind,
             releaseMapper.ToDto(release.Claimed),
-            new ReleaseWorkClaimDto(
-                release.ClaimedWork.Titles,
-                release.ClaimedWork.Year,
-                release.ClaimedWork.LastYear,
-                release.ClaimedWork.Episodes is { } episodes
-                    ? new ClaimedEpisodesDto(episodes.FirstSeason, episodes.LastSeason, episodes.FirstEpisode, episodes.LastEpisode)
-                    : null),
+            ToDto(release.ClaimedWork),
             [.. release.Identifiers.Select(identifier => new ReleaseIdentifierDto(identifier.Scheme, identifier.Value))],
             [
                 .. release.LibraryMatches.Select(match =>
                     new ReleaseLibraryMatchDto(match.WorkId, match.Match.Evidence, match.Match.ConflictingSchemes, match.HeldEpisodeCount)),
-            ]);
+            ],
+            release.DescriptionWork is { } descriptionWork ? ToDto(descriptionWork) : null);
+
+    /// <summary>What a title — MAM-30, or a description — claims, as the page shows it.</summary>
+    private static ReleaseWorkClaimDto ToDto(ReleaseWorkClaim claim) =>
+        new(
+            claim.Titles,
+            claim.Year,
+            claim.LastYear,
+            claim.Episodes is { } episodes
+                ? new ClaimedEpisodesDto(episodes.FirstSeason, episodes.LastSeason, episodes.FirstEpisode, episodes.LastEpisode)
+                : null);
 
     private LibraryMatchDto ToDto(LibraryWorkMatch match) =>
         new(

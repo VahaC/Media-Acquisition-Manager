@@ -98,7 +98,7 @@ public sealed class ReleaseSearchSourcesHttpTests : IClassFixture<MediaAcquisiti
         var sources = (await ReadAsync(response, cancellationToken)).Sources;
         var toloka = Assert.Single(sources, source => source.Name == "Toloka");
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, toloka.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized).", toloka.Error);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", toloka.Error);
         Assert.Empty(toloka.Releases);
         Assert.Equal(SampleMovieCount, Assert.Single(sources, source => source.Name == "Other").Releases.Count);
     }

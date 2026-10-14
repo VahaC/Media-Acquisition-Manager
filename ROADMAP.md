@@ -80,9 +80,16 @@ the sync (ADR 0038), and the list names the extras folder or extra's name that m
 MAM-44 (built the same day, inside 0.3.0, a Phase B ticket) follows from production's list after MAM-43,
 which still warned of those twelve shorts, which Jellyfin shows nowhere: the files a library takes for
 extras sit on an Extras tab and warn of nothing.
-All eight go out when Vasyl publishes 0.3.0 again — the image published on 2026-10-11 has none of
-them. Phase C's heading below stays
-unmarked until that image is published.
+All eight are in 0.3.0 as Vasyl published it again on 2026-10-13 at 18:55 UTC (Docker Hub's `0.3.0`,
+`0.3` and `latest`, built after his commit 082c84e); the image published on 2026-10-11 has none of
+them. Phase C's heading below is left for Vasyl to mark shipped. MAM-30 then raised the
+version to 0.4.0 (Vasyl's decision of 2026-10-13), so the next image published from `main` is 0.4.0.
+Phase D (release 0.4.0) began on 2026-10-13: MAM-29 chose Transmission 4.0 or newer instead of
+qBittorrent and Jackett instead of Prowlarr, and recorded their answers; MAM-30 (built on 2026-10-14,
+not tried live) adds the Transmission adapter — connect, destinations that are the library folders it
+can reach and its own download folder, send, follow, the overwrite check and what holds a copy —, takes
+Jackett through the same Torznab adapter, and makes the Search page read a release's description as
+Recommendations do (ADR 0039); MAM-31 checks it on a clean installation.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
@@ -91,8 +98,9 @@ this file adds the ticket breakdown, the tests and the acceptance bar. Phase A i
 MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
 MAM-42 to MAM-44, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41, Phase D as MAM-29 to MAM-31.
 Release 0.3.0 holds MAM-24 to MAM-27, and
-MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-44 go
-out when 0.3.0 is published again, under the same number. Phase D is release 0.4.0, with
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-44 are
+in 0.3.0 as published again, under the same number, on 2026-10-13. Phase D is release 0.4.0,
+the version since MAM-30, with
 Transmission instead of qBittorrent and Jackett instead of Prowlarr (Vasyl's decisions of
 2026-10-13, MAM-29).
 
@@ -500,8 +508,8 @@ installation on 2026-10-03 (MAM-15), with no existing file moved, changed or rem
 ### ✅ Shipped (0.2.1) Phase B — Scanner and duplicates
 
 **Release:** 0.2.0, and 0.2.1 for MAM-33 to MAM-36 (Vasyl's decisions) and for MAM-20, MAM-21,
-MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42 to MAM-44, built on 2026-10-13, go out in
-0.3.0 when it is published again (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38 and
+MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-42 to MAM-44, built on 2026-10-13, are in
+0.3.0 as published again that day (Vasyl's decision). **Tickets:** MAM-17 to MAM-22, MAM-32 to MAM-38 and
 MAM-42 to MAM-44.
 
 **Complexity:** Medium
@@ -1382,7 +1390,8 @@ repair's run itself; MAM-34's bar, which expects four refused links, was not che
 
 **Release:** 0.3.0, published on 2026-10-11, holds MAM-24 to MAM-27, built while 0.3.0 was the
 version; MAM-28 checked it on the reference installation on 2026-10-12, and its fix of check 6,
-MAM-39 to MAM-41, built the same day, go out when 0.3.0 is published again, under the same number.
+MAM-39 to MAM-41, built the same day, are in 0.3.0 as published again, under the same number, on
+2026-10-13.
 **Tickets:** MAM-23 to MAM-28 and MAM-39 to MAM-41.
 
 **Complexity:** High **Value:** upgrade a film, an episode or a season you own in one step: the old
@@ -2046,7 +2055,9 @@ qBittorrent, Jackett instead of Prowlarr — without losing any of the safety of
     removed. Transmission is the specification's one new adapter (the MAM-29 section of
     [ADR 0005](docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
   - *Jackett instead of Prowlarr:* through the same Torznab adapter, with no new search adapter.
-    What in it fits only Prowlarr is MAM-30's to fix. ADR 0004's "keep Prowlarr rather than add
+    What in it fits only Prowlarr is MAM-30's to fix — which found nothing in what the adapter reads,
+    reworded three sentences to name both gateways, and taught the tests Jackett's shapes (the
+    MAM-30 section of ADR 0004). ADR 0004's "keep Prowlarr rather than add
     Jackett" of 2026-09-29 was about the reference installation, which keeps Prowlarr; Jackett
     instead of Prowlarr is a supported route from Phase D (the MAM-29 section of
     [ADR 0004](docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)).
@@ -2094,20 +2105,64 @@ qBittorrent, Jackett instead of Prowlarr — without losing any of the safety of
     the final check: a refusal would show as a tracker error in Transmission.
   - *The live check:* MAM-31 runs on a second, clean MAM on media-stack, set up from zero with
     Jellyfin, Jackett and Transmission only, never on production.
-- **MAM-30 Transmission instead of qBittorrent, Jackett instead of Prowlarr:** the Transmission
-  adapter — connect, destinations, send, follow, and what holds a copy —, the Torznab adapter's
+- **MAM-30 Transmission instead of qBittorrent, Jackett instead of Prowlarr** (built on 2026-10-14,
+  release 0.4.0; not tried live — MAM-31 is the live check): the Transmission adapter — connect,
+  destinations, send, follow, and what holds a copy —, the Torznab adapter's
   Prowlarr-only parts fixed for Jackett, and no "qBittorrent" or "category" where the client is
   Transmission, added without changing the core state machine. Vasyl's decisions of 2026-10-13,
   after the samples: the Search page also reads a release's `<description>`, as Recommendations
   do, so a Ukrainian-only release whose `<title>` "Strip Cyrillic Letters" left as punctuation
   matches its library copy, through Jackett or Prowlarr alike; and only Jackett's default for that
-  box, ticked, is supported, which the README tells installers.
+  box, ticked, is supported, which the README tells installers. Also his: Jellyfin's Collections
+  library is no destination, and the version becomes 0.4.0 in this ticket. As built:
+  - *Connect:* the type `transmission`, its web interface's address (`/transmission/rpc` added by
+    the app), Basic credentials and the session-id handshake; every call reads `session-get` first and
+    refuses a Transmission older than 4.0 with its version, and one whose temporary folder is on with
+    how to turn it off; a 401 or 403 is remembered and not sent again until the credentials change or
+    a test with them works, as for qBittorrent (ADR 0010) — in memory, so a restart of the app sends
+    them once more.
+  - *Destinations* (ADR 0039's Implementation section): each library folder the sync stored, mapped
+    back into Transmission's paths by `PathMapper.MapBack`, and Transmission's `download-dir`, each
+    confirmed by `free-space` at every look; a folder Transmission can't see stays listed and can't be
+    picked (`FolderNotSeen`), a library the mappings can't lead back to is listed with how to fix it,
+    Collections and playlists libraries are left out — of the Media folders page too —, and a
+    destination name can't hold a comma, as it becomes the torrent's label. The folder lives in the
+    destination's `ClientDestinationKey`, checked again at every look; the Edit dialog asks with the
+    destination's id, so its own folder is listed even once no library leads there. The download
+    folder outside the libraries takes no replacement; one inside a library folder counts as inside
+    that library — an edge MAM-29's "marked outside the libraries" didn't foresee (ADR 0039).
+  - *Send:* one `torrent-add` with the folder, the destination's name as its label and
+    `paused: false`; one resend after a 409, which Transmission answers before reading the request
+    (ADR 0013); a torrent Transmission already has is refused before the add, as for qBittorrent, and
+    one it takes between that look and the add fails the job with where it keeps it; a BitTorrent
+    v2-only release, and a folder Transmission can't see, are refused before anything is sent — the
+    Download dialog's question answers the latter `NotCheckedFolderNotSeen` —; members see the
+    destination, never its folder;
+    each job keeps its client's kind of destination (migration `AddDownloadJobDestinationKind`).
+  - *Follow and replace:* jobs found by `hashString`; complete is the metadata and nothing left to
+    download, whatever `isFinished` says; only a local error (3) shows on the job; the overwrite check
+    reads Transmission's one layout, the names as the .torrent holds them through its name cleaning
+    (4.0, 4.1 on Windows, 4.1 on Linux), and `.part` places (ADR 0034) — a torrent whose places it
+    can't predict, such as one of several files whose paths aren't UTF-8, goes unchecked and is
+    refused for a replacement; `<name>.part` beside an old copy is held (ADR 0031); the poller never
+    reads every torrent for a job its hash doesn't find (ADR 0014).
+  - *Jackett and the Search page:* the Torznab sentences say where to fix a key or an address, naming
+    Jackett and Prowlarr as examples; the tests read every Jackett sample and go end to end with
+    Jackett as the only source; the Search page reads a release's description by an id or a title and
+    year (ADR 0012), a series' episodes coming from the claim that matched, or from the other when it
+    names none; a season marker with an unknown total ("з ?", "of XX") is read as a marker. A TV
+    search by a Ukrainian-only title found nothing through Jackett in MAM-29's recording; that is
+    Toloka's or Jackett's own search, left to MAM-31 to see live.
 - **MAM-31 Phase D on a clean installation:** the clean MAM above, set up by the README alone:
   search through Jackett, the Search and Recommendations pages, a send to Transmission, and one
   real film replaced through the quarantine.
 - Plex or Emby later, if needed.
-- **Backup/restore:** only the new adapter's settings, and Transmission's destinations with their
-  folders, stored like the existing ones.
+- **Backup/restore:** nothing to add. The Transmission and Jackett integrations — Transmission's
+  password and Jackett's key sealed like qBittorrent's and Prowlarr's — and Transmission's
+  destinations, each with its folder in `ClientDestinationKey`, live in `mam.db` like the existing
+  ones, and so does each job's kind of destination (`AddDownloadJobDestinationKind`, MAM-30's one
+  migration), so the data directory's backup already holds them. The torrents and their files stay in
+  Transmission and the library folders.
 
 **Out of scope:** any change to the core replacement workflow to fit the new adapter; two download
 clients side by side, and an overwrite guard across several clients; Usenet (SABnzbd, Newznab); a
@@ -2115,7 +2170,26 @@ direct Toloka adapter and Transmission's JSON-RPC 2.0 dialect, each a ticket of 
 
 **Tests:** the adapter contract tests pass for both implementations, qBittorrent and Transmission,
 and the Torznab adapter's tests pass on Jackett's answers as on Prowlarr's; logical destinations,
-error handling and the UI do not depend on qBittorrent-specific fields.
+error handling and the UI do not depend on qBittorrent-specific fields. MAM-30's: one behavioural
+contract suite for `IDownloadClient`, `DownloadClientContractTests`, an abstract base run by
+`QBittorrentDownloadClientContractTests` and `TransmissionDownloadClientContractTests` over
+`FakeQBittorrentServer` and `FakeTransmissionServer`, the latter proven against MAM-29's recorded 4.0.6
+and 4.1.3 answers (`FakeTransmissionServerTests`); the Transmission adapter's own tests
+(`TransmissionAdapter*Tests`) on every recorded answer, and `TransmissionAdapterMethodsTests` keeping it
+to four RPC methods; `TorznabAdapterJackettTests` and `TorznabAdapterGatewaySamplesTests` on every
+Jackett sample beside Prowlarr's; the folder-client flow over HTTP with a fake folder client
+(`FolderClientApiFactory`: `DestinationsFolderClientHttpTests`, `DestinationsFolderSaveHttpTests`,
+`DownloadsSendFolderClientHttpTests`, `DownloadsSendOverwriteFolderClientHttpTests`,
+`DownloadJobTrackingFolderClientHttpTests`, `ReplacementScheduleSendFolderClientHttpTests`,
+`ReplacementQuarantinePartialFileHttpTests` — destinations, save and comma rules, send, member privacy,
+the overwrite check's and the holdings' `.part`); and Transmission end to end over HTTP through
+`FakeTransmissionServer` and the real adapter — `DestinationsTransmissionHttpTests`,
+`DownloadsSendTransmissionHttpTests`, `DownloadJobTrackingTransmissionHttpTests`,
+`DownloadsSendOverwriteTransmissionHttpTests` and `ReplacementTransmissionFlowHttpTests`: destinations,
+send, follow, the overwrite check, a replacement through the quarantine —, its secrets never in an
+answer, a log, an error or an audit row (`IntegrationsSecretsHttpTests`, and
+`DownloadsTransmissionSecretsHttpTests` for the job and audit rows, the poller's block reasons and what
+members read). The UI decides "category" or "folder" by `destinationKind`, never by the adapter's type.
 
 **Acceptance bar:** the second adapter works end to end — search or submit, track, and (for a
 client) replace — with the core workflow unchanged: on a clean installation with Jellyfin, Jackett

@@ -1,7 +1,7 @@
 {
   "dialog": {
     "title": "Download {{title}}",
-    "description": "Send this release to a download client. The destination is a category of the client, and the category decides the folder."
+    "description": "Send this release to a download client. The destination decides where it lands."
   },
   "client": "Download client",
   "clientPlaceholder": "Choose a download client",
@@ -85,7 +85,8 @@
   },
   "overwrite": {
     "NotCheckedFolderUnknown": "The app can't check whether this release would write over a file already there: the destination's folder has no path in the app, or its download client can't say where it is. A release sent there goes without that check.",
-    "NotCheckedFolderOutsideMediaFolders": "The app can't check whether this release would write over a file already there: the destination's folder isn't under Media folders, which the installation owner sets in the user menu. A release sent there goes without that check."
+    "NotCheckedFolderOutsideMediaFolders": "The app can't check whether this release would write over a file already there: the destination's folder isn't under Media folders, which the installation owner sets in the user menu. A release sent there goes without that check.",
+    "NotCheckedFolderNotSeen": "This destination's download client can't see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu."
   },
   "send": "Send",
   "sending": "Sending…",

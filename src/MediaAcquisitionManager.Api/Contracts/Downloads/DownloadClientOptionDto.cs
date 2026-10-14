@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
+
 namespace MediaAcquisitionManager.Api.Contracts;
 
 /// <summary>A download client the Download dialog offers (MAM-13).</summary>
@@ -5,4 +7,11 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Name">Its name.</param>
 /// <param name="TypeName">What it is ("qBittorrent").</param>
 /// <param name="Destinations">Its destinations, by name; never empty.</param>
-public sealed record DownloadClientOptionDto(Guid Id, string Name, string TypeName, IReadOnlyList<DownloadDestinationOptionDto> Destinations);
+/// <param name="DestinationKind">MAM-30 — what its destinations are, by its type: categories or folders (ADR
+/// 0039).</param>
+public sealed record DownloadClientOptionDto(
+    Guid Id,
+    string Name,
+    string TypeName,
+    IReadOnlyList<DownloadDestinationOptionDto> Destinations,
+    DownloadDestinationKind DestinationKind = DownloadDestinationKind.Category);

@@ -19,6 +19,11 @@ namespace MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
 /// fetch in <c>TorznabAdapter.Payload.cs</c>, and the rules every link a feed lists is held to in
 /// <see cref="TorznabLinks"/>.
 /// </summary>
+/// <remarks>
+/// MAM-30 (D16) — a sentence that says how to fix a refused key or a wrong address names Jackett and
+/// Prowlarr as examples ("such as …"), since the owner fixes it in one of them; what the adapter does stays
+/// plain Torznab, the same for either.
+/// </remarks>
 internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     : HttpIntegrationAdapter(httpClients, HttpClientName), IReleaseSearchProvider
 {
@@ -50,8 +55,10 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
     private const string NotTorznabError =
         "The service at this address answered, but not with Torznab capabilities. Check that the address is the feed's Torznab URL.";
 
+    // MAM-30 (D16) — Jackett's copied address ends in /results/torznab/, not /api, so the hint names both
+    // shapes the owner copies.
     private const string NotFoundError =
-        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address, which usually ends in /api.";
+        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/.";
 
     // A bare HTTP 429 without Torznab's <error> body: a server or proxy in front of the feed that
     // limits requests. Prowlarr's own 429 carries an <error>, which FeedError reads.
@@ -231,7 +238,7 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         response.StatusCode switch
         {
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => (
-                IntegrationCallStatus.AuthenticationFailed, $"The Torznab feed refused the API key ({StatusText(response)})."),
+                IntegrationCallStatus.AuthenticationFailed, RefusedKeySentence(StatusText(response))),
             HttpStatusCode.NotFound => (IntegrationCallStatus.UnexpectedResponse, NotFoundError),
             HttpStatusCode.TooManyRequests => (IntegrationCallStatus.Refused, TooManyRequestsError),
             _ => null,
@@ -296,7 +303,7 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
             // longer has, and for an indexer switched off in Prowlarr: either way, not this release.
             _ when request == FeedRequest.Download && (code == 410 || status == HttpStatusCode.Gone) => (
                 IntegrationCallStatus.NotFound, $"The Torznab feed can't hand over this release any more ({detail}). Search again."),
-            100 or 101 or 102 => (IntegrationCallStatus.AuthenticationFailed, $"The Torznab feed refused the API key ({detail})."),
+            100 or 101 or 102 => (IntegrationCallStatus.AuthenticationFailed, RefusedKeySentence(detail)),
             910 => (IntegrationCallStatus.Refused, $"The Torznab feed has its API switched off ({detail})."),
             >= 200 and <= 299 => (IntegrationCallStatus.UnexpectedResponse, NotUnderstoodSentence(request, detail)),
             _ when request == FeedRequest.Download => (
@@ -305,12 +312,25 @@ internal sealed partial class TorznabAdapter(IHttpClientFactory httpClients)
         };
     }
 
+    /// <summary>
+    /// MAM-30 (D16) — a refused key, whichever way the feed says it (errors 100 to 102, a bare 401 or 403),
+    /// with where the owner finds the right one: the gateway's own dashboard, which this app can't name.
+    /// </summary>
+    private static string RefusedKeySentence(string detail) =>
+        $"The Torznab feed refused the API key ({detail}). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.";
+
     /// <summary>Errors 200–299 say the request was malformed: from this app, the feed is not what it seems.</summary>
+    /// <remarks>
+    /// MAM-30 (D16) — the capabilities request sends nothing but <c>t=caps</c> and the key, so such an error
+    /// there can only be about the address: Jackett answers an indexer it doesn't have or hasn't configured
+    /// with HTTP 200 and <c>&lt;error code="201" description="Indexer is not supported" /&gt;</c> (its
+    /// <c>ResultsController</c>; not recorded, MAM-31 confirms it live).
+    /// </remarks>
     private static string NotUnderstoodSentence(FeedRequest request, string detail) => request switch
     {
         FeedRequest.Search => $"The Torznab feed didn't understand the search ({detail}).",
         FeedRequest.Download => $"The Torznab feed didn't understand the download request ({detail}).",
-        _ => $"The Torznab feed didn't understand the capabilities request ({detail}). Check that the address is a Torznab feed.",
+        _ => $"The Torznab feed doesn't serve what this address names ({detail}). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr.",
     };
 
     private static string NotTorznabSentence(FeedRequest request) => request switch

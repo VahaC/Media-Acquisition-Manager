@@ -455,3 +455,30 @@ torrent holds it.
 `CopyRemovalChecksHttpTests.Remove_when_a_download_client_cant_be_read_is_409` and
 `CopyRemovalChecksHttpTests.Remove_leaves_a_companion_a_torrent_holds_where_it_is_and_moves_the_video`
 pin it, beside the MAM-26 and MAM-28 sections' tests, which pin the shared check for replacements.
+
+## An unfinished `.part` file is held too (added 0.4.0, MAM-30)
+
+**For a client that names an unfinished file `<name>.part` on the disk (`PartialFileSuffix`: Transmission
+with `rename-partial-files` on, its 4.1 default), `<path>.part` counts as a place the torrent holds,
+and when `<path>` isn't on the disk the `.part` is what the check describes.** Transmission lists a
+file as `files[].name`, never with the suffix, while the disk holds it as `name.part` until the file
+completes — and 4.1 renames a file that doesn't fully verify back to `.part`. Without this, an old copy's
+companion that is really a torrent's unfinished file would move into the quarantine beside it; now it
+stays put, and the move goes on without it as for any held companion. Transmission's torrents and their
+files are read as qBittorrent's are, by the same `ListJobsWithFilesAsync`, whole or not at all. The
+MAM-28 section's look outside the Media folders compares a file name with and without the suffix.
+
+A `.part` no torrent lists is no torrent's: it moves with its video like any other companion.
+
+A Transmission integration switched off can't be read, so it stops every move, as any client does: the
+README says to keep a client switched on while any of its torrents seeds a library file, and to remove
+it only once none does.
+
+`ReplacementHoldingReaderPartialFilesTests.Read_of_the_names_before_a_move_holds_a_name_that_is_a_torrent_files_unfinished_name`,
+`Read_of_the_names_before_a_move_finds_a_torrent_file_at_its_unfinished_name_when_it_is_not_at_its_own`,
+`Read_of_the_names_before_a_move_counts_a_torrent_outside_the_allowed_roots_by_a_names_file_name_with_or_without_its_suffix`,
+`ReplacementQuarantinePartialFileHttpTests.Quarantine_leaves_an_unfinished_download_beside_the_old_copy_where_it_is_and_moves_the_copy`
+and `Quarantine_moves_a_part_file_no_torrent_lists_with_its_video` pin it, `ReplacementTransmissionFlowHttpTests`
+end to end through `FakeTransmissionServer`, and
+`DownloadClientContractTests.ListJobsWithFiles_lists_every_job_in_any_state_and_destination_with_its_files`
+the read of every torrent's files for both clients.

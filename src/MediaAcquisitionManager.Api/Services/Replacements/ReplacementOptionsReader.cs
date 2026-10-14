@@ -116,11 +116,14 @@ public sealed class ReplacementOptionsReader(
                     cancellationToken) is not { } client)
             return ClientGoneProblem;
 
-        var listing = await destinations.ListAsync(client, cancellationToken);
+        // MAM-30 — a folder client is proposed this destination's folder, found by folder (D2, D3): one it can't see is
+        // FolderNotSeen with the client's sentence, which the check's problem below carries.
+        var listing = await destinations.ListAsync(client, [destination.ClientDestinationKey], cancellationToken);
         if (listing.Status != ClientDestinationsStatus.Listed)
             return $"The app couldn't ask “{client.Name}” where this destination saves: {listing.Error}";
-        if (listing.Destinations.FirstOrDefault(candidate =>
-                string.Equals(candidate.Destination.Key, destination.ClientDestinationKey, StringComparison.Ordinal)) is not { } listed)
+        // Only a category can be missing: the listing always holds a folder client's stored folder, the client's own entry
+        // or one ListAsync adds with why the app can't use it (D3).
+        if (listing.Find(destination.ClientDestinationKey) is not { } listed)
             return $"The app couldn't ask “{client.Name}” where this destination saves: it has no category “{destination.ClientDestinationKey}” any more.";
         if (listed.Check.Status != DestinationPathStatus.InLibrary)
             return listed.Check.Problem ?? NotInLibraryProblem;

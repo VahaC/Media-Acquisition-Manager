@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -124,7 +125,7 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
         Assert.Equivalent(
             new DownloadJobDto(
                 job.Id, release.Id, SampleTitle, "Toloka", "qBittorrent", "Movies", "Movies", DownloadJobStatus.Submitted, null, SampleInfoHash, null, null,
-                DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders, now, now),
+                DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders, now, now, DestinationKind: DownloadDestinationKind.Category),
             job,
             strict: true);
         Assert.Equal($"/api/downloads/{job.Id}", response.Headers.Location?.AbsolutePath);
@@ -144,6 +145,8 @@ public sealed class DownloadsSendHttpTests : IClassFixture<MediaAcquisitionManag
             Assert.Equal(_movies.Id, row.DestinationMappingId);
             Assert.Equal("Movies", row.DestinationName);
             Assert.Equal("Movies", row.ClientDestinationKey);
+            // MAM-30 — what that key is, as the client's type said when the job was made.
+            Assert.Equal(DownloadDestinationKind.Category, row.DestinationKind);
             Assert.Equal(DownloadJobStatus.Submitted, row.Status);
             Assert.Equal(SampleInfoHash, row.ClientJobId);
             Assert.Equal(SampleInfoHash, row.InfoHashV1);

@@ -5,6 +5,321 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 [semantic versioning](https://semver.org/) — released as tags of the Docker image
 `vahac/media-acquisition-manager`.
 
+## [0.4.0] — 2026-10-13
+
+### Added
+
+- **Phase D's tools are chosen, and their answers recorded (MAM-29, ADR 0039, the MAM-29 sections of
+  ADR 0004, 0005, 0010 and 0034, Vasyl's decisions of 2026-10-13).** An installer may run Transmission 4.0
+  or newer instead of qBittorrent, and Jackett instead of Prowlarr — never two download clients side by
+  side. Transmission speaks its legacy RPC dialect; a Transmission destination is a Jellyfin library
+  folder it can reach or its own default folder, sent as one `torrent-add` with the folder and the
+  destination's name as a label (ADR 0039, amending ADR 0010 for a client without categories); Jackett
+  goes through the existing Torznab adapter. Deluge, SABnzbd, a direct Toloka adapter and Transmission's
+  JSON-RPC 2.0 dialect were not chosen. `tools/mam29/` recorded Transmission 4.1.3 (the full set) and
+  4.0.6 (a short set) and Jackett v0.24.2830 with its Toloka.to indexer into
+  `VendorSamples/Transmission/` (24 files) and `VendorSamples/Torznab/jackett-*` (15 files), with
+  what they taught in `VendorSamples/README.md`; `VendorSamplesTests` keeps Transmission's session id and
+  Basic credentials and Jackett's `path=` token out of every sample. No code of the app changed.
+- **The owner connects Transmission 4.0 or newer as a download client, the fifth type of integration
+  (MAM-30, ADR 0005's and ADR 0010's MAM-30 sections, Vasyl's decisions of 2026-10-13).** The Integrations
+  page adds the type **Transmission** (`transmission`, kind `DownloadClient`), with path mappings, an
+  optional user name and password, and no API key. Its address is that of Transmission's web
+  interface ("The address of Transmission's web interface, such as http://192.168.1.10:9091. Transmission
+  4.0 or newer."); the adapter appends `/transmission/rpc`, and also takes an address ending in
+  `/transmission/rpc`, `/transmission` or `/transmission/web`. Every call is a `POST` of
+  `{ method, arguments, tag }` with Basic credentials when a user name is set and the session id
+  Transmission handed out in a 409's `X-Transmission-Session-Id` header, kept in memory per integration
+  and per address and credentials, masked and never logged (a test of an unsaved integration keeps
+  none). Every member first reads `session-get` — `version`, `rpc-version`, `rpc-version-semver`,
+  `download-dir`, `incomplete-dir`, `incomplete-dir-enabled` — and refuses a Transmission older than 4.0
+  (`rpc-version` below 17, or `rpc-version-semver` below 5.3.0 when it is sent): "This is Transmission
+  3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again."
+  (`UnsupportedVersion`); and one whose temporary folder is on: "Transmission keeps unfinished downloads
+  in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web
+  interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again.", for every
+  call — destinations, sends and following alike. A test answers "Connected to Transmission 4.1.3." (its
+  version without the build); 401 "Transmission refused the user name or password." (or "Transmission
+  asks for a user name and password. Enter them under Integrations." without a user name); 403
+  "Transmission refused this app (403 Forbidden): …"; 421 "Transmission doesn't accept the host name in
+  this address (421 Misdirected Request); …"; 404 "Transmission's RPC wasn't found at this address (404
+  Not Found). …"; and a 200 that isn't Transmission's envelope "The service at this address answered, but
+  not the way Transmission does.". Any `result` but `success` is a refusal, whatever the HTTP status.
+  Only an HTTP 401 or 403 is remembered — per integration and per address and credentials, until they
+  change or a connection test with them works — and not sent again, since with its anti-brute-force
+  setting on Transmission counts each one towards locking its RPC until a restart: "Transmission refused
+  the user name or password the last time the app used them, so the app won't send them again: …". It
+  is remembered in memory, as qBittorrent's refusals are, so a restart of the app, an update included,
+  sends the refused credentials once more. The
+  password, the Basic value, the session id, a magnet and its trackers' addresses are masked in every
+  sentence. `GET /api/settings/integrations/adapter-types` lists five types, and it and the integrations
+  list gain `destinationKind` (`Category` for qBittorrent, `Folder` for Transmission, `null` for a type
+  that sends nothing); `UnsupportedVersion` now also answers a Transmission older than 4.0.
+  `FakeTransmissionServer` answers as the recorded 4.0.6 and 4.1.3 do (`FakeTransmissionServerTests`);
+  `TransmissionAdapterTests`, `TransmissionAdapterSessionsTests`, `TransmissionAdapterDestinationsTests`,
+  `TransmissionAdapterSubmitTests`, `TransmissionAdapterJobsTests`, `TransmissionAdapterFilesTests`,
+  `TransmissionAdapterJobsWithFilesTests` and `TransmissionAdapterDestinationJobsTests` read every
+  recorded Transmission answer; `TransmissionAdapterMethodsTests` keeps the adapter to the RPC methods
+  `session-get`, `free-space`, `torrent-get` and `torrent-add`; one behavioural contract suite,
+  `DownloadClientContractTests`, runs the same cases against qBittorrent and Transmission
+  (`QBittorrentDownloadClientContractTests`, `TransmissionDownloadClientContractTests`); and
+  `IntegrationsRealAdaptersHttpTests`, `IntegrationsSecretsHttpTests` and `IntegrationsHttpTests` cover
+  it over HTTP.
+- **A Transmission destination is one of your library folders it can reach, or its own download folder
+  (MAM-30, ADR 0039's Implementation section, ADR 0003's and ADR 0008's MAM-30 sections, Vasyl's
+  decisions of 2026-10-13).** For a client without categories the Destinations page and the destination's
+  dialog list, as **Folder**, each library folder the sync stored — mapped into the app through the
+  Jellyfin integration's pairs, as before, then back into the client's paths through its own pairs by the
+  new `PathMapper.MapBack` — and the client's `download-dir`, each confirmed by one `free-space` per
+  folder each time the list is read (`result` `success` and `size-bytes` 0 or more). A library folder
+  that is also the default folder is listed once, as that library's, marked as the client's folder too;
+  a default folder inside a library folder is listed in that library (`InLibrary`), so a replacement
+  may go through it, and one outside every library is `OutsideLibraries` or `PathUnknown`, which takes
+  none (ADR 0039's Implementation section). A folder Transmission can't see
+  stays listed, not pickable, with the new status `FolderNotSeen` ("Not seen by the client") and the
+  client's sentence: "Transmission can't see “/downloads/movies” (No such file or directory). Mount that
+  folder into Transmission, or add a path mapping on this integration that leads there, then look again."
+  A library folder with no folder in the client is listed under the field as unplaced, with the
+  integration, the library and the fix: none of the client's pairs leads to it ("“Transmission” has no
+  folder for the library “Фільми”: none of its path mappings leads to “/media/movies”. Add one under
+  Integrations, “Transmission”, Path mappings (for example /downloads → /media), then look again."), two
+  lead to it from different places, Jellyfin's own pairs can't place it, its name can't be written under
+  the client's Windows folder, or its folder is longer than the 256 characters a destination holds.
+  Jellyfin's Collections and playlists libraries (`CollectionType` `boxsets`, `playlists`) are kept with
+  no folder by the sync — from the next one, which drops the folder an older version stored —, so they
+  are never offered, and the Media folders page no longer lists or counts their folder. Save takes only
+  a folder the client listed and confirmed — the request's own key is never proposed to the client, so
+  a folder can't be typed —, stores it as the client names it, canonical, in `DestinationMappings.ClientDestinationKey` (no new column), and refuses
+  any other with 409 "“Transmission” doesn't offer the folder “/downloads/x”. Pick one of the folders it
+  lists." or the folder's own problem; a save that changes neither the client nor the folder asks
+  nobody. A destination's name is Transmission's label, so a name with a comma is 400 for a client
+  without categories, on create and on every update, a rename included: "“Transmission” shows this
+  destination's name as the torrent's label, and a label can't contain a comma. Pick a name without
+  one." The stored folder is checked again, as itself, each time it is shown, sent to or offered for a
+  replacement; one that doesn't parse, or that the client no longer lists, is `FolderNotSeen` for that
+  destination alone. `GET /api/settings/destinations` and `…/{id}` gain `destinationKind`;
+  `GET /api/settings/destinations/client-destinations/{downloadClientId}` answers
+  `{ items, error, destinationKind, unplaced }`, each item gaining `isClientDefaultFolder`, `unplaced`
+  `[{ libraryName, folder, problem }]`, `[]` for a category client. It also takes `?destinationId=`,
+  which the Edit dialog sends: a folder client then lists that destination's stored folder as itself,
+  even once no library leads there, so a mapping edit never shows it as missing; a destination of
+  another client proposes nothing more, and a malformed id is 400 "The destination being edited isn't
+  a valid id. Reload the page and open it again.". `PathMapperBackTests`, `DestinationPathCheckTests`,
+  `DestinationRulesTests`, `DestinationsClientDestinationsHttpTests`, `JellyfinAdapterLocationsTests`,
+  `LibraryLocationFoldersHttpTests` and `TransmissionAdapterDestinationsTests` pin it, and
+  `DestinationsFolderClientHttpTests` and `DestinationsFolderSaveHttpTests` over HTTP with a fake folder
+  client the app factory adds (`FolderClientApiFactory`, `FakeFolderDownloadClient`), and
+  `DestinationsTransmissionHttpTests` end to end through `FakeTransmissionServer`.
+- **A send to Transmission is one `torrent-add` into the destination's folder, labelled with its name,
+  started (MAM-30, ADR 0013's MAM-30 section, ADR 0039).** The add carries exactly the release —
+  `metainfo` (the .torrent, base64) or `filename` (a magnet) —, `download-dir`, `labels` with the
+  destination's name and `paused: false`, so a send never waits paused whatever Transmission's "start
+  added torrents" says; Transmission's `hashString` is the job's id at once. A 409 to it, which
+  Transmission answers before it reads the body, is resent once with the session id from that 409's
+  header; a second 409, or one without a usable id, fails the job: "Transmission refused the session id it
+  had just sent." A torrent Transmission already has is refused before the add by the sender's look for
+  the release's hashes, as for qBittorrent: "“Transmission” already has this torrent, so nothing was
+  sent." One Transmission takes between that look and the add is answered `torrent-duplicate`, which adds
+  nothing and changes nothing of the torrent Transmission has, so the job fails with where it is, read
+  back with one `torrent-get`: "Transmission already has this torrent, in “/downloads/movies” with the
+  label “Movies”, so it added nothing." (or, when that read fails, "Transmission already has this
+  torrent, so it added nothing."). Once its payload is fetched, before
+  anything is listed or sent, a release that is BitTorrent v2 only is refused for a client that can't take one (the new
+  capability `TakesV2OnlyTorrents`; the adapter refuses one too, without a request): "“Transmission”
+  can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent." A
+  destination whose folder the client no longer sees refuses the send: "“Transmission” can't use the
+  folder of the destination “Movies” any more, so nothing was sent. The owner checks the destination
+  under Destinations in the user menu." Every sentence a member can read names the destination, never its
+  folder: `GET /api/downloads/options` gives a folder destination `clientDestinationKey` `null` and each
+  client its `destinationKind`, and `GET /api/downloads/{id}` and the list give a folder job's
+  `clientDestinationKey` to the owner alone, with the job's `destinationKind`, which the job now keeps
+  from its client when it is written (`DownloadJobs.DestinationKind`, `null` for a job sent before).
+  `TransmissionAdapterSubmitTests` (the add's arguments, the one resend after a 409, a second 409, a
+  duplicate with and without its read back, a v2-only release, a timeout never resent),
+  `DownloadsSendFolderClientHttpTests` (the label, the folder found in any spelling, a folder the client
+  can't see, a v2-only release, what the owner and a member each read),
+  `ReplacementScheduleSendFolderClientHttpTests`, `DownloadsSendTransmissionHttpTests` (the same end to
+  end through `FakeTransmissionServer`, with a refused add, the temporary folder on, an unreachable
+  Transmission and a refused password not sent again), `DownloadsTransmissionSecretsHttpTests` (no
+  password, Basic value or session id in an answer, a log line, a job or audit row, the poller's block
+  reasons or what a member reads),
+  `DownloadJobPersistenceTests.A_job_keeps_the_kind_of_its_destination_by_name_and_an_older_job_none`
+  and `AddDownloadJobDestinationKindMigrationTests` pin it.
+- **The overwrite check knows Transmission's layout, its names and its `.part` files (MAM-30, ADR 0034's
+  MAM-30 section).** For Transmission (`TorrentFilePlacement.OwnLayoutOnly`) a torrent's files land in
+  its own layout only — a lone file straight in the folder, several in a folder named after the
+  torrent —, each name cleaned as Transmission cleans it: 4.0 on any system (`TorrentNameReadings.Portable`:
+  cut at a NUL, split on `/`, the ends' whitespace and trailing dots stripped, `_` before a Windows device
+  name, `" * : < > ? \ |` as `_`), 4.1 on Windows (`WindowsSafe`, also each control character as `_`) and
+  4.1 on Linux (`Verbatim`, only `.` and `..` as `_.` and `_..`). The names are read as the .torrent
+  holds them — `TorrentContentReader` now keeps them beside libtorrent's cleaned ones —, each folder name
+  of a path on its own. The check isn't told the version, so it looks at every place the three readings
+  give, and at each place's `<name>.part`, the name of an unfinished file on the disk, counted as the
+  same file of the release. A torrent whose places can't be predicted — a file path of a torrent of
+  several files held in bytes that aren't UTF-8 or with a NUL, or a file no reading gives a name — is
+  sent unchecked (`NotCheckedFileList`), and refused for a replacement: "The app couldn't check every
+  place this release would write in the folder of the destination “Movies” (the .torrent's list of
+  files can't be read), so nothing was sent and no copy will be replaced. Pick Keep both to download
+  it." A file the torrent marks as padding (BEP 47) is a place like any other, as Transmission ignores
+  the mark, but for one at BEP 47's own name, `.pad/<digits>`, which lands in a `.pad` folder.
+  Transmission's torrents in the destination's folder are those whose `downloadDir` is that folder,
+  never read by label. The sentences name the destination: "“Transmission” would write over
+  “Film.2001.mkv” in the folder of the destination “Movies”: a file of another size is already there,
+  so nothing was sent." A folder Transmission can't see is a folder the check can't look into, and
+  `GET /api/downloads/overwrite-check` answers it with a reason of its own, `NotCheckedFolderNotSeen`,
+  which no sent job carries, as nothing is sent there: the send refuses it before the check, and the
+  check, asked about it anyway, refuses it too, Keep both or a replacement alike, with the send's
+  sentence (`DownloadOverwriteGuardFolderNotSeenTests`).
+  qBittorrent's three layouts and libtorrent's cleaning are unchanged. `TorrentNameReadingsTests`,
+  `TorrentTargetPathsTests` and `TorrentContentReaderTests` pin it, and
+  `DownloadsSendOverwriteFolderClientHttpTests` and `DownloadsSendOverwriteTransmissionHttpTests` over
+  HTTP.
+- **Transmission's downloads are followed, and its torrents hold your copies, as qBittorrent's do
+  (MAM-30, ADR 0014's and ADR 0031's MAM-30 sections).** A job is found by its 40-character
+  `hashString`, never Transmission's `id`, which a restart changes. `status` 4 is downloading, 5 and 6
+  seeding, 1, 2 and 3 queued or checking, and 0 stopped — `Downloaded` once complete, `Paused` before;
+  complete is `metadataPercentComplete` 1 with `leftUntilDone` 0, whatever `isFinished` says; `error` 3
+  (a local error) is the client's error on the job, while 1 and 2, a tracker's warning or error, are
+  not. `ServiceContentPath` is the torrent's folder or file as that Transmission cleans its name. The
+  poller's search of a destination for a job its hashes no longer find runs only for a client whose job
+  ids can change (`JobIdsMayChange`: qBittorrent's libtorrent 2 renames, ADR 0014) — never for
+  Transmission, whose every torrent it would read every 2 seconds. A replacement's checks read
+  Transmission's torrents and their files as they read qBittorrent's, and a `<path>.part` beside an old
+  copy, where a torrent's file is unfinished, counts as held, so an unfinished download never moves into
+  the quarantine as its companion; a `.part` no torrent lists moves with its video like any companion.
+  A job that needs linking now names its client: "“Transmission”'s downloads couldn't be told apart for
+  this release, so the app can't follow it to verify the new file." `TransmissionAdapterJobsTests`,
+  `TransmissionAdapterJobsWithFilesTests`,
+  `DownloadJobTrackingFolderClientHttpTests.Poll_of_a_torrent_the_client_no_longer_lists_shows_why_and_never_reads_every_torrent_of_its_folder`,
+  `ReplacementHoldingReaderPartialFilesTests`, `ReplacementQuarantinePartialFileHttpTests`, and end to
+  end `DownloadJobTrackingTransmissionHttpTests` and `ReplacementTransmissionFlowHttpTests` pin it, and
+  `ReplacementDetailsHttpTests`, `ReplacementDropCopyHttpTests`, `ReplacementFollowingHttpTests`,
+  `ReplacementLineHttpTests` and `ReplacementRetryHttpTests` the linking sentence.
+- **Jackett serves Toloka through the same Torznab adapter (MAM-30, ADR 0004's MAM-30 section).** No new
+  adapter: the adapter read Jackett's answers as Prowlarr's already, its link at the host's root
+  (`/dl/toloka/?jackett_apikey=…&path=…&file=…`) included. `path` joins the names whose values a feed's
+  error text never shows. `TorznabSamples` and `FakeTorznabServer` gain Jackett's shape — its downloads
+  at the origin's root, its recorded 200 `<error code="100">` to a wrong key on caps and searches, its bare
+  401 on a download and its 404 on a bad token (`FakeTorznabServerJackettTests`).
+  `TorznabAdapterJackettTests` and `TorznabAdapterGatewaySamplesTests` read every Jackett sample, beside
+  Prowlarr's; `SearchesJackettHttpTests`, `ReleaseSearchJackettHttpTests`,
+  `RecommendationsJackettHttpTests`, `DestinationsSectionsJackettHttpTests`,
+  `DownloadOptionsSuggestionJackettHttpTests` and `DownloadsSendJackettHttpTests` go end to end with
+  Jackett as the only source: a film by its Ukrainian title, a Ukrainian-only film through its
+  description, a series with its seasons, a cartoon series by its Ukrainian title, Recommendations, the
+  sections that pick a destination, a send through Jackett's download link, and a wrong key or download
+  token.
+- **The Search page matches a release by its description too (MAM-30, ADR 0012's MAM-30 section, Vasyl's
+  decision of 2026-10-13).** A release is read from its title and, when its listing gives one, from its
+  `<description>` — Toloka's whole topic title, Ukrainian first —, the same way Recommendations read it;
+  the description adds a match only by an id or by a title and year, a work's match is the stronger of
+  the two, and a tie goes to the title. A series' held episodes, and the episodes a replacement offers,
+  come from the claim that matched, or from the other when it names none. So "« » (2026) WEB-DL-AVC …",
+  a Ukrainian-only title "Strip Cyrillic Letters" left as punctuation, matches its copy, through Jackett
+  or Prowlarr. `GET /api/searches/{id}/releases` gives each release `descriptionWork` (`{ titles, year,
+  lastYear, episodes }`, `null` without a description), and **Details** shows it as "Read from the
+  description". `SearchReleasesDescriptionHttpTests`, `ReplacementOptionsDescriptionHttpTests` and
+  `ReleaseDetailsDialog.test.tsx` pin it.
+
+### Changed
+
+- **"Folder" for a client without categories, and the client's own name where qBittorrent was named
+  (MAM-30).** The Destinations page heads its column **Category**, **Folder** or **Category or folder**
+  by its rows; the destination's dialog says "Folder", "Choose a folder", "Asking Transmission which
+  folders it can reach…" and "Transmission shows this name as the torrent's label, so it can't contain a
+  comma." for a folder client; removing a folder destination or a folder client says "Nothing changes in
+  Transmission: torrents already sent keep their folder and label."; the Download dialog reads "Send this
+  release to a download client. The destination decides where it lands.", sums up a folder
+  destination by its name alone, and warns before Send that nothing is sent to a folder the client
+  can't see, holding Send there under Keep both as under Replace; the job's page shows the owner
+  "Movies — folder “/downloads/movies”";
+  the Jobs page's "Fix it in Jellyfin or qBittorrent" names the job's client, and "a torrent goes in
+  qBittorrent" reads "a torrent goes in the download client that lists it"; the reason of a replacement
+  whose download needs linking names the job's client, qBittorrent's included — "“qBittorrent”'s
+  downloads couldn't be told apart for this release, so the app can't follow it to verify the new
+  file.", where it read "qBittorrent's downloads …" (ADR 0014's MAM-30 section). The Destinations
+  page's lead and empty texts name a category or a folder, and a release's **Details** without a work
+  in its title says "Any match comes from the description or from an id in the listing.". The
+  Integrations page names Jackett and Transmission in its empty state, gives Transmission's address its
+  own placeholder and help, adds Jackett's Copy Torznab Feed to the Torznab help, and tells a folder
+  client's mappings that "Your library folders become Transmission's destinations through these
+  mappings". Three destination rules are neutral: "Pick the category or folder of the download client
+  this destination saves to.", "A category or folder can be at most 256 characters." and "A category or
+  folder can't contain line breaks or other control characters." The qBittorrent adapter's own
+  sentences are unchanged. `DestinationDialog.folders.test.tsx`, `DestinationsPage.test.tsx`,
+  `DownloadDialog.test.tsx`, `DownloadDialog.replace.test.tsx`, `JobDetailsPage.test.tsx`,
+  `ReplacementLine.test.tsx`, `IntegrationDialog.test.tsx` and `IntegrationsPage.test.tsx` pin them.
+- **Torznab sentences say where to fix it (MAM-30, ADR 0004's MAM-30 section).** A refused key (errors 100
+  to 102, a bare 401 or 403) reads "The Torznab feed refused the API key (…). Copy the API key from the
+  dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration
+  under Integrations."; an error 200 to 299 on the capabilities request, which can only be about the
+  address, "The Torznab feed doesn't serve what this address names (…). Check the indexer in the feed's
+  address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr."; and a 404
+  "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's
+  ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/." A search's own
+  error wording is unchanged.
+- **A season marker with an unknown episode total reads as a marker (MAM-30).** "(Сезон 1, серії 1-25
+  з ?)", "of XX" and "з хх" are taken with the marker, so "Розслідування з Андрієм Данілевичем (Сезон 1,
+  серії 1-25 з ?) (2026)" reads "Розслідування з Андрієм Данілевичем", without the stray "(" it kept.
+  `ReleaseWorkClaimsTvTests` pins it.
+- **`IDownloadClient` takes the folders the app proposes, and says more about itself (MAM-30, ADR 0005's
+  MAM-30 section).** `ListDestinationsAsync(settings, proposedFolders)` — a category client ignores them —;
+  `DownloadClientCapabilities` adds `DestinationKind`, `FilePlacement`, `PartialFileSuffix`,
+  `TakesV2OnlyTorrents` and `JobIdsMayChange`; `ClientDestination` adds `IsClientDefaultFolder` and
+  `Problem`; `DownloadSubmission` adds `Label`. No member removes, stops or moves anything, as before
+  (`DownloadClientNeverRemovesTests`). The tests that used `transmission` as the id of a type no build
+  registers — `DownloadJobMissingHttpTests`, `ReplacementOptionsHoldingsHttpTests` and the frontend's
+  `retiredClient` fixture — use `retired-client` ("Old client") now.
+
+### Notes for upgraders
+
+- **Applying `AddDownloadJobDestinationKind` rebuilds no table, so it logs no warning 20410 (MAM-30).** It
+  adds one nullable column, `DownloadJobs.DestinationKind`, stored by name (`Category`, `Folder`), and no
+  index; every job sent before comes through with none, read as a category
+  (`AddDownloadJobDestinationKindMigrationTests`).
+- **What Transmission and Jackett add stays off until you add them; some of 0.4.0 reaches every
+  installation (MAM-30).** With qBittorrent and Prowlarr a send, its following and a replacement work
+  as they did. What changes for them too: the Search page also matches a release by its description, so
+  a release may match a copy it didn't, and a series' held episodes, and the episodes a replacement
+  offers, come from the claim that matched, or from the other when it names none; a season marker with
+  an unknown episode total reads as a marker; the wording listed under Changed — the Download dialog,
+  the Destinations and Integrations pages, the Jobs page's next steps, the reason of a replacement whose
+  download needs linking, which now names the client, and the three destination rules —; the Torznab
+  sentences for a refused key, a feed that doesn't serve the address and a 404; and from the next sync
+  the app keeps no folder for Jellyfin's Collections and playlists libraries, so the Media folders page
+  no longer lists or counts theirs (ADR 0008's MAM-30 section). The qBittorrent adapter's own
+  sentences are unchanged. After upgrading, sync your Jellyfin library once (**Library** → **Refresh
+  all**) so its Collections library leaves the folder list: until that sync the app keeps the folder an
+  older version stored for it, `/config/data/collections` on the reference installation, and a
+  Transmission destination's dialog lists it as a library none of the client's path mappings leads to.
+- **Set Transmission up before you add it (MAM-30, ADR 0039).** Untick "Use temporary folder" (Edit
+  Preferences → Torrents; the linuxserver.io image ships it ticked) before anything is sent, and never
+  tick it while downloads run: a download started there moves into its folder only once it is done,
+  which no answer shows. Give it `USER` and `PASS`: without a password it takes any credentials, so a
+  test that works proves nothing. Mount your library folders into it and run it as their owner, so it
+  can write there, and give its integration a path mapping that leads back to each library folder
+  (`/downloads` → `/media`). See the README's [Connecting the services](README.md#connecting-the-services).
+- **Retire qBittorrent with care (MAM-30, ADR 0031, ADR 0034's MAM-29 section).** Once Transmission's
+  destinations exist, remove qBittorrent's, which takes it out of the Download dialog
+  (`GET /api/downloads/options` lists only a client with a destination): the overwrite check reads only
+  the client a send goes to, so with both offered a torrent of one still queued, or fetching its
+  metadata, for a library path is invisible to a send to the other. Keep the integration switched on:
+  right before a move the app asks every download client, destinations or none, and one switched off
+  stops every move for review, and the following of its jobs. Remove it only once none of its torrents
+  seeds a file of your libraries and none of its jobs is on a Jobs page's In progress or Needs you
+  tab: a followed job whose client is removed is blocked for good ("The download client “qBittorrent”
+  was removed, so this download can't be followed. Cancel the job to stop tracking it."). Its
+  destinations go with it, and the jobs sent to them keep their names.
+- **Moving from Prowlarr to Jackett maps the sections again (MAM-30, ADR 0020).** A release source's
+  tracker sections are mapped per integration: tick them again in each destination for Jackett, then
+  remove Prowlarr, which takes its mappings and the newest releases it gave Recommendations with it.
+  Leave Jackett's "Strip Cyrillic Letters" ticked, its default and the only way the app supports.
+- **0.4.0 adds Phase D's MAM-30 to the 0.3.0 image published again on 2026-10-13.** Vasyl published
+  0.3.0 again on 2026-10-13 at 18:55 UTC (Docker Hub's `0.3.0`, `0.3` and `latest`), built after his
+  commit 082c84e, so that image already holds MAM-28's fixes and MAM-39 to MAM-44, listed under 0.3.0
+  below; MAM-29 changed no code of the app. From MAM-30, `frontend/package.json` says 0.4.0 (Vasyl's
+  decision of 2026-10-13), so the next image published from `main` is 0.4.0, never 0.3.0 again.
+
 ## [0.3.0] — 2026-10-09
 
 ### Added

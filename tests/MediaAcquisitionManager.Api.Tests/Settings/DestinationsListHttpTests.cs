@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -40,14 +41,15 @@ public sealed class DestinationsListHttpTests : IClassFixture<MediaAcquisitionMa
 
     public DestinationsListHttpTests(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
 
-    /// <summary>Each way a client couldn't be asked, and the sentence its destinations then show.</summary>
-    public static TheoryData<string, string> UnavailableClients => new()
+    /// <summary>Each way a client couldn't be asked, the sentence its destinations then show, and — MAM-30 — what
+    /// their keys are by the client's type, which a type this build doesn't register can't say.</summary>
+    public static TheoryData<string, string, DownloadDestinationKind?> UnavailableClients => new()
     {
-        { "unreachable", "Couldn't reach qBittorrent at http://qbittorrent.test:8080: nothing accepted the connection. Check the address and port, and that qBittorrent is running." },
-        { "refused sign-in", "qBittorrent refused the user name or password." },
-        { "old version", "This is qBittorrent v4.3.9; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again." },
-        { "type not registered", "This version of the app can't send downloads to “retired-client”." },
-        { "secret unreadable", "The stored API key of “qBittorrent” can't be read with this installation's encryption key. Enter the API key again and save." },
+        { "unreachable", "Couldn't reach qBittorrent at http://qbittorrent.test:8080: nothing accepted the connection. Check the address and port, and that qBittorrent is running.", DownloadDestinationKind.Category },
+        { "refused sign-in", "qBittorrent refused the user name or password.", DownloadDestinationKind.Category },
+        { "old version", "This is qBittorrent v4.3.9; the app works with qBittorrent 4.4.1 or later. Update qBittorrent, then test again.", DownloadDestinationKind.Category },
+        { "type not registered", "This version of the app can't send downloads to “retired-client”.", null },
+        { "secret unreadable", "The stored API key of “qBittorrent” can't be read with this installation's encryption key. Enter the API key again and save.", DownloadDestinationKind.Category },
     };
 
     public async ValueTask InitializeAsync()
@@ -116,6 +118,8 @@ public sealed class DestinationsListHttpTests : IClassFixture<MediaAcquisitionMa
         var raw = await response.Content.ReadAsStringAsync(cancellationToken);
         Assert.Contains("\"isDefault\":true", raw, StringComparison.Ordinal);
         Assert.Contains("\"clientDestinationKey\":\"Movies\"", raw, StringComparison.Ordinal);
+        // MAM-30 — what the key is, by name.
+        Assert.Contains("\"destinationKind\":\"Category\"", raw, StringComparison.Ordinal);
         Assert.Contains(
             "\"check\":{\"status\":\"InLibrary\",\"servicePath\":\"/downloads/movies\",\"appPath\":\"/media/movies\",\"libraryNames\":[\"Фільми\"],\"problem\":null}",
             raw,
@@ -418,7 +422,8 @@ public sealed class DestinationsListHttpTests : IClassFixture<MediaAcquisitionMa
 
     [Theory]
     [MemberData(nameof(UnavailableClients))]
-    public async Task List_of_a_client_that_could_not_be_asked_is_200_with_client_unavailable_and_the_reason(string unavailable, string expectedProblem)
+    public async Task List_of_a_client_that_could_not_be_asked_is_200_with_client_unavailable_and_the_reason(
+        string unavailable, string expectedProblem, DownloadDestinationKind? expectedKind)
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -434,6 +439,7 @@ public sealed class DestinationsListHttpTests : IClassFixture<MediaAcquisitionMa
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var item = Assert.Single((await ReadListAsync(response, cancellationToken)).Items);
         Assert.Equivalent(new DestinationCheckDto(DestinationPathStatus.ClientUnavailable, null, null, [], expectedProblem), item.Check, strict: true);
+        Assert.Equal(expectedKind, item.DestinationKind);
     }
 
     [Fact]
@@ -664,7 +670,8 @@ public sealed class DestinationsListHttpTests : IClassFixture<MediaAcquisitionMa
     private static DestinationCheckDto InLibrary(string servicePath, string appPath, string libraryName) =>
         new(DestinationPathStatus.InLibrary, servicePath, appPath, [libraryName], null);
 
+    // MAM-30 — every client here is a qBittorrent, whose destinations are its categories.
     private static DestinationDto Destination(
         DestinationMappingEntity destination, IntegrationConnectionEntity client, DestinationCheckDto check, DateTime createdUtc) =>
-        new(destination.Id, destination.Name, destination.IsDefault, client.Id, client.Name, destination.ClientDestinationKey, check, createdUtc);
+        new(destination.Id, destination.Name, destination.IsDefault, client.Id, client.Name, destination.ClientDestinationKey, check, createdUtc, DownloadDestinationKind.Category);
 }

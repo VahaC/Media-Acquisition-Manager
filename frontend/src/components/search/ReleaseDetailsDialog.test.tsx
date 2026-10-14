@@ -129,7 +129,7 @@ describe('ReleaseDetailsDialog', () => {
     expect([...readAs.querySelectorAll('dd')].map((value) => value.textContent)).toEqual(['Чужі · Aliens', '1986'])
   })
 
-  it('says why a title without a year was read as nothing', () => {
+  it('says why a title without a year was read as nothing, and where a match comes from then', () => {
     // Arrange
     const release = untitledRip
 
@@ -137,7 +137,87 @@ describe('ReleaseDetailsDialog', () => {
     const { dialog } = renderDialog(release)
 
     // Assert
-    expect(within(dialog).getByText(/^The title gives no year/)).toBeInTheDocument()
+    // MAM-30 — no longer "by an id only": the description is read too.
+    expect(within(dialog).getByText(
+      'The title gives no year or season, so the app can\'t tell the name from the rest of it. Any match comes from the description or from an id in the listing.'))
+      .toBeInTheDocument()
+  })
+
+  it('shows what the description was read as, beside what the title was', () => {
+    // Arrange
+    // MAM-30 — Jackett's title keeps the English part alone; Toloka's topic title, its description, names it in Ukrainian too.
+    const release = releaseOf({
+      title: 'Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+      description: 'Чужі / Aliens (1986) [Theatrical Cut] BDRemux 1080p H.265 Ukr/Eng | Sub Eng',
+      claimedWork: { titles: ['Aliens'], year: 1986, lastYear: null, episodes: null },
+      descriptionWork: { titles: ['Чужі', 'Aliens'], year: 1986, lastYear: null, episodes: null },
+    })
+
+    // Act
+    const { dialog } = renderDialog(release)
+
+    // Assert
+    expect(readAs(dialog)).toEqual([['Titles', 'Aliens'], ['Year', '1986']])
+    const heading = within(dialog).getByRole('heading', { level: 3, name: 'Read from the description' })
+    // Right after what the title was read as, in the listing's column.
+    expect(heading.previousElementSibling).toBe(within(dialog).getByRole('heading', { name: 'Read from the title' }).nextElementSibling)
+    const facts = heading.nextElementSibling!
+    expect([...facts.querySelectorAll('dt')].map((term) => [term.textContent, term.nextElementSibling!.textContent]))
+      .toEqual([['Titles', 'Чужі · Aliens'], ['Year', '1986']])
+  })
+
+  it('reads the seasons a TV release\'s description claims', () => {
+    // Arrange
+    const release = {
+      ...yellowstonePack,
+      descriptionWork: { titles: ['Єллоустоун', 'Yellowstone'], year: 2018, lastYear: 2024, episodes: yellowstonePack.claimedWork.episodes },
+    }
+
+    // Act
+    const { dialog } = renderDialog(release, [yellowstoneMatch])
+
+    // Assert
+    const facts = within(dialog).getByRole('heading', { name: 'Read from the description' }).nextElementSibling!
+    expect([...facts.querySelectorAll('dt')].map((term) => [term.textContent, term.nextElementSibling!.textContent])).toEqual([
+      ['Titles', 'Єллоустоун · Yellowstone'],
+      ['Year', '2018–2024'],
+      ['Seasons', 'Seasons 1–5'],
+    ])
+  })
+
+  it('says why a description without a year was read as nothing', () => {
+    // Arrange
+    const release = releaseOf({
+      description: '«Чужі» BDRemux 1080p',
+      descriptionWork: { titles: [], year: null, lastYear: null, episodes: null },
+    })
+
+    // Act
+    const { dialog } = renderDialog(release)
+
+    // Assert
+    const heading = within(dialog).getByRole('heading', { name: 'Read from the description' })
+    expect(heading.nextElementSibling).toHaveTextContent(
+      'The description gives no year or season, so the app can\'t tell the name from the rest of it.')
+    expect(heading.nextElementSibling).toHaveClass('settings-muted')
+  })
+
+  it.each<[string, (release: SearchRelease) => void]>([
+    ['the listing gives none', (release) => { release.descriptionWork = null }],
+    // Until the server sends the field it is missing, not null.
+    ['a server older than the field leaves it out', (release) => { delete (release as Partial<SearchRelease>).descriptionWork }],
+  ])('shows no description block when %s', (_, change) => {
+    // Arrange
+    const release = releaseOf({ description: 'Чужі / Aliens (1986)' })
+    change(release)
+
+    // Act
+    const { dialog } = renderDialog(release)
+
+    // Assert
+    expect(within(dialog).queryByRole('heading', { name: 'Read from the description' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/^The description gives no year/)).not.toBeInTheDocument()
+    expect(readAs(dialog)).toEqual([['Titles', 'Чужі · Aliens'], ['Year', '1986']])
   })
 
   it('lists the ids the listing gives, or says it gives none', () => {

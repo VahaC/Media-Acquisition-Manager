@@ -32,7 +32,7 @@ public sealed class ReplacementLineHttpTests : IClassFixture<MediaAcquisitionMan
     private const string NoIdProblem =
         "“Living room” gave “/media/movies/Aliens.1986.Special.Edition.2160p.mkv” no TMDb or IMDb id within an hour, so it can't be told to be Aliens (1986).";
     private const string NeedsLinkingReason =
-        "qBittorrent's downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
+        "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
     private const string HeldReason = "Still held by the torrent “Alien” in “qBittorrent”: remove that torrent there without its files, then press Retry.";
 
     // ADR 0035 — the check waits an hour for what it can't settle yet: the files from when it started, the library from

@@ -21,6 +21,10 @@ public interface IDownloadSender
     /// <paramref name="jobId"/> while it is still <c>Created</c>. Never throws on a failure of either
     /// service: that is the job's outcome. <paramref name="client"/> is read with its path mappings.
     /// </summary>
+    /// <param name="clientDestinationKey">The destination's stored key: a category, or — MAM-30 — a folder as the client
+    /// sees it (ADR 0039).</param>
+    /// <param name="destinationName">MAM-30 — the destination's name: the label a folder client shows the torrent with,
+    /// and what the app's sentences call the destination, as members read them and never see a folder (D13).</param>
     /// <param name="replacement">
     /// MAM-24 — the job carries a replacement of old copies, sent in strict mode (ADR 0032, decision 7): a release that
     /// turns out a magnet link once fetched, a category whose folder isn't inside a library the app knows, and a check for
@@ -33,5 +37,6 @@ public interface IDownloadSender
         IntegrationConnectionEntity source,
         IntegrationConnectionEntity client,
         string clientDestinationKey,
+        string destinationName,
         bool replacement = false);
 }

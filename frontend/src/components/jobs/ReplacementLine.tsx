@@ -43,9 +43,10 @@ const UNDER_WAY_KEYS = {
  *
  * MAM-27 — while the check waits for Jellyfin to identify the new files, until what time it waits. In
  * review, after the server's reason, what to do next where the reason alone doesn't say it: keep both
- * or cancel the job when the app can't follow the download; fix the item and press Retry when the
- * check stopped — or, when a copy only a drop settles is in it, drop it on the job's page, or keep
- * both when every copy left is one, as the last is never dropped. The mover's own reasons already end
+ * or cancel the job when the app can't follow the download; fix the item (MAM-30 — in Jellyfin or the
+ * job's download client, by name) and press Retry when the check stopped — or, when a copy only a
+ * drop settles is in it, drop it on the job's page, or keep both when every copy left is one, as the
+ * last is never dropped. The mover's own reasons already end
  * with what to do ("…then press Retry."), so nothing is added to them. Its counts leave out the copies
  * the owner dropped, so in every state the line then says how many were dropped: each stays where it
  * is. In the job's own facts it adds neither what to do nor "see the job": the Replacement section
@@ -55,8 +56,10 @@ const UNDER_WAY_KEYS = {
  * the Download dialog's outcome line before it is the one that speaks, and a list's rows never do.
  * Shared by the Jobs page's status block (JobStatus) and the Download dialog's sent view.
  */
-export function ReplacementLine({ replacement, downloadFailed, onJobPage = false }: {
+export function ReplacementLine({ replacement, client, downloadFailed, onJobPage = false }: {
   replacement: DownloadJobReplacement
+  /** MAM-30 — the job's download client, by the name the job copied: where else the owner may fix a check. */
+  client: string
   /** The download job failed: its own error line says why the replacement stopped. */
   downloadFailed: boolean
   /**
@@ -176,7 +179,7 @@ export function ReplacementLine({ replacement, downloadFailed, onJobPage = false
         : dropOnlyCopyCount > 0
           ? dropOnlyCopyCount < copyCount ? t('replacement.next.dropOnly', dropOnly) : t('replacement.next.dropOnlyKeepBoth', dropOnly)
           : stop === 'Check'
-            ? t('replacement.next.Check')
+            ? t('replacement.next.Check', { client })
             : ''
     const review = told(unexplained ? t('replacement.needsReviewNoReason') : t('replacement.needsReview', { reason }))
     return (

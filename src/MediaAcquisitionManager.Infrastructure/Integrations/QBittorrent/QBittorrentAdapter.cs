@@ -92,12 +92,20 @@ internal sealed partial class QBittorrentAdapter(IHttpClientFactory httpClients)
     /// submission: 4.4.1 to 5.1 answer <c>torrents/add</c> with <c>Ok.</c> only, so with 4.4.1 the oldest
     /// version taken the type can't promise one, and the info hash correlates instead. MAM-13 — 5.2 lists
     /// the ids it added (<c>added_torrent_ids</c>), and the adapter passes one on when it gets exactly one;
-    /// any other answer leaves the receipt without an id.
+    /// any other answer leaves the receipt without an id. MAM-30 — its destinations are its categories; it writes a
+    /// torrent's files under any of its three content layouts, with libtorrent's names and no suffix while unfinished; it
+    /// takes a torrent that is BitTorrent v2 only; and libtorrent 2 renames a v1 job to its v2 hash, so a job's id can
+    /// change after it was sent (MAM-14).
     /// </remarks>
     public DownloadClientCapabilities Capabilities { get; } = new(
         PayloadKinds: [ReleasePayloadKind.TorrentFile, ReleasePayloadKind.Magnet],
         DestinationsHavePaths: true,
-        SubmissionReturnsJobId: false);
+        SubmissionReturnsJobId: false,
+        DestinationKind: DownloadDestinationKind.Category,
+        FilePlacement: TorrentFilePlacement.AnyOfThreeLayouts,
+        PartialFileSuffix: null,
+        TakesV2OnlyTorrents: true,
+        JobIdsMayChange: true);
 
     /// <summary>
     /// Signs in when a user name is set (the credential rules make the password come with it), then

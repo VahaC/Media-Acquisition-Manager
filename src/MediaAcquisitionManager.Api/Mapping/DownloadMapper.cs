@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Services.Replacements;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Replacements;
@@ -17,7 +18,9 @@ public sealed class DownloadMapper : IDownloadMapper
             sourceName,
             job.DownloadClientName,
             job.DestinationName,
-            job.ClientDestinationKey,
+            // MAM-30, D13 — a folder is the owner's business, as his path mappings are: a member reads a folder job's
+            // destination by its name alone.
+            job.DestinationKind == DownloadDestinationKind.Folder && !forOwner ? null : job.ClientDestinationKey,
             job.Status,
             job.Progress,
             job.ClientJobId,
@@ -25,7 +28,8 @@ public sealed class DownloadMapper : IDownloadMapper
             BlockReasonFor(job, forOwner),
             job.OverwriteCheck,
             job.CreatedUtc,
-            job.StatusChangedUtc);
+            job.StatusChangedUtc,
+            DestinationKind: job.DestinationKind);
 
     public DownloadJobFileDto ToDto(DownloadJobFileEntity file) =>
         new(file.Position, file.RelativePath, file.SizeBytes, file.Progress, file.IsWanted);
@@ -56,13 +60,19 @@ public sealed class DownloadMapper : IDownloadMapper
         };
     }
 
-    public DownloadClientOptionDto ToOption(IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations) =>
+    public DownloadClientOptionDto ToOption(
+        IntegrationConnectionEntity client, string typeName, IReadOnlyList<DestinationMappingEntity> destinations, DownloadDestinationKind destinationKind) =>
         new(
             client.Id,
             client.Name,
             typeName,
-            [.. destinations.Select(destination =>
-                new DownloadDestinationOptionDto(destination.Id, destination.Name, destination.ClientDestinationKey, destination.IsDefault))]);
+            // MAM-30, D13 — never a folder, whoever opens the dialog: members send from it too.
+            [.. destinations.Select(destination => new DownloadDestinationOptionDto(
+                destination.Id,
+                destination.Name,
+                destinationKind == DownloadDestinationKind.Folder ? null : destination.ClientDestinationKey,
+                destination.IsDefault))],
+            destinationKind);
 
     /// <summary>
     /// MAM-10's rule for a service's sentence, as the Search and Library pages apply it: it can name the

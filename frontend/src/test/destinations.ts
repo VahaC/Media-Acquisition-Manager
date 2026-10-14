@@ -10,7 +10,7 @@ import type {
   DestinationsQuery,
   IntegrationSummary,
 } from '@/lib/types'
-import { localQbittorrent } from '@/test/integrations'
+import { localQbittorrent, localTransmission } from '@/test/integrations'
 
 // MAM-11 — destinations as GET /api/settings/destinations describes them: the categories of the
 // qBittorrent sample (VendorSamples/QBittorrent/categories.json) through the path mapping
@@ -48,6 +48,7 @@ export const movies: Destination = {
   clientDestinationKey: 'Movies',
   check: checkOf(),
   createdUtc: '2026-10-01T09:00:00Z',
+  destinationKind: 'Category',
 }
 
 export const cartoons: Destination = {
@@ -59,6 +60,7 @@ export const cartoons: Destination = {
   clientDestinationKey: 'Cartoons',
   check: checkOf({ servicePath: '/downloads/cartoons', appPath: '/media/cartoons', libraryNames: ['Мульфільми'] }),
   createdUtc: '2026-10-01T09:05:00Z',
+  destinationKind: 'Category',
 }
 
 /** A category whose folder lies outside every library folder. */
@@ -77,6 +79,7 @@ export const incoming: Destination = {
     problem: '“/media/incoming” is outside every media library folder, so automatic replacement stays off for this destination.',
   }),
   createdUtc: '2026-10-01T09:10:00Z',
+  destinationKind: 'Category',
 }
 
 /** The page the server answers `query` with, out of `total` destinations. */
@@ -89,6 +92,7 @@ function categoryOf(name: string, folder: string, library: string): ClientDestin
     key: name,
     displayName: name,
     check: checkOf({ servicePath: `/downloads/${folder}`, appPath: `/media/${folder}`, libraryNames: [library] }),
+    isClientDefaultFolder: false,
   }
 }
 
@@ -101,6 +105,58 @@ export const sampleCategories: ClientDestinationList = {
     categoryOf('TV Shows', 'tv-shows', 'Серіали'),
   ],
   error: null,
+  destinationKind: 'Category',
+  unplaced: [],
+}
+
+/**
+ * MAM-30 — a destination of Local Transmission: its key is the folder as Transmission sees it, a
+ * library folder mapped back through /downloads → /media.
+ */
+export const filmsFolder: Destination = {
+  id: '6a3e9b20-0000-4000-8000-000000000004',
+  name: 'Films',
+  isDefault: false,
+  downloadClientId: localTransmission.id,
+  downloadClientName: localTransmission.name,
+  clientDestinationKey: '/downloads/movies',
+  check: checkOf(),
+  createdUtc: '2026-10-01T09:15:00Z',
+  destinationKind: 'Folder',
+}
+
+/** MAM-30 — Transmission's sentence for a folder it can't see (its free-space failed). */
+export const notSeenProblem = 'Transmission can\'t see “/downloads/tv-shows” (No such file or directory). Mount that folder into '
+  + 'Transmission, or add a path mapping on this integration that leads there, then look again.'
+
+/** MAM-30 — the server's sentence for a library folder no path mapping of Local Transmission leads back to. */
+export const unplacedProblem = '“Local Transmission” has no folder for the library “Документалки”: none of its path mappings '
+  + 'leads to “/srv/documentary”. Add one under Integrations, “Local Transmission”, Path mappings (for example '
+  + '/downloads → /media), then look again.'
+
+function folderOf(folder: string, check: Partial<DestinationCheck>, isClientDefaultFolder = false): ClientDestination {
+  return { key: folder, displayName: folder, check: checkOf({ servicePath: folder, ...check }), isClientDefaultFolder }
+}
+
+/**
+ * MAM-30 — what Local Transmission offers: its own download folder (outside the libraries), two library
+ * folders it can reach, one it can't see (listed, never hidden), and a library no mapping leads back to.
+ */
+export const sampleFolders: ClientDestinationList = {
+  items: [
+    folderOf('/downloads/complete', {
+      status: 'OutsideLibraries',
+      appPath: '/media/complete',
+      libraryNames: [],
+      problem: '“/media/complete” is outside every media library folder, so automatic replacement stays off for this destination.',
+    }, true),
+    folderOf('/downloads/cartoons', { appPath: '/media/cartoons', libraryNames: ['Мульфільми'] }),
+    folderOf('/downloads/movies', { appPath: '/media/movies', libraryNames: ['Фільми'] }),
+    folderOf('/downloads/tv-shows', { status: 'FolderNotSeen', appPath: null, libraryNames: ['Серіали'], problem: notSeenProblem }),
+  ],
+  error: null,
+  destinationKind: 'Folder',
+  unplaced: [{ libraryName: 'Документалки', folder: '/srv/documentary', problem: unplacedProblem }],
 }
 
 /** MAM-32 — a section of a release source; `changes` sets what a test is about. */

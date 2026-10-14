@@ -20,7 +20,13 @@ internal static partial class TorznabLinks
     /// The URL parameters that name a credential: the list <c>VendorSamplesTests</c> keeps the samples
     /// clean of (the collector's, MAM-6).
     /// </summary>
-    private static readonly HashSet<string> TextOnlyMaskedNames = new(["sid", "tr", "ws", "xs", "as", "url"], StringComparer.OrdinalIgnoreCase);
+    /// <remarks>
+    /// MAM-30 — and <c>path</c>, Jackett's download token (<c>/dl/toloka/?jackett_apikey=…&amp;path=…</c>), which
+    /// opens a download with the key as Prowlarr's <c>link=</c> does: a fetch masks it as a secret of its call,
+    /// but a capabilities or search error that quoted one would show it, the token being nobody's secret then.
+    /// An innocent <c>path=</c> in a feed's text is masked too, which costs nothing.
+    /// </remarks>
+    private static readonly HashSet<string> TextOnlyMaskedNames = new(["sid", "tr", "ws", "xs", "as", "url", "path"], StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> KeyLikeNames = new(
         [
@@ -116,7 +122,7 @@ internal static partial class TorznabLinks
     /// The names whose values a feed's error text never shows: a credential's, the session's, and the
     /// ones that hold a whole address — a magnet's trackers and sources (<c>tr</c>, <c>ws</c>, <c>xs</c>,
     /// <c>as</c>) and a redirect target (<c>url</c>) — whose path can hold a passkey once a space in the
-    /// text has cut the address they belong to short.
+    /// text has cut the address they belong to short; MAM-30 — and Jackett's download token (<c>path</c>).
     /// </summary>
     private static bool IsMaskedInText(string name) =>
         KeyLikeNames.Contains(name) || TextOnlyMaskedNames.Contains(name);

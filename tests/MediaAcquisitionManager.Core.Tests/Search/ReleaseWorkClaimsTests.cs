@@ -40,6 +40,10 @@ public sealed class ReleaseWorkClaimsTests
         { "Oceans.Eleven.2001.1080p.BluRay", ["Oceans Eleven"], 2001 },
         { "Дев\u2019ять / 9 (2009) BDRip", ["Дев\u2019ять", "9"], 2009 },
         { "'Round Midnight' (1986)", ["'Round Midnight'"], 1986 },
+        // MAM-30 — a Ukrainian-only title after the gateway stripped its letters (Jackett's default, Prowlarr's too): its
+        // quotes are a title whose match key is empty, which matches nothing; the description keeps the whole title.
+        { "« » (2026) WEB-DL-AVC Ukr | Sub Ukr/Eng", ["« »"], 2026 },
+        { "Потяг «Червона Рута» (2026) WEB-DLRip-AVC Ukr | Sub Ukr/Eng", ["Потяг «Червона Рута»"], 2026 },
         // No year: the title can't be told apart from its quality tail.
         { "Interstellar BDRip 1080p", None, null },
         // A bracketed year with no title before it isn't one, and a bare year needs a word before it.

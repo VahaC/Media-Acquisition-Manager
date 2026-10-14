@@ -290,7 +290,7 @@ public sealed class SearchReleasesListHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal(
             [
                 "id", "sourceId", "sourceName", "title", "description", "kind", "sizeBytes", "seeders", "peers", "publishedUtc", "sourcePageUrl",
-                "payloadKind", "claimed", "claimedWork", "identifiers", "libraryMatches",
+                "payloadKind", "claimed", "claimedWork", "identifiers", "libraryMatches", "descriptionWork",
             ],
             release.Select(property => property.Key));
         Assert.Equal("2026-08-03T00:00:00Z", (string)release["publishedUtc"]!);

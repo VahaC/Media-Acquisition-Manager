@@ -3,13 +3,18 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { newPathMappingDraft } from '@/lib/path-mapping-drafts'
-import type { PathMappingDraft } from '@/lib/types'
+import type { DownloadDestinationKind, PathMappingDraft } from '@/lib/types'
 import '@/styles/auth.css' // .auth-hint — the help lines and the captions, like the dialog's other hints
 import '@/styles/integrations.css' // .integrations-mapping* — the captions and the rows, which stack on a phone
 
 interface PathMappingsEditorProps {
   /** The service's name, which names its side of each mapping: "Path in qBittorrent". */
   serviceName: string
+  /**
+   * MAM-30 — what a download client's destinations are: for a client that saves to folders, the
+   * mappings also decide which library folders become its destinations, and the help says so.
+   */
+  destinationKind?: DownloadDestinationKind | null
   value: PathMappingDraft[]
   onChange: (next: PathMappingDraft[]) => void
 }
@@ -21,8 +26,11 @@ interface PathMappingsEditorProps {
  *
  * No checks here: the server checks the whole set when it is saved, and its sentence names the
  * mapping that is wrong.
+ *
+ * MAM-30 — a client that saves to folders (Transmission) reaches the library folders back through
+ * them (ADR 0039), so for it the help says they make its destinations.
  */
-export function PathMappingsEditor({ serviceName, value, onChange }: PathMappingsEditorProps) {
+export function PathMappingsEditor({ serviceName, destinationKind = null, value, onChange }: PathMappingsEditorProps) {
   const { t } = useTranslation('integrations')
   const servicePath = t('mappings.servicePath', { service: serviceName })
   const appPath = t('mappings.appPath')
@@ -33,7 +41,11 @@ export function PathMappingsEditor({ serviceName, value, onChange }: PathMapping
   return (
     <fieldset className="integrations-mappings">
       <legend className="ui-label">{t('mappings.title')}</legend>
-      <p className="auth-hint">{t('mappings.help', { service: serviceName })}</p>
+      <p className="auth-hint">
+        {destinationKind === 'Folder'
+          ? t('mappings.helpFolder', { service: serviceName })
+          : t('mappings.help', { service: serviceName })}
+      </p>
       {value.length === 0 && <p className="auth-hint">{t('mappings.none', { service: serviceName })}</p>}
       {/* MAM-7 — each side is captioned on screen: named only for screen readers, a row was two
           boxes nobody could tell apart. A wide screen captions the columns once, over the rows; a

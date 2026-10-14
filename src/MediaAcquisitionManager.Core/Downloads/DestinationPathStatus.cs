@@ -31,4 +31,9 @@ public enum DestinationPathStatus
     /// <summary>The client couldn't be asked: its call failed, its type isn't registered in this build,
     /// or its stored secret can't be read.</summary>
     ClientUnavailable = 7,
+
+    /// <summary>MAM-30 — the client can't see or use the folder (ADR 0039): it answered that it can't reach it, or the
+    /// stored folder isn't a full path, or the client didn't list it. Listed with why, never picked and never sent
+    /// to.</summary>
+    FolderNotSeen = 8,
 }

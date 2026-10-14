@@ -37,6 +37,13 @@ namespace MediaAcquisitionManager.Api.Services.Replacements;
 /// outside the roots, which moving the library's name leaves seeding.
 /// </para>
 /// <para>
+/// MAM-30, D11 — a client that writes an unfinished file under its name and a suffix
+/// (<see cref="DownloadClientCapabilities.PartialFileSuffix"/>, Transmission's <c>.part</c>) holds that name too: a copy's
+/// companion of that name is the torrent's own file, still downloading, and moving it would lose the torrent its data. The
+/// disk is read at the suffixed name when the file isn't at its own yet, and outside the roots a file's name counts with
+/// or without the suffix.
+/// </para>
+/// <para>
 /// Whether a type is a download client is asked of the adapter registry, and the stored secrets are opened by
 /// <see cref="IIntegrationSettingsFactory"/>, as <c>DestinationChecker</c> does.
 /// </para>
@@ -132,7 +139,8 @@ public sealed class ReplacementHoldingReader(
             var (unplaced, outside) = (0, 0);
             foreach (var job in jobs)
             {
-                var (placed, outsideRoots) = await PlaceAsync(client, libraryClient, job, names, roots, allowedRoots, described, holds, cancellationToken);
+                var (placed, outsideRoots) = await PlaceAsync(
+                    client, libraryClient, answer.PartialFileSuffix, job, names, roots, allowedRoots, described, holds, cancellationToken);
                 if (!placed)
                     unplaced++;
                 if (outsideRoots)
@@ -205,13 +213,13 @@ public sealed class ReplacementHoldingReader(
         {
             var listed = await downloadClient.ListJobsWithFilesAsync(settings, cancellationToken);
             if (listed.IsSuccess)
-                return new ClientAnswer(listed.Value, null);
+                return new ClientAnswer(listed.Value, null, downloadClient.Capabilities.PartialFileSuffix);
 
             // Information: the status only — never the address or the sentence (the connection test's rule).
             logger.LogInformation(
                 "Holdings listing of integration {IntegrationId} ({AdapterType}) failed: {Status}.", client.Id, client.AdapterType, listed.Status);
             // Masked again after the adapter (ADR 0007's second pass).
-            return new ClientAnswer(null, SecretRedaction.Redact(listed.Error!, settings.Secrets));
+            return new ClientAnswer(null, SecretRedaction.Redact(listed.Error!, settings.Secrets), null);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -224,7 +232,7 @@ public sealed class ReplacementHoldingReader(
                 client.AdapterType,
                 exception.GetType().FullName,
                 exception.StackTrace);
-            return new ClientAnswer(null, $"The app couldn't read what “{client.Name}” answered.");
+            return new ClientAnswer(null, $"The app couldn't read what “{client.Name}” answered.", null);
         }
     }
 
@@ -232,7 +240,7 @@ public sealed class ReplacementHoldingReader(
     {
         logger.LogInformation(
             "Holdings listing of integration {IntegrationId} ({AdapterType}) did not ask it: {Reason}.", client.Id, client.AdapterType, why);
-        return new ClientAnswer(null, error);
+        return new ClientAnswer(null, error, null);
     }
 
     /// <summary>
@@ -242,11 +250,13 @@ public sealed class ReplacementHoldingReader(
     /// of them; a file at a copy's own path holds it whatever its size (MAM-26), and is placed. MAM-28 — <c>Outside</c> is
     /// <c>true</c> when <paramref name="libraryClient"/>, a client the app sent a replacement to, lists a file outside the
     /// allowed roots that may be one of <paramref name="targets"/> — of its file name, of no size, or of its size unless its
-    /// file has several names —, which makes its answer uncertain too.
+    /// file has several names —, which makes its answer uncertain too. MAM-30 — with <paramref name="partialFileSuffix"/>,
+    /// each file's name with the suffix is its too (D11).
     /// </summary>
     private async Task<(bool Placed, bool Outside)> PlaceAsync(
         IntegrationConnectionEntity client,
         bool libraryClient,
+        string? partialFileSuffix,
         ClientJobWithFiles job,
         IReadOnlyList<ReplacementHoldingTarget> targets,
         IReadOnlyList<NormalizedPath> roots,
@@ -271,6 +281,8 @@ public sealed class ReplacementHoldingReader(
                 continue;
             }
 
+            // MAM-30, D11 — where the file lies while it is unfinished, beside its own place.
+            var partial = PartialOf(appPath, partialFileSuffix);
             if (!roots.Any(appPath.IsUnder))
             {
                 // MAM-28 — never looked at there (ADR 0009), but a library client's file of a name's file name or size, or of
@@ -281,7 +293,8 @@ public sealed class ReplacementHoldingReader(
                 // tell may be one name.
                 if (libraryClient && targets.Any(target => file.SizeBytes is not { } outsideSize
                         || (outsideSize == target.Fresh.SizeBytes && target.Fresh.LinkCount is not > 1)
-                        || SameFileName(appPath, target.AppPath)))
+                        || SameFileName(appPath, target.AppPath)
+                        || (partial is not null && SameFileName(partial, target.AppPath))))
                     outside = true;
                 continue;
             }
@@ -290,12 +303,14 @@ public sealed class ReplacementHoldingReader(
             // lists, in any state"): an errored torrent, one missing its files or a companion edited since lists another
             // size than the disk's, and a recheck would still write that path back. Its place is known, so nothing below
             // leaves the torrent unplaced for it; the disk is still read for another name of the file.
-            var atPath = targets.FirstOrDefault(target => appPath.IsSameAs(target.AppPath));
-            if (atPath is not null)
-                Hold(holds, atPath, new ReplacementHold(client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: false));
+            // MAM-30 — and its unfinished name's, which is the same file's place (D11).
+            List<ReplacementHoldingTarget> atPath =
+                [.. targets.Where(target => appPath.IsSameAs(target.AppPath) || (partial is not null && partial.IsSameAs(target.AppPath)))];
+            foreach (var target in atPath)
+                Hold(holds, target, new ReplacementHold(client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: false));
             if (file.SizeBytes is not { } size)
             {
-                placed &= atPath is not null;
+                placed &= atPath.Count > 0;
                 continue;
             }
 
@@ -303,11 +318,13 @@ public sealed class ReplacementHoldingReader(
             if (sameSize.Count == 0)
                 continue;
 
-            if (!described.TryGetValue(appPath, out var answer))
-                described[appPath] = answer = await files.DescribeAsync(appPath.ToString(), allowedRoots, cancellationToken);
+            // MAM-30 — at its unfinished name when it isn't at its own yet (D11).
+            var (onDisk, answer) = (appPath, await DescribeOnceAsync(appPath, allowedRoots, described, cancellationToken));
+            if (answer.Status == FileInventoryStatus.NotFound && partial is not null)
+                (onDisk, answer) = (partial, await DescribeOnceAsync(partial, allowedRoots, described, cancellationToken));
             if (answer is not { Status: FileInventoryStatus.Found, Value: { DeviceId: not null, Inode: not null } facts })
             {
-                placed &= atPath is not null;
+                placed &= atPath.Count > 0;
                 continue;
             }
 
@@ -316,12 +333,31 @@ public sealed class ReplacementHoldingReader(
                 // The torrent's own path, or the same file reached through a link (one name): the torrent holds the copy.
                 // Another name of a file with several: the torrent keeps its own, and moving the copy frees nothing.
                 Hold(holds, target, new ReplacementHold(
-                    client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: !(appPath.IsSameAs(target.AppPath) || target.Fresh.LinkCount == 1)));
+                    client.Name, job.Job.ClientJobId, job.Job.Name, SecondName: !(onDisk.IsSameAs(target.AppPath) || target.Fresh.LinkCount == 1)));
             }
         }
 
         return (placed, outside);
     }
+
+    /// <summary>What the disk says is at <paramref name="path"/>, asked once per path however many torrents list it.</summary>
+    private async Task<FileInventoryResult<FileFacts>> DescribeOnceAsync(
+        NormalizedPath path,
+        IReadOnlyList<string> allowedRoots,
+        Dictionary<NormalizedPath, FileInventoryResult<FileFacts>> described,
+        CancellationToken cancellationToken)
+    {
+        if (!described.TryGetValue(path, out var answer))
+            described[path] = answer = await files.DescribeAsync(path.ToString(), allowedRoots, cancellationToken);
+        return answer;
+    }
+
+    /// <summary>MAM-30 — <paramref name="path"/> with <paramref name="partialFileSuffix"/> on its file's name: where a client
+    /// that names an unfinished file so keeps it; <c>null</c> for a client that doesn't, or a path that names no file.</summary>
+    private static NormalizedPath? PartialOf(NormalizedPath path, string? partialFileSuffix) =>
+        string.IsNullOrEmpty(partialFileSuffix) || path.Segments.Count == 0
+            ? null
+            : path with { Segments = [.. path.Segments.SkipLast(1), path.Segments[^1] + partialFileSuffix] };
 
     /// <summary>MAM-28 — whether <paramref name="path"/> and <paramref name="other"/> end in the same file name, in any
     /// letter case. A root names no file, so it ends in none: a client's file a mapping puts at a bare root is no name's by
@@ -340,7 +376,7 @@ public sealed class ReplacementHoldingReader(
             held.Add(hold);
     }
 
-    /// <summary>What one client's listing gave: its jobs, or the sentence why there are none. Its <c>ToString</c> prints
-    /// the list as its type name; the error is masked.</summary>
-    private sealed record ClientAnswer(IReadOnlyList<ClientJobWithFiles>? Jobs, string? Error);
+    /// <summary>What one client's listing gave: its jobs, or the sentence why there are none — MAM-30, and the suffix its
+    /// unfinished files carry, if any. Its <c>ToString</c> prints the list as its type name; the error is masked.</summary>
+    private sealed record ClientAnswer(IReadOnlyList<ClientJobWithFiles>? Jobs, string? Error, string? PartialFileSuffix);
 }

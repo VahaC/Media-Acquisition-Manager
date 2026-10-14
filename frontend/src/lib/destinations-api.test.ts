@@ -1,8 +1,8 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { destinationsApi } from '@/lib/destinations-api'
-import { destinationsPage, movies, sampleCategories, sectionsOf, tolokaSections } from '@/test/destinations'
-import { localQbittorrent } from '@/test/integrations'
+import { destinationsPage, filmsFolder, movies, sampleCategories, sampleFolders, sectionsOf, tolokaSections } from '@/test/destinations'
+import { localQbittorrent, localTransmission } from '@/test/integrations'
 
 /**
  * Answers every request with `status` and `body`, and keeps the requests it was sent. A replaced
@@ -145,6 +145,21 @@ describe('destinationsApi', () => {
     expect(categories).toEqual(sampleCategories)
     expect(requests[0].method).toBe('get')
     expect(api.getUri(requests[0])).toBe(`/api/settings/destinations/client-destinations/${localQbittorrent.id}`)
+  })
+
+  it('asks a folder client for its folders with the edited destination, whose stored folder it lists too', async () => {
+    // Arrange
+    // MAM-30 (D4) — the Edit dialog's own client; the folders come with the libraries it offers none for.
+    const requests = respondWith(200, sampleFolders)
+
+    // Act
+    const folders = await destinationsApi.clientDestinations(localTransmission.id, filmsFolder.id)
+
+    // Assert
+    expect(folders).toEqual(sampleFolders)
+    expect(requests[0].method).toBe('get')
+    expect(api.getUri(requests[0])).toBe(
+      `/api/settings/destinations/client-destinations/${localTransmission.id}?destinationId=${filmsFolder.id}`)
   })
 
   it('rejects a save the client couldn\'t confirm with its sentence in the body (502)', async () => {

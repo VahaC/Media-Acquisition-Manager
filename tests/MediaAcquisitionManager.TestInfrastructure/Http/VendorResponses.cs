@@ -66,6 +66,13 @@ public static class VendorResponses
     }
 
     /// <summary>
+    /// MAM-30 — a 200 whose body never arrives: the request was read, and the answer doesn't come within the client's
+    /// timeout, or before the caller gives up — for a test of a call that must not be sent again.
+    /// </summary>
+    public static HttpResponseMessage Stalled() =>
+        new(HttpStatusCode.OK) { Content = new StreamContent(new System.IO.Pipelines.Pipe().Reader.AsStream()) };
+
+    /// <summary>
     /// <paramref name="response"/> with one more <c>Set-Cookie</c> header, taken verbatim — so a test
     /// can send a cookie no real server would.
     /// </summary>

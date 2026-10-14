@@ -23,12 +23,17 @@ export const useDestinations = (query: DestinationsQuery) =>
 /**
  * The categories a download client offers, for the destination dialog's picker. Asked only once a
  * client is chosen (`''` is none), and asked live each time the dialog opens: the owner may have just
- * created the category in the client.
+ * created the category in the client. MAM-30 — or its folders; `destinationId` is the destination an
+ * Edit dialog opened on, while its own client is picked, whose stored folder the client is asked about
+ * too.
  */
-export const useClientDestinations = (downloadClientId: string) =>
+export const useClientDestinations = (downloadClientId: string, destinationId?: string) =>
   useQuery({
-    queryKey: qk.settings.destinations.clientDestinations(downloadClientId),
-    queryFn: () => destinationsApi.clientDestinations(downloadClientId),
+    queryKey: qk.settings.destinations.clientDestinations(downloadClientId, destinationId),
+    // The id goes only when there is one, so an add asks exactly as before.
+    queryFn: () => destinationId === undefined
+      ? destinationsApi.clientDestinations(downloadClientId)
+      : destinationsApi.clientDestinations(downloadClientId, destinationId),
     enabled: downloadClientId !== '',
     // A client that couldn't be asked is answered with 200 and its sentence, already after a wait;
     // a second try would only double it.

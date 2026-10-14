@@ -83,7 +83,7 @@ public sealed class ReplacementDetailsHttpTests : IClassFixture<MediaAcquisition
         + "“/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.1080p.mkv”; the app can't tell which one replaces the old copy.";
     private const string NotAlienReason = "The new file isn't Alien (1979).";
     private const string NeedsLinkingReason =
-        "qBittorrent's downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
+        "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
     private const string CancelledReason = "You cancelled the replacement, so nothing will be replaced.";
     private const string RenumberedProblem =
         "“Living room” now numbers the old copy “/media/tv-shows/Yellowstone (2018)/Season 02/Yellowstone S02E05.mkv” season 2, episode 6, "

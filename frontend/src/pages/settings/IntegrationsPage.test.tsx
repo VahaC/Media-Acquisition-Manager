@@ -10,7 +10,7 @@ import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { destinationsPage, movies, sampleCategories } from '@/test/destinations'
-import { adapterTypes, homeJellyfin, localQbittorrent, retiredClient, toloka } from '@/test/integrations'
+import { adapterTypes, homeJellyfin, localQbittorrent, localTransmission, retiredClient, toloka } from '@/test/integrations'
 import { aliens, locations, sourceOf, sourcesOf, worksPage } from '@/test/library'
 
 vi.mock('@/lib/integrations-api')
@@ -190,6 +190,8 @@ describe('IntegrationsPage', () => {
     // Assert
     const empty = await screen.findByText(/^No integrations yet\./)
     expect(empty).toHaveTextContent('Click Add integration to connect')
+    // MAM-30 — Jackett and Transmission stand beside the services they can stand in for.
+    expect(empty).toHaveTextContent('a Torznab source such as Prowlarr or Jackett, a download client such as qBittorrent or Transmission,')
     expect(empty).toHaveTextContent('a metadata catalog (TMDb) that feeds the Recommendations page')
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
@@ -362,6 +364,23 @@ describe('IntegrationsPage', () => {
     expect(integrationsApi.remove).not.toHaveBeenCalled()
   })
 
+  it('warns before removing a client that saves to folders that its destinations go, and its torrents keep their folder and label', async () => {
+    // Arrange
+    vi.mocked(integrationsApi.list).mockImplementation(async (query) => pageOf(query, [homeJellyfin, localTransmission]))
+    const { user } = renderPage()
+    await screen.findByText('Local Transmission')
+
+    // Act
+    await user.click(within(rowOf('Local Transmission')).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    const confirmation = await screen.findByRole('dialog', { name: 'Remove Local Transmission?' })
+    expect(confirmation).toHaveTextContent(
+      'The app forgets Local Transmission, its stored credentials and its path mappings, and removes every destination that uses it, including the default destination if it is one of them. Nothing changes in Transmission: torrents already sent keep their folder and label. This can\'t be undone.')
+    expect(confirmation).not.toHaveTextContent('categories')
+    expect(integrationsApi.remove).not.toHaveBeenCalled()
+  })
+
   it('says nothing about a library or destinations when removing a release source', async () => {
     // Arrange
     const { user } = renderPage()
@@ -450,14 +469,14 @@ describe('IntegrationsPage', () => {
   it('keeps Test and Edit of a type this version can\'t connect to disabled, and says why', async () => {
     // Arrange
     vi.mocked(integrationsApi.list).mockImplementation(async (query) => pageOf(query, [homeJellyfin, retiredClient]))
-    const reason = 'This version of the app can\'t connect to “transmission”. You can only remove this integration.'
+    const reason = 'This version of the app can\'t connect to “retired-client”. You can only remove this integration.'
 
     // Act
     renderPage()
-    await screen.findByText('Old Transmission')
+    await screen.findByText('Old client')
 
     // Assert
-    const row = within(rowOf('Old Transmission'))
+    const row = within(rowOf('Old client'))
     const test = row.getByRole('button', { name: 'Test' })
     const edit = row.getByRole('button', { name: 'Edit' })
     expect(test).toBeDisabled()
@@ -466,7 +485,7 @@ describe('IntegrationsPage', () => {
     expect(edit.parentElement).toHaveAttribute('title', reason)
     expect(row.getByRole('button', { name: 'Remove' })).toBeEnabled()
     // The type id stands in for the name this build no longer has.
-    expect(row.getByText('transmission')).toBeInTheDocument()
+    expect(row.getByText('retired-client')).toBeInTheDocument()
     expect(within(rowOf('Home Jellyfin')).getByRole('button', { name: 'Edit' })).toBeEnabled()
   })
 

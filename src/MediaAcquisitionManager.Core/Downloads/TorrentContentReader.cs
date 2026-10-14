@@ -1,5 +1,7 @@
 using System.Numerics;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Unicode;
 using MediaAcquisitionManager.Core.Abstractions.Files;
 
 namespace MediaAcquisitionManager.Core.Downloads;
@@ -23,9 +25,29 @@ namespace MediaAcquisitionManager.Core.Downloads;
 /// is empty or dropped is one libtorrent refuses, and so is no content here.
 /// </para>
 /// <para>
+/// MAM-30 — beside them, the torrent's name and each file's elements as the torrent holds them
+/// (<see cref="TorrentContent.RawName"/>, <see cref="TorrentContentFile.RawPath"/>), for a client that cleans names
+/// its own way. They are read as Transmission reads text (<c>tr_strv_convert_utf8</c>): cut at the first NUL, then each
+/// sequence that isn't valid UTF-8 replaced as utf8cpp's <c>replace_invalid</c> replaces it — one U+FFFD for a lead
+/// byte that starts none, one for an overlong form, a surrogate or a code point past U+10FFFF with the continuation
+/// bytes after it, one for a sequence the text ends inside —, so a name holds the U+FFFD Transmission 4.1 writes.
+/// Transmission 4.0 reads the name so too, but writes a file's path elements as the bytes they are, cleaned before the
+/// system cuts them at a NUL (<c>torrent-metainfo.cc</c>, 4.0.6), so a file whose elements aren't valid UTF-8 or hold
+/// a NUL is marked (<see cref="TorrentContentFile.RawPathIsExact"/>): no text names where 4.0 writes it. A hybrid's
+/// are its v1 name and files, as Transmission ignores the file tree ("'file tree' is ignored", 4.0.6 and 4.1.3).
+/// </para>
+/// <para>
+/// MAM-30 — a file marked as padding that has a path is kept apart (<see cref="TorrentContent.PadFiles"/>), read as
+/// a real file is: libtorrent never writes one, but Transmission ignores the mark (<c>attr</c> is "currently unused" in
+/// 4.0.6 and 4.1.3) and writes it at its path like any other file. One without a path Transmission never writes
+/// either: it refuses such a torrent ("invalid path"), or 4.0 skips an empty one.
+/// </para>
+/// <para>
 /// Defensive, like <see cref="TorrentInfoHashReader"/>: anything that isn't a torrent the app can read — no info
 /// dictionary, a piece length that isn't positive or is longer than libtorrent takes, pieces that don't add up to
-/// the files, no name — gives <c>null</c>, never a guess or an exception.
+/// the files, no name — gives <c>null</c>, never a guess or an exception. So does a torrent libtorrent refuses that
+/// another client might take (a longer piece, a torrent of one file whose name libtorrent drops): the check then
+/// can't read its files, whatever the client.
 /// </para>
 /// </remarks>
 public static class TorrentContentReader
@@ -40,6 +62,9 @@ public static class TorrentContentReader
     private const int Sha1Length = 20;
 
     private const int Sha256Length = 32;
+
+    /// <summary>MAM-30 — what Transmission writes for a sequence that isn't valid UTF-8 (U+FFFD).</summary>
+    private const char ReplacementCharacter = '\uFFFD';
 
     /// <summary>
     /// libtorrent's longest piece (<c>file_storage::max_piece_size</c>, 32,767 blocks of 16 KiB): it refuses a
@@ -82,7 +107,7 @@ public static class TorrentContentReader
         if (pieces.Length % Sha1Length != 0)
             return null;
 
-        var entries = new List<(IReadOnlyList<string>? Path, long Length, bool IsPad)>();
+        var entries = new List<(IReadOnlyList<string>? Path, IReadOnlyList<string>? RawPath, bool RawPathIsExact, long Length, bool IsPad)>();
         bool hasRootFolder;
         if (info.Find("files"u8) is { } files)
         {
@@ -102,13 +127,19 @@ public static class TorrentContentReader
                 {
                     if (!isPad)
                         return null;
-                    entries.Add((null, length, true));
+                    entries.Add((null, null, true, length, true));
                     continue;
                 }
 
                 if (PathOf(folder, path) is not { } elements)
                     return null;
-                entries.Add((elements, length, isPad));
+                // MAM-30 — Transmission prefers path.utf-8 too: it drops a path read before it.
+                entries.Add((
+                    elements,
+                    [.. path.Items.Select(element => TextOf(element.Bytes.Span))],
+                    path.Items.All(element => IsExactText(element.Bytes.Span)),
+                    length,
+                    isPad));
             }
         }
         else if (info.IntegerOf("length"u8) is { } length && length >= 0)
@@ -118,7 +149,7 @@ public static class TorrentContentReader
             if (name.IsEmpty || TorrentPathElement.Sanitize(name.Span, force: false) is not { } fileName)
                 return null;
             hasRootFolder = false;
-            entries.Add(([fileName], length, false));
+            entries.Add(([fileName], [TextOf(name.Span)], true, length, false));
         }
         else
         {
@@ -138,15 +169,17 @@ public static class TorrentContentReader
             return null;
 
         var read = new List<TorrentContentFile>();
+        var pads = new List<TorrentContentFile>();
         long offset = 0;
-        foreach (var (path, length, isPad) in entries)
+        foreach (var (path, rawPath, rawPathIsExact, length, isPad) in entries)
         {
-            if (!isPad)
-                read.Add(new TorrentContentFile(path!, length, V1Samples(offset, offset + length, pieceLength, total, pieces)));
+            // MAM-30 — a pad file with a path is kept apart, for a client that ignores the mark.
+            if (path is not null)
+                (isPad ? pads : read).Add(new TorrentContentFile(path, length, V1Samples(offset, offset + length, pieceLength, total, pieces), rawPath, rawPathIsExact));
             offset += length;
         }
 
-        return new TorrentContent(hasRootFolder, read);
+        return new TorrentContent(hasRootFolder, read, TextOf(name.Span), pads);
     }
 
     /// <summary>The torrent's folder, then each element of <paramref name="path"/> cleaned as libtorrent forces
@@ -212,13 +245,13 @@ public static class TorrentContentReader
         // As libtorrent's extract_files2 tells it: one file alone at the top of the tree, in a torrent with no v1
         // list of files, is a torrent of one file with no folder of its own; anything else lies under the folder.
         var hasRootFolder = !(info.Find("files"u8) is null && tree.Keys.Count == 1 && IsLeaf(tree.Items[0]));
-        var leaves = new List<(List<string> Elements, BencodeNode Leaf)>();
-        if (!TryWalk(tree, hasRootFolder ? [FolderOf(info, name)] : [], leaves, depth: 1))
+        var leaves = new List<(List<string> Elements, List<string> RawElements, bool RawElementsAreExact, BencodeNode Leaf)>();
+        if (!TryWalk(tree, hasRootFolder ? [FolderOf(info, name)] : [], [], rawElementsAreExact: true, leaves, depth: 1))
             return null;
 
         var layers = root.Find("piece layers"u8);
         var read = new List<TorrentContentFile>();
-        foreach (var (elements, leaf) in leaves)
+        foreach (var (elements, rawElements, rawElementsAreExact, leaf) in leaves)
         {
             if (leaf.IntegerOf("length"u8) is not { } length || length < 0)
                 return null;
@@ -231,19 +264,27 @@ public static class TorrentContentReader
                 samples = V2Samples(length, pieceLength, piecesRoot, layers);
             }
 
-            read.Add(new TorrentContentFile(elements, length, samples));
+            read.Add(new TorrentContentFile(elements, length, samples, rawElements, rawElementsAreExact));
         }
 
-        return new TorrentContent(hasRootFolder, read);
+        return new TorrentContent(hasRootFolder, read, TextOf(name.Span));
     }
 
     /// <summary>
     /// The files of a v2 file tree, as libtorrent's <c>extract_files2</c> walks it: each folder a dictionary of
     /// names, none of them empty; each file a dictionary whose one key is empty. Every name is cleaned as libtorrent
     /// forces it, so none is dropped. <paramref name="elements"/> is the path so far: the torrent's folder at the
-    /// top, or nothing for a torrent of one file.
+    /// top, or nothing for a torrent of one file; <paramref name="rawElements"/> the same path below the torrent's
+    /// folder as the tree holds it, and <paramref name="rawElementsAreExact"/> whether each of its keys is valid UTF-8
+    /// with no NUL (MAM-30).
     /// </summary>
-    private static bool TryWalk(BencodeNode folder, List<string> elements, List<(List<string>, BencodeNode)> leaves, int depth)
+    private static bool TryWalk(
+        BencodeNode folder,
+        List<string> elements,
+        List<string> rawElements,
+        bool rawElementsAreExact,
+        List<(List<string>, List<string>, bool, BencodeNode)> leaves,
+        int depth)
     {
         if (depth > 100)
             return false;
@@ -254,13 +295,15 @@ public static class TorrentContentReader
                 return false;
 
             List<string> childElements = [.. elements, TorrentPathElement.Sanitize(folder.Keys[index].Span, force: true)!];
+            List<string> childRawElements = [.. rawElements, TextOf(folder.Keys[index].Span)];
+            var childRawElementsAreExact = rawElementsAreExact && IsExactText(folder.Keys[index].Span);
             if (IsLeaf(child))
             {
                 if (child.Items[0].Kind != BencodeKind.Dictionary)
                     return false;
-                leaves.Add((childElements, child.Items[0]));
+                leaves.Add((childElements, childRawElements, childRawElementsAreExact, child.Items[0]));
             }
-            else if (!TryWalk(child, childElements, leaves, depth + 1))
+            else if (!TryWalk(child, childElements, childRawElements, childRawElementsAreExact, leaves, depth + 1))
             {
                 return false;
             }
@@ -304,4 +347,77 @@ public static class TorrentContentReader
     /// <summary>The first, middle and last of <paramref name="first"/> to <paramref name="last"/>, each once.</summary>
     private static IEnumerable<long> Indices(long first, long last) =>
         new[] { first, first + (last - first) / 2, last }.Distinct().Take(MaximumSamplesPerFile);
+
+    // ── text ──────────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// MAM-30 — <paramref name="raw"/> as Transmission reads a name (<c>tr_strv_replace_invalid</c>): cut at the first
+    /// NUL, then read as utf8cpp's <c>replace_invalid</c> reads it — each valid sequence kept; one U+FFFD for a lead byte
+    /// that starts none; one for a sequence the text ends inside, which ends the text; and one for any other sequence
+    /// that isn't valid — cut short, overlong, a surrogate, past U+10FFFF — together with every continuation byte after
+    /// its lead byte. .NET's own decoder marks some of those byte by byte, which would name another file.
+    /// </summary>
+    private static string TextOf(ReadOnlySpan<byte> raw)
+    {
+        var end = raw.IndexOf((byte)0);
+        var bytes = end < 0 ? raw : raw[..end];
+
+        var text = new StringBuilder(bytes.Length);
+        for (var index = 0; index < bytes.Length;)
+        {
+            var lead = bytes[index];
+            var length = lead < 0b1000_0000 ? 1
+                : lead >> 5 == 0b110 ? 2
+                : lead >> 4 == 0b1110 ? 3
+                : lead >> 3 == 0b1_1110 ? 4
+                : 0;
+            if (length == 0)
+            {
+                text.Append(ReplacementCharacter);
+                index++;
+                continue;
+            }
+
+            var codePoint = length switch { 1 => lead, 2 => lead & 0b1_1111, 3 => lead & 0b1111, _ => lead & 0b111 };
+            var read = 1;
+            while (read < length && index + read < bytes.Length && IsContinuation(bytes[index + read]))
+                codePoint = (codePoint << 6) | (bytes[index + read++] & 0b11_1111);
+
+            if (read < length && index + read == bytes.Length)
+            {
+                text.Append(ReplacementCharacter);
+                break;
+            }
+
+            if (read < length || IsOverlong(codePoint, length) || codePoint > 0x10FFFF || codePoint is >= 0xD800 and <= 0xDFFF)
+            {
+                text.Append(ReplacementCharacter);
+                index++;
+                while (index < bytes.Length && IsContinuation(bytes[index]))
+                    index++;
+                continue;
+            }
+
+            text.Append(char.ConvertFromUtf32(codePoint));
+            index += length;
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// MAM-30 — whether <paramref name="raw"/> is the text <see cref="TextOf"/> reads exactly: valid UTF-8 (no overlong
+    /// form, surrogate or code point past U+10FFFF, as utf8cpp checks it) with no NUL, so a client that writes the bytes
+    /// as they are writes that text.
+    /// </summary>
+    private static bool IsExactText(ReadOnlySpan<byte> raw) => raw.IndexOf((byte)0) < 0 && Utf8.IsValid(raw);
+
+    /// <summary>A byte that continues a UTF-8 sequence: <c>10xxxxxx</c>.</summary>
+    private static bool IsContinuation(byte value) => value >> 6 == 0b10;
+
+    /// <summary>A code point written with more bytes than it needs, which UTF-8 forbids.</summary>
+    private static bool IsOverlong(int codePoint, int length) =>
+        codePoint < 0x80 ? length != 1
+        : codePoint < 0x800 ? length != 2
+        : codePoint < 0x10000 && length != 3;
 }

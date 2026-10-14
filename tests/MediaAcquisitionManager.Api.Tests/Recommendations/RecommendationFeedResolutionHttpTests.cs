@@ -221,8 +221,9 @@ public sealed class RecommendationFeedResolutionHttpTests : IClassFixture<MediaA
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        // "Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026)": the reading cuts the title at the
-        // season marker inside the bracket, and keeps the bracket.
+        // "Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026)": looked up by its title alone (MAM-30:
+        // its marker takes the bracket, the total of episodes unknown). "Ранма 1/2 (Сезон 1,2, Сезон 3: серії 01 з 12)"
+        // is still cut at the season marker inside its bracket, which keeps the bracket.
         _toloka.SearchXml = TorznabSamples.LatestTv(TolokaAddress, ApiKey);
         _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Series, 300001, "Розслідування з Андрієм Данілевичем", ReleaseDate: "2026-01-15"));
         _tmdb.AddSearch(MediaWorkKind.Series, "Розслідування з Андрієм Данілевичем", 2026, 300001);

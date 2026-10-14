@@ -1,3 +1,5 @@
+import type { DownloadDestinationKind } from './destinations'
+
 /**
  * What the app uses an integration for. MAM-33 — `Metadata`: a catalog of films and shows (TMDb) the
  * app looks works up in and recommends from.
@@ -56,6 +58,8 @@ export interface IntegrationSummary {
   pathMappings: PathMapping[]
   /** UTC with a trailing `Z`. */
   createdUtc: string
+  /** MAM-30 — a download client's destinations: categories or folders; null for any other kind or an unregistered type. */
+  destinationKind: DownloadDestinationKind | null
 }
 
 /** One page of `GET /api/settings/integrations`. */
@@ -89,6 +93,8 @@ export interface IntegrationAdapterType {
   apiKey: CredentialRequirement
   /** Whether the service reports file paths, so path mappings apply to it. */
   reportsFilePaths: boolean
+  /** MAM-30 — a download client's destinations: categories or folders; null for any other kind. */
+  destinationKind: DownloadDestinationKind | null
 }
 
 /** `GET /api/settings/integrations/adapter-types`, ordered by kind, then name. */

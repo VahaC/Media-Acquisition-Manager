@@ -218,9 +218,13 @@ export const qk = {
       lists: ['settings', 'destinations', 'list'] as const,
       /** The whole query object is part of the key, so each page and search is cached apart. */
       list: (query: DestinationsQuery) => ['settings', 'destinations', 'list', query] as const,
-      /** The categories one download client offers, asked live; a destination change leaves them be. */
-      clientDestinations: (downloadClientId: string) =>
-        ['settings', 'destinations', 'client-destinations', downloadClientId] as const,
+      /**
+       * The categories one download client offers, asked live; a destination change leaves them be.
+       * MAM-30 — or its folders, with the edited destination's own (`destinationId`) proposed too, so
+       * an edit's list is cached apart from an add's.
+       */
+      clientDestinations: (downloadClientId: string, destinationId?: string) =>
+        ['settings', 'destinations', 'client-destinations', downloadClientId, destinationId ?? null] as const,
       /**
        * MAM-32 — the release sources' sections and the destinations they are mapped to: what a change
        * to a destination invalidates, as its save moves sections and its removal frees them.

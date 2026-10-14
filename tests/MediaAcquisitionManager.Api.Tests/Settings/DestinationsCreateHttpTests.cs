@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -27,7 +28,7 @@ public sealed class DestinationsCreateHttpTests : IClassFixture<MediaAcquisition
     // Spelled out rather than read from the product code: these are what the Add destination dialog shows.
     private const string NameMissingError = "A destination needs a name.";
     private const string ClientMissingError = "Pick the download client this destination belongs to.";
-    private const string KeyMissingError = "Pick the category of the download client this destination saves to.";
+    private const string KeyMissingError = "Pick the category or folder of the download client this destination saves to.";
     private const string ClientGoneError = "The download client you picked no longer exists. Reload the page and pick one again.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
@@ -83,7 +84,9 @@ public sealed class DestinationsCreateHttpTests : IClassFixture<MediaAcquisition
                 "qBittorrent",
                 "Movies",
                 new DestinationCheckDto(DestinationPathStatus.InLibrary, "/downloads/movies", "/media/movies", ["Фільми"], null),
-                now),
+                now,
+                // MAM-30 — qBittorrent's destinations are its categories.
+                DownloadDestinationKind.Category),
             body,
             strict: true);
         Assert.Equal($"/api/settings/destinations/{body.Id}", response.Headers.Location?.AbsolutePath);
@@ -225,8 +228,8 @@ public sealed class DestinationsCreateHttpTests : IClassFixture<MediaAcquisition
     }
 
     [Theory]
-    [InlineData("257 characters", "A category's name can be at most 256 characters.")]
-    [InlineData("a tab", "A category's name can't contain line breaks or other control characters.")]
+    [InlineData("257 characters", "A category or folder can be at most 256 characters.")]
+    [InlineData("a tab", "A category or folder can't contain line breaks or other control characters.")]
     public async Task Create_with_a_category_name_the_app_can_not_keep_is_400_with_the_rule(string invalid, string expectedError)
     {
         //Arrange

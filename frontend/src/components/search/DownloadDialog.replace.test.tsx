@@ -10,7 +10,7 @@ import { replacementsApi } from '@/lib/replacements-api'
 import type { DownloadJob, ReplacementCopyUnavailableReason, ReplacementOptions, ReplacementUnavailableReason, SearchRelease } from '@/lib/types'
 import { apiError } from '@/test/api-error'
 import { owner, signInAs } from '@/test/auth-session'
-import { cartoonsOption, jobOf, localClient, moviesOption, optionsOf, seedboxClient, suggestedOf } from '@/test/downloads'
+import { cartoonsOption, jobOf, localClient, moviesOption, optionsOf, seedboxClient, suggestedOf, transmissionClient } from '@/test/downloads'
 import { aliens } from '@/test/library'
 import {
   aliensWorkOf,
@@ -41,6 +41,8 @@ const NONE_TICKED = 'Tick the copies to replace.'
 const CONFIRM_FIRST = 'Tick “This release is Чужі (1986)” first.'
 const CONFIRM_HINT = 'Matched by title and year only. Your tick lets the app schedule this; nothing moves unless Jellyfin later gives the new file this work\'s id.'
 const NOT_CHECKED = 'The app can\'t check this destination\'s folder for files already there, and a replacement is sent only after that check. Pick another destination, or Keep both.'
+/** MAM-30 — a folder its download client can't see, which no send goes to (D5), Keep both's included. */
+const NOT_SEEN = 'This destination\'s download client can\'t see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu.'
 const CONDITIONS = 'Conditions: the old copy moves into the quarantine only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in Local qBittorrent. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy\'s work. The old copy stays in the quarantine until you restore it or delete it for good on the job\'s page.'
 
 /** The Theatrical Cut's and the Special Edition's names, the ends of their paths that tell them apart. */
@@ -611,6 +613,41 @@ describe('DownloadDialog — replacing existing copies', () => {
     expect(sendButton(dialog)).toBeDisabled()
     expect(sendReason(dialog)).toBe(NOT_CHECKED)
     expect(sendButton(dialog)).toHaveAccessibleDescription(NOT_CHECKED)
+  })
+
+  it('says in Replace mode, for a folder the client can\'t see, that nothing is sent there, never to pick Keep both', async () => {
+    // Arrange
+    // MAM-30 — Local Transmission can't see the folder, which refuses any send, Keep both's included (D5).
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderNotSeen' })
+    const { dialog, user } = renderDialog()
+    await copiesLoaded(dialog)
+
+    // Act
+    await pickReplace(dialog, user)
+
+    // Assert
+    expect(within(dialog).getByText(NOT_SEEN).closest('.ui-banner')).toHaveAttribute('data-tone', 'warning')
+    expect(within(dialog).queryByText(NOT_CHECKED)).not.toBeInTheDocument()
+    expect(sendButton(dialog)).toBeDisabled()
+    expect(sendReason(dialog)).toBe(NOT_SEEN)
+    expect(sendButton(dialog)).toHaveAccessibleDescription(NOT_SEEN)
+  })
+
+  it('says in Replace mode, for a folder client\'s folder with no path in the app, what it says for any client\'s', async () => {
+    // Arrange
+    // MAM-30 — a folder Local Transmission sees but no mapping brings into the app: Keep both still sends it.
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderUnknown' })
+    const { dialog, user } = renderDialog()
+    await copiesLoaded(dialog)
+
+    // Act
+    await pickReplace(dialog, user)
+
+    // Assert
+    expect(within(dialog).getByText(NOT_CHECKED).closest('.ui-banner')).toHaveAttribute('data-tone', 'warning')
+    expect(sendReason(dialog)).toBe(NOT_CHECKED)
   })
 
   it('warns, read with Send, of the clients whose torrents couldn\'t be read for the held marks', async () => {

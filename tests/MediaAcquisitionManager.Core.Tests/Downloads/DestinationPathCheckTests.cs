@@ -10,7 +10,9 @@ namespace MediaAcquisitionManager.Core.Tests.Downloads;
 // folder, mapped through the client's path mappings, inside a library folder (folder by folder, the folder
 // itself included) or a status saying why not — never a guess. Every status is pinned with its sentence,
 // on the reference installation's samples and on hand-made cases for letter case, parents of a library
-// and Windows paths.
+// and Windows paths. MAM-30 — a folder the client can't see, or a stored folder it didn't list or that isn't a path,
+// is FolderNotSeen for that row alone: it names its library, never an app path; and a folder key is found as a path,
+// a category key still by its exact name.
 public sealed class DestinationPathCheckTests
 {
     // The reference installation (ADR 0003): qBittorrent sees the media folder as /downloads, the app and
@@ -32,6 +34,10 @@ public sealed class DestinationPathCheckTests
     private const string ServicePathUnknownError = "The client doesn't say which folder this category saves to" + ConsequenceEnding;
     private const string LibrariesUnknownError =
         "The app doesn't know the media library folders yet. Sync a library from the Library page, then look again.";
+
+    // MAM-30 — a folder client's own sentence for a folder it can't reach, passed through as it is.
+    private const string CantSeeProblem =
+        "Transmission can't see “/downloads/movies” (No such file or directory). Mount that folder into Transmission, or add a path mapping on this integration that leads there, then look again.";
 
     [Fact]
     public async Task Check_of_the_adr_0003_samples_puts_every_qbittorrent_category_in_its_jellyfin_library()
@@ -426,6 +432,140 @@ public sealed class DestinationPathCheckTests
 
         //Assert
         Assert.Equal($"ClientUnavailable ∅ → ∅ [] {problem}", Describe(result));
+    }
+
+    [Fact]
+    public void Check_of_a_folder_the_client_can_not_see_is_folder_not_seen_naming_its_library_with_no_app_path()
+    {
+        //Arrange
+        ClientDestination destination = new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSeeProblem);
+
+        //Act
+        var result = DestinationPathCheck.Check(destination, [DownloadsToMedia], SampleFolders);
+
+        //Assert
+        // MAM-30, D5 — the library says which folder it is; no app path, so nothing checks or sends there.
+        Assert.Equal($"FolderNotSeen /downloads/movies → ∅ [Фільми] {CantSeeProblem}", Describe(result));
+    }
+
+    [Theory]
+    // Outside every library: no library to name.
+    [InlineData("/downloads/incoming")]
+    // No mapping leads there.
+    [InlineData("/incoming/movies")]
+    public void Check_of_a_folder_the_client_can_not_see_outside_the_libraries_names_none(string folder)
+    {
+        //Arrange
+        ClientDestination destination = new(folder, folder, folder, Problem: CantSeeProblem);
+
+        //Act
+        var result = DestinationPathCheck.Check(destination, [DownloadsToMedia], SampleFolders);
+
+        //Assert
+        Assert.Equal($"FolderNotSeen {folder} → ∅ [] {CantSeeProblem}", Describe(result));
+    }
+
+    [Fact]
+    public void Check_of_a_folder_the_client_can_not_see_says_so_before_the_libraries_are_known()
+    {
+        //Arrange
+        ClientDestination destination = new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSeeProblem);
+
+        //Act
+        var result = DestinationPathCheck.Check(destination, [DownloadsToMedia], []);
+
+        //Assert
+        // The client's word comes first: syncing a library wouldn't let it see the folder.
+        Assert.Equal($"FolderNotSeen /downloads/movies → ∅ [] {CantSeeProblem}", Describe(result));
+    }
+
+    [Theory]
+    [InlineData("/downloads/movies/")]
+    [InlineData("/downloads//movies")]
+    public void Check_by_key_of_a_folder_finds_the_same_folder_however_it_is_spelt(string key)
+    {
+        //Arrange
+        ClientDestination[] destinations = [new("/downloads/cartoons", "/downloads/cartoons", "/downloads/cartoons"), new("/downloads/movies", "/downloads/movies", "/downloads/movies")];
+
+        //Act
+        var result = DestinationPathCheck.Check(key, destinations, [DownloadsToMedia], SampleFolders, DownloadDestinationKind.Folder, "Transmission");
+
+        //Assert
+        Assert.Equal("InLibrary /downloads/movies → /media/movies [Фільми] ∅", Describe(result));
+    }
+
+    [Fact]
+    public void Check_by_key_of_a_windows_folder_finds_it_in_any_letter_case()
+    {
+        //Arrange
+        ClientDestination[] destinations = [new(@"D:\Torrents\Movies", @"D:\Torrents\Movies", @"D:\Torrents\Movies")];
+        PathMappingPair[] pairs = [new(@"D:\Torrents", "/media")];
+
+        //Act
+        var result = DestinationPathCheck.Check("d:/torrents/movies", destinations, pairs, SampleFolders, DownloadDestinationKind.Folder);
+
+        //Assert
+        Assert.Equal(@"OutsideLibraries D:\Torrents\Movies → /media/Movies [] “/media/Movies” is outside every media library folder" + ConsequenceEnding, Describe(result));
+    }
+
+    [Fact]
+    public void Check_by_key_of_a_folder_the_client_did_not_list_is_folder_not_seen_for_that_row_naming_its_library()
+    {
+        //Arrange
+        // ext4: /downloads/Cartoons is not /downloads/cartoons, so the listed folder isn't the stored one.
+        ClientDestination[] destinations = [new("/downloads/Cartoons", "/downloads/Cartoons", "/downloads/Cartoons")];
+
+        //Act
+        var result = DestinationPathCheck.Check("/downloads/cartoons", destinations, [DownloadsToMedia], SampleFolders, DownloadDestinationKind.Folder, "Transmission");
+
+        //Assert
+        Assert.Equal(
+            "FolderNotSeen /downloads/cartoons → ∅ [Мульфільми] The app can't use the folder “/downloads/cartoons” of this destination: “Transmission” didn't list it.",
+            Describe(result));
+    }
+
+    [Theory]
+    [InlineData("Transmission", "“Transmission”")]
+    [InlineData(null, "the client")]
+    public void Check_by_key_of_a_folder_that_is_not_a_full_path_is_folder_not_seen_never_a_missing_category(string? clientName, string client)
+    {
+        //Arrange
+        // A listed key that isn't a path never matches either.
+        ClientDestination[] destinations = [new("movies", "movies", "movies"), new("/downloads/movies", "/downloads/movies", "/downloads/movies")];
+
+        //Act
+        var result = DestinationPathCheck.Check("movies", destinations, [DownloadsToMedia], SampleFolders, DownloadDestinationKind.Folder, clientName);
+
+        //Assert
+        // MAM-30, D3 — that row's problem alone, in words about a folder, not "no category".
+        Assert.Equal($"FolderNotSeen ∅ → ∅ [] The app can't use the folder “movies” of this destination: it isn't a full path in {client}.", Describe(result));
+    }
+
+    [Fact]
+    public void Check_by_key_of_a_folder_the_client_can_not_see_is_folder_not_seen_with_the_clients_sentence()
+    {
+        //Arrange
+        ClientDestination[] destinations = [new("/downloads/movies", "/downloads/movies", "/downloads/movies", Problem: CantSeeProblem)];
+
+        //Act
+        var result = DestinationPathCheck.Check("/downloads/movies", destinations, [DownloadsToMedia], SampleFolders, DownloadDestinationKind.Folder, "Transmission");
+
+        //Assert
+        Assert.Equal($"FolderNotSeen /downloads/movies → ∅ [Фільми] {CantSeeProblem}", Describe(result));
+    }
+
+    [Fact]
+    public void Check_by_key_of_a_category_is_still_its_exact_name()
+    {
+        //Arrange
+        // MAM-30, D2 — only a folder is compared as a path: a category spelt like one is still a name.
+        ClientDestination[] destinations = [new("/downloads/movies", "/downloads/movies", "/downloads/movies")];
+
+        //Act
+        var result = DestinationPathCheck.Check("/downloads/movies/", destinations, [DownloadsToMedia], SampleFolders, DownloadDestinationKind.Category);
+
+        //Assert
+        Assert.Equal("CategoryMissing ∅ → ∅ [] The client has no category “/downloads/movies/” any more.", Describe(result));
     }
 
     // "<status> <service path> → <app path> [<libraries>] <problem>", "∅" for null.

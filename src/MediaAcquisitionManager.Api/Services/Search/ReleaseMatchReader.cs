@@ -1,4 +1,6 @@
 using MediaAcquisitionManager.Api.Services.Releases;
+using MediaAcquisitionManager.Core.Abstractions.Media;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Matching;
@@ -36,13 +38,24 @@ public sealed class ReleaseMatchReader(ApplicationDbContext db, ILibraryMatcher 
     /// the series' episodes among those the title claims (<see cref="ReleaseMatchWorks.Episodes"/>, by series), each
     /// once however many places it has.
     /// </para>
+    /// <para>
+    /// MAM-30 — and by what its description claims, read the same way (Vasyl's decision 6, D15): Toloka's description is
+    /// its topic's whole title, Ukrainian title first, where a gateway's title keeps the English part alone or, for a
+    /// Ukrainian-only release, nothing but punctuation ("« » (2026) WEB-DL-AVC", Jackett's and Prowlarr's alike). The
+    /// description adds a match only by an id or by its title and year, as Recommendations count one
+    /// (<c>RecommendationAvailabilityPass.IsRelease</c>): a title alone there is no evidence a person should weigh beside
+    /// the release's own name, which keeps every level (ADR 0012). A work's match is the strongest of the two, a tie
+    /// going to the title's; its held count is counted from the seasons or episodes the claim that matched names, or
+    /// the other's when that one names none: both describe the one release, so "Show (S2) WEB-DL" whose description
+    /// names the show and its year but no season still holds season 2, as it did when its title alone was read.
+    /// </para>
     /// </remarks>
     public SearchRelease Match(ReleaseEntity release, int sourcePosition, string sourceName, ReleaseMatchWorks works)
     {
         var isTv = release.Kind == ReleaseKind.Tv;
-        var claimedWork = isTv ? ReleaseWorkClaims.ReadTv(release.Title) : ReleaseWorkClaims.Read(release.Title);
+        var claimedWork = Claim(isTv, release.Title);
+        var descriptionWork = release.Description is { Length: > 0 } description ? Claim(isTv, description) : null;
         var identifiers = ReleaseSearchTerms.IdentifiersOf(release);
-        var claim = new WorkClaim(claimedWork.Titles, ReleaseWorkClaims.YearsToMatch(claimedWork), identifiers);
         var kind = isTv ? MediaWorkKind.Series : MediaWorkKind.Movie;
         // Every work it matches, never just the best (ADR 0012): strongest first, and among equals in the
         // order the search lists the works — OrderBy is stable.
@@ -50,14 +63,18 @@ public sealed class ReleaseMatchReader(ApplicationDbContext db, ILibraryMatcher 
         [
             .. works.Works
                 .Where(work => work.Work.Kind == kind)
-                .Select(work => WorkMatching.Match(claim, work.Titles, work.Identifiers) is { } match
-                    ? new ReleaseLibraryMatch(work.Work.Id, match, isTv ? HeldCount(works.Episodes[work.Work.Id], claimedWork.Episodes) : null)
+                .Select(work => Strongest(work, claimedWork, descriptionWork, identifiers) is { } found
+                    ? new ReleaseLibraryMatch(
+                        work.Work.Id,
+                        found.Match,
+                        isTv ? HeldCount(works.Episodes[work.Work.Id], found.Episodes) : null,
+                        isTv ? found.Episodes : null)
                     : null)
                 .OfType<ReleaseLibraryMatch>()
                 .OrderBy(match => match.Match.Evidence),
         ];
         return new SearchRelease(
-            release, sourcePosition, sourceName, ReleaseTitleClaims.Read(release.Title), claimedWork, identifiers, matches);
+            release, sourcePosition, sourceName, ReleaseTitleClaims.Read(release.Title), claimedWork, identifiers, matches, descriptionWork);
     }
 
     public async Task<MatchedRelease> MatchAsync(CallerRelease found, bool forOwner, CancellationToken cancellationToken = default)
@@ -72,6 +89,34 @@ public sealed class ReleaseMatchReader(ApplicationDbContext db, ILibraryMatcher 
         new([search.Text], ClaimedYears.Exactly(search.Year), ReleaseSearchTerms.IdentifiersOf(search.ImdbId, search.TmdbId));
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>What <paramref name="text"/> — a title or a description — claims, read as a TV release's when
+    /// <paramref name="isTv"/>.</summary>
+    private static ReleaseWorkClaim Claim(bool isTv, string text) => isTv ? ReleaseWorkClaims.ReadTv(text) : ReleaseWorkClaims.Read(text);
+
+    /// <summary>
+    /// MAM-30 (D15) — how <paramref name="work"/> matches the release, and the seasons or episodes the claim that
+    /// matched names: the title's match at any level, the description's only by an id or by its title and year, the
+    /// stronger of the two, the title's on a tie — so the matched title, and what a person was shown before, stays
+    /// the title's wherever the description adds nothing. <c>null</c> when neither matches.
+    /// </summary>
+    /// <remarks>
+    /// When the claim that matched names no season, the other's seasons are the release's: a description that names the
+    /// show and its year but no season says nothing against the title's "(S2)", and dropping it would lose the held
+    /// count and the replacement's episodes the title alone gave before the description was read.
+    /// </remarks>
+    private static (WorkMatch Match, ClaimedEpisodes? Episodes)? Strongest(
+        LibraryWorkMatch work, ReleaseWorkClaim title, ReleaseWorkClaim? description, IReadOnlyList<MediaIdentifier> identifiers)
+    {
+        var byTitle = MatchOf(title);
+        var byDescription = description is null ? null : MatchOf(description) is { Evidence: MatchEvidence.Identifier or MatchEvidence.TitleAndYear } found ? found : null;
+        if (byDescription is not null && (byTitle is null || byDescription.Evidence < byTitle.Evidence))
+            return (byDescription, description!.Episodes ?? title.Episodes);
+        return byTitle is null ? null : (byTitle, title.Episodes ?? description?.Episodes);
+
+        WorkMatch? MatchOf(ReleaseWorkClaim claim) =>
+            WorkMatching.Match(new WorkClaim(claim.Titles, ReleaseWorkClaims.YearsToMatch(claim), identifiers), work.Titles, work.Identifiers);
+    }
 
     /// <summary>
     /// MAM-32 — where each episode of the series among <paramref name="libraryWorks"/> is placed, by
@@ -89,8 +134,8 @@ public sealed class ReleaseMatchReader(ApplicationDbContext db, ILibraryMatcher 
     }
 
     /// <summary>MAM-32 — how many of a series' episodes, at <paramref name="places"/>, are among those
-    /// <paramref name="claimed"/>; <c>null</c> when the title claims none, as nothing says which it
-    /// holds.</summary>
+    /// <paramref name="claimed"/>; <c>null</c> when the release claims none (MAM-30: neither the claim that matched,
+    /// the title or the description, nor the other), as nothing says which it holds.</summary>
     private static int? HeldCount(IEnumerable<(Guid EpisodeId, int? Season, int? Episode)> places, ClaimedEpisodes? claimed) =>
         claimed is null
             ? null

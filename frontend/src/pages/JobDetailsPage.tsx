@@ -151,6 +151,8 @@ function isGone(error: unknown): boolean {
 /**
  * The job's facts, as the Download dialog's summary lists what it sends. The names are the ones the
  * job copied when it was made, so they still read after the client or the destination is removed.
+ * MAM-30 — a folder job's destination names its folder for the owner; anyone else gets no folder
+ * from the server (D13), so the destination's name alone.
  */
 function JobFacts({ job }: { job: DownloadJob }) {
   const { t } = useTranslation('jobs')
@@ -172,7 +174,9 @@ function JobFacts({ job }: { job: DownloadJob }) {
           <dd>
             {job.clientDestinationKey === null
               ? destination
-              : t('details.destinationValue', { name: destination, category: job.clientDestinationKey })}
+              : job.destinationKind === 'Folder'
+                ? t('details.destinationFolderValue', { name: destination, folder: job.clientDestinationKey })
+                : t('details.destinationValue', { name: destination, category: job.clientDestinationKey })}
           </dd>
           <dt>{t('details.status')}</dt>
           <dd><JobStatus job={job} onJobPage /></dd>

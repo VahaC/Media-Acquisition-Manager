@@ -22,9 +22,13 @@ internal sealed partial class QBittorrentAdapter
     /// Never <c>app/preferences</c>, although it holds the default save path too: it also carries the Web
     /// UI's API key (5.2) and the proxy and mail passwords, none of which this app should ever receive.
     /// </para>
+    /// <para>
+    /// MAM-30 — <paramref name="proposedFolders"/> are ignored: qBittorrent's destinations are its categories, each
+    /// with the folder it says, never a folder the app proposes.
+    /// </para>
     /// </remarks>
     public Task<IntegrationCallResult<IReadOnlyList<ClientDestination>>> ListDestinationsAsync(
-        IntegrationConnectionSettings settings, CancellationToken cancellationToken = default) =>
+        IntegrationConnectionSettings settings, IReadOnlyCollection<string> proposedFolders, CancellationToken cancellationToken = default) =>
         CallAsync<IReadOnlyList<ClientDestination>>(
             settings, (client, sessionSecrets, token) => ReadDestinationsAsync(client, settings, sessionSecrets, token), cancellationToken);
 

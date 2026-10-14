@@ -6,9 +6,16 @@ namespace MediaAcquisitionManager.Core.Downloads;
 /// <see cref="Integrations.IntegrationConnectionRules"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The key is checked as it is, never trimmed or normalised: it is the client's own name for its
 /// category, and a submission must send exactly the name the client knows (specification §3.2). Whether
 /// the client has it is a question for the client, asked live when the destination is saved.
+/// </para>
+/// <para>
+/// MAM-30 — a key is a category or a folder (ADR 0039), so its sentences name both: a rule that refuses one refuses the
+/// other for the same reason. A folder client also shows the destination's name as the torrent's label
+/// (<see cref="ValidateLabel"/>).
+/// </para>
 /// </remarks>
 public static class DestinationRules
 {
@@ -24,9 +31,10 @@ public static class DestinationRules
     private const string NameMissingError = "A destination needs a name.";
     private const string NameTooLongError = "A destination's name can be at most 64 characters.";
     private const string NameControlCharacterError = "A destination's name can't contain line breaks or other control characters.";
-    private const string KeyMissingError = "Pick the category of the download client this destination saves to.";
-    private const string KeyTooLongError = "A category's name can be at most 256 characters.";
-    private const string KeyControlCharacterError = "A category's name can't contain line breaks or other control characters.";
+    private const string KeyMissingError = "Pick the category or folder of the download client this destination saves to.";
+    private const string KeyTooLongError = "A category or folder can be at most 256 characters.";
+    private const string KeyControlCharacterError = "A category or folder can't contain line breaks or other control characters.";
+    private const string LabelCommaError = "A label can't contain a comma.";
 
     /// <summary>The form names are compared in: trimmed and upper-cased, culture independent, so
     /// "Movies" and "movies " are one name.</summary>
@@ -64,4 +72,12 @@ public static class DestinationRules
             return KeyControlCharacterError;
         return null;
     }
+
+    /// <summary>
+    /// MAM-30 — the sentence saying why <paramref name="name"/> can't be a torrent's label, or <c>null</c>: a folder
+    /// client (Transmission) shows the destination's name as the label of each torrent sent to it, and keeps a torrent's
+    /// labels as one comma-separated text, so a comma would split the name into two labels. The name's own rules
+    /// (<see cref="ValidateName"/>) are checked apart.
+    /// </summary>
+    public static string? ValidateLabel(string name) => name.Contains(',', StringComparison.Ordinal) ? LabelCommaError : null;
 }

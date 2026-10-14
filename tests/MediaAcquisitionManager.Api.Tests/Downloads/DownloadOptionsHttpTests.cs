@@ -222,7 +222,9 @@ public sealed class DownloadOptionsHttpTests : IClassFixture<MediaAcquisitionMan
         using var document = JsonDocument.Parse(text);
         Assert.Equal(["clients", "suggestedDestinationId"], PropertyNames(document.RootElement));
         var option = Assert.Single(document.RootElement.GetProperty("clients").EnumerateArray().ToList());
-        Assert.Equal(["id", "name", "typeName", "destinations"], PropertyNames(option));
+        // MAM-30 — and what its destinations are, which says nothing of where they save.
+        Assert.Equal(["id", "name", "typeName", "destinations", "destinationKind"], PropertyNames(option));
+        Assert.Equal("Category", option.GetProperty("destinationKind").GetString());
         var destination = Assert.Single(option.GetProperty("destinations").EnumerateArray().ToList());
         Assert.Equal(["id", "name", "clientDestinationKey", "isDefault"], PropertyNames(destination));
         Assert.DoesNotContain("qbittorrent.test", text, StringComparison.OrdinalIgnoreCase);

@@ -15,6 +15,26 @@
   overflow-wrap: break-word;
 }
 
+/* MAM-30 — a folder, as a client that saves to folders sees it, in the font of the paths under Saves
+   to. FolderPath lets it break after each `/` or `\`, so the `break-word` above keeps each folder's
+   name whole on a wide screen and still breaks one too long for a phone card. */
+.destinations-key-folder {
+  font-family: var(--font-mono);
+}
+
+/* MAM-30 — under the Folder field: each folder the client can't save to with the sentence saying
+   how to fix it, as small and muted as a field's hint, the amber on the icon only. A sentence quotes
+   a folder, so it breaks anywhere — `anywhere`, not `break-word`, as only it also shrinks the
+   min-content width the field's grid track takes. */
+.destinations-folder-problems {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
 /* One block for the folder and the lines under it: a phone card lays a cell's children out in a
    row, which would put them side by side (the reason of .integrations-service). */
 .destinations-check {

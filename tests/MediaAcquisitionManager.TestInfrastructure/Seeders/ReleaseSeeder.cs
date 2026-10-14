@@ -66,7 +66,8 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
         ReleaseKind kind = ReleaseKind.Movie,
         string? imdbId = null,
         string? tmdbId = null,
-        ReleasePayloadKind? payloadKind = null)
+        ReleasePayloadKind? payloadKind = null,
+        string? description = null)
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(source);
@@ -81,6 +82,7 @@ public sealed class ReleaseSeeder(IServiceProvider services) : SeederBase(servic
             $"https://toloka.to/t{Guid.NewGuid():N}",
             payloadKind: payloadKind,
             kind: kind,
+            description: description,
             tmdbId: tmdbId,
             imdbId: imdbId);
     }

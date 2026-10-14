@@ -13,8 +13,8 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 
 // MAM-7 — the real adapters behind the API, with only the network faked (each named client's primary
 // handler) and the answers the services really send (VendorSamples, MAM-6): the request each makes with
-// the stored credentials, and the sentence the dialog gets back. MAM-33 adds TMDb. The adapters' every
-// case is in Infrastructure.Tests; these pin the wiring from a saved row, or a draft, to the wire.
+// the stored credentials, and the sentence the dialog gets back. MAM-33 adds TMDb, MAM-30 Transmission. The adapters'
+// every case is in Infrastructure.Tests; these pin the wiring from a saved row, or a draft, to the wire.
 public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/integrations";
@@ -29,6 +29,8 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
     private const string SignInPath = "/api/v2/auth/login";
     private const string VersionPath = "/api/v2/app/version";
     private const string TmdbApiKey = FakeTmdbServer.Token;
+    private const string TransmissionAddress = FakeTransmissionServer.DefaultBaseUrl;
+    private const string TransmissionRpcAddress = TransmissionAddress + FakeTransmissionServer.RpcPath;
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -42,6 +44,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         { "jellyfin", "Jellyfin" },
         { "torznab", "Torznab" },
         { "qbittorrent", "qBittorrent" },
+        { "transmission", "Transmission" },
         { "tmdb", "TMDb" },
     };
 
@@ -142,7 +145,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         Assert.DoesNotContain(TorznabApiKey, body, StringComparison.Ordinal);
         Assert.Equal(
-            new ConnectionTestResponse(IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (error 100: Invalid API key ***)."),
+            new ConnectionTestResponse(IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (error 100: Invalid API key ***). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations."),
             await ReadTestResponseAsync(response, cancellationToken));
     }
 
@@ -259,6 +262,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
     [InlineData("jellyfin")]
     [InlineData("torznab")]
     [InlineData("qbittorrent")]
+    [InlineData("transmission")]
     [InlineData("tmdb")]
     public async Task Test_answered_with_a_redirect_is_an_unexpected_response_after_one_request(string adapterType)
     {
@@ -281,6 +285,133 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         // Not followed: the credentials went to the saved address only.
         var request = Assert.Single(HttpOf(adapterType).Requests);
         Assert.StartsWith(integration.BaseUrl, request.Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Test_of_transmission_shakes_hands_then_reads_session_get_with_the_stored_credentials()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var integration = await SeedAsync("transmission");
+        var transmission = new FakeTransmissionServer();
+        transmission.Arm(_factory.TransmissionHttp);
+        var basic = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{FakeTransmissionServer.DefaultUserName}:{FakeTransmissionServer.DefaultPassword}"));
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to Transmission 4.1.3."),
+            await ReadTestResponseAsync(response, cancellationToken));
+        // The 409 hands out the session id, and the same session-get goes once more with it — with the stored password,
+        // decrypted, in the Basic header only.
+        Assert.Collection(
+            _factory.TransmissionHttp.Requests,
+            handshake =>
+            {
+                Assert.Equal((HttpMethod.Post, TransmissionRpcAddress, "session-get"), (handshake.Method, handshake.Uri.AbsoluteUri, FakeTransmissionServer.Describe(handshake)));
+                Assert.Equal([$"Basic {basic}"], handshake.HeaderValues("Authorization"));
+                Assert.Empty(handshake.HeaderValues(FakeTransmissionServer.SessionIdHeader));
+            },
+            read =>
+            {
+                Assert.Equal((HttpMethod.Post, TransmissionRpcAddress, "session-get"), (read.Method, read.Uri.AbsoluteUri, FakeTransmissionServer.Describe(read)));
+                Assert.Equal([transmission.SessionId], read.HeaderValues(FakeTransmissionServer.SessionIdHeader));
+                Assert.DoesNotContain(FakeTransmissionServer.DefaultPassword, read.Body, StringComparison.Ordinal);
+            });
+        Assert.Empty(transmission.Writes);
+    }
+
+    [Fact]
+    public async Task Test_of_transmission_older_than_4_0_says_it_needs_4_0_or_newer()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var integration = await SeedAsync("transmission");
+        new FakeTransmissionServer { Version = FakeTransmissionVersion.V3_00 }.Arm(_factory.TransmissionHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(
+                IntegrationCallStatus.UnsupportedVersion,
+                "This is Transmission 3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again."),
+            await ReadTestResponseAsync(response, cancellationToken));
+    }
+
+    [Fact]
+    public async Task Test_of_transmission_with_a_refused_password_is_authentication_failed_after_one_request()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var integration = await SeedAsync("transmission");
+        new FakeTransmissionServer { Password = "another-password" }.Arm(_factory.TransmissionHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(IntegrationCallStatus.AuthenticationFailed, "Transmission refused the user name or password."),
+            await ReadTestResponseAsync(response, cancellationToken));
+        // One request: with its anti-brute-force setting on, each refusal counts towards locking Transmission's RPC.
+        Assert.Single(_factory.TransmissionHttp.Requests);
+    }
+
+    [Fact]
+    public async Task Test_of_transmission_with_its_temporary_folder_on_says_how_to_turn_it_off()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var integration = await SeedAsync("transmission");
+        new FakeTransmissionServer { IncompleteDirEnabled = true }.Arm(_factory.TransmissionHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{integration.Id}/test", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(
+                IntegrationCallStatus.Refused,
+                "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again."),
+            await ReadTestResponseAsync(response, cancellationToken));
+    }
+
+    [Fact]
+    public async Task TestDraft_of_transmission_at_its_web_interfaces_address_reaches_the_rpc_and_saves_nothing()
+    {
+        //Arrange
+        // The address copied from the browser's address bar, and the draft's own credentials.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var transmission = new FakeTransmissionServer { UserName = "owner", Password = "draft-transmission-password" };
+        transmission.Arm(_factory.TransmissionHttp);
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/test", _owner.AccessToken, new TestIntegrationRequest(
+            null,
+            "transmission",
+            $"{TransmissionAddress}/transmission/web/",
+            UserName: "owner",
+            Password: new SecretValueUpsert(SecretUpsertMode.Set, "draft-transmission-password")));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new ConnectionTestResponse(IntegrationCallStatus.Succeeded, "Connected to Transmission 4.1.3."),
+            await ReadTestResponseAsync(response, cancellationToken));
+        Assert.All(_factory.TransmissionHttp.Requests, request => Assert.Equal(TransmissionRpcAddress, request.Uri.AbsoluteUri));
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal(0, await db.IntegrationConnections.CountAsync(cancellationToken));
+            Assert.Equal(0, await db.AuditEvents.CountAsync(cancellationToken));
+        });
     }
 
     [Fact]
@@ -373,6 +504,9 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         "torznab" => _integrations.Create("torznab", "Toloka", TorznabAddress, apiKey: TorznabApiKey),
         "qbittorrent" => _integrations.Create(
             "qbittorrent", "Downloads", QBittorrentAddress, userName: QBittorrentUserName, password: QBittorrentPassword),
+        "transmission" => _integrations.Create(
+            "transmission", "Transmission", TransmissionAddress,
+            userName: FakeTransmissionServer.DefaultUserName, password: FakeTransmissionServer.DefaultPassword),
         "tmdb" => _integrations.Create("tmdb", "TMDb", FakeTmdbServer.BaseUrl, apiKey: TmdbApiKey),
         _ => throw new ArgumentOutOfRangeException(nameof(adapterType), adapterType, "Not a real adapter type."),
     };
@@ -382,6 +516,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         "jellyfin" => _factory.JellyfinHttp,
         "torznab" => _factory.TorznabHttp,
         "qbittorrent" => _factory.QBittorrentHttp,
+        "transmission" => _factory.TransmissionHttp,
         "tmdb" => _factory.TmdbHttp,
         _ => throw new ArgumentOutOfRangeException(nameof(adapterType), adapterType, "Not a real adapter type."),
     };

@@ -1,6 +1,6 @@
 {
   "title": "Destinations",
-  "lead": "Where downloads go. Each destination is a category of your download client, and the category decides the folder.",
+  "lead": "Where downloads go. Each destination is a category of your download client, which decides the folder, or a folder the client saves to.",
   "add": "Add destination",
   "search": {
     "label": "Search destinations",
@@ -10,6 +10,8 @@
     "name": "Name",
     "client": "Download client",
     "category": "Category",
+    "folder": "Folder",
+    "categoryOrFolder": "Category or folder",
     "savesTo": "Saves to",
     "actions": "Actions"
   },
@@ -25,7 +27,8 @@
     "LibrariesUnknown": "Media libraries not known yet",
     "CategoryMissing": "Category missing",
     "ClientDisabled": "Client switched off",
-    "ClientUnavailable": "Client unavailable"
+    "ClientUnavailable": "Client unavailable",
+    "FolderNotSeen": "Not seen by the client"
   },
   "check": {
     "mapsTo": "which this app reaches at",
@@ -35,22 +38,27 @@
   "actionFailed": "Could not change this destination. Reload the page and try again.",
   "loadFailed": "Could not load the destinations.",
   "refreshFailed": "Refresh failed, showing the last loaded destinations.",
-  "empty": "No destinations yet. Click Add destination to pick a category of your download client.",
+  "empty": "No destinations yet. Click Add destination to pick a category or a folder of your download client.",
   "noMatch": "No destinations match “{{search}}”.",
   "clearSearch": "Clear search",
   "remove": {
     "title": "Remove {{name}}?",
     "message": "The app forgets the destination {{name}}. Its category stays in {{client}}, and nothing changes in the client. This can't be undone.",
     "messageDefault": "The app forgets the destination {{name}}. Its category stays in {{client}}, and nothing changes in the client. {{name}} is the default destination: no destination is the default until you pick another one. This can't be undone.",
+    "messageFolder": "The app forgets the destination {{name}}. Nothing changes in {{client}}: torrents already sent keep their folder and label. This can't be undone.",
+    "messageDefaultFolder": "The app forgets the destination {{name}}. Nothing changes in {{client}}: torrents already sent keep their folder and label. {{name}} is the default destination: no destination is the default until you pick another one. This can't be undone.",
     "confirm": "Remove"
   },
   "dialog": {
     "createTitle": "Add destination",
     "createDescription": "Pick a category of your download client. The client decides the folder; the app checks with it that the category exists and where it lands.",
+    "createDescriptionFolder": "Pick a folder your download client can reach: a media library folder, or its own download folder. The app sends each download there, with the destination's name as its label.",
     "editTitle": "Edit {{name}}",
     "editDescription": "A new client or category is checked with the client before it is saved.",
+    "editDescriptionFolder": "A new client or folder is checked with the client before it is saved.",
     "name": "Name",
     "namePlaceholder": "Movies",
+    "labelHint": "{{client}} shows this name as the torrent's label, so it can't contain a comma.",
     "client": "Download client",
     "clientPlaceholder": "Choose a download client",
     "clientSwitchedOff": "{{name}} (switched off)",
@@ -64,6 +72,21 @@
     "noCategories": "{{client}} has no categories. Create one in the client, then open this dialog again.",
     "categoryMissing": "{{name}} (missing)",
     "categoryMissingHint": "{{client}} no longer has this category. Pick another one, or create it in the client again.",
+    "folder": "Folder",
+    "folderPlaceholder": "Choose a folder",
+    "foldersLoading": "Asking {{client}} which folders it can reach…",
+    "foldersFailed": "Could not ask the client for its folders.",
+    "noFolders": "{{client}} offers no folder. Sync a library and check the path mappings of {{client}}, then open this dialog again.",
+    "folderMissingHint": "{{client}} no longer offers this folder. Pick another one, or check the library and the path mappings.",
+    "folderOrigin": {
+      "libraries": "{{names, list}}",
+      "client": "{{client}}'s download folder",
+      "librariesAndClient": "{{names, list}}, {{client}}'s download folder"
+    },
+    "folderOption": "{{origin}} — {{folder}}",
+    "folderOptionNotSeen": "{{option}} (can't be used)",
+    "folderProblems": "Folders {{client}} can't save to",
+    "folderProblem": "{{origin}}: {{problem}}",
     "default": "Default destination",
     "defaultHint": "Only one destination is the default: ticking this one takes it from the other. The first destination you add becomes the default on its own.",
     "sections": "Tracker sections",

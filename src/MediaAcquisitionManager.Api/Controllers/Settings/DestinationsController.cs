@@ -27,6 +27,9 @@ namespace MediaAcquisitionManager.Api.Controllers.Settings;
 [Route("api/settings/destinations")]
 public class DestinationsController(IDestinationService destinations) : ControllerBase
 {
+    /// <summary>MAM-30 — a <c>destinationId</c> that isn't an id the app gives.</summary>
+    private const string EditedDestinationInvalidError = "The destination being edited isn't a valid id. Reload the page and open it again.";
+
     private Guid UserId => User.GetUserId();
 
     [HttpGet]
@@ -79,10 +82,22 @@ public class DestinationsController(IDestinationService destinations) : Controll
     }
 
     /// <summary>What the download client offers right now, each category checked — 200 whatever the
-    /// client said; a bare 404 when the id is not a download client integration.</summary>
+    /// client said; a bare 404 when the id is not a download client integration. MAM-30 — with the Edit dialog's
+    /// <c>destinationId</c>, a folder client lists that destination's own folder too; a malformed id is 400.</summary>
     [HttpGet("client-destinations/{downloadClientId:guid}")]
-    public async Task<ActionResult<ClientDestinationListResponse>> ClientDestinations(Guid downloadClientId, CancellationToken cancellationToken) =>
-        await destinations.ListClientDestinationsAsync(downloadClientId, cancellationToken) is { } list ? Ok(list) : NotFound();
+    public async Task<ActionResult<ClientDestinationListResponse>> ClientDestinations(
+        Guid downloadClientId, [FromQuery] ClientDestinationListRequest request, CancellationToken cancellationToken)
+    {
+        Guid? editedDestinationId = null;
+        if (!string.IsNullOrEmpty(request.DestinationId))
+        {
+            if (!Guid.TryParse(request.DestinationId, out var parsed))
+                return this.BadRequestError(EditedDestinationInvalidError);
+            editedDestinationId = parsed;
+        }
+
+        return await destinations.ListClientDestinationsAsync(downloadClientId, editedDestinationId, cancellationToken) is { } list ? Ok(list) : NotFound();
+    }
 
     /// <summary>MAM-32 — every release source's sections, each with the destination it is mapped to: 200
     /// whatever the sources said, a source that couldn't be asked answering its own sentence beside the

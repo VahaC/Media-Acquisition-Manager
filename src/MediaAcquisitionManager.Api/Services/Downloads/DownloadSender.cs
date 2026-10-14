@@ -38,6 +38,13 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// himself: a replacement is never quietly sent as a plain download.
 /// </para>
 /// <para>
+/// MAM-30 — a client whose destinations are folders (ADR 0039) is asked the same way, its folder found by being the same
+/// folder (D2) and checked as itself (D3): one it can't see or use any more refuses the send, as Transmission would
+/// otherwise create it in its own filesystem. Its torrents carry the destination's name as their label. A torrent that
+/// is BitTorrent v2 only, which such a client may not take, is refused before anything is listed or sent (D12). The
+/// app's sentences about a folder destination name the destination, never its folder: members read them (D13).
+/// </para>
+/// <para>
 /// A submission is never sent again (house rule 8). When its answer leaves open whether the client took it —
 /// no answer in time, the connection lost, a server error, an answer the app can't read — the client's job
 /// list is read for the torrent instead: there, it was taken; not there, the job fails with the client's
@@ -76,9 +83,10 @@ public sealed class DownloadSender(
         IntegrationConnectionEntity source,
         IntegrationConnectionEntity client,
         string clientDestinationKey,
+        string destinationName,
         bool replacement = false)
     {
-        var outcome = await RunAsync(jobId, release, source, client, clientDestinationKey, replacement);
+        var outcome = await RunAsync(jobId, release, source, client, clientDestinationKey, destinationName, replacement);
         await db.DownloadJobs.FinishAsync(
             jobId, outcome.Status, outcome.ClientJobId, outcome.Error, outcome.ErrorOrigin, time.GetUtcNow().UtcDateTime);
         // Information: the status only — never the sentence, which can quote what a service answered.
@@ -96,6 +104,7 @@ public sealed class DownloadSender(
         IntegrationConnectionEntity source,
         IntegrationConnectionEntity client,
         string key,
+        string destinationName,
         bool replacement)
     {
         // The service checked both types before writing the job; the registry doesn't change while the
@@ -127,13 +136,18 @@ public sealed class DownloadSender(
             return SendOutcome.Failed($"“{client.Name}” can't take {KindOf(payload.Kind)}, which this release turned out to be, so nothing was sent.");
 
         var hashes = TorrentInfoHashReader.Read(payload);
+        // MAM-30, D12 — beside the kind: what the release is, not what the client says, so the app's own sentence, which
+        // members read too, and nothing listed or asked first.
+        if (hashes is { V1: null, V2: not null } && !downloadClient.Capabilities.TakesV2OnlyTorrents)
+            return SendOutcome.Failed($"“{client.Name}” can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent.");
         if (hashes.IsKnown)
             await db.DownloadJobs.RecordInfoHashesAsync(jobId, hashes);
 
         // ── the destination ──
         // Through the Destinations' own listing, which leaves a switched-off client alone and masks what
-        // it says, as every read of a client's categories does.
-        var listed = await destinations.ListAsync(client, CancellationToken.None);
+        // it says, as every read of a client's categories does. MAM-30 — a folder client is proposed this destination's
+        // folder, so it is checked as itself (D3).
+        var listed = await destinations.ListAsync(client, [key], CancellationToken.None);
         if (listed.Status != ClientDestinationsStatus.Listed)
         {
             // The client's own sentence when it was asked and failed; the app's when it wasn't asked at all.
@@ -141,17 +155,24 @@ public sealed class DownloadSender(
                 ? SendOutcome.Failed(listed.Error!, DownloadJobErrorOrigin.DownloadClient)
                 : SendOutcome.Failed(listed.Error!);
         }
-        if (listed.Destinations.FirstOrDefault(candidate => string.Equals(candidate.Destination.Key, key, StringComparison.Ordinal))
-            is not { } destination)
+
+        // MAM-30 — only a category can be missing: the listing always holds a folder client's stored folder — the client's
+        // own entry, or one ListAsync adds with why the app can't use it (D3) —, and that one is FolderNotSeen below.
+        if (listed.Find(key) is not { } destination)
         {
             return SendOutcome.Failed(
                 $"“{client.Name}” has no category “{key}” any more, so nothing was sent: it would have created one in its default folder. Create the category again in “{client.Name}”, or the owner edits the destination.");
         }
 
+        var wording = new DestinationWording(downloadClient.Capabilities.DestinationKind, key, destinationName);
+        // MAM-30 — a folder the client can't see or use: Transmission would create it in its own filesystem (D5).
+        if (destination.Check.Status == DestinationPathStatus.FolderNotSeen)
+            return SendOutcome.Failed(FolderUnusableError(client, destinationName));
+
         // MAM-24 — a replacement lands only inside a library the app knows: the new file must be one the library reads,
         // or nothing could ever verify it (ADR 0032).
         if (replacement && destination.Check.Status != DestinationPathStatus.InLibrary)
-            return SendOutcome.Failed(ReplacementOutsideLibrariesError(key));
+            return SendOutcome.Failed(ReplacementOutsideLibrariesError(wording));
 
         var clientSettingsResult = settingsFactory.Create(client);
         if (clientSettingsResult.Settings is not { } clientSettings)
@@ -168,9 +189,9 @@ public sealed class DownloadSender(
         }
 
         // ── what it would write over (MAM-38) ──
-        var overwrite = await CheckOverwritesAsync(jobId, payload, destination, client, downloadClient, clientSettings, replacement);
+        var overwrite = await CheckOverwritesAsync(jobId, payload, destination, destinationName, client, downloadClient, clientSettings, replacement);
         if (overwrite is null)
-            return SendOutcome.Failed(OverwriteCheckFailedError(key));
+            return SendOutcome.Failed(OverwriteCheckFailedError(wording));
         if (overwrite.Refusal is { } refusal)
             return SendOutcome.Failed(refusal);
         await db.DownloadJobs.RecordOverwriteCheckAsync(jobId, overwrite.Check!.Value);
@@ -179,7 +200,9 @@ public sealed class DownloadSender(
         var submitted = await CallAsync(
             client,
             "submission",
-            () => downloadClient.SubmitAsync(clientSettings, new DownloadSubmission(payload, key, hashes.Primary), CancellationToken.None));
+            // MAM-30 — the destination's name as the label a folder client shows the torrent with; a category client
+            // ignores it.
+            () => downloadClient.SubmitAsync(clientSettings, new DownloadSubmission(payload, key, hashes.Primary, destinationName), CancellationToken.None));
         if (submitted.IsSuccess)
         {
             return submitted.Value!.ClientJobId is { } clientJobId
@@ -257,6 +280,7 @@ public sealed class DownloadSender(
         Guid jobId,
         ReleasePayload payload,
         CheckedClientDestination destination,
+        string destinationName,
         IntegrationConnectionEntity client,
         IDownloadClient downloadClient,
         IntegrationConnectionSettings settings,
@@ -265,7 +289,7 @@ public sealed class DownloadSender(
         try
         {
             return await overwrites.CheckAsync(
-                payload, destination, client, downloadClient, settings, anyFileRefuses: replacement, cancellationToken: CancellationToken.None);
+                payload, destination, destinationName, client, downloadClient, settings, anyFileRefuses: replacement, cancellationToken: CancellationToken.None);
         }
         catch (Exception exception)
         {
@@ -282,12 +306,18 @@ public sealed class DownloadSender(
 
     /// <summary>MAM-24 — the app's sentence for a replacement whose category's folder isn't inside a library the app
     /// knows: nothing reached the client.</summary>
-    private static string ReplacementOutsideLibrariesError(string key) =>
-        $"The folder of the category “{key}” isn't inside a library the app knows, so nothing was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the destination.";
+    private static string ReplacementOutsideLibrariesError(DestinationWording wording) =>
+        $"The folder of {wording.Destination} isn't inside a library the app knows, so nothing was sent and no copy will be replaced. Pick Keep both to download it, or the owner fixes the destination.";
 
     /// <summary>MAM-38 — the app's sentence for a send whose overwrite check broke: nothing reached the client.</summary>
-    private static string OverwriteCheckFailedError(string key) =>
-        $"The app couldn't check whether this release would write over a file in the folder of the category “{key}”, so nothing was sent. The app's log says why.";
+    private static string OverwriteCheckFailedError(DestinationWording wording) =>
+        $"The app couldn't check whether this release would write over a file in the folder of {wording.Destination}, so nothing was sent. The app's log says why.";
+
+    /// <summary>MAM-30 — the app's sentence for a folder destination its client can't use any more: it names the
+    /// destination, never the folder (D13), and the client's own sentence is on the Destinations page. The overwrite
+    /// check refuses such a folder with it too.</summary>
+    internal static string FolderUnusableError(IntegrationConnectionEntity client, string destinationName) =>
+        $"“{client.Name}” can't use the folder of the destination “{destinationName}” any more, so nothing was sent. The owner checks the destination under Destinations in the user menu.";
 
     private Task<IntegrationCallResult<IReadOnlyList<ClientJob>>> FindAsync(
         IntegrationConnectionEntity client, IDownloadClient downloadClient, IntegrationConnectionSettings settings, TorrentInfoHashes hashes) =>

@@ -287,10 +287,11 @@ public sealed class RecommendationFeedPass(
     /// follows it, a closing bracket nothing opened, or the punctuation and spaces at its edges.
     /// </summary>
     /// <remarks>
-    /// A title a release's reading cut at a season marker inside brackets keeps the bracket: Toloka's "Розслідування з
-    /// Андрієм Данілевичем (Сезон 1, серії 1-25 з ?)" reads "Розслідування з Андрієм Данілевичем (" (MAM-32's reading,
-    /// which other code pins, so it is cleaned here), and the catalog's search finds nothing by that. The cache key is
-    /// the title's match key, which a bracket never changes.
+    /// A title a release's reading cut at a season marker inside brackets keeps the bracket: Toloka's "Ранма 1/2 (Сезон
+    /// 1,2, Сезон 3: серії 01 з 12)" reads "Ранма 1/2 (" (MAM-32's reading, which other code pins, so it is cleaned
+    /// here), and the catalog's search finds nothing by that. The cache key is the title's match key, which a bracket
+    /// never changes. (MAM-30: "Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?)", which read so too, now
+    /// reads without its bracket, as the marker takes an unknown total.)
     /// </remarks>
     private static string LookupTitle(string title)
     {

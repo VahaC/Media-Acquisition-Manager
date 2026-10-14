@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 
 namespace MediaAcquisitionManager.Api.Contracts;
@@ -16,7 +17,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="DownloadClientName">The download client it went to.</param>
 /// <param name="DestinationName">The destination it went to; <c>null</c> only for a job of an older
 /// build.</param>
-/// <param name="ClientDestinationKey">The category that was sent.</param>
+/// <param name="ClientDestinationKey">The category that was sent — MAM-30, or the folder, for a folder job
+/// (<paramref name="DestinationKind"/>), only when the installation owner reads it: <c>null</c> for anyone else, who never
+/// sees a folder (ADR 0039, D13).</param>
 /// <param name="Status">Where the job stands: <c>Created</c> while it is being sent (or when how that went
 /// isn't known), <c>Submitted</c> once the client took it, <c>NeedsLinking</c> when the client took it but
 /// which of its downloads it became has to be picked by hand, <c>Failed</c> with <paramref name="Error"/>.
@@ -37,6 +40,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="StatusChangedUtc">When <paramref name="Status"/> last changed.</param>
 /// <param name="Replacement">MAM-24 — the replacement of old copies the owner scheduled with it, and where it stands;
 /// <c>null</c> for a download sent with Keep both.</param>
+/// <param name="DestinationKind">MAM-30 — what <paramref name="ClientDestinationKey"/> was, as the client's type said
+/// when the job was made: a category or a folder (ADR 0039); <c>null</c> for a job of an older build, which sent to a
+/// category.</param>
 public sealed record DownloadJobDto(
     Guid Id,
     Guid ReleaseId,
@@ -53,4 +59,5 @@ public sealed record DownloadJobDto(
     DownloadOverwriteCheck? OverwriteCheck,
     DateTime CreatedUtc,
     DateTime StatusChangedUtc,
-    DownloadJobReplacementDto? Replacement = null);
+    DownloadJobReplacementDto? Replacement = null,
+    DownloadDestinationKind? DestinationKind = null);

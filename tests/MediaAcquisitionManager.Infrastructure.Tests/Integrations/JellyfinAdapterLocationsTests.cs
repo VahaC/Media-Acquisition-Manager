@@ -52,6 +52,74 @@ public sealed class JellyfinAdapterLocationsTests : IDisposable
     }
 
     [Fact]
+    public async Task ListLocations_says_the_box_set_library_of_the_sample_holds_no_media_files_and_the_others_do()
+    {
+        //Arrange
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Sample("Jellyfin/virtual-folders.json", "application/json; charset=utf-8");
+
+        //Act
+        var result = await Library.ListLocationsAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        // MAM-30, Vasyl's decision 9 — "Колекції" is CollectionType boxsets: Jellyfin's own records, never a destination.
+        Assert.Equal(
+            [
+                ("Фільми", true),
+                ("Мульфільми", true),
+                ("Документалки", true),
+                ("Колекції", false),
+                ("Серіали", true),
+            ],
+            result.Value!.Select(location => (location.Name, location.HoldsMediaFiles)));
+    }
+
+    [Theory]
+    [InlineData("\"boxsets\"", false)]
+    [InlineData("\"BoxSets\"", false)]
+    [InlineData("\"playlists\"", false)]
+    [InlineData("\"movies\"", true)]
+    [InlineData("\"tvshows\"", true)]
+    [InlineData("\"music\"", true)]
+    [InlineData("\"homevideos\"", true)]
+    [InlineData("\"a type Jellyfin adds later\"", true)]
+    [InlineData("null", true)]
+    [InlineData("5", true)]
+    public async Task ListLocations_reads_whether_a_library_holds_media_files_from_its_collection_type(string collectionType, bool expected)
+    {
+        //Arrange
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Text(
+            $$"""[{"ItemId":"a","Name":"Library","CollectionType":{{collectionType}},"Locations":["/media/a"]}]""",
+            HttpStatusCode.OK,
+            "application/json");
+
+        //Act
+        var result = await Library.ListLocationsAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        // Its folders are read either way: the sync still matches files against every library.
+        var location = Assert.Single(result.Value!);
+        Assert.Equal(expected, location.HoldsMediaFiles);
+        Assert.Equal(["/media/a"], location.ServicePaths);
+    }
+
+    [Fact]
+    public async Task ListLocations_of_a_library_without_a_collection_type_holds_media_files()
+    {
+        //Arrange
+        // A mixed library: Jellyfin leaves the type out.
+        _harness.JellyfinHttp.Handler = (_, _) => VendorResponses.Text(
+            """[{"ItemId":"a","Name":"Mixed","Locations":["/media/mixed"]}]""",
+            HttpStatusCode.OK,
+            "application/json");
+
+        //Act
+        var result = await Library.ListLocationsAsync(Settings, TestContext.Current.CancellationToken);
+
+        //Assert
+        Assert.True(Assert.Single(result.Value!).HoldsMediaFiles);
+    }
+
+    [Fact]
     public async Task ListLocations_gets_the_virtual_folders_with_the_key_in_the_media_browser_header()
     {
         //Arrange

@@ -57,10 +57,10 @@ const NEXT_CHECK_NO_DROP = 'Fix what the reason says — for a film Jellyfin gav
 const NEXT_DROP_ONLY = '1 copy can only be dropped, or both copies kept: a new check can\'t pair it. Drop it below, then press Retry for the others.'
 const NEXT_DROP_ONLY_LAST = 'Only keeping both settles this: a new check can\'t pair the replacement\'s last copy, and the last copy can\'t be dropped.'
 const NEXT_DROP_ONLY_EVERY = 'Only keeping both settles this: a new check can\'t pair any of the 2 copies left, and the last copy can\'t be dropped.'
-const NEXT_MOVE = 'Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Or drop that copy below: it stays where it is, and the others move. Or keep both.'
-const NEXT_MOVE_NO_DROP = 'Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Or keep both.'
-const NEXT_MOVE_RESTORE = 'Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Or drop that copy below: it stays where it is, and the others move. Restore puts back what is in the quarantine.'
-const NEXT_MOVE_RESTORE_NO_DROP = 'Remove what holds the copy — a torrent goes in qBittorrent, without its files —, or fix what the reason says, then press Retry. Restore puts back what is in the quarantine.'
+const NEXT_MOVE = 'Remove what holds the copy — a torrent goes in the download client that lists it, without its files —, or fix what the reason says, then press Retry. Or drop that copy below: it stays where it is, and the others move. Or keep both.'
+const NEXT_MOVE_NO_DROP = 'Remove what holds the copy — a torrent goes in the download client that lists it, without its files —, or fix what the reason says, then press Retry. Or keep both.'
+const NEXT_MOVE_RESTORE = 'Remove what holds the copy — a torrent goes in the download client that lists it, without its files —, or fix what the reason says, then press Retry. Or drop that copy below: it stays where it is, and the others move. Restore puts back what is in the quarantine.'
+const NEXT_MOVE_RESTORE_NO_DROP = 'Remove what holds the copy — a torrent goes in the download client that lists it, without its files —, or fix what the reason says, then press Retry. Restore puts back what is in the quarantine.'
 /** Every what-to-do sentence: a page says one of them at most. */
 const NEXT_SENTENCES = [
   NEXT_DOWNLOAD, NEXT_CHECK, NEXT_CHECK_NO_DROP, NEXT_DROP_ONLY, NEXT_DROP_ONLY_LAST, NEXT_DROP_ONLY_EVERY,

@@ -322,3 +322,41 @@ job's page (ADR 0030's MAM-41 section).
 
 The rest stands: the following, its states and Cancel are unchanged, nothing here asks a client, and
 the Anti-consequence holds.
+
+## Transmission's downloads, and a search by destination only where ids change (added 0.4.0, MAM-30)
+
+**Transmission's downloads are followed by this record's rules, and the search of a job's destination
+for a job its hashes no longer find runs only for a client whose job ids can change
+(`DownloadClientCapabilities.JobIdsMayChange`).** That search is for qBittorrent on libtorrent 2, which
+renames a hybrid torrent sent as a magnet to its v2 hash, as the Context says. Transmission keys every
+torrent by its v1 `hashString` and never renames one, and lists a folder's torrents only by reading all
+of them, so for a Transmission job its hash doesn't find, the search would read every torrent every 2
+seconds and could find nothing.
+
+**What Transmission says, read this record's way.** A job is found by its `hashString`, never
+Transmission's `id`, which a restart changes. Complete is `metadataPercentComplete` 1 with
+`leftUntilDone` 0 — a magnet still fetching its metadata has nothing left to download at 0 % —, and
+`isFinished`, Transmission's seed-limit flag, means nothing here. `status` 0 is `Paused` until complete,
+1 to 3 queued or checking (a check right after an add, at 0 %, is never a failure), 4 downloading, 5
+and 6 seeding. `error` 3, a local error such as a disk that is gone, is the client's error, which keeps
+the job followed with the reason; 1 and 2, a tracker's warning or error, change nothing. With
+Transmission's temporary folder switched on, every call is refused, so every job of it keeps its status
+with that sentence until the owner turns it off.
+
+`DownloadJobTrackingFolderClientHttpTests.Poll_of_a_torrent_the_client_no_longer_lists_shows_why_and_never_reads_every_torrent_of_its_folder`
+pins the search left out, beside
+`DownloadJobRecoveryHttpTests.Poll_finds_a_hybrid_torrent_qBittorrent_renamed_after_its_magnet_through_its_destination`,
+which keeps it for qBittorrent;
+`DownloadJobTrackingFolderClientHttpTests.Poll_follows_a_folder_clients_torrent_by_its_hash_and_reads_its_files`,
+`TransmissionAdapterJobsTests.FindJobs_maps_transmissions_status_and_a_local_error_only_to_the_cores_state`,
+`TransmissionAdapterJobsTests.FindJobs_reads_a_magnet_without_metadata_as_not_complete_though_nothing_is_left`
+and `DownloadClientContractTests.FindJobs_maps_each_state_to_the_cores` pin the reading, and
+`DownloadJobTrackingTransmissionHttpTests` both end to end through `FakeTransmissionServer`.
+
+**The reason a linking-stopped replacement gives names the job's client, for every client.** The
+MAM-24 section's "qBittorrent's downloads couldn't be told apart for this release, so the app can't
+follow it to verify the new file." now reads "“{client}”'s downloads couldn't be told apart for this
+release, so the app can't follow it to verify the new file.", `{client}` being the name of the
+integration the job was sent to — qBittorrent's job included. Nothing else of that section changed.
+`ReplacementDetailsHttpTests`, `ReplacementDropCopyHttpTests`, `ReplacementFollowingHttpTests`,
+`ReplacementLineHttpTests` and `ReplacementRetryHttpTests` pin the sentence.

@@ -9,7 +9,7 @@ import type { CurrentUser, Destination, DestinationCheck, DestinationPathStatus 
 import { DestinationsPage } from '@/pages/settings/DestinationsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
-import { cartoons, checkOf, destinationsPage, incoming, movies, sampleCategories } from '@/test/destinations'
+import { cartoons, checkOf, destinationsPage, filmsFolder, incoming, movies, sampleCategories } from '@/test/destinations'
 import { localQbittorrent } from '@/test/integrations'
 
 vi.mock('@/lib/destinations-api')
@@ -23,6 +23,16 @@ const asName = { selector: '.settings-name-text' }
 
 /** The table row (or phone card) of the destination named `name`. */
 const rowOf = (name: string) => screen.getByText(name, asName).closest('tr')!
+
+/** The text of `element` cut where it may break (`<wbr>`), in order. */
+function piecesBetweenBreaks(element: HTMLElement) {
+  const pieces = ['']
+  for (const node of element.childNodes) {
+    if (node.nodeName === 'WBR') pieces.push('')
+    else pieces[pieces.length - 1] += node.textContent
+  }
+  return pieces
+}
 
 /** The server lists `items`, out of `total`, whatever page is asked for. */
 function listing(items: Destination[], total = items.length) {
@@ -79,6 +89,103 @@ describe('DestinationsPage', () => {
     expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
   })
 
+  it('says in its lead that a destination is a category or a folder of the client', async () => {
+    // Arrange
+    const lead = 'Where downloads go. Each destination is a category of your download client, which decides the folder, or a folder the client saves to.'
+
+    // Act
+    renderPage()
+
+    // Assert
+    expect(await screen.findByText(lead)).toHaveClass('settings-lead')
+  })
+
+  it('names the column Folder when every destination is a folder, each shown as a path that breaks between its folders', async () => {
+    // Arrange
+    listing([filmsFolder])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText('Films', asName)
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent))
+      .toEqual(['Name', 'Download client', 'Folder', 'Saves to', 'Actions'])
+    const cell = rowOf('Films').querySelector<HTMLElement>('td[data-label="Folder"]')!
+    const key = within(cell).getByText('/downloads/movies')
+    expect(key).toHaveClass('destinations-key', 'destinations-key-folder')
+    // A break after each `/`: the root's, and the one between the two folders.
+    expect(key.querySelectorAll('wbr')).toHaveLength(2)
+    expect(within(rowOf('Films')).getByText('Local Transmission')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['a Windows folder after each \\', 'D:\\Downloads\\Movies', ['D:\\', 'Downloads\\', 'Movies']],
+    ['a network folder after each \\ but between the two it begins with', '\\\\nas\\media\\Movies', ['\\\\', 'nas\\', 'media\\', 'Movies']],
+  ])('breaks %s', async (_, folder, pieces) => {
+    // Arrange
+    // MAM-30 — a Transmission on Windows sees its folders so, and the key keeps them as it sees them.
+    listing([{ ...filmsFolder, clientDestinationKey: folder }])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText('Films', asName)
+    const key = rowOf('Films').querySelector<HTMLElement>('td[data-label="Folder"] .destinations-key-folder')!
+    expect(key).toHaveTextContent(folder, { normalizeWhitespace: false })
+    expect(piecesBetweenBreaks(key)).toEqual(pieces)
+  })
+
+  it('names the column "Category or folder" when both are on the page, each phone card naming its own', async () => {
+    // Arrange
+    listing([cartoons, filmsFolder])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText('Films', asName)
+    expect(screen.getAllByRole('columnheader')[2]).toHaveTextContent(/^Category or folder$/)
+    expect(rowOf('Cartoons').querySelector('td[data-label="Category"] .destinations-key')).toHaveTextContent('Cartoons')
+    expect(rowOf('Cartoons').querySelector('.destinations-key-folder')).toBeNull()
+    expect(rowOf('Films').querySelector('td[data-label="Folder"] .destinations-key-folder')).toHaveTextContent('/downloads/movies')
+  })
+
+  it('keeps the Category column for a destination whose client type this build doesn\'t register', async () => {
+    // Arrange
+    listing([{ ...movies, destinationKind: null }])
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText('Movies', asName)
+    expect(screen.getAllByRole('columnheader')[2]).toHaveTextContent(/^Category$/)
+    expect(rowOf('Movies').querySelector('td[data-label="Category"]')).toHaveTextContent('Movies')
+  })
+
+  it.each([
+    ['a folder destination', filmsFolder, 'Remove Films?',
+      'The app forgets the destination Films. Nothing changes in Local Transmission: torrents already sent keep their folder and label. This can\'t be undone.'],
+    ['the default folder destination', { ...filmsFolder, isDefault: true }, 'Remove Films?',
+      'The app forgets the destination Films. Nothing changes in Local Transmission: torrents already sent keep their folder and label. Films is the default destination: no destination is the default until you pick another one. This can\'t be undone.'],
+  ])('says before removing %s that its torrents keep their folder and label, never that a category stays', async (_, destination, title, message) => {
+    // Arrange
+    listing([destination])
+    const { user } = renderPage()
+    await screen.findByText('Films', asName)
+
+    // Act
+    await user.click(within(rowOf('Films')).getByRole('button', { name: 'Remove' }))
+
+    // Assert
+    const confirmation = await screen.findByRole('dialog', { name: title })
+    expect(confirmation).toHaveTextContent(message)
+    expect(confirmation).not.toHaveTextContent('category')
+    expect(destinationsApi.remove).not.toHaveBeenCalled()
+  })
+
   it('names every media library the folder lands in', async () => {
     // Arrange
     listing([{ ...movies, check: checkOf({ libraryNames: ['Фільми', 'Колекції'] }) }])
@@ -132,6 +239,13 @@ describe('DestinationsPage', () => {
       appPath: null,
       problem: 'qBittorrent didn\'t answer at http://127.0.0.1:9/qbt. Check the address and that qBittorrent is running.',
     }, []],
+    // MAM-30 — a folder the client can't see: as the client sees it, with no folder in this app (D5).
+    ['FolderNotSeen', 'Not seen by the client', {
+      servicePath: '/downloads/movies',
+      appPath: null,
+      libraryNames: ['Фільми'],
+      problem: 'The app can\'t use the folder “/downloads/movies” of this destination: “Local Transmission” didn\'t list it.',
+    }, ['/downloads/movies']],
   ])('flags a destination whose check is %s with its label and the API sentence', async (status, label, check, paths) => {
     // Arrange
     listing([{ ...movies, check: checkOf({ status, libraryNames: [], ...check }) }])
@@ -215,7 +329,8 @@ describe('DestinationsPage', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByText(/^No destinations yet\./)).toHaveTextContent('Click Add destination to pick a category')
+    expect(await screen.findByText(/^No destinations yet\./))
+      .toHaveTextContent('Click Add destination to pick a category or a folder of your download client.')
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()

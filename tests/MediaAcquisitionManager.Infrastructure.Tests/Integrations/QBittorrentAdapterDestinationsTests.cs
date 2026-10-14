@@ -80,7 +80,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route();
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -98,13 +98,54 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
     }
 
     [Fact]
+    public async Task ListDestinations_ignores_the_folders_proposed_to_it()
+    {
+        //Arrange
+        // MAM-30 — a folder client's input: qBittorrent's destinations are its own categories, never a proposed folder.
+        _harness.QBittorrentHttp.Handler = Route();
+
+        //Act
+        var result = await Client.ListDestinationsAsync(Settings, ["/downloads/movies", "/downloads/elsewhere"], TestContext.Current.CancellationToken);
+
+        //Assert
+        // The four categories, none a client's default folder or with a problem, read as ever and nothing more.
+        Assert.Equal(
+            [
+                "Cartoons | Cartoons | /downloads/cartoons",
+                "Documentary | Documentary | /downloads/documentary",
+                "Movies | Movies | /downloads/movies",
+                "TV Shows | TV Shows | /downloads/tv-shows",
+            ],
+            Describe(result.Value!));
+        Assert.All(result.Value!, destination => Assert.Equal((false, (string?)null), (destination.IsClientDefaultFolder, destination.Problem)));
+        Assert.Equal([SignInPath, VersionPath, CategoriesPath], _harness.QBittorrentHttp.Requests.Select(request => request.Uri.AbsolutePath));
+    }
+
+    [Fact]
+    public void Capabilities_are_categories_under_any_of_three_layouts_with_no_suffix_v2_only_taken_and_ids_that_may_change()
+    {
+        //Arrange
+
+        //Act
+        var capabilities = Client.Capabilities;
+
+        //Assert
+        // MAM-30 — what the app asks of the type rather than of its name (ADR 0005); pinned so a change is a decision.
+        Assert.Equal([ReleasePayloadKind.TorrentFile, ReleasePayloadKind.Magnet], capabilities.PayloadKinds);
+        Assert.Equal(
+            (true, false, DownloadDestinationKind.Category, TorrentFilePlacement.AnyOfThreeLayouts, (string?)null, true, true),
+            (capabilities.DestinationsHavePaths, capabilities.SubmissionReturnsJobId, capabilities.DestinationKind, capabilities.FilePlacement,
+                capabilities.PartialFileSuffix, capabilities.TakesV2OnlyTorrents, capabilities.JobIdsMayChange));
+    }
+
+    [Fact]
     public async Task ListDestinations_signs_in_then_reads_the_version_and_the_categories_with_the_session_cookie()
     {
         //Arrange
         _harness.QBittorrentHttp.Handler = Route();
 
         //Act
-        await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         // No default save path: every sample category has an absolute one.
@@ -139,7 +180,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(categories: () => Categories(("Movies", ""), ("Series", "/downloads/series")));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -168,7 +209,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             ("Серіали", "/downloads/tv"), ("Movies", "/downloads/movies"), ("Anime", "/downloads/anime")));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(["Серіали", "Movies", "Anime"], result.Value!.Select(destination => destination.Key));
@@ -181,7 +222,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(categories: () => VendorResponses.Text("{}", HttpStatusCode.OK, "application/json"));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -198,7 +239,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             defaultSavePath: () => VendorResponses.Text("/downloads", HttpStatusCode.OK));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -226,7 +267,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             defaultSavePath: () => VendorResponses.Text(@"D:\Torrents", HttpStatusCode.OK));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal([@"Movies | Movies | D:\Torrents\Movies", @"Series | Series | D:\Torrents\Series"], Describe(result.Value!));
@@ -241,7 +282,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(categories: () => Categories(("Movies", "//nas/media/Movies"), ("Movies/4K", "")));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(
@@ -263,7 +304,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             categories: () => Categories(("Movies", "/media/films"), ("Movies/4K", "")));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -281,7 +322,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             "application/json"));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         // Never guessed: no path keeps automatic replacement off for the destination.
@@ -306,7 +347,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             ("Movies", "/downloads/movies")));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         // The rest of the list stays usable; 256 characters is the most a destination's key holds.
@@ -323,7 +364,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(categories: () => Categories((key, "/downloads/movies-4k")));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         var destination = Assert.Single(result.Value!);
@@ -342,7 +383,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             "application/json"));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(["Movies | Movies | /downloads/first", "Series | Series | /downloads/series"], Describe(result.Value!));
@@ -356,7 +397,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(categories: () => VendorResponses.Text(body, HttpStatusCode.OK, "application/json"));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
@@ -379,7 +420,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             categories: () => VendorResponses.Text("""{"Movies":{"name":"Movies","save_path":"/downloads/movies"}}""", HttpStatusCode.OK, "application/json"));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
@@ -400,7 +441,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(version: () => VendorResponses.Text(version, HttpStatusCode.OK));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -414,7 +455,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(version: () => VendorResponses.Text("v4.99999999999.0", HttpStatusCode.OK));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnsupportedVersion, result.Status);
@@ -433,7 +474,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(version: () => VendorResponses.Text(body, HttpStatusCode.OK));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
@@ -462,7 +503,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             : route(request, body);
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
@@ -485,7 +526,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
             : route(request, body);
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(expectedStatus, result.Status);
@@ -500,7 +541,7 @@ public sealed class QBittorrentAdapterDestinationsTests : IDisposable
         _harness.QBittorrentHttp.Handler = Route(categories: () => VendorResponses.Redirect($"{BaseUrl}/session/{SessionId}/{Password}/?next=%2F"));
 
         //Act
-        var result = await Client.ListDestinationsAsync(Settings, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);

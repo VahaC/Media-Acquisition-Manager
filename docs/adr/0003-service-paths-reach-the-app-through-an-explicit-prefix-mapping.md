@@ -270,3 +270,34 @@ path mappings (Vasyl's decisions of 2026-10-12; [ADR
 0031](0031-a-replacement-never-touches-a-torrent-and-an-old-copy-a-torrent-lists-waits-until-the-owner-removes-the-torrent.md)'s
 MAM-28 section). That match by name or size only stops a move and maps nothing, so it is not the
 tail matching rejected above.
+
+## The way back (added 0.4.0, MAM-30)
+
+**A download client without categories needs the other direction — the library folder the app knows,
+written as the client sees it — and it keeps this record's rule: `PathMapper.MapBack(appPath, pairs)`
+applies every pair whose app prefix covers the path, results that agree are one folder, and a path no
+pair leads back to, or that two lead back to from different places, has no service path: a status with
+a sentence, never a guess
+([ADR 0039](0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)).**
+It mirrors `Map` step for step: the longest prefix never wins, a malformed stored pair is skipped, and
+it never throws. Its sentences say "this integration", as `Map`'s do: "No path mapping of this
+integration leads to “/media/movies”.", "The path mappings of this integration lead to “/media/movies”
+from different places: “/downloads/movies” and “/data/movies”.", and, for a folder name holding `\`
+written under a Windows prefix, "“/media/a\b” can't be written under “D:\Torrents”: its folder name
+“a\b” contains \, which separates folders in a Windows path."; the destinations list adds the
+integration, the library and the fix. Nothing is stored: each look maps back again, so an edited
+mapping shows at the next one. With `/downloads` → `/media` on Transmission, the samples' Jellyfin
+roots come back as qBittorrent's four category folders, and `/config/data/collections` as nothing.
+
+**What `Map` accepts can still be ambiguous backwards.** Two client folders onto one app folder
+(`/downloads` → `/media` beside `/data` → `/media`), or nested app prefixes whose client prefixes don't
+nest, are valid pairs that map forward without a doubt and back with two answers. No save rule was
+added — a mapping is still never refused at save, as the MAM-28 section above keeps it —: the
+destination list says which pairs disagree and asks the owner to keep one. Mapped back and forward
+again, a folder lands on the app folder it came from, for every pair set the save rules accept, so the
+forward check of each folder the client confirms is also the round trip's safety net.
+
+`PathMapperBackTests` pins it, the ADR 0003 samples
+(`MapBack_of_the_adr_0003_samples_puts_every_jellyfin_library_into_the_client_folder_of_its_category`)
+and the round trip (`MapBack_then_Map_lands_on_the_same_app_folder_for_every_set_of_pairs_the_save_rules_accept`)
+among them.

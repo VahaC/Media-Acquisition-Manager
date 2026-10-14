@@ -238,12 +238,12 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
     }
 
     [Theory]
-    [InlineData("100", 401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (error 100: Incorrect user credentials).")]
+    [InlineData("100", 401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (error 100: Incorrect user credentials). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData("910", 200, IntegrationCallStatus.Refused, "The Torznab feed has its API switched off (error 910: Incorrect user credentials).")]
     [InlineData("429", 429, IntegrationCallStatus.Refused,
         "The Torznab feed is refusing requests for now (error 429: Incorrect user credentials). Try again in a few minutes.")]
     [InlineData("201", 400, IntegrationCallStatus.UnexpectedResponse,
-        "The Torznab feed didn't understand the capabilities request (error 201: Incorrect user credentials). Check that the address is a Torznab feed.")]
+        "The Torznab feed doesn't serve what this address names (error 201: Incorrect user credentials). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr.")]
     [InlineData("900", 500, IntegrationCallStatus.ServiceError, "The Torznab feed failed (error 900: Incorrect user credentials).")]
     // A 410 is a download's answer only; for caps it is the feed's failure.
     [InlineData("410", 410, IntegrationCallStatus.ServiceError, "The Torznab feed failed (error 410: Incorrect user credentials).")]
@@ -267,10 +267,10 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
     }
 
     [Theory]
-    [InlineData(401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (401 Unauthorized).")]
-    [InlineData(403, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (403 Forbidden).")]
+    [InlineData(401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
+    [InlineData(403, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (403 Forbidden). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData(404, IntegrationCallStatus.UnexpectedResponse,
-        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address, which usually ends in /api.")]
+        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/.")]
     [InlineData(429, IntegrationCallStatus.Refused,
         "The Torznab feed is refusing requests for now (429 Too Many Requests). Try again in a few minutes.")]
     [InlineData(503, IntegrationCallStatus.ServiceError, "Torznab answered 503 Service Unavailable. Its own log says why.")]
@@ -331,7 +331,7 @@ public sealed class TorznabAdapterCapabilitiesTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized).", result.Error);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Error);
     }
 
     private static HttpResponseMessage Xml(string body, HttpStatusCode status = HttpStatusCode.OK) =>

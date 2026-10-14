@@ -11,7 +11,6 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Library;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.Core.Replacements;
-using MediaAcquisitionManager.Core.Search;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,11 +43,10 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
             return [];
 
         var isTv = release.Release.Kind == ReleaseKind.Tv;
-        var claimed = isTv ? release.ClaimedWork.Episodes : null;
-        var rows = await LoadAsync([.. release.LibraryMatches.Select(match => match.WorkId).Distinct()], isTv, claimed, cancellationToken);
+        var rows = await LoadAsync(release.LibraryMatches, isTv, cancellationToken);
         var works = matched.Works.Works.ToDictionary(work => work.Work.Id);
-        List<WorkPlan> plans = [.. release.LibraryMatches.Select(match => PlanOf(match, works[match.WorkId], isTv, claimed, rows))];
-        var listings = ListingsOf(plans, claimed, rows);
+        List<WorkPlan> plans = [.. release.LibraryMatches.Select(match => PlanOf(match, works[match.WorkId], isTv, rows))];
+        var listings = ListingsOf(plans, rows);
         var copies = await CopiesOfAsync(plans, listings, gates, rows, cancellationToken);
         return Assemble(plans, listings, copies, rows);
     }
@@ -62,15 +60,23 @@ public sealed partial class ReplacementCandidateReader(ApplicationDbContext db, 
     /// not yet ended.
     /// </summary>
     private async Task<LibraryRows> LoadAsync(
-        List<Guid> matchedIds, bool isTv, ClaimedEpisodes? claimed, CancellationToken cancellationToken)
+        IReadOnlyList<ReleaseLibraryMatch> matches, bool isTv, CancellationToken cancellationToken)
     {
+        List<Guid> matchedIds = [.. matches.Select(match => match.WorkId).Distinct()];
         // MAM-32 — an episode is claimed by its places (ADR 0017): every place the matched series give their episodes,
-        // then those the title claims. A TV title claiming no season claims none.
-        List<MediaEpisodePositionEntity> claimedPositions = isTv && claimed is not null
+        // then those the title claims. A TV title claiming no season claims none. MAM-30 — each series' own claim: the
+        // one that matched it, the title's or the description's (D15), or the other's when that one names none, so a
+        // release whose description alone names the show and its season offers that season's copies.
+        var claims = matches
+            .Where(match => isTv && match.Episodes is not null)
+            .GroupBy(match => match.WorkId)
+            .ToDictionary(series => series.Key, series => series.First().Episodes!);
+        List<Guid> claimingIds = [.. claims.Keys];
+        List<MediaEpisodePositionEntity> claimedPositions = claims.Count > 0
             ? [.. (await db.MediaEpisodePositions.AsNoTracking()
-                    .Where(position => position.SeriesWorkId != null && EF.Parameter(matchedIds).Contains(position.SeriesWorkId.Value))
+                    .Where(position => position.SeriesWorkId != null && EF.Parameter(claimingIds).Contains(position.SeriesWorkId.Value))
                     .ToListAsync(cancellationToken))
-                .Where(position => claimed.Holds(position.SeasonNumber, position.EpisodeNumber))]
+                .Where(position => claims[position.SeriesWorkId!.Value].Holds(position.SeasonNumber, position.EpisodeNumber))]
             : [];
         var episodeIds = claimedPositions.Select(position => position.MediaWorkId).Distinct().ToList();
         // Every place of those episodes, under any series: a version is tied to its own library item's place (R3), and an

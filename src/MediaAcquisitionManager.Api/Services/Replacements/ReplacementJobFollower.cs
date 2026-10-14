@@ -32,9 +32,6 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
     private const string InterruptedReason =
         "The app stopped while sending this download, before it checked where the new files would land, so nothing will be replaced.";
 
-    private const string NeedsLinkingReason =
-        "qBittorrent's downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
-
     public async Task SyncAsync(CancellationToken cancellationToken = default)
     {
         var followed = await FollowedAsync(_ => true, cancellationToken);
@@ -85,17 +82,17 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
                 db.DownloadJobs.AsNoTracking(),
                 replacement => replacement.DownloadJobId,
                 download => download.Id,
-                (replacement, download) => new { Replacement = replacement, download.Status, download.OverwriteCheck })
+                (replacement, download) => new { Replacement = replacement, download.Status, download.OverwriteCheck, download.DownloadClientName })
             .OrderBy(row => row.Replacement.CreatedUtc)
             .ThenBy(row => row.Replacement.Id)
-            .Select(row => new FollowedReplacement(row.Replacement.Id, row.Replacement.State, row.Status, row.OverwriteCheck))
+            .Select(row => new FollowedReplacement(row.Replacement.Id, row.Replacement.State, row.Status, row.OverwriteCheck, row.DownloadClientName))
             .ToListAsync(cancellationToken);
 
     /// <summary>Writes where <paramref name="replacement"/> stands now, when that differs; whether it did — a cancel that
     /// got there first wins.</summary>
     private async Task<bool> FollowAsync(FollowedReplacement replacement, DateTime now)
     {
-        if (Next(replacement.State, replacement.DownloadStatus, replacement.OverwriteCheck) is not { } next)
+        if (Next(replacement.State, replacement.DownloadStatus, replacement.OverwriteCheck, replacement.DownloadClientName) is not { } next)
             return false;
         if (await db.ReplacementJobs.MoveAsync(replacement.Id, replacement.State, next.State, next.Reason, now) == 0)
             return false;
@@ -106,33 +103,38 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
 
     /// <summary>
     /// Where a replacement now <paramref name="current"/> stands with its download <paramref name="download"/>, checked
-    /// before it was sent as <paramref name="check"/>; <c>null</c> when that is where it is.
+    /// before it was sent as <paramref name="check"/>, sent to <paramref name="clientName"/>; <c>null</c> when that is where
+    /// it is.
     /// </summary>
     private static (ReplacementJobState State, string? Reason)? Next(
-        ReplacementJobState current, DownloadJobStatus download, DownloadOverwriteCheck? check)
+        ReplacementJobState current, DownloadJobStatus download, DownloadOverwriteCheck? check, string clientName)
     {
         (ReplacementJobState State, string? Reason) next = download == DownloadJobStatus.Cancelled
             ? (ReplacementJobState.Cancelled, DownloadCancelledReason)
             : current == ReplacementJobState.NeedsReview
                 ? download == DownloadJobStatus.Failed ? (ReplacementJobState.Failed, DownloadFailedReason) : (current, null)
                 : check == DownloadOverwriteCheck.Checked
-                    ? Checked(download)
+                    ? Checked(download, clientName)
                     : Unchecked(download);
         return next.State == current ? null : next;
     }
 
     /// <summary>A download the strict check let through: mirrored.</summary>
-    private static (ReplacementJobState State, string? Reason) Checked(DownloadJobStatus download) => download switch
+    private static (ReplacementJobState State, string? Reason) Checked(DownloadJobStatus download, string clientName) => download switch
     {
         DownloadJobStatus.Submitted => (ReplacementJobState.Submitted, null),
         DownloadJobStatus.Downloading => (ReplacementJobState.Downloading, null),
         DownloadJobStatus.Paused => (ReplacementJobState.Paused, null),
         DownloadJobStatus.Downloaded => (ReplacementJobState.Downloaded, null),
         DownloadJobStatus.Failed => (ReplacementJobState.Failed, DownloadFailedReason),
-        DownloadJobStatus.NeedsLinking => (ReplacementJobState.NeedsReview, NeedsLinkingReason),
+        DownloadJobStatus.NeedsLinking => (ReplacementJobState.NeedsReview, NeedsLinkingReason(clientName)),
         // Created: checked, and its submission still under way.
         _ => (ReplacementJobState.Scheduled, null),
     };
+
+    /// <summary>MAM-30 — the client the download went to, by the name the job kept: no longer always qBittorrent.</summary>
+    private static string NeedsLinkingReason(string clientName) =>
+        $"“{clientName}”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
 
     /// <summary>A download the strict check didn't let through — refused, or never checked at all.</summary>
     private static (ReplacementJobState State, string? Reason) Unchecked(DownloadJobStatus download) => download switch
@@ -144,7 +146,7 @@ public sealed class ReplacementJobFollower(ApplicationDbContext db, TimeProvider
         _ => (ReplacementJobState.Failed, InterruptedReason),
     };
 
-    /// <summary>One followed replacement with what its download says.</summary>
+    /// <summary>One followed replacement with what its download says — MAM-30, and the name of the client it went to.</summary>
     private sealed record FollowedReplacement(
-        Guid Id, ReplacementJobState State, DownloadJobStatus DownloadStatus, DownloadOverwriteCheck? OverwriteCheck);
+        Guid Id, ReplacementJobState State, DownloadJobStatus DownloadStatus, DownloadOverwriteCheck? OverwriteCheck, string DownloadClientName);
 }

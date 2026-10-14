@@ -66,7 +66,12 @@ export function JobStatus({ job, onJobPage = false, sentencesOnly = false }: {
         </p>
       )}
       {job.replacement && (
-        <ReplacementLine replacement={job.replacement} downloadFailed={job.status === 'Failed'} onJobPage={onJobPage} />
+        <ReplacementLine
+          replacement={job.replacement}
+          client={job.downloadClientName}
+          downloadFailed={job.status === 'Failed'}
+          onJobPage={onJobPage}
+        />
       )}
       {notChecked && (
         <p className="library-source-warning">

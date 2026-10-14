@@ -26,8 +26,9 @@ namespace MediaAcquisitionManager.Api.Tests.Replacements;
 // reads where it stands: Submitted, Downloading, Paused, then Downloaded, where the following leaves it — MAM-25's check
 // takes it up from there (ReplacementVerificationHttpTests), and the following never touches a job being checked or
 // verified —, nothing sent on any pass. It stops when its download is cancelled from the Jobs page — with a ReplacementCancelled row, a review
-// included —, fails or can't be told apart in qBittorrent. A state past Scheduled is mirrored only for a download the strict
-// check let through: a send the poller adopted after the app stopped before the check fails its replacement. Everything is
+// included —, fails or can't be told apart in its download client, named as the job kept it (MAM-30). A state past
+// Scheduled is mirrored only for a download the strict check let through: a send the poller adopted after the app stopped
+// before the check fails its replacement. Everything is
 // rows, so a pass after a restart goes on from them. One replacement that breaks never stops the others, nor the
 // following of the downloads. A job carries what replacement says now: switched off, and copies no longer in a ticked
 // folder.
@@ -54,7 +55,7 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
     private const string InterruptedReason =
         "The app stopped while sending this download, before it checked where the new files would land, so nothing will be replaced.";
     private const string NeedsLinkingReason =
-        "qBittorrent's downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
+        "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IReleaseSeeder _releases = null!;
@@ -275,6 +276,27 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
     }
 
     [Fact]
+    public async Task Pass_over_a_download_that_can_not_be_told_apart_names_the_client_by_the_name_its_job_kept()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-30 — sent while the client was called Seedbox, then left NeedsLinking: neither the product's name nor the
+        // client's name now is the one the download went to.
+        var (_, replacement) = await PlantAsync(
+            DownloadJobStatus.NeedsLinking, DownloadOverwriteCheck.Checked, ReplacementJobState.Submitted, clientName: "Seedbox");
+
+        //Act
+        await PassAsync(cancellationToken);
+
+        //Assert
+        var row = await ReplacementAsync(cancellationToken, replacement.Id);
+        Assert.Equal(
+            (ReplacementJobState.NeedsReview,
+                (string?)"“Seedbox”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file."),
+            (row.State, row.Reason));
+    }
+
+    [Fact]
     public async Task Pass_ends_a_replacement_waiting_for_review_whose_download_was_cancelled_with_no_audit_row()
     {
         //Arrange
@@ -464,7 +486,8 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
     }
 
     /// <summary>A download job and its replacement as a previous run left them, of a release of Alien sent with the hash
-    /// <paramref name="hash"/>, its one copy the theatrical cut.</summary>
+    /// <paramref name="hash"/>, its one copy the theatrical cut — sent to the client by its name now, or by
+    /// <paramref name="clientName"/> when it was called that then.</summary>
     private async Task<(DownloadJobEntity Download, ReplacementJobEntity Replacement)> PlantAsync(
         DownloadJobStatus status,
         DownloadOverwriteCheck? check,
@@ -472,14 +495,15 @@ public sealed class ReplacementFollowingHttpTests : IClassFixture<MediaAcquisiti
         string? clientJobId = PlantedHash,
         string? reason = null,
         string hash = PlantedHash,
-        double? progress = null)
+        double? progress = null,
+        string? clientName = null)
     {
         var release = await _releases.CreateFoundBySearch(_owner.User, _toloka, "Alien", 1979, AlienRelease, imdbId: AlienImdbId);
         var db = _factory.Scope.GetRequiredService<ApplicationDbContext>();
         var download = await new DownloadJobDataFactory(db, _factory.Time).Create(
             release.Id,
             _client.Id,
-            _client.Name,
+            clientName ?? _client.Name,
             _movies.Id,
             status,
             _owner.User.Id,

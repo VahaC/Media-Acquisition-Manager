@@ -78,7 +78,10 @@ public sealed partial class LibrarySnapshotStore
         public int FilesCount { get; private set; }
 
         /// <summary>Upserts the libraries, the first of two with one id winning, each with the root
-        /// folders just read (MAM-11); the files' libraries are then matched against them.</summary>
+        /// folders just read (MAM-11); the files' libraries are then matched against them. MAM-30 — a library whose
+        /// folders hold no media files (Jellyfin's Collections) is kept, its files still matched to it, but stores no
+        /// folder: every reader of the stored folders takes them for places media lies, and a download client's
+        /// destinations are made of them (Vasyl's decision 9).</summary>
         public void UpsertLocations(IReadOnlyList<LibraryLocation> locations)
         {
             _reportedLocations = [.. locations.DistinctBy(location => location.SourceLocationId, StringComparer.Ordinal)];
@@ -88,7 +91,7 @@ public sealed partial class LibrarySnapshotStore
                     continue;
                 row.Name = location.Name;
                 Observe(row, location.SourceLocationId);
-                ReplaceFolders(row, location.ServicePaths);
+                ReplaceFolders(row, location.HoldsMediaFiles ? location.ServicePaths : []);
             }
         }
 

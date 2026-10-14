@@ -25,7 +25,7 @@ vi.mock('@/lib/replacements-api')
 const HELD_REASON = 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.'
 const NO_ID_REASON = 'Jellyfin gave “Alien.1979.2160p.Remux.mkv” no TMDb or IMDb id within an hour, so it can\'t be compared with Alien (1979).'
 const RENUMBERED_REASON = 'Jellyfin numbers “Yellowstone.S02E05.2160p.mkv” as season 2, episode 6, not the episode “Yellowstone S02E05.mkv” is.'
-const DOWNLOAD_REASON = 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.'
+const DOWNLOAD_REASON = '“Local qBittorrent”\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.'
 const KEPT_BOTH_REASON = 'You cancelled the replacement, so nothing will be replaced.'
 
 /** Restore's confirmation, as the job's page asks it. */

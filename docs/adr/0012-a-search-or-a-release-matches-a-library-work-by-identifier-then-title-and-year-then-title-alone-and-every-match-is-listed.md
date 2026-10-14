@@ -528,3 +528,38 @@ links nothing and writes no id; ADR 0032 says what decides after the download.
 and
 `ReplacementScheduleHttpTests.Schedule_of_a_work_matched_by_its_title_alone_is_409_naming_the_file`
 pin it; the Search suites pass unchanged over the moved matching.
+
+## The description on the Search page (added 0.4.0, MAM-30)
+
+**A release on the Search page is now read from its title and from its description, as the
+Recommendations section above reads it: the description adds a match only by `Identifier` or
+`TitleAndYear`, a work's match is the stronger of the two, and a tie goes to the title (Vasyl's
+decision of 2026-10-13).** Toloka's gateways keep the English part of its topic title, or of a
+Ukrainian-only release nothing but punctuation — "« » (2026) WEB-DL-AVC …", which "Strip Cyrillic
+Letters" leaves in Jackett and Prowlarr alike —, while the description keeps the whole title,
+Ukrainian first. So such a release matched nothing; now it matches its copy by the Ukrainian title and
+year.
+
+**Why not every level.** The title keeps every level, `TitleOnly` included, as this record decides: it is
+the release's own name, which a person weighs. A description's title alone is not: Recommendations,
+which act without a person, already took it only with its year or an id, and a description that names
+another film beside its own would otherwise list a possible match for each. The tie going to the title
+keeps the matched title, and what the page showed before, wherever the description adds nothing.
+
+**Episodes.** A TV release's held count, and the episodes a replacement offers
+([ADR 0032](0032-a-replacement-targets-films-episodes-or-seasons-on-the-owners-word-and-goes-ahead-only-when-the-library-gives-the-new-file-the-old-copys-work.md)),
+come from the claim that matched; when it names no season or episode, from the other one, since both
+describe the one release. The description is read with the release's kind, `ReadTv` for TV. Quality, facets and
+filters still read the title alone. The API gives each release `descriptionWork` beside `claimedWork`,
+and **Details** shows both, "Read from the title" and "Read from the description".
+
+`SearchReleasesDescriptionHttpTests.Releases_adds_what_a_description_matches_by_its_title_and_year_to_what_the_title_matches`,
+`SearchReleasesDescriptionHttpTests.Releases_matches_a_ukrainian_only_show_by_its_description_counting_the_episodes_it_names`,
+`SearchReleasesDescriptionHttpTests.Releases_counts_the_episodes_the_claim_that_matched_names_or_the_others_when_it_names_none`,
+`ReplacementOptionsDescriptionHttpTests.Options_for_a_film_matched_only_through_its_description_offers_its_copy`
+and `SearchesJackettHttpTests.Create_of_a_ukrainian_only_film_matches_the_releases_whose_titles_kept_only_punctuation_through_their_descriptions`
+pin it, and the web app's `ReleaseDetailsDialog.test.tsx` ("shows what the description was read as,
+beside what the title was") the Details dialog. A season marker with an unknown total — "з ?", "of ?",
+"з хх", "of XX" — is now taken with the marker, so a Ukrainian-only show's description ("Розслідування
+з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026)") reads its name without a stray "("
+(`ReleaseWorkClaimsTvTests`).

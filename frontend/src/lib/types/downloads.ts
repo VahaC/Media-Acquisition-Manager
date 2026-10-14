@@ -1,3 +1,4 @@
+import type { DownloadDestinationKind } from './destinations'
 import type { DownloadJobReplacement } from './replacements'
 
 // MAM-13 — sending a release to a download client through `/api/downloads`. Every signed-in user may
@@ -26,12 +27,15 @@ export type DownloadJobStatus =
   | 'NeedsLinking'
   | 'Cancelled'
 
-/** One destination of a download client: a category of the client, never a folder. */
+/** One destination of a download client: a category of the client, or (MAM-30) a folder it saves to. */
 export interface DownloadDestinationOption {
   id: string
   name: string
-  /** The client's own name for the category, exactly as the client spells it. */
-  clientDestinationKey: string
+  /**
+   * The client's own name for the category, exactly as the client spells it. MAM-30 — null for a
+   * folder, which members never see (they send too): the dialog names it by its name alone.
+   */
+  clientDestinationKey: string | null
   /** The installation's default destination; at most one is. */
   isDefault: boolean
 }
@@ -44,6 +48,8 @@ export interface DownloadClientOption {
   typeName: string
   /** By name; never empty — a client without a destination isn't listed. */
   destinations: DownloadDestinationOption[]
+  /** MAM-30 — whether its destinations are categories or folders. */
+  destinationKind: DownloadDestinationKind
 }
 
 /**
@@ -84,11 +90,14 @@ export type DownloadOverwriteCheck =
   | 'NotCheckedClientJobs'
   | 'NotCheckedFileName'
 
-/** MAM-38 — the reasons a destination's folder can't be checked, which the Download dialog warns of. */
-export type DownloadFolderNotCheckedReason = Extract<
-  DownloadOverwriteCheck,
-  'NotCheckedFolderUnknown' | 'NotCheckedFolderOutsideMediaFolders'
->
+/**
+ * MAM-38 — the reasons a destination's folder can't be checked, which the Download dialog warns of.
+ * MAM-30 — and `NotCheckedFolderNotSeen`, a folder its download client can't see: nothing is sent there
+ * at all (D5), so it is never a job's `overwriteCheck`.
+ */
+export type DownloadFolderNotCheckedReason =
+  | Extract<DownloadOverwriteCheck, 'NotCheckedFolderUnknown' | 'NotCheckedFolderOutsideMediaFolders'>
+  | 'NotCheckedFolderNotSeen'
 
 /**
  * MAM-38 — `GET /api/downloads/overwrite-check?destinationId=`: whether a release sent to the
@@ -110,7 +119,10 @@ export interface DownloadJob {
   sourceName: string
   downloadClientName: string
   destinationName: string | null
-  /** The category actually sent. */
+  /**
+   * The category actually sent. MAM-30 — or the folder, which only the installation owner reads: null
+   * for anyone else on a folder job.
+   */
   clientDestinationKey: string | null
   status: DownloadJobStatus
   /** MAM-14 — 0 to 1, as the client last reported it; null until it has. */
@@ -137,6 +149,11 @@ export interface DownloadJob {
    * where it stands; null for a download sent with Keep both.
    */
   replacement: DownloadJobReplacement | null
+  /**
+   * MAM-30 — whether `clientDestinationKey` is a category or a folder, as the client was when the job was
+   * made; null for a job made before the app noted it (a category then).
+   */
+  destinationKind: DownloadDestinationKind | null
   /** UTC with a trailing `Z`. */
   createdUtc: string
   /** UTC with a trailing `Z`. */

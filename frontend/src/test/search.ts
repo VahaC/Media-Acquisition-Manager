@@ -91,6 +91,7 @@ export function releaseOf(changes: Partial<SearchRelease>): SearchRelease {
       subtitleLanguages: ['eng'],
     },
     claimedWork: { titles: ['Чужі', 'Aliens'], year: 1986, lastYear: null, episodes: null },
+    descriptionWork: null,
     identifiers: [],
     libraryMatches: [{ workId: aliens.id, evidence: 'TitleAndYear', conflictingSchemes: [], heldEpisodeCount: null }],
     ...changes,

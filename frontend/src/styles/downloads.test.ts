@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest'
 // CSS, so the sheets are read from disk, as design-tokens.test.ts reads them (a `?raw` import comes
 // back empty under `css: false`). MAM-27 — and what the Jobs page's replacement tables, which show the
 // same chips, need of them, and what its confirmations, which quote a release or a file name, need.
-// MAM-41 — and how wide the confirmation that lists paths is.
+// MAM-41 — and how wide the confirmation that lists paths is. MAM-30 — and how the Destinations and
+// Integrations sheets keep a folder or an address within a phone's screen.
 
 interface Rule {
   /** The @media query the rule sits in; null at the top level. */
@@ -132,5 +133,42 @@ describe('the Jobs page\'s confirmations', () => {
     expect(parseFloat(wide['max-width'])).toBe(parseFloat(plain['max-width']) * 1.5)
     // The dialog is the screen's width up to its cap, so a phone narrower than the cap keeps its own.
     expect(dialog).toMatchObject({ width: '100%' })
+  })
+})
+
+// MAM-30 — what the folders of a client that saves to folders (Transmission) need of the sheets: a
+// folder or an address is one long word, which must neither widen a table or a dialog past a phone's
+// screen nor hide its end.
+describe('the folders of a client that saves to folders', () => {
+  it('show a folder key in the paths\' font, free to shrink and break inside a phone card', () => {
+    // Arrange
+    const PHONE_CARD = '(max-width: 48rem)'
+    const card = declared('settings-list.css', '.settings-table td', PHONE_CARD)
+
+    // Act
+    const key = { ...declared('destinations.css', '.destinations-key'), ...declared('destinations.css', '.destinations-key-folder') }
+
+    // Assert
+    // A phone card lays a cell out as a row: the key, its flex item, shrinks and breaks there.
+    expect(card).toMatchObject({ display: 'flex' })
+    expect(key).toEqual({ 'min-width': '0', 'overflow-wrap': 'break-word', 'font-family': 'var(--font-mono)' })
+    expect(declared('destinations.css', '.destinations-paths')['font-family']).toBe(key['font-family'])
+  })
+
+  it('break each line under the Folder field, and the Address hint, anywhere', () => {
+    // Arrange
+    const lines = [
+      declared('destinations.css', '.destinations-folder-problems'),
+      declared('integrations.css', '.integrations-address-hint'),
+      // Each line under the Folder field is one of these, the Jobs page's warning line.
+      declared('library.css', '.library-source-warning'),
+    ]
+
+    // Act
+    const wraps = lines.map((rule) => rule['overflow-wrap'])
+
+    // Assert
+    // `anywhere`, not `break-word`: only it also shrinks the min-content size a grid track takes.
+    expect(wraps).toEqual(['anywhere', 'anywhere', 'anywhere'])
   })
 })

@@ -6,16 +6,18 @@ namespace MediaAcquisitionManager.Core.Tests.Downloads;
 // MAM-11 — what a destination's name and client destination key may be: a name like an integration's
 // (trimmed, at most 64 characters, no control characters, compared in any letter case), and the client's
 // own category name exactly as the client spells it, never trimmed. Every refusal is pinned with the
-// sentence the Destinations dialog shows.
+// sentence the Destinations dialog shows. MAM-30 — the key's sentences name a category or a folder (ADR 0039), and a
+// name a folder client shows as the torrent's label can't hold a comma.
 public sealed class DestinationRulesTests
 {
     // Spelled out rather than read from DestinationRules: they are what the dialog shows.
     private const string NameMissingError = "A destination needs a name.";
     private const string NameTooLongError = "A destination's name can be at most 64 characters.";
     private const string NameControlCharacterError = "A destination's name can't contain line breaks or other control characters.";
-    private const string KeyMissingError = "Pick the category of the download client this destination saves to.";
-    private const string KeyTooLongError = "A category's name can be at most 256 characters.";
-    private const string KeyControlCharacterError = "A category's name can't contain line breaks or other control characters.";
+    private const string KeyMissingError = "Pick the category or folder of the download client this destination saves to.";
+    private const string KeyTooLongError = "A category or folder can be at most 256 characters.";
+    private const string KeyControlCharacterError = "A category or folder can't contain line breaks or other control characters.";
+    private const string LabelCommaError = "A label can't contain a comma.";
 
     [Theory]
     [InlineData(null, NameMissingError)]
@@ -164,6 +166,53 @@ public sealed class DestinationRulesTests
 
         //Act
         var error = DestinationRules.ValidateClientDestinationKey(key);
+
+        //Assert
+        Assert.Null(error);
+    }
+
+    [Theory]
+    // A Transmission folder, as the client sees it, is a key like any other.
+    [InlineData("/downloads/movies")]
+    [InlineData(@"D:\Torrents\Movies")]
+    public void ValidateClientDestinationKey_accepts_a_folder(string key)
+    {
+        //Arrange
+
+        //Act
+        var error = DestinationRules.ValidateClientDestinationKey(key);
+
+        //Assert
+        Assert.Null(error);
+    }
+
+    [Theory]
+    [InlineData("Movies, 4K")]
+    [InlineData(",")]
+    [InlineData("Фільми,")]
+    public void ValidateLabel_refuses_a_name_with_a_comma(string name)
+    {
+        //Arrange
+
+        //Act
+        var error = DestinationRules.ValidateLabel(name);
+
+        //Assert
+        // Transmission keeps a torrent's labels as one comma-separated text: the comma would make two labels.
+        Assert.Equal(LabelCommaError, error);
+    }
+
+    [Theory]
+    [InlineData("Movies")]
+    [InlineData("Movies (4K; HDR)")]
+    [InlineData("Фільми для дітей")]
+    [InlineData("Movies/4K")]
+    public void ValidateLabel_accepts_a_name_without_a_comma(string name)
+    {
+        //Arrange
+
+        //Act
+        var error = DestinationRules.ValidateLabel(name);
 
         //Assert
         Assert.Null(error);

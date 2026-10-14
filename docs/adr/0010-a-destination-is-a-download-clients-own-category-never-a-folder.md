@@ -212,3 +212,39 @@ goes stale when the category changes, a `savepath` overrides the owner's categor
 can disagree with the client's. Transmission has no category. A folder the owner types stays rejected
 there too. qBittorrent keeps everything above: its category alone, sent with automatic management,
 never a folder.
+
+## Transmission, as built (added 0.4.0, MAM-30)
+
+**The MAM-29 section's amendment is built
+([ADR 0039](0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)'s
+Implementation section), and this record's rule against sending a refused sign-in again carries over to
+Transmission's Basic credentials: an HTTP 401 or 403 from Transmission is remembered per integration
+and per address, user name and password, and nothing is sent with them again until they change or a
+connection test with them works.** With its anti-brute-force setting on, Transmission counts every
+refused password towards locking its RPC, which only a restart lifts, and its 403 can't tell a locked
+RPC from an address off its whitelist. The app keeps the refusal in memory, as it keeps qBittorrent's
+(`TransmissionSessions`, beside the session id), so a restart of the app — an update included — sends
+the refused credentials once more, and that refusal is remembered again. Each address and credentials
+refused is kept apart, a connection test's refusal like a call's: a test carries the integration's id
+whether it tests the saved credentials or ones typed and not yet saved, so a failed test of a password
+the owner has just saved keeps the next call from sending it, and leaves the refusal of the old one in
+place; a test that gets through forgets only its own, and a call that gets a session id forgets them
+all, since Transmission hands one out only past its credential check. Only those two are
+remembered: a refusal Transmission gives in its answer, a 421, its temporary folder switched on, a
+torrent it already has or a v2-only release says nothing about the credentials, and is never kept. qBittorrent is unchanged: its category alone,
+with automatic management. The three rule sentences that come before the client is known now name
+both kinds: "Pick the category or folder of the download client this destination saves to.", "A
+category or folder can be at most 256 characters." and "A category or folder can't contain line breaks
+or other control characters."
+
+`TransmissionAdapterSessionsTests.A_401_is_remembered_and_the_next_call_sends_nothing`,
+`A_401_without_a_user_name_is_remembered_in_its_own_words`,
+`A_403_is_remembered_and_the_next_call_sends_nothing`,
+`Corrected_credentials_are_sent_and_a_refusal_of_others_says_nothing_about_them`,
+`A_connection_test_asks_again_whatever_was_refused_and_its_success_lets_the_calls_send_again`,
+`A_refused_test_of_newly_saved_credentials_is_remembered_for_the_calls_beside_the_refusal_of_the_old_ones`,
+`A_connection_test_transmission_takes_forgets_only_the_refusal_of_the_credentials_it_tested` and
+`A_refusal_other_than_a_401_or_403_is_not_remembered_and_the_next_call_asks_again` (the temporary
+folder on, a 421, a refused `session-get`, two 409s, an unreachable Transmission, a 503) pin it, with
+`DownloadClientContractTests.Every_call_with_refused_credentials_is_authentication_failed_and_the_next_sends_nothing`
+for both clients.

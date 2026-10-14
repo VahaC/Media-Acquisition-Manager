@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
@@ -36,7 +37,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
     // ── Adapter types ───────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task AdapterTypes_is_200_with_jellyfin_torznab_qbittorrent_and_tmdb_and_what_each_takes_and_the_test_hosts_own_two()
+    public async Task AdapterTypes_is_200_with_jellyfin_torznab_qbittorrent_transmission_and_tmdb_and_what_each_takes_and_the_test_hosts_own_two()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -49,7 +50,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         var raw = await response.Content.ReadAsStringAsync(cancellationToken);
         var body = JsonSerializer.Deserialize<IntegrationAdapterTypeListResponse>(raw, MediaAcquisitionManagerApiFactory.JsonOptions);
         var types = body!.Items.ToDictionary(type => type.TypeId);
-        Assert.Equal(6, types.Count);
+        Assert.Equal(7, types.Count);
         Assert.Equal(
             new IntegrationAdapterTypeDto(
                 "jellyfin", "Jellyfin", IntegrationKind.MediaLibrary,
@@ -60,11 +61,20 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
                 "torznab", "Torznab", IntegrationKind.ReleaseSearch,
                 CredentialRequirement.NotUsed, CredentialRequirement.NotUsed, CredentialRequirement.Required, ReportsFilePaths: false),
             types["torznab"]);
+        // MAM-30 — and what its destinations are: its own categories, asked of its capabilities.
         Assert.Equal(
             new IntegrationAdapterTypeDto(
                 "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient,
-                CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true),
+                CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true,
+                DownloadDestinationKind.Category),
             types["qbittorrent"]);
+        // MAM-30 — Transmission in its place: the same credentials, and folders for destinations.
+        Assert.Equal(
+            new IntegrationAdapterTypeDto(
+                "transmission", "Transmission", IntegrationKind.DownloadClient,
+                CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true,
+                DownloadDestinationKind.Folder),
+            types["transmission"]);
         // MAM-33 — the catalog: its API Read Access Token in the API key field, and no paths of its own.
         Assert.Equal(
             new IntegrationAdapterTypeDto(
@@ -86,6 +96,8 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         // By name on the wire, which the dialog's type keys on.
         Assert.Contains("\"kind\":\"DownloadClient\"", raw, StringComparison.Ordinal);
         Assert.Contains("\"apiKey\":\"Required\"", raw, StringComparison.Ordinal);
+        Assert.Contains("\"destinationKind\":\"Category\"", raw, StringComparison.Ordinal);
+        Assert.Contains("\"destinationKind\":\"Folder\"", raw, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,7 +112,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         //Assert
         var body = await response.Content.ReadFromJsonAsync<IntegrationAdapterTypeListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         // Media libraries (Fake library, Fake service, Jellyfin), then release sources, download clients and catalogs.
-        Assert.Equal(["fake-library", "fake", "jellyfin", "torznab", "qbittorrent", "tmdb"], body!.Items.Select(type => type.TypeId));
+        Assert.Equal(["fake-library", "fake", "jellyfin", "torznab", "qbittorrent", "transmission", "tmdb"], body!.Items.Select(type => type.TypeId));
     }
 
     // ── List ────────────────────────────────────────────────────────────────────────────────────
@@ -138,7 +150,9 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
                     bob.Id, "bob", "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient, IsEnabled: false, "http://127.0.0.1:9",
                     "admin", HasPassword: true, HasApiKey: false,
                     [new PathMappingDto("/downloads", "/media/downloads"), new PathMappingDto("/incomplete", "/media/incomplete")],
-                    bob.CreatedUtc),
+                    bob.CreatedUtc,
+                    // MAM-30 — a download client's only; switched off or not, its type says.
+                    DownloadDestinationKind.Category),
                 new IntegrationDto(
                     charlie.Id, "charlie", "fake", "Fake service", IntegrationKind.MediaLibrary, IsEnabled: true, "http://127.0.0.1:9",
                     UserName: null, HasPassword: false, HasApiKey: false, [], charlie.CreatedUtc),
@@ -385,7 +399,8 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
                 downloads.Id, "Downloads", "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient, IsEnabled: true,
                 "http://127.0.0.1:9/qbittorrent", "admin", HasPassword: true, HasApiKey: false,
                 [new PathMappingDto("/downloads", "/media"), new PathMappingDto("/complete", "/media/complete")],
-                downloads.CreatedUtc),
+                downloads.CreatedUtc,
+                DownloadDestinationKind.Category),
             body,
             strict: true);
         Assert.Equal(["/downloads", "/complete"], body!.PathMappings.Select(mapping => mapping.ServicePrefix));

@@ -22,9 +22,10 @@ interface ProgressLine {
  * job's page.
  *
  * What you can do, when it waits for him: by who stopped it — the app can't follow the download
- * (Keep both, or Cancel job), the check of the new files (fix it in Jellyfin or qBittorrent, then
- * Retry, with a link to the Library page for a film, whose TMDb link is set there), or the move
- * (remove what holds the copy, then Retry; Restore when part of it is in the quarantine already) —,
+ * (Keep both, or Cancel job), the check of the new files (fix it in Jellyfin or the download client,
+ * then Retry, with a link to the Library page for a film, whose TMDb link is set there), or the move
+ * (remove what holds the copy, then Retry; Restore when part of it is in the quarantine already —
+ * MAM-30: a torrent in whichever download client lists it, as the server's reason names it) —,
  * or that a copy only dropping it settles is still in it, which holds Retry back. Drop is named only
  * while the server offers it on some copy: never on the last copy left, where Keep both is the way
  * out; and when every copy left is one only dropping settles, only keeping both does. And while

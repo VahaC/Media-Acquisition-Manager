@@ -27,6 +27,14 @@
   overflow-wrap: anywhere;
 }
 
+/* MAM-30 — the hint under the Address field gives an example address, and Torznab's names Jackett's
+   feed (…/api/v2.0/indexers/toloka/results/torznab/), one word wider than a phone's dialog: it breaks
+   anywhere. `anywhere`, not `break-word`, as only it also shrinks the min-content width the field's
+   grid track takes. */
+.integrations-address-hint {
+  overflow-wrap: anywhere;
+}
+
 /* The Test connection button, with its result beside it while it fits and under it when not. */
 .integrations-test {
   display: flex;

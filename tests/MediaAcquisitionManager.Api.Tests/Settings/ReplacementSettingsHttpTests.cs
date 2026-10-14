@@ -904,7 +904,9 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
 
     private static string Config(params string[] names) => string.Join(Separator, names.Prepend(ConfigRoot));
 
-    // The sample's libraries stored by a real sync, Jellyfin's /media and /config mapped to the platform's roots.
+    // The sample's libraries stored by a real sync, Jellyfin's /media and /config mapped to the platform's roots. MAM-30 —
+    // a box-set library stores no folder (decision 9), so Колекції here is a library of the owner's files — its
+    // CollectionType one that holds them — whose folder lies outside the media root, as these tests need one.
     private async Task SyncSampleLibrariesAsync(IReadOnlyList<PathMappingPair>? pathMappings = null)
     {
         var jellyfin = await _integrations.Create(
@@ -912,6 +914,7 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
             "Living room",
             apiKey: JellyfinApiKey,
             pathMappings: pathMappings ?? [new PathMappingPair("/media", MediaRoot), new PathMappingPair("/config", ConfigRoot)]);
+        _jellyfin.VirtualFolders.OfType<JsonObject>().Single(folder => (string?)folder["Name"] == Collections)["CollectionType"] = "homevideos";
         _jellyfin.Arm(_factory.JellyfinHttp);
         await new LibrarySnapshotSeeder(_factory.Scope).Sync(jellyfin);
     }

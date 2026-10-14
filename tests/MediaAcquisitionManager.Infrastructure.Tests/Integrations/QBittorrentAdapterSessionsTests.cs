@@ -66,8 +66,8 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        var first = await Client.ListDestinationsAsync(Saved, cancellationToken);
-        var second = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var first = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
+        var second = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.True(first.IsSuccess);
@@ -97,10 +97,10 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
             "user name" => Saved with { UserName = "owner" },
             _ => Saved with { Password = "correct-horse-battery-staple" },
         };
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Act
-        var result = await Client.ListDestinationsAsync(edited, cancellationToken);
+        var result = await Client.ListDestinationsAsync(edited, [], cancellationToken);
 
         //Assert
         // The kept session belongs to what it was opened with: an edited address must never receive it.
@@ -119,9 +119,9 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        await Client.ListDestinationsAsync(draft, cancellationToken);
-        var result = await Client.ListDestinationsAsync(draft, cancellationToken);
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(draft, [], cancellationToken);
+        var result = await Client.ListDestinationsAsync(draft, [], cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.True(result.IsSuccess);
@@ -150,10 +150,10 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
-        await Client.ListDestinationsAsync(other, cancellationToken);
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
-        await Client.ListDestinationsAsync(other, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
+        await Client.ListDestinationsAsync(other, [], cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
+        await Client.ListDestinationsAsync(other, [], cancellationToken);
 
         //Assert
         Assert.Equal(2, _signIns);
@@ -167,13 +167,13 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         // qBittorrent restarted, or the session sat idle past its timeout.
         _knownSessions.Clear();
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
-        var next = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
+        var next = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -197,11 +197,11 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _forgetsSessionsBefore = CategoriesPath;
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -220,13 +220,13 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _refusesEverySession = true;
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _refusesEverySession = false;
-        var next = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var next = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
@@ -252,14 +252,14 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _knownSessions.Clear();
         _refusesSignIn = true;
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _refusesSignIn = false;
-        var next = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var next = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
@@ -286,8 +286,8 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        var first = await Client.ListDestinationsAsync(Saved, cancellationToken);
-        var second = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var first = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
+        var second = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, first.Status);
@@ -309,8 +309,8 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        var first = await Client.ListDestinationsAsync(Saved, cancellationToken);
-        var second = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var first = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
+        var second = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Refused, first.Status);
@@ -329,7 +329,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         _refusesSignIn = true;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _refusesSignIn = false;
         var edited = changed switch
         {
@@ -339,7 +339,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         };
 
         //Act
-        var result = await Client.ListDestinationsAsync(edited, cancellationToken);
+        var result = await Client.ListDestinationsAsync(edited, [], cancellationToken);
 
         //Assert
         // The refusal belongs to what was refused: corrected credentials are tried straight away.
@@ -360,13 +360,13 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         _refusesSignIn = true;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         // The owner set the password back in qBittorrent.
         _refusesSignIn = false;
 
         //Act
         var test = await _harness.Adapter(QBittorrentAdapter.TypeId).TestConnectionAsync(Saved, cancellationToken);
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // The test signs in whatever was refused before — trying again is what the owner asked for — and
@@ -391,7 +391,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         _refusesSignIn = true;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _refusesSignIn = false;
         // Typed into the Edit dialog and tested, but not saved: the integration still signs in with the
         // password qBittorrent refused.
@@ -399,7 +399,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Act
         var test = await _harness.Adapter(QBittorrentAdapter.TypeId).TestConnectionAsync(typed, cancellationToken);
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, test.Status);
@@ -423,7 +423,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Act
         var test = await _harness.Adapter(QBittorrentAdapter.TypeId).TestConnectionAsync(Saved, cancellationToken);
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // The test's refused sign-in counted towards qBittorrent's ban like any other: the listing after it
@@ -442,14 +442,14 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
         _answersSignIn = () => VendorResponses.Text(
             "Your IP address has been banned after too many failed authentication attempts.", HttpStatusCode.Forbidden);
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         // The ban has ended; the stored password is still wrong.
         _answersSignIn = null;
         _refusesSignIn = true;
 
         //Act
         var test = await _harness.Adapter(QBittorrentAdapter.TypeId).TestConnectionAsync(Saved, cancellationToken);
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // The refusal kept is the latest of these very credentials, so the page no longer says to wait for
@@ -467,7 +467,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
         _answersSignIn = () => VendorResponses.Text(
             "Your IP address has been banned after too many failed authentication attempts.", HttpStatusCode.Forbidden);
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _answersSignIn = null;
         _refusesSignIn = true;
         // Typed into the Edit dialog and tested, but not saved: refused too.
@@ -475,7 +475,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
 
         //Act
         var test = await _harness.Adapter(QBittorrentAdapter.TypeId).TestConnectionAsync(typed, cancellationToken);
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // The typed password's refusal never stands in for the stored one's: the listing still answers the
@@ -502,11 +502,11 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
             "server error" => () => new HttpResponseMessage(HttpStatusCode.InternalServerError),
             _ => () => VendorResponses.Text("Welcome", HttpStatusCode.OK),
         };
-        var failed = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var failed = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _answersSignIn = null;
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // None of these reached qBittorrent's count of failed sign-ins: the next call tries again.
@@ -531,9 +531,9 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        var first = await Client.ListDestinationsAsync(draft, cancellationToken);
-        var second = await Client.ListDestinationsAsync(draft, cancellationToken);
-        var saved = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var first = await Client.ListDestinationsAsync(draft, [], cancellationToken);
+        var second = await Client.ListDestinationsAsync(draft, [], cancellationToken);
+        var saved = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // A draft has no integration to remember a refusal for, and its refusal never stays behind for the
@@ -552,9 +552,9 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         var cancellationToken = TestContext.Current.CancellationToken;
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         _refusesEverySession = false;
-        var next = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var next = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.UnexpectedResponse, result.Status);
@@ -579,7 +579,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         _letsInWithoutSession = true;
 
         //Act
-        var result = await Client.ListDestinationsAsync(Anonymous, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Anonymous, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.Succeeded, result.Status);
@@ -593,7 +593,7 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
         //Arrange
 
         //Act
-        var result = await Client.ListDestinationsAsync(Anonymous, TestContext.Current.CancellationToken);
+        var result = await Client.ListDestinationsAsync(Anonymous, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
@@ -608,11 +608,11 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Act
         var test = await _harness.Adapter(QBittorrentAdapter.TypeId).TestConnectionAsync(Saved, cancellationToken);
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // The test proves the credentials, so it never rides on a kept session; nor does it replace it.
@@ -632,14 +632,14 @@ public sealed class QBittorrentAdapterSessionsTests : IDisposable
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        await Client.ListDestinationsAsync(Saved, cancellationToken);
+        await Client.ListDestinationsAsync(Saved, [], cancellationToken);
         var kept = SessionIdOf(1);
         _harness.QBittorrentHttp.Handler = (request, body) => request.RequestUri!.AbsolutePath == VersionPath
             ? VendorResponses.Redirect($"{BaseUrl}/session/{kept}/{Password}/")
             : Serve(request, body);
 
         //Act
-        var result = await Client.ListDestinationsAsync(Saved, cancellationToken);
+        var result = await Client.ListDestinationsAsync(Saved, [], cancellationToken);
 
         //Assert
         // This call never signed in: the session it masks is the one it took from the cache.

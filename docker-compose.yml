@@ -30,12 +30,13 @@ services:
       MAM_Storage__DataDirectory: /data
       # The user and group the app runs as (MAM-39). Unset, the image's own 10001, which can write
       # nowhere in the media. To let replacement (0.3.0) move old copies, set them to the owner of
-      # the media folders — usually the same PUID and PGID as your qBittorrent; 1000 and 100 on the
-      # reference installation — and drop :ro from the media mount below. The app hands its data
-      # volume over to them itself when it starts; remove them to go back, and it hands the volume
-      # back. In .env they work too. A compose file from 0.3.0 (2026-10-11) still has a user: line
-      # above this block: it keeps working as before, and PUID and PGID are ignored until that line
-      # goes (the log says so). .env.example has the trade-off, docs/adr/0036 says why.
+      # the media folders — usually the same PUID and PGID as your download client, qBittorrent or
+      # Transmission; 1000 and 100 on the reference installation — and drop :ro from the media mount
+      # below. The app hands its data volume over to them itself when it starts; remove them to go
+      # back, and it hands the volume back. In .env they work too. A compose file from 0.3.0
+      # (2026-10-11) still has a user: line above this block: it keeps working as before, and PUID
+      # and PGID are ignored until that line goes (the log says so). .env.example has the trade-off,
+      # docs/adr/0036 says why.
       # PUID: "1000"
       # PGID: "100"
     volumes:
@@ -51,11 +52,11 @@ services:
       # mounts would be a copy, and the app refuses it. Quarantined files stay here, outside the
       # backup of mam-data. docs/adr/0033 says why.
       # Mount them at the path Jellyfin sees them at. A download client that sees them elsewhere
-      # (qBittorrent at /downloads, say) gets a path mapping under Integrations → the client → Path
-      # mappings, not a second mount; docs/adr/0003 says why. The app reads files only inside the
-      # folders the owner then allows in the app (user menu → Media folders: /media for the example
-      # below), and none until then; docs/adr/0009 says why. Example — adjust the host side and
-      # uncomment:
+      # (qBittorrent or Transmission at /downloads, say) gets a path mapping under Integrations →
+      # the client → Path mappings, not a second mount; docs/adr/0003 says why. The app reads files
+      # only inside the folders the owner then allows in the app (user menu → Media folders: /media
+      # for the example below), and none until then; docs/adr/0009 says why. Example — adjust the
+      # host side and uncomment:
       # - /mnt/media:/media:ro
 
 volumes:

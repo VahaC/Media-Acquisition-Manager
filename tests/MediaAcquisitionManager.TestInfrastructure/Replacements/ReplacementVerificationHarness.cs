@@ -48,6 +48,12 @@ namespace MediaAcquisitionManager.TestInfrastructure.Replacements;
 /// check, the Jobs page's line, every request that wasn't a read, the old copies on the disk now — comes back as data.
 /// Every test class makes its own: the tests are split by what they prove, and what they stand on is one place.
 /// </para>
+/// <para>
+/// MAM-30 — the same world with Transmission in qBittorrent's place (<see cref="ReplacementHarnessClient.Transmission"/>):
+/// "Transmission" behind a <see cref="FakeTransmissionServer"/>, its <c>/downloads</c> the app's <c>/media</c> too, the
+/// destinations Movies and TV Shows its folders <c>/downloads/movies</c> and <c>/downloads/tv-shows</c>, both seen by it.
+/// Everything else — the owner, Jellyfin, Toloka, the libraries, the switches — is the same.
+/// </para>
 /// </remarks>
 public sealed class ReplacementVerificationHarness
 {
@@ -59,6 +65,18 @@ public sealed class ReplacementVerificationHarness
 
     /// <summary>The name of the qBittorrent integration, which the reasons quote.</summary>
     public const string ClientName = "qBittorrent";
+
+    /// <summary>MAM-30 — the name of the Transmission integration of a harness made for
+    /// <see cref="ReplacementHarnessClient.Transmission"/>, which the reasons quote.</summary>
+    public const string TransmissionClientName = "Transmission";
+
+    /// <summary>MAM-30 — Transmission's folder of the Movies destination: Фільми's folder (<see cref="FilmsFolder"/>) as
+    /// Transmission sees it.</summary>
+    public const string TransmissionMoviesFolder = "/downloads/movies";
+
+    /// <summary>MAM-30 — Transmission's folder of the TV Shows destination: Серіали's folder (<see cref="ShowsFolder"/>)
+    /// as Transmission sees it.</summary>
+    public const string TransmissionTvShowsFolder = "/downloads/tv-shows";
 
     /// <summary>The one folder the app may read: qBittorrent's <c>/downloads</c> and Jellyfin's <c>/data</c> inside the app.</summary>
     public const string MediaRoot = "/media";
@@ -89,10 +107,17 @@ public sealed class ReplacementVerificationHarness
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private readonly Dictionary<Guid, string> _seriesItemIds = [];
-    private int _qbittorrentMark;
+    private int _clientMark;
     private int _jellyfinMark;
 
-    private ReplacementVerificationHarness(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
+    private ReplacementVerificationHarness(MediaAcquisitionManagerApiFactory factory, ReplacementHarnessClient clientKind)
+    {
+        _factory = factory;
+        ClientKind = clientKind;
+    }
+
+    /// <summary>MAM-30 — which download client every replacement is sent to.</summary>
+    public ReplacementHarnessClient ClientKind { get; }
 
     /// <summary>The installation owner, signed in when the harness was made.</summary>
     public AuthorizedUser Owner { get; private set; } = null!;
@@ -103,22 +128,28 @@ public sealed class ReplacementVerificationHarness
     /// <summary>The release search the owner's releases were found through.</summary>
     public IntegrationConnectionEntity Toloka { get; private set; } = null!;
 
-    /// <summary>qBittorrent, which every replacement is sent to.</summary>
+    /// <summary>qBittorrent — MAM-30, or Transmission (<see cref="ClientKind"/>) —, which every replacement is sent to.</summary>
     public IntegrationConnectionEntity Client { get; private set; } = null!;
 
     /// <summary>The fake behind <see cref="Jellyfin"/>: its items, and every request to look it took.</summary>
     public FakeJellyfinServer JellyfinServer { get; private set; } = null!;
 
-    /// <summary>The fake behind <see cref="Client"/>.</summary>
+    /// <summary>The fake behind <see cref="Client"/>; <c>null</c> for a harness of Transmission.</summary>
     public FakeQBittorrentServer QBittorrent { get; private set; } = null!;
+
+    /// <summary>MAM-30 — the fake behind <see cref="Client"/> for a harness of Transmission; <c>null</c> for one of
+    /// qBittorrent.</summary>
+    public FakeTransmissionServer Transmission { get; private set; } = null!;
 
     /// <summary>The fake behind <see cref="Toloka"/>, serving the .torrent <see cref="DownloadedAsync"/> sets.</summary>
     public FakeTorznabServer Feed { get; private set; } = null!;
 
-    /// <summary>The default destination: qBittorrent's Movies, saving to <c>/downloads/movies</c>.</summary>
+    /// <summary>The default destination: qBittorrent's Movies, saving to <c>/downloads/movies</c> — MAM-30, or Transmission's
+    /// folder <see cref="TransmissionMoviesFolder"/>.</summary>
     public DestinationMappingEntity Movies { get; private set; } = null!;
 
-    /// <summary>qBittorrent's TV Shows, saving to <c>/downloads/tv-shows</c>.</summary>
+    /// <summary>qBittorrent's TV Shows, saving to <c>/downloads/tv-shows</c> — MAM-30, or Transmission's folder
+    /// <see cref="TransmissionTvShowsFolder"/>.</summary>
     public DestinationMappingEntity TvShows { get; private set; } = null!;
 
     /// <summary>Jellyfin's film library.</summary>
@@ -127,12 +158,13 @@ public sealed class ReplacementVerificationHarness
     /// <summary>Jellyfin's series library.</summary>
     public LibraryLocationEntity Shows { get; private set; } = null!;
 
-    /// <summary>Plants everything the check stands on in <paramref name="factory"/>'s database and fakes; call it right after
-    /// the factory's reset.</summary>
-    public static async Task<ReplacementVerificationHarness> CreateAsync(MediaAcquisitionManagerApiFactory factory)
+    /// <summary>Plants everything the check stands on in <paramref name="factory"/>'s database and fakes, every replacement
+    /// sent to <paramref name="clientKind"/> (MAM-30); call it right after the factory's reset.</summary>
+    public static async Task<ReplacementVerificationHarness> CreateAsync(
+        MediaAcquisitionManagerApiFactory factory, ReplacementHarnessClient clientKind = ReplacementHarnessClient.QBittorrent)
     {
         ArgumentNullException.ThrowIfNull(factory);
-        var harness = new ReplacementVerificationHarness(factory);
+        var harness = new ReplacementVerificationHarness(factory, clientKind);
         var scope = factory.Scope;
         harness.Owner = await new UserSeeder(scope).CreateAuthorizedOwner("owner");
 
@@ -144,19 +176,39 @@ public sealed class ReplacementVerificationHarness
         harness.Feed = new FakeTorznabServer(TolokaAddress, TolokaApiKey);
         harness.Feed.Arm(factory.TorznabHttp);
         harness.Toloka = await integrations.Create("torznab", "Toloka", TolokaAddress, apiKey: TolokaApiKey);
-        harness.QBittorrent = new FakeQBittorrentServer();
-        harness.QBittorrent.Arm(factory.QBittorrentHttp);
-        harness.Client = await integrations.Create(
-            "qbittorrent",
-            ClientName,
-            harness.QBittorrent.BaseUrl,
-            userName: FakeQBittorrentServer.DefaultUserName,
-            password: FakeQBittorrentServer.DefaultPassword,
-            pathMappings: [new PathMappingPair("/downloads", MediaRoot)]);
-
         var destinations = new DestinationMappingSeeder(scope);
-        harness.Movies = await destinations.Create(harness.Client, "Movies", "Movies", isDefault: true);
-        harness.TvShows = await destinations.Create(harness.Client, "TV Shows", "TV Shows");
+        if (clientKind == ReplacementHarnessClient.Transmission)
+        {
+            // MAM-30 — Transmission sees both library folders, and its destinations are those folders, named in its terms.
+            harness.Transmission = new FakeTransmissionServer();
+            harness.Transmission.AddFolder(TransmissionMoviesFolder);
+            harness.Transmission.AddFolder(TransmissionTvShowsFolder);
+            harness.Transmission.Arm(factory.TransmissionHttp);
+            harness.Client = await integrations.Create(
+                "transmission",
+                TransmissionClientName,
+                harness.Transmission.BaseUrl,
+                userName: FakeTransmissionServer.DefaultUserName,
+                password: FakeTransmissionServer.DefaultPassword,
+                pathMappings: [new PathMappingPair("/downloads", MediaRoot)]);
+            harness.Movies = await destinations.Create(harness.Client, "Movies", TransmissionMoviesFolder, isDefault: true);
+            harness.TvShows = await destinations.Create(harness.Client, "TV Shows", TransmissionTvShowsFolder);
+        }
+        else
+        {
+            harness.QBittorrent = new FakeQBittorrentServer();
+            harness.QBittorrent.Arm(factory.QBittorrentHttp);
+            harness.Client = await integrations.Create(
+                "qbittorrent",
+                ClientName,
+                harness.QBittorrent.BaseUrl,
+                userName: FakeQBittorrentServer.DefaultUserName,
+                password: FakeQBittorrentServer.DefaultPassword,
+                pathMappings: [new PathMappingPair("/downloads", MediaRoot)]);
+            harness.Movies = await destinations.Create(harness.Client, "Movies", "Movies", isDefault: true);
+            harness.TvShows = await destinations.Create(harness.Client, "TV Shows", "TV Shows");
+        }
+
         var libraries = new LibraryLocationSeeder(scope);
         harness.Films = await libraries.Create(harness.Jellyfin, "Фільми", FilmsLibraryFolder);
         harness.Shows = await libraries.Create(harness.Jellyfin, "Серіали", ShowsLibraryFolder);
@@ -292,7 +344,8 @@ public sealed class ReplacementVerificationHarness
     /// is behind the mark <see cref="Writes"/> counts from.
     /// </summary>
     /// <param name="files">As qBittorrent names them: a single file by its name, the files of a folder under it
-    /// (<c>Pack/one.mkv</c>), each with its size and progress.</param>
+    /// (<c>Pack/one.mkv</c>), each with its size and progress. MAM-30 — Transmission names them the same way, and lists
+    /// them the same: each file's bytes there its size times its progress, the torrent seeding.</param>
     public async Task<DownloadJobDto> DownloadedAsync(
         ReleaseEntity release,
         DestinationMappingEntity destination,
@@ -315,7 +368,17 @@ public sealed class ReplacementVerificationHarness
             throw new InvalidOperationException($"The schedule answered {(int)scheduled.StatusCode}: {await scheduled.Content.ReadAsStringAsync(cancellationToken)}");
         var job = (await scheduled.Content.ReadFromJsonAsync<DownloadJobDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
 
-        QBittorrent.UpdateTorrent(job.ClientJobId!, torrent => torrent with { State = "stalledUP", Progress = 1.0, Files = files });
+        if (ClientKind == ReplacementHarnessClient.Transmission)
+        {
+            var listed = files.Select(file => new FakeTransmissionFile(file.Name, file.Size, (long)Math.Round(file.Size * file.Progress))).ToList();
+            var doneDate = _factory.Time.GetUtcNow().ToUnixTimeSeconds();
+            Transmission.UpdateTorrent(job.ClientJobId!, torrent => torrent.WithFiles(listed) with { Status = 6, DoneDate = doneDate });
+        }
+        else
+        {
+            QBittorrent.UpdateTorrent(job.ClientJobId!, torrent => torrent with { State = "stalledUP", Progress = 1.0, Files = files });
+        }
+
         _factory.Time.Advance(TimeSpan.FromMinutes(1));
         await _factory.PollDownloadJobsAsync(cancellationToken);
         if ((await ReplacementAsync(cancellationToken)).State != ReplacementJobState.Downloaded)
@@ -365,11 +428,11 @@ public sealed class ReplacementVerificationHarness
         return job;
     }
 
-    /// <summary>MAM-26 — takes the marks <see cref="Writes"/> counts from again: every request to qBittorrent and Jellyfin
-    /// so far is behind them.</summary>
+    /// <summary>MAM-26 — takes the marks <see cref="Writes"/> counts from again: every request to qBittorrent (MAM-30, or
+    /// Transmission) and Jellyfin so far is behind them.</summary>
     public void Mark()
     {
-        _qbittorrentMark = _factory.QBittorrentHttp.Requests.Count;
+        _clientMark = ClientHttp.Requests.Count;
         _jellyfinMark = _factory.JellyfinHttp.Requests.Count;
     }
 
@@ -538,14 +601,29 @@ public sealed class ReplacementVerificationHarness
     /// <summary>
     /// Every request to qBittorrent and Jellyfin since the download was done that wasn't a read, as <c>POST /path</c>,
     /// qBittorrent's first: what the check changed anywhere. qBittorrent's sign-in changes nothing and isn't counted.
+    /// MAM-30 — for Transmission, whose every request is a <c>POST</c> to one address, a read is a call of
+    /// <c>session-get</c>, <c>free-space</c> or <c>torrent-get</c>, and anything else is told by its method too:
+    /// <c>POST /transmission/rpc torrent-add</c>.
     /// </summary>
-    public IReadOnlyList<string> Writes() =>
-    [
-        .. _factory.QBittorrentHttp.Requests.Skip(_qbittorrentMark)
-            .Concat(_factory.JellyfinHttp.Requests.Skip(_jellyfinMark))
-            .Where(request => request.Method != HttpMethod.Get && request.Uri.AbsolutePath != ClientSignInPath)
-            .Select(request => $"{request.Method} {request.Uri.AbsolutePath}"),
-    ];
+    public IReadOnlyList<string> Writes()
+    {
+        var client = ClientKind == ReplacementHarnessClient.Transmission
+            ? _factory.TransmissionHttp.Requests.Skip(_clientMark)
+                .Select(request => (Request: request, Method: FakeTransmissionServer.Describe(request)))
+                .Where(call => call.Method is not ("session-get" or "free-space" or "torrent-get"))
+                .Select(call => $"{call.Request.Method} {call.Request.Uri.AbsolutePath} {call.Method}")
+            : _factory.QBittorrentHttp.Requests.Skip(_clientMark)
+                .Where(request => request.Method != HttpMethod.Get && request.Uri.AbsolutePath != ClientSignInPath)
+                .Select(request => $"{request.Method} {request.Uri.AbsolutePath}");
+        var library = _factory.JellyfinHttp.Requests.Skip(_jellyfinMark)
+            .Where(request => request.Method != HttpMethod.Get)
+            .Select(request => $"{request.Method} {request.Uri.AbsolutePath}");
+        return [.. client, .. library];
+    }
+
+    /// <summary>MAM-30 — the network behind <see cref="Client"/>.</summary>
+    private RecordingHttpHandler ClientHttp =>
+        ClientKind == ReplacementHarnessClient.Transmission ? _factory.TransmissionHttp : _factory.QBittorrentHttp;
 
     /// <summary>
     /// The ticked old copies the disk no longer describes as they were scheduled — gone, or of another identity, size or

@@ -6,7 +6,7 @@ import { integrationsApi } from '@/lib/integrations-api'
 import { qk } from '@/lib/queries'
 import type { IntegrationSummary } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
-import { adapterTypes, homeJellyfin, localQbittorrent } from '@/test/integrations'
+import { adapterTypes, homeJellyfin, localQbittorrent, localTransmission } from '@/test/integrations'
 import { locations, sourceOf, sourcesOf } from '@/test/library'
 
 vi.mock('@/lib/integrations-api')
@@ -49,6 +49,8 @@ describe('IntegrationDialog', () => {
     ['jellyfin', ['API key'], ['User name', 'Password'], true],
     ['torznab', ['API key'], ['User name', 'Password'], false],
     ['qbittorrent', ['User name (optional)', 'Password (optional)'], ['API key'], true],
+    // MAM-30 — Basic auth, both optional, and the paths it reports.
+    ['transmission', ['User name (optional)', 'Password (optional)'], ['API key'], true],
     ['tmdb', ['API key'], ['User name', 'Password'], false],
   ])('offers the services grouped by kind and shows only the fields %s takes', async (typeId, shown, hidden, mappings) => {
     // Arrange
@@ -64,7 +66,7 @@ describe('IntegrationDialog', () => {
     expect(groups).toEqual([
       ['Media libraries', ['Jellyfin']],
       ['Release sources', ['Torznab']],
-      ['Download clients', ['qBittorrent']],
+      ['Download clients', ['qBittorrent', 'Transmission']],
       ['Metadata catalogs', ['TMDb']],
     ])
     for (const label of shown) expect(within(dialog).getByLabelText(label)).toBeInTheDocument()
@@ -79,8 +81,10 @@ describe('IntegrationDialog', () => {
     ['Jellyfin', undefined, 'jellyfin', 'http://192.168.1.10:8096'],
     ['Torznab', undefined, 'torznab', 'http://192.168.1.10:9696/1/api'],
     ['qBittorrent', undefined, 'qbittorrent', 'http://192.168.1.10:8080'],
+    ['Transmission', undefined, 'transmission', 'http://192.168.1.10:9091'],
     ['TMDb', undefined, 'tmdb', 'https://api.themoviedb.org'],
     ['a saved qBittorrent', localQbittorrent, undefined, 'http://192.168.1.10:8080'],
+    ['a saved Transmission', localTransmission, undefined, 'http://192.168.1.10:9091'],
   ])('shows an example address that fits %s', async (_, integration, typeId, example) => {
     // Arrange
     const { dialog, user } = renderDialog(integration)
@@ -91,6 +95,54 @@ describe('IntegrationDialog', () => {
 
     // Assert
     expect(within(dialog).getByLabelText('Address')).toHaveAttribute('placeholder', example)
+  })
+
+  it.each([
+    ['transmission', 'The address of Transmission\'s web interface, such as http://192.168.1.10:9091. Transmission 4.0 or newer.'],
+    ['torznab', 'The feed\'s Torznab address. Prowlarr shows it in the indexer\'s details, such as http://192.168.1.10:9696/1/api; Jackett\'s Copy Torznab Feed gives one such as http://192.168.1.10:9117/api/v2.0/indexers/toloka/results/torznab/.'],
+  ])('says under the address where %s\'s address comes from, in a hint that breaks a long address', async (typeId, hint) => {
+    // Arrange
+    const { dialog, user } = renderDialog()
+    await whenReady(dialog)
+
+    // Act
+    await pickService(user, dialog, typeId)
+
+    // Assert
+    const address = within(dialog).getByLabelText('Address')
+    expect(address).toHaveAccessibleDescription(hint)
+    expect(within(dialog).getByText(hint)).toHaveClass('auth-hint', 'integrations-address-hint')
+  })
+
+  it.each([
+    ['transmission', 'Path in Transmission', 'Your library folders become Transmission\'s destinations through these mappings: map each folder Transmission sees to this app\'s, for example /downloads → /media.'],
+    ['qbittorrent', 'Path in qBittorrent', 'If qBittorrent sees your media under other paths than this app does, map each of its folders to this app\'s, for example /downloads → /media.'],
+  ])('explains what the path mappings of %s do', async (typeId, servicePath, help) => {
+    // Arrange
+    const { dialog, user } = renderDialog()
+    await whenReady(dialog)
+
+    // Act
+    await pickService(user, dialog, typeId)
+    await user.click(within(dialog).getByRole('button', { name: 'Add mapping' }))
+
+    // Assert
+    const mappings = within(dialog).getByRole('group', { name: 'Path mappings' })
+    expect(within(mappings).getByText(help)).toHaveClass('auth-hint')
+    expect(within(mappings).getByLabelText(servicePath)).toBeInTheDocument()
+  })
+
+  it('explains the path mappings of a saved Transmission as what makes its destinations', async () => {
+    // Arrange
+    const { dialog } = renderDialog(localTransmission)
+
+    // Act
+    await whenReady(dialog)
+
+    // Assert
+    const mappings = within(dialog).getByRole('group', { name: 'Path mappings' })
+    expect(within(mappings).getByText(/^Your library folders become Transmission's destinations/)).toBeInTheDocument()
+    expect((within(mappings).getByLabelText('Path in Transmission') as HTMLInputElement).value).toBe('/downloads')
   })
 
   it('marks optional credentials as optional', async () => {

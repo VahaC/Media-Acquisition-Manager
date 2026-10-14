@@ -441,18 +441,19 @@ public sealed class ReplacementOptionsHoldingsHttpTests : IClassFixture<MediaAcq
         var cancellationToken = TestContext.Current.CancellationToken;
         await PlantAlienAsync(cancellationToken);
         await _replacement.SwitchOn(FilmsFolder);
-        await _integrations.Create("transmission", "Transmission", kind: IntegrationKind.DownloadClient);
+        // MAM-30 — a type no adapter of this build is registered as: Transmission is one now.
+        await _integrations.Create("retired-client", "Old client", kind: IntegrationKind.DownloadClient);
 
         //Act
         var response = await OptionsAsync(holdings: true);
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        // A client this build can't ask may still hold the copies: never an all-clear.
+        // A client this build can't ask may still hold the copies: never an all-clear. Clients by name.
         Assert.Equal(
             [
+                ("Old client", ReplacementClientCheck.NotRead, "This version of the app can't read “retired-client”."),
                 ("qBittorrent", ReplacementClientCheck.Read, (string?)null),
-                ("Transmission", ReplacementClientCheck.NotRead, "This version of the app can't read “transmission”."),
             ],
             (await ReadAsync(response, cancellationToken)).Clients.Select(client => (client.ClientName, client.Status, client.Error)));
     }

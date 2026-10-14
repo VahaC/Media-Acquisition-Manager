@@ -31,6 +31,15 @@ namespace MediaAcquisitionManager.Api.Services.Downloads;
 /// collision refuses the send. A refusal is the app's own sentence, read by everyone who sent the release.
 /// </para>
 /// <para>
+/// MAM-30 — where and under which names a client writes a torrent's files is its type's
+/// (<see cref="DownloadClientCapabilities.FilePlacement"/>): Transmission writes only the torrent's own layout, and an
+/// unfinished file under its name with <c>.part</c> (<see cref="DownloadClientCapabilities.PartialFileSuffix"/>), a place
+/// looked at like any other. A folder destination's torrents are every torrent the client saves in that folder, and its
+/// refusals name the destination, never the folder, as members read them (D13). A folder the client can't see has no
+/// path in the app: it is never looked into, and the check refuses a send there in either mode, as the send does
+/// before it (D5).
+/// </para>
+/// <para>
 /// MAM-24, ADR 0032 — a replacement's check is strict (<c>anyFileRefuses</c>): a file already at a place refuses it
 /// whatever its bytes, and each of the ways above the check couldn't look refuses it instead of sending it unchecked.
 /// Its scope is MAM-38's (R7): a place nothing is at yet is compared with the torrents of the destination's own
@@ -54,6 +63,7 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
     public async Task<DownloadOverwriteVerdict> CheckAsync(
         ReleasePayload payload,
         CheckedClientDestination destination,
+        string destinationName,
         IntegrationConnectionEntity client,
         IDownloadClient downloadClient,
         IntegrationConnectionSettings settings,
@@ -64,10 +74,17 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
         ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(client);
 
+        // MAM-30 — a folder its client can't see takes nothing, Keep both or a replacement alike, whatever the release is:
+        // the client would create it in its own filesystem (D5). The send refuses it before asking, and so does the check
+        // itself, never "sent unchecked", with the send's own sentence, which names the destination (D13).
+        if (destination.Check.Status == DestinationPathStatus.FolderNotSeen)
+            return DownloadOverwriteVerdict.Refuse(DownloadSender.FolderUnusableError(client, destinationName));
+
+        var wording = new DestinationWording(downloadClient.Capabilities.DestinationKind, destination.Destination.Key, destinationName);
         // MAM-24 — what the check couldn't look at: sent and said so, or, strict, refused with why.
         DownloadOverwriteVerdict Unchecked(DownloadOverwriteCheck check) =>
             anyFileRefuses
-                ? DownloadOverwriteVerdict.Refuse(UncheckedRefusalOf(destination.Destination.Key, check))
+                ? DownloadOverwriteVerdict.Refuse(UncheckedRefusalOf(wording, check))
                 : DownloadOverwriteVerdict.Send(check);
 
         if (payload.Kind == ReleasePayloadKind.Magnet)
@@ -78,6 +95,9 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
         var (folder, roots, reason) = await FolderAsync(destination, cancellationToken);
         if (reason is { } notChecked)
             return Unchecked(notChecked);
+        // MAM-30 — a file no reading of its names places, where the client writes can't be told.
+        if (TorrentTargetPaths.For(folder!, content, downloadClient.Capabilities.FilePlacement, downloadClient.Capabilities.PartialFileSuffix) is not { } targets)
+            return Unchecked(DownloadOverwriteCheck.NotCheckedFileList);
 
         var collisions = new List<Collision>();
         var vacant = new List<TorrentTarget>();
@@ -85,7 +105,7 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
         // whose other places would refuse it.
         var behindLinkOut = false;
         var nameNotLookedUp = false;
-        foreach (var target in TorrentTargetPaths.For(folder!, content))
+        foreach (var target in targets)
         {
             var path = target.Path.ToString();
             // A name libtorrent keeps — DEL, a C1 control — that the app's paths refuse: the inventory would call
@@ -127,13 +147,13 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
         }
 
         if (collisions.Count > 0)
-            return DownloadOverwriteVerdict.Refuse(RefusalOf(client, destination.Destination.Key, folder!, collisions));
+            return DownloadOverwriteVerdict.Refuse(RefusalOf(client, wording, folder!, collisions));
 
         var queued = vacant.Count > 0
             ? await QueuedCollisionAsync(vacant, destination, client, downloadClient, settings, cancellationToken)
             : (Complete: true, Collision: null);
         if (queued.Collision is { } collision)
-            return DownloadOverwriteVerdict.Refuse(RefusalOf(client, destination.Destination.Key, folder!, [collision]));
+            return DownloadOverwriteVerdict.Refuse(RefusalOf(client, wording, folder!, [collision]));
 
         if (behindLinkOut)
             return Unchecked(DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders);
@@ -147,10 +167,14 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
     /// <summary>
     /// The destination's folder inside the app and the Media folders, or why it can't be looked into: no path the
     /// app can use, or none of the Media folders holds it, by its text — the inventory follows every link itself.
+    /// MAM-30 — a folder its client can't see is never looked into, whatever its mappings say (D5), and has a reason of
+    /// its own: nothing is sent there at all, which the Download dialog says rather than "sent unchecked".
     /// </summary>
     private async Task<(NormalizedPath? Folder, IReadOnlyList<string> Roots, DownloadOverwriteCheck? Reason)> FolderAsync(
         CheckedClientDestination? destination, CancellationToken cancellationToken)
     {
+        if (destination?.Check.Status == DestinationPathStatus.FolderNotSeen)
+            return (null, [], DownloadOverwriteCheck.NotCheckedFolderNotSeen);
         if (destination?.Check.AppPath is not { } appPath || !NormalizedPath.TryParse(appPath, out var folder, out _))
             return (null, [], DownloadOverwriteCheck.NotCheckedFolderUnknown);
 
@@ -334,9 +358,9 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
     /// <summary>
     /// The sentence a refused send ends with: the first file it would write over, by its path below the
     /// destination's folder, why, and how many more of the release's files land on a file already there — each
-    /// file once, however many of its places do.
+    /// file once, however many of its places do (MAM-30: a file's <c>.part</c> place is that file too).
     /// </summary>
-    private static string RefusalOf(IntegrationConnectionEntity client, string key, NormalizedPath folder, IReadOnlyList<Collision> collisions)
+    private static string RefusalOf(IntegrationConnectionEntity client, DestinationWording wording, NormalizedPath folder, IReadOnlyList<Collision> collisions)
     {
         var first = collisions[0];
         var name = string.Join('/', first.Target.Path.SegmentsAfter(folder));
@@ -357,14 +381,14 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
             1 => " One more of the release's files would land on a file already there too.",
             _ => $" {more} more of the release's files would land on files already there too.",
         };
-        return $"“{client.Name}” would write over “{name}” in the folder of the category “{key}”: {why}, so nothing was sent.{others}";
+        return $"“{client.Name}” would write over “{name}” in the folder of {wording.Destination}: {why}, so nothing was sent.{others}";
     }
 
     /// <summary>
     /// MAM-24 — the sentence a replacement's strict check refuses with when it couldn't look at every place the release
     /// would write: nothing reached the client, and the owner picks Keep both himself (Vasyl's decision of 2026-10-09).
     /// </summary>
-    private static string UncheckedRefusalOf(string key, DownloadOverwriteCheck check)
+    private static string UncheckedRefusalOf(DestinationWording wording, DownloadOverwriteCheck check)
     {
         var why = check switch
         {
@@ -373,10 +397,12 @@ public sealed class DownloadOverwriteGuard(ApplicationDbContext db, IFileInvento
             DownloadOverwriteCheck.NotCheckedFolderUnknown => "the folder has no path in the app",
             DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders =>
                 "the folder, or a link on the way to one of its places, lies outside the Media folders",
-            DownloadOverwriteCheck.NotCheckedClientJobs => "the client couldn't list its torrents in the category, or their files",
+            DownloadOverwriteCheck.NotCheckedClientJobs => wording.IsFolder
+                ? "the client couldn't list its torrents in that folder, or their files"
+                : "the client couldn't list its torrents in the category, or their files",
             _ => "a file's name holds characters the app can't look up",
         };
-        return $"The app couldn't check every place this release would write in the folder of the category “{key}” ({why}), so nothing was sent and no copy will be replaced. Pick Keep both to download it.";
+        return $"The app couldn't check every place this release would write in the folder of {wording.Destination} ({why}), so nothing was sent and no copy will be replaced. Pick Keep both to download it.";
     }
 
     /// <summary>Why a place one of the release's files would be written isn't free.</summary>

@@ -14,8 +14,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// the work doesn't hold, or two sources gave the work two.</param>
 /// <param name="HeldEpisodeCount">MAM-32 — on a TV release's match, how many episodes of the series the
 /// library holds among the seasons or episodes the release's title claims
-/// (<see cref="ReleaseWorkClaimDto.Episodes"/>); <c>null</c> on a movie's, and when the title claims
-/// none.</param>
+/// (<see cref="ReleaseWorkClaimDto.Episodes"/>) — MAM-30, or its description, when that is what matched the
+/// work (<see cref="SearchReleaseDto.DescriptionWork"/>), each standing in for the other when it names none;
+/// <c>null</c> on a movie's, and when neither names any.</param>
 public sealed record ReleaseLibraryMatchDto(
     Guid WorkId,
     MatchEvidence Evidence,

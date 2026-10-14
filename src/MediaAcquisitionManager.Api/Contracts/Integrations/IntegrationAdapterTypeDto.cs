@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Enums;
 
@@ -11,6 +12,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Password">Whether it takes a password.</param>
 /// <param name="ApiKey">Whether it takes an API key.</param>
 /// <param name="ReportsFilePaths">Whether the service reports file paths, so path mappings apply.</param>
+/// <param name="DestinationKind">MAM-30 — for a type of download client, what its destinations are: its own categories
+/// or the folders it can reach (ADR 0039); <c>null</c> for any other type.</param>
 public sealed record IntegrationAdapterTypeDto(
     string TypeId,
     string DisplayName,
@@ -18,4 +21,5 @@ public sealed record IntegrationAdapterTypeDto(
     CredentialRequirement UserName,
     CredentialRequirement Password,
     CredentialRequirement ApiKey,
-    bool ReportsFilePaths);
+    bool ReportsFilePaths,
+    DownloadDestinationKind? DestinationKind = null);

@@ -151,6 +151,8 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
     [InlineData("http://пример.test:9696/1/api", "http://xn--e1afmkfd.test:9696/1/download?link=x")]
     [InlineData("http://xn--e1afmkfd.test:9696/1/api", "http://ПРИМЕР.test:9696/1/download?link=x")]
     [InlineData("http://[::1]:9696/1/api", "http://[0:0:0:0:0:0:0:1]:9696/1/download?link=x")]
+    // MAM-30 — Jackett's downloads at its host's root, outside the feed's own path: the origin is all that counts.
+    [InlineData("http://jackett.test:9117/api/v2.0/indexers/toloka/results/torznab/", "http://jackett.test:9117/dl/toloka/?jackett_apikey=x&path=y")]
     public async Task FetchPayload_sends_a_link_on_the_feeds_origin_however_it_is_written(string baseUrl, string locator)
     {
         //Arrange
@@ -354,7 +356,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
     [InlineData(500, "500", "Unable to fetch the torrent", IntegrationCallStatus.ServiceError,
         "The Torznab feed failed to hand over the release (error 500: Unable to fetch the torrent).")]
     [InlineData(401, "100", "Invalid API Key", IntegrationCallStatus.AuthenticationFailed,
-        "The Torznab feed refused the API key (error 100: Invalid API Key).")]
+        "The Torznab feed refused the API key (error 100: Invalid API Key). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData(400, "201", "Incorrect parameter", IntegrationCallStatus.UnexpectedResponse,
         "The Torznab feed didn't understand the download request (error 201: Incorrect parameter).")]
     // The body speaks first, whatever the status: a redirect included.
@@ -382,8 +384,8 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
     [InlineData(404, IntegrationCallStatus.NotFound,
         "The Torznab feed couldn't hand over this release (404 Not Found): it may be gone, or the feed failed to fetch it; its own log says which.")]
     [InlineData(410, IntegrationCallStatus.NotFound, "The Torznab feed can't hand over this release any more (410 Gone). Search again.")]
-    [InlineData(401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (401 Unauthorized).")]
-    [InlineData(403, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (403 Forbidden).")]
+    [InlineData(401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
+    [InlineData(403, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (403 Forbidden). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData(429, IntegrationCallStatus.Refused, "The Torznab feed is refusing requests for now (429 Too Many Requests). Try again in a few minutes.")]
     [InlineData(503, IntegrationCallStatus.ServiceError, "Torznab answered 503 Service Unavailable. Its own log says why.")]
     [InlineData(204, IntegrationCallStatus.UnexpectedResponse, "Torznab answered 204 No Content, which it doesn't send for this request. Check the address.")]
@@ -585,7 +587,7 @@ public sealed class TorznabAdapterPayloadTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized).", result.Error);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Error);
     }
 
     private static HttpResponseMessage Torrent(byte[] body)

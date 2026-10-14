@@ -42,7 +42,7 @@ public interface IReleaseSeeder
     /// given, that <paramref name="user"/>'s search for <paramref name="searchText"/> of <paramref name="searchYear"/> (by
     /// those ids too) found a moment ago through <paramref name="source"/>: the search the release is matched to the
     /// library through, as the search page and the Download dialog match it. A magnet when <paramref name="payloadKind"/>
-    /// says so.
+    /// says so. MAM-30 — with the listing's <paramref name="description"/>, which the matching reads too.
     /// </summary>
     Task<ReleaseEntity> CreateFoundBySearch(
         UserEntity user,
@@ -53,5 +53,6 @@ public interface IReleaseSeeder
         ReleaseKind kind = ReleaseKind.Movie,
         string? imdbId = null,
         string? tmdbId = null,
-        ReleasePayloadKind? payloadKind = null);
+        ReleasePayloadKind? payloadKind = null,
+        string? description = null);
 }

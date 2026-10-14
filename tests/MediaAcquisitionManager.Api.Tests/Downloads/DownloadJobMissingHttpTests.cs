@@ -55,7 +55,7 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
         "The download client “qBittorrent” was removed, so this download can't be followed. Cancel the job to stop tracking it.";
     private const string SwitchedOffReason =
         "“qBittorrent” is switched off, so this download isn't followed for now. The owner can switch it on under Integrations.";
-    private const string NoAdapterReason = "This version of the app can't follow downloads in “transmission”.";
+    private const string NoAdapterReason = "This version of the app can't follow downloads in “retired-client”.";
     private const string PasswordUnreadableReason =
         "The stored password of “qBittorrent” can't be read with this installation's encryption key. Enter the password again and save.";
     private const string ThrewReason = "The app couldn't read what “qBittorrent” answered.";
@@ -349,10 +349,11 @@ public sealed class DownloadJobMissingHttpTests : IClassFixture<MediaAcquisition
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
-        var transmission = await _integrations.Create("transmission", "Transmission", kind: IntegrationKind.DownloadClient);
+        // MAM-30 — a type no adapter of this build is registered as: Transmission is one now.
+        var retired = await _integrations.Create("retired-client", "Old client", kind: IntegrationKind.DownloadClient);
         var release = await _releases.CreateFound(_member.User, _toloka);
         var job = await Jobs().Create(
-            release.Id, transmission.Id, transmission.Name, status: DownloadJobStatus.Submitted, requestedByUserId: _member.User.Id, infoHashV1: Hash(1));
+            release.Id, retired.Id, retired.Name, status: DownloadJobStatus.Submitted, requestedByUserId: _member.User.Id, infoHashV1: Hash(1));
 
         //Act
         await PassAsync(cancellationToken);

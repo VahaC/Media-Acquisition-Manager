@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
+
 namespace MediaAcquisitionManager.Api.Contracts;
 
 /// <summary>A destination as the Destinations settings page shows it (MAM-11).</summary>
@@ -16,6 +18,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Check">Where the category saves and whether that is inside a media library, as the
 /// client answered when this was read.</param>
 /// <param name="CreatedUtc">When it was added.</param>
+/// <param name="DestinationKind">MAM-30 — what <paramref name="ClientDestinationKey"/> is, by its client's type: a
+/// category, or a folder as the client sees it (ADR 0039); <c>null</c> when this version of the app no longer connects
+/// to that type.</param>
 public sealed record DestinationDto(
     Guid Id,
     string Name,
@@ -24,4 +29,5 @@ public sealed record DestinationDto(
     string DownloadClientName,
     string ClientDestinationKey,
     DestinationCheckDto Check,
-    DateTime CreatedUtc);
+    DateTime CreatedUtc,
+    DownloadDestinationKind? DestinationKind = null);

@@ -268,7 +268,7 @@ public sealed class DestinationsUpdateHttpTests : IClassFixture<MediaAcquisition
     [Theory]
     [InlineData("empty name", "A destination needs a name.")]
     [InlineData("missing client", "Pick the download client this destination belongs to.")]
-    [InlineData("missing category", "Pick the category of the download client this destination saves to.")]
+    [InlineData("missing category", "Pick the category or folder of the download client this destination saves to.")]
     public async Task Update_with_a_blank_or_missing_field_is_400_with_the_rule(string blank, string expectedError)
     {
         //Arrange

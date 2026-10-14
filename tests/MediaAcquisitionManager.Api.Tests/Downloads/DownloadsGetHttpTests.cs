@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -117,7 +118,9 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
                 // MAM-38 — sent with no Media folder allowed, so its folder couldn't be looked into.
                 OverwriteCheck: DownloadOverwriteCheck.NotCheckedFolderOutsideMediaFolders,
                 now,
-                now),
+                now,
+                // MAM-30 — qBittorrent's destinations are its categories, as its type said when the job was made.
+                DestinationKind: DownloadDestinationKind.Category),
             body,
             strict: true);
         // The same job the send answered with, read from its row.
@@ -129,6 +132,7 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
             Assert.Equal(_member.User.Id, job.RequestedByUserId);
             Assert.Equal(DownloadJobStatus.Submitted, job.Status);
             Assert.Equal(SampleTorrentHash, job.ClientJobId);
+            Assert.Equal(DownloadDestinationKind.Category, job.DestinationKind);
         });
         await AssertUnchangedAsync(before, cancellationToken);
     }
@@ -158,9 +162,12 @@ public sealed class DownloadsGetHttpTests : IClassFixture<MediaAcquisitionManage
                 "progress", "clientJobId", "error", "blockReason", "overwriteCheck", "createdUtc", "statusChangedUtc",
                 // MAM-24 — the replacement it carries; null for a Keep both send.
                 "replacement",
+                // MAM-30 — what its key is: a category or a folder.
+                "destinationKind",
             ],
             root.EnumerateObject().Select(property => property.Name));
         Assert.Equal("Submitted", root.GetProperty("status").GetString());
+        Assert.Equal("Category", root.GetProperty("destinationKind").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("error").ValueKind);
         // MAM-14 — not read from the client yet, and nothing blocks it.
         Assert.Equal(JsonValueKind.Null, root.GetProperty("progress").ValueKind);

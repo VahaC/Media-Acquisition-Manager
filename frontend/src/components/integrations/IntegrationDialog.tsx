@@ -28,7 +28,7 @@ import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every settings dialog lays them out
 import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body and the buttons under it, the switch
-import '@/styles/integrations.css' // .integrations-dialog, .integrations-test — the wider dialog, the test row
+import '@/styles/integrations.css' // .integrations-dialog, .integrations-test, .integrations-address-hint — the wider dialog, the test row, the address hint
 
 const NO_SECRET: SecretDraft = { value: '', clear: false }
 
@@ -215,7 +215,8 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
                   onChange={(event) => setBaseUrl(event.target.value)}
                 />
               </label>
-              <p id={addressHintId} className="auth-hint">{t(`dialog.addressHelp.${addressTexts}`)}</p>
+              {/* MAM-30 — Jackett's feed address in Torznab's hint is one long word on a phone. */}
+              <p id={addressHintId} className="auth-hint integrations-address-hint">{t(`dialog.addressHelp.${addressTexts}`)}</p>
             </div>
 
             {adapter && adapter.userName !== 'NotUsed' && (
@@ -284,7 +285,12 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
             </div>
 
             {adapter?.reportsFilePaths && (
-              <PathMappingsEditor serviceName={adapter.displayName} value={mappings} onChange={setMappings} />
+              <PathMappingsEditor
+                serviceName={adapter.displayName}
+                destinationKind={adapter.destinationKind}
+                value={mappings}
+                onChange={setMappings}
+              />
             )}
           </div>
           {/* MAM-16 — outside the scrolling body, above the buttons; the fields keep what was typed. */}
@@ -330,6 +336,8 @@ function addressTextsFor(adapterType: string) {
     case 'jellyfin': return 'jellyfin' as const
     case 'torznab': return 'torznab' as const
     case 'qbittorrent': return 'qbittorrent' as const
+    // MAM-30 — the address of its web interface; the adapter adds /transmission/rpc itself.
+    case 'transmission': return 'transmission' as const
     case 'tmdb': return 'tmdb' as const
     default: return 'generic' as const
   }

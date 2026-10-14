@@ -381,7 +381,9 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
     /// <summary>
     /// Each library with an id, in Jellyfin's order: its name (the id when it has none) and its root
     /// folders exactly as Jellyfin sees them — they are compared with file paths, never shown. A second
-    /// library with an id already read is dropped.
+    /// library with an id already read is dropped. MAM-30 — and whether its folders hold media files: a box-set or
+    /// playlist library (<c>CollectionType</c> <c>boxsets</c>, <c>playlists</c>) keeps Jellyfin's own records in
+    /// Jellyfin's config folder, no place a download belongs (Vasyl's decision 9).
     /// </summary>
     private static IntegrationCallResult<IReadOnlyList<LibraryLocation>> ReadLocations(JsonElement root, string?[] secrets)
     {
@@ -404,11 +406,23 @@ internal sealed partial class JellyfinAdapter(IHttpClientFactory httpClients)
                         .Select(path => path.GetString()!),
                 ]
                 : [];
-            locations.Add(new LibraryLocation(id, name.Length > 0 ? name : id, paths.AsReadOnly()));
+            locations.Add(new LibraryLocation(id, name.Length > 0 ? name : id, paths.AsReadOnly(), HoldsMediaFiles(folder)));
         }
 
         return IntegrationCallResult<IReadOnlyList<LibraryLocation>>.Succeeded(locations.AsReadOnly());
     }
+
+    /// <summary>
+    /// MAM-30 — false only for the two library types Jellyfin fills with its own records rather than the owner's files;
+    /// any other type, an unknown one or none (a mixed library) holds media files, so a library is never left out on a
+    /// guess. Any letter case: the value is compared, never shown.
+    /// </summary>
+    private static bool HoldsMediaFiles(JsonElement library) =>
+        !(library.TryGetProperty("CollectionType", out var type)
+            && type.ValueKind == JsonValueKind.String
+            && type.GetString() is { } value
+            && (string.Equals(value, "boxsets", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "playlists", StringComparison.OrdinalIgnoreCase)));
 
     // ── the movies, series and episodes ──────────────────────────────────────
 

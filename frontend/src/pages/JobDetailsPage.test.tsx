@@ -110,6 +110,29 @@ describe('JobDetailsPage', () => {
     ]))
   })
 
+  it.each<[string, Partial<DownloadJob>, CurrentUser, string]>([
+    // MAM-30 — the owner reads where a folder job went; the server sends no folder to anyone else (D13).
+    ['the owner, a folder job, by its name and folder',
+      { destinationKind: 'Folder', downloadClientName: 'Local Transmission', destinationName: 'Films', clientDestinationKey: '/downloads/movies' },
+      owner, 'Films — folder “/downloads/movies”'],
+    ['a member, a folder job, by its name alone',
+      { destinationKind: 'Folder', downloadClientName: 'Local Transmission', destinationName: 'Films', clientDestinationKey: null },
+      member, 'Films'],
+    ['anyone, a job made before the app noted the kind, as the category it was',
+      { destinationKind: null },
+      member, 'Movies — category “Movies”'],
+  ])('names the destination for %s', async (_, changes, signedIn, destination) => {
+    // Arrange
+    serve(jobOf(changes))
+
+    // Act
+    renderAt(`/jobs/${downloadingJob.id}`, signedIn)
+
+    // Assert
+    await screen.findByRole('heading', { level: 1, name: downloadingJob.releaseTitle })
+    expect(facts()).toContainEqual(['Destination', destination])
+  })
+
   it('shows the block reason and the error under the status', async () => {
     // Arrange
     const blockReason = '“Local qBittorrent” no longer lists this torrent. Cancel the job to stop tracking it.'

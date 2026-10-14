@@ -68,7 +68,7 @@ const waitsUntil = formatDateTime(WAITS_UNTIL_UTC, { timeStyle: 'short' })
 const HELD_REASON = 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.'
 const NO_ID_REASON = 'Jellyfin gave “Alien.1979.2160p.Remux.mkv” no TMDb or IMDb id within an hour, so it can\'t be compared with Alien (1979).'
 const RENUMBERED_REASON = 'Jellyfin numbers “Yellowstone.S02E05.2160p.mkv” as season 2, episode 6, not the episode “Yellowstone S02E05.mkv” is.'
-const DOWNLOAD_REASON = 'qBittorrent\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.'
+const DOWNLOAD_REASON = '“Local qBittorrent”\'s downloads couldn\'t be told apart for this release, so the app can\'t follow it to verify the new file.'
 const KEPT_BOTH_REASON = 'You cancelled the replacement, so nothing will be replaced.'
 
 const blockedJob = jobOf({
@@ -326,8 +326,8 @@ describe('JobsPage row details', () => {
     ['completed, of several copies', { state: 'Completed', copyCount: 18 }, 'Downloaded', 'Replaced: the old copies were deleted for good.', 'library-source-status'],
     ['in need of review after the move, with the server\'s sentence', { state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true }, 'Downloaded', `Replacement needs review: ${HELD_REASON}`, 'library-source-warning'],
     ['in need of review after the move, with copies dropped', { state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true, droppedCopyCount: 2 }, 'Downloaded', `Replacement needs review: ${HELD_REASON} 2 copies dropped.`, 'library-source-warning'],
-    ['in need of review after the check, with what to do and nothing said of what won\'t move', { state: 'NeedsReview', stop: 'Check', reason: 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement needs review: Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979). Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.', 'library-source-warning'],
-    ['in need of review after the check, with a copy dropped', { state: 'NeedsReview', stop: 'Check', reason: NO_ID_REASON, droppedCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${NO_ID_REASON} 1 copy dropped. Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.`, 'library-source-warning'],
+    ['in need of review after the check, with what to do and nothing said of what won\'t move', { state: 'NeedsReview', stop: 'Check', reason: 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).', switchedOff: true, copiesOutsideTickedFolders: 1 }, 'Downloaded', 'Replacement needs review: Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979). Fix it in Jellyfin or Local qBittorrent, then press Retry — or see the job.', 'library-source-warning'],
+    ['in need of review after the check, with a copy dropped', { state: 'NeedsReview', stop: 'Check', reason: NO_ID_REASON, droppedCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${NO_ID_REASON} 1 copy dropped. Fix it in Jellyfin or Local qBittorrent, then press Retry — or see the job.`, 'library-source-warning'],
     ['in need of review after the check, with a copy only a drop settles', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 2, dropOnlyCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} 1 copy can only be dropped, or both kept: see the job.`, 'library-source-warning'],
     ['in need of review after the check, with copies only a drop settles and one dropped', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 3, dropOnlyCopyCount: 2, droppedCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} 1 copy dropped. 2 copies can only be dropped, or both kept: see the job.`, 'library-source-warning'],
     ['in need of review after the check, its one copy one only a drop settles', { state: 'NeedsReview', stop: 'Check', reason: RENUMBERED_REASON, copyCount: 1, dropOnlyCopyCount: 1 }, 'Downloaded', `Replacement needs review: ${RENUMBERED_REASON} A new check can't pair its last copy: keep both.`, 'library-source-warning'],
@@ -584,7 +584,7 @@ describe('JobsPage row details', () => {
       expect(replacementsApi.dropCopy).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, renumbered.id)
       expect(await within(rowOf(stoppedJob.releaseTitle)).findByRole('button', { name: 'Retry' })).toBeInTheDocument()
       const details = within(detailsOf(stoppedJob.releaseTitle)!)
-      expect(await details.findByText(`Replacement needs review: ${RENUMBERED_REASON} 1 copy dropped. Fix it in Jellyfin or qBittorrent, then press Retry — or see the job.`)).toBeInTheDocument()
+      expect(await details.findByText(`Replacement needs review: ${RENUMBERED_REASON} 1 copy dropped. Fix it in Jellyfin or Local qBittorrent, then press Retry — or see the job.`)).toBeInTheDocument()
       expect(await within(copies).findByText('Dropped from the replacement: it stays where it is.')).toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })

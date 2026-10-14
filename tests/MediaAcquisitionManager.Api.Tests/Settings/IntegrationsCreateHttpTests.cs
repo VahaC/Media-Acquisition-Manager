@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
@@ -72,6 +73,33 @@ public sealed class IntegrationsCreateHttpTests : IClassFixture<MediaAcquisition
         Assert.Equal($"/api/settings/integrations/{body.Id}", response.Headers.Location?.AbsolutePath);
         var read = await _factory.GetHttpRequest(response.Headers.Location!.AbsolutePath, _owner.AccessToken);
         Assert.Equivalent(body, await read.Content.ReadFromJsonAsync<IntegrationDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken), strict: true);
+    }
+
+    [Fact]
+    public async Task Create_of_a_download_client_answers_what_its_destinations_are()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+
+        //Act
+        var response = await _factory.PostHttpRequest(
+            BaseUrl, _owner.AccessToken, new CreateIntegrationRequest("qbittorrent", "Downloads", Address, "admin", Password: Set("qbittorrent-password")));
+
+        //Assert
+        // MAM-30 — asked of the type's capabilities (ADR 0005): qBittorrent's destinations are its categories.
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<IntegrationDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equivalent(
+            new IntegrationDto(
+                body!.Id, "Downloads", "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient, IsEnabled: true, Address,
+                "admin", HasPassword: true, HasApiKey: false, [], now, DownloadDestinationKind.Category),
+            body,
+            strict: true);
+        var read = await _factory.GetHttpRequest(response.Headers.Location!.AbsolutePath, _owner.AccessToken);
+        Assert.Equivalent(body, await read.Content.ReadFromJsonAsync<IntegrationDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken), strict: true);
+        await _factory.WithDbAsync(async db =>
+            Assert.Equal("qbittorrent", (await db.IntegrationConnections.SingleAsync(cancellationToken)).AdapterType));
     }
 
     [Fact]

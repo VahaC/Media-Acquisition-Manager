@@ -54,7 +54,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
     private const string HeldReason = "Still held by the torrent “Alien” in “qBittorrent”: remove that torrent there without its files, then press Retry.";
     private const string CheckReason = "“qBittorrent” no longer has this download, so the app can't confirm its files are complete.";
     private const string NeedsLinkingReason =
-        "qBittorrent's downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
+        "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
     private const string TwoNewFilesReason =
         "Two new files are Alien (1979): “/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.2160p.mkv” and "
         + "“/media/movies/Alien.1979.Directors.Cut/Alien.1979.Directors.Cut.1080p.mkv”; the app can't tell which one replaces the old copy.";

@@ -329,8 +329,24 @@ The four movies in `movies-page.json`:
 - **`session-get` tells the settings MAM depends on** (MAM-29): `incomplete-dir-enabled` (the linuxserver image ships it
   on; the MAM-29 containers turned it off), `start-added-torrents` and `rename-partial-files`, true on both versions.
   By Transmission's documentation, `rename-partial-files` names an unfinished file `….part` on disk, while the
-  downloading answer's `files[].name` has no `.part`. The disk wasn't looked at; MAM-30 checks it. A multi-file
-  torrent lands in a folder named after it under `download-dir`.
+  downloading answer's `files[].name` has no `.part`. The disk wasn't looked at; MAM-30 settled it from
+  Transmission's source instead (the next bullet). A multi-file torrent lands in a folder named after it under
+  `download-dir`.
+- **What Transmission's source settled where the samples didn't reach** (MAM-30, read from the 4.0.6 and 4.1.3
+  tags, not recorded). An unfinished file is `<name>.part` on the disk while `rename-partial-files` is on, renamed
+  file by file as each completes, and on 4.1 a file that doesn't fully verify is renamed back to `.part`;
+  `files[].name` never shows the suffix. A torrent of one file lands straight in `download-dir`, with no folder,
+  and no setting changes the layout. A label with a comma is refused, "labels cannot contain comma (,) character",
+  and so is an empty one, "labels cannot be empty"; labels are trimmed. A duplicate `torrent-add` changes nothing
+  of the torrent there, whatever folder, labels or `paused` it carried: the hash is found before any of them is
+  read. Names are cleaned per version: 4.0 on every system strips the ends' whitespace and trailing dots, puts `_`
+  before a Windows device name and turns `" * : < > ? \ |` into `_`; 4.1 on Linux keeps a name but `.` and `..`;
+  4.1 on Windows cleans as 4.0 and turns each control character into `_` too. A pure BitTorrent v2 torrent is
+  "unrecognized info" on both. The 421 answers only while Transmission has no password, its host whitelist is on
+  and the address names a host that isn't an IP or whitelisted. The adapter, the overwrite check and
+  `FakeTransmissionServer` follow it ([ADR 0034](../../../docs/adr/0034-a-download-is-refused-before-it-is-sent-when-its-client-would-write-over-a-different-file-already-at-its-path.md)'s
+  and [ADR 0039](../../../docs/adr/0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)'s
+  MAM-30 sections).
 - **Without a password Transmission takes any credentials** (MAM-29). The first recording of a wrong password, made
   while `USER` and `PASS` hadn't reached the container, got 200 and isn't kept. With the password set, a wrong one got
   401 with `WWW-Authenticate: Basic realm="Transmission"`, and an unknown Host name still got 200: Transmission checks
@@ -400,7 +416,11 @@ The four movies in `movies-page.json`:
   the listing said 36,711,232,962 (Toloka rounds), trackers bt.toloka.to, bt.hurtom.com and bt.toloka.tv, and not
   marked private.
 - **A TV search by a Ukrainian-only title found nothing** (MAM-29), and the reason isn't known. The show was among
-  Prowlarr's newest TV on 2026-10-05, and Cyrillic searches work: «Клуб Міккі Мауса» found 6.
+  Prowlarr's newest TV on 2026-10-05, and Cyrillic searches work: «Клуб Міккі Мауса» found 6. MAM-30 read Jackett's
+  Toloka definition: it sends the phrase to Toloka's own search and filters nothing itself, so the gap is upstream,
+  outside the app; the Search page now matches such a release by its `<description>` wherever it is listed
+  ([ADR 0004](../../../docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)'s
+  MAM-30 section). MAM-31 tries the search live.
 - **TMDb takes its v4 token as a bearer header** (MAM-33,
   [ADR 0005](../../../docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
   Vasyl's API Read Access Token is 239 characters, inside the 256 an integration's key may hold, and

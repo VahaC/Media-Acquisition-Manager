@@ -17,6 +17,7 @@ import {
   optionsOf,
   seedboxClient,
   suggestedOf,
+  transmissionClient,
 } from '@/test/downloads'
 import { optionsUnavailable } from '@/test/replacements'
 import { tolokaRemux } from '@/test/search'
@@ -54,6 +55,8 @@ const CHECKING = 'Checking the destination\'s folder…'
 /** MAM-38 — the two warnings, as the dialog shows them before Send. */
 const OUTSIDE_WARNING = 'The app can\'t check whether this release would write over a file already there: the destination\'s folder isn\'t under Media folders, which the installation owner sets in the user menu. A release sent there goes without that check.'
 const UNKNOWN_WARNING = 'The app can\'t check whether this release would write over a file already there: the destination\'s folder has no path in the app, or its download client can\'t say where it is. A release sent there goes without that check.'
+/** MAM-30 — a folder its download client can't see, which no send goes to (D5). */
+const NOT_SEEN_WARNING = 'This destination\'s download client can\'t see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu.'
 
 /**
  * Waits for the options to arrive — the client picker is on screen — and, when a destination is
@@ -101,7 +104,7 @@ describe('DownloadDialog', () => {
     // Assert
     expect(dialog).toHaveAccessibleName(`Download ${release.title}`)
     expect(dialog).toHaveAccessibleDescription(
-      'Send this release to a download client. The destination is a category of the client, and the category decides the folder.')
+      'Send this release to a download client. The destination decides where it lands.')
   })
 
   it('says it is loading while the download clients are on their way, with Send disabled', async () => {
@@ -399,6 +402,70 @@ describe('DownloadDialog', () => {
     ])
   })
 
+  it('sums up a folder destination, which comes without its folder, by its name alone', async () => {
+    // Arrange
+    const folderClient: DownloadClientOption = {
+      ...localClient,
+      destinationKind: 'Folder',
+      destinations: [{ ...moviesOption, clientDestinationKey: null }],
+    }
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(folderClient))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(summary(dialog)).toContainEqual(['Destination', 'Movies'])
+  })
+
+  it('sums up a folder destination by its name alone even when its folder comes along, never as a category', async () => {
+    // Arrange
+    const folderClient: DownloadClientOption = {
+      ...localClient,
+      destinationKind: 'Folder',
+      destinations: [{ ...moviesOption, clientDestinationKey: '/downloads/movies' }],
+    }
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(folderClient))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(summary(dialog)).toContainEqual(['Destination', 'Movies'])
+    expect(within(dialog).getByRole('region', { name: 'Summary' })).not.toHaveTextContent(/category/i)
+  })
+
+  it('lists a folder client\'s destination by its name and sends to it, naming no folder before or after Send', async () => {
+    // Arrange
+    // MAM-30 — Local Transmission's Films comes without its folder (D13), and so does the job it makes.
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.send).mockResolvedValue(jobOf({
+      downloadClientName: transmissionClient.name,
+      destinationName: 'Films',
+      clientDestinationKey: null,
+      destinationKind: 'Folder',
+    }))
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+    const before = { destinations: optionTexts(destinationSelect(dialog)), summary: summary(dialog) }
+
+    // Act
+    await user.click(sendButton(dialog))
+
+    // Assert
+    await within(dialog).findByRole('status')
+    expect(before.destinations).toEqual(['Choose a destination', 'Films'])
+    expect(before.summary).toContainEqual(['Destination', 'Films'])
+    expect(summary(dialog)).toContainEqual(['Destination', 'Films'])
+    expect(downloadsApi.send).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      downloadClientId: transmissionClient.id,
+      destinationId: transmissionClient.destinations[0].id,
+    }))
+    expect(dialog).not.toHaveTextContent(/\/downloads|category/i)
+  })
+
   it('offers a member Keep both, picked, and Replace disabled with why, and never asks for the copies', async () => {
     // Arrange
     const { dialog } = renderDialog()
@@ -467,6 +534,59 @@ describe('DownloadDialog', () => {
     // Assert
     expect(await within(dialog).findByText(UNKNOWN_WARNING)).toBeInTheDocument()
     expect(sendButton(dialog)).toHaveAccessibleDescription(UNKNOWN_WARNING)
+  })
+
+  it('warns before a folder client\'s Send that nothing is sent to a folder the client can\'t see, never that the release goes anyway, and holds Send', async () => {
+    // Arrange
+    // MAM-30 — the server tells this folder by a reason of its own: the send refuses it (D5), so Keep both's
+    // Send waits too rather than fail a job.
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderNotSeen' })
+    const { dialog, user } = renderDialog()
+    await optionsLoaded(dialog)
+    const banner = (await within(dialog).findByText(NOT_SEEN_WARNING)).closest('.ui-banner')
+
+    // Act
+    await user.click(sendButton(dialog))
+
+    // Assert
+    expect(banner).toHaveAttribute('data-tone', 'warning')
+    expect(within(dialog).getByRole('radio', { name: 'Keep both' })).toBeChecked()
+    expect(sendButton(dialog)).toHaveAccessibleDescription(NOT_SEEN_WARNING)
+    expect(sendButton(dialog)).toBeDisabled()
+    expect(sendButton(dialog).parentElement).toHaveAttribute('title', NOT_SEEN_WARNING)
+    expect(within(dialog).queryByText(/goes without that check/)).not.toBeInTheDocument()
+    expect(downloadsApi.send).not.toHaveBeenCalled()
+  })
+
+  it('warns a folder client\'s Send of a folder with no path in the app as any client\'s, as the release goes unchecked', async () => {
+    // Arrange
+    // MAM-30 — a folder the client sees, which no mapping brings into the app: sent, without the check.
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderUnknown' })
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(await within(dialog).findByText(UNKNOWN_WARNING)).toBeInTheDocument()
+    expect(sendButton(dialog)).toHaveAccessibleDescription(UNKNOWN_WARNING)
+    expect(within(dialog).queryByText(NOT_SEEN_WARNING)).not.toBeInTheDocument()
+  })
+
+  it('warns a folder client\'s Send of a folder outside the Media folders as any client\'s, as the release goes unchecked', async () => {
+    // Arrange
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(await within(dialog).findByText(OUTSIDE_WARNING)).toBeInTheDocument()
+    expect(sendButton(dialog)).toHaveAccessibleDescription(OUTSIDE_WARNING)
   })
 
   it('asks about the folder of each destination picked, and takes the warning away when the next one\'s folder can be checked', async () => {

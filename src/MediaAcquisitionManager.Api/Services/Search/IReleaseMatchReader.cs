@@ -10,7 +10,8 @@ namespace MediaAcquisitionManager.Api.Services.Search;
 /// </summary>
 /// <remarks>
 /// Matched again on every read, never stored: a sync since the search shows. A release is matched only against the
-/// works its search lists — never the whole library —, by <c>WorkMatching.Match</c> alone.
+/// works its search lists — never the whole library —, by <c>WorkMatching.Match</c> alone. MAM-30 — on what its title
+/// claims, and on what its description claims by an id or a title and year (D15).
 /// </remarks>
 public interface IReleaseMatchReader
 {
@@ -22,9 +23,10 @@ public interface IReleaseMatchReader
     Task<ReleaseMatchWorks> ReadWorksAsync(SearchEntity search, bool forOwner, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// <paramref name="release"/>, one of the search's, with what its title and listing claim and every work of its kind
-    /// among <paramref name="works"/> it matches — strongest evidence first, then in the search's order — with, for a TV
-    /// release, how many of each series' episodes it claims are held.
+    /// <paramref name="release"/>, one of the search's, with what its title, its description (MAM-30) and its listing
+    /// claim and every work of its kind among <paramref name="works"/> it matches — strongest evidence first, then in the
+    /// search's order — with, for a TV release, how many of each series' episodes the claim that matched names (or the
+    /// other, when it names none) are held.
     /// </summary>
     SearchRelease Match(ReleaseEntity release, int sourcePosition, string sourceName, ReleaseMatchWorks works);
 

@@ -45,10 +45,11 @@ public sealed class AddReplacementCopyDropsMigrationTests : DatabaseTestBase
         await using (var db = CreateContext())
         {
             await db.GetService<IMigrator>().MigrateAsync(PreviousMigration, cancellationToken);
-            // The users, releases and download jobs this upgrade leaves as they are: their factories write them.
+            // The users and releases this upgrade leaves as they are: their factories write them. The download job by hand, in
+            // the columns it had then (InsertDownloadJobAsync).
             var owner = await new UserDataFactory(db, new Pbkdf2PasswordHasher(1_000), TimeProvider.System).Create("owner", "P@ssword1");
             var release = await new ReleaseDataFactory(db, Encryption, TimeProvider.System).Create(sourceConnectionId: null);
-            var download = await new DownloadJobDataFactory(db, TimeProvider.System).Create(release.Id, null, "qBittorrent", requestedByUserId: owner.Id);
+            var download = await InsertDownloadJobAsync(db, release.Id, owner.Id, cancellationToken);
             // A review the mover stopped: one copy a torrent holds, the other paired and planned to move.
             await db.Database.ExecuteSqlRawAsync(
                 """
@@ -56,7 +57,7 @@ public sealed class AddReplacementCopyDropsMigrationTests : DatabaseTestBase
                     "ReleaseEditions", "CreatedUtc", "InspectionStartedUtc", "LibraryAskedUtc", "QuarantineCheckedUtc", "QuarantinedUtc", "LibraryNoticeDueUtc")
                 VALUES ({0}, {1}, {2}, 'owner', 'NeedsReview', {3}, {4}, 'DirectorsCut', {5}, {5}, {5}, {3}, NULL, NULL)
                 """,
-                [Text(jobId), Text(download.Id), Text(owner.Id), Text(checkedUtc), HeldReason, Text(scheduledUtc)],
+                [Text(jobId), Text(download), Text(owner.Id), Text(checkedUtc), HeldReason, Text(scheduledUtc)],
                 cancellationToken);
             await db.Database.ExecuteSqlRawAsync(
                 """
@@ -139,4 +140,23 @@ public sealed class AddReplacementCopyDropsMigrationTests : DatabaseTestBase
     private static string Text(Guid value) => value.ToString().ToUpperInvariant();
 
     private static string Text(DateTime value) => value.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// MAM-30 — a download job written by hand in the columns it had before this upgrade: its factory writes today's model,
+    /// whose later columns (DestinationKind) this schema hasn't got yet. Its id.
+    /// </summary>
+    private static async Task<Guid> InsertDownloadJobAsync(ApplicationDbContext db, Guid releaseId, Guid ownerId, CancellationToken cancellationToken)
+    {
+        var id = Guid.NewGuid();
+        var sentUtc = new DateTime(2026, 10, 1, 9, 0, 0, DateTimeKind.Utc);
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO "DownloadJobs" ("Id", "RequestId", "RequestedByUserId", "RequestedByUserName", "ReleaseId", "DownloadClientName", "Status",
+                "StatusChangedUtc", "CreatedUtc")
+            VALUES ({0}, {1}, {2}, 'owner', {3}, 'qBittorrent', 'Submitted', {4}, {4})
+            """,
+            [Text(id), Text(Guid.NewGuid()), Text(ownerId), Text(releaseId), Text(sentUtc)],
+            cancellationToken);
+        return id;
+    }
 }

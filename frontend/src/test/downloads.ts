@@ -9,8 +9,8 @@ import type {
   DownloadJobsQuery,
   DownloadOptions,
 } from '@/lib/types'
-import { cartoons, movies } from '@/test/destinations'
-import { localQbittorrent } from '@/test/integrations'
+import { cartoons, filmsFolder, movies } from '@/test/destinations'
+import { localQbittorrent, localTransmission } from '@/test/integrations'
 import { tolokaRemux } from '@/test/search'
 
 // MAM-13 — what /api/downloads answers for the search's Toloka release: the download clients and
@@ -34,6 +34,7 @@ export const localClient: DownloadClientOption = {
   name: localQbittorrent.name,
   typeName: 'qBittorrent',
   destinations: [cartoonsOption, moviesOption],
+  destinationKind: 'Category',
 }
 
 /** A second client with two destinations, neither the default. */
@@ -45,6 +46,7 @@ export const seedboxClient: DownloadClientOption = {
     { id: '6a3e9b20-0000-4000-8000-000000000011', name: 'Films', clientDestinationKey: 'films', isDefault: false },
     { id: '6a3e9b20-0000-4000-8000-000000000012', name: 'Series', clientDestinationKey: 'tv', isDefault: false },
   ],
+  destinationKind: 'Category',
 }
 
 /** A third client with a single destination, not the default. */
@@ -53,6 +55,19 @@ export const nasClient: DownloadClientOption = {
   name: 'NAS qBittorrent',
   typeName: 'qBittorrent',
   destinations: [{ id: '6a3e9b20-0000-4000-8000-000000000021', name: 'Archive', clientDestinationKey: 'Archive', isDefault: false }],
+  destinationKind: 'Category',
+}
+
+/**
+ * MAM-30 — Local Transmission with its one destination, a folder: it comes without its key, for every
+ * signed-in user (D13), so the dialog never shows a folder.
+ */
+export const transmissionClient: DownloadClientOption = {
+  id: localTransmission.id,
+  name: localTransmission.name,
+  typeName: 'Transmission',
+  destinations: [{ id: filmsFolder.id, name: filmsFolder.name, clientDestinationKey: null, isDefault: false }],
+  destinationKind: 'Folder',
 }
 
 /**
@@ -87,6 +102,7 @@ export function jobOf(changes: Partial<DownloadJob>): DownloadJob {
     blockReason: null,
     overwriteCheck: 'Checked',
     replacement: null,
+    destinationKind: 'Category',
     createdUtc: '2026-10-02T09:00:00Z',
     statusChangedUtc: '2026-10-02T09:00:01Z',
     ...changes,

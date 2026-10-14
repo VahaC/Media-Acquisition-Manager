@@ -85,8 +85,8 @@ interface DownloadDialogProps {
 
 /**
  * MAM-13 — sends one release to a download client: a client that can take it, one of its
- * destinations (a category of the client, which decides the folder), and a summary of what goes
- * where, existing copies included. Every signed-in user may send (MAM-13's decision 1). MAM-38 — the
+ * destinations (a category of the client, which decides the folder, or — MAM-30 — a folder the client
+ * saves to, named by its name alone), and a summary of what goes where, existing copies included. Every signed-in user may send (MAM-13's decision 1). MAM-38 — the
  * server refuses a release whose files would land on a different file already in the destination's
  * folder (a Failed job, its sentence naming the file); where it can't look into that folder, a
  * warning under the destination says so before Send, and Send waits for the first answer about the
@@ -166,6 +166,13 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   // server asks the client in turn. Never once the question has failed, which warns of nothing: the
   // send checks again anyway, and a Send held for a question that keeps failing would never let go.
   const checking = ready && overwrite.isFetching && overwrite.data === undefined && overwrite.errorUpdateCount === 0
+  // MAM-30 — a folder its download client can't see takes no send at all, Keep both's included (D5): the
+  // one warning says so in either mode, never "pick Keep both", and Send waits in either mode, as the
+  // server would only fail the job.
+  const folderNotSeen = notCheckedReason === 'NotCheckedFolderNotSeen'
+  const replaceNotChecked = folderNotSeen
+    ? t('overwrite.NotCheckedFolderNotSeen')
+    : t('replace.notChecked')
 
   // MAM-24 — the owner's copies through the destination picked; never asked for a member, whose route
   // it isn't. The held marks (every client's torrents) only once Replace is picked.
@@ -230,7 +237,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
     if (answer === undefined || replacement.isPlaceholderData) return t('replace.checking')
     if (checking) return t('checkingFolder')
     if (answer.unavailable !== null) return replaceReason?.text
-    if (notCheckedReason) return t('replace.notChecked')
+    if (notCheckedReason) return replaceNotChecked
     if (tickable.size === 0) return t('replace.noneAvailable')
     if (ticked.size === 0) return t('replace.noneTicked')
     if (unconfirmed) return t('replace.confirmFirst', { text: unconfirmed.confirmationText })
@@ -243,9 +250,11 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
     if (clients.length > 0 && !ready) return t('pickFirst')
     if (replace) return replaceSendReason()
     if (checking) return t('checkingFolder')
+    if (folderNotSeen) return t('overwrite.NotCheckedFolderNotSeen')
     return undefined
   }
   const replaceHeld = replace && ready && replaceSendReason() !== undefined
+  const keepBothHeld = !replace && folderNotSeen
 
   /** Ticks or unticks copies; a pick the answer no longer lets be ticked simply doesn't count. */
   const tick = (fileIds: readonly string[], on: boolean) => {
@@ -292,6 +301,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
     if (!client || !destination || inFlight.current) return
     // Enter in a field submits the form whatever Send shows: a replacement goes only as Send allows it.
     if (replace && (answer === undefined || replaceSendReason() !== undefined)) return
+    if (keepBothHeld) return
     inFlight.current = true
     setError(null)
     const download = { requestId, releaseId: release.id, downloadClientId: client.id, destinationId: destination.id }
@@ -465,7 +475,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
               check, so in Replace mode it says so rather than that the release goes without it. */}
           {notCheckedReason && (
             <Banner tone="warning" id={warningId}>
-              {replace ? t('replace.notChecked') : t(`overwrite.${notCheckedReason}`)}
+              {replace ? replaceNotChecked : t(`overwrite.${notCheckedReason}`)}
             </Banner>
           )}
         </div>
@@ -488,7 +498,9 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
           <div className="settings-dialog-form">
             <div className="settings-dialog-body">
               <OutcomeLine outcome={sent.outcome} client={sent.clientName} />
-              {sent.replacement && <ReplacementLine replacement={sent.replacement} downloadFailed={false} />}
+              {sent.replacement && (
+                <ReplacementLine replacement={sent.replacement} client={sent.clientName} downloadFailed={false} />
+              )}
               <SendSummary release={release} client={client} destination={destination} copies={sent.copies} />
             </div>
             <DialogFooter>
@@ -513,7 +525,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
                     isn't read out, and the warning is meant to be heard before Send. */}
                 <Button
                   type="submit"
-                  disabled={!ready || sending || checking || replaceHeld}
+                  disabled={!ready || sending || checking || replaceHeld || keepBothHeld}
                   aria-describedby={sendDescribedBy === '' ? undefined : sendDescribedBy}
                 >
                   {sending ? t('sending') : t('send')}
@@ -615,9 +627,13 @@ function SendSummary({ release, client, destination, copies }: {
         <dd>{client?.name ?? notPicked}</dd>
         <dt>{t('summary.destination')}</dt>
         <dd>
-          {destination
-            ? t('summary.destinationValue', { name: destination.name, category: destination.clientDestinationKey })
-            : notPicked}
+          {/* MAM-30 — a folder destination is named by its name alone, never as a "category": it comes without
+              its key (members never see a folder), and a folder client's key would still be no category. */}
+          {!destination
+            ? notPicked
+            : destination.clientDestinationKey === null || client?.destinationKind === 'Folder'
+              ? destination.name
+              : t('summary.destinationValue', { name: destination.name, category: destination.clientDestinationKey })}
         </dd>
         <dt>{t('summary.existingCopies')}</dt>
         <dd><ExistingCopiesSummary copies={copies} /></dd>

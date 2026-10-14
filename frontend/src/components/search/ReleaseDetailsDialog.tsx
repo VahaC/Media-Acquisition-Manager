@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { formatDateTime, formatFileSize, formatNumber } from '@/lib/format'
 import { compareVersions } from '@/lib/library-versions'
 import { claimedEpisodeRange, claimedSeasons } from '@/lib/release-claims'
-import type { LibraryMatch, LibraryWork, ReleaseLibraryMatch, SearchRelease } from '@/lib/types'
+import type { LibraryMatch, LibraryWork, ReleaseLibraryMatch, ReleaseWorkClaim, SearchRelease } from '@/lib/types'
 import '@/styles/settings-list.css' // .settings-muted — the "nothing here" lines
 import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body above the buttons
 import '@/styles/library.css' // .library-work-meta, .library-versions — a work's line and its versions
@@ -40,15 +40,17 @@ interface ReleaseDetailsDialogProps {
  *
  * MAM-33 — under its title, the listing's own description when it gives one.
  *
+ * MAM-30 — and what that description was read as, beside what the title was: the library matches
+ * read both (a Jackett title can be the English part alone, its description the Ukrainian one too).
+ *
  * The parent mounts it only while it is open. Its body is the one scroller; Close sits last.
  */
 export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetailsDialogProps) {
   const { t } = useTranslation(['search', 'library', 'common'])
   const listingId = useId()
   const libraryId = useId()
-  const { claimedWork } = release
+  const { claimedWork, descriptionWork } = release
   const episodes = claimedWork.episodes
-  const episodeRange = episodes === null ? null : claimedEpisodeRange(episodes)
   // A match whose work the search no longer lists (the library was synced since) has nothing to show.
   const matches = release.libraryMatches.flatMap((match) => {
     const work = library.find((candidate) => candidate.work.id === match.workId)?.work
@@ -88,33 +90,18 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
             <ClaimedQuality claimed={release.claimed} kind={release.kind} episodes={episodes} />
 
             <h3 className="search-details-heading">{t('details.readAs')}</h3>
-            {claimedWork.titles.length === 0 ? (
-              <p className="settings-muted">{t('details.noClaimedWork')}</p>
-            ) : (
-              <dl className="search-details-facts">
-                <dt>{t('details.titles')}</dt>
-                <dd>{claimedWork.titles.join(t('common:separator'))}</dd>
-                <dt>{t('details.year')}</dt>
-                <dd>
-                  {claimedWork.year === null
-                    ? unknown
-                    : claimedWork.lastYear === null
-                      ? claimedWork.year
-                      : t('details.yearSpan', { first: claimedWork.year, last: claimedWork.lastYear })}
-                </dd>
-                {episodes !== null && (
-                  <>
-                    <dt>{t('details.seasons')}</dt>
-                    <dd>{claimedSeasons(episodes)}</dd>
-                  </>
-                )}
-                {episodeRange !== null && (
-                  <>
-                    <dt>{t('details.episodes')}</dt>
-                    <dd>{episodeRange}</dd>
-                  </>
-                )}
-              </dl>
+            {claimedWork.titles.length === 0
+              ? <p className="settings-muted">{t('details.noClaimedWork')}</p>
+              : <ClaimedWorkFacts claim={claimedWork} />}
+
+            {/* MAM-30 — `!= null`: a server older than the field leaves it out rather than null. */}
+            {descriptionWork != null && (
+              <>
+                <h3 className="search-details-heading">{t('details.readAsDescription')}</h3>
+                {descriptionWork.titles.length === 0
+                  ? <p className="settings-muted">{t('details.noDescriptionWork')}</p>
+                  : <ClaimedWorkFacts claim={descriptionWork} />}
+              </>
             )}
 
             <h3 className="search-details-heading">{t('details.identifiers')}</h3>
@@ -146,6 +133,45 @@ export function ReleaseDetailsDialog({ release, library, onClose }: ReleaseDetai
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ── what a text of the listing was read as ──
+
+/**
+ * The titles, the year (a span for a series), and the seasons and episodes a claim names: what the
+ * title, or (MAM-30) the description, was read as.
+ */
+function ClaimedWorkFacts({ claim }: { claim: ReleaseWorkClaim }) {
+  const { t } = useTranslation(['search', 'common'])
+  const { episodes } = claim
+  const episodeRange = episodes === null ? null : claimedEpisodeRange(episodes)
+
+  return (
+    <dl className="search-details-facts">
+      <dt>{t('details.titles')}</dt>
+      <dd>{claim.titles.join(t('common:separator'))}</dd>
+      <dt>{t('details.year')}</dt>
+      <dd>
+        {claim.year === null
+          ? t('details.unknown')
+          : claim.lastYear === null
+            ? claim.year
+            : t('details.yearSpan', { first: claim.year, last: claim.lastYear })}
+      </dd>
+      {episodes !== null && (
+        <>
+          <dt>{t('details.seasons')}</dt>
+          <dd>{claimedSeasons(episodes)}</dd>
+        </>
+      )}
+      {episodeRange !== null && (
+        <>
+          <dt>{t('details.episodes')}</dt>
+          <dd>{episodeRange}</dd>
+        </>
+      )}
+    </dl>
   )
 }
 

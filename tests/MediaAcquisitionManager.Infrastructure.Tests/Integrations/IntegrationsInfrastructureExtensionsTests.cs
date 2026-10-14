@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Library;
@@ -13,6 +14,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
+using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,14 +30,14 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     /// The client names written out rather than read from the adapters' constants: a renamed constant
     /// would leave these names with the factory's default, unconfigured client, and the tests fail.
     /// </summary>
-    public static TheoryData<string> ClientNames => ["jellyfin", "torznab", "qbittorrent", "tmdb"];
+    public static TheoryData<string> ClientNames => ["jellyfin", "torznab", "qbittorrent", "transmission", "tmdb"];
 
     /// <summary>
     /// MAM-34 — every client, <c>jellyfin-identify</c> too: the second Jellyfin client, which carries Apply alone with its own
     /// timeout, is configured like the others in everything but the timeout, so a credential never follows a redirect and no
     /// request URI is logged.
     /// </summary>
-    public static TheoryData<string> HandlerClientNames => ["jellyfin", "jellyfin-identify", "torznab", "qbittorrent", "tmdb"];
+    public static TheoryData<string> HandlerClientNames => ["jellyfin", "jellyfin-identify", "torznab", "qbittorrent", "transmission", "tmdb"];
 
     [Theory]
     [MemberData(nameof(HandlerClientNames))]
@@ -156,6 +158,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     [InlineData("jellyfin")]
     [InlineData("torznab")]
     [InlineData("qbittorrent")]
+    [InlineData("transmission")]
     [InlineData("tmdb")]
     public async Task A_connection_test_logs_nothing_from_the_http_client(string typeId)
     {
@@ -175,7 +178,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
     }
 
     [Fact]
-    public void The_registry_lists_jellyfin_torznab_qbittorrent_and_tmdb_once_each_with_their_descriptors()
+    public void The_registry_lists_jellyfin_torznab_qbittorrent_transmission_and_tmdb_once_each_with_their_descriptors()
     {
         //Arrange
         using var services = BuildServices();
@@ -197,17 +200,22 @@ public sealed class IntegrationsInfrastructureExtensionsTests
                 new IntegrationAdapterDescriptor(
                     "qbittorrent", "qBittorrent", IntegrationKind.DownloadClient,
                     CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true),
+                // MAM-30 — without a password Transmission takes any credentials or none, so both are optional.
+                new IntegrationAdapterDescriptor(
+                    "transmission", "Transmission", IntegrationKind.DownloadClient,
+                    CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true),
                 new IntegrationAdapterDescriptor(
                     "tmdb", "TMDb", IntegrationKind.Metadata,
                     CredentialRequirement.NotUsed, CredentialRequirement.NotUsed, CredentialRequirement.Required, ReportsFilePaths: false),
             ],
             registry.Descriptors);
-        Assert.Equal(4, adapters.Count);
+        Assert.Equal(5, adapters.Count);
         Assert.IsType<IntegrationAdapterRegistry>(registry);
         // Singletons: the registry hands out the very instances the container holds.
         Assert.Same(Assert.Single(adapters.OfType<JellyfinAdapter>()), registry.Find("jellyfin"));
         Assert.Same(Assert.Single(adapters.OfType<TorznabAdapter>()), registry.Find("torznab"));
         Assert.Same(Assert.Single(adapters.OfType<QBittorrentAdapter>()), registry.Find("qbittorrent"));
+        Assert.Same(Assert.Single(adapters.OfType<TransmissionAdapter>()), registry.Find("transmission"));
         Assert.Same(Assert.Single(adapters.OfType<TmdbAdapter>()), registry.Find("tmdb"));
     }
 
@@ -222,6 +230,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         var jellyfin = registry.Find<IMediaLibraryProvider>("jellyfin");
         var torznab = registry.Find<IMediaLibraryProvider>("torznab");
         var qBittorrent = registry.Find<IMediaLibraryProvider>("qbittorrent");
+        var transmission = registry.Find<IMediaLibraryProvider>("transmission");
         var tmdb = registry.Find<IMediaLibraryProvider>("tmdb");
 
         //Assert
@@ -229,6 +238,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Same(registry.Find("jellyfin"), jellyfin);
         Assert.Null(torznab);
         Assert.Null(qBittorrent);
+        Assert.Null(transmission);
         // MAM-33 — a catalog is never a source of the library's own facts.
         Assert.Null(tmdb);
     }
@@ -244,6 +254,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         var torznab = registry.Find<IReleaseSearchProvider>("torznab");
         var jellyfin = registry.Find<IReleaseSearchProvider>("jellyfin");
         var qBittorrent = registry.Find<IReleaseSearchProvider>("qbittorrent");
+        var transmission = registry.Find<IReleaseSearchProvider>("transmission");
         var tmdb = registry.Find<IReleaseSearchProvider>("tmdb");
 
         //Assert
@@ -251,11 +262,12 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         Assert.Same(registry.Find("torznab"), torznab);
         Assert.Null(jellyfin);
         Assert.Null(qBittorrent);
+        Assert.Null(transmission);
         Assert.Null(tmdb);
     }
 
     [Fact]
-    public void The_registry_finds_qbittorrent_and_nothing_else_as_a_download_client()
+    public void The_registry_finds_qbittorrent_and_transmission_and_nothing_else_as_a_download_client()
     {
         //Arrange
         using var services = BuildServices();
@@ -263,6 +275,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
 
         //Act
         var qBittorrent = registry.Find<IDownloadClient>("qbittorrent");
+        var transmission = registry.Find<IDownloadClient>("transmission");
         var jellyfin = registry.Find<IDownloadClient>("jellyfin");
         var torznab = registry.Find<IDownloadClient>("torznab");
         var tmdb = registry.Find<IDownloadClient>("tmdb");
@@ -271,6 +284,8 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         // MAM-11 — the same instance the connection test uses: no second registration to forget, and one
         // set of kept sessions.
         Assert.Same(registry.Find("qbittorrent"), qBittorrent);
+        // MAM-30 — and one set of kept session ids and refusals (D7).
+        Assert.Same(registry.Find("transmission"), transmission);
         Assert.Null(jellyfin);
         Assert.Null(torznab);
         Assert.Null(tmdb);
@@ -282,7 +297,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         //Arrange
         using var services = BuildServices();
         var registry = services.GetRequiredService<IIntegrationAdapterRegistry>();
-        string[] others = ["jellyfin", "torznab", "qbittorrent"];
+        string[] others = ["jellyfin", "torznab", "qbittorrent", "transmission"];
 
         //Act
         var resolver = registry.Find<IMetadataResolver>("tmdb");
@@ -317,7 +332,7 @@ public sealed class IntegrationsInfrastructureExtensionsTests
         var client = harness.Adapter<IDownloadClient>("qbittorrent");
 
         //Act
-        var destinations = await client.ListDestinationsAsync(settings, TestContext.Current.CancellationToken);
+        var destinations = await client.ListDestinationsAsync(settings, [], TestContext.Current.CancellationToken);
 
         //Assert
         Assert.True(destinations.IsSuccess);
@@ -386,6 +401,50 @@ public sealed class IntegrationsInfrastructureExtensionsTests
             harness.Logs.Entries,
             entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
         Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(FakeQBittorrentServer.DefaultPassword, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Every_transmission_call_logs_nothing_from_the_http_client_nor_the_password_basic_credentials_or_session_id()
+    {
+        //Arrange
+        // MAM-30 — every level recorded; Transmission answers each call all the way, its 409 handshake first, so every
+        // request any member sends is sent: session-get, free-space, torrent-add, torrent-get with and without ids.
+        using var harness = new IntegrationAdapterHarness();
+        var transmission = new FakeTransmissionServer("http://service.test:9091");
+        transmission.AddFolder("/downloads/movies");
+        transmission.Arm(harness.TransmissionHttp);
+        var settings = new IntegrationConnectionSettings(
+            Guid.NewGuid(), transmission.BaseUrl, FakeTransmissionServer.DefaultUserName, FakeTransmissionServer.DefaultPassword, null);
+        const string hash = "4a3c1931c85c9c568c39a8eb947ed382824b1cdd";
+        const string magnet = $"magnet:?xt=urn:btih:{hash}&tr=http%3A%2F%2Fbt.toloka.test%2Fa1b2c3d4e5f6a7b8%2Fannounce";
+        var client = harness.Adapter<IDownloadClient>("transmission");
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var destinations = await client.ListDestinationsAsync(settings, ["/downloads/movies"], cancellationToken);
+        var submission = await client.SubmitAsync(
+            settings, new DownloadSubmission(new ReleasePayload(ReleasePayloadKind.Magnet, null, magnet), "/downloads/movies", null, "Movies"), cancellationToken);
+        var jobs = await client.FindJobsAsync(settings, [hash], cancellationToken);
+        var files = await client.ListJobFilesAsync(settings, hash, cancellationToken);
+        var folderJobs = await client.ListDestinationJobsAsync(settings, "/downloads/movies", cancellationToken);
+        var listing = await client.ListJobsWithFilesAsync(settings, cancellationToken);
+        await harness.Adapter("transmission").TestConnectionAsync(settings, cancellationToken);
+
+        //Assert
+        Assert.Equal(2, destinations.Value!.Count);
+        Assert.Equal(hash, submission.Value!.ClientJobId);
+        Assert.Single(jobs.Value!);
+        Assert.Empty(files.Value!);
+        Assert.Single(folderJobs.Value!);
+        Assert.Null(Assert.Single(listing.Value!).Files);
+        var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{FakeTransmissionServer.DefaultUserName}:{FakeTransmissionServer.DefaultPassword}"));
+        Assert.DoesNotContain(
+            harness.Logs.Entries,
+            entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(FakeTransmissionServer.DefaultPassword, StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(basic, StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains(transmission.SessionId, StringComparison.Ordinal));
+        Assert.DoesNotContain(harness.Logs.Entries, entry => entry.Message.Contains("a1b2c3d4e5f6a7b8", StringComparison.Ordinal));
     }
 
     [Fact]

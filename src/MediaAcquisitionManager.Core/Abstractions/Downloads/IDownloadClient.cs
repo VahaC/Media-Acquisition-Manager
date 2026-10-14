@@ -48,20 +48,45 @@ namespace MediaAcquisitionManager.Core.Abstractions.Downloads;
 /// torrent in the client; the app never moves, relocates or renames a job or its files, nor sets where they lie —
 /// <c>DownloadClientNeverRemovesTests</c> now forbids those names too.
 /// </para>
+/// <para>
+/// MAM-30 — a second type, Transmission, whose destinations are folders rather than categories (ADR 0039,
+/// <see cref="DownloadClientCapabilities.DestinationKind"/>). One signature changes and no member is added:
+/// <see cref="ListDestinationsAsync"/> takes the folders the app proposes — its media library folders, mapped back
+/// through the client's path mappings, and the stored folders concerned — for the client to confirm, as it has no list
+/// of its own; a category client ignores them. A submission carries the destination's name as a label
+/// (<see cref="DownloadSubmission.Label"/>). And <see cref="SubmitAsync"/>'s "never sent again" has one exception: a
+/// request the client provably never read — Transmission answers 409 with a new session id before it reads the body —
+/// is sent once more with that id, and a second 409 is a refusal (ADR 0013). Still no member that removes, stops or
+/// moves anything; the one write is still <see cref="SubmitAsync"/>.
+/// </para>
 /// </remarks>
 public interface IDownloadClient
 {
     /// <summary>What this type of client can take and report.</summary>
     DownloadClientCapabilities Capabilities { get; }
 
-    /// <summary>The client's own destinations (its categories).</summary>
-    Task<IntegrationCallResult<IReadOnlyList<ClientDestination>>> ListDestinationsAsync(IntegrationConnectionSettings settings, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// The client's own destinations: its categories, or — MAM-30, for a client whose destinations are folders — its
+    /// own default folder and each of <paramref name="proposedFolders"/>, each confirmed by the client or listed with
+    /// <see cref="ClientDestination.Problem"/> saying why it can't use it.
+    /// </summary>
+    /// <param name="settings">The client's connection.</param>
+    /// <param name="proposedFolders">
+    /// MAM-30 — for a <see cref="DownloadDestinationKind.Folder"/> client, the folders the app proposes, as the client
+    /// sees them: absolute paths in <see cref="Paths.NormalizedPath"/> canonical form, each listed once with the default
+    /// folder merged in when it is the same folder (<see cref="Paths.NormalizedPath.IsSameAs"/>). A
+    /// <see cref="DownloadDestinationKind.Category"/> client ignores them; pass none where nothing is proposed.
+    /// </param>
+    /// <param name="cancellationToken">The caller's cancellation.</param>
+    Task<IntegrationCallResult<IReadOnlyList<ClientDestination>>> ListDestinationsAsync(
+        IntegrationConnectionSettings settings, IReadOnlyCollection<string> proposedFolders, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Hands the client a release for one of its destinations, exactly once: a submission is never sent
     /// again, by this call or a retry of it, because a write sent twice may act twice (house rule 8). A
     /// failure may still have reached the client — an answer that never came — so the caller confirms by
-    /// <see cref="FindJobsAsync"/> rather than by sending again.
+    /// <see cref="FindJobsAsync"/> rather than by sending again. MAM-30 — the one exception is a request the client
+    /// provably never read (Transmission's 409, answered before the body is read): it is sent once more, never twice.
     /// </summary>
     Task<IntegrationCallResult<SubmissionReceipt>> SubmitAsync(IntegrationConnectionSettings settings, DownloadSubmission submission, CancellationToken cancellationToken = default);
 

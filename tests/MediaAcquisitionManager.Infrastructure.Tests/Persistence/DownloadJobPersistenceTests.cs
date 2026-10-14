@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using MediaAcquisitionManager.Core.Abstractions;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Options;
@@ -192,6 +193,34 @@ public sealed class DownloadJobPersistenceTests : DatabaseTestBase
             .SqlQuery<string>($"SELECT \"BlockReasonOrigin\" AS \"Value\" FROM \"DownloadJobs\"")
             .SingleAsync(cancellationToken);
         Assert.Equal("DownloadClient", raw);
+    }
+
+    [Fact]
+    public async Task A_job_keeps_the_kind_of_its_destination_by_name_and_an_older_job_none()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var db = CreateContext();
+        var release = await Releases(db).Create(sourceConnectionId: null);
+        var older = await Jobs(db).Create(release.Id, null, "qBittorrent");
+        var folder = await Jobs(db).Create(release.Id, null, "Transmission");
+        var tracked = await db.DownloadJobs.SingleAsync(x => x.Id == folder.Id, cancellationToken);
+
+        //Act
+        tracked.DestinationKind = DownloadDestinationKind.Folder;
+        await db.SaveChangesAsync(cancellationToken);
+
+        //Assert
+        // MAM-30 — by name, as every enum on the row: a value added later needs no migration. A row written before the
+        // column existed reads null, which the app reads as a category.
+        await using var check = CreateContext();
+        var stored = await check.DownloadJobs.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.DestinationKind, cancellationToken);
+        Assert.Equal((DownloadDestinationKind?)DownloadDestinationKind.Folder, stored[folder.Id]);
+        Assert.Null(stored[older.Id]);
+        var raw = await check.Database
+            .SqlQuery<string>($"SELECT \"DestinationKind\" AS \"Value\" FROM \"DownloadJobs\" WHERE \"DestinationKind\" IS NOT NULL")
+            .SingleAsync(cancellationToken);
+        Assert.Equal("Folder", raw);
     }
 
     [Fact]

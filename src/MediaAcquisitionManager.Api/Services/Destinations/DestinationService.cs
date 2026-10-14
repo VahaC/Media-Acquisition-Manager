@@ -1,6 +1,8 @@
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
+using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
@@ -21,6 +23,7 @@ public sealed class DestinationService(
     IReleaseSourceCategoryReader sectionReader,
     IAuditTrail auditTrail,
     IDestinationMapper mapper,
+    IIntegrationAdapterRegistry adapters,
     TimeProvider time,
     ILogger<DestinationService> logger) : IDestinationService
 {
@@ -56,7 +59,13 @@ public sealed class DestinationService(
                     db.IntegrationConnections,
                     destination => destination.DownloadClientConnectionId,
                     client => client.Id,
-                    (destination, client) => new { Destination = destination, ClientName = client.Name, ClientNormalizedName = client.NormalizedName })
+                    (destination, client) => new
+                    {
+                        Destination = destination,
+                        ClientName = client.Name,
+                        ClientNormalizedName = client.NormalizedName,
+                        ClientAdapterType = client.AdapterType,
+                    })
                 // A name is unique per client only, so the client's name breaks a tie, and the id the last
                 // one (two clients may share a name in no letter case, but a row of an older build might):
                 // the order is total, and no destination shows on two pages.
@@ -65,12 +74,12 @@ public sealed class DestinationService(
                 .ThenBy(row => row.Destination.Id)
                 .Skip((int)offset)
                 .Take(pageSize)
-                .Select(row => new DestinationRow(row.Destination, row.ClientName))
+                .Select(row => new DestinationRow(row.Destination, row.ClientName, row.ClientAdapterType))
                 .ToListAsync(cancellationToken);
 
         // MAM-11 — the page's destinations only: a client holding none of them is not asked.
         var checks = await checker.CheckAsync([.. rows.Select(row => row.Destination)], cancellationToken);
-        var items = rows.Select(row => mapper.ToDto(row.Destination, row.ClientName, checks[row.Destination.Id])).ToList();
+        var items = rows.Select(row => ToDto(row, checks[row.Destination.Id])).ToList();
         return DestinationListResult.Listed(new DestinationListResponse(items, totalCount, page, pageSize));
     }
 
@@ -83,27 +92,29 @@ public sealed class DestinationService(
                 db.IntegrationConnections,
                 destination => destination.DownloadClientConnectionId,
                 client => client.Id,
-                (destination, client) => new DestinationRow(destination, client.Name))
+                (destination, client) => new DestinationRow(destination, client.Name, client.AdapterType))
             .SingleOrDefaultAsync(cancellationToken);
         if (row is null)
             return null;
 
         var checks = await checker.CheckAsync([row.Destination], cancellationToken);
-        return mapper.ToDto(row.Destination, row.ClientName, checks[row.Destination.Id]);
+        return ToDto(row, checks[row.Destination.Id]);
     }
 
     public async Task<DestinationChangeResult> CreateAsync(CreateDestinationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
         // MAM-11 — checked in this order: the name, the client picked, the category's name, (MAM-32) the
-        // sections, whether the client is a download client the app has, (MAM-32) whether the sections'
-        // sources are release sources it has, whether the name is free for the client, then whether the
-        // client confirms the category — one sentence per answer, the first rule broken, and the live call
-        // last, so a request the rules refuse never reaches a client.
+        // sections, whether the client is a download client the app has, (MAM-30) whether the name can be the
+        // client's label, (MAM-32) whether the sections' sources are release sources it has, whether the name is free
+        // for the client, then whether the client confirms the category — one sentence per answer, the first rule
+        // broken, and the live call last, so a request the rules refuse never reaches a client.
         if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey, request.Sections) is { } error)
             return DestinationChangeResult.Invalid(error);
         var client = await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken);
         if (client is null)
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        if (LabelError(client, request.Name!) is { } labelError)
+            return DestinationChangeResult.Invalid(labelError);
         // A new destination has no sections of its own to take off: none picked is nothing to map.
         var sections = Pick(request.Sections) is { Count: > 0 } picked ? picked : null;
         if (!await AreSourcesThereAsync(sections, cancellationToken))
@@ -114,8 +125,7 @@ public sealed class DestinationService(
         if (await IsNameTakenAsync(client.Id, normalizedName, exceptDestinationId: null, cancellationToken))
             return NameTaken(client, name);
 
-        var key = request.ClientDestinationKey!;
-        var (confirmed, refusal) = await ConfirmCategoryAsync(client, key, cancellationToken);
+        var (confirmed, refusal) = await ConfirmAsync(client, request.ClientDestinationKey!, cancellationToken);
         if (refusal is not null)
             return refusal;
 
@@ -128,8 +138,9 @@ public sealed class DestinationService(
             DownloadClientConnectionId = client.Id,
             Name = name,
             NormalizedName = normalizedName,
-            // As the client spells it, never trimmed: it is what a download sends (DestinationRules).
-            ClientDestinationKey = key,
+            // As the client spells it, never trimmed: it is what a download sends (DestinationRules). MAM-30 — the
+            // confirmed entry's own key, never the request's: a folder in the client's canonical spelling (D4).
+            ClientDestinationKey = confirmed!.Destination.Key,
             IsDefault = isDefault,
             CreatedUtc = time.GetUtcNow().UtcDateTime,
         };
@@ -152,7 +163,7 @@ public sealed class DestinationService(
             "{ActorUserName} added the destination {DestinationName} of integration {IntegrationId}.", actor.UserName, destination.Name, client.Id);
         // The check from the answer that confirmed the category: asking the client again would cost a
         // call and could tell another story than the one the save relied on.
-        return DestinationChangeResult.Succeeded(mapper.ToDto(destination, client.Name, confirmed!.Check));
+        return DestinationChangeResult.Succeeded(mapper.ToDto(destination, client.Name, confirmed.Check, DestinationKindOf(client.AdapterType)));
     }
 
     public async Task<DestinationChangeResult> UpdateAsync(Guid destinationId, UpdateDestinationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
@@ -169,6 +180,9 @@ public sealed class DestinationService(
         var client = await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken);
         if (client is null)
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        // MAM-30 — a rename alone too: it asks no client, but the client shows the new name all the same.
+        if (LabelError(client, request.Name!) is { } labelError)
+            return DestinationChangeResult.Invalid(labelError);
         // MAM-32 — left out keeps the destination's sections; empty takes every one off it.
         var sections = Pick(request.Sections);
         if (!await AreSourcesThereAsync(sections, cancellationToken))
@@ -182,12 +196,18 @@ public sealed class DestinationService(
         var key = request.ClientDestinationKey!;
         // Decision 3 — the client is asked only about a new client or a new category: a new name or the
         // default alone doesn't depend on what the client has, so it saves while the client is switched
-        // off or away too.
-        if (client.Id != destination.DownloadClientConnectionId || !string.Equals(key, destination.ClientDestinationKey, StringComparison.Ordinal))
+        // off or away too. MAM-30 — a folder is the same folder in any spelling (D2), and keeps the stored one; a new
+        // one is stored as the client confirmed it (D4).
+        if (client.Id != destination.DownloadClientConnectionId || !IsSameKey(client, key, destination.ClientDestinationKey))
         {
-            var (_, refusal) = await ConfirmCategoryAsync(client, key, cancellationToken);
+            var (confirmed, refusal) = await ConfirmAsync(client, key, cancellationToken);
             if (refusal is not null)
                 return refusal;
+            key = confirmed!.Destination.Key;
+        }
+        else
+        {
+            key = destination.ClientDestinationKey;
         }
 
         var takesDefault = request.IsDefault == true && !destination.IsDefault;
@@ -261,10 +281,24 @@ public sealed class DestinationService(
         return DestinationChangeResult.Succeeded();
     }
 
-    public async Task<ClientDestinationListResponse?> ListClientDestinationsAsync(Guid downloadClientId, CancellationToken cancellationToken = default)
+    public async Task<ClientDestinationListResponse?> ListClientDestinationsAsync(
+        Guid downloadClientId, Guid? editedDestinationId, CancellationToken cancellationToken = default)
     {
         var client = await FindDownloadClientAsync(downloadClientId, cancellationToken);
-        return client is null ? null : mapper.ToResponse(await checker.ListAsync(client, cancellationToken));
+        if (client is null)
+            return null;
+
+        // MAM-30 — the Edit dialog's own destination's folder, so a folder client lists it as itself even once no library
+        // folder leads to it any more (D4). Stored, not typed, so the owner still picks only what the client confirms. One
+        // of another client — the dialog switched clients — or none at all proposes nothing.
+        var storedKeys = editedDestinationId is { } destinationId
+            ? await db.DestinationMappings
+                .AsNoTracking()
+                .Where(destination => destination.Id == destinationId && destination.DownloadClientConnectionId == client.Id)
+                .Select(destination => destination.ClientDestinationKey)
+                .ToListAsync(cancellationToken)
+            : [];
+        return mapper.ToResponse(await checker.ListAsync(client, storedKeys, cancellationToken), DestinationKindOf(client.AdapterType));
     }
 
     public async Task<DestinationSectionListResponse> ListSectionsAsync(CancellationToken cancellationToken = default)
@@ -376,10 +410,15 @@ public sealed class DestinationService(
     /// check, or the refusal: 409 when the client can't be asked or has no such category, 502 with the
     /// client's sentence when it was asked and couldn't answer.
     /// </summary>
-    private async Task<(CheckedClientDestination? Confirmed, DestinationChangeResult? Refusal)> ConfirmCategoryAsync(
+    /// <remarks>
+    /// MAM-30 — a folder client the same way, by folder (D4): the key must be one of the folders it lists — the library
+    /// folders mapped back and its own download folder, the request's key never proposed, so the owner can't type a
+    /// folder — and one it can use; a folder it lists but can't see is refused with its own sentence.
+    /// </remarks>
+    private async Task<(CheckedClientDestination? Confirmed, DestinationChangeResult? Refusal)> ConfirmAsync(
         IntegrationConnectionEntity client, string key, CancellationToken cancellationToken)
     {
-        var listed = await checker.ListAsync(client, cancellationToken);
+        var listed = await checker.ListAsync(client, [], cancellationToken);
         switch (listed.Status)
         {
             case ClientDestinationsStatus.Listed:
@@ -390,12 +429,40 @@ public sealed class DestinationService(
                 return (null, DestinationChangeResult.ClientUnusable(listed.Error!));
         }
 
-        var confirmed = listed.Destinations.FirstOrDefault(candidate => string.Equals(candidate.Destination.Key, key, StringComparison.Ordinal));
-        return confirmed is null
-            ? (null, DestinationChangeResult.CategoryMissing(
-                $"“{client.Name}” has no category “{key}”. Create it in the client first, or pick one it has."))
+        var confirmed = listed.Find(key);
+        if (listed.Kind != DownloadDestinationKind.Folder)
+        {
+            return confirmed is null
+                ? (null, DestinationChangeResult.CategoryMissing(
+                    $"“{client.Name}” has no category “{key}”. Create it in the client first, or pick one it has."))
+                : (confirmed, null);
+        }
+
+        if (confirmed is null)
+            return (null, DestinationChangeResult.CategoryMissing($"“{client.Name}” doesn't offer the folder “{key}”. Pick one of the folders it lists."));
+        return confirmed.Check.Status == DestinationPathStatus.FolderNotSeen
+            ? (null, DestinationChangeResult.CategoryMissing(confirmed.Check.Problem!))
             : (confirmed, null);
     }
+
+    /// <summary>
+    /// MAM-30 — why <paramref name="name"/> can't be the name of a destination of <paramref name="client"/>: a folder client
+    /// shows it as the torrent's label, and a label can't hold a comma (Transmission refuses the add otherwise, ADR
+    /// 0039). <c>null</c> when it can, and for every category client. Asks no client: the type's capabilities say it.
+    /// </summary>
+    private string? LabelError(IntegrationConnectionEntity client, string name) =>
+        DestinationKindOf(client.AdapterType) == DownloadDestinationKind.Folder && DestinationRules.ValidateLabel(name.Trim()) is not null
+            ? $"“{client.Name}” shows this destination's name as the torrent's label, and a label can't contain a comma. Pick a name without one."
+            : null;
+
+    /// <summary>
+    /// MAM-30 — whether a request's key is the destination's stored one, which then asks nobody (decision 3): a category
+    /// by its exact name, a folder by being the same folder in any spelling (D2).
+    /// </summary>
+    private bool IsSameKey(IntegrationConnectionEntity client, string key, string storedKey) =>
+        DestinationKindOf(client.AdapterType) == DownloadDestinationKind.Folder
+            ? ClientDestinationsResult.IsSameFolder(key, storedKey)
+            : string.Equals(key, storedKey, StringComparison.Ordinal);
 
     /// <summary>
     /// Saves the change with its audit row, and says whether there was one: MAM-4's rule — a save that
@@ -553,8 +620,16 @@ public sealed class DestinationService(
     private static DestinationChangeResult NameTaken(IntegrationConnectionEntity client, string name) =>
         DestinationChangeResult.NameTaken($"“{client.Name}” already has a destination named “{name}”.");
 
-    /// <summary>A destination and the name of its download client, read together.</summary>
-    private sealed record DestinationRow(DestinationMappingEntity Destination, string ClientName);
+    private DestinationDto ToDto(DestinationRow row, DestinationPathCheckResult check) =>
+        mapper.ToDto(row.Destination, row.ClientName, check, DestinationKindOf(row.ClientAdapterType));
+
+    // MAM-30 — what a client type's destinations are, asked of the registry by capability (ADR 0005); null for a type
+    // this build doesn't register.
+    private DownloadDestinationKind? DestinationKindOf(string adapterType) =>
+        adapters.Find<IDownloadClient>(adapterType)?.Capabilities.DestinationKind;
+
+    /// <summary>A destination and the name of its download client, read together — MAM-30, with the client's type.</summary>
+    private sealed record DestinationRow(DestinationMappingEntity Destination, string ClientName, string ClientAdapterType);
 
     /// <summary>MAM-32 — one category of a release source a save maps to the destination, with the name and
     /// rank of the section it was picked in.</summary>

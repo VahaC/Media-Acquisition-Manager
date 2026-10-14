@@ -204,7 +204,9 @@ public sealed class DownloadJobPoller(
         {
             var hashes = HashesOf(job);
             var match = ClientJobCorrelation.Follow(listed, job.ClientJobId, hashes);
-            if (match.Status == ClientJobMatchStatus.None && MayHaveBeenRenamed(job))
+            // MAM-30, D19 — only a client whose job ids can change: Transmission keeps a torrent's v1 hash for good, and
+            // its destination's jobs are every torrent it has, read again on every pass while the job is missing.
+            if (match.Status == ClientJobMatchStatus.None && context.DownloadClient.Capabilities.JobIdsMayChange && MayHaveBeenRenamed(job))
             {
                 // Once per destination and pass, however many of its jobs need it.
                 var key = job.ClientDestinationKey!;

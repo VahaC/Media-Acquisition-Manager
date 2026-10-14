@@ -34,4 +34,11 @@ public enum DownloadOverwriteCheck
     /// one of C1, which libtorrent keeps in a name and the app's paths refuse.
     /// </summary>
     NotCheckedFileName = 7,
+
+    /// <summary>
+    /// MAM-30 — never a sent job's: the destination's folder is one its download client can't see (D5), which the
+    /// Download dialog warns of, holding Send, in either mode. Nothing is sent there, Keep both or a replacement alike,
+    /// until the owner fixes the destination: the send refuses it before the check, and the check refuses it too.
+    /// </summary>
+    NotCheckedFolderNotSeen = 8,
 }

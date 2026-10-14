@@ -252,3 +252,91 @@ multi-file torrent landing in a folder named after it below `download-dir`; a si
 wasn't recorded. `rename-partial-files` was on in both versions recorded. By Transmission's
 documentation that names an unfinished file with `.part` on the disk; MAM-30 checks it and lets the
 check allow for it.
+
+## Transmission's layout, its names and its `.part` files (added 0.4.0, MAM-30)
+
+**For Transmission the check looks at the places its one layout gives, each name read every way
+Transmission may clean it, and at each place's `<name>.part` too (`TorrentFilePlacement.OwnLayoutOnly`,
+`PartialFileSuffix`).** Read from Transmission's source, 4.0.6 and 4.1.3, as the MAM-29 section planned:
+
+- **One layout.** A torrent of one file lands straight in the folder; a torrent of several, in a folder
+  named after it (none if that name cleans to nothing). No setting changes it, so there is no other
+  layout to allow for.
+- **Three ways to clean a name** (`TorrentNameReadings`), as Transmission doesn't use libtorrent: 4.0 on
+  any system cuts at a NUL, splits on `/`, strips the ends' whitespace and trailing dots, puts `_` before
+  a Windows device name (`CON`, `con.txt`, `LPT1` …) and turns `" * : < > ? \ |` into `_` (`Portable`);
+  4.1 on Windows does that and turns each control character into `_` too (`WindowsSafe`); 4.1 on Linux
+  keeps a name as it is but `.` and `..`, which become `_.` and `_..` (`Verbatim`). Each drops what
+  ends up empty. The check isn't told the version or the system, so it looks at every place the three
+  give, each file once however many of its places it finds.
+- **`.part`.** With `rename-partial-files` on, an unfinished file is `<name>.part` on the disk, and
+  Transmission adopts what it finds there as it adopts the plain name, so each place is followed by its
+  suffixed place, the same file of the release.
+- **Adopting is as bad as qBittorrent's.** When every file of a torrent is already there, each of the
+  right size and older than the add, Transmission takes the torrent as complete once its first piece
+  hashes right; otherwise it checks what is there and writes the bad pieces into those files in place,
+  cuts a longer file short, and on 4.1 renames a file that doesn't verify to `.part`. Nothing warns.
+  So the check runs before every send to Transmission, as the MAM-29 section said.
+
+Transmission's torrents in the destination's folder are those whose `downloadDir` is that folder (as a
+path), read from all its torrents, never by label. A folder Transmission can't see (`FolderNotSeen`) has
+no path in the app, so the check can't look into it, and the send refuses it before; the check, asked
+about one anyway, refuses it too, in either mode and before it looks at anything, with the send's own
+sentence ("“Transmission” can't use the folder of the destination “Movies” any more, so nothing was
+sent. The owner checks the destination under Destinations in the user menu.",
+`DownloadOverwriteGuardFolderNotSeenTests`). The Download dialog's question answers it with a reason
+of its own, `NotCheckedFolderNotSeen`, which no sent job ever carries, as nothing is sent there, Keep
+both or a replacement alike, and the dialog holds Send for it in either mode. The sentences name
+the destination, never its folder, as members read them: "“Transmission” would write over
+“Film.2001.mkv” in the folder of the destination “Movies”: a file of another size is already there, so
+nothing was sent." and, for a replacement, "The app couldn't check every place this release would write
+in the folder of the destination “Movies” (the client couldn't list its torrents in that folder, or
+their files), so nothing was sent and no copy will be replaced. Pick Keep both to download it."
+qBittorrent's three layouts and libtorrent's cleaning are unchanged, byte for byte.
+
+**Names as the .torrent holds them, and what can't be predicted.** `TorrentContentReader` keeps the
+torrent's name and each file's path elements as the .torrent holds them, beside libtorrent's cleaned
+ones, and the readings clean each element on its own. Transmission 4.0 writes a file's path elements
+as the bytes they are, so a file path of a torrent of several files held in bytes that aren't UTF-8,
+or with a NUL, names a place no path in the app says; such a torrent, like one with a file no reading
+gives a name, has places the check can't predict (`TorrentTargetPaths.For` answers `null`): a send
+goes unchecked (`NotCheckedFileList`), and a replacement is refused with "The app couldn't check every
+place this release would write in the folder of the destination “Movies” (the .torrent's list of files
+can't be read), so nothing was sent and no copy will be replaced. Pick Keep both to download it." A
+lone file's name is read whatever its bytes, as each reading cleans it. Such an unchecked send is not
+what it is with qBittorrent, whose libtorrent refuses a torrent whose list of files the app can't read,
+so nothing is written: Transmission adds the torrent and writes its files — 4.0 under the bytes as the
+torrent holds them, 4.1 with U+FFFD in place of bytes that aren't UTF-8 — so, as with a magnet, a file
+of the same name already there may be taken over or written over. The job says so
+(`NotCheckedFileList`), but the Download dialog can't warn before **Send**: the .torrent is fetched
+only then. **Pad files.** libtorrent never
+writes a file the torrent marks as padding (BEP 47), so qBittorrent's places leave them out.
+Transmission ignores the mark (`attr` is "currently unused" in 4.0.6 and 4.1.3) and writes such a file
+like any other, so for Transmission each is a place like a real file — but for one at BEP 47's own
+name, `.pad/<digits>`, which every reading keeps and which lands in a `.pad` folder no library holds.
+
+**The move from qBittorrent keeps one client per send.** The MAM-29 section's check reads only the
+client a send goes to, and the Download dialog offers every switched-on client with a destination
+(`DownloadService.GetOptionsAsync`). So the README's and the 0.4.0 release note's steps for the move
+have the owner remove qBittorrent's destinations as soon as Transmission's exist, leaving its
+integration switched on for the holdings check right before a move (ADR 0031), which reads every
+client whatever its destinations: a qBittorrent torrent still queued or fetching its metadata for a
+place in a library folder is not on the disk yet, and a send to Transmission would never see it.
+
+`TorrentNameReadingsTests`, `TorrentTargetPathsTests.For_own_layout_only_of_one_file_is_its_name_in_the_folder_alone`,
+`TorrentTargetPathsTests.For_own_layout_only_of_a_torrent_with_a_folder_keeps_the_folder`,
+`TorrentTargetPathsTests.For_own_layout_only_of_a_read_torrent_places_each_file_every_way_transmission_may_write_it`,
+`TorrentTargetPathsTests.For_with_a_partial_file_suffix_adds_each_files_suffixed_place_for_the_same_file`,
+`TorrentTargetPathsTests.For_own_layout_only_of_a_read_torrent_whose_path_is_not_utf8_can_not_predict_it_while_qbittorrents_places_stay`,
+`TorrentTargetPathsTests.For_own_layout_only_of_a_read_torrent_that_marks_a_media_file_as_padding_still_places_it`,
+`TorrentContentReaderTests.Read_keeps_the_name_and_each_files_path_as_the_torrent_holds_them_beside_the_cleaned_ones`
+and `TorrentContentReaderTests.Read_marks_a_files_path_whose_bytes_are_not_utf8_as_not_exact_unless_path_utf8_names_it`
+pin the parts, and over HTTP
+`DownloadsSendOverwriteFolderClientHttpTests.Create_whose_file_would_land_on_its_unfinished_name_already_holding_another_file_fails`,
+`Create_whose_file_is_taken_at_its_name_and_its_unfinished_name_counts_that_file_once`,
+`Create_looks_only_where_the_client_writes_a_torrent_of_several_files` and
+`Create_looks_only_where_the_client_writes_a_torrent_of_one_file`, and
+`TransmissionAdapterJobsTests.FindJobs_puts_a_queued_4_0_6_torrents_content_where_transmission_will_write_its_files`
+the content's place a 4.0.6 queued torrent reports; `DownloadsSendOverwriteTransmissionHttpTests` goes
+end to end through `FakeTransmissionServer`, a queued torrent's place, a `.part` place and a torrent no
+reading can place among them.

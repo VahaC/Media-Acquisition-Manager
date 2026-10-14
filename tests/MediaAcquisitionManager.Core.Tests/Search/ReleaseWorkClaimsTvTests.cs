@@ -99,6 +99,15 @@ public sealed class ReleaseWorkClaimsTvTests
         { "Котодракон / Neko to Ryuu (серії 1-4 з 12) (2026) WEBDL 1080p H.265", ["Котодракон", "Neko to Ryuu"], "2026", null },
         { "Зошит смерті (серії 1-31 з 37) / Death Note (E1-31 of 37) (2006) BDRip 1080p", ["Зошит смерті", "Death Note"], "2006", null },
         { "Show (Episodes 1-3 of 10) (2020)", ["Show"], "2020", null },
+        // MAM-30 — a season's episodes of a total not yet known, "з ?", "of XX", "з хх" (the newest TV of both gateways):
+        // the marker is cut with its bracket, so no title keeps a "(", as when the total is a number.
+        { "Розслідування з Андрієм Данілевичем (Сезон 1, серії 1-25 з ?) (2026) WEB-DL 1080p", ["Розслідування з Андрієм Данілевичем"], "2026", "1:1-25" },
+        { "Крісло-танк (Сезон 1; серії 01 з хх) / Tank Chair (Season 1) (2026) WEB-DL 1080p Ukr/Jap | Sub Ukr", ["Крісло-танк", "Tank Chair"], "2026", "1:1-1" },
+        { "1/2 (S3E1 of XX) / Ranma 1/2 (S3) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr", ["1/2", "Ranma 1/2"], "2026", "3:1-1" },
+        { "Рамма (Ранма) 1/2 (Сезон 3, серії 1 з хх) / Ranma 1/2 (Season 3) (2026) WEBRip 1080p H.265 Ukr/Jap | Sub Ukr", ["Рамма (Ранма) 1/2", "Ranma 1/2"], "2026", "3:1-1" },
+        // Prowlarr's title of the Ukrainian-only show, its letters stripped: a year that opens it names no title, so what
+        // stands before the marker is read as one — still without the marker's "(".
+        { "(2026) WEB-DL 1080p (S1E1-25 of ?)", ["(2026) WEB-DL 1080p"], null, "1:1-25" },
         // After the year, it ends nothing: the year ended the title already.
         { "Shinreigari (2007) BDRip 1080p Ukr/Jap | Sub Ukr (E01-14 of 22)", ["Shinreigari"], "2007", null },
         // Without a year, it ends the title as a season marker does.

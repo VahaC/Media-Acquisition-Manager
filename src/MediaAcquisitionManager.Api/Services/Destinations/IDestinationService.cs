@@ -54,9 +54,12 @@ public interface IDestinationService
     /// <summary>
     /// What the download client integration <paramref name="downloadClientId"/> offers right now, each
     /// category checked, or the sentence saying why it couldn't be asked; <c>null</c> when no download
-    /// client integration has that id.
+    /// client integration has that id. MAM-30 — a client whose destinations are folders also lists the folder of
+    /// <paramref name="editedDestinationId"/>, the destination the Edit dialog edits, when it is one of its own, and the
+    /// library folders it has no folder for.
     /// </summary>
-    Task<ClientDestinationListResponse?> ListClientDestinationsAsync(Guid downloadClientId, CancellationToken cancellationToken = default);
+    Task<ClientDestinationListResponse?> ListClientDestinationsAsync(
+        Guid downloadClientId, Guid? editedDestinationId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// MAM-32 — the sections of every release search integration, by its name, each with the destination

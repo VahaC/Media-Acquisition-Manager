@@ -19,6 +19,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
+using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using MediaAcquisitionManager.Infrastructure.Persistence;
 using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
@@ -55,7 +56,7 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// <para>
 /// Only seams to the outside world are replaced — the clock, the vendor HTTP and the host's files: each
 /// integration client's primary handler is a <see cref="RecordingHttpHandler"/> (<see cref="JellyfinHttp"/>,
-/// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>, <see cref="TmdbHttp"/> — TMDb's image host
+/// <see cref="TorznabHttp"/>, <see cref="QBittorrentHttp"/>, <see cref="TransmissionHttp"/> (MAM-30), <see cref="TmdbHttp"/> — TMDb's image host
 /// included, MAM-33), so the real adapters run with the app's own client configuration and only the
 /// network is faked; and the file inventory, the Core seam to the app's mounts and the media inspector,
 /// is <see cref="Files"/> (MAM-9), with — MAM-26 — the one write to them, the quarantine's renames and deletions,
@@ -151,6 +152,10 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
     /// <summary>The network behind the qBittorrent adapter's client; 503 until armed. Reset by
     /// <see cref="ResetAsync"/>.</summary>
     public RecordingHttpHandler QBittorrentHttp { get; } = new();
+
+    /// <summary>MAM-30 — the network behind the Transmission adapter's client; 503 until armed. Reset by
+    /// <see cref="ResetAsync"/>.</summary>
+    public RecordingHttpHandler TransmissionHttp { get; } = new();
 
     /// <summary>MAM-33 — the network behind the TMDb adapter's client, its API and its image host alike;
     /// 503 until armed (<c>FakeTmdbServer.Arm</c>). Reset by <see cref="ResetAsync"/>.</summary>
@@ -276,6 +281,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         JellyfinHttp.Reset();
         TorznabHttp.Reset();
         QBittorrentHttp.Reset();
+        TransmissionHttp.Reset();
         TmdbHttp.Reset();
         SaveChangesHook.Reset();
         TransactionHook.Reset();
@@ -397,6 +403,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
             UsePrimaryHandler(services, JellyfinAdapter.IdentifyHttpClientName, JellyfinHttp);
             UsePrimaryHandler(services, TorznabAdapter.HttpClientName, TorznabHttp);
             UsePrimaryHandler(services, QBittorrentAdapter.HttpClientName, QBittorrentHttp);
+            UsePrimaryHandler(services, TransmissionAdapter.HttpClientName, TransmissionHttp);
             UsePrimaryHandler(services, TmdbAdapter.HttpClientName, TmdbHttp);
         });
     }

@@ -8,9 +8,12 @@ namespace MediaAcquisitionManager.Core.Downloads;
 /// <param name="ServicePath">The folder as the client sees it; <c>null</c> when the client doesn't say
 /// or wasn't asked.</param>
 /// <param name="AppPath">The same folder inside the app, through the client's path mappings; <c>null</c>
-/// when they give none.</param>
+/// when they give none. MAM-30 — always <c>null</c> for <see cref="DestinationPathStatus.FolderNotSeen"/>, even when
+/// the mappings give one: the client can't use the folder, so nothing may treat it as a place to check or send
+/// to.</param>
 /// <param name="LibraryNames">The libraries one of whose folders holds it, each once, in the order of
-/// their first folder that does; empty unless <see cref="DestinationPathStatus.InLibrary"/>.</param>
+/// their first folder that does; empty unless <see cref="DestinationPathStatus.InLibrary"/> or — MAM-30 —
+/// <see cref="DestinationPathStatus.FolderNotSeen"/>, where they name the folder the client can't see.</param>
 /// <param name="Problem">One readable sentence saying what is wrong and what follows from it; <c>null</c>
 /// only for <see cref="DestinationPathStatus.InLibrary"/>.</param>
 public sealed record DestinationPathCheckResult(

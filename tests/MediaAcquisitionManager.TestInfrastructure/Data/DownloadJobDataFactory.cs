@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Persistence;
@@ -22,7 +23,8 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
         double? progress = null,
         string? blockReason = null,
         DownloadJobErrorOrigin? blockReasonOrigin = null,
-        DownloadOverwriteCheck? overwriteCheck = null)
+        DownloadOverwriteCheck? overwriteCheck = null,
+        DownloadDestinationKind? destinationKind = null)
     {
         // Read from the mapping itself, so the copied values are the ones a test can later see
         // outliving it.
@@ -54,6 +56,7 @@ public sealed class DownloadJobDataFactory(ApplicationDbContext db, TimeProvider
             DestinationMappingId = destination?.Id,
             DestinationName = destination?.Name,
             ClientDestinationKey = destination?.ClientDestinationKey,
+            DestinationKind = destinationKind,
             Status = status,
             StatusChangedUtc = now,
             CreatedUtc = now,

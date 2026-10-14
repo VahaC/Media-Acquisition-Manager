@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 
@@ -13,7 +14,8 @@ public interface IDownloadJobDataFactory
     /// own, with the info hashes worked out from what it sent. MAM-14 — and as a previous run of the app left
     /// it: the client's id of it, how far the client said it had come, and why it wasn't moving on. Created and
     /// changed at the test clock's now; advance the clock to age it. MAM-24 — and how the overwrite check let it
-    /// through before it was sent, when it did.
+    /// through before it was sent, when it did. MAM-30 — and what its client's destinations were when it was made, as
+    /// the send snapshots it; none, as a job of an older build has, unless given.
     /// </summary>
     Task<DownloadJobEntity> Create(
         Guid releaseId,
@@ -29,7 +31,8 @@ public interface IDownloadJobDataFactory
         double? progress = null,
         string? blockReason = null,
         DownloadJobErrorOrigin? blockReasonOrigin = null,
-        DownloadOverwriteCheck? overwriteCheck = null);
+        DownloadOverwriteCheck? overwriteCheck = null,
+        DownloadDestinationKind? destinationKind = null);
 
     /// <summary>
     /// MAM-14 — gives the job <paramref name="downloadJobId"/> <paramref name="files"/> as its client last listed

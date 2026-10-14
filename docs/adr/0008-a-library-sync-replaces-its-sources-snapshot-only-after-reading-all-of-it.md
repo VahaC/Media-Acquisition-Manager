@@ -266,3 +266,25 @@ pin it; `JellyfinAdapterItemsTests.ListItems_asks_for_one_page_of_every_movie_wi
 and `JellyfinAdapterTvTests.ListItems_asks_for_one_page_of_the_list_with_its_fields` pin the query,
 and `JellyfinAdapterIdentifyFailureTests.Identify_of_an_item_jellyfin_no_longer_has_is_not_found_and_searches_nothing`
 the lookup's.
+
+## Libraries that hold no media files (added 0.4.0, MAM-30)
+
+**A library Jellyfin keeps for its own collections or playlists (`CollectionType` `boxsets` or
+`playlists`) is still stored with the snapshot, but with no root folder: its one folder is Jellyfin's
+own data — `/config/data/collections` on the reference installation —, never a folder of media
+(Vasyl's decision of 2026-10-13).** The adapter says so of each library it reads
+(`LibraryLocation.HoldsMediaFiles`), and the sync stores the library as before and no
+`LibraryLocationFolders` row for it. A Transmission destination is proposed from the stored folders
+([ADR 0039](0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)),
+so such a library is never offered as a folder, nor listed as one the client can't reach. No other
+reader of the stored folders needed it — the library folders behind the destination check and the
+Media folders page, the TMDb suggestions' roots, the replacement gates, the files in no library, the
+library notices and the new-file check —, so none of them shows it any more, and the Media folders
+page's count of library folders without a path in the app no longer counts it. The next sync drops
+the folder an older version stored for it.
+`JellyfinAdapterLocationsTests.ListLocations_says_the_box_set_library_of_the_sample_holds_no_media_files_and_the_others_do`,
+`JellyfinAdapterLocationsTests.ListLocations_reads_whether_a_library_holds_media_files_from_its_collection_type`,
+`LibraryLocationFoldersHttpTests.Sync_keeps_jellyfins_collections_library_but_stores_no_folder_for_it`,
+`LibraryLocationFoldersHttpTests.Resync_drops_the_folder_an_older_build_stored_for_the_collections_library`
+and `DestinationsFolderClientHttpTests.ClientDestinations_leaves_jellyfins_collections_library_out_of_the_folders_and_of_those_it_has_none_for`
+pin it.

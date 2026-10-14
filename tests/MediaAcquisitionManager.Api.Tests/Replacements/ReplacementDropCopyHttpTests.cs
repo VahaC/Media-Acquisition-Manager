@@ -63,7 +63,7 @@ public sealed class ReplacementDropCopyHttpTests : IClassFixture<MediaAcquisitio
     private const string HeldReason =
         "Still held by the torrent “Yellowstone S02” in “qBittorrent”: remove that torrent there without its files, then press Retry.";
     private const string NeedsLinkingReason =
-        "qBittorrent's downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
+        "“qBittorrent”'s downloads couldn't be told apart for this release, so the app can't follow it to verify the new file.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private ReplacementVerificationHarness _harness = null!;

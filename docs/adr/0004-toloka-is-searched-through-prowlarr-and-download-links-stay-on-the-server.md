@@ -337,3 +337,52 @@ recordings of 10-05 and 10-13. The differences, for MAM-30:
 
 A direct Toloka adapter, which the Note for future readers keeps open, is a ticket of its own after
 Phase D.
+
+## Jackett through the same adapter, and the description on the Search page (added 0.4.0, MAM-30)
+
+**Nothing in what the adapter reads fitted only Prowlarr: its address rule, its key swapped out of a
+link by value, its fetch from the feed's own scheme, host and port and its error reading took Jackett's
+answers as they were. What changed is how it says something is wrong: a sentence that tells the owner
+where to fix a refused key or a wrong address names Jackett and Prowlarr as examples, "such as …",
+since the owner fixes it in one of them; what the adapter does stays plain Torznab, the same for either
+(Vasyl's decisions of 2026-10-13).** That departs from the MAM-7 section's "The adapter knows neither
+Prowlarr nor Toloka" in its words only:
+
+- a refused key — errors 100 to 102, or a bare 401 or 403, Jackett's answer on a download link —:
+  "The Torznab feed refused the API key (…). Copy the API key from the dashboard of the service that
+  serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.";
+- an error 200 to 299 on the capabilities request, which sends nothing but `t=caps` and the key, so can
+  only be about the address — Jackett answers an indexer it doesn't have or hasn't configured with
+  HTTP 200 and `<error code="201" description="Indexer is not supported" />`, read from its
+  `ResultsController` and not recorded —: "The Torznab feed doesn't serve what this address names (…).
+  Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or
+  …/1/api for Prowlarr." A search's own wording stays;
+- a 404: "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address:
+  Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/."
+
+Jackett's download token, `path=`, joins the names whose values a feed's error text never shows, as
+Prowlarr's `link=` is masked while a release is fetched. The tests learnt Jackett's shapes:
+`TorznabSamples` and `FakeTorznabServer` serve its links at the host's root and its recorded refusals
+(a 200 `<error code="100">` on caps and searches, a bare 401 on a download, a bare 404 for a token that
+doesn't unprotect; `FakeTorznabServerJackettTests`), `TorznabAdapterJackettTests` and
+`TorznabAdapterGatewaySamplesTests` read every Jackett sample beside Prowlarr's, and
+`SearchesJackettHttpTests`, `ReleaseSearchJackettHttpTests`, `RecommendationsJackettHttpTests`,
+`DestinationsSectionsJackettHttpTests`, `DownloadOptionsSuggestionJackettHttpTests` and
+`DownloadsSendJackettHttpTests` search, match, recommend, pick a destination by section and send with
+Jackett as the only source — `DownloadsSendJackettHttpTests.Create_whose_download_jackett_fails_quoting_its_key_and_token_keeps_both_out_of_the_answer_the_rows_and_the_log`
+among them.
+
+**The description on the Search page.** "Strip Cyrillic Letters", ticked in Jackett by default and the
+only way supported (Vasyl's decision of 2026-10-13, which the README tells installers), leaves a
+Ukrainian-only `<title>` as punctuation, and Prowlarr's Toloka does the same; the description this
+record's MAM-33 section stores keeps Toloka's whole title. The Search page now reads it too, as
+Recommendations do
+([ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)'s
+MAM-30 section).
+
+**A Ukrainian-only show found nothing by search, and that is upstream.** MAM-29's `t=tvsearch` for
+«Розслідування з Андрієм Данілевичем» answered an empty channel through Jackett. Jackett's Toloka
+definition sends the phrase to Toloka's own search and filters nothing itself, stripping Cyrillic only
+from the title it hands back, so the gap is Toloka's search or Jackett's section mapping, which the app
+can't change. Such a release still matches by its description wherever it is listed — among the newest
+releases for Recommendations, or found by another word. MAM-31 tries the search live.

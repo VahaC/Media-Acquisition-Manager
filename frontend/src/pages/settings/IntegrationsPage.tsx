@@ -117,11 +117,14 @@ export function IntegrationsPage() {
       // every user sees on the Library page; the owner is told before, not after.
       // MAM-11 — removing a download client also removes every destination that uses it (the rows
       // cascade with the integration), the default among them: told before too, not found missing on
-      // the Destinations page after.
+      // the Destinations page after. MAM-30 — a client that saves to folders has no categories that
+      // could stay: its torrents keep their folder and label.
       message: integration.kind === 'MediaLibrary'
         ? t('remove.messageLibrary', { name: integration.name, service })
         : integration.kind === 'DownloadClient'
-          ? t('remove.messageDownloadClient', { name: integration.name, service })
+          ? integration.destinationKind === 'Folder'
+            ? t('remove.messageDownloadClientFolder', { name: integration.name, service })
+            : t('remove.messageDownloadClient', { name: integration.name, service })
           : t('remove.message', { name: integration.name }),
       confirmLabel: t('remove.confirm'),
       destructive: true,

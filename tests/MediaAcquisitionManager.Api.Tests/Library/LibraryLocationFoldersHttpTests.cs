@@ -13,7 +13,9 @@ namespace MediaAcquisitionManager.Api.Tests.Library;
 // MAM-11 — the root folders of every library a sync reads, stored for the destination check (ADR 0003): each
 // library's folders in the server's order, replaced by every sync that reads the library again, kept as they
 // were by a sync that fails (ADR 0008), and gone with their library and with the integration that reported
-// it. Syncs and the removal run over real HTTP and the real worker; only Jellyfin's network is faked.
+// it. MAM-30 — but none for Jellyfin's Collections library, whose folder is Jellyfin's own records (decision 9): the
+// library is kept, its folder never stored, and one an older build stored goes at the next sync. Syncs and the removal
+// run over real HTTP and the real worker; only Jellyfin's network is faked.
 public sealed class LibraryLocationFoldersHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string ApiKey = "0123456789abcdef0123456789abcdef";
@@ -23,12 +25,13 @@ public sealed class LibraryLocationFoldersHttpTests : IClassFixture<MediaAcquisi
     private const string CartoonsLocationId = "2e7d31f7c627f72ad0912eff1c00353d";
     private const string DocumentaryLocationId = "dea595f0747f8862151db0192e565150";
     private const string ShowsLocationId = "f97af1337db58125aaa9a3f3695ab163";
+    private const string CollectionsLocationId = "f28915b8cd74d585b0c181975ec68c3a";
 
-    /// <summary>The sample's folders, one per library, as <see cref="FoldersAsync"/> describes them.</summary>
+    /// <summary>The sample's folders, one per library that holds media files, as <see cref="FoldersAsync"/> describes
+    /// them.</summary>
     private static readonly string[] SampleFolders =
     [
         "Документалки 0 /media/documentary",
-        "Колекції 0 /config/data/collections",
         "Мульфільми 0 /media/cartoons",
         "Серіали 0 /media/tv-shows",
         "Фільми 0 /media/movies",
@@ -65,9 +68,53 @@ public sealed class LibraryLocationFoldersHttpTests : IClassFixture<MediaAcquisi
         var run = await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
 
         //Assert
-        // Every library, the ones that hold no file and Jellyfin's own collections folder included: which of
-        // them a destination may save into is the destination check's question, not the sync's.
+        // Every library that holds media files, the ones that hold no file yet included: which of them a destination
+        // may save into is the destination check's question. MAM-30 — Jellyfin's own collections folder is no such
+        // library's, so it is never one.
         Assert.Equal(LibrarySyncStatus.Succeeded, run.Status);
+        Assert.Equal(SampleFolders, await FoldersAsync(jellyfin.Id, cancellationToken));
+    }
+
+    [Fact]
+    public async Task Sync_keeps_jellyfins_collections_library_but_stores_no_folder_for_it()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync("Living room");
+
+        //Act
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
+        // Decision 9 — CollectionType boxsets: the library stays (the Library page still names it), its folder doesn't.
+        await _factory.WithDbAsync(async db =>
+        {
+            var collections = await db.LibraryLocations.SingleAsync(location => location.SourceItemId == CollectionsLocationId, cancellationToken);
+            Assert.Equal("Колекції", collections.Name);
+            Assert.False(await db.LibraryLocationFolders.AnyAsync(folder => folder.LibraryLocationId == collections.Id, cancellationToken));
+        });
+    }
+
+    [Fact]
+    public async Task Resync_drops_the_folder_an_older_build_stored_for_the_collections_library()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var jellyfin = await CreateJellyfinAsync("Living room");
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+        // What a sync before MAM-30 left: Jellyfin's collections folder stored like any library's.
+        await _factory.WithDbAsync(async db =>
+        {
+            var collections = await db.LibraryLocations.SingleAsync(location => location.SourceItemId == CollectionsLocationId, cancellationToken);
+            db.LibraryLocationFolders.Add(new LibraryLocationFolderEntity { LibraryLocationId = collections.Id, Position = 0, ServicePath = "/config/data/collections" });
+            await db.SaveChangesAsync(cancellationToken);
+        });
+        _factory.Time.Advance(TimeSpan.FromMinutes(1));
+
+        //Act
+        await _factory.SyncLibraryAsync(jellyfin.Id, _owner.AccessToken, cancellationToken);
+
+        //Assert
         Assert.Equal(SampleFolders, await FoldersAsync(jellyfin.Id, cancellationToken));
     }
 
@@ -110,11 +157,11 @@ public sealed class LibraryLocationFoldersHttpTests : IClassFixture<MediaAcquisi
         Assert.Equal(LibrarySyncStatus.Succeeded, run.Status);
         // The removed library's folder went with its library; nothing of the old lists is left over.
         Assert.Equal(
-            ["Колекції 0 /config/data/collections", "Мульфільми 0 /media/animation", "Фільми 0 /media/movies", "Фільми 1 /media/movies-4k"],
+            ["Мульфільми 0 /media/animation", "Фільми 0 /media/movies", "Фільми 1 /media/movies-4k"],
             await FoldersAsync(jellyfin.Id, cancellationToken));
         await _factory.WithDbAsync(async db =>
         {
-            Assert.Equal(4, await db.LibraryLocationFolders.CountAsync(cancellationToken));
+            Assert.Equal(3, await db.LibraryLocationFolders.CountAsync(cancellationToken));
             Assert.False(await db.LibraryLocations.AnyAsync(location => location.SourceItemId == ShowsLocationId, cancellationToken));
         });
     }
@@ -134,7 +181,7 @@ public sealed class LibraryLocationFoldersHttpTests : IClassFixture<MediaAcquisi
         //Assert
         Assert.Equal(LibrarySyncStatus.Succeeded, run.Status);
         Assert.Equal(SampleFolders, await FoldersAsync(jellyfin.Id, cancellationToken));
-        await _factory.WithDbAsync(async db => Assert.Equal(5, await db.LibraryLocationFolders.CountAsync(cancellationToken)));
+        await _factory.WithDbAsync(async db => Assert.Equal(4, await db.LibraryLocationFolders.CountAsync(cancellationToken)));
     }
 
     [Fact]
@@ -203,7 +250,7 @@ public sealed class LibraryLocationFoldersHttpTests : IClassFixture<MediaAcquisi
         {
             var keptLocations = await db.LibraryLocations.Select(location => location.Id).ToListAsync(cancellationToken);
             var folderLocations = await db.LibraryLocationFolders.Select(folder => folder.LibraryLocationId).ToListAsync(cancellationToken);
-            Assert.Equal(5, folderLocations.Count);
+            Assert.Equal(4, folderLocations.Count);
             Assert.All(folderLocations, location => Assert.Contains(location, keptLocations));
         });
     }

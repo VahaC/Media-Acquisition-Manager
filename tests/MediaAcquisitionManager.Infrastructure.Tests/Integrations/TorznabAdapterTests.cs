@@ -149,6 +149,8 @@ public sealed class TorznabAdapterTests : IDisposable
     // Anything else gets /api: a Prowlarr indexer without it, and Jackett's copied Torznab address.
     [InlineData("http://prowlarr.test:9696/1", "http://prowlarr.test:9696/1/api")]
     [InlineData("http://jackett.test:9117/api/v2.0/indexers/x/results/torznab", "http://jackett.test:9117/api/v2.0/indexers/x/results/torznab/api")]
+    // MAM-30 — as Jackett's Copy Torznab Feed gives it, with its trailing slash.
+    [InlineData("http://jackett.test:9117/api/v2.0/indexers/toloka/results/torznab/", "http://jackett.test:9117/api/v2.0/indexers/toloka/results/torznab/api")]
     // A host called "api" is not a path segment called "api".
     [InlineData("http://api", "http://api/api")]
     [InlineData("http://feed.test/rapi", "http://feed.test/rapi/api")]
@@ -166,11 +168,11 @@ public sealed class TorznabAdapterTests : IDisposable
     [Theory]
     // A feed reports its failures in the body, with whatever HTTP status it likes.
     [InlineData("100", "Incorrect user credentials", 401, IntegrationCallStatus.AuthenticationFailed,
-        "The Torznab feed refused the API key (error 100: Incorrect user credentials).")]
+        "The Torznab feed refused the API key (error 100: Incorrect user credentials). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData("101", "Account suspended", 200, IntegrationCallStatus.AuthenticationFailed,
-        "The Torznab feed refused the API key (error 101: Account suspended).")]
+        "The Torznab feed refused the API key (error 101: Account suspended). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData("102", "Insufficient privileges/not authorized", 403, IntegrationCallStatus.AuthenticationFailed,
-        "The Torznab feed refused the API key (error 102: Insufficient privileges/not authorized).")]
+        "The Torznab feed refused the API key (error 102: Insufficient privileges/not authorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData("910", "API disabled", 200, IntegrationCallStatus.Refused,
         "The Torznab feed has its API switched off (error 910: API disabled).")]
     // Prowlarr's answer for an indexer it paused after failures (ADR 0004): HTTP 429 and error 429.
@@ -182,11 +184,11 @@ public sealed class TorznabAdapterTests : IDisposable
     [InlineData("100", "Incorrect user credentials", 429, IntegrationCallStatus.Refused,
         "The Torznab feed is refusing requests for now (error 100: Incorrect user credentials). Try again in a few minutes.")]
     [InlineData("201", "Incorrect parameter", 400, IntegrationCallStatus.UnexpectedResponse,
-        "The Torznab feed didn't understand the capabilities request (error 201: Incorrect parameter). Check that the address is a Torznab feed.")]
+        "The Torznab feed doesn't serve what this address names (error 201: Incorrect parameter). Check the indexer in the feed's address, such as …/indexers/toloka/results/torznab/ for Jackett or …/1/api for Prowlarr.")]
     [InlineData(" 900 ", "Unknown error", 500, IntegrationCallStatus.ServiceError,
         "The Torznab feed failed (error 900: Unknown error).")]
     [InlineData("100", "", 200, IntegrationCallStatus.AuthenticationFailed,
-        "The Torznab feed refused the API key (error 100).")]
+        "The Torznab feed refused the API key (error 100). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData("x", "Not a number", 200, IntegrationCallStatus.UnexpectedResponse, NotTorznabError)]
     [InlineData("-100", "Signed", 200, IntegrationCallStatus.UnexpectedResponse, NotTorznabError)]
     public async Task TestConnection_maps_each_torznab_error_code(
@@ -220,7 +222,7 @@ public sealed class TorznabAdapterTests : IDisposable
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
         // MAM-10 — the echoed address is cut to its scheme, host and port before anything else.
         Assert.Equal(
-            "The Torznab feed refused the API key (error 100: Invalid API key *** for http://prowlarr.test:9696).",
+            "The Torznab feed refused the API key (error 100: Invalid API key *** for http://prowlarr.test:9696). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.",
             result.Message);
     }
 
@@ -379,10 +381,10 @@ public sealed class TorznabAdapterTests : IDisposable
     }
 
     [Theory]
-    [InlineData(401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (401 Unauthorized).")]
-    [InlineData(403, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (403 Forbidden).")]
+    [InlineData(401, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
+    [InlineData(403, IntegrationCallStatus.AuthenticationFailed, "The Torznab feed refused the API key (403 Forbidden). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.")]
     [InlineData(404, IntegrationCallStatus.UnexpectedResponse,
-        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address, which usually ends in /api.")]
+        "Nothing answers Torznab at this address (404 Not Found). Use the feed's Torznab address: Prowlarr's ends in /api, and Jackett's Copy Torznab Feed gives one ending in /results/torznab/.")]
     // A bare 429 from something in front of the feed; Prowlarr's own carries an <error> (above).
     [InlineData(429, IntegrationCallStatus.Refused,
         "The Torznab feed is refusing requests for now (429 Too Many Requests). Try again in a few minutes.")]
@@ -511,7 +513,7 @@ public sealed class TorznabAdapterTests : IDisposable
 
         //Assert
         Assert.Equal(IntegrationCallStatus.AuthenticationFailed, result.Status);
-        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized).", result.Message);
+        Assert.Equal("The Torznab feed refused the API key (401 Unauthorized). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", result.Message);
     }
 
     private static HttpResponseMessage Xml(string body, HttpStatusCode status = HttpStatusCode.OK) =>

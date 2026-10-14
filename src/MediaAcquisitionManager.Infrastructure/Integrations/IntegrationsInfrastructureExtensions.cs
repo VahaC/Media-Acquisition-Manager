@@ -4,6 +4,7 @@ using MediaAcquisitionManager.Infrastructure.Integrations.Jellyfin;
 using MediaAcquisitionManager.Infrastructure.Integrations.QBittorrent;
 using MediaAcquisitionManager.Infrastructure.Integrations.Tmdb;
 using MediaAcquisitionManager.Infrastructure.Integrations.Torznab;
+using MediaAcquisitionManager.Infrastructure.Integrations.Transmission;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaAcquisitionManager.Infrastructure.Integrations;
@@ -65,7 +66,10 @@ internal static class IntegrationsInfrastructureExtensions
     /// bounded on its own and answered from Jellyfin's memory or one provider's answer in well under a second; the
     /// one call that is not is Apply, which has a client of its own (<see cref="IdentifyTimeout"/>). MAM-24 — the whole list
     /// with every torrent's files is the same version read and one <c>torrents/info</c>, answered from qBittorrent's memory:
-    /// a couple of megabytes on a LAN, well within 15 s.
+    /// a couple of megabytes on a LAN, well within 15 s. MAM-30 — a Transmission call is one <c>session-get</c> and then one
+    /// <c>torrent-get</c> or <c>torrent-add</c>, or one <c>free-space</c> per folder for the destinations, each answered from
+    /// Transmission's memory, plus the same request sent once more after a 409 that hands out its session id; a
+    /// <c>torrent-add</c> whose answer doesn't come in time is never sent again, as qBittorrent's isn't.
     /// </summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
@@ -93,6 +97,7 @@ internal static class IntegrationsInfrastructureExtensions
         AddIntegrationClient(services, JellyfinAdapter.IdentifyHttpClientName, IdentifyTimeout);
         AddIntegrationClient(services, TorznabAdapter.HttpClientName);
         AddIntegrationClient(services, QBittorrentAdapter.HttpClientName);
+        AddIntegrationClient(services, TransmissionAdapter.HttpClientName);
         // MAM-33 — the posters from TMDb's image host go through this client too, so the test host's handler
         // answers them and nothing reaches the real host.
         AddIntegrationClient(services, TmdbAdapter.HttpClientName);
@@ -103,6 +108,10 @@ internal static class IntegrationsInfrastructureExtensions
         services.AddSingleton<IIntegrationAdapter, JellyfinAdapter>();
         services.AddSingleton<IIntegrationAdapter, TorznabAdapter>();
         services.AddSingleton<IIntegrationAdapter, QBittorrentAdapter>();
+        // MAM-30 — Transmission's keeps its session ids and the 401s and 403s Transmission answered (TransmissionSessions),
+        // so it must stay a singleton too: one per scope would start every call with a 409, and would send credentials
+        // Transmission refused again, each refusal counting towards locking its RPC when its anti-brute-force setting is on.
+        services.AddSingleton<IIntegrationAdapter, TransmissionAdapter>();
         // MAM-33 — stateless apart from its pacing gate (TmdbRequestPacer), which must be one for every
         // caller: TMDb limits requests per address, and an instance per scope would pace each request alone.
         services.AddSingleton<IIntegrationAdapter, TmdbAdapter>();

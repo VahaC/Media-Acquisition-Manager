@@ -40,7 +40,7 @@
   "testFailed": "Could not test the connection.",
   "loadFailed": "Could not load the integrations.",
   "refreshFailed": "Refresh failed, showing the last loaded integrations.",
-  "empty": "No integrations yet. Click Add integration to connect Jellyfin, a Torznab source such as Prowlarr, qBittorrent, or a metadata catalog (TMDb) that feeds the Recommendations page.",
+  "empty": "No integrations yet. Click Add integration to connect Jellyfin, a Torznab source such as Prowlarr or Jackett, a download client such as qBittorrent or Transmission, or a metadata catalog (TMDb) that feeds the Recommendations page.",
   "noMatch": "No integrations match these filters.",
   "clearFilters": "Clear filters",
   "testResult": "{{name}}: {{message}}",
@@ -49,6 +49,7 @@
     "message": "The app forgets {{name}}, its stored credentials and its path mappings. Nothing changes in the service itself. This can't be undone.",
     "messageLibrary": "The app forgets {{name}}, its stored credentials and its path mappings, and removes the library it imported: its movies, series, versions and files leave the Library page for everyone. Your files and {{service}} itself are not touched. This can't be undone.",
     "messageDownloadClient": "The app forgets {{name}}, its stored credentials and its path mappings, and removes every destination that uses it, including the default destination if it is one of them. Their categories stay in {{service}}, and {{service}} itself is not touched. This can't be undone.",
+    "messageDownloadClientFolder": "The app forgets {{name}}, its stored credentials and its path mappings, and removes every destination that uses it, including the default destination if it is one of them. Nothing changes in {{service}}: torrents already sent keep their folder and label. This can't be undone.",
     "confirm": "Remove"
   },
   "dialog": {
@@ -67,13 +68,15 @@
       "jellyfin": "http://192.168.1.10:8096",
       "torznab": "http://192.168.1.10:9696/1/api",
       "qbittorrent": "http://192.168.1.10:8080",
+      "transmission": "http://192.168.1.10:9091",
       "tmdb": "https://api.themoviedb.org"
     },
     "addressHelp": {
       "generic": "The address the service answers at, starting with http:// or https://.",
       "jellyfin": "Jellyfin's address, with its base path if it has one, such as http://192.168.1.10:8096.",
-      "torznab": "The feed's Torznab address. Prowlarr shows it in the indexer's details, such as http://192.168.1.10:9696/1/api.",
+      "torznab": "The feed's Torznab address. Prowlarr shows it in the indexer's details, such as http://192.168.1.10:9696/1/api; Jackett's Copy Torznab Feed gives one such as http://192.168.1.10:9117/api/v2.0/indexers/toloka/results/torznab/.",
       "qbittorrent": "The address of qBittorrent's Web UI, such as http://192.168.1.10:8080.",
+      "transmission": "The address of Transmission's web interface, such as http://192.168.1.10:9091. Transmission 4.0 or newer.",
       "tmdb": "TMDb's API address, https://api.themoviedb.org. In the API key field, enter TMDb's API Read Access Token from themoviedb.org → Settings → API, not the shorter API key."
     },
     "tmdbAttribution": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
@@ -98,6 +101,7 @@
   "mappings": {
     "title": "Path mappings",
     "help": "If {{service}} sees your media under other paths than this app does, map each of its folders to this app's, for example /downloads → /media.",
+    "helpFolder": "Your library folders become {{service}}'s destinations through these mappings: map each folder {{service}} sees to this app's, for example /downloads → /media.",
     "none": "No mappings: {{service}} sees your media at the same paths as this app.",
     "servicePath": "Path in {{service}}",
     "appPath": "Path in this app",

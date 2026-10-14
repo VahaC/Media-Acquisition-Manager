@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { DestinationDialog } from '@/components/destinations/DestinationDialog'
@@ -12,13 +12,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDeleteDestination, useDestinations } from '@/lib/queries'
-import type { Destination } from '@/lib/types'
+import type { Destination, DestinationList } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-* — the header, search, table and row actions of this page
-import '@/styles/destinations.css' // .destinations-key, .destinations-saves-to — the Category and Saves to cells
+import '@/styles/destinations.css' // .destinations-key*, .destinations-saves-to — the Category or Folder cell and Saves to
 
 /** Per device: a phone and a desktop want different page lengths. */
 const PAGE_SIZE_STORAGE_KEY = 'mam:destinations:pageSize'
@@ -30,6 +30,11 @@ const SEARCH_DEBOUNCE_MS = 300
  * (ADR 0010); its row says where that category saves and whether the folder lands in a media library,
  * as the API checked it while answering. One is the default. Add one, edit it, remove it after a
  * confirmation; removing changes nothing in the client.
+ *
+ * MAM-30 — or a folder of a client that saves to folders (Transmission): the column that names the
+ * category says Folder when every row on the page is a folder, and "Category or folder" when they
+ * are mixed, while each phone card names its own; the removal says the folder and label of torrents
+ * already sent stay as they are.
  *
  * A non-owner who opens the address gets the API's 403 sentence in place of the list.
  */
@@ -69,10 +74,14 @@ export function DestinationsPage() {
 
   const removeDestination = async (destination: Destination) => {
     const values = { name: destination.name, client: destination.downloadClientName }
+    const folder = destination.destinationKind === 'Folder'
     const confirmed = await confirm({
       title: t('remove.title', { name: destination.name }),
       // Decision 2 — nothing takes the default over on its own; the owner is told before, not after.
-      message: destination.isDefault ? t('remove.messageDefault', values) : t('remove.message', values),
+      // MAM-30 — a folder has no category that could stay: the torrents keep their folder and label.
+      message: destination.isDefault
+        ? folder ? t('remove.messageDefaultFolder', values) : t('remove.messageDefault', values)
+        : folder ? t('remove.messageFolder', values) : t('remove.message', values),
       confirmLabel: t('remove.confirm'),
       destructive: true,
     })
@@ -153,7 +162,7 @@ export function DestinationsPage() {
                 <tr>
                   <th scope="col">{t('columns.name')}</th>
                   <th scope="col">{t('columns.client')}</th>
-                  <th scope="col">{t('columns.category')}</th>
+                  <th scope="col">{t(keyColumnOf(data))}</th>
                   <th scope="col">{t('columns.savesTo')}</th>
                   <th scope="col">{t('columns.actions')}</th>
                 </tr>
@@ -202,10 +211,12 @@ interface DestinationRowProps {
 /**
  * A table row on a wide screen, a card on a phone: every cell carries its column name in
  * `data-label` for the stacked layout. The category is the client's own name for it, shown as the
- * client spells it.
+ * client spells it. MAM-30 — a folder is shown as a path, and its card names it a folder whatever
+ * the column says.
  */
 function DestinationRow({ destination, removing, onEdit, onRemove }: DestinationRowProps) {
   const { t } = useTranslation('destinations')
+  const folder = destination.destinationKind === 'Folder'
 
   return (
     <tr>
@@ -216,8 +227,14 @@ function DestinationRow({ destination, removing, onEdit, onRemove }: Destination
         </span>
       </td>
       <td data-label={t('columns.client')}>{destination.downloadClientName}</td>
-      <td data-label={t('columns.category')}>
-        <span className="destinations-key">{destination.clientDestinationKey}</span>
+      <td data-label={folder ? t('columns.folder') : t('columns.category')}>
+        {folder ? (
+          <span className="destinations-key destinations-key-folder">
+            <FolderPath path={destination.clientDestinationKey} />
+          </span>
+        ) : (
+          <span className="destinations-key">{destination.clientDestinationKey}</span>
+        )}
       </td>
       <td data-label={t('columns.savesTo')} className="destinations-saves-to">
         <DestinationSavesTo check={destination.check} />
@@ -251,4 +268,35 @@ function DestinationRow({ destination, removing, onEdit, onRemove }: Destination
       </td>
     </tr>
   )
+}
+
+/**
+ * MAM-30 — a folder that may break after each `/` or, as a client on Windows writes it (`D:\Downloads`),
+ * each `\`: a path is one long word to the browser, which kept the column as wide as the whole path on
+ * a wide screen (and past the table's edge for a long one) yet broke it anywhere once squeezed.
+ * Breaking between its folders keeps each name whole; never between the two `\` that begin a network
+ * path (`\\nas\media`).
+ */
+function FolderPath({ path }: { path: string }) {
+  const parts = path.split(/(?<=[\\/])(?![\\/])/)
+  return parts.map((part, index) => (
+    <Fragment key={index}>
+      {index > 0 && <wbr />}
+      {part}
+    </Fragment>
+  ))
+}
+
+// ── helpers ──
+
+/**
+ * MAM-30 — the name of the column that holds each row's key, from the rows on the page: Folder when
+ * every one is a folder, "Category or folder" when some are, and Category when none is — a
+ * destination whose client type this build doesn't register counts as a category, as every
+ * destination was one before.
+ */
+function keyColumnOf(page: DestinationList) {
+  const folders = page.items.filter((destination) => destination.destinationKind === 'Folder').length
+  if (folders === 0) return 'columns.category' as const
+  return folders === page.items.length ? 'columns.folder' as const : 'columns.categoryOrFolder' as const
 }

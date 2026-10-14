@@ -1,4 +1,5 @@
 using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Entities;
 
@@ -7,7 +8,7 @@ namespace MediaAcquisitionManager.Api.Mapping;
 /// <inheritdoc cref="IIntegrationMapper"/>
 public sealed class IntegrationMapper : IIntegrationMapper
 {
-    public IntegrationDto ToDto(IntegrationConnectionEntity connection, IntegrationAdapterDescriptor? adapter) =>
+    public IntegrationDto ToDto(IntegrationConnectionEntity connection, IntegrationAdapterDescriptor? adapter, DownloadDestinationKind? destinationKind) =>
         new(
             connection.Id,
             connection.Name,
@@ -24,9 +25,10 @@ public sealed class IntegrationMapper : IIntegrationMapper
             [.. connection.PathMappings
                 .OrderBy(mapping => mapping.Position)
                 .Select(mapping => new PathMappingDto(mapping.ServicePrefix, mapping.AppPrefix))],
-            connection.CreatedUtc);
+            connection.CreatedUtc,
+            destinationKind);
 
-    public IntegrationAdapterTypeDto ToDto(IntegrationAdapterDescriptor adapter) =>
+    public IntegrationAdapterTypeDto ToDto(IntegrationAdapterDescriptor adapter, DownloadDestinationKind? destinationKind) =>
         new(
             adapter.TypeId,
             adapter.DisplayName,
@@ -34,7 +36,8 @@ public sealed class IntegrationMapper : IIntegrationMapper
             adapter.UserName,
             adapter.Password,
             adapter.ApiKey,
-            adapter.ReportsFilePaths);
+            adapter.ReportsFilePaths,
+            destinationKind);
 
     public ConnectionTestResponse ToResponse(ConnectionTestResult result) => new(result.Status, result.Message);
 }

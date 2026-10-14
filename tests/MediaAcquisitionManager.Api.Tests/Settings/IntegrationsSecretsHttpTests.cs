@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
@@ -27,6 +28,7 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
     private const string JellyfinAddress = "http://jellyfin.test:8096";
     private const string TorznabAddress = "http://prowlarr.test:9696/1/api";
     private const string QBittorrentAddress = "http://qbittorrent.test:8080";
+    private const string TransmissionAddress = FakeTransmissionServer.DefaultBaseUrl;
 
     // Distinctive, and 8 characters or more, so the masking never skips one for being short.
     private const string JellyfinApiKey = "planted-jellyfin-key-0001";
@@ -38,6 +40,9 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
     private const string FakePassword = "planted-fake-password-0001";
     private const string FakeApiKey = "planted-fake-api-key-0001";
     private const string SessionId = "PlantedSession0001Zq3xY9LmN2pQ7r";
+    private const string TransmissionPassword = "planted-transmission-password-1";
+    private const string TransmissionNewPassword = "planted-transmission-password-2";
+    private const string TransmissionDraftPassword = "planted-transmission-draft-0001";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -93,6 +98,8 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
             await _integrations.Create("jellyfin", "Living room", JellyfinAddress, apiKey: JellyfinApiKey),
             await _integrations.Create("torznab", "Toloka", TorznabAddress, apiKey: TorznabApiKey),
             await _integrations.Create("qbittorrent", "Downloads", QBittorrentAddress, "admin", QBittorrentPassword),
+            // MAM-30
+            await _integrations.Create("transmission", "Transmission", TransmissionAddress, "admin", TransmissionPassword),
             await _integrations.Create(FakeIntegrationAdapter.TypeId, "Fake", userName: "admin", password: FakePassword, apiKey: FakeApiKey),
         };
         var ids = seeded.Select(integration => integration.Id).Concat([_owner.User.Id, member.Id]).ToList();
@@ -101,7 +108,7 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
             (await db.IntegrationConnections.ToListAsync(cancellationToken))
                 .SelectMany(row => new[] { row.PasswordEncrypted, row.ApiKeyEncrypted })
                 .OfType<string>()));
-        string[] planted = [JellyfinApiKey, TorznabApiKey, QBittorrentPassword, FakePassword, FakeApiKey, .. ciphertexts];
+        string[] planted = [JellyfinApiKey, TorznabApiKey, QBittorrentPassword, TransmissionPassword, FakePassword, FakeApiKey, .. ciphertexts];
 
         //Act
         // Each read with each seeded id in every id slot: most combinations are 404s, and the ones that
@@ -115,8 +122,8 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
 
         //Assert
         Assert.NotEmpty(answers);
-        // One key each for Jellyfin and Torznab, qBittorrent's password, and both of the fake's.
-        Assert.Equal(5, ciphertexts.Count);
+        // One key each for Jellyfin and Torznab, qBittorrent's and Transmission's passwords, and both of the fake's.
+        Assert.Equal(6, ciphertexts.Count);
         // The sweep really read every planted row, one by one and in the list.
         Assert.All(seeded, integration => Assert.Contains(
             answers, answer => answer.Url == $"/api/settings/integrations/{integration.Id}" && answer.Status == HttpStatusCode.OK));
@@ -216,6 +223,56 @@ public sealed class IntegrationsSecretsHttpTests : IClassFixture<MediaAcquisitio
         // The client factory's logging handlers write each request URI, and Torznab's key travels in
         // the query (ADR 0004): pins that the integration clients have none (RemoveAllLoggers).
         Assert.DoesNotContain(_factory.Logs.Entries, entry => entry.Category.StartsWith("System.Net.Http.HttpClient", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Nothing_answered_or_logged_while_a_transmission_is_used_carries_its_password_basic_credentials_or_session_id()
+    {
+        //Arrange
+        // MAM-30 — every Transmission request carries the Basic credentials and a session id, and Transmission's own
+        // refusals are quoted: a service that echoes them must not get them into a sentence or the log.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var transmission = new FakeTransmissionServer { Password = TransmissionNewPassword };
+        transmission.Arm(_factory.TransmissionHttp);
+        var answers = new List<HttpResponseMessage>();
+
+        //Act
+        var id = await CreateAsync(new CreateIntegrationRequest("transmission", "Transmission", TransmissionAddress, "admin", Set(TransmissionPassword)), answers);
+        // Refused: the stored password isn't Transmission's.
+        answers.Add(await TestAsync(id));
+        answers.Add(await _factory.PutHttpRequest(
+            $"{BaseUrl}/{id}", _owner.AccessToken, new UpdateIntegrationRequest("Transmission", TransmissionAddress, "admin", Set(TransmissionNewPassword))));
+        answers.Add(await TestAsync(id));
+        // A refusal that repeats the session id, the password and the Basic credentials.
+        var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"admin:{TransmissionNewPassword}"));
+        transmission.RpcIntercept = _ => new JsonObject
+        {
+            ["arguments"] = new JsonObject(),
+            ["result"] = $"session {transmission.SessionId} for admin:{TransmissionNewPassword} ({basic})",
+        };
+        answers.Add(await TestAsync(id));
+        // A draft with a typed password Transmission refuses.
+        transmission.RpcIntercept = null;
+        answers.Add(await _factory.PostHttpRequest(
+            $"{BaseUrl}/test", _owner.AccessToken, new TestIntegrationRequest(null, "transmission", TransmissionAddress, "admin", Set(TransmissionDraftPassword))));
+        var bodies = new List<string>();
+        foreach (var answer in answers)
+            bodies.Add(await answer.Content.ReadAsStringAsync(cancellationToken));
+
+        //Assert
+        Assert.All(answers, answer => Assert.True(answer.IsSuccessStatusCode, $"{answer.RequestMessage?.RequestUri} answered {answer.StatusCode}."));
+        Assert.Contains(bodies, body => body.Contains("Connected to Transmission 4.1.3.", StringComparison.Ordinal));
+        Assert.Contains(bodies, body => body.Contains("Transmission refused the request: session *** for admin:*** (***).", StringComparison.Ordinal));
+        string[] planted = [TransmissionPassword, TransmissionNewPassword, TransmissionDraftPassword, basic, transmission.SessionId];
+        Assert.All(bodies, body => Assert.All(planted, secret => Assert.DoesNotContain(secret, body, StringComparison.Ordinal)));
+        Assert.All(_factory.Logs.Entries, entry => Assert.All(planted, secret =>
+        {
+            Assert.DoesNotContain(secret, entry.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(secret, entry.Exception?.ToString() ?? "", StringComparison.Ordinal);
+        }));
+        await _factory.WithDbAsync(async db => Assert.All(
+            await db.AuditEvents.ToListAsync(cancellationToken),
+            audit => Assert.All(planted, secret => Assert.DoesNotContain(secret, $"{audit.ActorUserName} {audit.TargetName}", StringComparison.Ordinal))));
     }
 
     private static SecretValueUpsert Set(string value) => new(SecretUpsertMode.Set, value);
