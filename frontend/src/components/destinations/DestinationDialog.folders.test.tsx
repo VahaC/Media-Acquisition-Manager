@@ -311,8 +311,9 @@ describe('DestinationDialog folders', () => {
     expect(destinationsApi.clientDestinations).not.toHaveBeenCalled()
   })
 
-  it('says Category before a client is picked while the download clients differ', async () => {
+  it('says neither Category nor Folder before a client is picked while the download clients differ', async () => {
     // Arrange
+    // MAM-31 — it said Category, and the description "Pick a category", until a client was picked.
     listing(localQbittorrent, localTransmission)
 
     // Act
@@ -320,7 +321,12 @@ describe('DestinationDialog folders', () => {
 
     // Assert
     await vi.waitFor(() => expect(clientSelect(dialog)).toBeEnabled())
-    expect(within(dialog).getByRole('combobox', { name: 'Category' })).toHaveAccessibleDescription('Choose a download client first.')
+    const field = within(dialog).getByRole('combobox', { name: 'Saves to' })
+    expect(field).toHaveAccessibleDescription('Choose a download client first.')
+    expect(optionTexts(field)).toEqual(['Choose where it saves'])
+    expect(dialog).toHaveAccessibleDescription(
+      'Pick a download client, then where it saves. The app checks with the client that it can save there.')
+    expect(within(dialog).queryByRole('combobox', { name: 'Category' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('combobox', { name: 'Folder' })).not.toBeInTheDocument()
   })
 

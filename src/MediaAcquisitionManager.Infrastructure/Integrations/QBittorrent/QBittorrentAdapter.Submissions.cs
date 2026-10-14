@@ -53,7 +53,7 @@ internal sealed partial class QBittorrentAdapter
     /// <para>
     /// A payload qBittorrent doesn't take, or one missing its .torrent file or magnet link, is the caller's
     /// bug, thrown as <see cref="ArgumentException"/> before anything is sent; so is a key no destination can
-    /// hold (<see cref="DestinationRules.ValidateClientDestinationKey"/>), which qBittorrent would read as no
+    /// hold (<see cref="DestinationRules.ValidateClientDestinationKey(string)"/>), which qBittorrent would read as no
     /// category and save to its default folder.
     /// </para>
     /// </remarks>

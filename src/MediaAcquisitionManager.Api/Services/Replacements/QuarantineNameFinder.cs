@@ -102,5 +102,5 @@ internal static class QuarantineNameFinder
         $"The app stopped while putting {ReplacementText.Quote(ReplacementText.FileNameOf(path))} back, and found it neither in the quarantine nor where it was.";
 
     private static string LostWhileDeletingProblem(string path) =>
-        $"The app stopped while deleting {ReplacementText.Quote(ReplacementText.FileNameOf(path))} for good, and something else is in its place in the quarantine.";
+        $"The app stopped while deleting {ReplacementText.Quote(ReplacementText.FileNameOf(path))} permanently, and something else is in its place in the quarantine.";
 }

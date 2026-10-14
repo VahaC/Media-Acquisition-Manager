@@ -75,7 +75,7 @@ function serverWith(initial: DuplicateDecision | null = null) {
 
 const keptRow = 'Kept the copies of “Єллоустоун (Season 1 · Episode 1)” as they are: the group is listed under Kept as they are now.'
 
-const removedRow = 'Removed “Aliens (1986) [Theatrical Cut] BDRip 1080p H.265.mkv”: it waits in the quarantine, under Removed copies, until you restore it or delete it for good.'
+const removedRow = 'Removed “Aliens (1986) [Theatrical Cut] BDRip 1080p H.265.mkv”: it waits in the quarantine, under Removed copies, until you restore it or delete it permanently.'
 
 /** MAM-40 — the server's sentence for a removal whose subtitle stayed in its folder. */
 const subtitleStayed = '“Aliens (1986) [Theatrical Cut] BDRip 1080p H.265.en.srt” couldn\'t be moved into the quarantine: permission denied.'

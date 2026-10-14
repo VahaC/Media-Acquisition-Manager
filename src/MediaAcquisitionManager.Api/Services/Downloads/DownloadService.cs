@@ -130,7 +130,8 @@ public sealed class DownloadService(
         return DownloadOptionsResult.Listed(new DownloadOptionsResponse(options, suggested));
     }
 
-    public async Task<DownloadOverwriteCheckResult> GetOverwriteCheckAsync(string? destinationId, CancellationToken cancellationToken = default)
+    public async Task<DownloadOverwriteCheckResult> GetOverwriteCheckAsync(
+        string? destinationId, Guid callerUserId, CancellationToken cancellationToken = default)
     {
         Guid? id = Guid.TryParse(destinationId, out var parsed) ? parsed : null;
         if (DownloadRules.ValidateDestinationId(id) is { } error)
@@ -141,15 +142,36 @@ public sealed class DownloadService(
         // MAM-38 — through the Destinations' own listing, as the send reads it: a client that is switched off or
         // can't be asked leaves the folder unknown, never a guess. MAM-30 — a folder client is proposed this destination's
         // folder and finds it by folder; one it can't see is unknown too (D5).
+        // MAM-31 — and why it is unknown, so the dialog's warning names the client and the fix: the live check stopped
+        // Transmission and read "has no path in the app, or its download client can't say where it is" instead.
         CheckedClientDestination? listed = null;
-        if (await FindDownloadClientAsync(destination.DownloadClientConnectionId, cancellationToken) is { } client
-            && await destinations.ListAsync(client, [destination.ClientDestinationKey], cancellationToken) is { Status: ClientDestinationsStatus.Listed } listing)
+        DownloadFolderUnknownCause? cause = null;
+        string? clientError = null;
+        var client = await FindDownloadClientAsync(destination.DownloadClientConnectionId, cancellationToken);
+        if (client is not null)
         {
-            listed = listing.Find(destination.ClientDestinationKey);
+            var listing = await destinations.ListAsync(client, [destination.ClientDestinationKey], cancellationToken);
+            if (listing.Status != ClientDestinationsStatus.Listed)
+                (cause, clientError) = (DownloadFolderUnknownCause.ClientNotAsked, listing.Error);
+            else if ((listed = listing.Find(destination.ClientDestinationKey)) is null)
+                cause = DownloadFolderUnknownCause.CategoryMissing;
+            // A folder the client names that none of its mappings covers. One it doesn't name at all, two mappings
+            // sending it to different places, or a folder that isn't a full path has no mapping to add: the warning
+            // says "add one" only when that is the fix.
+            else if (listed.Check is { Status: DestinationPathStatus.PathUnknown, ServicePath: { } servicePath }
+                && PathMapper.Map(servicePath, [.. client.PathMappings.Select(mapping => new PathMappingPair(mapping.ServicePrefix, mapping.AppPrefix))])
+                    .Status == PathMapStatus.NotCovered)
+                cause = DownloadFolderUnknownCause.NoPathMapping;
         }
 
-        return DownloadOverwriteCheckResult.Answered(
-            new DownloadOverwriteCheckResponse(await overwrites.FolderReasonAsync(listed, cancellationToken)));
+        var reason = await overwrites.FolderReasonAsync(listed, cancellationToken);
+        if (reason != DownloadOverwriteCheck.NotCheckedFolderUnknown || cause is null)
+            return DownloadOverwriteCheckResult.Answered(new DownloadOverwriteCheckResponse(reason));
+
+        // The client's own sentence can name its address: the owner's alone (MAM-10's rule), as on the Jobs page.
+        var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
+        return DownloadOverwriteCheckResult.Answered(new DownloadOverwriteCheckResponse(
+            reason, cause, client!.Name, forOwner ? clientError : null));
     }
 
     public Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default)

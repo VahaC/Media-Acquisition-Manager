@@ -37,7 +37,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   3.00; the app needs Transmission 4.0 or newer. Update Transmission, then test again."
   (`UnsupportedVersion`); and one whose temporary folder is on: "Transmission keeps unfinished downloads
   in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web
-  interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again.", for every
+  interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.", for every
   call — destinations, sends and following alike. A test answers "Connected to Transmission 4.1.3." (its
   version without the build); 401 "Transmission refused the user name or password." (or "Transmission
   asks for a user name and password. Enter them under Integrations." without a user name); 403
@@ -220,6 +220,88 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   lastYear, episodes }`, `null` without a description), and **Details** shows it as "Read from the
   description". `SearchReleasesDescriptionHttpTests`, `ReplacementOptionsDescriptionHttpTests` and
   `ReleaseDetailsDialog.test.tsx` pin it.
+- **Phase D's acceptance bar checked on a clean installation with Jellyfin, Jackett and Transmission,
+  and the README and the release note say what was tried live and what wasn't (MAM-31, Vasyl's
+  decisions of 2026-10-13 and 2026-10-14).** Checked on 2026-10-14 on a second, clean MAM container on
+  the reference installation's host beside production — its own data volume, production's `/media`
+  (a read-write bind of one ext4 disk), `PUID` 1000 and `PGID` 100, deployed by Vasyl as the
+  Stashboard project `mam-clean` on port 8119 —, running an image built locally from commit ab2d1c1
+  once its CI build #70 had passed (10,292 cases, 0 failed, 7 skipped): `mam-local:0.4.0-ab2d1c1`,
+  image `sha256:e488319229bc…`, stamped `0.4.0+ab2d1c1`, not published, on Docker 29.9.0 and Compose
+  v5.6.0 under Linux 7.0.14-22-pve x86_64. It ran against Jellyfin 12.2.0, Jackett v0.24.2830
+  (`lscr.io/linuxserver/jackett:v0.24.2830-ls3`) with its Toloka.to indexer and "Strip Cyrillic
+  Letters" ticked, Transmission 4.1.3 (`lscr.io/linuxserver/transmission:4.1.3-r0-ls363`) and TMDb for
+  the Recommendations page, with ffprobe 6.1.1-3ubuntu5, and no qBittorrent or Prowlarr; Vasyl signed
+  in as its owner. Set up from zero by the README — which named a **Sync** button where the Library
+  page has **Refresh all** and **Sync now**, and said nothing of Transmission's peer port —, every
+  **Test connection** answered ("Connected to Transmission 4.1.3."), and replacement was switched on
+  for all four library folders. Before Transmission had the libraries mounted, **Add destination**
+  listed each as "(can't be used)" with "Transmission can't see “/downloads/movies” (No such file or
+  directory). Mount that folder into Transmission, or add a path mapping on this integration that
+  leads there, then look again."; with the mount, Movies, TV Shows, Cartoons and Documentary were
+  saved on the four library folders with production's Toloka sections, Transmission's download folder
+  `/downloads` showed "Outside the media libraries" with replacement off, and Jellyfin's Collections
+  library wasn't offered. Through Jackett, the series and the cartoon were first offered TV Shows and
+  Cartoons by their Toloka sections, and the film Movies as the default; the Search page matched the
+  film's and the series' copies by title and year; a Ukrainian-only title found no release, as in
+  MAM-29's recording, and another's description was read but not matched, Toloka's year (1971)
+  differing from Jellyfin's (1973); and Recommendations, with Jackett the only source, listed
+  releases. Toloka's 1080p release of Undercover Blues (1993), one file of 8.41 GiB, was sent at 12:51
+  UTC with the old copy (1,947,648,052 B, inode 390463819, held by no torrent) ticked ("Transmission
+  took the release and lists it among its downloads." "Replacement scheduled: 1 copy, kept until the
+  new one is verified."; `DownloadRequested`, `ReplacementScheduled`, `ReplacementWorkConfirmed`), and
+  showed in Transmission's web interface in `/downloads/movies` with the label "Movies", Toloka's
+  tracker answering with 5 peers and no error. It started only once Vasyl had turned uTP on and
+  forwarded port 51413 on the router (first peer at 13:12:04 UTC), its unfinished `….mkv.part`
+  standing in `/media/movies` at full size; it was followed to `Downloaded` at 13:37 UTC, one file
+  straight in `/media/movies` (9,027,402,332 B, 1080p H.264, 1:30:13), verified 75 s after the app
+  asked Jellyfin to look (IMDb tt0108442, TMDb 12661; `ReplacementCheckStarted`,
+  `ReplacementVerified`), and the old copy, held by no torrent, moved into
+  `/media/.mam-quarantine/69fd9196-1136-41d3-a80c-b61a817969e5/movies/` keeping its inode
+  (`ReplacementQuarantineStarted`, `ReplacementNameMoving`, `ReplacementNameMoved`,
+  `ReplacementQuarantined`, in 0.26 s). Vasyl then pressed **Delete for good** — now **Delete old copy
+  permanently** — at 16:16:44 UTC, the first deletion from the quarantine on a real setup: the old
+  copy left the disk, its empty folders kept (`ReplacementDeleteStarted`, `ReplacementNameDeleting`,
+  `ReplacementNameDeleted`, `ReplacementCompleted`). With Transmission's container stopped from
+  12:57:17 to 12:59:28 UTC, the integration's test, each destination, the folder field and the job's
+  line said "Couldn't reach Transmission at http://192.168.1.195:9091: nothing accepted the
+  connection. Check the address and port, and that Transmission is running.", and the job, not
+  failed, went on by its hash once Transmission was back; with a wrong Jackett key, the test and the
+  Search page said "The Torznab feed refused the API key (error 100: Invalid API Key). Copy the API
+  key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this
+  integration under Integrations." Two places said less: the Download dialog's line on the overwrite
+  check named neither Transmission nor the fix, and Recommendations said nothing of a refused key
+  (both fixed below, under **Changed**). The app's calls reach Transmission from 172.20.0.1, the
+  gateway of its Docker network, which a `WHITELIST` there would have to name. At desktop width and
+  at 320 px no page scrolled sideways or said "qBittorrent" for Transmission; "category" stayed in
+  the Destinations page's lead and empty state, the dialog's first open, the line asking for a folder
+  and "Standard categories" (fixed below). Between ca480a2 and ab2d1c1, `DownloadJobFollowing.cs` and
+  `Core/Replacements/` didn't change; in `Api/Services/Replacements/` the transitions are the same but
+  for the needs-linking reason, which now names the client, and three readers changed what they read
+  — a Transmission torrent's `.part` counted as held, a folder destination found by its folder, and a
+  series' episodes taken from the claim that matched, the title's or the description's, which lets a
+  description decide which seasons and episodes a replacement offers, and offer a work the title
+  matched by title only, for every client and every source, Prowlarr included (D15, ADR 0012's
+  MAM-30 section, accepted by Vasyl on 2026-10-14). Production stayed on 0.3.0
+  (`sha256:c42d0ed41aaf…`, stamped `0.3.0+082c84e`), not restarted, no failure in its log, its
+  quarantine as before. The fixes made during the check (below, under **Changed**) came after that
+  image; built into `mam-local:0.4.0-mam31` (`sha256:f21c717efb7d…`, stamped `0.4.0+ab2d1c1.mam31`,
+  not published) and put on the clean container at 16:17 UTC with its data kept, they were looked at
+  there — the destinations' folder words, "Standard sections", the dialogs' widths and columns and
+  "Replaced: the old copy was deleted permanently." —, except the Download dialog's and
+  Recommendations' new lines, the new button names, the empty Destinations page's words and **Edit
+  preferences**, which rest on the tests. Not tried live yet: a copy held by a Transmission torrent, Transmission
+  4.0.x (MAM-29's 4.0.6 samples only), its lock-out after wrong passwords (its anti-brute-force is
+  off), a 421, its whitelist, its temporary folder ticked, a BitTorrent v2-only release, a
+  description's match to a copy the title doesn't match, a saved folder Transmission no longer sees,
+  a send with Keep both, Restore with Transmission, Phase C's other cases with Transmission, moving
+  an installation from qBittorrent or Prowlarr, and upgrading from 0.3.0. Vasyl keeps the clean
+  installation, Transmission with its torrent and mount, Jackett and the router's forward for now,
+  and removes them himself; the findings he hasn't settled are listed in the roadmap's MAM-31 line.
+  The README (**Tested with**) and the release note list both; the README's and the roadmap's MAM-30
+  lines no longer say MAM-31 is the live check, the release note's Tested with no longer says a real
+  send to Transmission wasn't tried, and ADR 0004, ADR 0005, the specification's Phase D note and the
+  vendor samples' README give MAM-31's results where they said it would try or diff.
 
 ### Changed
 
@@ -270,6 +352,153 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   (`DownloadClientNeverRemovesTests`). The tests that used `transmission` as the id of a type no build
   registers — `DownloadJobMissingHttpTests`, `ReplacementOptionsHoldingsHttpTests` and the frontend's
   `retiredClient` fixture — use `retired-client` ("Old client") now.
+- **The dialogs with a long list are up to 1,024 px wide, their lists in columns, and the integration
+  dialog's short fields in pairs (MAM-31).** The Add and Edit destination dialog was capped at 28rem
+  (448 px) like every settings dialog; it now takes up to 64rem, and a source's sections sit in columns
+  at least 14rem wide — three a row at full width — so a long list such as Toloka's runs a third as
+  long. The others with a long list take the same 64rem: the Download dialog once the owner's copies
+  are listed, from 48rem (768 px), an open season's episodes two a row in columns at least 22rem wide;
+  **Files in no library**, from 48rem, its files two a row in columns at least 26rem wide, each closed
+  by a line under it where a line opened all but the first; and **Details** with the TMDb link dialog,
+  which shares its classes, from 60rem (960 px), still two columns. The Add and Edit integration dialog
+  takes up to 48rem, from 36rem (576 px), so a path mapping's two paths and Jackett's feed address get
+  the room, and sets the service beside the name and the user name beside the password where two 16rem
+  columns fit; a lone API key keeps the row, and TMDb's attribution, which sat between the service and
+  the name, moves under the two. Where two columns don't fit, as on a phone, every list and pair stays
+  one column and the dialog the screen's width (Vasyl, MAM-31's live check, 2026-10-14). A short form
+  and a confirmation keep their widths, as a few fields or a sentence and two buttons read worse wider:
+  the Download dialog without copies, Add user, Reset password and the confirmations; the permanent
+  deletion's, which lists paths, stays at MAM-41's 39rem. `DestinationDialog.test.tsx`,
+  `IntegrationDialog.test.tsx`, `UnreportedFilesDialog.test.tsx` and `downloads.test.ts` pin the
+  classes, the widths and the columns.
+- **Transmission's destinations say "folder" and qBittorrent's "category", and the destination's dialog
+  sets the name beside the download client (MAM-31's live check, 2026-10-14, ADR 0010's MAM-31
+  section).** With Transmission alone, the Destinations page still spoke of categories. Its lead and
+  empty text, which MAM-30 above made name both, now follow the clients connected:
+  - **qBittorrent**, as before MAM-30: "Where downloads go. Each destination is a category of your
+    download client, and the category decides the folder." and "No destinations yet. Click Add
+    destination to pick a category of your download client.";
+  - **Transmission**: "Where downloads go. Each destination is a folder your download client saves to."
+    and "…to pick a folder your download client can reach.";
+  - **neutral** while the clients load, when none is connected or they couldn't be read, for anyone but
+    the owner, and with clients of both kinds: "Where downloads go. Each destination tells your
+    download client where to save a download." and "…to pick a download client and where it saves."
+
+  The Add and Edit destination dialog showed "Pick a category of your download client …", **Category**
+  and "Choose a category" until the clients answered. It now opens with the clients the page already
+  read and, until a client's kind is known, uses neutral words: "Pick a download client, then where it
+  saves. The app checks with the client that it can save there.", "A new client, or a new place it
+  saves to, is checked with the client before it is saved.", **Saves to**, "Choose where it saves",
+  "Asking … where it can save…" and "Could not ask the client where it can save." A destination saved
+  without its folder or category reads "Pick the folder of “Transmission” this destination saves to."
+  or "Pick the category of “qBittorrent” this destination saves to.", where MAM-30 read "Pick the
+  category or folder of the download client this destination saves to.". That sentence stays for a
+  client of a type this build doesn't register. The rule is now read once the client is found, so a
+  client that no longer exists answers its 404 before a missing key or a wrong section. The length and
+  line-break rules still name both, as only a hand-made request reaches them. The group of Torznab's
+  standard ids among a source's sections reads "Standard sections", where it read "Standard
+  categories". **Name** and **Download client** sit side by side where two 16rem columns fit, as the
+  integration dialog's pairs do (`.destinations-pair`), and stay one column on a phone (Vasyl's
+  request). `download-clients.test.ts`, `DestinationsPage.test.tsx`, `DestinationDialog.test.tsx`,
+  `DestinationDialog.folders.test.tsx`, `DestinationDialog.sections.test.tsx`, `downloads.test.ts`,
+  `DestinationRulesTests`, `DestinationsCreateHttpTests`, `DestinationsUpdateHttpTests`,
+  `DestinationsSectionsSaveHttpTests` and `DestinationsFolderSaveHttpTests` pin them.
+- **The Download dialog names the client and the fix when it can't check a destination's folder, and
+  the Recommendations page names a release source that failed (MAM-31's live check, 2026-10-14).**
+  - **The Download dialog.** With Transmission stopped, the dialog read under Keep both "The app can't
+    check whether this release would write over a file already there: the destination's folder has no
+    path in the app, or its download client can't say where it is. …", naming neither.
+    `GET /api/downloads/overwrite-check` now also answers `folderUnknownCause`: `ClientNotAsked` for a
+    client switched off, unreachable, refusing the app, of a type this build can't use or with a secret
+    the app can't read; `CategoryMissing` (qBittorrent only); or `NoPathMapping` when no path mapping
+    of the client covers the folder it names. It comes with `clientName`, and for `ClientNotAsked` with
+    `clientError`, the client's own sentence, sent to the owner only. The job's stored check and the
+    send are unchanged. The warning then reads:
+    - "The app couldn't ask “Transmission” where this destination saves, so a release sent there goes
+      without the check for files it would write over.", then the client's sentence for the owner
+      ("Couldn't reach Transmission at …: nothing accepted the connection. …") or "Ask the owner to
+      check “Transmission” under Integrations." for anyone else;
+    - "No path mapping of “Transmission” brings this destination's folder into the app, … The owner
+      adds one under Integrations, “Transmission”, Path mappings.";
+    - "“qBittorrent” no longer has this destination's category, … The owner picks another category
+      under Destinations in the user menu.";
+    - the sentence it read before when there is no cause to name, such as two mappings that send the
+      folder to different places.
+
+    Where the warning carries the client's sentence, the reason Replace can't be picked reads "The app
+    can't check this destination's folder for files already there, and a replacement is sent only
+    after that check. Pick another destination, or Keep both." instead of the same sentence again.
+  - **The Recommendations page.** With a wrong Jackett key, the page kept its old counts without a word.
+    `GET /api/recommendations` now answers `failedSources`: each switched-on release source whose last
+    call for the lists failed, from the availability check or the newest releases' read, with `name`,
+    `status`, `failedUtc` and, for the owner only, `error`. The page lists them above the cards, as the
+    Search page does: "Toloka · Last asked for these lists 12 minutes ago: Refused the API key. The
+    Torznab feed refused the API key (error 100: Invalid API Key). …"; anyone else reads "… Ask the
+    owner to check “Toloka” under Integrations." A line goes once the source answers again, up to 15
+    minutes later, or 3 hours when nothing is due. The failures are kept in memory, not in the
+    database, so a restart forgets them until the next pass, which runs as the app starts.
+
+  The README's API reference lists the new fields. `DownloadsOverwriteCheckHttpTests`,
+  `DownloadsSendOverwriteTransmissionHttpTests`, `RecommendationSourceFailuresHttpTests`,
+  `DownloadDialog.test.tsx`, `DownloadDialog.replace.test.tsx` and `RecommendationsPage.test.tsx` pin
+  them.
+- **The README's install and connect steps say what the clean installation needed (MAM-31's live
+  check, 2026-10-14).**
+  - **Quick start.** "Open <http://localhost:8118>." now adds "on the machine it runs on". For a
+    server with no browser of its own, such as an LXC, it offers an SSH tunnel
+    (`ssh -L 8118:127.0.0.1:8118 user@server`) or `APP_BIND_ADDRESS=0.0.0.0`. With the second, create
+    the owner account at once: until it exists, whoever opens the app first becomes the owner. The
+    compose file's header comment says the same.
+  - **Jellyfin, step 2.** It says **Refresh all** at the top of the **Library** page, or **Sync now**
+    under **Details**. It said **Sync**, which the page doesn't have.
+  - **Transmission.** The steps say **Edit preferences**, as Transmission's web interface does, and
+    gain three:
+    - set "Download to" (**Edit preferences** → **Torrents**) to a folder inside the libraries' mount,
+      outside the libraries and owned by `PUID` and `PGID`. The image's `/downloads/complete` isn't
+      there once the libraries are mounted at `/downloads`, so the app lists it as "(can't be used)";
+    - make the peer port reachable: publish `PEERPORT` (51413 by default, TCP and UDP) and forward it
+      on the router, or at least tick **Enable uTP for peer communication**, which the image ships
+      unticked. The first send stayed at 0% until the port was forwarded;
+    - for a 403: with both in Docker on one host and the app given the host's address, Transmission
+      sees the gateway of its Docker network (`172.20.0.1` on the reference installation, not
+      `192.168.1.195`).
+  - **TMDb, step 6.** The release sources' newest releases, behind "New on Toloka", are read only
+    while TMDb is connected: when the app starts, then every 3 hours. Restart the app
+    (`docker compose restart app`) once TMDb and a release source are added, or wait up to 3 hours.
+    The Recommendations section, which said "every 3 hours", now says "when the app starts and then
+    every 3 hours".
+
+  In the app only Transmission's two sentences that name its menu changed with them, to **Edit
+  preferences**: the temporary folder's (quoted under **Added** above) and "… isn't a full path the
+  app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a
+  full path such as /downloads, then look again." (`TransmissionAdapterTests`,
+  `TransmissionAdapterDestinationsTests`).
+- **The job page's Replacement buttons name the old copy, and "for good" reads "permanently" (MAM-31's
+  live check, Vasyl, 2026-10-14).** Under a page title that is the new release's name, **Restore** and
+  **Delete for good** read as acting on the new file, and "for good" is an idiom not every reader
+  knows. On the job's page and on its Jobs row the buttons now say what they act on, counted by the
+  old copies the quarantine holds: **Restore old copy** or **Restore old copies**, and **Delete old copy
+  permanently** or **Delete old copies permanently**, their titles "Put the old copy in the quarantine
+  back where it was" and "Delete the old copy in the quarantine permanently" (or "copies"). The
+  confirmation asks "Delete the old copy permanently?" with **Delete permanently**, and reports
+  "Deleted permanently: 2 files."; "Put the old copy back?" and its **Restore** stay. Under the
+  Duplicates page's **Removed copies** the button reads **Delete permanently**, asking "Delete “…”
+  permanently?". Every other sentence that said "for good" says "permanently": the Jobs line ("Old
+  copy moved into the quarantine: 1 copy, kept until you restore it or delete it permanently.",
+  "Deleting the old copy permanently…", "Replaced: the old copy was deleted permanently."), each file's
+  "Deleted permanently.", the Duplicates page's lead, empty tab and confirmations, the Media folders
+  page's hints and the Download dialog's conditions; and the server's: "… Restore them or delete them
+  permanently first.", "The app stopped while deleting the old copies permanently: …", "… while
+  deleting this copy permanently: …", "A video of this replacement was deleted permanently, so nothing
+  is put back without it. Press Retry, then delete permanently what the quarantine still holds.", "This
+  copy's video was deleted permanently, … Delete permanently what the quarantine still holds.", a
+  removal's "… then press Delete permanently again." and a replacement's "Deleting the old copies
+  permanently needs the files you confirmed.", "… changed since you opened it. Press Delete again to
+  see what it holds now." and "… Switch it on, then press Delete again.", which name its button by
+  its first word, as "press Restore again" does. A reason stored before keeps its words. The routes
+  and fields (`delete-for-good`, `canDeleteForGood`) are unchanged. `JobDetailsPage.replacement.test.tsx`
+  and `JobsPage.actions.test.tsx` pin the labels for one copy and for several, and the pages', the
+  components' and the Api tests that pinned "for good" pin the new sentences.
 
 ### Notes for upgraders
 
@@ -293,7 +522,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   older version stored for it, `/config/data/collections` on the reference installation, and a
   Transmission destination's dialog lists it as a library none of the client's path mappings leads to.
 - **Set Transmission up before you add it (MAM-30, ADR 0039).** Untick "Use temporary folder" (Edit
-  Preferences → Torrents; the linuxserver.io image ships it ticked) before anything is sent, and never
+  preferences → Torrents; the linuxserver.io image ships it ticked) before anything is sent, and never
   tick it while downloads run: a download started there moves into its folder only once it is done,
   which no answer shows. Give it `USER` and `PASS`: without a password it takes any credentials, so a
   test that works proves nothing. Mount your library folders into it and run it as their owner, so it
@@ -307,7 +536,7 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   right before a move the app asks every download client, destinations or none, and one switched off
   stops every move for review, and the following of its jobs. Remove it only once none of its torrents
   seeds a file of your libraries and none of its jobs is on a Jobs page's In progress or Needs you
-  tab: a followed job whose client is removed is blocked for good ("The download client “qBittorrent”
+  tab: a followed job whose client is removed is blocked permanently ("The download client “qBittorrent”
   was removed, so this download can't be followed. Cancel the job to stop tracking it."). Its
   destinations go with it, and the jobs sent to them keep their names.
 - **Moving from Prowlarr to Jackett maps the sections again (MAM-30, ADR 0020).** A release source's

@@ -46,7 +46,7 @@ public sealed class DownloadsSendTransmissionHttpTests : IClassFixture<MediaAcqu
         "“Transmission” can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent.";
     private const string AddRefusedError = "Transmission refused the torrent: invalid or corrupt torrent file.";
     private const string TemporaryFolderError =
-        "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again.";
+        "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.";
     private const string CredentialsRefusedError = "Transmission refused the user name or password.";
     private const string RememberedCredentialsRefusedError =
         "Transmission refused the user name or password the last time the app used them, so the app won't send them again: with its anti-brute-force setting on, every refusal counts towards locking its RPC. Correct them under Integrations, or test the connection there once Transmission accepts them.";

@@ -458,7 +458,8 @@ public sealed class DestinationsSectionsSaveHttpTests : IClassFixture<MediaAcqui
 
     [Theory]
     [InlineData("", "Cartoons", "A destination needs a name.")]
-    [InlineData("Cartoons", "", "Pick the category or folder of the download client this destination saves to.")]
+    // MAM-31 — the key is read once the client is found, still before the sections.
+    [InlineData("Cartoons", "", "Pick the category of “qBittorrent” this destination saves to.")]
     public async Task Create_checks_the_destinations_own_fields_before_its_sections(string name, string key, string expectedError)
     {
         //Arrange

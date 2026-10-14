@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { RecommendationCard } from '@/components/recommendations/RecommendationCard'
 import { RecommendationFilters, type RecommendationFilterValues } from '@/components/recommendations/RecommendationFilters'
 import { RecommendationRunPanel } from '@/components/recommendations/RecommendationRunPanel'
+import { RecommendationSourceFailures } from '@/components/recommendations/RecommendationSourceFailures'
 import { RecommendationTabs } from '@/components/recommendations/RecommendationTabs'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -138,7 +139,7 @@ function RecommendationLists({ tabs }: { tabs: readonly RecommendationTab[] }) {
     page,
     pageSize,
   })
-  const { data, error, isLoading, isPlaceholderData } = list
+  const { data, error, isLoading, isPlaceholderData, dataUpdatedAt } = list
   const load = useLoadRetry(list)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
   // A computation can leave fewer works than the page on screen needs: move to the last page there
@@ -192,6 +193,10 @@ function RecommendationLists({ tabs }: { tabs: readonly RecommendationTab[] }) {
       <RecommendationTabs tabs={tabs} current={tab} panelId={panelId} tabId={tabId} onSelect={selectTab} />
 
       <div id={panelId} role="tabpanel" aria-labelledby={tabId(tab)} className="recommendation-panel">
+        {/* MAM-31 — above the cards whose counts a failed source couldn't refresh, as the Search page
+            lists its sources above the releases. */}
+        {data && <RecommendationSourceFailures failures={data.failedSources} now={dataUpdatedAt} />}
+
         {showFilters && (
           <RecommendationFilters
             facets={facets}

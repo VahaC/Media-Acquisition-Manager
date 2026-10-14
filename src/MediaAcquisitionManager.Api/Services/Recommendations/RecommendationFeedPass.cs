@@ -39,6 +39,7 @@ public sealed class RecommendationFeedPass(
     ICatalogStore store,
     IRecommendationSettingsReader settingsReader,
     IRecommendationRunService runs,
+    RecommendationSourceFailures failures,
     TimeProvider time,
     ILogger<RecommendationFeedPass> logger) : IRecommendationFeedPass
 {
@@ -79,6 +80,8 @@ public sealed class RecommendationFeedPass(
         }
 
         var outcomes = await sources.LatestAsync(films, shows, cancellationToken);
+        // MAM-31 — a source that refused or failed is said on the Recommendations page, as on the Search page.
+        failures.Record(outcomes);
         foreach (var outcome in outcomes)
             await StoreAsync(outcome, cancellationToken);
 

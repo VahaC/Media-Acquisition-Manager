@@ -24,8 +24,11 @@ public interface IDownloadService
     /// MAM-38, ADR 0034 — whether a release sent to the destination <paramref name="destinationId"/> is checked for
     /// files it would write over, or why its folder can't be: the destination's client is asked where its category
     /// saves, and the Media folders are read. Every signed-in user's, as the dialog is; a reason, never a path.
+    /// MAM-31 — a folder that is unknown says why — the client couldn't be asked, has no such category, or no path
+    /// mapping brings the folder in — with the client's name, and the client's own sentence for the owner
+    /// <paramref name="callerUserId"/> alone.
     /// </summary>
-    Task<DownloadOverwriteCheckResult> GetOverwriteCheckAsync(string? destinationId, CancellationToken cancellationToken = default);
+    Task<DownloadOverwriteCheckResult> GetOverwriteCheckAsync(string? destinationId, Guid callerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sends the release to the client's destination at most once per request id (ADR 0013): the same

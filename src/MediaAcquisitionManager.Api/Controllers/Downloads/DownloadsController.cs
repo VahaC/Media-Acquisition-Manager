@@ -52,7 +52,7 @@ public class DownloadsController(IDownloadService downloads) : ControllerBase
     public async Task<ActionResult<DownloadOverwriteCheckResponse>> OverwriteCheck(
         [FromQuery] DownloadOverwriteCheckRequest request, CancellationToken cancellationToken)
     {
-        var result = await downloads.GetOverwriteCheckAsync(request.DestinationId, cancellationToken);
+        var result = await downloads.GetOverwriteCheckAsync(request.DestinationId, UserId, cancellationToken);
         return result.Status switch
         {
             DownloadOverwriteCheckStatus.Answered => Ok(result.Answer),

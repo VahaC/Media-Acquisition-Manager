@@ -1,3 +1,5 @@
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
+
 namespace MediaAcquisitionManager.Core.Downloads;
 
 /// <summary>
@@ -15,6 +17,12 @@ namespace MediaAcquisitionManager.Core.Downloads;
 /// MAM-30 — a key is a category or a folder (ADR 0039), so its sentences name both: a rule that refuses one refuses the
 /// other for the same reason. A folder client also shows the destination's name as the torrent's label
 /// (<see cref="ValidateLabel"/>).
+/// </para>
+/// <para>
+/// MAM-31 — a missing key is asked for in the words of what the client's destinations are, once the client is known
+/// (<see cref="ValidateClientDestinationKey(string, DownloadDestinationKind?, string)"/>): the live check showed
+/// "Pick the category or folder" with Transmission alone. The sentence naming both stays for a caller that knows no
+/// client, and for a client whose type this build doesn't register.
 /// </para>
 /// </remarks>
 public static class DestinationRules
@@ -58,12 +66,21 @@ public static class DestinationRules
     /// <summary>
     /// The sentence saying what is wrong with the client destination key <paramref name="key"/>, or
     /// <c>null</c>. Read as it is: surrounding whitespace counts towards the length and is never trimmed
-    /// away, because it is part of the client's name.
+    /// away, because it is part of the client's name. A missing key is asked for as a category or a folder:
+    /// no client is known here.
     /// </summary>
-    public static string? ValidateClientDestinationKey(string? key)
+    public static string? ValidateClientDestinationKey(string? key) => ValidateClientDestinationKey(key, kind: null, clientName: null);
+
+    /// <summary>
+    /// MAM-31 — <see cref="ValidateClientDestinationKey(string)"/> for a key of the client <paramref name="clientName"/>,
+    /// whose destinations are <paramref name="kind"/>: a missing key is asked for as that client's folder or category,
+    /// naming the client; in neutral words when <paramref name="kind"/> is <c>null</c> (a type this build doesn't
+    /// register). The other rules read the same.
+    /// </summary>
+    public static string? ValidateClientDestinationKey(string? key, DownloadDestinationKind? kind, string? clientName)
     {
         if (string.IsNullOrWhiteSpace(key))
-            return KeyMissingError;
+            return KeyMissing(kind, clientName);
         if (key.Length > ClientDestinationKeyMaximumLength)
             return KeyTooLongError;
         // A category whose name holds one is left out of what the adapter lists (it couldn't be shown or
@@ -80,4 +97,12 @@ public static class DestinationRules
     /// (<see cref="ValidateName"/>) are checked apart.
     /// </summary>
     public static string? ValidateLabel(string name) => name.Contains(',', StringComparison.Ordinal) ? LabelCommaError : null;
+
+    // MAM-31 — the client by name, as the service's other sentences about it (“Transmission” has no…).
+    private static string KeyMissing(DownloadDestinationKind? kind, string? clientName) => (kind, clientName) switch
+    {
+        (DownloadDestinationKind.Folder, not null) => $"Pick the folder of “{clientName}” this destination saves to.",
+        (DownloadDestinationKind.Category, not null) => $"Pick the category of “{clientName}” this destination saves to.",
+        _ => KeyMissingError,
+    };
 }

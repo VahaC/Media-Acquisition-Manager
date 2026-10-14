@@ -4,6 +4,29 @@
    folder, the same folder in this app, and where it lands. Tokens only, so dark mode needs nothing
    of its own. Imported by each component that uses it. */
 
+/* MAM-31 — the dialog at most 64rem (1,024 px) wide, as the owner asked in the live check: a source's
+   tracker sections are a long list (Toloka lists past a hundred), set in columns below
+   (.destinations-sections), and the Folder field's options and the sentences under it quote paths.
+   Three classes, so it wins over `.ui-dialog-content.settings-dialog` whichever sheet loads first (the
+   reason of .search-details-dialog). A cap only: below it the dialog is the screen's width, so a phone
+   keeps its own. */
+.ui-dialog-content.settings-dialog.destinations-dialog {
+  max-width: 64rem;
+}
+
+/* MAM-31 — the name beside the download client where two 16rem columns fit, as the owner asked in the
+   live check, as the integration dialog sets its short fields (.integrations-pair); the Folder or
+   Category field and the rest keep the whole width, a field's lines quoting paths. `auto-fit`, so the
+   wide dialog's empty third column folds away and the two share the row. `min(…, 100%)`: where two
+   don't fit, as on a phone, the one column is no wider than the dialog. `align-items: start`: the
+   name's label hint under it doesn't push the client's select down from beside the name's input. */
+.destinations-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
 /* A category name the owner chose in the client, possibly without spaces (`Movies/4K`): it breaks
    rather than widening a phone card past the screen. `break-word`, not the `anywhere` of
    .settings-name-text: `anywhere` also lets the table count the cell as one letter wide, and beside a
@@ -180,9 +203,13 @@
   margin-bottom: 0.375rem;
 }
 
+/* MAM-31 — in columns at least 14rem wide, so the wide dialog shows three a row and a long list runs a
+   third as long. `min(…, 100%)`: where two don't fit, as on a phone, the one column is no wider than
+   the dialog. The sections run row by row, so a row's boxes line up across the columns. */
 .destinations-sections {
   display: grid;
-  gap: 0.375rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+  gap: 0.375rem 1rem;
 }
 
 /* A box at the first line of a name that wraps, a long section name breaking rather than widening

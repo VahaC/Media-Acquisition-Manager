@@ -709,7 +709,7 @@ adapter itself. It missed what sits around one:
   amends it.
 
 MAM-30 makes these changes. The kind contracts and the core state machine are not expected to change;
-MAM-31 diffs the core's following and replacement code to show it.
+MAM-31's diff of the core's following and replacement code showed it on 2026-10-14 (below).
 
 ## Transmission, as built (added 0.4.0, MAM-30)
 
@@ -741,4 +741,13 @@ clients through `QBittorrentDownloadClientContractTests` and `TransmissionDownlo
 `retired-client` ("Old client") now, as the web app's `retiredClient` fixture does. The kind
 contracts' members are otherwise unchanged, and the core state machine too: `DownloadJobFollowing.cs`
 and `Core/Replacements/` are as they were at 082c84e, and the replacement services changed only their
-wording and their reads — MAM-31 diffs them to show it.
+wording and their reads. MAM-31's diff from ca480a2, the last commit before Phase D, to ab2d1c1 showed
+it on 2026-10-14: the core files unchanged; in `Api/Services/Replacements/` every download status
+mapped to the same replacement state, only the needs-linking reason naming the job's client; and three
+readers reading something new — a Transmission torrent's `<name>.part` counted as held (ADR 0031), a
+folder destination found by its folder, and a series' episodes taken from the claim that matched, the
+title's or the description's, so a release's description can decide which seasons and episodes a
+replacement offers, for every client and every Torznab source, Prowlarr included (D15,
+[ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)'s
+MAM-30 section, accepted by Vasyl on 2026-10-14). So the states, transitions and gates are unchanged,
+and "wording only" holds for the core files and the transitions, not for the whole folder.

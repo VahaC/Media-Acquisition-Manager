@@ -6,9 +6,12 @@
 /* Wider than a settings dialog once the owner's copies are listed: a copy's name, folder and chips
    need the room. Three classes, so it wins over `.ui-dialog-content.settings-dialog` whichever sheet
    loads first (the reason of .search-details-dialog). It widens on the answer, not on the radio, so
-   the radios never jump under the pointer between Keep both and Replace. */
+   the radios never jump under the pointer between Keep both and Replace. MAM-31 — 64rem (1,024 px),
+   from 48rem, as the owner asked in the live check: an open season's episodes sit two a row
+   (.download-season-episodes), so a season pack's list runs half as long. Without copies the dialog
+   keeps a settings dialog's 28rem: two selects read worse wider. */
 .ui-dialog-content.settings-dialog.download-dialog-wide {
-  max-width: 48rem;
+  max-width: 64rem;
 }
 
 /* `min-width: 0`: a fieldset is at least as wide as its content by default, so a long path would
@@ -125,9 +128,17 @@
   gap: 0.375rem 0.75rem;
 }
 
+/* MAM-31 — in columns at least 22rem wide, so the 64rem dialog shows two a row, about 29rem each, and a
+   season pack's list runs half as long. 22rem, not the destination sections' 14rem: three a row would
+   break a copy's file name over two or three lines. `min(…, 100%)`: where two don't fit, as on a phone,
+   the one column is no wider than the dialog. The episodes run row by row, in their order. `align-items:
+   start`: an episode stretched to its neighbour's height would stretch its own rows and push its copies
+   down from under its name. Seasons and works stay one column. */
 .download-season-episodes {
   display: grid;
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+  align-items: start;
+  gap: 0.75rem 1.5rem;
   padding-top: 0.25rem;
 }
 

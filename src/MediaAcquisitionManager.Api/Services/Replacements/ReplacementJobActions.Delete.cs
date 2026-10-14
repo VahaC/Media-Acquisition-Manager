@@ -12,13 +12,13 @@ public sealed partial class ReplacementJobActions
 {
     private const string NothingToDeleteError = "This replacement holds nothing in the quarantine to delete.";
 
-    private const string NamesMissingError = "Delete for good needs the files you confirmed.";
+    private const string NamesMissingError = "Deleting the old copies permanently needs the files you confirmed.";
 
     private const string NamesChangedError =
-        "What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.";
+        "What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.";
 
     private const string DeleteSwitchedOffError =
-        "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete for good again.";
+        "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete again.";
 
     // MAM-26 — as Restore's: refused before the claim on a platform whose write contract writes nothing.
     private const string DeleteNotSupportedError = "The app can't write to the media folders on the platform it runs on, so nothing was deleted.";

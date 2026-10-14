@@ -28,7 +28,7 @@ import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every settings dialog lays them out
 import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body and the buttons under it, the switch
-import '@/styles/integrations.css' // .integrations-dialog, .integrations-test, .integrations-address-hint — the wider dialog, the test row, the address hint
+import '@/styles/integrations.css' // .integrations-dialog, .integrations-pair, .integrations-test, .integrations-address-hint — the wider dialog, two short fields side by side, the test row, the address hint
 
 const NO_SECRET: SecretDraft = { value: '', clear: false }
 
@@ -48,6 +48,9 @@ interface IntegrationDialogProps {
  * on an edit, a secret left empty is tested with the stored one (MAM-7 decision 2).
  *
  * Every rule is the server's, shown as its sentence.
+ *
+ * MAM-31 — up to 768 px wide, as the owner asked in the live check, with the service beside the name and
+ * the user name beside the password where two fit (integrations.css).
  */
 export function IntegrationDialog({ integration, onClose }: IntegrationDialogProps) {
   const { t } = useTranslation(['integrations', 'common'])
@@ -76,6 +79,8 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
   // MAM-7 — the example in the empty Address field follows the type like the hint under it does:
   // one fixed example showed Jellyfin's port to someone adding qBittorrent, against its own hint.
   const addressTexts = addressTextsFor(adapterType)
+  const takesCredentials = adapter !== undefined
+    && [adapter.userName, adapter.password, adapter.apiKey].some((requirement) => requirement !== 'NotUsed')
   const saving = create.isPending || update.isPending
 
   /** Another type takes other credentials and paths: what was typed for the last one goes. */
@@ -151,55 +156,59 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
               </ErrorState>
             ) : types.isLoading && <p className="auth-muted">{t('common:loading')}</p>}
 
-            {integration ? (
-              // The type is fixed once saved: another service takes other credentials and paths.
-              <div className="auth-field">
-                <label className="auth-field">
-                  <span className="ui-label">{t('dialog.service')}</span>
-                  <Input
-                    value={integration.adapterDisplayName ?? integration.adapterType}
-                    readOnly
-                    aria-describedby={serviceHintId}
-                  />
-                </label>
-                <p id={serviceHintId} className="auth-hint">{t('dialog.serviceFixed')}</p>
-              </div>
-            ) : (
-              // MAM-4 — the label sits beside the select, tied by id: a label wrapping a select made
-              // the browser read the select's own value into its name.
-              <div className="auth-field">
-                <label htmlFor={serviceId} className="ui-label">{t('dialog.service')}</label>
-                <select
-                  id={serviceId}
-                  className="ui-input"
-                  value={adapterType}
-                  disabled={!types.data}
-                  onChange={(event) => pickType(event.target.value)}
-                >
-                  <option value="" disabled>{t('dialog.servicePlaceholder')}</option>
-                  {groupByKind(types.data?.items ?? []).map((group) => (
-                    <optgroup key={group.kind} label={t(`kindFilterOptions.${group.kind}`)}>
-                      {group.types.map((type) => (
-                        <option key={type.typeId} value={type.typeId}>{type.displayName}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* MAM-31 — the service beside the name where two fit. */}
+            <div className="integrations-pair">
+              {integration ? (
+                // The type is fixed once saved: another service takes other credentials and paths.
+                <div className="auth-field">
+                  <label className="auth-field">
+                    <span className="ui-label">{t('dialog.service')}</span>
+                    <Input
+                      value={integration.adapterDisplayName ?? integration.adapterType}
+                      readOnly
+                      aria-describedby={serviceHintId}
+                    />
+                  </label>
+                  <p id={serviceHintId} className="auth-hint">{t('dialog.serviceFixed')}</p>
+                </div>
+              ) : (
+                // MAM-4 — the label sits beside the select, tied by id: a label wrapping a select made
+                // the browser read the select's own value into its name.
+                <div className="auth-field">
+                  <label htmlFor={serviceId} className="ui-label">{t('dialog.service')}</label>
+                  <select
+                    id={serviceId}
+                    className="ui-input"
+                    value={adapterType}
+                    disabled={!types.data}
+                    onChange={(event) => pickType(event.target.value)}
+                  >
+                    <option value="" disabled>{t('dialog.servicePlaceholder')}</option>
+                    {groupByKind(types.data?.items ?? []).map((group) => (
+                      <optgroup key={group.kind} label={t(`kindFilterOptions.${group.kind}`)}>
+                        {group.types.map((type) => (
+                          <option key={type.typeId} value={type.typeId}>{type.displayName}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-            {/* MAM-33 — TMDb's terms of use ask every app that uses its API to say so, in these words. */}
+              <label className="auth-field">
+                <span className="ui-label">{t('dialog.name')}</span>
+                <Input
+                  value={name}
+                  autoComplete="off"
+                  autoFocus={integration !== undefined}
+                  onChange={(event) => setName(event.target.value)}
+                />
+              </label>
+            </div>
+
+            {/* MAM-33 — TMDb's terms of use ask every app that uses its API to say so, in these words.
+                MAM-31 — under the service and the name rather than between them, which would split the pair. */}
             {adapterType === 'tmdb' && <p className="auth-hint">{t('dialog.tmdbAttribution')}</p>}
-
-            <label className="auth-field">
-              <span className="ui-label">{t('dialog.name')}</span>
-              <Input
-                value={name}
-                autoComplete="off"
-                autoFocus={integration !== undefined}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
 
             <div className="auth-field">
               <label className="auth-field">
@@ -219,40 +228,45 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
               <p id={addressHintId} className="auth-hint integrations-address-hint">{t(`dialog.addressHelp.${addressTexts}`)}</p>
             </div>
 
-            {adapter && adapter.userName !== 'NotUsed' && (
-              <label className="auth-field">
-                <span className="ui-label">
-                  {t('dialog.userName')}
-                  {adapter.userName === 'Optional' && <> {t('dialog.optional')}</>}
-                </span>
-                <Input
-                  value={userName}
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  onChange={(event) => setUserName(event.target.value)}
-                />
-              </label>
-            )}
-            {adapter && adapter.password !== 'NotUsed' && (
-              <SecretField
-                label={t('dialog.password')}
-                removeLabel={t('dialog.removePassword')}
-                requirement={adapter.password}
-                stored={integration?.hasPassword ?? false}
-                value={password}
-                onChange={setPassword}
-              />
-            )}
-            {adapter && adapter.apiKey !== 'NotUsed' && (
-              <SecretField
-                label={t('dialog.apiKey')}
-                removeLabel={t('dialog.removeApiKey')}
-                requirement={adapter.apiKey}
-                stored={integration?.hasApiKey ?? false}
-                value={apiKey}
-                onChange={setApiKey}
-              />
+            {/* MAM-31 — the user name beside the password where two fit; a lone API key takes the row. */}
+            {adapter && takesCredentials && (
+              <div className="integrations-pair">
+                {adapter.userName !== 'NotUsed' && (
+                  <label className="auth-field">
+                    <span className="ui-label">
+                      {t('dialog.userName')}
+                      {adapter.userName === 'Optional' && <> {t('dialog.optional')}</>}
+                    </span>
+                    <Input
+                      value={userName}
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      onChange={(event) => setUserName(event.target.value)}
+                    />
+                  </label>
+                )}
+                {adapter.password !== 'NotUsed' && (
+                  <SecretField
+                    label={t('dialog.password')}
+                    removeLabel={t('dialog.removePassword')}
+                    requirement={adapter.password}
+                    stored={integration?.hasPassword ?? false}
+                    value={password}
+                    onChange={setPassword}
+                  />
+                )}
+                {adapter.apiKey !== 'NotUsed' && (
+                  <SecretField
+                    label={t('dialog.apiKey')}
+                    removeLabel={t('dialog.removeApiKey')}
+                    requirement={adapter.apiKey}
+                    stored={integration?.hasApiKey ?? false}
+                    value={apiKey}
+                    onChange={setApiKey}
+                  />
+                )}
+              </div>
             )}
 
             <div className="auth-field">

@@ -2,11 +2,11 @@
 
 # Media Acquisition Manager
 
-**Status: 0.3.0 published; Phase C checked on the reference installation; Phase D built as 0.4.0,
-not published or tried live yet.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05), 0.2.1
-(2026-10-07) and 0.3.0 (2026-10-11, published again on 2026-10-13) are published as Docker images, and
-the app now reports 0.4.0; MAM-22 checked Phase B's acceptance bar on the reference
-installation on 2026-10-08, and MAM-28 checked Phase C's there on 2026-10-12, on production running
+**Status: 0.3.0 published; Phase C checked on the reference installation; Phase D built as 0.4.0
+and checked on a clean installation beside it, not published yet.** Releases 0.1.0 (2026-10-04),
+0.2.0 (2026-10-05), 0.2.1 (2026-10-07) and 0.3.0 (2026-10-11, published again on 2026-10-13) are
+published as Docker images, and the app now reports 0.4.0; MAM-22 checked Phase B's acceptance bar
+on the reference installation on 2026-10-08, and MAM-28 checked Phase C's there on 2026-10-12, on production running
 the published 0.3.0 image. 0.3.0 is the first published image with MAM-37 (the Duplicates page lists
 only real copies of one film or episode — never two episodes of one show, an episode's "a" and "b"
 files, films whose file names claim years far apart or different cuts — and flags for review the
@@ -20,7 +20,7 @@ replacement of specific old copies, which follows its download to `Downloaded`),
 by Jellyfin's own ids as the old copy's work — and the replacement ends verified or stops for
 review), MAM-26 (built on 2026-10-10: once the new file is verified, the old copy, checked again
 with the torrents that might hold it, moves with its own subtitles into a quarantine at the top of
-its media folder, where it stays until the owner restores it or deletes it for good) and MAM-27
+its media folder, where it stays until the owner restores it or deletes it permanently) and MAM-27
 (built on 2026-10-11: on the Jobs page and each job's page the owner sees where a replacement
 stands, the old copies he ticked with the new file each pairs with, what the check found and why it
 stopped, and keeps both copies, retries a stopped check or drops one old copy). On 2026-10-12
@@ -31,7 +31,7 @@ seeds its old copies and was kept with Keep both, and three restarts, Jellyfin s
 check, the switch off, a folder unticked, a member's view and a release that would land on a file
 already there were staged, each leaving the old file where it was; a second replacement of the film,
 ticking both its copies, was cancelled at 1.8 % of its download, so a held copy moving after Retry
-and Delete for good weren't tried and rest on the tests with the other cases of the bar, as [Tested
+and a permanent deletion weren't tried and rest on the tests with the other cases of the bar, as [Tested
 with](#tested-with) lists, and production then went back to the image's own ids with replacement
 switched off. Preparing that check found that the check right before a move passed over a download
 client whose path mappings were changed after a replacement went through it, so a seeding old copy
@@ -40,11 +40,11 @@ both were fixed on 2026-10-12 under 0.3.0, which keeps its number, the first res
 alone; the image published on 2026-10-11 has neither, and 0.3.0 as published again on 2026-10-13 has
 both. MAM-40, built the same day under 0.3.0 too and published with it, lets the owner settle duplicates
 on the Duplicates page: remove one copy into the quarantine, behind replacement's switch, ticks and
-checks, then restore it or delete it for good under **Removed copies**, or keep the copies as they
+checks, then restore it or delete it permanently under **Removed copies**, or keep the copies as they
 are; it wasn't tried on production. MAM-41, built the same day under 0.3.0 and published with it,
 sorts the Jobs page into tabs by what waits for the user — Needs you, In progress, Finished and All,
 worked out and counted on the server —, says in a few words on each row where its download and its
-replacement stand, keeps only verbs under Actions, Restore and Delete for good now among them, and
+replacement stand, keeps only verbs under Actions, Restore and Delete now among them, and
 opens a job's details, the replacement's old copies included, under its row. MAM-42, a Phase B
 ticket built on 2026-10-13 under 0.3.0 and published with it, makes the Library page's Sources card
 show the same warnings with Details open or closed, lists the files in no library in a dialog with
@@ -61,8 +61,19 @@ Phase D began on 2026-10-13: MAM-29 chose Transmission 4.0 or newer instead of q
 Jackett instead of Prowlarr, and recorded their answers; MAM-30, built on 2026-10-14 for 0.4.0, adds
 Transmission as a download client — its destinations the library folders it can reach and its own
 download folder —, takes Jackett through the same Torznab adapter, and makes the Search page read a
-release's description as Recommendations do; it wasn't tried live, which MAM-31 does on a clean
-installation. MAM-5 (personal access tokens, Phase A) is still to do. Today
+release's description as Recommendations do. MAM-31 checked it on 2026-10-14 on a second, clean
+installation beside production, set up from zero by this README with Jellyfin, Jackett and
+Transmission, and TMDb for the Recommendations page, on an image of 0.4.0 built locally from ab2d1c1
+and not published: Toloka searched through Jackett, a film sent to Transmission into the Movies
+folder with the label "Movies" and followed to `Downloaded`, and the old copy of Undercover Blues
+(1993) replaced through the quarantine, then deleted from it by Vasyl — the first deletion from the
+quarantine on a real setup. A copy a Transmission torrent holds, Transmission 4.0.x and its lock-out
+after wrong passwords rest on the tests, as [Tested with](#tested-with) lists. What that check found
+was fixed the same day under 0.4.0, after that image: the dialogs with a long list are wider,
+Transmission's destinations say "folder", the Download dialog and the Recommendations page name the
+client or source that failed, the job page's buttons name the old copy and "for good" reads
+"permanently", and this README's install steps say what the clean installation needed. Production
+stayed on 0.3.0, untouched. MAM-5 (personal access tokens, Phase A) is still to do. Today
 the app is an API and a web app that report their own health, with accounts,
 integration settings and the library: the installation owner created on first run, the users the owner manages, sign-in,
 and a Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
@@ -94,7 +105,7 @@ down with the download, sent only when it can land on no file already there, fol
 download is done, and its new file then checked before anything is touched, until Jellyfin has
 identified it by its own ids as the old copy's work; the old copy then moves, with its own
 subtitles, into a quarantine at the top of its media folder, once it is checked again and no torrent
-holds it, and stays there until he restores it or deletes it for good; and on the Jobs page and each
+holds it, and stays there until he restores it or deletes it permanently; and on the Jobs page and each
 job's page he sees where each replacement stands — its old copies with the new file each pairs with,
 what the check found and why it stopped — and keeps both copies, retries the check once he fixed the
 new item in Jellyfin, or drops a copy that can't be paired; see [ROADMAP.md](ROADMAP.md).
@@ -335,7 +346,7 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   file leaving it keeping it kept (MAM-40, Vasyl's decisions of 2026-10-12). Nothing acts on several
   groups at once
   ([ADR 0029](docs/adr/0029-a-possible-match-is-confirmed-or-dismissed-by-the-owner-alone-kept-by-its-groups-key-and-never-authorises-removal.md)).
-- **Remove a copy from the Duplicates page, then put it back or delete it for good (the owner's).**
+- **Remove a copy from the Duplicates page, then put it back or delete it permanently (the owner's).**
   Each file of a group of exact copies or of one work's copies has **Remove this copy**; the app
   never says which copy to remove (Vasyl's decisions of 2026-10-12). A file it can't be pressed on
   says why, from what the app has stored — replacement switched off, the file outside the Media
@@ -354,7 +365,7 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   nothing in the quarantine. The page's **Removed copies** tab, the owner's alone, lists what is
   still there with the room it takes, each removal with where it was, where it is, when and by whom,
   and every file that went with it, and offers **Restore** (every file back where it was, never over
-  a file there now; the copy counts in its group again) and **Delete for good** (after a second
+  a file there now; the copy counts in its group again) and **Delete permanently** (after a second
   confirmation naming every file and the room it frees; files only, from the quarantine only), both
   disabled with why while replacement is switched off. A removal whose video another file took the
   place of, or that a restart found nowhere, stays listed, needing review, with the paths to look at
@@ -607,7 +618,7 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   seconds while the check runs. The check moves nothing: both copies stay until the old one moves
   into the quarantine, below (MAM-25, Vasyl's decisions of 2026-10-10, [ADR
   0035](docs/adr/0035-a-replacements-new-file-is-checked-by-its-clients-word-the-media-inspector-and-the-librarys-ids-before-anything-moves-and-what-is-unsettled-after-an-hour-stops-for-review.md)).
-- **Move the old copy into a quarantine, then put it back or delete it for good.** Once the new file
+- **Move the old copy into a quarantine, then put it back or delete it permanently.** Once the new file
   is verified, a background loop of its own, every 15 seconds and right after the app starts, takes
   the replacement up while replacement is switched on (switched off, it waits, verified). It checks
   each ticked copy again — still inside the Media folders and in a ticked folder, no disc clip, the
@@ -632,15 +643,17 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   **Replacement** section, whose **Files the move planned** lists every file, where it was, where it
   is now
   and the room it takes, with the owner's **Retry** (for a replacement the move stopped: the next
-  pass checks everything again), **Restore** (every file back where it was, never over a file there
-  now or into a folder that is gone; Jellyfin told it came back) and **Delete for good** (after a
-  second confirmation naming every file and the room it frees, a file with another name on the disk
-  now freeing none; files
-  only, from the quarantine only), both refused while replacement is off. The Jobs line follows it —
-  "Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.",
-  "Replacement undone: the old copy is back where it was.", "Replaced: the old copy was deleted for
-  good." —; the Media folders page says per ticked folder whether a move can work there (the same
-  mount as the quarantine, mounted read-write, writable by the app) — where the app's user can't
+  pass checks everything again), **Restore old copy** (every file back where it was, never over a
+  file there now or into a folder that is gone; Jellyfin told it came back) and **Delete old copy
+  permanently** (after a second confirmation naming every file and the room it frees, a file with
+  another name on the disk now freeing none; files only, from the quarantine only) — **Restore old
+  copies** and **Delete old copies permanently** once it holds more than one, so neither reads as
+  acting on the new release the page is titled by (Vasyl, MAM-31's live check, 2026-10-14) —, both
+  refused while replacement is off. The Jobs line follows it — "Old copy moved into the quarantine:
+  1 copy, kept until you restore it or delete it permanently.", "Replacement undone: the old copy is
+  back where it was.", "Replaced: the old copy was deleted permanently." —; the Media folders page
+  says per ticked folder whether a move can work there (the same mount as the quarantine, mounted
+  read-write, writable by the app) — where the app's user can't
   write, which folder that is, whose it is and which `PUID` and `PGID` to set (MAM-39) —, lists the
   room each quarantine takes, and refuses a Save that would leave one outside every media folder. No
   timer deletes anything, and the quarantine is outside the database backup (MAM-26, Vasyl's
@@ -658,7 +671,8 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   kept until it is verified." — and, at a review, what to do next ("Replacement needs review:
   <reason> Fix it in Jellyfin or qBittorrent, then press Retry — or see the job."), with how many
   copies were dropped, then the old copies he ticked; the row's actions are **Retry**, **Keep
-  both**, **Restore** and **Delete for good** — the last two with the job page's confirmations — and
+  both**, **Restore old copy** and **Delete old copy permanently** ("copies" for more than one) —
+  the last two with the job page's labels and confirmations — and
   **Cancel job**, where MAM-27 had a **Copies** button among them (MAM-41, Vasyl's decisions of
   2026-10-12). The job's page, its section now **Replacement**, says what he can do, how far
   the check got and until when it waits, and lists each ticked old copy with the new file it pairs
@@ -706,8 +720,8 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   started — a first run is a few minutes of calls to TMDb. Each card says what the
   release sources carry of it — "4 releases · up to 2160p · Ukr", "Not found (checked 3 days ago)",
   "Not checked yet" —, asked by the app within each user's daily limit (60 by default), at most 4
-  searches every 15 minutes, shared by every user, and Toloka's newest releases are read every 3
-  hours ([ADR 0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)).
+  searches every 15 minutes, shared by every user, and Toloka's newest releases are read when the
+  app starts and then every 3 hours ([ADR 0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)).
   The server filters by reason, genre, decade, films or series and **Available only**, sorts by the
   **Sort** select, kept in the address beside the tab, and pages.
   **Releases** opens the Search page for the work, and **Download** there sends it as any release:
@@ -746,17 +760,26 @@ turned on as the 0.3.0 release note's **Turning it on** says, Vasyl signed in as
 of check 6 and the corrections of **Turning it on** that MAM-28 made that day came after that image,
 the first resting on the tests alone and the second on what was done on production. MAM-39 then
 replaced those corrections, in the same 0.3.0, with `PUID` and `PGID`, checked on a local build of
-the image on 2026-10-12 and not on production yet. The other
+the image on 2026-10-12 and not on production yet. MAM-31 checked Phase D's acceptance bar on
+2026-10-14 on neither production nor a copy of it: a second, clean MAM container on the
+installation's host, beside production, with its own data and production's `/media`, ran an image
+built locally from commit ab2d1c1 (0.4.0, not published). It was set up from zero by this README
+with Jellyfin, Jackett and Transmission, and TMDb for the Recommendations page — no qBittorrent and
+no Prowlarr —, Vasyl signed in as its owner. Production stayed on 0.3.0. The fixes MAM-31 made that
+day came after that image; an image built with them ran on the same container from 16:17 UTC, where
+most of them were looked at again, the others resting on the tests (below). The other
 tickets' live checks are listed too, each with where it ran when that was recorded.
 
 | Service | Version tried | Used as |
 | --- | --- | --- |
-| Jellyfin | 12.1.0, and 12.2.0 (read on 2026-10-08) for MAM-22's sync, (on 2026-10-10) for MAM-25's read of item ids and (on 2026-10-12) for MAM-28's replacements: the request to look, the new items identified by their ids, the old item off its search after the move and back after Restore | Media library |
+| Jellyfin | 12.1.0, and 12.2.0 (read on 2026-10-08) for MAM-22's sync, (on 2026-10-10) for MAM-25's read of item ids, (on 2026-10-12) for MAM-28's replacements: the request to look, the new items identified by their ids, the old item off its search after the move and back after Restore, and (on 2026-10-14) for MAM-31's clean installation: "Jellyfin: Connected to Jellyfin 12.2.0 (VahaC media).", its sync and first inspection, the request to look after the send's download and the new item identified by its ids | Media library |
 | Prowlarr, serving the Toloka.to indexer over Torznab | 2.6.5, read on 2026-09-29 (a Torznab feed doesn't say its version) | Release source |
+| Jackett, serving the Toloka.to indexer over Torznab | v0.24.2830 (`lscr.io/linuxserver/jackett:v0.24.2830-ls3`, read from its image and its dashboard's footer, as a Torznab feed doesn't say its version), "Strip Cyrillic Letters" ticked: MAM-29's samples on 2026-10-13, and (on 2026-10-14) MAM-31's connection test, searches, Search and Recommendations pages, the send's download link and a wrong API key | Release source |
 | qBittorrent | 5.2.4, and (on 2026-10-12) MAM-28's film and season downloads followed to `Downloaded`, a third cancelled, and its torrents read before each send and right before each move | Download client |
-| TMDb | API v3, read on 2026-10-05 | Metadata catalog |
-| ffprobe | 6.1.1-3ubuntu5, Ubuntu's package in the 0.2.1 image, read on 2026-10-08 (MAM-22's inspections took every reading from the cache and ran it on no file); the same 6.1.1-3ubuntu5 in the published 0.3.0 image, which read MAM-28's new files on 2026-10-12 | File inspection |
-| Media Acquisition Manager | 0.3.0, the published image `sha256:0b75fdbd7f60…` stamped `0.3.0+2dec720`, on production, Docker 29.9.0 and Compose v5.6.0 on Linux 7.0.14-22-pve (x86_64), `/media` on ext4 (MAM-28; its fix of check 6, made after that image, by the tests alone); 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22); the MAM-37 change built on top of commit 27fcd79, on Windows on a copy of production's database (MAM-37); the MAM-24 working tree, booted on Windows over a copy of the development data directory for its read of qBittorrent (MAM-24); a probe of the MAM-25 design, booted on Windows over a copy of the development data directory (made for the probe and deleted afterwards) for its read of Jellyfin (MAM-25); an image built from the MAM-39 working tree, for `tools/check-image-user.sh` (MAM-39) | The app checked |
+| Transmission | 4.1.3 (`lscr.io/linuxserver/transmission:4.1.3-r0-ls363`, "Connected to Transmission 4.1.3."): MAM-29's samples on 2026-10-13, and (on 2026-10-14) MAM-31's destinations, its film sent into `/downloads/movies` with the label "Movies" and followed to `Downloaded`, its torrents read right before the move, and its container stopped and started during the download; 4.0.6 (`4.0.6-r6-ls326`) only in MAM-29's samples | Download client |
+| TMDb | API v3, read on 2026-10-05, and (on 2026-10-14) for MAM-31's Recommendations page, with Jackett the only release source | Metadata catalog |
+| ffprobe | 6.1.1-3ubuntu5, Ubuntu's package in the 0.2.1 image, read on 2026-10-08 (MAM-22's inspections took every reading from the cache and ran it on no file); the same 6.1.1-3ubuntu5 in the published 0.3.0 image, which read MAM-28's new files on 2026-10-12, and in the image of 0.4.0 built for MAM-31, which inspected the clean installation's 1,392 files and read its new file on 2026-10-14 | File inspection |
+| Media Acquisition Manager | 0.4.0, an image built locally from commit ab2d1c1 and not published (`mam-local:0.4.0-ab2d1c1`, image `sha256:e488319229bc…`, stamped `0.4.0+ab2d1c1`), a second, clean container beside production with its own data and the same `/media`, `PUID` 1000 and `PGID` 100, Docker 29.9.0 and Compose v5.6.0 on Linux 7.0.14-22-pve (x86_64) (MAM-31; the fixes it led to came after that image, most of them looked at again on an image built with them, `mam-local:0.4.0-mam31`, image `sha256:f21c717efb7d…`, stamped `0.4.0+ab2d1c1.mam31`, the rest by the tests alone); 0.3.0, the published image `sha256:0b75fdbd7f60…` stamped `0.3.0+2dec720`, on production, Docker 29.9.0 and Compose v5.6.0 on Linux 7.0.14-22-pve (x86_64), `/media` on ext4 (MAM-28; its fix of check 6, made after that image, by the tests alone); 0.2.1, the published image `sha256:d9c6149a3dbf…`, on production (MAM-22); the MAM-37 change built on top of commit 27fcd79, on Windows on a copy of production's database (MAM-37); the MAM-24 working tree, booted on Windows over a copy of the development data directory for its read of qBittorrent (MAM-24); a probe of the MAM-25 design, booted on Windows over a copy of the development data directory (made for the probe and deleted afterwards) for its read of Jellyfin (MAM-25); an image built from the MAM-39 working tree, for `tools/check-image-user.sh` (MAM-39) | The app checked |
 
 - **Jellyfin:** the connection test, and syncs of all its movies, collections included (876 items
   on 2026-10-03). The header search "Sherlock Holmes (2009)" found the movie inside
@@ -1272,14 +1295,332 @@ tickets' live checks are listed too, each with where it ran when that was record
   1000 with mode 555 gave the sentence for the app already running as the owner, and the root
   folder the sentence for root with "(now user 1000, group 100)". Not tried on production, which
   MAM-28 turned on and off with a `user:` line and a `chown` before `PUID` and `PGID` existed.
+- **A clean installation beside production (MAM-31, 2026-10-14):** commit ab2d1c1 passed CI first,
+  Jenkins build #70 with 10,292 cases, 0 failed and 7 skipped. Its image was built from `git archive
+  ab2d1c1` with `APP_REVISION=ab2d1c1` at 10:12 UTC ("Stamping the API with 0.4.0+ab2d1c1";
+  `mam-local:0.4.0-ab2d1c1`, image `sha256:e488319229bc…`, amd64, 993,321,667 B) and loaded onto the
+  media host at 11:55 UTC with `docker save | docker load`, never pushed. Vasyl deployed it as a
+  Stashboard project, with Docker 29.9.0 and Compose v5.6.0 on Linux 7.0.14-22-pve x86_64. The
+  container `mam-clean` started healthy at 12:16:16 UTC, stamped `0.4.0+ab2d1c1`, with ffprobe
+  6.1.1-3ubuntu5, running as uid 1000 and gid 100: "[entrypoint] Handed /data over to 1000:100: 1
+  file or folder changed owner; permissions are unchanged." Its data was a new volume,
+  `mam-clean_mam-data` on `/data`, and `/media` the same read-write bind of
+  `/mnt/media14tb/jelly_qbit_data/Torrent` as production's. What differed from this README came from
+  running two apps on one host, in the compose file Claude wrote and Vasyl approved: the project
+  name pinned to `mam-clean` (its folder `/srv/docker/mam-clear/mam-clear`), the container
+  `mam-clean` in place of `media-acquisition-manager`, the local tag with `pull_policy: never`, the
+  port `0.0.0.0:8119:8118` in the compose file's `ports` line with no `.env`, and that port open on
+  the LAN from the start, so Vasyl created the owner at 12:20 UTC, right after it. The log warned
+  that the DataProtection keys sit in an ephemeral repository, as production's does. Production kept
+  running the 0.3.0 published again on 2026-10-13 (`sha256:c42d0ed41aaf…`, stamped `0.3.0+082c84e`),
+  started at 2026-10-13 20:52:47 UTC; at 11:57 UTC its quarantine held only `996316d0-…`, a
+  Duplicates removal of Alien: Romulus (54,925,417,142 B).
+- **Set up from zero by this README (MAM-31, 2026-10-14):** **Media folders** took `/media`
+  ("Saved."), and its quarantine said "The quarantine is empty.": production's `996316d0-…` isn't
+  this app's. **Integrations** said "No integrations yet. Click Add integration to connect Jellyfin,
+  a Torznab source such as Prowlarr or Jackett, a download client such as qBittorrent or
+  Transmission, or a metadata catalog (TMDb) that feeds the Recommendations page." Jellyfin, with an
+  API key Vasyl made for it ("MAM-31 clean"), said "Jellyfin: Connected to Jellyfin 12.2.0 (VahaC
+  media)." The **Library** page has no **Sync** button, which this README named: **Refresh all**
+  ("Syncs every library, scans the media folders, then inspects the files.") at about 12:22 UTC
+  synced by 12:23, and the first inspection was done by 12:26, "Oct 14, 3:26 PM · 1,392 files · 7.36
+  TiB" in local time; there is also **Sync now** under **Details**. In Jackett Vasyl saw "Strip
+  Cyrillic Letters" ticked and v0.24.2830 in the footer. The Torznab integration "Toloka", with
+  **Copy Torznab Feed**'s address
+  `http://192.168.1.195:9117/api/v2.0/indexers/toloka/results/torznab/`, said "Connected to Jackett
+  over Torznab; movie search by title, TV search by title, season and episode." and was saved
+  without the trailing slash. The Address field's placeholder is Prowlarr's,
+  `http://192.168.1.10:9696/1/api`; its hint names both. Transmission, at
+  `http://192.168.1.195:9091` with the mapping `/downloads` → `/media` and Vasyl's user name and
+  password, said "Connected to Transmission 4.1.3." Its dialog read "The address of Transmission's
+  web interface, such as http://192.168.1.10:9091. Transmission 4.0 or newer." and "Your library
+  folders become Transmission's destinations through these mappings: map each folder Transmission
+  sees to this app's, for example /downloads → /media." Vasyl switched replacement on as
+  [Deployment](#deployment) says and ticked all four library folders, each with "A move into the
+  quarantine can work here: the same mount as the quarantine, mounted read-write, and writable by
+  the app." TMDb, with his Read Access Token, said "Connected to TMDb." Of this README's steps the
+  **Sync** button's name read wrong, and the Transmission steps said nothing of its peer port, which
+  the send needed (below), of "Download to", whose image default `/downloads/complete` isn't there
+  once the libraries are mounted at `/downloads`, or of the address a `WHITELIST` would name
+  (below). [Quick start](#quick-start-docker-compose) and [Connecting the
+  services](#connecting-the-services) say so since, corrected under 0.4.0 after the check, with
+  **Edit preferences** as Transmission spells it, a host with no browser of its own, and the newest
+  releases read when the app starts.
+- **Transmission's destinations (MAM-31, 2026-10-14):** before Transmission had the libraries mounted,
+  at about 12:30 UTC, **Add destination** listed under **Folder** "Transmission's download folder —
+  /downloads (can't be used)" and each library folder the same way, "Фільми — /downloads/movies
+  (can't be used)" among them, each with its library's name before "Transmission can't see
+  “/downloads/movies” (No such file or directory). Mount that folder into Transmission, or add a path
+  mapping on this integration that leads there, then look again." At 12:30:28 UTC Vasyl gave
+  Transmission `/mnt/media14tb/jelly_qbit_data/Torrent:/downloads` in Stashboard, and the same five
+  became usable: "Transmission's download folder — /downloads", "Документалки —
+  /downloads/documentary", "Мульфільми — /downloads/cartoons", "Серіали — /downloads/tv-shows" and
+  "Фільми — /downloads/movies". Jellyfin's Collections library, Колекції, wasn't offered. Saved with
+  production's Toloka sections: Movies, the default, with none, "In the media library Фільми"; TV
+  Shows (Серіали в HD, Телесеріали), "In the media library Серіали"; Cartoons (six cartoon sections),
+  "In the media library Мульфільми"; and Documentary (eight sections, TV/Documentary among them), "In
+  the media library Документалки". Transmission's download folder, `/downloads` — Vasyl had set
+  "Download to" there in its web interface —, saved as "Torrent root", read "/downloads which this
+  app reaches at /media — Outside the media libraries — “/media” is outside every media library
+  folder, so automatic replacement stays off for this destination.": the mark MAM-29 decided. A
+  download folder no path mapping covers, "Folder unknown" (ADR 0039), wasn't met. The table's columns
+  were Name, Download client, Folder, Saves to and Actions. The name "Movies, HD" got "“Transmission”
+  shows this destination's name as the torrent's label, and a label can't contain a comma. Pick a
+  name without one."; **Add** with no folder got "Pick the category or folder of the download client
+  this destination saves to." (now "Pick the folder of “Transmission” this destination saves to.",
+  below); **Remove** asked "Remove Torrent root? The app forgets the destination Torrent root.
+  Nothing changes in Transmission: torrents already sent keep their folder and label. This can't be
+  undone." (cancelled).
+- **Toloka through Jackett (MAM-31, 2026-10-14):** from 12:40 to 12:48 UTC the header search found,
+  for the film Undercover Blues, 3 releases and "In your library: Родина Блю під прикриттям (1993) —
+  matched by title and year"; for the series MobLand, its releases and the library's MobLand (2025);
+  and for the cartoon series Gravity Falls, a 56.94 GiB BDRip 1080p of seasons 1 and 2. The Download
+  dialog first offered TV Shows for MobLand's 1080p release and Cartoons for Gravity Falls, each by
+  its Toloka section (ADR 0020), and Movies for the film as the default, Movies having no sections, as
+  on production. MobLand's dialog said "This release is MobLand (2025), season 1 — Matched by title and
+  year only…" over its 10 episode copies; Gravity Falls' "This release matches no film or held
+  episodes of yours." The Search page matched the film's and the series' copies by title and year. The
+  film's **Details** read "Read from the title: Undercover Blues 1993" and "Read from the description:
+  Родина Блю під прикриттям (З життя таємних агентів) · Undercover Blues 1993". Two Ukrainian-only
+  titles: "Розслідування з Андрієм Данілевичем" gave "Toloka · No releases", as in MAM-29's
+  recording — Jackett's own search finds nothing —; "Веселі Жабокричі", a library work with Cyrillic
+  titles only and the year 1973 in Jellyfin, gave 2 releases titled "SatRip-AVC (1971)" with the
+  description "Веселі Жабокричі (1971) SatRip-AVC", read but not matched to the copy: a description
+  adds a match only by an id or by title and year (ADR 0012), and 1971 isn't 1973. With TMDb connected
+  and Jackett the only source, **Recommendations**, computed at 12:42 UTC, listed releases, "Месники:
+  Війна нескінченності … 14 releases · up to 2160p · Ukr" and "Месники: Завершення … 9 releases · up
+  to 2160p · Ukr" among them.
+- **A film sent to Transmission (MAM-31, 2026-10-14):** at 12:49 UTC a fresh read of qBittorrent's
+  362 torrents found none listing Undercover Blues, and Transmission held none. The old copy,
+  `/media/movies/Undercover Blues (1993) BDRip-AVC.mkv`, was 1,947,648,052 B, inode 390463819, one
+  link, in no Jellyfin collection, measured at 1:30:13 and 1024×552 H.264 High. Vasyl picked Toloka's
+  BDRip 1080p release, 8.41 GiB with 4 seeders, one file, "Undercover.Blues.1993.BDRip.1080p.mkv".
+  **Send** at 12:51 UTC to Transmission and Movies, with **Replace after verification**, the work
+  confirmed and the old copy ticked, said "Transmission took the release and lists it among its
+  downloads." and "Replacement scheduled: 1 copy, kept until the new one is verified."; the conditions
+  had said "…a copy held by a torrent waits until you remove that torrent in Transmission…". Jobs read
+  "Transmission · Movies · Oct 14, 2026, 3:51 PM — Downloading 0% — Waits for the download: 1 copy".
+  In Transmission's web interface Vasyl saw it added at 12:51:51 UTC in `/downloads/movies` with the
+  label "Movies", hash `24f8a72117fcc3e413f6882244ad8fac9e367d47`, a public torrent with no error.
+  Toloka's tracker, `http://bt.toloka.to`, answered "Last Announce: Today 03:51:52 PM (got 5 peers)",
+  so Toloka takes Transmission 4.1.3. No peer connected at first: Transmission's peer port was closed
+  and uTP off, while qBittorrent on the same host works with no forward and uTP on. Vasyl turned uTP
+  on at about 13:05 UTC and forwarded TCP and UDP 51413 to the host on the router at about 13:08;
+  Transmission then said "IPv4 port is Open", and the first peer connected, inbound, at 13:12:04.
+  Transmission then made `Undercover.Blues.1993.BDRip.1080p.mkv.part` in `/media/movies`, preallocated
+  at 9,027,402,332 B: the unfinished name seen on the disk, not only in Transmission's source. At 13:20
+  UTC, at 3.4 %, the job's page read "Destination Movies — folder “/downloads/movies”", "Client's id
+  24f8a72117fcc3e413f6882244ad8fac9e367d47", the file "Undercover.Blues.1993.BDRip.1080p.mkv 8.41 GiB
+  3.4%", and "Waits for the download.", "Paired once Jellyfin has identified every new file.", "Kept
+  until the new file is verified." and "No old copy has moved yet: each moves into the quarantine once
+  the new file is verified." The download was done at 13:37:35 UTC, about 25 minutes after the first
+  peer: Transmission renamed the `.part` to `Undercover.Blues.1993.BDRip.1080p.mkv`, one file of
+  9,027,402,332 B straight in `/media/movies`, and the job read `Downloaded`, 100 %.
+- **A film replaced through Transmission (MAM-31, 2026-10-14):** the new file,
+  `/media/movies/Undercover.Blues.1993.BDRip.1080p.mkv` (9,027,402,332 B, inode 390463793, 1080p
+  H.264, 1:30:13 like the old copy), went into the check at 13:37:39 UTC, when the app asked Jellyfin
+  to look (`ReplacementCheckStarted`); the job's page said "Replacement waits for Jellyfin to identify
+  the new file until 5:37 PM: 1 copy, kept until it is verified.", "Nothing moves until every copy is
+  paired or dropped: 0 of 1 paired, 0 dropped." and, by the new file, "Not listed by Jellyfin yet.
+  Expected: IMDb tt0108442 · TMDb 12661". It was verified at 13:38:55 UTC, 75 s after Jellyfin was
+  asked (`ReplacementVerified`): "Identified by Jellyfin. Identified: Родина Блю під прикриттям (1993)
+  IMDb tt0108442 TMDb 12661" and "Every old copy is paired with a new file Jellyfin identified." The
+  check right before the move found no torrent holding the old copy: the installation's one download
+  client, Transmission, held only the new file's torrent, and none of qBittorrent's, which this
+  installation can't see, had listed it at 12:49 UTC (above). The old copy moved into
+  `/media/.mam-quarantine/69fd9196-1136-41d3-a80c-b61a817969e5/movies/Undercover Blues (1993) BDRip-AVC.mkv`
+  by one rename, keeping its inode 390463819, its 1,947,648,052 B and its one link
+  (`ReplacementQuarantineStarted` at 13:39:10.488 UTC, `ReplacementNameMoving`, `ReplacementNameMoved`
+  and `ReplacementQuarantined` at 13:39:10.748, 0.26 s in all), beside production's
+  `.mam-quarantine/996316d0-…`, which nothing touched. The job's page said "Old copy moved into the
+  quarantine: 1 copy, kept until you restore it or delete it for good." and "The quarantine holds 1.81
+  GiB of this replacement, in 1 file.", and offered **Restore** and **Delete for good**. Vasyl pressed
+  **Delete for good** on that ab2d1c1 image at 16:16:44 UTC, the first deletion from the quarantine on
+  a real setup in any phase (`ReplacementDeleteStarted` at 16:16:44.224 UTC, `ReplacementNameDeleting`,
+  `ReplacementNameDeleted` at 16:16:44.707 and `ReplacementCompleted` at 16:16:44.726): the old copy's
+  one name left the disk, freeing its 1.81 GiB; the empty folders `.mam-quarantine/69fd9196-…/movies`
+  stayed, as the app removes no folder; and the new file stayed where it was, inode 390463793. Under
+  the new release's title those two buttons read as acting on the new file, and "for good" isn't plain
+  to every reader, so Vasyl had them renamed: they now read **Restore old copy** and **Delete old copy
+  permanently** ("copies" for more than one), and "for good" reads "permanently" everywhere; on the
+  rebuilt image (below) the job's page read "Replaced: the old copy was deleted permanently." and, by
+  the old copy, "Deleted permanently."
+- **Errors that name the service (MAM-31, 2026-10-14):** Vasyl stopped Transmission's container at
+  12:57:17 UTC, during the download. **Test** said "Transmission: Couldn't reach Transmission at
+  http://192.168.1.195:9091: nothing accepted the connection. Check the address and port, and that
+  Transmission is running." Each Transmission row of **Destinations** read "Client unavailable" with
+  that sentence, and so did the Folder field of **Add destination** and the Jobs row, still
+  "Downloading 0%" and not failed. The Download dialog (Gravity Falls, **Keep both**) said "The app
+  couldn't ask “Transmission” where this destination saves: Couldn't reach Transmission … Check the
+  address and port, and that Transmission is running.", but above it "The app can't check whether
+  this release would write over a file already there: the destination's folder has no path in the
+  app, or its download client can't say where it is. A release sent there goes without that check.",
+  which names neither Transmission nor the fix; **Send** stayed enabled. That line now reads "The app
+  couldn't ask “Transmission” where this destination saves, so a release sent there goes without the
+  check for files it would write over.", Transmission's own sentence under it for the owner (fixed
+  under 0.4.0 after the check, by the tests alone). Started again at 12:59:28 UTC, Transmission said
+  "Transmission: Connected to Transmission 4.1.3.", and the job went on by its hash, the sentence
+  gone. With a wrong Jackett key typed by Vasyl at 13:02 UTC, **Test** said "Toloka: The Torznab feed
+  refused the API key (error 100: Invalid API Key). Copy the API key from the dashboard of the service
+  that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.", and
+  the Search page, for Interstellar, "Toloka · Refused the API key." with the same sentence.
+  **Recommendations** said nothing of the refused key: its counts stayed from earlier passes or "Not
+  checked yet", as no sentence for a refused source existed there; the page now lists a release
+  source whose last call failed, "Toloka · Last asked for these lists … ago: Refused the API key. …"
+  (fixed under 0.4.0 after the check, by the tests alone). The right key went back at 13:11 UTC:
+  "Toloka: Connected to Jackett over Torznab; movie search by title, TV search by title, season and
+  episode." The clean MAM's calls reached Transmission from 172.20.0.1, the gateway of Transmission's
+  Docker network, and the browser's from 192.168.1.131, so a `WHITELIST` there would have to name
+  172.20.0.1, not the host's 192.168.1.195.
+- **The pages in a browser (MAM-31, 2026-10-14):** in Vasyl's Chrome on Windows, at desktop width
+  through every check (a maximized window, 3,440 × 1,392), and at 320 px from 13:20 UTC:
+  Integrations, Destinations, Jobs, a job's page, Media folders, Library, Recommendations and Search,
+  then the Download dialog (MobLand's 1080p release, **Replace after verification**, 10 episodes),
+  **Add destination** with Transmission and **Add integration** → Transmission. Nothing scrolled
+  sideways or ran past the screen's edge; only the tab strips scroll inside themselves, by design, and
+  Jobs' "All" tab sat partly off at 320 px. "qBittorrent" showed only as an option of **Add
+  integration**'s Service list and in the empty Integrations page's examples. "Category" stayed in
+  five places where the client is Transmission: the Destinations lead, "Where downloads go. Each
+  destination is a category of your download client, which decides the folder, or a folder the
+  client saves to."; the empty state, "No destinations yet. Click Add destination to pick a category
+  or a folder of your download client."; **Add destination**'s first open while the clients load,
+  "Pick a category of your download client. The client decides the folder; the app checks with it
+  that the category exists and where it lands.", "Category" and "Choose a category"; the line for no
+  folder picked (above); and the sections' legend "Standard categories" (all five fixed under 0.4.0
+  after the check, below). MAM-30's own browser check is recorded nowhere, so this is the first
+  recorded look at Phase D's pages. During the check Vasyl asked for the Add destination dialog to be
+  at least 1,024 px wide; the dialogs with a long list were widened that day, after ab2d1c1, and
+  looked at in headless Chromium at 375, 700, 1,280 and 3,440 px, the web app's lint, build and 2,836
+  tests green, then live on the rebuilt image (below).
+- **The fixes on a rebuilt image (MAM-31, 2026-10-14):** what the check found was fixed the same day
+  under 0.4.0, after ab2d1c1 (the CHANGELOG's 0.4.0, **Changed**), and built into
+  `mam-local:0.4.0-mam31` (image `sha256:f21c717efb7d…`, stamped `0.4.0+ab2d1c1.mam31`, not
+  published), which Vasyl put on `mam-clean` in Stashboard at 16:17:25 UTC, after the deletion, its
+  data kept; it came up healthy. At about 16:20 UTC, in a window 2,004 px wide: the replaced job's
+  page read "Replaced: the old copy was deleted permanently." and "Deleted permanently."; the
+  Destinations lead "Where downloads go. Each destination is a folder your download client saves
+  to."; **Add destination** was 1,024 px wide, **Name** and **Download client** side by side at 470 px
+  each, in folder words from its first open, the sections in three columns under "Standard sections",
+  and **Add** with no folder said "Pick the folder of “Transmission” this destination saves to.";
+  **Edit** on the Transmission integration was 768 px wide, **Service** beside **Name** and **User
+  name** beside **Password**, 349 px each; the Download dialog with copies (MobLand, **Replace after
+  verification**) was 1,024 px wide, its episodes in two columns; a release's **Details** 1,024 px;
+  and **Files in no library** 1,024 px, its files in two columns. Not looked at again: the Download
+  dialog's new line with Transmission stopped and the Recommendations page's line for a refused key,
+  which needed Transmission stopped and a wrong key once more; the buttons **Restore old copy** and
+  **Delete old copy permanently**, as no replacement was left in the quarantine; the empty
+  Destinations page, as the destinations were there; and Transmission's sentence for its temporary
+  folder, which now says **Edit preferences**. These rest on the tests (below).
+- **The core unchanged (MAM-31, 2026-10-14):** between ca480a2, the last commit before Phase D, and
+  ab2d1c1, `src/MediaAcquisitionManager.Core/Downloads/DownloadJobFollowing.cs` and
+  `src/MediaAcquisitionManager.Core/Replacements/` didn't change, and neither did the states of a
+  download job or a replacement. In `src/MediaAcquisitionManager.Api/Services/Replacements/` five
+  files changed, all in ab2d1c1 (97 lines added, 48 removed). `ReplacementJobFollower` maps every
+  download status to the same replacement state as before; only its needs-linking reason now names
+  the job's client. Three readers changed what they read. `ReplacementHoldingReader` also counts a
+  Transmission torrent's unfinished `<name>.part` as held (ADR 0031); qBittorrent has no such name,
+  so for it nothing changed. `ReplacementOptionsReader` finds a folder destination by its folder; a
+  category is found as before. `ReplacementCandidateReader` takes a series' episodes from the claim
+  that matched, the title's or the description's (D15, ADR 0012's MAM-30 section), for every
+  download client and every Torznab source, Prowlarr included: a release's description can now decide
+  which seasons and episodes a replacement offers, and a work the title matched by title only, which
+  a replacement doesn't offer, is offered once the description matches it by title and year or by an
+  id. Vasyl accepted this on 2026-10-14. So the core's states, transitions and gates are unchanged,
+  and what a replacement offers is not: "wording only" holds for the core files and the transitions,
+  not for the whole folder. Beside them, `DownloadJobPoller` looks for a renamed torrent only for a
+  client whose ids may change, which qBittorrent's do, and the new
+  `DownloadOverwriteCheck.NotCheckedFolderNotSeen` never reaches a sent job.
+- **After the check (MAM-31, 2026-10-14):** Vasyl keeps everything as it is for now and cleans up
+  himself: the clean MAM `mam-clean` with its data, on the rebuilt image; Transmission with its
+  torrent of the new file and the `/downloads` mount; Jackett; the router's forward of 51413; the
+  Jellyfin API key "MAM-31 clean"; the destination "Torrent root"; the empty
+  `.mam-quarantine/69fd9196-…/movies` folders; the empty `transmission-406` folder that
+  Transmission's prepare step made again; and both local images. While that torrent is in
+  Transmission, production, which asks only qBittorrent, mustn't remove or replace that film. With
+  the mount kept, a saved destination whose folder Transmission no longer sees, "Not seen by the
+  client", wasn't tried (below). Production, read at about 16:22 UTC, still ran
+  `sha256:c42d0ed41aaf…`, started at 2026-10-13 20:52:47 UTC and so never restarted, healthy, with no
+  line saying "fail", "error" or "exception" in its log since 11:57 UTC, and its quarantine's
+  `996316d0-…` untouched.
 
 Not tried live yet:
 
-- Jackett — MAM-30 rests on the answers MAM-29 recorded, and MAM-31 is the live check —, other
-  gateways and indexers, and a feed that searches by IMDb or TMDb id, lists them or gives magnet
-  links.
-- Transmission — MAM-30 rests on the answers MAM-29 recorded from 4.1.3 and 4.0.6 and on
-  Transmission's source, and MAM-31 is the live check —, and a Transmission on a Windows host.
+- Jackett other than v0.24.2830, its "Strip Cyrillic Letters" unticked, other gateways and
+  indexers, a feed that searches by IMDb or TMDb id, lists them or gives magnet links, and Jackett's
+  answer for an indexer it hasn't got (error 201) or a bare 401 on a download link
+  (`TorznabAdapterJackettTests`, `TorznabAdapterGatewaySamplesTests`).
+- A Ukrainian-only release matched to its copy through its description (MAM-30's D15, ADR 0012's
+  MAM-30 section): MAM-31 read such a description live, but the one Cyrillic-only library work it
+  found has 1973 in Jellyfin and 1971 on Toloka (above). The match, and a replacement taking a
+  series' episodes or a title-only work from the description, rest on the tests
+  (`SearchReleasesDescriptionHttpTests`, `SearchesJackettHttpTests`,
+  `ReplacementOptionsDescriptionHttpTests`).
+- A copy held by a Transmission torrent (Vasyl's decision of 2026-10-13): MAM-31's film was held by
+  no torrent, so the held stop, the move once the torrent is removed and Retry, and an unfinished
+  `<name>.part` beside an old copy rest on the tests (`ReplacementTransmissionFlowHttpTests`:
+  `Flow_sends_one_add_into_the_movies_folder_verifies_the_new_file_and_moves_the_old_copy_once_the_torrent_holding_it_is_removed`,
+  `Options_with_holdings_mark_the_copy_a_transmission_torrent_lists_and_only_read_it` and
+  `Quarantine_leaves_an_unfinished_transmission_download_beside_the_old_copy_where_it_is_and_moves_the_copy`;
+  `ReplacementHoldingReaderPartialFilesTests`, `ReplacementQuarantinePartialFileHttpTests`).
+- Transmission 4.0.x: only MAM-29's 4.0.6 samples, as the live check ran 4.1.3
+  (`TransmissionAdapterTests.TestConnection_on_4_0_6_connects_with_its_short_version`,
+  `TransmissionAdapterSubmitTests.Submit_of_a_torrent_file_is_added_on_4_0_6_too`, and the 4.0.6 rows
+  of `TransmissionAdapterJobsTests`, `TransmissionAdapterFilesTests`,
+  `TransmissionAdapterDestinationsTests`, `DownloadJobTrackingTransmissionHttpTests` and
+  `DownloadsSendOverwriteTransmissionHttpTests`).
+- Transmission's lock-out after wrong passwords: the reference Transmission runs with
+  `anti-brute-force-enabled` false, so no 403 came (`TransmissionAdapterSessionsTests`:
+  `A_403_is_remembered_and_the_next_call_sends_nothing` and
+  `A_remembered_refusal_never_counts_towards_transmissions_lock`;
+  `FakeTransmissionServerTests.Anti_brute_force_locks_the_rpc_once_its_threshold_of_wrong_credentials_came_even_for_the_right_ones`;
+  `DownloadsSendTransmissionHttpTests.Create_after_transmission_refused_the_password_sends_it_no_more_until_a_connection_test_gets_through`).
+- Transmission's other answers MAM-31 didn't meet, which rest on the tests: a Transmission older than
+  4.0; "Use temporary folder" ticked, not staged
+  (`DownloadsSendTransmissionHttpTests.Create_to_a_transmission_keeping_unfinished_downloads_in_its_temporary_folder_fails_saying_how_to_turn_it_off`);
+  the one resend after a 409 in the middle of an add
+  (`DownloadsSendTransmissionHttpTests.Create_whose_session_id_rotated_before_the_add_sends_the_add_once_more_with_the_id_the_409_hands_out`);
+  a release Transmission already has, and one it took between the look and the add; its error 3
+  failing a job; a magnet without metadata
+  (`DownloadsSendOverwriteTransmissionHttpTests.Create_while_a_magnet_in_the_folder_still_fetches_its_metadata_is_sent_unchecked_and_says_so`);
+  a BitTorrent v2-only or broken `.torrent`
+  (`DownloadsSendTransmissionHttpTests.Create_of_a_bittorrent_v2_only_release_fails_before_transmission_is_asked_anything`);
+  a 421, which a Transmission with a password never answers
+  (`FakeTransmissionServerTests.A_host_name_off_the_whitelist_without_a_password_answers_421_worded_by_version`);
+  its RPC whitelist, which on the reference installation would have to name 172.20.0.1 (above); its
+  own download folder outside every path mapping, "Folder unknown"
+  (`DestinationPathCheckTests.Check_of_a_folder_no_mapping_covers_is_path_unknown_with_the_mappers_reason`);
+  and a Transmission on a Windows host.
+- A saved destination whose folder Transmission no longer sees, "Not seen by the client": the mount
+  stayed after the check (above), so it rests on the tests (`DestinationsTransmissionHttpTests`,
+  `DestinationsFolderClientHttpTests`, `DestinationsPage.test.tsx`).
+- With Transmission stopped, only the Download dialog's **Keep both** was looked at, and with a wrong
+  Jackett key, no destination's **Tracker sections**; **Replace after verification**'s line and the
+  sections' error line rest on the tests (`DownloadDialog.replace.test.tsx`,
+  `DestinationsSectionsJackettHttpTests`). So does a send with **Keep both**: checks 6 and 7 shared
+  one download, a replacement's, as Vasyl decided (`DownloadsSendTransmissionHttpTests`).
+- MAM-31's fixes not looked at again on the rebuilt image (above): the Download dialog's line naming
+  the client it couldn't ask, the Recommendations page's line for a release source that failed, the
+  buttons **Restore old copy** and **Delete old copy permanently**, the empty Destinations page's
+  words for Transmission, and **Edit preferences** in Transmission's sentence for its temporary
+  folder (`DownloadsOverwriteCheckHttpTests`, `DownloadsSendOverwriteTransmissionHttpTests`,
+  `RecommendationSourceFailuresHttpTests`, `DownloadDialog.test.tsx`, `RecommendationsPage.test.tsx`,
+  `JobDetailsPage.replacement.test.tsx`, `JobsPage.actions.test.tsx`, `DestinationsPage.test.tsx`,
+  `TransmissionAdapterTests`).
+- Restore with Transmission: MAM-31's old copy was deleted (above), and MAM-28 restored one with
+  qBittorrent on 2026-10-12; the same code restores for both clients (`ReplacementRestoreHttpTests`).
+- The cases of Phase C's acceptance bar with Transmission: MAM-31 replaced one film, held by no
+  torrent, through Transmission. The others weren't repeated; they rest on MAM-28's check with
+  qBittorrent on 2026-10-12 and on the tests, as the ROADMAP's Phase C paragraph lists them. The same
+  core, its states and transitions unchanged (above), runs both clients
+  (`DownloadClientContractTests`, `ReplacementTransmissionFlowHttpTests`).
+- Moving an installation from qBittorrent to Transmission or from Prowlarr to Jackett, and upgrading
+  to 0.4.0 (the Collections folder leaving after a sync, the new `DownloadJobs.DestinationKind`
+  column): MAM-31's installation was new and never had qBittorrent or Prowlarr, so they rest on the
+  tests (`AddDownloadJobDestinationKindMigrationTests`,
+  `DestinationsTransmissionHttpTests.ClientDestinations_never_asks_transmission_about_jellyfins_collections_library`),
+  as does Transmission's wording on an installation that also has qBittorrent
+  (`DestinationsPage.test.tsx`, `DestinationDialog.folders.test.tsx`, `DownloadDialog.test.tsx`,
+  `JobDetailsPage.test.tsx`).
 - qBittorrent before 5.2 — the answers of 4.4.1 to 5.1 are written from qBittorrent's source — and
   a qBittorrent on a Windows host.
 - A Jellyfin older than 12.1 (the app takes 10.9 and later), and one that merges several versions
@@ -1287,7 +1628,9 @@ Not tried live yet:
 - A paused download, a job's files, and a job that needs linking: MAM-28 followed two replacements'
   downloads through `Downloading` to `Downloaded` on production on 2026-10-12, cancelled a third,
   and sent a TV release there, which went to TV Shows picked by hand after the dialog offered
-  Documentary, its tracker section's destination (above).
+  Documentary, its tracker section's destination (above); MAM-31 since: on 2026-10-14 a
+  Transmission job's file was read on its job page at 3.4 %, and the download was followed to
+  `Downloaded` at 13:37 UTC (above).
 - Links in the media folders and a media disk that is away during a scan (MAM-18): the scan of the
   reference installation met no link leading out and its disk was mounted, so a link followed or
   refused, a loop and the names kept for a disk that is away rest on the tests.
@@ -1374,11 +1717,14 @@ Not tried live yet:
   its inode, and came back with Restore the same way; check 6 stopped the season for its seeding
   torrent, and the Media folders page's hint was read for folders the app's user couldn't write to
   and for writable ones (MAM-28, above). Delete for good — no copy was left in the quarantine to
-  delete —, its second confirmation and the room it frees, a held copy moving after its torrent is
-  removed and Retry, a restart in the middle of a move, a restore or a deletion, a copy changed or
-  gone since it was picked, a name taken, another mount, a rename that moved another file, a
-  companion a torrent lists, a season that stops part-way, the switch turned off between two names,
-  and a client whose path mappings changed after a replacement went through it rest on the tests
+  delete —, its second confirmation and the room it frees (MAM-31 since: pressed by Vasyl on
+  2026-10-14 on the clean installation, on the old copy of a film replaced through Transmission,
+  which left the disk with its 1.81 GiB; the button now reads **Delete old copy permanently**), a
+  held copy moving after its torrent is removed and Retry, a restart in the middle of a move, a
+  restore or a deletion, a copy changed or gone since it was picked, a name taken, another mount, a
+  rename that moved another file, a companion a torrent lists, a season that stops part-way, the
+  switch turned off between two names, and a client whose path mappings changed after a replacement
+  went through it rest on the tests
   over HTTP with a stand-in for the write contract (`ReplacementQuarantineHttpTests`,
   `ReplacementQuarantineChecksHttpTests`, `ReplacementQuarantineHoldsHttpTests`,
   `ReplacementQuarantineRecoveryHttpTests`, `ReplacementQuarantineFlowHttpTests`,
@@ -1504,11 +1850,11 @@ Not tried live yet:
 - **Replace a selected copy safely.** Offer `Keep both` by default. If the installation owner
   chooses replacement — of a film, an episode or the episodes of whole seasons —, verify each
   specific new file, its identity, and its visibility to the media server before moving the specific
-  old copy into a quarantine, where it stays until the owner restores it or deletes it for good
+  old copy into a quarantine, where it stays until the owner restores it or deletes it permanently
   (MAM-23, ADR 0030 to ADR 0033). Scheduling it, verifying the new file, the quarantine and the Jobs
   page's view of replacements — the pairs and the evidence, Keep both, Retry after a stop of the
   check, dropping a copy — are built (0.3.0, MAM-24 to MAM-27, above), and MAM-28 tried the flow on
-  the reference installation on 2026-10-12, where Delete for good, a Drop and Retry after a stop of
+  the reference installation on 2026-10-12, where a permanent deletion, a Drop and Retry after a stop of
   the check weren't met (see [Tested with](#tested-with)).
 - **Respect existing libraries and seeding.** Work with nested collection/trilogy folders and
   multifile torrents without requiring a library-wide rename or interrupting active torrents.
@@ -1538,12 +1884,12 @@ Decided for Phase C on 2026-10-08 (MAM-23):
 - **Off until the owner turns it on.** The media folders mounted read-write, the app running as
   their owner (`PUID` and `PGID` since MAM-39, `APP_USER_ID` and `APP_GROUP_ID` before), the
   owner's switch in the app and the owner's tick on
-  each library folder replacement may touch; only the owner schedules, restores and deletes for good
+  each library folder replacement may touch; only the owner schedules, restores and deletes permanently
   ([ADR
   0033](docs/adr/0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
 - **A quarantine, never a deletion.** The old copy and its own subtitles move, by one atomic rename
   per name that never copies, into `.mam-quarantine` at the top of the allowed folder, outside
-  Jellyfin, and stay there until the owner restores them or deletes them for good after a second
+  Jellyfin, and stay there until the owner restores them or deletes them permanently after a second
   confirmation; where the move can't be atomic, nothing is deleted ([ADR
   0030](docs/adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md)).
 - **Torrents are the owner's.** The app never writes to a download client; an old copy a torrent
@@ -1569,7 +1915,7 @@ then, right before the move, the old copy's path and identity checked again and 
 torrents read again, and the old copy and its own companions renamed into the quarantine, one
 atomic rename per file, every step recorded before and after it, so a restart in the middle is found
 again by device and inode and stops for review; and the owner's Retry of a stopped move, Restore and
-Delete for good ([ADR
+permanent deletion ([ADR
 0030](docs/adr/0030-a-replaced-copy-is-renamed-into-a-quarantine-on-the-same-mount-and-stays-there-until-the-owner-restores-it-or-deletes-it-for-good.md));
 then, on the Jobs page and each job's page, every ticked copy with the new file it pairs with, the
 check's evidence and why it stopped, and the owner's Keep both, Retry of a stopped check and Drop of
@@ -1598,12 +1944,16 @@ You need Docker with Compose 2.24 or newer. Put [docker-compose.yml](docker-comp
 docker compose up -d
 ```
 
-Open <http://localhost:8118>. With no configuration at all, the app creates its database and
-generates its secrets on the first start, on the `mam-data` volume, and the first page asks you to
-create the owner account, who then adds the other users. To change the image tag, the port, who
-can reach the app or the user and group it runs as (`PUID`, `PGID`), copy
-[.env.example](.env.example) to `.env` next to the compose file and set only what you need; see
-[Deployment](#deployment).
+Open <http://localhost:8118> on the machine it runs on. With no configuration at all, the app
+creates its database and generates its secrets on the first start, on the `mam-data` volume, and
+the first page asks you to create the owner account, who then adds the other users. On a server with
+no browser of its own — an LXC, say — open it from your computer through an SSH tunnel,
+`ssh -L 8118:127.0.0.1:8118 user@server`, at the same <http://localhost:8118>; or set
+`APP_BIND_ADDRESS=0.0.0.0` (below), open the server's address, such as `http://192.168.1.10:8118`,
+and create the owner account at once: until it exists, whoever opens the app first becomes the
+owner. To change the image tag, the port, who can reach the app or the user and group it runs as
+(`PUID`, `PGID`), copy [.env.example](.env.example) to `.env` next to the compose file and set only
+what you need; see [Deployment](#deployment).
 
 To build the image from a checkout of this repository instead of pulling it:
 
@@ -1621,16 +1971,17 @@ newer —; TMDb is optional and feeds the Recommendations page. Run one download
 Transmission takes qBittorrent's place and Jackett Prowlarr's, never side by side (Vasyl's decisions
 of 2026-10-13,
 [ADR 0039](docs/adr/0039-a-download-client-without-categories-gets-the-library-folders-it-can-reach-and-its-own-default-folder-as-destinations.md)).
-The container settings named below (`USER`, `PASS`, `WHITELIST`, `PUID`, `PGID`) are those of the
-linuxserver.io images.
+The container settings named below (`USER`, `PASS`, `WHITELIST`, `PEERPORT`, `PUID`, `PGID`) are
+those of the linuxserver.io images.
 
 1. **The media folders.** Mount them into the app where Jellyfin sees them, read-only unless you turn
    replacement on, and allow them under the user menu → **Media folders** (see
    [Deployment](#deployment)).
 2. **Jellyfin.** Its address, such as `http://192.168.1.10:8096`, and an API key from Jellyfin's
    **Dashboard** → **API Keys**. If Jellyfin sees the media under another path than the app, give the
-   integration path mappings from Jellyfin's folders to the app's. Then **Sync** on the **Library**
-   page: the sync stores each library's folders, which the destinations are checked against.
+   integration path mappings from Jellyfin's folders to the app's. Then **Refresh all** at the top of
+   the **Library** page (or **Sync now** under **Details**): the sync stores each library's folders,
+   which the destinations are checked against.
 3. **Toloka, through Prowlarr or Jackett** — an integration of the type **Torznab**:
    - *Prowlarr:* the indexer's Torznab address from its details in Prowlarr, such as
      `http://192.168.1.10:9696/1/api`, and Prowlarr's API key (**Settings** → **General**).
@@ -1646,7 +1997,7 @@ linuxserver.io images.
      address, such as `http://192.168.1.10:8080`, its user name and password, and path mappings from its
      folders to the app's, such as `/downloads` → `/media`. Its categories become destinations.
    - *Transmission 4.0 or newer.* First, in Transmission:
-     - **untick "Use temporary folder"** (web interface → **Edit Preferences** → **Torrents**; the
+     - **untick "Use temporary folder"** (web interface → **Edit preferences** → **Torrents**; the
        linuxserver.io image ships it ticked) before anything is sent, and never tick it while downloads
        run: a download that started there moves into its folder only once it is done, which nothing
        Transmission answers shows. While it is ticked the app asks Transmission nothing but its
@@ -1657,9 +2008,24 @@ linuxserver.io images.
      - **mount the folder that holds your libraries** into Transmission — at `/downloads`, say — and
        run it as the media's owner (`PUID` and `PGID`, 1000 and 100 on the reference installation), so
        it can write into the library folders it downloads to;
+     - **set "Download to"** (**Edit preferences** → **Torrents**) to a folder that exists inside that
+       mount, outside your libraries, and belongs to `PUID` and `PGID` — the mount's root,
+       `/downloads`, say, which the app then marks "Outside the media libraries", with replacement off.
+       The image's own default, `/downloads/complete`, isn't there once the libraries' folder is
+       mounted at `/downloads`, so the app lists it as "(can't be used)";
+     - **make its peer port reachable**: publish `PEERPORT` (51413 by default, TCP and UDP) and forward
+       it on your router to Transmission's host, or at least tick **Enable uTP for peer communication**
+       (**Edit preferences** → **Network**; the linuxserver.io image ships it unticked). With neither, a
+       release whose seeders are behind NAT never starts: on the reference installation the first send
+       stayed at 0% until the port was forwarded. The **Network** tab says "IPv4 port is Open" once
+       the forward works;
      - **let the app's address through**: a 403 means it isn't on Transmission's RPC whitelist
        (`WHITELIST`, `rpc-whitelist` in its settings) — or that its anti-brute-force setting locked the
-       RPC after too many wrong passwords, which only a restart ends.
+       RPC after too many wrong passwords, which only a restart ends. The address Transmission sees
+       may not be the app's host: with both in Docker on one host and the app given the host's
+       address, the calls come from the gateway of Transmission's Docker network, which
+       `docker network inspect <Transmission's network>` shows (`172.20.0.1` on the reference
+       installation, not the host's `192.168.1.195`).
 
      Then add it: the address of its web interface, such as `http://192.168.1.10:9091` (the app adds
      `/transmission/rpc`), the user name and password, and path mappings from its folders to the app's,
@@ -1680,7 +2046,11 @@ linuxserver.io images.
    that sync the app keeps the folder an older version stored for it. Then tick, in each destination,
    the release source's tracker sections whose releases go there.
 6. **TMDb,** if you want recommendations: `https://api.themoviedb.org` and TMDb's API Read Access Token
-   (themoviedb.org → **Settings** → **API**) in the API key field.
+   (themoviedb.org → **Settings** → **API**) in the API key field. The release sources' newest
+   releases, behind the "New on Toloka" reason, are read only while TMDb is connected: when the app
+   starts, then every 3 hours. So TMDb or a release source added after the start gives no "New on …"
+   until the next read: restart the app (`docker compose restart app`) once both are added, or wait
+   up to 3 hours.
 
 **Moving from qBittorrent to Transmission, or from Prowlarr to Jackett.** Add Transmission and its
 destinations first, then remove qBittorrent's destinations on the **Destinations** page, which takes
@@ -1692,7 +2062,7 @@ asks every download client whether a torrent holds it, destinations or none, and
 can't answer, so every move stops for review; switched off, it also stops the following of every job
 sent to it. Remove it under **Integrations** only once none of its torrents seeds a file of your
 libraries and no job sent to it is on the **In progress** or **Needs you** tab of the **Jobs** page
-(each user's page lists their own jobs): a followed job whose client is removed stops for good, "The
+(each user's page lists their own jobs): a followed job whose client is removed stops permanently, "The
 download client “qBittorrent” was removed, so this download can't be followed. Cancel the job to stop
 tracking it." Never leave it switched off instead. The jobs sent to it keep their names. For
 Jackett, add it, tick its sections in each destination (a release source's sections are mapped per
@@ -1749,8 +2119,8 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
 ## Security
 
 - **Create the owner before anyone else can reach the app.** Until the owner exists, every page
-  leads to the setup page, and whoever submits it first becomes the owner; after that setup answers
-  409 for good. Every API endpoint but health, setup, sign-in, refresh and sign-out needs a
+  leads to the setup page, and whoever submits it first becomes the owner; after that setup always
+  answers 409. Every API endpoint but health, setup, sign-in, refresh and sign-out needs a
   signed-in user, and every page of the web app but setup and sign-in leads to sign-in without one.
   The Docker Compose file publishes the port on `127.0.0.1` unless `APP_BIND_ADDRESS` says
   otherwise. Personal access tokens for scripts arrive with MAM-5.
@@ -1882,7 +2252,7 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   is owner-only because of where it lives (`ReplacementsAreOwnerOnlyConvention`, the
   `Controllers/Library/Links` way), GETs too: the Download dialog's read shows the folders the owner
   ticked, his files' paths and his download clients' torrents, and a replacement's details its old
-  copies' and new files' paths. Retry, Restore and Delete for good (MAM-26), and Keep both and Drop
+  copies' and new files' paths. Retry, Restore and Delete permanently (MAM-26), and Keep both and Drop
   (MAM-27), live there too, and a replacement is its owner's own, another's a bare 404.
   `ReplacementsAreOwnerOnlyHttpTests` discovers every endpoint there and sends each as a non-owner
   (403, nothing written, renamed or deleted, nothing asked of qBittorrent) — on made-up ids and on a
@@ -1974,7 +2344,7 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   its target the dropped copy, named by its file name), Restore (`ReplacementRestoreStarted`, each
   file's `ReplacementNameRestoring`
   and `ReplacementNameRestored` or `ReplacementNameNotRestored`, then `ReplacementRestored`) and
-  Delete for good (`ReplacementDeleteStarted`, each file's `ReplacementNameDeleting` and
+  Delete permanently (`ReplacementDeleteStarted`, each file's `ReplacementNameDeleting` and
   `ReplacementNameDeleted` or `ReplacementNameNotDeleted`, then `ReplacementCompleted`), each file's
   row naming the file by its own name, and every move, restore or deletion a restart cut, settled
   with each file's outcome and `ReplacementNeedsReview`, write an audit row in the same transaction
@@ -2311,7 +2681,7 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/settings/integrations` with `{ adapterType, name, baseUrl, userName, password, apiKey, isEnabled, pathMappings }`, a secret as `{ mode: "Set", value }` | Owner only. 201 with the integration and its `Location`; `isEnabled` left out means on. 400 with the broken rule's sentence; 409 when the name exists in any letter case. Never answers a secret, only `hasPassword` and `hasApiKey`. A TMDb integration added switched on queues a computation of the recommendations, or joins the one waiting (ADR 0023), and a preparation of the TMDb suggestions (MAM-34); a full queue or a failure there leaves the answer as it is. |
 | `PUT /api/settings/integrations/{id}` with the same fields but `adapterType`; a secret `{ mode: "Set", value }`, `{ mode: "Clear" }` or left out to keep; `isEnabled` and `pathMappings` left out to keep | Owner only. 204; `pathMappings: []` removes them all. 400 with the rule's sentence; 404; 409 when the name is taken or this version can't connect to the integration's type. Switching a TMDb integration back on queues a computation of the recommendations, or joins the one waiting, and a preparation of the TMDb suggestions (MAM-34); a full queue or a failure there leaves the answer as it is. |
 | `GET /api/settings/allowed-roots` | Owner only. 200 `{ paths, replacementEnabled, libraryFolders, unmappedLibraryFolderCount, quarantines }`: `paths` the media folders the app may read files in, as the owner entered them, in canonical form, `[]` until the owner adds one; `replacementEnabled` the replacement switch (MAM-24, ADR 0033), `false` until the owner switches it on; `libraryFolders` every library folder the Jellyfin integrations' path mappings bring into the app and every stored tick that is no longer one, in one list by path (ordinal), each `{ appPath, libraryNames, ticked, status, renameProblems, writeAccess }` — `status` `Available` (inside the Media folders: a tick counts), `OutsideMediaFolders` (a tick has no effect until it is inside them) or `NoLongerALibraryFolder` (a stored tick listed, ticked, only so the owner can untick it; `libraryNames` `[]`); `renameProblems` (MAM-26, ADR 0033) for an `Available` folder what keeps a rename into its allowed folder's quarantine from working there, `[]` when nothing does, else `OtherMount`, `ReadOnly`, `NotWritable` or `CouldNotCheck` by name, from one look at the folders and never their files, and `null` for the others; `writeAccess` (MAM-39) `{ path, ownerUserId, ownerGroupId, appUserId, appGroupId }` when `renameProblems` holds `NotWritable`, on Linux, and the owner could be read — `path` the folder the app's user may not write to, in canonical form: the library folder itself when its own permissions refuse, else its allowed folder's `.mam-quarantine`, or the allowed folder while it has none; the owner's ids read by `statx` from that very folder; the app's effective ids —, `null` for every other folder —; `unmappedLibraryFolderCount` how many stored library folders the mappings give no path in the app; `quarantines` (MAM-26, ADR 0030) every `.mam-quarantine` holding a replacement's files now, or (MAM-40) a copy the owner removed on the Duplicates page, by path, each `{ path, replacementCount, removalCount, fileCount, sizeBytes }` from the replacements' and the removals' rows, never a walk of the disk, `[]` while none does. |
-| `PUT /api/settings/allowed-roots` with `{ paths, replacementEnabled, replacementFolders }` | Owner only. 204; replaces, in one transaction, the whole list, `[]` or `null` allowing nothing, the replacement switch, missing being off, and the library folders ticked for it, as `GET` lists them, missing being none (MAM-24, ADR 0033), with an audit row per part that changed — `AllowedRootsChanged`, `ReplacementSwitchedOn` or `ReplacementSwitchedOff`, `ReplacementFoldersChanged` —, and none for a save that changes nothing. 400 with the broken rule's sentence, saving nothing: more than 20 folders, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another; a tick blank, not a full path, longer than 1024 characters, ticked twice or past 50, or a path that is neither a library folder the mappings bring into the app nor a tick already stored ("“/srv/films” isn't a library folder the app knows, so it can't be ticked for replacement."); and, when the folders change, one that would leave a quarantine still holding a replacement's files under none of them (MAM-26): "“/media/.mam-quarantine” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them for good first." (a removal's names counting since MAM-40), checked inside the transaction — a folder above the old one keeps it in reach, the quarantine itself put in its folder's place doesn't. Starts no inspection. |
+| `PUT /api/settings/allowed-roots` with `{ paths, replacementEnabled, replacementFolders }` | Owner only. 204; replaces, in one transaction, the whole list, `[]` or `null` allowing nothing, the replacement switch, missing being off, and the library folders ticked for it, as `GET` lists them, missing being none (MAM-24, ADR 0033), with an audit row per part that changed — `AllowedRootsChanged`, `ReplacementSwitchedOn` or `ReplacementSwitchedOff`, `ReplacementFoldersChanged` —, and none for a save that changes nothing. 400 with the broken rule's sentence, saving nothing: more than 20 folders, not a full path, a `.` or `..` folder, the whole file system, a path of the other operating system's style, a folder twice or one inside another; a tick blank, not a full path, longer than 1024 characters, ticked twice or past 50, or a path that is neither a library folder the mappings bring into the app nor a tick already stored ("“/srv/films” isn't a library folder the app knows, so it can't be ticked for replacement."); and, when the folders change, one that would leave a quarantine still holding a replacement's files under none of them (MAM-26): "“/media/.mam-quarantine” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them permanently first." (a removal's names counting since MAM-40), checked inside the transaction — a folder above the old one keeps it in reach, the quarantine itself put in its folder's place doesn't. Starts no inspection. |
 | `DELETE /api/settings/integrations/{id}` | Owner only. 204, with its path and destination mappings and, for a release source, the tracker sections mapped to destinations; a media library's imported library goes with it (its titles, identifiers, episode positions, versions, files and libraries, and the works left empty), and so do the owner's TMDb links of its items, nothing being put back in the library, and a release source's newest releases read for the recommendations go with it, while its sync runs, the download jobs sent to it and what any other kind of integration reported — a metadata catalog's cached works included — keep its name. 404. |
 | `POST /api/settings/integrations/{id}/test` | Owner only. Tests the saved integration, switched off or not, and saves nothing: 200 `{ status, message }` for every outcome of the test (`Succeeded`, `Unreachable`, `TimedOut`, `AuthenticationFailed`, `Refused`, `ServiceError`, `UnexpectedResponse`, and `UnsupportedVersion` for a Jellyfin older than 10.9, a qBittorrent older than 4.4.1 or a Transmission older than 4.0); 404; 409 when this version can't connect to its type or a stored secret can't be read. |
 | `POST /api/settings/integrations/test` with `{ integrationId, adapterType, baseUrl, userName, password, apiKey }` | Owner only. Tests an unsaved integration and saves nothing: 200 as above; 400 with the broken rule's sentence; 404 with a sentence when `integrationId` names an integration that is gone; 409 as above. With `integrationId`, the stored type is used and a secret left out is the stored one. |
@@ -2362,25 +2732,25 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `GET /api/searches/{id}` | Every signed-in user, for their own searches. 200 as for `POST`: the sources as stored, never asked again, and the library matched again as it is now. A bare 404 for a search that doesn't exist, is someone else's (asked for by the owner too) or is more than a day old, whether or not it has been removed yet. |
 | `GET /api/searches/{id}/releases?source=&kind=&language=&quality=&minSizeBytes=&maxSizeBytes=&sort=seeders&page=1&pageSize=25` | Every signed-in user, for their own searches. The releases the search stored, filtered, sorted and paged on the server without asking a source: 200 `{ items, totalCount, page, pageSize }`, each release `{ id, sourceId, sourceName, title, description, kind, sizeBytes, seeders, peers, publishedUtc, sourcePageUrl, payloadKind, claimed, claimedWork: { titles, year, lastYear, episodes }, identifiers: [{ scheme, value }], libraryMatches: [{ workId, evidence, conflictingSchemes, heldEpisodeCount }], descriptionWork }`: `description` and `kind` as for the release search, `description` `null` on a release stored before 0.2.1; `claimed` as for the release search, `claimedWork` the titles and the year its title is read as (no title when nothing says where it ends: no year, and for TV no season marker either), a TV title's span ending in `lastYear` and its seasons in `episodes` `{ firstSeason, lastSeason, firstEpisode, lastEpisode }`, `identifiers` the ids its listing gives, `libraryMatches` every work of the search's `library` it matches, those listed by words included, strongest first, by `Identifier`, `TitleAndYear` or `TitleOnly` and never by `Words` — a series for a TV release, a movie for a movie release (ADR 0020) —, with `heldEpisodeCount` on a TV match: how many of the series' episodes are in the seasons or episodes claimed, `null` when none are claimed; `descriptionWork` (MAM-30) what its description claims, read as `claimedWork` is, `null` without a description — a work it matches by an id or a title and year counts among `libraryMatches`, the stronger claim winning and the title's on a tie, and `heldEpisodeCount` counts the claim that matched (ADR 0012) —; never its download link. `source` is one of the search's `sources[].id` (another search's lists nothing); `kind` `Movie` or `Tv` in any letter case; `language` a three-letter code in any letter case, or `unknown` for no audio language claimed; `quality` a resolution such as `1080`, or `unknown`; `minSizeBytes` and `maxSizeBytes` bounds in bytes, both inclusive, which leave out a release of unknown size; `sort` `seeders` (the default), `largest`, `smallest`, `newest` or `quality` (resolution, then seeders), in any letter case, a value the listing doesn't give always last and ties in the search's own order. A bare 404 as for `GET`, checked before any rule; 400 with the broken rule's sentence: "Page must be 1 or more.", "Page size must be between 1 and 100.", "“abc” is not a release source.", "“Show” is not a kind filter. Use Movie or Tv.", "“uk” is not a language code. Use a three-letter code such as ukr, or unknown.", "“HD” is not a resolution. Use one such as 1080, or unknown.", "“4GB” is not a size in bytes.", "The smallest size can't be larger than the largest.", "“best” is not a sort order. Use seeders, largest, smallest, newest or quality." |
 | `GET /api/downloads/options?releaseId=` | Every signed-in user, for a release of their own searches. The Download dialog's choices, read from the database without asking any client: 200 `{ clients, suggestedDestinationId }`, by name, each `{ id, name, typeName, destinations: [{ id, name, clientDestinationKey, isDefault }], destinationKind }` with its destinations by name — every switched-on download client of a type this version can send to that can take the release's payload (one whose kind the listing didn't state needs a client that takes a .torrent file or a magnet link) and has a destination; `typeName` is what it is ("qBittorrent"), `destinationKind` `Category` or `Folder` (MAM-30), and a folder destination's `clientDestinationKey` `null`, whoever asks. `suggestedDestinationId` is the destination the dialog picks first (ADR 0020): among those offered, the one the release's stored categories are mapped to, its source's own section before a standard category; `null` when two different destinations tie at that rank; else the default when it is offered, else `null`. No address, folder or path mapping. 400 `{ "error": "Pick the release to send." }` without a well-formed `releaseId`; 404 `{ "error": "This release isn't available any more: a search keeps what it found for a day. Search again." }` for a release that isn't one of the caller's searches' from the last day. |
-| `GET /api/downloads/overwrite-check?destinationId=` | Every signed-in user (MAM-38, ADR 0034). Whether a release sent to the destination will be checked for files it would write over, for the Download dialog's warning before Send: 200 `{ notCheckedReason }` — `null` when the destination's folder can be looked into, `NotCheckedFolderUnknown` when it has no path in the app or its client is switched off or can't say where the category saves, `NotCheckedFolderOutsideMediaFolders` when it isn't under the Media folders, and `NotCheckedFolderNotSeen` (MAM-30) when its folder client can't see the destination's folder, where nothing is sent at all, Keep both or a replacement alike, and the dialog holds Send; a reason, never a path. The client is asked for its categories as the destinations' listing asks it; nothing is written, and the send checks again whatever the dialog showed. 400 `{ "error": "Pick the destination to send it to." }` without a well-formed `destinationId`; 404 `{ "error": "The destination you picked no longer exists. Reload the page and pick one again." }` for a destination that doesn't exist. |
+| `GET /api/downloads/overwrite-check?destinationId=` | Every signed-in user (MAM-38, ADR 0034). Whether a release sent to the destination will be checked for files it would write over, for the Download dialog's warning before Send: 200 `{ notCheckedReason, folderUnknownCause, clientName, clientError }` — `notCheckedReason` `null` when the destination's folder can be looked into, `NotCheckedFolderUnknown` when it has no path in the app or its client is switched off or can't say where the category saves, `NotCheckedFolderOutsideMediaFolders` when it isn't under the Media folders, and `NotCheckedFolderNotSeen` (MAM-30) when its folder client can't see the destination's folder, where nothing is sent at all, Keep both or a replacement alike, and the dialog holds Send; a reason, never a path. MAM-31 — for `NotCheckedFolderUnknown`, `folderUnknownCause` says why, so the warning names the client and the fix: `ClientNotAsked` (switched off, unreachable, refusing the app, a type this build can't use, or a secret it can't read), `CategoryMissing` (the client no longer has the category) or `NoPathMapping` (none of the client's path mappings covers the folder it names); `null` for every other reason and when no cause has a fix to name. `clientName` is the destination's client whenever a cause is given; `clientError` the client's own sentence for `ClientNotAsked`, every secret masked, for the installation owner alone (it can name the client's address), `null` for anyone else. The client is asked for its categories as the destinations' listing asks it; nothing is written, and the send checks again whatever the dialog showed. 400 `{ "error": "Pick the destination to send it to." }` without a well-formed `destinationId`; 404 `{ "error": "The destination you picked no longer exists. Reload the page and pick one again." }` for a destination that doesn't exist. |
 | `POST /api/downloads` with `{ requestId, releaseId, downloadClientId, destinationId }` | Every signed-in user, for a release of their own searches. Sends it at most once per request id (ADR 0013): the request id is looked up first, and the caller's same id for the same release, client and destination answers 200 with the job it made, nothing fetched, sent or audited again; otherwise the job is written with an audit row before anything is fetched or sent, and the answer is 201 with the job and its `Location` whatever came of the sending — `Submitted`, `NeedsLinking`, or `Failed` with its sentence, among them, since MAM-38 (ADR 0034), a release whose files would land on a different file already in the destination's folder, refused before anything reaches the client with "“qBittorrent” would write over “Film.2001.mkv” in the folder of the category “Movies”: a file of another size is already there, so nothing was sent." (how many more of the release's files land on a file already there follows, each file once), and one whose check broke on a bug, with "The app couldn't check whether this release would write over a file in the folder of the category “Movies”, so nothing was sent. The app's log says why."; for a folder client (MAM-30) those sentences name the destination ("… in the folder of the destination “Movies” …"), and the job also fails before anything reaches the client for a folder it no longer sees ("“Transmission” can't use the folder of the destination “Movies” any more, so nothing was sent. The owner checks the destination under Destinations in the user menu.") or a release that is BitTorrent v2 only ("“Transmission” can't take a torrent that is BitTorrent v2 only, which this release is, so nothing was sent."), and with where it is for a torrent Transmission took between the look for it and the add ("Transmission already has this torrent, in “/downloads/movies” with the label “Movies”, so it added nothing."). 400 with the broken rule's sentence: "The download has no request id, which keeps a retry from sending it twice. Reload the page and try again.", "Pick the release to send.", "Pick the download client to send it to.", "Pick the destination to send it to.", "“Movies” is a destination of another download client. Pick one of “qBittorrent”’s.", "“qBittorrent” can't take NZB files, which this release is."; 404 with "This release isn't available any more: a search keeps what it found for a day. Search again.", "The download client you picked no longer exists. Reload the page and pick one again." (also for an integration that isn't a download client) or "The destination you picked no longer exists. Reload the page and pick one again."; 409 with "This request id was already used to send a different download. Reload the page and try again." (also for a request id a replacement's schedule used, MAM-24), "“qBittorrent” is switched off. The owner can switch it on under Integrations.", "This version of the app can't send downloads to “…”.", "The source that listed this release has been removed, so the release can't be fetched. Search again.", "“Toloka” is switched off, so its releases can't be fetched. The owner can switch it on under Integrations.", "This version of the app can't fetch releases from “…”." or, when a job that didn't fail already sent the release to that client, "This release was already sent to “qBittorrent”, so it isn't sent twice.". A refused request writes and sends nothing. |
 | `GET /api/downloads?view=&status=&page=1&pageSize=25` | Every signed-in user, for their own jobs, the installation owner's included. 200 `{ items, totalCount, page, pageSize, needsYouCount, inProgressCount }`, each item a job as `GET /api/downloads/{id}` answers it, newest first (by when it was sent, then by id); no client is asked. `view` (MAM-41, ADR 0014) is a tab of the Jobs page by name in any letter case — `NeedsYou` (the job needs linking, or its replacement is `NeedsReview` or `Quarantined`, or `Verified` while replacement is switched off), `InProgress` (else, a download still followed — `Created`, `Submitted`, `Downloading` or `Paused` — or a replacement `Downloaded`, `Inspecting`, `Quarantining`, `Restoring`, `Deleting`, or `Verified` while replacement is switched on) or `Finished` (every other job) —, a job in the first that fits it; blank lists every job. `status` is a job status by name in any letter case; blank lists every status. Both apply when both are given. `needsYouCount` and `inProgressCount` (MAM-41) count the caller's own jobs in those two views, whatever view, status and page were asked. 400 for a page below 1, a page size outside 1–100, "“x” is not a download status. Use Created, Submitted, Downloading, Paused, Downloaded, Failed, NeedsLinking or Cancelled." or "“x” is not a view of the jobs. Use NeedsYou, InProgress or Finished." |
-| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, progress, clientJobId, error, blockReason, overwriteCheck, createdUtc, statusChangedUtc, replacement, destinationKind }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Failed`, `NeedsLinking` or `Cancelled`; `progress` from 0 to 1 as the client last reported it, `null` until it has; `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; `blockReason` why a followed job isn't moving on (the client reports an error, no longer lists it, or can't be asked), `null` when nothing blocks it, a client's own sentence for the owner only; `overwriteCheck` (MAM-38, ADR 0034) how it was checked, before it was sent, for files it would write over — `Checked`, or the reason it was sent without the check: `NotCheckedMagnet`, `NotCheckedFileList` (a list the app can't read, or one libtorrent refuses: a piece longer than 536,854,528 bytes, a lone file with no usable name; for a folder client (MAM-30), one whose places can't be predicted, such as a torrent of several files whose paths aren't UTF-8 or hold a NUL), `NotCheckedFolderUnknown`, `NotCheckedFolderOutsideMediaFolders` (the folder, or a link on the way to one of the release's places, leads outside the Media folders), `NotCheckedClientJobs` (the client couldn't list its torrents in the category or their files, one of them is still fetching its metadata, or more than 20 may write there) or `NotCheckedFileName` (a file's name holds a character the app's paths refuse, such as DEL or a C1 control, which libtorrent keeps), by name —, `null` for a job sent before the check existed or one it refused, while a job whose submission failed after the check keeps its value; `replacement` (MAM-24) `null` for a job sent with Keep both, else the replacement of old copies the owner scheduled with it, `{ state, copyCount, reason, switchedOff, copiesOutsideTickedFolders, id, quarantinedCopyCount, stayedFileCount, canRetry, droppedCopyCount, dropOnlyCopyCount, canCancel, stop, checkStage, checkWaitsUntilUtc, canRestore, canDeleteForGood }` — `state` `Scheduled`, `Submitted`, `Downloading`, `Paused`, `Downloaded` (until the check of its new files takes it up), `Inspecting` (its new files being checked, MAM-25), `Verified` (every ticked copy paired with a checked new file; its old copies move into the quarantine next, while replacement is switched on), `Quarantining` (being moved, MAM-26), `Quarantined` (every ticked copy's video in the quarantine, kept until the owner decides), `Restoring` and `Deleting` (the owner's Restore or Delete for good under way), `Restored` (everything put back: both copies in the library), `Completed` (the old copies deleted for good), `NeedsReview`, `Failed` or `Cancelled` (by **Cancel job**, or the owner's Keep both, MAM-27), by name; `copyCount` how many old copies it holds, those the owner dropped left out (MAM-27); `reason` why it stopped, the app's sentence — the check's included, such as "“Living room” identified “/media/movies/Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979)." —, `null` while it goes on; `switchedOff` whether replacement is switched off now; `copiesOutsideTickedFolders` how many of its copies not dropped and not yet moved lie in no ticked folder now; `id` (MAM-26) the replacement's own, for `/api/replacements/{id}`; `quarantinedCopyCount` how many ticked copies have their video in the quarantine; `stayedFileCount` how many companions stayed in their folder in a replacement that moved something; `canRetry` whether the owner may retry it — a replacement the move stopped, or the check of its new files while no copy in it only a drop settles (MAM-27) —; `droppedCopyCount` (MAM-27) how many copies the owner dropped from it; `dropOnlyCopyCount` how many copies still in it only a drop settles; `canCancel` whether the owner may keep both — cancel the replacement alone, before any old copy moves —; `stop` what stopped a `NeedsReview` — `Download` (a download the app can't follow), `Check` (the check of its new files) or `Move` (the move, or the check right before it), by name —, `null` in any other state; `checkStage` where an `Inspecting` check is — `Files`, or `Library` once Jellyfin took the request to look —, and `checkWaitsUntilUtc` until when it waits, both `null` in any other state; `canRestore` and `canDeleteForGood` (MAM-41, ADR 0030) whether the owner's **Restore** and **Delete for good** are offered, as `GET /api/replacements/{id}` answers them, true while replacement is switched off too, when the actions refuse; the client's and the destination's names and the category — or the folder, for a folder client, given to the owner alone, `clientDestinationKey` `null` for anyone else (MAM-30) — as they were when it was sent; `destinationKind` the client's kind of destination then, `null` for a job sent before 0.4.0. A bare 404 for another user's job or one that doesn't exist. |
+| `GET /api/downloads/{id}` | Every signed-in user, for their own jobs. 200 `{ id, releaseId, releaseTitle, sourceName, downloadClientName, destinationName, clientDestinationKey, status, progress, clientJobId, error, blockReason, overwriteCheck, createdUtc, statusChangedUtc, replacement, destinationKind }`, as `POST` answers it: `status` is `Created` (being sent, or how that went isn't known), `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Failed`, `NeedsLinking` or `Cancelled`; `progress` from 0 to 1 as the client last reported it, `null` until it has; `clientJobId` the client's id of the download, `null` until the client lists it; `error` why it failed, every secret masked; `blockReason` why a followed job isn't moving on (the client reports an error, no longer lists it, or can't be asked), `null` when nothing blocks it, a client's own sentence for the owner only; `overwriteCheck` (MAM-38, ADR 0034) how it was checked, before it was sent, for files it would write over — `Checked`, or the reason it was sent without the check: `NotCheckedMagnet`, `NotCheckedFileList` (a list the app can't read, or one libtorrent refuses: a piece longer than 536,854,528 bytes, a lone file with no usable name; for a folder client (MAM-30), one whose places can't be predicted, such as a torrent of several files whose paths aren't UTF-8 or hold a NUL), `NotCheckedFolderUnknown`, `NotCheckedFolderOutsideMediaFolders` (the folder, or a link on the way to one of the release's places, leads outside the Media folders), `NotCheckedClientJobs` (the client couldn't list its torrents in the category or their files, one of them is still fetching its metadata, or more than 20 may write there) or `NotCheckedFileName` (a file's name holds a character the app's paths refuse, such as DEL or a C1 control, which libtorrent keeps), by name —, `null` for a job sent before the check existed or one it refused, while a job whose submission failed after the check keeps its value; `replacement` (MAM-24) `null` for a job sent with Keep both, else the replacement of old copies the owner scheduled with it, `{ state, copyCount, reason, switchedOff, copiesOutsideTickedFolders, id, quarantinedCopyCount, stayedFileCount, canRetry, droppedCopyCount, dropOnlyCopyCount, canCancel, stop, checkStage, checkWaitsUntilUtc, canRestore, canDeleteForGood }` — `state` `Scheduled`, `Submitted`, `Downloading`, `Paused`, `Downloaded` (until the check of its new files takes it up), `Inspecting` (its new files being checked, MAM-25), `Verified` (every ticked copy paired with a checked new file; its old copies move into the quarantine next, while replacement is switched on), `Quarantining` (being moved, MAM-26), `Quarantined` (every ticked copy's video in the quarantine, kept until the owner decides), `Restoring` and `Deleting` (the owner's Restore or permanent deletion under way), `Restored` (everything put back: both copies in the library), `Completed` (the old copies deleted permanently), `NeedsReview`, `Failed` or `Cancelled` (by **Cancel job**, or the owner's Keep both, MAM-27), by name; `copyCount` how many old copies it holds, those the owner dropped left out (MAM-27); `reason` why it stopped, the app's sentence — the check's included, such as "“Living room” identified “/media/movies/Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979)." —, `null` while it goes on; `switchedOff` whether replacement is switched off now; `copiesOutsideTickedFolders` how many of its copies not dropped and not yet moved lie in no ticked folder now; `id` (MAM-26) the replacement's own, for `/api/replacements/{id}`; `quarantinedCopyCount` how many ticked copies have their video in the quarantine; `stayedFileCount` how many companions stayed in their folder in a replacement that moved something; `canRetry` whether the owner may retry it — a replacement the move stopped, or the check of its new files while no copy in it only a drop settles (MAM-27) —; `droppedCopyCount` (MAM-27) how many copies the owner dropped from it; `dropOnlyCopyCount` how many copies still in it only a drop settles; `canCancel` whether the owner may keep both — cancel the replacement alone, before any old copy moves —; `stop` what stopped a `NeedsReview` — `Download` (a download the app can't follow), `Check` (the check of its new files) or `Move` (the move, or the check right before it), by name —, `null` in any other state; `checkStage` where an `Inspecting` check is — `Files`, or `Library` once Jellyfin took the request to look —, and `checkWaitsUntilUtc` until when it waits, both `null` in any other state; `canRestore` and `canDeleteForGood` (MAM-41, ADR 0030) whether the owner's **Restore old copies** and **Delete old copies permanently** ("old copy" for one) are offered, as `GET /api/replacements/{id}` answers them, true while replacement is switched off too, when the actions refuse; the client's and the destination's names and the category — or the folder, for a folder client, given to the owner alone, `clientDestinationKey` `null` for anyone else (MAM-30) — as they were when it was sent; `destinationKind` the client's kind of destination then, `null` for a job sent before 0.4.0. A bare 404 for another user's job or one that doesn't exist. |
 | `GET /api/downloads/{id}/files?page=1&pageSize=25` | Every signed-in user, for their own jobs. 200 `{ items, totalCount, page, pageSize }`: the job's files as its client last listed them, in the client's order, each `{ position, path, sizeBytes, progress, isWanted }` — `path` relative to the job's folder exactly as the client names it, `isWanted` `false` for a file the client skips — and no items until the client has listed them. A bare 404 for another user's job or one that doesn't exist, checked before the paging; 400 for a page below 1 or a page size outside 1–100. |
 | `POST /api/downloads/{id}/cancel` | Every signed-in user, for their own jobs. Stops following the job and sends the client nothing, so the torrent and its files stay there (ADR 0014): 200 with the job, now `Cancelled` with no `blockReason`, and an audit row; a replacement the job carries (MAM-24) that is still followed — `Scheduled`, `Submitted`, `Downloading`, `Paused` or `NeedsReview` — ends `Cancelled` with it, in the same transaction, with a `ReplacementCancelled` row of its own; the owner cancels a replacement alone, its download left as it is, with `POST /api/replacements/{id}/cancel` (MAM-27). Only a job still followed or one that needs linking: 409 "This download is already finished, so there's nothing to stop following.", "This download has already failed, so there's nothing to stop following." or "This download is already cancelled, so there's nothing to stop following.", changing nothing; a `Created` job younger than 5 minutes, whose send may still be under way, is 409 "This download is still being sent, so it can't be cancelled yet. Try again in a few minutes.", changing nothing. A bare 404 for another user's job or one that doesn't exist. |
 | `GET /api/replacements/options?releaseId=&destinationId=&holdings=` | Owner only, as every replacement endpoint, GETs included (MAM-24, ADR 0033). What of a release of the caller's own searches the owner may replace through a destination, for the Download dialog; writes nothing. 200 `{ unavailable, destinationProblem, releaseEditions, works, clients }`: `unavailable` the first reason nothing of the release can be replaced — `SwitchedOff` (no client, work or disk read), `Magnet`, `DestinationNotUsable` (its client asked for its categories as the destinations' listing asks it: none listed, the category gone, its folder not confirmed inside a library, or outside the Media folders or with no path in the app, so ADR 0034's check can't look into it; `destinationProblem` the app's sentence why) or `NoMatchedWork` —, `null` when `works` say what can, and while it is set `works` and `clients` are `[]`; `releaseEditions` the edition words of the release's title, by MAM-37's names; `works` the matched works, strongest evidence first, each `{ workId, kind, title, year, evidence, conflictingSchemes, needsConfirmation, confirmationText, libraryNames, unavailable, copies, episodes }` — `unavailable` `TitleOnly`, `ConflictingIds`, `NoClaimedEpisodes` or `NoClaimedSeason`; `needsConfirmation` for a title-and-year match without a conflict, whose copies are scheduled only with the owner's tick of `confirmationText` ("This release is Alien (1979)", "This release is The Penguins of Madagascar (2008), season 2"; two works that would read the same told apart by their libraries, else their first copy's file name, else "(1 of 2)"); a film's `copies` and a series' `episodes` `[{ workId, seasonNumber, episodeNumber, title, copies }]` —, each copy `{ file, versionId, editionLabel, editions, dynamicRanges, otherNames, unavailable, holds }`: `file` as the works list gives a file to the owner, its `id` what a schedule sends, one id per path however many works list it; `unavailable` the first of `NoAppPath`, `FolderNotTicked`, `OutsideTheClaim`, `AlreadyScheduled`, `HeldByRemoval` (MAM-40: an open removal on the Duplicates page holds it), `NotInspected`, `SharedWithUnavailableWork`, then from the disk, read fresh, `Missing`, `Unreadable` and `ChangedSinceInspection`; `otherNames` a tickable copy with more than one name, which moving frees no room; `holds` `[{ clientName, torrentId, torrentName, secondName }]`, the torrents that list it (ADR 0031), never a reason it can't be ticked. `clients` `[{ clientName, status, error, unplacedTorrents }]`, by name, `status` `Read`, `Partial` or `NotRead` with `error` the app's or the client's masked sentence: every download client's torrents with their files, read only with `holdings=true` (in any letter case) and while a copy can be ticked, qBittorrent 5.2 or later. 400 `{ "error": "Pick the release to send." }`, "Pick the destination to send it to." or "Say true or false for whether the download clients' torrents are read."; 404 "This release isn't available any more: a search keeps what it found for a day. Search again." or "The destination you picked no longer exists. Reload the page and pick one again.". |
 | `POST /api/replacements` with `{ requestId, releaseId, downloadClientId, destinationId, fileIds, confirmedWorkIds }` | Owner only (MAM-24, ADR 0032). Sends the release as `POST /api/downloads` does, at most once per request id (ADR 0013), and schedules the replacement of the copies `fileIds` names — ids the options listed, 1 to 500, each once —, `confirmedWorkIds` the title-and-year works whose confirmation the owner ticked. The send's rules and checks come first, then the plan, read from the database and the disk alone; then the job, the replacement with each ticked copy's identity read from the disk, its matched works with their ids and confirmations, and the `DownloadRequested`, `ReplacementScheduled` and `ReplacementWorkConfirmed` audit rows are written in one save before anything is fetched; then the release is sent strictly (ADR 0034): any file already at a place it would write, the same bytes included, any place the check couldn't look at, a link that turns out a magnet and a category outside every library each end the job `Failed` with the app's sentence, nothing handed to the client. 201 with the job, `replacement` on it, and its `Location` under `/api/downloads/`, whatever came of the sending; 200 with the job made before by the same request id with the same copies and confirmations, compared as sets, nothing sent again. 400 with the send's sentences, or "Tick at least one copy to replace.", "One copy is ticked twice. Tick each copy once.", "One download can replace at most 500 copies. Tick fewer, or send the rest with another release.", "One of the ticked copies isn't a copy of a work this release matched. The list was read again: check the ticks and send again.", "One of the ticked confirmations isn't one this release needs. …", "Tick “This release is Alien (1979)” to replace a copy of it. …" or "Tick a copy of Alien (1979) or untick “This release is Alien (1979)”. …"; 404 as `POST /api/downloads`; 409 with the send's sentences — "This request id was already used to send a different download. Reload the page and try again." also for a request id a Keep both send used, or this route with other ticks — or why a ticked copy can't be replaced now, naming its file: replacement switched off, a magnet, no matched work any more, a title alone, conflicting ids, and each copy's reason, such as "“Alien (1979).mkv” changed since the app inspected it, so it can't be replaced. Inspect the library again, or pick Keep both.". A refused request writes and sends nothing. |
-| `GET /api/replacements/{id}` | Owner only (MAM-26, ADR 0030; widened by MAM-27, ADR 0035), for the caller's own replacement. Writes nothing. 200 `{ id, downloadJobId, state, reason, switchedOff, canRetry, canRestore, canDeleteForGood, quarantinedBytes, freesBytes, names, canCancel, stop, checkStage, checkStartedUtc, libraryAskedUtc, checkWaitsUntilUtc, dropOnlyCopyCount, copies, newFiles, works }`: `state` and `reason` as the job's `replacement` gives them; `switchedOff` whether replacement is switched off now; `canRetry` for a replacement the move stopped (`NeedsReview` after checks 5 or 6, a refused rename or a cut move, restore or deletion), or the check of its new files stopped while no copy in it only a drop settles (MAM-27), `canRestore` for one `Quarantined` or in review with files in the quarantine and none of its videos deleted for good, `canDeleteForGood` for one `Quarantined`, `canCancel` (MAM-27) for one the owner may keep both of — any state before an old copy moves, none of its files taken out of its folder —; `quarantinedBytes` the size of its files in the quarantine, `freesBytes` the part of it deleting them frees (a file with another name frees none, its count of names read from the disk now while the file at its quarantine path is the one moved, else as the move read it), `otherNames` the same way; `names` every file the move planned, in the plan's order — each ticked video, then its companions —, each `{ id, kind, originalPath, quarantinePath, sizeBytes, otherNames, state, problem }`, `kind` `Video` or `Companion`, `state` `Planned`, `Moving`, `Quarantined`, `Stayed`, `Restoring`, `Restored`, `Deleting`, `Deleted` or `Lost` by name, `problem` why one stayed, wasn't put back or deleted, or was lost; `stop`, `checkStage` and `checkWaitsUntilUtc` (MAM-27) as the job's `replacement` gives them, `checkStartedUtc` when the check of its new files last started, `libraryAskedUtc` when Jellyfin took its request to look, and `dropOnlyCopyCount` how many copies still in it only a drop settles; `copies` every ticked old copy in its order, each `{ id, position, appPath, sizeBytes, workId, seasonNumber, episodeNumber, episodeNumberEnd, editionLabel, durationMilliseconds, pairedNewFileId, problem, onlyDropSettles, droppedUtc, status, canDrop }` — `status` `Dropped`, `Waiting`, `Paired`, `Stopped`, `NotPaired`, `Moving`, `InQuarantine`, `Restored`, `Deleted`, `Lost` or `Stays` by name, worked out by the server; `problem` why it stopped the replacement — while the check still runs, what a pass that waits on another file found, which stops nothing yet —, kept once it is dropped; `onlyDropSettles` whether only dropping it or keeping both settles that, `false` outside a review but for a dropped copy, which keeps it; `canDrop` whether the owner may drop it now —; `newFiles` every video file of the download the last check read, in the client's order, each `{ id, position, relativePath, appPath, clientSizeBytes, clientProgress, sizeBytes, durationMilliseconds, videoCodec, width, height, checkedUtc, kind, seasonNumber, episodeNumber, episodeNumberEnd, readUtc, workId, problem, progress, identifiers }` — `progress` `Stopped`, `Downloading`, `NotChecked`, `Checked`, `AskedToLook`, `NotListed`, `NotRead`, `Extra`, `NoId`, `NotNumbered` or `Identified` by name; `identifiers` the ids Jellyfin gave its item and its series, each `{ scheme, value, ofSeries, setByOwner }` —; and `works` the works its copies are of, each `{ workId, kind, title, year, confirmedByOwner, identifiers }`, `identifiers` the ids kept when it was scheduled, the owner's TMDb link marked `setByOwner`. A bare 404 for another user's replacement or one that doesn't exist. |
+| `GET /api/replacements/{id}` | Owner only (MAM-26, ADR 0030; widened by MAM-27, ADR 0035), for the caller's own replacement. Writes nothing. 200 `{ id, downloadJobId, state, reason, switchedOff, canRetry, canRestore, canDeleteForGood, quarantinedBytes, freesBytes, names, canCancel, stop, checkStage, checkStartedUtc, libraryAskedUtc, checkWaitsUntilUtc, dropOnlyCopyCount, copies, newFiles, works }`: `state` and `reason` as the job's `replacement` gives them; `switchedOff` whether replacement is switched off now; `canRetry` for a replacement the move stopped (`NeedsReview` after checks 5 or 6, a refused rename or a cut move, restore or deletion), or the check of its new files stopped while no copy in it only a drop settles (MAM-27), `canRestore` for one `Quarantined` or in review with files in the quarantine and none of its videos deleted permanently, `canDeleteForGood` for one `Quarantined`, `canCancel` (MAM-27) for one the owner may keep both of — any state before an old copy moves, none of its files taken out of its folder —; `quarantinedBytes` the size of its files in the quarantine, `freesBytes` the part of it deleting them frees (a file with another name frees none, its count of names read from the disk now while the file at its quarantine path is the one moved, else as the move read it), `otherNames` the same way; `names` every file the move planned, in the plan's order — each ticked video, then its companions —, each `{ id, kind, originalPath, quarantinePath, sizeBytes, otherNames, state, problem }`, `kind` `Video` or `Companion`, `state` `Planned`, `Moving`, `Quarantined`, `Stayed`, `Restoring`, `Restored`, `Deleting`, `Deleted` or `Lost` by name, `problem` why one stayed, wasn't put back or deleted, or was lost; `stop`, `checkStage` and `checkWaitsUntilUtc` (MAM-27) as the job's `replacement` gives them, `checkStartedUtc` when the check of its new files last started, `libraryAskedUtc` when Jellyfin took its request to look, and `dropOnlyCopyCount` how many copies still in it only a drop settles; `copies` every ticked old copy in its order, each `{ id, position, appPath, sizeBytes, workId, seasonNumber, episodeNumber, episodeNumberEnd, editionLabel, durationMilliseconds, pairedNewFileId, problem, onlyDropSettles, droppedUtc, status, canDrop }` — `status` `Dropped`, `Waiting`, `Paired`, `Stopped`, `NotPaired`, `Moving`, `InQuarantine`, `Restored`, `Deleted`, `Lost` or `Stays` by name, worked out by the server; `problem` why it stopped the replacement — while the check still runs, what a pass that waits on another file found, which stops nothing yet —, kept once it is dropped; `onlyDropSettles` whether only dropping it or keeping both settles that, `false` outside a review but for a dropped copy, which keeps it; `canDrop` whether the owner may drop it now —; `newFiles` every video file of the download the last check read, in the client's order, each `{ id, position, relativePath, appPath, clientSizeBytes, clientProgress, sizeBytes, durationMilliseconds, videoCodec, width, height, checkedUtc, kind, seasonNumber, episodeNumber, episodeNumberEnd, readUtc, workId, problem, progress, identifiers }` — `progress` `Stopped`, `Downloading`, `NotChecked`, `Checked`, `AskedToLook`, `NotListed`, `NotRead`, `Extra`, `NoId`, `NotNumbered` or `Identified` by name; `identifiers` the ids Jellyfin gave its item and its series, each `{ scheme, value, ofSeries, setByOwner }` —; and `works` the works its copies are of, each `{ workId, kind, title, year, confirmedByOwner, identifiers }`, `identifiers` the ids kept when it was scheduled, the owner's TMDb link marked `setByOwner`. A bare 404 for another user's replacement or one that doesn't exist. |
 | `POST /api/replacements/{id}/retry` | Owner only (MAM-26; widened by MAM-27, ADR 0035), for the caller's own replacement. Takes a replacement the move stopped back to `Verified`, so the next pass checks the old copies and the torrents again before anything more moves, with a `ReplacementRetried` audit row; and one the check of its new files stopped (MAM-27) back to `Downloaded`, the last check's evidence forgotten at once — its new files and each copy's pair, problem and drop-only mark, a dropped copy's problem kept —, with a `ReplacementCheckRetried` audit row, so the next pass checks the new files again from qBittorrent's word and asks Jellyfin to look again, its ids deciding again; writes nothing to the media, and what is in the quarantine stays there. 200 with the download job, as `GET /api/downloads/{id}` answers it. 409 with nothing written: "This replacement isn't waiting for review, so there's nothing to retry here." for any other state, `Failed` included; "The app can't follow this replacement's download, so its new file can't be checked again: keep both copies, or cancel the job." for a review of a download that needs linking, or of a check whose download is no longer done and checked; "“Yellowstone S02E05.mkv” can only be dropped from this replacement, or both copies kept: checking again wouldn't change it." while a copy only a drop settles is in it; "This replacement is being worked on right now. Try again in a moment." while the mover's pass or another action holds it; or "This replacement changed while the app was working on it, so it stopped. Reload the page to see where it stands." when it changed meanwhile. A bare 404 for another user's replacement or one that doesn't exist. |
-| `POST /api/replacements/{id}/restore` | Owner only (MAM-26, ADR 0030), for the caller's own replacement, `Quarantined` or in review with files in the quarantine. Puts every one of its files in the quarantine back where it was, videos first, by one `renameat2(RENAME_NOREPLACE)` each — never over a file there now, never into a folder that is gone, which it doesn't create —, the switch and the ticks read again before each, with an audit row before and after each, and tells Jellyfin the files came back: 200 with the download job, its replacement `Restored`. 409 with nothing written: "Nothing of this replacement is in the quarantine, so there's nothing to put back.", "Replacement is switched off on the Media folders page, so nothing can be put back. Switch it on, then press Restore again.", "“/media/.mam-quarantine” is no longer inside the Media folders, so nothing was put back.", "“…” is no longer in a folder ticked for replacement, so nothing was put back.", "“…” changed in the quarantine since it was moved there, so nothing was put back.", "“…” already holds a file, so nothing was put back." (any name there, a link leading nowhere included), "The folder “…” is gone, so nothing was put back; the app creates no folder.", "A video of this replacement was deleted for good, so nothing is put back without it. Press Retry, then Delete for good what the quarantine still holds." (a Delete for good stopped part-way after a video), "The app can't rename files on the platform it runs on, so nothing was put back." or the being-worked-on sentence; 409 with "“…” couldn't be put back: … 1 of 2 names is back where it was." when a file couldn't go back part-way, the replacement then `NeedsReview`. A bare 404 for another user's replacement or one that doesn't exist. |
-| `POST /api/replacements/{id}/delete-for-good` with `{ names }` | Owner only (MAM-26, ADR 0030), for the caller's own `Quarantined` replacement; `names` the ids of the files the confirmation listed, exactly the files it holds in the quarantine. Deletes each from the quarantine alone, its device, inode, size and modification time compared right before one `unlinkat`, no folder removed, with an audit row before and after each: 200 with the download job, its replacement `Completed`. 400 "Delete for good needs the files you confirmed." without `names`, or a sentence for a body that isn't its JSON; 409 with nothing deleted: "This replacement holds nothing in the quarantine to delete.", "What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.", "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete for good again.", "“/media/.mam-quarantine” is no longer inside the Media folders, so nothing was deleted.", "“…” changed in the quarantine since it was moved there, so nothing was deleted.", "The app can't write to the media folders on the platform it runs on, so nothing was deleted." or the being-worked-on sentence; 409 with "“…” couldn't be deleted: … 1 of 2 names is deleted." when a deletion was refused part-way, the replacement then `NeedsReview`. A bare 404 for another user's replacement or one that doesn't exist. |
-| `POST /api/replacements/{id}/cancel` | Owner only (MAM-27, ADR 0014), for the caller's own replacement: **Keep both**. Cancels the replacement alone — `Scheduled`, `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Inspecting`, `Verified` or `NeedsReview`, while no file of it is moving, in the quarantine, being put back or deleted, or deleted for good — to `Cancelled` with "You cancelled the replacement, so nothing will be replaced.", its files still `Planned` or `Stayed` forgotten, with a `ReplacementCancelledAlone` audit row; writes nothing to the download job, the media or qBittorrent, so the download goes on, and works while replacement is switched off. 200 with the download job, as `GET /api/downloads/{id}` answers it. 409 with nothing written: "This replacement has already ended, so there's nothing to cancel." (`Failed`, `Cancelled`, `Completed`, `Restored`), "Part of this replacement has left its folders already, so it can't be cancelled: Restore puts back what is in the quarantine." (`Quarantined`, or a file taken out of its folder), the being-worked-on sentence (`Quarantining`, `Restoring`, `Deleting`, or held by the mover's pass or another action) or the changed-meanwhile one. A bare 404 for another user's replacement or one that doesn't exist. |
-| `POST /api/replacements/{id}/copies/{copyId}/drop` | Owner only (MAM-27, ADR 0032), for a copy of the caller's own replacement that stopped for review, the check or the move having stopped it. Takes the old copy `copyId` out of it: the copy stays where it is (`droppedUtc` set), its files still `Planned` or `Stayed` are forgotten, and it is never read, paired or moved by this replacement again, but may be ticked by another download; the replacement keeps its state and reason until the owner retries it. A `ReplacementCopyDropped` audit row, its target the copy, named by its file name; nothing written to the media or a client. 200 with the download job, as `GET /api/downloads/{id}` answers it. 409 with nothing written: "A copy can be dropped only from a replacement that stopped for review.", "The app can't follow this replacement's download, so dropping a copy wouldn't change anything: keep both copies, or cancel the job.", "“Alien.mkv” is dropped from this replacement already.", "“Alien.mkv” has left its folder already, so it can't be dropped: Restore puts it back." (a file of it moving, in the quarantine, being put back or deleted, or deleted for good), "“Alien.mkv” is the last copy this replacement would replace, so it can't be dropped: keep both copies instead.", or the being-worked-on and changed-meanwhile sentences. A bare 404 for another user's replacement, one that doesn't exist, or a `copyId` that isn't one of its copies. |
-| `GET /api/replacements/removals?page=1&pageSize=25` | Owner only (MAM-40, ADR 0037), as every route under `api/replacements`. The copies removed on the Duplicates page that are still open — `Moving`, `Quarantined`, `NeedsReview`, `Restoring` or `Deleting` — newest first: 200 `{ items, totalCount, page, pageSize, quarantinedBytes, switchedOff }`, each `{ id, state, reason, title, groupClass, originalPath, quarantinePath, sizeBytes, freesBytes, requestedByUserName, createdUtc, stateChangedUtc, canRestore, canDeleteForGood, names }` — `title` the group's heading when it was removed ("The Gods Must Be Crazy (1980)", "Clarkson's Farm · S02E03 · Title"), `groupClass` `SameWork` or `ByteIdentical`, `originalPath` the video's path in the app and `quarantinePath` its place in the quarantine, `sizeBytes` what its names in the quarantine take and `freesBytes` what Delete for good frees, a name with another name on the disk now counting none, `reason` why it waits for review, `names` every name of its plan as `GET /api/replacements/{id}` gives a replacement's —, `quarantinedBytes` what every open removal's names take there, and `switchedOff` whether replacement is switched off, when Restore and Delete for good are refused. 400 "Page must be 1 or more." or "Page size must be between 1 and 100.". `Restored`, `Deleted` and `NotMoved` removals are kept with their audit rows and not listed. Writes nothing. |
+| `POST /api/replacements/{id}/restore` | Owner only (MAM-26, ADR 0030), for the caller's own replacement, `Quarantined` or in review with files in the quarantine. Puts every one of its files in the quarantine back where it was, videos first, by one `renameat2(RENAME_NOREPLACE)` each — never over a file there now, never into a folder that is gone, which it doesn't create —, the switch and the ticks read again before each, with an audit row before and after each, and tells Jellyfin the files came back: 200 with the download job, its replacement `Restored`. 409 with nothing written: "Nothing of this replacement is in the quarantine, so there's nothing to put back.", "Replacement is switched off on the Media folders page, so nothing can be put back. Switch it on, then press Restore again.", "“/media/.mam-quarantine” is no longer inside the Media folders, so nothing was put back.", "“…” is no longer in a folder ticked for replacement, so nothing was put back.", "“…” changed in the quarantine since it was moved there, so nothing was put back.", "“…” already holds a file, so nothing was put back." (any name there, a link leading nowhere included), "The folder “…” is gone, so nothing was put back; the app creates no folder.", "A video of this replacement was deleted permanently, so nothing is put back without it. Press Retry, then delete permanently what the quarantine still holds." (a permanent deletion stopped part-way after a video), "The app can't rename files on the platform it runs on, so nothing was put back." or the being-worked-on sentence; 409 with "“…” couldn't be put back: … 1 of 2 names is back where it was." when a file couldn't go back part-way, the replacement then `NeedsReview`. A bare 404 for another user's replacement or one that doesn't exist. |
+| `POST /api/replacements/{id}/delete-for-good` with `{ names }` | Owner only (MAM-26, ADR 0030), for the caller's own `Quarantined` replacement; `names` the ids of the files the confirmation listed, exactly the files it holds in the quarantine. Deletes each from the quarantine alone, its device, inode, size and modification time compared right before one `unlinkat`, no folder removed, with an audit row before and after each: 200 with the download job, its replacement `Completed`. 400 "Deleting the old copies permanently needs the files you confirmed." without `names`, or a sentence for a body that isn't its JSON; 409 with nothing deleted: "This replacement holds nothing in the quarantine to delete.", "What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.", "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete again.", "“/media/.mam-quarantine” is no longer inside the Media folders, so nothing was deleted.", "“…” changed in the quarantine since it was moved there, so nothing was deleted.", "The app can't write to the media folders on the platform it runs on, so nothing was deleted." or the being-worked-on sentence; 409 with "“…” couldn't be deleted: … 1 of 2 names is deleted." when a deletion was refused part-way, the replacement then `NeedsReview`. A bare 404 for another user's replacement or one that doesn't exist. |
+| `POST /api/replacements/{id}/cancel` | Owner only (MAM-27, ADR 0014), for the caller's own replacement: **Keep both**. Cancels the replacement alone — `Scheduled`, `Submitted`, `Downloading`, `Paused`, `Downloaded`, `Inspecting`, `Verified` or `NeedsReview`, while no file of it is moving, in the quarantine, being put back or deleted, or deleted permanently — to `Cancelled` with "You cancelled the replacement, so nothing will be replaced.", its files still `Planned` or `Stayed` forgotten, with a `ReplacementCancelledAlone` audit row; writes nothing to the download job, the media or qBittorrent, so the download goes on, and works while replacement is switched off. 200 with the download job, as `GET /api/downloads/{id}` answers it. 409 with nothing written: "This replacement has already ended, so there's nothing to cancel." (`Failed`, `Cancelled`, `Completed`, `Restored`), "Part of this replacement has left its folders already, so it can't be cancelled: Restore puts back what is in the quarantine." (`Quarantined`, or a file taken out of its folder), the being-worked-on sentence (`Quarantining`, `Restoring`, `Deleting`, or held by the mover's pass or another action) or the changed-meanwhile one. A bare 404 for another user's replacement or one that doesn't exist. |
+| `POST /api/replacements/{id}/copies/{copyId}/drop` | Owner only (MAM-27, ADR 0032), for a copy of the caller's own replacement that stopped for review, the check or the move having stopped it. Takes the old copy `copyId` out of it: the copy stays where it is (`droppedUtc` set), its files still `Planned` or `Stayed` are forgotten, and it is never read, paired or moved by this replacement again, but may be ticked by another download; the replacement keeps its state and reason until the owner retries it. A `ReplacementCopyDropped` audit row, its target the copy, named by its file name; nothing written to the media or a client. 200 with the download job, as `GET /api/downloads/{id}` answers it. 409 with nothing written: "A copy can be dropped only from a replacement that stopped for review.", "The app can't follow this replacement's download, so dropping a copy wouldn't change anything: keep both copies, or cancel the job.", "“Alien.mkv” is dropped from this replacement already.", "“Alien.mkv” has left its folder already, so it can't be dropped: Restore puts it back." (a file of it moving, in the quarantine, being put back or deleted, or deleted permanently), "“Alien.mkv” is the last copy this replacement would replace, so it can't be dropped: keep both copies instead.", or the being-worked-on and changed-meanwhile sentences. A bare 404 for another user's replacement, one that doesn't exist, or a `copyId` that isn't one of its copies. |
+| `GET /api/replacements/removals?page=1&pageSize=25` | Owner only (MAM-40, ADR 0037), as every route under `api/replacements`. The copies removed on the Duplicates page that are still open — `Moving`, `Quarantined`, `NeedsReview`, `Restoring` or `Deleting` — newest first: 200 `{ items, totalCount, page, pageSize, quarantinedBytes, switchedOff }`, each `{ id, state, reason, title, groupClass, originalPath, quarantinePath, sizeBytes, freesBytes, requestedByUserName, createdUtc, stateChangedUtc, canRestore, canDeleteForGood, names }` — `title` the group's heading when it was removed ("The Gods Must Be Crazy (1980)", "Clarkson's Farm · S02E03 · Title"), `groupClass` `SameWork` or `ByteIdentical`, `originalPath` the video's path in the app and `quarantinePath` its place in the quarantine, `sizeBytes` what its names in the quarantine take and `freesBytes` what Delete permanently frees, a name with another name on the disk now counting none, `reason` why it waits for review, `names` every name of its plan as `GET /api/replacements/{id}` gives a replacement's —, `quarantinedBytes` what every open removal's names take there, and `switchedOff` whether replacement is switched off, when Restore and Delete permanently are refused. 400 "Page must be 1 or more." or "Page size must be between 1 and 100.". `Restored`, `Deleted` and `NotMoved` removals are kept with their audit rows and not listed. Writes nothing. |
 | `POST /api/replacements/removals` with `{ groupKey, fileId, deviceId, inode, sizeBytes }` | Owner only (MAM-40, ADR 0037). **Remove this copy**: the file `fileId` of the `SameWork` or `ByteIdentical` group `groupKey` names now, with the identity the page showed. One removal at a time in the process. Checks, before anything is written, the rules `removal` reports on the list, then the platform, the identity, the file on the disk — path, device, inode, size and modification time, inside the Media folders and a ticked folder —, another file of the group still on the disk as the app read it, the companions, and every download client's torrents as right before a replacement's move; then renames the video, then its own companions, into `<media folder>/.mam-quarantine/<removal id>/…`, one `renameat2(RENAME_NOREPLACE)` each, with audit rows before and after each (`CopyRemovalStarted`, `CopyRemovalNameMoving`, `CopyRemovalNameMoved` or `CopyRemovalNameNotMoved`, then `CopyRemoved`, `CopyRemovalNeedsReview` or `CopyRemovalNotMoved`), and tells Jellyfin the old paths went: 200 with the removal as the list gives it, `Quarantined`, or `NeedsReview` with its reason when the switch went off or a folder was unticked between two names. 400 "Remove needs the group and the file you pressed it on." or, for a body that isn't its JSON, "The body must be JSON with the group and the file, such as { "groupKey": "<key>", "fileId": "<id>" }."; a bare 404 for a key no group has, of any shape, or a file not in it; 409 with nothing written for a rule's sentence, "Only a copy in “Exact copies” or “Same film, different files” can be removed.", "The app can't rename files on the platform it runs on, so nothing was removed.", "This copy changed since the page showed it. Reload the page to see it as it is now.", "“…” is gone, so there is nothing to remove.", "“…” changed since the app last read it, so it stays where it is. Inspect the library's files again, then press Remove again.", "No other copy of this group is on the disk as the app last read it, so this one stays. Inspect the library's files again to see what is there.", "Still held by the torrent “…” in “qBittorrent”: remove that torrent there without its files, then press Remove again." or "The app couldn't tell whether a torrent in “qBittorrent” holds this copy: …"; 409 "“…” couldn't be moved into the quarantine: …" when the video's rename failed, the removal then `NotMoved` with nothing in the quarantine; and 409 "“…” couldn't be moved into the quarantine: A different file now sits in the quarantine at “…”, as another file took the place of “…” just before the rename, and this copy's own file wasn't found. Look there to see which file it is." when the rename moved another file put at the video's place, the video then `Lost` and the removal `NeedsReview`, listed with that reason and holding its copy's path until the owner settles it outside the app. A companion a torrent lists, or that can't move, stays, named on its row. |
-| `POST /api/replacements/removals/{id}/restore` | Owner only (MAM-40, ADR 0037), for any open removal. Puts every one of its names in the quarantine back where it was, the video first, checked first as a replacement's Restore checks — never over a file there now, never into a folder that is gone —, with audit rows (`CopyRemovalRestoreStarted`, `CopyRemovalNameRestoring`, `CopyRemovalNameRestored` or `CopyRemovalNameNotRestored`, `CopyRemovalRestored`), and tells Jellyfin they came back: 200 with the removal, `Restored`. From `Quarantined`, or `NeedsReview` with names in the quarantine. 409 with nothing written: "Nothing of this removal is in the quarantine, so there's nothing to put back.", "This copy's video was deleted for good, so nothing is put back without it. Delete for good what the quarantine still holds.", "Replacing and removing copies is switched off on the Media folders page, so nothing can be put back. Turn on “Replace copies after verification”, then press Restore again.", a replacement's Restore's sentences for a name, "The app can't rename files on the platform it runs on, so nothing was put back." or "This removal is being worked on right now. Try again in a moment."; 409 with the reason when a name couldn't go back part-way, the removal then `NeedsReview` while a name is still in the quarantine. A bare 404 for a removal that doesn't exist. |
-| `POST /api/replacements/removals/{id}/delete-for-good` | Owner only (MAM-40, ADR 0037), for any open removal, with no body: the whole removal, which the page's second confirmation listed with every path, its size and the room it frees. Deletes each of its names from the quarantine alone, its identity compared right before, no folder removed, with audit rows (`CopyRemovalDeleteStarted`, `CopyRemovalNameDeleting`, `CopyRemovalNameDeleted` or `CopyRemovalNameNotDeleted`, `CopyRemovalDeletedForGood`): 200 with the removal, `Deleted`. From `Quarantined`, or `NeedsReview` with names in the quarantine. 409 with nothing deleted: "This removal holds nothing in the quarantine to delete.", "Replacing and removing copies is switched off on the Media folders page, so nothing can be deleted. Turn on “Replace copies after verification”, then press Delete for good again.", a replacement's Delete for good's sentences for a name, "The app can't write to the media folders on the platform it runs on, so nothing was deleted." or the being-worked-on sentence; 409 with the reason when a deletion was refused part-way, the removal then `NeedsReview` while a name is still in the quarantine. A bare 404 for a removal that doesn't exist. |
-| `GET /api/recommendations?tab=&reason=&available=&genreId=&decade=&kind=&sort=Score&page=1&pageSize=25` | Every signed-in user, for their own lists (ADR 0023). One tab of the recommendations, filtered, sorted and paged on the server, without asking the catalog or a source: 200 `{ items, totalCount, page, pageSize, facets, catalogConnected, lastRun }`, the items ordered by `sort`, each `{ id, kind, catalogId, title, originalTitle, year, genres, rating, voteCount, posterUrl, reasons, availability, downloading, searchText, searchTmdbId }` — `id` the catalog work's, `kind` `Movie` or `Series`, `catalogId` TMDb's id, `title` in Ukrainian where TMDb has it, `genres` the names in alphabetical order, `rating` `null` when nobody rated it, `posterUrl` `/api/recommendations/posters/<file>` or `null`; `reasons` strongest first, each `{ kind, name, held, total, titles, seasons, dateUtc }`, `kind` being `MissingSeasons`, `Collection`, `Director`, `Creator`, `Recommended`, `NewAtSource` or `TopRated`, `name` the collection, person or source, `held` and `total` a collection's released parts held and released, a person's catalog works in the library, or how many of the library's catalog works recommend it, all of them (a work the library holds several times counts once), `titles` at most 5 of those works' titles, `seasons` the missing season numbers; `availability` `{ checkedUtc, found, releaseCount, bestResolution, hasUkrainianAudio, maxSeeders }` or `null` before the first check (ADR 0024); `downloading` while a followed download job's release is the work; `searchText` the title the sources are searched by and the year in brackets, and `searchTmdbId` a film's TMDb id as text (`null` for a show), what **Releases** opens the Search page with. `tab` is `Movies`, `Series`, `Cartoons` or `Documentaries` and the rest optional, in any letter case: `reason` a reason kind; `available=true` keeps the works a release source carries (`false` keeps all); `genreId` a catalog genre id; `decade` a decade's first year (`1990`); `kind` `Movie` or `Series`; `sort` `Score` by default — the score, then votes, title (ordinal) and catalog id —, `Rating` (the weighted rating `(votes × rating + 50 × 5.0) / (votes + 50)`, so a 10.0 of three votes doesn't top it), `Votes`, `Newest` or `Oldest` (by release date, a work of no known date last), `Title` (in Ukrainian alphabetical order, as the library's works) or `Releases` (the availability check's release count, the works found first, then those not found, then those never checked), ties falling back to the score's order; `pageSize` 1 to 100, 25 by default. `facets` `{ reasons: [{ kind, count }], genres: [{ id, name, count }], decades: [{ decade, count }], kinds: [{ kind, count }] }` count the caller's whole list of the tab before the request's filters, whatever the sort — the reasons in a card's order, the genres by name in Ukrainian alphabetical order, the decades and kinds in order —; `catalogConnected` says whether a metadata catalog is; `lastRun` as `GET /api/recommendations/runs/latest` answers it, or `null`. The caller's "Not interested" works are left out, and so is a fallback work until a check found it at a source. Every user's download jobs count, matched to a work by its kind and by an id the release gives or the title and year its title or description claims, and for a held series by a missing season or none named: a followed job (`Created`, `Submitted`, `Downloading`, `Paused`) makes a work `downloading`, one that ended without failing (`Downloaded`, `NeedsLinking`, `Cancelled`) leaves it out, winning over a followed one, and a failed one changes nothing. 400 with the first broken rule's sentence, the value repeated trimmed and cut at 32 characters with "…": "Choose a tab: Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation tab. Use Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation reason. Use Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.", "“x” is not an availability filter. Use true or false.", "“x” is not a genre id, which is a number such as 18.", "“x” is not a decade. Use its first year, such as 1990.", "“x” is not a kind of work. Use Movie or Series.", "“x” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or Releases.", "Page must be 1 or more.", "Page size must be between 1 and 100.", and "This tab is switched off in your profile." for a tab the caller has off. A page past the last is empty. |
+| `POST /api/replacements/removals/{id}/restore` | Owner only (MAM-40, ADR 0037), for any open removal. Puts every one of its names in the quarantine back where it was, the video first, checked first as a replacement's Restore checks — never over a file there now, never into a folder that is gone —, with audit rows (`CopyRemovalRestoreStarted`, `CopyRemovalNameRestoring`, `CopyRemovalNameRestored` or `CopyRemovalNameNotRestored`, `CopyRemovalRestored`), and tells Jellyfin they came back: 200 with the removal, `Restored`. From `Quarantined`, or `NeedsReview` with names in the quarantine. 409 with nothing written: "Nothing of this removal is in the quarantine, so there's nothing to put back.", "This copy's video was deleted permanently, so nothing is put back without it. Delete permanently what the quarantine still holds.", "Replacing and removing copies is switched off on the Media folders page, so nothing can be put back. Turn on “Replace copies after verification”, then press Restore again.", a replacement's Restore's sentences for a name, "The app can't rename files on the platform it runs on, so nothing was put back." or "This removal is being worked on right now. Try again in a moment."; 409 with the reason when a name couldn't go back part-way, the removal then `NeedsReview` while a name is still in the quarantine. A bare 404 for a removal that doesn't exist. |
+| `POST /api/replacements/removals/{id}/delete-for-good` | Owner only (MAM-40, ADR 0037), for any open removal, with no body: the whole removal, which the page's second confirmation listed with every path, its size and the room it frees. Deletes each of its names from the quarantine alone, its identity compared right before, no folder removed, with audit rows (`CopyRemovalDeleteStarted`, `CopyRemovalNameDeleting`, `CopyRemovalNameDeleted` or `CopyRemovalNameNotDeleted`, `CopyRemovalDeletedForGood`): 200 with the removal, `Deleted`. From `Quarantined`, or `NeedsReview` with names in the quarantine. 409 with nothing deleted: "This removal holds nothing in the quarantine to delete.", "Replacing and removing copies is switched off on the Media folders page, so nothing can be deleted. Turn on “Replace copies after verification”, then press Delete permanently again.", a replacement's permanent deletion's sentences for a name, "The app can't write to the media folders on the platform it runs on, so nothing was deleted." or the being-worked-on sentence; 409 with the reason when a deletion was refused part-way, the removal then `NeedsReview` while a name is still in the quarantine. A bare 404 for a removal that doesn't exist. |
+| `GET /api/recommendations?tab=&reason=&available=&genreId=&decade=&kind=&sort=Score&page=1&pageSize=25` | Every signed-in user, for their own lists (ADR 0023). One tab of the recommendations, filtered, sorted and paged on the server, without asking the catalog or a source: 200 `{ items, totalCount, page, pageSize, facets, catalogConnected, lastRun, failedSources }`, the items ordered by `sort`, each `{ id, kind, catalogId, title, originalTitle, year, genres, rating, voteCount, posterUrl, reasons, availability, downloading, searchText, searchTmdbId }` — `id` the catalog work's, `kind` `Movie` or `Series`, `catalogId` TMDb's id, `title` in Ukrainian where TMDb has it, `genres` the names in alphabetical order, `rating` `null` when nobody rated it, `posterUrl` `/api/recommendations/posters/<file>` or `null`; `reasons` strongest first, each `{ kind, name, held, total, titles, seasons, dateUtc }`, `kind` being `MissingSeasons`, `Collection`, `Director`, `Creator`, `Recommended`, `NewAtSource` or `TopRated`, `name` the collection, person or source, `held` and `total` a collection's released parts held and released, a person's catalog works in the library, or how many of the library's catalog works recommend it, all of them (a work the library holds several times counts once), `titles` at most 5 of those works' titles, `seasons` the missing season numbers; `availability` `{ checkedUtc, found, releaseCount, bestResolution, hasUkrainianAudio, maxSeeders }` or `null` before the first check (ADR 0024); `downloading` while a followed download job's release is the work; `searchText` the title the sources are searched by and the year in brackets, and `searchTmdbId` a film's TMDb id as text (`null` for a show), what **Releases** opens the Search page with. `tab` is `Movies`, `Series`, `Cartoons` or `Documentaries` and the rest optional, in any letter case: `reason` a reason kind; `available=true` keeps the works a release source carries (`false` keeps all); `genreId` a catalog genre id; `decade` a decade's first year (`1990`); `kind` `Movie` or `Series`; `sort` `Score` by default — the score, then votes, title (ordinal) and catalog id —, `Rating` (the weighted rating `(votes × rating + 50 × 5.0) / (votes + 50)`, so a 10.0 of three votes doesn't top it), `Votes`, `Newest` or `Oldest` (by release date, a work of no known date last), `Title` (in Ukrainian alphabetical order, as the library's works) or `Releases` (the availability check's release count, the works found first, then those not found, then those never checked), ties falling back to the score's order; `pageSize` 1 to 100, 25 by default. `facets` `{ reasons: [{ kind, count }], genres: [{ id, name, count }], decades: [{ decade, count }], kinds: [{ kind, count }] }` count the caller's whole list of the tab before the request's filters, whatever the sort — the reasons in a card's order, the genres by name in Ukrainian alphabetical order, the decades and kinds in order —; `catalogConnected` says whether a metadata catalog is; `lastRun` as `GET /api/recommendations/runs/latest` answers it, or `null`; `failedSources` (MAM-31) the switched-on release sources whose last call for the lists — the availability check's search or the newest releases' read — failed, by name, each `{ name, status, error, failedUtc }`, `status` an integration call status other than `Succeeded`, `error` the source's sentence with what to do, every secret masked, for the installation owner alone (`null` for anyone else), empty when each answered; kept in memory until the source's next answer, so a restart forgets it until the next pass. The caller's "Not interested" works are left out, and so is a fallback work until a check found it at a source. Every user's download jobs count, matched to a work by its kind and by an id the release gives or the title and year its title or description claims, and for a held series by a missing season or none named: a followed job (`Created`, `Submitted`, `Downloading`, `Paused`) makes a work `downloading`, one that ended without failing (`Downloaded`, `NeedsLinking`, `Cancelled`) leaves it out, winning over a followed one, and a failed one changes nothing. 400 with the first broken rule's sentence, the value repeated trimmed and cut at 32 characters with "…": "Choose a tab: Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation tab. Use Movies, Series, Cartoons or Documentaries.", "“x” is not a recommendation reason. Use Collection, Director, Creator, Recommended, MissingSeasons, TopRated or NewAtSource.", "“x” is not an availability filter. Use true or false.", "“x” is not a genre id, which is a number such as 18.", "“x” is not a decade. Use its first year, such as 1990.", "“x” is not a kind of work. Use Movie or Series.", "“x” is not a sort. Use Score, Rating, Votes, Newest, Oldest, Title or Releases.", "Page must be 1 or more.", "Page size must be between 1 and 100.", and "This tab is switched off in your profile." for a tab the caller has off. A page past the last is empty. |
 | `PUT /api/recommendations/dismissals/{kind}/{catalogId}` | Every signed-in user, for themselves. "Not interested": the work — `Movie` or `Series`, in any letter case, and TMDb's id — is left out of the caller's lists from now on, and of no one else's (Vasyl's decision 3); a work no list holds yet is kept marked for when one does. 204, also when it already was. 400 with "“x” is not a kind of work. Use Movie or Series." or "“x” is not a catalog id, which is a number such as 603.", changing nothing. Writes no audit row. |
 | `DELETE /api/recommendations/dismissals/{kind}/{catalogId}` | Every signed-in user, for themselves. **Undo** of "Not interested": 204, also when there was nothing to undo; another user's mark of the same work stays. 400 as for `PUT`. |
 | `GET /api/recommendations/posters/{fileName}` | Every signed-in user. A catalog work's poster: 200 with the bytes, `image/jpeg` or `image/png` by the extension, and `Cache-Control: private, max-age=2592000, immutable`. The first request fetches it from TMDb's image host at `https://image.tmdb.org/t/p/w342` without any credential and keeps it in `<data>/posters/`, which is never pruned; later ones read it from there, a catalog connected or not (ADR 0025). A bare 404 for a name that is no poster file name, one no catalog work has, one the image host doesn't have, or one not kept while no metadata catalog is connected. 502 when the catalog couldn't send it — its sentence, masked of the token, for the owner, and "The metadata catalog couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
@@ -3053,13 +3423,13 @@ whose every name was done ending as the write would have, a look that fails left
 and a job someone holds left alone; `ReplacementRetryHttpTests`, `ReplacementRestoreHttpTests` and
 `ReplacementDeleteForGoodHttpTests` the owner's actions — each refusal with nothing written, renamed
 or deleted, a stop part-way, the switch off or a folder unticked between two names, a Media folder
-replaced by its parent or gone from the list, a Restore after a part-way Delete for good, a cut
-Restore or Delete for good settled by the next pass, a Retry with nothing left to move, two clicks
+replaced by its parent or gone from the list, a Restore after a part-way permanent deletion, a cut
+Restore or permanent deletion settled by the next pass, a Retry with nothing left to move, two clicks
 at once, another user's 404 and a member's 403 —; `ReplacementDetailsHttpTests` the details, with
 the room a deletion frees read from the disk now, and the Jobs line's new fields from one read of
 the names; `ReplacementNameTallyTests` the "1 of 3 names is …" clause every stop shares;
 `ReplacementQuarantineFlowHttpTests` the whole flow end to end, a move
-then Restore, a move then Delete for good and a held copy then Retry, with Jellyfin's requests and
+then Restore, a move then a permanent deletion and a held copy then Retry, with Jellyfin's requests and
 the audit rows in order; and `ReplacementLibraryNoticeTests` the notice — `Deleted` after a move,
 `Created` after a restore, by the library's own paths, never a quarantine path, kept for an hour
 while Jellyfin doesn't take it. Each asserts the reason spelled out, the rows, the audit rows in the
@@ -3125,7 +3495,7 @@ stop, the copies a cancelled or restored replacement never moved staying where t
 per table for a page of jobs; `ReplacementLineHttpTests` the line's new fields per state;
 `ReplacementsAreOwnerOnlyHttpTests` the two new routes and two sweeps of every route as a member
 over a real stopped replacement, the owner's and his own, its ids filled by name, with nothing
-changed; `ReplacementRestoreHttpTests` Restore and Delete for good of a member's own quarantined job
+changed; `ReplacementRestoreHttpTests` Restore and Delete permanently of a member's own quarantined job
 refused; and `DownloadsGetHttpTests` another user's job with a stopped replacement a bare 404, even
 for the owner. `AddReplacementCopyDropsMigrationTests` and `ReplacementJobPersistenceTests` cover
 the two columns and the new audit names; in Core, `ReplacementJobStatesTests`,
@@ -3180,10 +3550,10 @@ a copy changed or gone on the disk, the other copy gone, the only other readable
 name of the same file, a torrent holding the video, a client that can't be read and a torrent
 holding a companion; `CopyRemovalVerdictsHttpTests` the list's verdicts, a member's the same as the
 owner's, a disc clip and no verdict on a possible match; `CopyRemovalActionsHttpTests` Restore and
-Delete for good — Jellyfin told the copy came back and the copy back in its group, an old path
-taken, the switch off, a stop part-way, a removal that moved nothing, a video deleted for good, one
+Delete permanently — Jellyfin told the copy came back and the copy back in its group, an old path
+taken, the switch off, a stop part-way, a removal that moved nothing, a video deleted permanently, one
 being worked on, an unknown removal, a name changed in the quarantine, a removal in review —;
-`CopyRemovalListHttpTests` the list, its paging, the room Delete for good frees by each name's link
+`CopyRemovalListHttpTests` the list, its paging, the room Delete permanently frees by each name's link
 count now and whether replacement is switched off; `CopyRemovalRecoveryHttpTests` a removal cut
 before and after its video moved and one whose video was found nowhere, a cut restore and a cut
 deletion, one held in the process, a name that can't be looked up, and an owed notice;
@@ -3199,8 +3569,8 @@ holds (`HeldByRemoval`), and `AddCopyRemovalsMigrationTests`, `CopyRemovalPersis
 `DuplicateMatchDecisionPersistenceTests` the tables, the kept members and the new audit names; in
 the web app, `DuplicateGroupCard.remove.test.tsx` Remove this copy — the buttons, a member's, the
 confirmation, the request and its pending state —, `DuplicatesPage.removed.test.tsx` the Removed
-copies tab — the list, a review, the switched-off reasons and line, paging, Restore and Delete for
-good with their confirmations, a refusal kept above the list once its card left, the focus moved to
+copies tab — the list, a review, the switched-off reasons and line, paging, Restore and Delete
+permanently with their confirmations, a refusal kept above the list once its card left, the focus moved to
 what an action did or to the empty list, a failed refresh and load —, `copy-removals-api.test.ts`
 the calls, `FileSizeList.test.tsx` the confirmations' list of files, and
 `DuplicateGroupCard.decisions.test.tsx`, `DuplicatesPage.decisions.test.tsx`,
@@ -3310,12 +3680,12 @@ src/
                                                with the background check of their new files,
                                                the move of their old copies into the
                                                quarantine and the owner's Retry, Restore and
-                                               Delete for good, and his view of each
+                                               Delete permanently, and his view of each
                                                replacement's copies, pairs and checks with
                                                Keep both, the check's Retry and Drop, the
                                                owner's removal of a duplicate copy into the
-                                               quarantine with its Restore and Delete for
-                                               good,
+                                               quarantine with its Restore and Delete
+                                               permanently,
                                                audit trail, health checks, security headers,
                                                EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
@@ -3431,25 +3801,25 @@ MAM-31).
    until the download is done (built, 0.3.0, MAM-24); verify each new file — complete, readable, and
    the old copy's work by Jellyfin's ids, every ticked copy paired — before anything is touched
    (built, 0.3.0, MAM-25); check the old copy and its torrents again, move it into the quarantine,
-   and let the owner retry a stopped move, restore it or delete it for good (built, 0.3.0, MAM-26);
+   and let the owner retry a stopped move, restore it or delete it permanently (built, 0.3.0, MAM-26);
    show each replacement's copies, pairs, checks and why it stopped on the Jobs page and the job's
    page, and let the owner keep both, retry a stopped check or drop a copy (built, 0.3.0, MAM-27);
    try the whole flow on the reference installation (done on 2026-10-12, MAM-28, whose fix of the
    check before a move is in 0.3.0 as published again on 2026-10-13); and run the app as the media
    folders' owner through `PUID` and `PGID`, the image handing its own data over to them (built,
    0.3.0, MAM-39, published with it); and settle duplicates on the Duplicates page — remove one copy
-   into the same quarantine through the same gates and checks, restore it or delete it for good
+   into the same quarantine through the same gates and checks, restore it or delete it permanently
    under Removed copies, or keep the copies as they are (built, 0.3.0, MAM-40, published with it);
    and sort the Jobs page by what waits for the user, with a job's details under its row and Restore
-   and Delete for good on it (built, 0.3.0, MAM-41, published with it).
+   and Delete on it (built, 0.3.0, MAM-41, published with it).
 4. **Phase D: prove extensibility.** Add one more search or download adapter with different
    capabilities without rewriting the core replacement workflow: Transmission 4.0 or newer instead
    of qBittorrent, its destinations the library folders it can reach, and Jackett instead of
    Prowlarr through the same Torznab adapter (decided by MAM-29 on 2026-10-13; tickets MAM-29 to
    MAM-31, release 0.4.0): the Transmission adapter with the library folders it can reach as its
    destinations, Jackett's feed, and the Search page reading a release's description (built, 0.4.0,
-   MAM-30; not tried live yet), checked on a clean installation by MAM-31. Add other media servers
-   when needed.
+   MAM-30); and try the whole flow on a clean installation with Jellyfin, Jackett and Transmission
+   (done on 2026-10-14, MAM-31, whose fixes are in 0.4.0). Add other media servers when needed.
 
 ## Project documentation
 

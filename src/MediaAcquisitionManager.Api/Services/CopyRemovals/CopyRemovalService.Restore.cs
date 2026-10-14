@@ -23,7 +23,7 @@ public sealed partial class CopyRemovalService
     // A Delete for good stopped part-way deleted the video: what is left of the copy — a subtitle, an .nfo — would go back
     // to the library alone, and the removal would end saying the copy is back. Delete for good takes what is left.
     private const string VideoDeletedError =
-        "This copy's video was deleted for good, so nothing is put back without it. Delete for good what the quarantine still holds.";
+        "This copy's video was deleted permanently, so nothing is put back without it. Delete permanently what the quarantine still holds.";
 
     public async Task<CopyRemovalResult> RestoreAsync(Guid copyRemovalId, Guid callerUserId, CancellationToken cancellationToken = default)
     {

@@ -1,6 +1,6 @@
 {
   "title": "Duplicates",
-  "lead": "The files in your library that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, each group with the evidence behind it. Removing a copy moves it into the quarantine folder of its media folder, where you can restore it or delete it for good under Removed copies; keeping copies as they are, or confirming a possible match, removes nothing.",
+  "lead": "The files in your library that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, each group with the evidence behind it. Removing a copy moves it into the quarantine folder of its media folder, where you can restore it or delete it permanently under Removed copies; keeping copies as they are, or confirming a possible match, removes nothing.",
   "tabs": {
     "label": "Kinds of duplicate",
     "All": "All",
@@ -20,7 +20,7 @@
     "SameWork": "No movie or episode has two copies.",
     "Possible": "No possible match is left to check.",
     "Dismissed": "Nothing is kept as it is: no group's copies were kept and no possible match was dismissed.",
-    "Removed": "No removed copy is in the quarantine. A copy you remove on its group's card waits here until you restore it or delete it for good."
+    "Removed": "No removed copy is in the quarantine. A copy you remove on its group's card waits here until you restore it or delete it permanently."
   },
   "left": {
     "dismissed": "“{{name}}” is dismissed: it is listed under Kept as they are now.",
@@ -29,7 +29,7 @@
     "restoredCopies": "“{{name}}” is back among the duplicates.",
     "dismissAgain": "Dismiss again",
     "keepAgain": "Keep again",
-    "removed": "Removed “{{file}}”: it waits in the quarantine, under Removed copies, until you restore it or delete it for good.",
+    "removed": "Removed “{{file}}”: it waits in the quarantine, under Removed copies, until you restore it or delete it permanently.",
     "removedReview": "Removed “{{file}}”, but it needs your review under Removed copies.",
     "removedReason": "Removed “{{file}}”, but it needs your review under Removed copies: {{reason}}",
     "openRemoved": "Removed copies"
@@ -99,7 +99,7 @@
   "remove": {
     "confirmTitle": "Remove “{{name}}”?",
     "lead": "This file moves into the quarantine folder at the top of its media folder, with its subtitles and other files of the same name:",
-    "where": "You can restore it or delete it for good under Removed copies on this page.",
+    "where": "You can restore it or delete it permanently under Removed copies on this page.",
     "stays_one": "This file stays:",
     "stays_other": "These files stay:",
     "confirm": "Remove this copy"
@@ -211,8 +211,8 @@
       "NeedsReview": "Needs your review.",
       "Restoring": "Being put back…",
       "Restored": "Back where it was.",
-      "Deleting": "Being deleted for good…",
-      "Deleted": "Deleted for good.",
+      "Deleting": "Being deleted permanently…",
+      "Deleted": "Deleted permanently.",
       "NotMoved": "Not moved: it stayed where it was."
     },
     "files": "Its files",
@@ -234,12 +234,12 @@
       "failed": "Could not put the copy back. Reload the page and try again."
     },
     "deleteForGood": {
-      "action": "Delete for good",
+      "action": "Delete permanently",
       "pending": "Deleting…",
-      "title": "Delete this copy in the quarantine for good",
-      "confirmTitle": "Delete “{{name}}” for good?",
-      "confirm": "Delete for good",
-      "done": "Deleted “{{name}}” for good.",
+      "title": "Delete this copy in the quarantine permanently",
+      "confirmTitle": "Delete “{{name}}” permanently?",
+      "confirm": "Delete permanently",
+      "done": "Deleted “{{name}}” permanently.",
       "failed": "Could not delete the copy. Reload the page and try again."
     }
   }

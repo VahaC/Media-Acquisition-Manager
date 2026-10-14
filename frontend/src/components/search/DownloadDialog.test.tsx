@@ -15,6 +15,7 @@ import {
   moviesOption,
   nasClient,
   optionsOf,
+  overwriteOf,
   seedboxClient,
   suggestedOf,
   transmissionClient,
@@ -90,7 +91,7 @@ describe('DownloadDialog', () => {
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient, seedboxClient))
     vi.mocked(downloadsApi.send).mockResolvedValue(jobOf({}))
     // MAM-38 — a folder the app can check: no warning, so the outcome lines below are the only status.
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: null })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf(null))
     vi.mocked(replacementsApi.options).mockResolvedValue(optionsUnavailable('SwitchedOff'))
   })
 
@@ -504,7 +505,7 @@ describe('DownloadDialog', () => {
 
   it('warns before Send, read with Send, when the destination\'s folder is outside the Media folders, and still sends', async () => {
     // Arrange
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderOutsideMediaFolders'))
     const { dialog, user } = renderDialog()
     await optionsLoaded(dialog)
     const banner = (await within(dialog).findByText(OUTSIDE_WARNING)).closest('.ui-banner')
@@ -525,7 +526,7 @@ describe('DownloadDialog', () => {
 
   it('warns before Send when the destination\'s folder has no path in the app', async () => {
     // Arrange
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderUnknown' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown'))
     const { dialog } = renderDialog()
 
     // Act
@@ -541,7 +542,7 @@ describe('DownloadDialog', () => {
     // MAM-30 — the server tells this folder by a reason of its own: the send refuses it (D5), so Keep both's
     // Send waits too rather than fail a job.
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderNotSeen' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderNotSeen'))
     const { dialog, user } = renderDialog()
     await optionsLoaded(dialog)
     const banner = (await within(dialog).findByText(NOT_SEEN_WARNING)).closest('.ui-banner')
@@ -563,7 +564,7 @@ describe('DownloadDialog', () => {
     // Arrange
     // MAM-30 — a folder the client sees, which no mapping brings into the app: sent, without the check.
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderUnknown' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown'))
     const { dialog } = renderDialog()
 
     // Act
@@ -575,10 +576,63 @@ describe('DownloadDialog', () => {
     expect(within(dialog).queryByText(NOT_SEEN_WARNING)).not.toBeInTheDocument()
   })
 
+  it('names the client it couldn\'t ask where the folder is, and tells a member to ask the owner, never the client\'s own sentence', async () => {
+    // Arrange
+    // MAM-31 — the live check stopped Transmission; the server keeps its sentence, which names its address, for the
+    // owner.
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown', {
+      folderUnknownCause: 'ClientNotAsked',
+      clientName: 'Local Transmission',
+    }))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    const warning = 'The app couldn\'t ask “Local Transmission” where this destination saves, so a release sent there goes without the check for files it would write over. Ask the owner to check “Local Transmission” under Integrations.'
+    expect(await within(dialog).findByText(warning)).toBeInTheDocument()
+    expect(sendButton(dialog)).toHaveAccessibleDescription(warning)
+    expect(within(dialog).queryByText(UNKNOWN_WARNING)).not.toBeInTheDocument()
+    expect(sendButton(dialog)).toBeEnabled()
+  })
+
+  it.each([
+    [
+      'NoPathMapping' as const,
+      transmissionClient,
+      'No path mapping of “Local Transmission” brings this destination\'s folder into the app, so a release sent there goes without the check for files it would write over. The owner adds one under Integrations, “Local Transmission”, Path mappings.',
+    ],
+    [
+      // qBittorrent keeps "category".
+      'CategoryMissing' as const,
+      localClient,
+      '“Local qBittorrent” no longer has this destination\'s category, so a release sent there goes without the check for files it would write over. The owner picks another category under Destinations in the user menu.',
+    ],
+  ])('names the client and the fix when the folder is unknown for %s', async (cause, option, warning) => {
+    // Arrange
+    // MAM-31 — why the folder has no path in the app, rather than "no path, or the client can't say".
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(option))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown', {
+      folderUnknownCause: cause,
+      clientName: option.name,
+    }))
+    const { dialog } = renderDialog()
+
+    // Act
+    await optionsLoaded(dialog)
+
+    // Assert
+    expect(await within(dialog).findByText(warning)).toBeInTheDocument()
+    expect(sendButton(dialog)).toHaveAccessibleDescription(warning)
+    expect(within(dialog).queryByText(UNKNOWN_WARNING)).not.toBeInTheDocument()
+  })
+
   it('warns a folder client\'s Send of a folder outside the Media folders as any client\'s, as the release goes unchecked', async () => {
     // Arrange
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderOutsideMediaFolders'))
     const { dialog } = renderDialog()
 
     // Act
@@ -591,9 +645,8 @@ describe('DownloadDialog', () => {
 
   it('asks about the folder of each destination picked, and takes the warning away when the next one\'s folder can be checked', async () => {
     // Arrange
-    vi.mocked(downloadsApi.overwriteCheck).mockImplementation(async (destinationId) => ({
-      notCheckedReason: destinationId === moviesOption.id ? 'NotCheckedFolderOutsideMediaFolders' : null,
-    }))
+    vi.mocked(downloadsApi.overwriteCheck).mockImplementation(async (destinationId) =>
+      overwriteOf(destinationId === moviesOption.id ? 'NotCheckedFolderOutsideMediaFolders' : null))
     const { dialog, user } = renderDialog()
     await optionsLoaded(dialog)
     await within(dialog).findByText(OUTSIDE_WARNING)
@@ -637,7 +690,7 @@ describe('DownloadDialog', () => {
     }
 
     // Act
-    await act(async () => answer({ notCheckedReason: 'NotCheckedFolderUnknown' }))
+    await act(async () => answer(overwriteOf('NotCheckedFolderUnknown')))
 
     // Assert
     expect(whileChecking).toEqual({ sendDisabled: true, reason: true })

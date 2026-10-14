@@ -103,11 +103,12 @@ renames and deletes nothing by itself. `File.Move`, `FileInfo.MoveTo` and `Direc
 used for it.
 
 **Kept until the owner says.** No timer, no retention and no automatic cleanup in Phase C. The job's
-page offers **Restore** and **Delete for good**. Delete for good asks again, naming every path and
-the space it frees; it re-reads each quarantined name's device, inode, size and modification time
-and refuses if any changed; space comes back only once no process holds the file open; a deletion a
-restart cut records the names already gone and keeps the rest. The app shows how much room the
-quarantine takes. Only the owner does either ([ADR
+page offers **Restore** and **Delete for good** (since 0.4.0 labelled **Restore old copy** and
+**Delete old copy permanently**, "copies" for more than one: the MAM-31 section). Delete for good
+asks again, naming every path and the space it frees; it re-reads each quarantined name's device,
+inode, size and modification time and refuses if any changed; space comes back only once no process
+holds the file open; a deletion a restart cut records the names already gone and keeps the rest. The
+app shows how much room the quarantine takes. Only the owner does either ([ADR
 0033](0033-replacement-is-off-until-the-owner-switches-it-on-and-ticks-the-folders-it-may-touch-and-the-app-may-only-rename-there.md)).
 
 **Restore.** The same rename back to each recorded path, never replacing what sits there now: a new
@@ -400,3 +401,22 @@ restores them or deletes them for good. Every Delete for good confirmation, a re
 Duplicates page included, is half as wide again as a plain one, as it lists every path; each file's size sits on its
 path's line at the right edge, so the list fills that width rather than leaving its right half empty under a size on
 a line of its own (Vasyl, 2026-10-12).
+
+## The buttons name the old copy, and "for good" reads "permanently" (added 0.4.0, MAM-31)
+
+The live check of 2026-10-14 found the job's page offering **Restore** and **Delete for good** under a
+page title that is the new release's name, so Vasyl read **Delete for good** as deleting the new file;
+and "for good" is an idiom not every reader of the app's English knows. The Decision stands — the owner
+alone puts back or deletes, a deletion after a second confirmation —; only the words change (Vasyl's
+decision of 2026-10-14). On the job's page and the Jobs row the buttons say what they act on, counted
+by the old copies whose video the quarantine holds: **Restore old copy** or **Restore old copies**, and
+**Delete old copy permanently** or **Delete old copies permanently**, with titles to match; the
+confirmation asks "Delete the old copy permanently?" and its button reads **Delete permanently**. A
+removal's card under **Removed copies** reads **Delete permanently**, as the card is the copy. Every
+sentence of the app that said "for good" says "permanently", the server's included ("Restore them or
+delete them permanently first.", "The app stopped while deleting the old copies permanently: …"); a
+replacement's refusals name its button by its first word, "press Delete again", as "press Restore
+again" does. A reason stored before keeps its words. The routes, fields and audit actions keep their
+names (`delete-for-good`, `canDeleteForGood`, `CopyRemovalDeletedForGood`), as does this record.
+`JobDetailsPage.replacement.test.tsx` and `JobsPage.actions.test.tsx` pin the labels for one copy and
+for several.

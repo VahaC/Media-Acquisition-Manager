@@ -9,6 +9,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Facets">What the filters offer, counted over the tab before the request's filters.</param>
 /// <param name="CatalogConnected">Whether a metadata catalog is connected; without one nothing is computed.</param>
 /// <param name="LastRun">The latest computation, as <c>runs/latest</c> answers it; <c>null</c> before the first.</param>
+/// <param name="FailedSources">MAM-31 — the switched-on release sources whose last call for the recommendations failed,
+/// by name; empty when none did.</param>
 public sealed record RecommendationListResponse(
     IReadOnlyList<RecommendationDto> Items,
     int TotalCount,
@@ -16,4 +18,5 @@ public sealed record RecommendationListResponse(
     int PageSize,
     RecommendationFacetsDto Facets,
     bool CatalogConnected,
-    RecommendationRunDto? LastRun);
+    RecommendationRunDto? LastRun,
+    IReadOnlyList<RecommendationSourceFailureDto> FailedSources);

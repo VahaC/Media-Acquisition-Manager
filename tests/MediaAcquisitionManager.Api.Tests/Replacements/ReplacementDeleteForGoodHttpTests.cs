@@ -35,18 +35,18 @@ public sealed class ReplacementDeleteForGoodHttpTests : IClassFixture<MediaAcqui
 
     // Sentences the job's page shows, spelled out rather than read from product code.
     private const string NothingToDeleteError = "This replacement holds nothing in the quarantine to delete.";
-    private const string NamesMissingError = "Delete for good needs the files you confirmed.";
+    private const string NamesMissingError = "Deleting the old copies permanently needs the files you confirmed.";
     private const string UnreadableBodyError = "The body must be JSON with the files you confirmed, such as { \"names\": [\"<id>\"] }.";
     private const string NamesChangedError =
-        "What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.";
+        "What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.";
     private const string SwitchedOffError =
-        "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete for good again.";
+        "Replacement is switched off on the Media folders page, so nothing can be deleted. Switch it on, then press Delete again.";
     private const string ChangedError = "“{0}” changed in the quarantine since it was moved there, so nothing was deleted.";
     private const string BeingWorkedOnError = "This replacement is being worked on right now. Try again in a moment.";
     private const string NotAllowedProblem = "The app may not write in the folder of “{0}”.";
     private const string StoppedReason = "“Alien (1979) Theatrical Cut.uk.srt” couldn't be deleted: The app may not write in the folder of “{0}”. 1 of 2 names is deleted.";
     private const string NoLongerInMediaFoldersError = "“/media/.mam-quarantine” is no longer inside the Media folders, so nothing was deleted.";
-    private const string CutDeletionReason = "The app stopped while deleting the old copies for good: 1 of 2 names is deleted.";
+    private const string CutDeletionReason = "The app stopped while deleting the old copies permanently: 1 of 2 names is deleted.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private ReplacementVerificationHarness _harness = null!;

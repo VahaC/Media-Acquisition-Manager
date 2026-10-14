@@ -420,7 +420,10 @@ The four movies in `movies-page.json`:
   Toloka definition: it sends the phrase to Toloka's own search and filters nothing itself, so the gap is upstream,
   outside the app; the Search page now matches such a release by its `<description>` wherever it is listed
   ([ADR 0004](../../../docs/adr/0004-toloka-is-searched-through-prowlarr-and-download-links-stay-on-the-server.md)'s
-  MAM-30 section). MAM-31 tries the search live.
+  MAM-30 section). MAM-31 tried the search live on 2026-10-14, through Jackett on a clean installation: the same title
+  gave "Toloka · No releases". Another Cyrillic-only work's releases were read by their description, "Веселі
+  Жабокричі (1971) SatRip-AVC", but not matched to its copy, which Jellyfin gives 1973; the match itself rests on the
+  tests.
 - **TMDb takes its v4 token as a bearer header** (MAM-33,
   [ADR 0005](../../../docs/adr/0005-the-core-knows-a-service-only-through-a-registered-adapter-type.md)).
   Vasyl's API Read Access Token is 239 characters, inside the 256 an integration's key may hold, and

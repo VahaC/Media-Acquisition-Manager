@@ -112,6 +112,11 @@
     "notFound": "Not found (checked {{ago}})",
     "notChecked": "Not checked yet"
   },
+  "sources": {
+    "label": "Release sources",
+    "lastAsked": "Last asked for these lists {{ago}}:",
+    "askOwner": "Ask the owner to check “{{name}}” under Integrations."
+  },
   "run": {
     "title": "Computation",
     "description": "The lists are computed again after each library sync, from your library and the metadata catalog.",

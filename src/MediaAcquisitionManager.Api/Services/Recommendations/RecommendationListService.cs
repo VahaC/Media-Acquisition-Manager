@@ -1,3 +1,4 @@
+using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Catalog;
@@ -16,6 +17,7 @@ public sealed partial class RecommendationListService(
     IRecommendationSettingsReader settings,
     IRecommendationRunService runs,
     ICatalogConnector catalogs,
+    RecommendationSourceFailures sourceFailures,
     IRecommendationMapper mapper) : IRecommendationListService
 {
     public async Task<RecommendationListResult> ListAsync(
@@ -64,7 +66,38 @@ public sealed partial class RecommendationListService(
             facets,
             await catalogs.HasCatalogAsync(cancellationToken),
             // runs/latest's own rule: the running run, else the newest; its requester and error for the owner only.
-            await runs.GetLatestAsync(callerUserId, cancellationToken)));
+            await runs.GetLatestAsync(callerUserId, cancellationToken),
+            await FailedSourcesAsync(callerUserId, cancellationToken)));
+    }
+
+    /// <summary>
+    /// MAM-31 — the release sources whose last call for the recommendations failed, by name: only those still there and
+    /// switched on, named as they are now; the source's sentence for the owner alone, as the Search page gives it.
+    /// </summary>
+    private async Task<IReadOnlyList<RecommendationSourceFailureDto>> FailedSourcesAsync(Guid callerUserId, CancellationToken cancellationToken)
+    {
+        var failures = sourceFailures.Read();
+        if (failures.Count == 0)
+            return [];
+
+        var ids = failures.Keys.ToList();
+        var sources = await db.IntegrationConnections.AsNoTracking()
+            .Where(integration => ids.Contains(integration.Id) && integration.Kind == IntegrationKind.ReleaseSearch && integration.IsEnabled)
+            .Select(integration => new { integration.Id, integration.Name, integration.NormalizedName })
+            .ToListAsync(cancellationToken);
+        if (sources.Count == 0)
+            return [];
+
+        var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
+        return
+        [
+            .. sources
+                // The normalised name is unique, so the order is total.
+                .OrderBy(source => source.NormalizedName, StringComparer.Ordinal)
+                .Select(source => (source.Name, Failure: failures[source.Id]))
+                .Select(source => new RecommendationSourceFailureDto(
+                    source.Name, source.Failure.Status, forOwner ? source.Failure.Error : null, source.Failure.FailedUtc)),
+        ];
     }
 
     // ── reading ─────────────────────────────────────────────────────────────────────────────────

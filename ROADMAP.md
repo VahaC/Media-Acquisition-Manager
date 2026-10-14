@@ -85,11 +85,24 @@ All eight are in 0.3.0 as Vasyl published it again on 2026-10-13 at 18:55 UTC (D
 them. Phase C's heading below is left for Vasyl to mark shipped. MAM-30 then raised the
 version to 0.4.0 (Vasyl's decision of 2026-10-13), so the next image published from `main` is 0.4.0.
 Phase D (release 0.4.0) began on 2026-10-13: MAM-29 chose Transmission 4.0 or newer instead of
-qBittorrent and Jackett instead of Prowlarr, and recorded their answers; MAM-30 (built on 2026-10-14,
-not tried live) adds the Transmission adapter — connect, destinations that are the library folders it
-can reach and its own download folder, send, follow, the overwrite check and what holds a copy —, takes
-Jackett through the same Torznab adapter, and makes the Search page read a release's description as
-Recommendations do (ADR 0039); MAM-31 checks it on a clean installation.
+qBittorrent and Jackett instead of Prowlarr, and recorded their answers; MAM-30 (built on 2026-10-14)
+adds the Transmission adapter — connect, destinations that are the library folders it can reach and
+its own download folder, send, follow, the overwrite check and what holds a copy —, takes Jackett
+through the same Torznab adapter, and makes the Search page read a release's description as
+Recommendations do (ADR 0039). MAM-31 checked Phase D's acceptance criteria on 2026-10-14 on a
+second, clean installation beside production, set up from zero by the README with Jellyfin, Jackett
+and Transmission, and TMDb for the Recommendations page, on an image of 0.4.0 built locally from
+ab2d1c1 and not published: Toloka searched through Jackett, a film sent to Transmission into the
+Movies folder with the label "Movies", and the old copy of Undercover Blues (1993) replaced through
+the quarantine, then deleted from it by Vasyl, the first such deletion on a real setup. A copy a
+Transmission torrent holds, Transmission 4.0.x, its lock-out after wrong passwords and Phase C's
+other cases with Transmission rest on the tests. What the check found was fixed the same day under
+0.4.0, after that image — the dialogs with a long list widened, folder words for Transmission's
+destinations, the Download dialog and the Recommendations page naming the client or source that
+failed, the job page's buttons naming the old copy with "permanently" for "for good", and the
+README's install steps —, and looked at again on an image built with the fixes, but for the new
+sentences and button names, which rest on the tests; the findings left are open, not tickets yet, as
+Vasyl decides (MAM-31's line below). Phase D's heading below is left for Vasyl to mark shipped.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
@@ -1588,8 +1601,9 @@ a quarantine until you delete it for good, and you can put it back.
   and no Jellyfin lists a sample file, which it ignores, so such checks end in review after the
   hour.
 - **MAM-26 The quarantine** (built, release 0.3.0; tried on production on 2026-10-12, MAM-28, a
-  film's old copy moved in and put back, nothing deleted for good): right before the move the app
-  checks the old copy and every download client's torrents again, then renames the picked video and
+  film's old copy moved in and put back, nothing deleted for good; a deletion tried on 2026-10-14 on
+  a clean installation of 0.4.0, MAM-31): right before the move the app checks the old copy and
+  every download client's torrents again, then renames the picked video and
   its own companions into `.mam-quarantine` at the top of the allowed folder that holds it, one
   `renameat2(RENAME_NOREPLACE)` per name through a new write contract beside the read-only
   `IFileInventory`, and keeps them there until the owner restores them or deletes them for good; a
@@ -1663,12 +1677,13 @@ a quarantine until you delete it for good, and you can put it back.
   couldn't write to and then for writable ones, and the room of the quarantine; Restore and Delete
   for good disabled while switched off and still offered after a restart. Not tried live: Delete for
   good, as no copy was left in the quarantine to delete — the film's second replacement was
-  cancelled at 1.8 % of its download —, and a held copy moving once its torrent is removed and Retry
-  pressed. Not tried by the tests either: `EXDEV`, `EINVAL`, `EROFS` and `EOVERFLOW` from the real
-  calls (the mount check stops a cross-mount rename first, and the container's file systems all have
-  `RENAME_NOREPLACE`), a real read-only bind mount (read from a mount table instead), a mount at
-  `.mam-quarantine`, a kernel without `STATX_MNT_ID`, an fsync that fails (the rename stands and is
-  recorded) and arm64's open flags.
+  cancelled at 1.8 % of its download — (MAM-31 since: pressed on 2026-10-14 on a clean installation
+  with Transmission, the old copy leaving the disk), and a held copy moving once its torrent is
+  removed and Retry pressed. Not tried by the tests either: `EXDEV`, `EINVAL`, `EROFS` and
+  `EOVERFLOW` from the real calls (the mount check stops a cross-mount rename first, and the
+  container's file systems all have `RENAME_NOREPLACE`), a real read-only bind mount (read from a
+  mount table instead), a mount at `.mam-quarantine`, a kernel without `STATX_MNT_ID`, an fsync
+  that fails (the rename stands and is recorded) and arm64's open flags.
 - **MAM-27 Replacements on the Jobs page** (built, release 0.3.0; tried on production on 2026-10-12,
   MAM-28, on the film's and the season's replacements and a member's view): the Jobs page and
   each job's page show where a replacement stands, its ticked copies with the new file each pairs
@@ -2022,7 +2037,8 @@ invalid mount mapping never cause silent deletion. A successful unambiguous repl
 audit trail and a way to restore the quarantined copy. Checked on the reference installation on
 2026-10-12 (MAM-28), on the published 0.3.0: the film replaced, each step in the audit trail, and
 its old copy restored from the quarantine, while Delete for good wasn't tried, no copy being left in
-the quarantine to delete, and rests on the tests; of the ten cases, active seeding was met
+the quarantine to delete, and rests on the tests (MAM-31 since: pressed by Vasyl on 2026-10-14 on a
+clean installation with Transmission, Phase D's check); of the ten cases, active seeding was met
 naturally (the season), a multi-file torrent on its passing side, an invalid mount as the Media
 folders page's hint before the handover, and three restarts at rest points and Jellyfin unavailable
 for about three minutes were staged, each leaving the old file where it was; a restart in the middle
@@ -2064,8 +2080,12 @@ qBittorrent, Jackett instead of Prowlarr — without losing any of the safety of
   - *Destinations:* Transmission has no categories. Its destinations are the Jellyfin library
     folders it can reach — each library's root mapped back into Transmission's paths through its
     integration's path mappings, and confirmed by Transmission's free-space answer — plus its own
-    default download folder, marked "outside the libraries, replacement off". A library folder
-    Transmission can't see stays listed with a sentence saying how to fix it, never hidden. A send
+    default download folder, marked "outside the libraries, replacement off". (MAM-31 since: on
+    2026-10-14 Transmission's download folder, `/downloads`, showed as "Outside the media libraries"
+    with "“/media” is outside every media library folder, so automatic replacement stays off for this
+    destination."; a download folder no path mapping covers, which wasn't met, shows as "Folder
+    unknown", replacement off too, ADR 0039.) A library folder Transmission can't see stays listed
+    with a sentence saying how to fix it, never hidden. A send
     is one `torrent-add` with the folder and the destination's name as its label: a film sent to
     Movies shows in Transmission in, say, `/downloads/movies` with the label "Movies". This amends
     [ADR 0010](docs/adr/0010-a-destination-is-a-download-clients-own-category-never-a-folder.md)
@@ -2101,13 +2121,15 @@ qBittorrent, Jackett instead of Prowlarr — without losing any of the safety of
     taught" in
     [`VendorSamples/README.md`](tests/MediaAcquisitionManager.TestInfrastructure/VendorSamples/README.md#what-the-samples-taught).
   - *Toloka and Transmission:* Toloka's rules, FAQ and help section restrict no client, and its
-    topic on Linux clients recommends Transmission (read on 2026-10-13). MAM-31's real download is
-    the final check: a refusal would show as a tracker error in Transmission.
-  - *The live check:* MAM-31 runs on a second, clean MAM on media-stack, set up from zero with
-    Jellyfin, Jackett and Transmission only, never on production.
+    topic on Linux clients recommends Transmission (read on 2026-10-13). MAM-31's real download was
+    the final check: on 2026-10-14 Toloka's tracker answered Transmission 4.1.3's first announce
+    with 5 peers and no error, so Toloka takes Transmission.
+  - *The live check:* MAM-31 ran on 2026-10-14 on a second, clean MAM on media-stack, set up from
+    zero with Jellyfin, Jackett and Transmission, and TMDb for the Recommendations page, never on
+    production.
 - **MAM-30 Transmission instead of qBittorrent, Jackett instead of Prowlarr** (built on 2026-10-14,
-  release 0.4.0; not tried live — MAM-31 is the live check): the Transmission adapter — connect,
-  destinations, send, follow, and what holds a copy —, the Torznab adapter's
+  release 0.4.0; checked on a clean installation on 2026-10-14 by MAM-31): the Transmission
+  adapter — connect, destinations, send, follow, and what holds a copy —, the Torznab adapter's
   Prowlarr-only parts fixed for Jackett, and no "qBittorrent" or "category" where the client is
   Transmission, added without changing the core state machine. Vasyl's decisions of 2026-10-13,
   after the samples: the Search page also reads a release's `<description>`, as Recommendations
@@ -2152,10 +2174,78 @@ qBittorrent, Jackett instead of Prowlarr — without losing any of the safety of
     year (ADR 0012), a series' episodes coming from the claim that matched, or from the other when it
     names none; a season marker with an unknown total ("з ?", "of XX") is read as a marker. A TV
     search by a Ukrainian-only title found nothing through Jackett in MAM-29's recording; that is
-    Toloka's or Jackett's own search, left to MAM-31 to see live.
-- **MAM-31 Phase D on a clean installation:** the clean MAM above, set up by the README alone:
-  search through Jackett, the Search and Recommendations pages, a send to Transmission, and one
-  real film replaced through the quarantine.
+    Toloka's or Jackett's own search, and MAM-31 saw the same live on 2026-10-14 ("Toloka · No
+    releases"). There another Cyrillic-only work's releases were read by their description, "Веселі
+    Жабокричі (1971) SatRip-AVC", but not matched to its copy, as Jellyfin gives it 1973; the match
+    itself rests on the tests.
+- **MAM-31 Phase D acceptance** (checked on 2026-10-14): the acceptance bar below, checked on a
+  second, clean MAM container on the media host beside production — a Proxmox LXC on Linux
+  7.0.14-22-pve x86_64 with Docker 29.9.0 and Compose v5.6.0 —, with its own data volume and
+  production's `/media`, `PUID` 1000 and `PGID` 100, deployed by Vasyl as the Stashboard project
+  `mam-clean` on port 8119. It ran an image built locally from commit ab2d1c1 once its CI build #70
+  had passed (`mam-local:0.4.0-ab2d1c1`, image `sha256:e488319229bc…`, stamped `0.4.0+ab2d1c1`, not
+  published), with Jellyfin 12.2.0, Jackett v0.24.2830 serving Toloka.to ("Strip Cyrillic Letters"
+  ticked), Transmission 4.1.3 and TMDb for the Recommendations page, no qBittorrent and no Prowlarr,
+  Vasyl signed in as the owner. Set up from zero by the README, whose **Sync** button's name read
+  wrong and whose Transmission steps said nothing of the peer port. Destinations: before
+  Transmission had the libraries mounted, each library folder was listed "(can't be used)" with how
+  to fix it; then Movies, TV Shows, Cartoons and Documentary were saved on the four library folders,
+  "In the media library …", Transmission's download folder `/downloads` was "Outside the media
+  libraries" with replacement off, and Collections wasn't offered. Through Jackett a series and a
+  cartoon were first offered TV Shows and Cartoons by their Toloka sections (ADR 0020), and the film
+  Movies as the default, as Movies has no sections; the Search page matched the film's and the
+  series' copies by title and year; and Recommendations, with Jackett the only source, listed
+  releases. Toloka's 1080p release of Undercover Blues (1993) went to Transmission as one add into
+  `/downloads/movies` with the label "Movies", which Vasyl saw in Transmission's web interface; it
+  started only once he had turned uTP on and forwarded port 51413, and was followed to `Downloaded`
+  at 13:37 UTC. The old copy, held by no torrent, moved into the quarantine once Jellyfin had
+  identified the new file by its ids (IMDb tt0108442, TMDb 12661) 75 s after it was asked, keeping
+  its inode, each step in the audit trail; at 16:16:44 UTC Vasyl pressed **Delete for good** (now
+  **Delete old copy permanently**), and it left the disk, the first deletion from the quarantine on a
+  real setup (`ReplacementDeleteStarted` to `ReplacementCompleted`). Transmission stopped during the
+  download gave "Couldn't reach Transmission at http://192.168.1.195:9091: nothing accepted the
+  connection. Check the address and port, and that Transmission is running." on its test, each
+  destination, the folder field and the job, which went on by its hash once Transmission was back; a
+  wrong Jackett key gave "The Torznab feed refused the API key (error 100: Invalid API Key). Copy the
+  API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into
+  this integration under Integrations." on its test and the Search page. The Download dialog's line
+  on the overwrite check named neither Transmission nor the fix, and Recommendations said nothing of
+  the refused key. At desktop width and at 320 px no page scrolled sideways or said "qBittorrent" for
+  Transmission; "category" stayed in five places; Vasyl asked for the destination dialog at least
+  1,024 px wide; and on the job page the buttons **Restore** and **Delete for good**, under the new
+  release's title, read as acting on the new file. Between ca480a2 and ab2d1c1,
+  `DownloadJobFollowing.cs` and `Core/Replacements/` didn't change, nor did any state, transition or
+  gate; in `Api/Services/Replacements/` only the needs-linking reason changed, naming the client, and
+  three readers changed what they read — a Transmission torrent's `.part` counted as held, a folder
+  destination found by its folder, and a series' episodes taken from the claim that matched, which
+  lets a release's description decide which seasons and episodes a replacement offers, for every
+  client and every Torznab source, Prowlarr included (D15, ADR 0012's MAM-30 section; accepted by
+  Vasyl on 2026-10-14). Production stayed on 0.3.0 (`0.3.0+082c84e`), not restarted, its quarantine
+  untouched. Fixed the same day under 0.4.0, after that image (Vasyl's decisions of 2026-10-14; the
+  CHANGELOG's 0.4.0, **Changed**): the dialogs with a long list up to 1,024 px wide; "folder" for
+  Transmission's destinations in the five places, and "Standard sections"; the Download dialog naming
+  the client it couldn't ask and the Recommendations page listing a release source that failed; the
+  job page's **Restore old copy** and **Delete old copy permanently**, with "permanently" for "for
+  good" everywhere; **Edit preferences** as Transmission spells it; and the README's install steps —
+  **Refresh all** for **Sync**, Transmission's "Download to" and peer port, the address a
+  `WHITELIST` names, a host with no browser and the newest releases read at the app's start. An image
+  built with them (`mam-local:0.4.0-mam31`, stamped `0.4.0+ab2d1c1.mam31`) ran on the same container
+  from 16:17 UTC, where the folder words, the dialogs and "Replaced: the old copy was deleted
+  permanently." were looked at; the Download dialog's and Recommendations' new lines, the new button
+  names, the empty Destinations page's words and **Edit preferences** in Transmission's sentence
+  rest on the tests. Open, neither fixed nor tickets yet, as Vasyl decides: the Torznab
+  address placeholder in Prowlarr's shape alone; in the README, how to turn replacement on missing
+  from the numbered setup, Quick start starting the app before the media mount and `PUID` and `PGID`,
+  its Features read as qBittorrent's alone, an integration's **Name** field unnamed, **Copy Torznab
+  Feed** giving the browser's address, and the compose file's fixed container name for a second
+  installation on one host; in the release note, Jackett's step 4 coming before any destination exists
+  and Transmission's step 5 ("After upgrading") for a new installation; `tools/mam29/README.md` still
+  saying MAM-31 comes later, and `tools/mam29/docker-compose.yml` still holding the temporary 4.0.6
+  block and its `/t406` lines; and ADR 0032's link back to ADR 0012's MAM-30 section (D15). Vasyl
+  keeps the clean MAM, Transmission with its torrent and the `/downloads` mount, Jackett, the router's
+  forward of 51413 and the Jellyfin key "MAM-31 clean" for now, and removes them himself. What was
+  tried live, and what wasn't, is in the README's [Tested with](README.md#tested-with) and the
+  release note.
 - Plex or Emby later, if needed.
 - **Backup/restore:** nothing to add. The Transmission and Jackett integrations — Transmission's
   password and Jackett's key sealed like qBittorrent's and Prowlarr's — and Transmission's
@@ -2195,4 +2285,17 @@ members read). The UI decides "category" or "folder" by `destinationKind`, never
 client) replace — with the core workflow unchanged: on a clean installation with Jellyfin, Jackett
 and Transmission only (MAM-31), Toloka is searched through Jackett, a release lands in a library
 folder through Transmission with the destination's label, and a film is replaced through the
-quarantine.
+quarantine. Checked on 2026-10-14 (MAM-31), on a clean installation beside production running an
+image of 0.4.0 built from commit ab2d1c1, with TMDb added for the Recommendations page: Toloka
+searched through Jackett v0.24.2830 for a film, a series and a cartoon, the series' and the
+cartoon's sections picking the destination offered first and the film getting the default; a film
+sent to Transmission 4.1.3 into `/downloads/movies` with the label "Movies" and followed to
+`Downloaded`; and Undercover Blues (1993)'s old copy, held by no torrent, replaced through the
+quarantine with each step in the audit trail, then deleted from it by Vasyl. The core workflow is
+unchanged in its states, transitions and gates; the needs-linking reason now names the client,
+three readers in `Api/Services/Replacements/` changed what they read, and through D15 (ADR 0012's
+MAM-30 section) a release's description can decide which seasons and episodes a replacement
+offers, with Prowlarr too (accepted by Vasyl on 2026-10-14). A copy a Transmission torrent holds,
+Transmission 4.0.x, its lock-out after wrong passwords and Phase C's other cases with Transmission
+rest on the tests, as the **Tests** paragraph above and the README's
+[Tested with](README.md#tested-with) list.

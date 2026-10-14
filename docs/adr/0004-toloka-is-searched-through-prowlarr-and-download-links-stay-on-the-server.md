@@ -385,4 +385,8 @@ MAM-30 section).
 definition sends the phrase to Toloka's own search and filters nothing itself, stripping Cyrillic only
 from the title it hands back, so the gap is Toloka's search or Jackett's section mapping, which the app
 can't change. Such a release still matches by its description wherever it is listed — among the newest
-releases for Recommendations, or found by another word. MAM-31 tries the search live.
+releases for Recommendations, or found by another word. MAM-31 tried the search live on 2026-10-14,
+through Jackett v0.24.2830 on a clean installation: the same title gave "Toloka · No releases". There
+another Cyrillic-only work's releases were read by their description, "Веселі Жабокричі (1971)
+SatRip-AVC", but not matched to its copy, which Jellyfin gives 1973; the description's match itself
+rests on the tests.

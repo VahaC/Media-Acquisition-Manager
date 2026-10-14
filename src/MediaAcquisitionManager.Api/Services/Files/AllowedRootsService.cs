@@ -128,7 +128,7 @@ public sealed class AllowedRootsService(
         if (changes.Roots && await StrandedQuarantineAsync(roots, cancellationToken) is { } stranded)
         {
             return AllowedRootsUpdateResult.Invalid(
-                $"“{stranded}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.");
+                $"“{stranded}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them permanently first.");
         }
 
         // No target on any row: the roots, the switch and the ticks belong to the installation, not to a row the

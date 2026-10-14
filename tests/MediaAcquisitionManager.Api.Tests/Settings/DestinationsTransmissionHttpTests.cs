@@ -36,7 +36,7 @@ public sealed class DestinationsTransmissionHttpTests : IClassFixture<MediaAcqui
     private const string DownloadsOutsideProblem =
         "“/media” is outside every media library folder, so automatic replacement stays off for this destination.";
     private const string TemporaryFolderError =
-        "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again.";
+        "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.";
     private const string CommaError =
         "“Transmission” shows this destination's name as the torrent's label, and a label can't contain a comma. Pick a name without one.";
 

@@ -4,13 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { destinationsApi } from '@/lib/destinations-api'
+import { DOWNLOAD_CLIENTS } from '@/lib/download-clients'
 import { integrationsApi } from '@/lib/integrations-api'
-import type { CurrentUser, Destination, DestinationCheck, DestinationPathStatus } from '@/lib/types'
+import { qk } from '@/lib/queries'
+import type { CurrentUser, Destination, DestinationCheck, DestinationPathStatus, IntegrationSummary } from '@/lib/types'
 import { DestinationsPage } from '@/pages/settings/DestinationsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { cartoons, checkOf, destinationsPage, filmsFolder, incoming, movies, sampleCategories } from '@/test/destinations'
-import { localQbittorrent } from '@/test/integrations'
+import { localQbittorrent, localTransmission } from '@/test/integrations'
 
 vi.mock('@/lib/destinations-api')
 vi.mock('@/lib/integrations-api')
@@ -39,6 +41,26 @@ function listing(items: Destination[], total = items.length) {
   vi.mocked(destinationsApi.list).mockImplementation(async (query) => destinationsPage(query, items, total))
 }
 
+/** The server lists `clients` as the download clients. */
+function clientsListing(...clients: IntegrationSummary[]) {
+  vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
+    ({ items: clients, totalCount: clients.length, page: query.page, pageSize: query.pageSize }))
+}
+
+/**
+ * Waits until the download clients have come back, so the page speaks in their words: until then it
+ * says neither a category nor a folder, which would pass a check for the neutral words too early.
+ */
+async function clientsArrived(client: QueryClient) {
+  await vi.waitFor(() => expect(client.getQueryState(qk.settings.integrations.list(DOWNLOAD_CLIENTS))?.status).toBe('success'))
+}
+
+// MAM-31 — the lead in the words of what the download clients save to; neutral while they differ or
+// aren't known.
+const categoryLead = 'Where downloads go. Each destination is a category of your download client, and the category decides the folder.'
+const folderLead = 'Where downloads go. Each destination is a folder your download client saves to.'
+const neutralLead = 'Where downloads go. Each destination tells your download client where to save a download.'
+
 function renderPage(signedIn: CurrentUser = owner) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -59,8 +81,7 @@ describe('DestinationsPage', () => {
     vi.resetAllMocks()
     localStorage.clear()
     listing([cartoons, incoming, movies])
-    vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
-      ({ items: [localQbittorrent], totalCount: 1, page: query.page, pageSize: query.pageSize }))
+    clientsListing(localQbittorrent)
     vi.mocked(destinationsApi.clientDestinations).mockResolvedValue(sampleCategories)
   })
 
@@ -89,15 +110,40 @@ describe('DestinationsPage', () => {
     expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
   })
 
-  it('says in its lead that a destination is a category or a folder of the client', async () => {
+  it.each<[string, IntegrationSummary[], string]>([
+    ['a category when every download client has categories', [localQbittorrent], categoryLead],
+    ['a folder when every download client saves to folders', [localTransmission], folderLead],
+    ['neither when the download clients differ', [localQbittorrent, localTransmission], neutralLead],
+    ['neither when there is no download client', [], neutralLead],
+  ])('says in its lead that a destination is %s', async (_, clients, lead) => {
     // Arrange
-    const lead = 'Where downloads go. Each destination is a category of your download client, which decides the folder, or a folder the client saves to.'
+    // MAM-31 — the live check showed "a category of your download client" with Transmission alone.
+    clientsListing(...clients)
+
+    // Act
+    const { client } = renderPage()
+
+    // Assert
+    await clientsArrived(client)
+    expect(screen.getByText(lead)).toHaveClass('settings-lead')
+    expect(integrationsApi.list).toHaveBeenCalledExactlyOnceWith({ kind: 'DownloadClient', page: 1, pageSize: 100 })
+  })
+
+  it.each([
+    ['are on their way', () => vi.mocked(integrationsApi.list).mockReturnValue(new Promise(() => {}))],
+    ['could not be loaded', () => vi.mocked(integrationsApi.list).mockRejectedValue(networkError())],
+  ])('says neither a category nor a folder in its lead while the download clients %s', async (_, clientsListed) => {
+    // Arrange
+    clientsListed()
 
     // Act
     renderPage()
 
     // Assert
-    expect(await screen.findByText(lead)).toHaveClass('settings-lead')
+    await screen.findByText('Incoming', asName)
+    await vi.waitFor(() => expect(integrationsApi.list).toHaveBeenCalled())
+    expect(screen.getByText(neutralLead)).toHaveClass('settings-lead')
+    expect(screen.queryByText(categoryLead)).not.toBeInTheDocument()
   })
 
   it('names the column Folder when every destination is a folder, each shown as a path that breaks between its folders', async () => {
@@ -329,11 +375,32 @@ describe('DestinationsPage', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByText(/^No destinations yet\./))
-      .toHaveTextContent('Click Add destination to pick a category or a folder of your download client.')
+    // The whole sentence: until the download clients arrive, the state says neither a category nor a folder.
+    expect(await screen.findByText('No destinations yet. Click Add destination to pick a category of your download client.'))
+      .toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+  })
+
+  it.each<[string, IntegrationSummary[], string]>([
+    ['a folder when every download client saves to folders', [localTransmission],
+      'No destinations yet. Click Add destination to pick a folder your download client can reach.'],
+    ['neither when the download clients differ', [localQbittorrent, localTransmission],
+      'No destinations yet. Click Add destination to pick a download client and where it saves.'],
+  ])('says in the empty state %s', async (_, clients, empty) => {
+    // Arrange
+    // MAM-31 — the live check showed "a category or a folder" with Transmission alone.
+    listing([])
+    clientsListing(...clients)
+
+    // Act
+    const { client } = renderPage()
+
+    // Assert
+    await clientsArrived(client)
+    expect(await screen.findByText(empty)).toBeInTheDocument()
+    expect(screen.queryByText(/categor/)).not.toBeInTheDocument()
   })
 
   it('removes a destination only once the confirmation is accepted', async () => {
@@ -475,6 +542,26 @@ describe('DestinationsPage', () => {
     expect(within(dialog).getByLabelText('Name')).toHaveValue('')
   })
 
+  it('opens Add destination on the download clients the page asked for, in their words from the first moment', async () => {
+    // Arrange
+    // MAM-31 — the dialog's own query: it shows the page's answer while it asks again, never neutral
+    // words for a moment.
+    clientsListing(localTransmission)
+    const { user } = renderPage()
+    await screen.findByText(folderLead)
+    // The dialog's own ask never comes back: what it shows is what the page holds.
+    vi.mocked(integrationsApi.list).mockReturnValue(new Promise(() => {}))
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Add destination' }))
+
+    // Assert
+    const dialog = await screen.findByRole('dialog', { name: 'Add destination' })
+    expect(dialog).toHaveAccessibleDescription(
+      'Pick a folder your download client can reach: a media library folder, or its own download folder. The app sends each download there, with the destination\'s name as its label.')
+    expect(within(dialog).getByRole('combobox', { name: 'Folder' })).toHaveAccessibleDescription('Choose a download client first.')
+  })
+
   it('opens Edit for the destination of that row', async () => {
     // Arrange
     const { user } = renderPage()
@@ -550,5 +637,19 @@ describe('DestinationsPage', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add destination' })).not.toBeInTheDocument()
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+
+  it('asks no download clients for a non-owner, and says neither a category nor a folder in its lead', async () => {
+    // Arrange
+    // MAM-31 — the API refuses a non-owner the clients as it does the list: nothing to ask.
+    vi.mocked(destinationsApi.list).mockRejectedValue(apiError(403, 'Only the installation owner can do this.'))
+
+    // Act
+    renderPage(member)
+
+    // Assert
+    await screen.findByRole('alert')
+    expect(screen.getByText(neutralLead)).toHaveClass('settings-lead')
+    expect(integrationsApi.list).not.toHaveBeenCalled()
   })
 })

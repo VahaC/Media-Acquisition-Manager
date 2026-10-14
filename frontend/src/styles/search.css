@@ -205,9 +205,12 @@
 /* ── the Details dialog ── */
 
 /* Wider than a settings dialog: two columns on a wide screen. Three classes, so it wins over
-   `.ui-dialog-content.settings-dialog` whichever sheet loads first. */
+   `.ui-dialog-content.settings-dialog` whichever sheet loads first. MAM-31 — 64rem (1,024 px), from
+   60rem: the one cap of the dialogs with long lists (.destinations-dialog, .download-dialog-wide,
+   .unreported-files-dialog), so a work's version paths in the right column get a little more room. The
+   TMDb link dialog takes these classes too. */
 .ui-dialog-content.settings-dialog.search-details-dialog {
-  max-width: 60rem;
+  max-width: 64rem;
 }
 
 /* The release's title can be a long scene name; it wraps clear of the close button. */

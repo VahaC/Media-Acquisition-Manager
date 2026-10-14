@@ -44,14 +44,14 @@ public sealed class ReplacementQuarantineRecoveryHttpTests : IClassFixture<Media
     // Nothing got as far as the quarantine: no count at all, rather than "0 of 2 names are".
     private const string CutWhileMovingNoneReason = "The app stopped while moving the old copies.";
     private const string CutWhileRestoringReason = "The app stopped while putting the old copies back: 1 of 3 names is back where it was.";
-    private const string CutWhileDeletingReason = "The app stopped while deleting the old copies for good: 1 of 3 names is deleted.";
+    private const string CutWhileDeletingReason = "The app stopped while deleting the old copies permanently: 1 of 3 names is deleted.";
     private const string CutWhileMovingTheVideoReason = "The app stopped while moving the old copies: 1 of 1 name is in the quarantine.";
     private const string LostWhileMovingProblem =
         "The app stopped while moving “Alien (1979) Theatrical Cut.nfo”, and found it neither where it was nor in the quarantine.";
     private const string LostWhileRestoringProblem =
         "The app stopped while putting “Alien (1979) Theatrical Cut.srt” back, and found it neither in the quarantine nor where it was.";
     private const string LostWhileDeletingProblem =
-        "The app stopped while deleting “Alien (1979) Theatrical Cut.srt” for good, and something else is in its place in the quarantine.";
+        "The app stopped while deleting “Alien (1979) Theatrical Cut.srt” permanently, and something else is in its place in the quarantine.";
 
     private static readonly FileFacts VideoFacts = TestMedia.File(inode: 1);
     private static readonly FileFacts NfoFacts = TestMedia.File(inode: 2, sizeBytes: 4_567);

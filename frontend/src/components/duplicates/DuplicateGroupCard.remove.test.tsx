@@ -229,7 +229,7 @@ describe('DuplicateGroupCard Remove this copy', () => {
     // Assert
     const dialog = await screen.findByRole('dialog', { name: 'Remove “Aliens (1986) [Theatrical Cut] BDRip 1080p H.265.mkv”?' })
     expect(dialog).toHaveTextContent('This file moves into the quarantine folder at the top of its media folder, with its subtitles and other files of the same name:')
-    expect(dialog).toHaveTextContent('You can restore it or delete it for good under Removed copies on this page.')
+    expect(dialog).toHaveTextContent('You can restore it or delete it permanently under Removed copies on this page.')
     expect(dialog).toHaveTextContent('This file stays:')
     const [removed, stays] = within(dialog).getAllByRole('list')
     expect(within(removed).getAllByRole('listitem').map((item) => item.textContent))

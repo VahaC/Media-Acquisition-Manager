@@ -489,7 +489,7 @@ describe('JobDetailsPage', () => {
       await screen.findByText('New file verified: 1 old copy moves into the quarantine next.')
       serve({ ...checked, replacement: replacementOf({ state: 'Quarantined', quarantinedCopyCount: 1 }) })
       await nextPoll()
-      await screen.findByText('Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good.')
+      await screen.findByText('Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it permanently.')
       await nextPoll()
       await nextPoll()
 

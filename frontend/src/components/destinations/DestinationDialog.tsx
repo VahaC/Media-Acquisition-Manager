@@ -9,19 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { sectionRequests, sectionsMappedTo } from '@/lib/destination-sections'
+import { DOWNLOAD_CLIENTS, sharedKindOf } from '@/lib/download-clients'
 import { useClientDestinations, useCreateDestination, useDestinationSections, useIntegrations, useUpdateDestination } from '@/lib/queries'
-import type { ClientDestination, Destination, DestinationCheck, IntegrationsQuery, IntegrationSummary } from '@/lib/types'
+import type { ClientDestination, Destination, DestinationCheck } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
 import '@/styles/auth.css' // .auth-field, .auth-hint, .auth-muted — the fields as every settings dialog lays them out
 import '@/styles/settings-dialog.css' // .settings-dialog*, .settings-check — the scrolling body and the buttons under it, the checkbox
 import '@/styles/library.css' // .library-source-warning — a folder the client can't save to, an amber icon before its sentence
-import '@/styles/destinations.css' // .destinations-folder-problems — the lines under the Folder field
-
-/**
- * The download clients to pick from: the server filters them by kind and orders them by name. The
- * API's largest page — an installation has a handful of download clients, not a hundred.
- */
-const DOWNLOAD_CLIENTS: IntegrationsQuery = { kind: 'DownloadClient', page: 1, pageSize: 100 }
+import '@/styles/destinations.css' // .destinations-dialog — its width; .destinations-pair — the name beside the client; .destinations-folder-problems — the lines under the Folder field
 
 interface DestinationDialogProps {
   /** The destination to edit; without it the dialog adds a new one. */
@@ -54,6 +49,12 @@ interface DestinationDialogProps {
  * but can't be picked, and the libraries it offers no folder for are listed under the field, each
  * with the sentence saying how to fix it. Under the name, that the client shows it as the torrent's
  * label, which can't hold a comma. Editing, its own client is also asked about the stored folder.
+ *
+ * MAM-31 — up to 1,024 px wide, as the owner asked in the live check, so a source's tracker sections
+ * sit in columns (destinations.css), with the name beside the download client where two fit. While
+ * what the client saves to isn't known — the clients list on its way, empty or failed, clients of both
+ * kinds before one is picked — the description and the field name neither a category nor a folder:
+ * the live check saw "Pick a category" first with Transmission alone.
  */
 export function DestinationDialog({ destination, onClose }: DestinationDialogProps) {
   const { t } = useTranslation(['destinations', 'common'])
@@ -99,6 +100,9 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
       ?? categories.data?.destinationKind
       ?? null
   const folders = kind === 'Folder'
+  /** MAM-31 — the text for the kind: a folder's, a category's, or neither while the kind isn't known. */
+  const byKind = (folder: string, category: string, neutral: string) =>
+    kind === 'Folder' ? folder : kind === 'Category' ? category : neutral
 
   const offered = categories.data?.items ?? []
   const savedKey = destination !== undefined && clientId === destination.downloadClientId
@@ -168,14 +172,18 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
     if (categories.isLoading) {
       return (
         <p className="auth-muted">
-          {folders ? t('dialog.foldersLoading', { client: clientName }) : t('dialog.categoriesLoading')}
+          {byKind(
+            t('dialog.foldersLoading', { client: clientName }),
+            t('dialog.categoriesLoading'),
+            t('dialog.savesToLoading', { client: clientName }),
+          )}
         </p>
       )
     }
     // MAM-16 — why the select has nothing to offer, in the red line a field's error takes; the select
     // itself is not marked invalid, as nothing picked in it is wrong. The same for the clients below.
     if (categories.error && !categories.data) {
-      const fallback = folders ? t('dialog.foldersFailed') : t('dialog.categoriesFailed')
+      const fallback = byKind(t('dialog.foldersFailed'), t('dialog.categoriesFailed'), t('dialog.savesToFailed'))
       return <FieldErrorLine>{getApiErrorMessage(categories.error, fallback)}</FieldErrorLine>
     }
     // 200 with the client's own sentence: it couldn't be asked (switched off, unreachable, …).
@@ -235,73 +243,76 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="settings-dialog">
+      <DialogContent className="settings-dialog destinations-dialog">
         <DialogHeader>
           <DialogTitle>
             {destination ? t('dialog.editTitle', { name: destination.name }) : t('dialog.createTitle')}
           </DialogTitle>
           <DialogDescription>
             {destination
-              ? folders ? t('dialog.editDescriptionFolder') : t('dialog.editDescription')
-              : folders ? t('dialog.createDescriptionFolder') : t('dialog.createDescription')}
+              ? byKind(t('dialog.editDescriptionFolder'), t('dialog.editDescription'), t('dialog.editDescriptionNeutral'))
+              : byKind(t('dialog.createDescriptionFolder'), t('dialog.createDescription'), t('dialog.createDescriptionNeutral'))}
           </DialogDescription>
         </DialogHeader>
         {/* noValidate: the rules live on the server, and its sentence is the one to show. */}
         <form className="settings-dialog-form" noValidate onSubmit={(event) => void save(event)}>
           <div className="settings-dialog-body">
-            {/* MAM-30 — the hint sits beside the label, not in it, so it doesn't become the field's name. */}
-            <div className="auth-field">
-              <label className="auth-field">
-                <span className="ui-label">{t('dialog.name')}</span>
-                <Input
-                  value={name}
-                  placeholder={t('dialog.namePlaceholder')}
-                  autoComplete="off"
-                  autoFocus
-                  aria-describedby={folders && clientName !== '' ? nameHintId : undefined}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              </label>
-              {/* MAM-30 — Transmission shows the destination's name as the torrent's label, and a label
-                  can't hold a comma: said before the server refuses one. */}
-              {folders && clientName !== '' && (
-                <p id={nameHintId} className="auth-hint">{t('dialog.labelHint', { client: clientName })}</p>
-              )}
-            </div>
-
-            {/* MAM-4 — the label sits beside the select, tied by id: a label wrapping a select made
-                the browser read the select's own value into its name. */}
-            <div className="auth-field">
-              <label htmlFor={clientFieldId} className="ui-label">{t('dialog.client')}</label>
-              <select
-                id={clientFieldId}
-                className="ui-input"
-                value={clientId}
-                disabled={!clients.data && !keepsSavedClient}
-                onChange={(event) => pickClient(event.target.value)}
-              >
-                <option value="" disabled>{t('dialog.clientPlaceholder')}</option>
-                {listedClients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.isEnabled ? client.name : t('dialog.clientSwitchedOff', { name: client.name })}
-                  </option>
-                ))}
-                {destination && keepsSavedClient && (
-                  <option value={destination.downloadClientId}>{destination.downloadClientName}</option>
+            {/* MAM-31 — the name beside the download client where two fit; one column on a phone. */}
+            <div className="destinations-pair">
+              {/* MAM-30 — the hint sits beside the label, not in it, so it doesn't become the field's name. */}
+              <div className="auth-field">
+                <label className="auth-field">
+                  <span className="ui-label">{t('dialog.name')}</span>
+                  <Input
+                    value={name}
+                    placeholder={t('dialog.namePlaceholder')}
+                    autoComplete="off"
+                    autoFocus
+                    aria-describedby={folders && clientName !== '' ? nameHintId : undefined}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </label>
+                {/* MAM-30 — Transmission shows the destination's name as the torrent's label, and a label
+                    can't hold a comma: said before the server refuses one. */}
+                {folders && clientName !== '' && (
+                  <p id={nameHintId} className="auth-hint">{t('dialog.labelHint', { client: clientName })}</p>
                 )}
-              </select>
-              {clients.isLoading && <p className="auth-muted">{t('common:loading')}</p>}
-              {clients.error && !clients.data && (
-                <FieldErrorLine>{getApiErrorMessage(clients.error, t('dialog.clientsFailed'))}</FieldErrorLine>
-              )}
-              {clients.data && listedClients.length === 0 && !keepsSavedClient && (
-                <p className="auth-hint">{t('dialog.noClients')}</p>
-              )}
+              </div>
+
+              {/* MAM-4 — the label sits beside the select, tied by id: a label wrapping a select made
+                  the browser read the select's own value into its name. */}
+              <div className="auth-field">
+                <label htmlFor={clientFieldId} className="ui-label">{t('dialog.client')}</label>
+                <select
+                  id={clientFieldId}
+                  className="ui-input"
+                  value={clientId}
+                  disabled={!clients.data && !keepsSavedClient}
+                  onChange={(event) => pickClient(event.target.value)}
+                >
+                  <option value="" disabled>{t('dialog.clientPlaceholder')}</option>
+                  {listedClients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {client.isEnabled ? client.name : t('dialog.clientSwitchedOff', { name: client.name })}
+                    </option>
+                  ))}
+                  {destination && keepsSavedClient && (
+                    <option value={destination.downloadClientId}>{destination.downloadClientName}</option>
+                  )}
+                </select>
+                {clients.isLoading && <p className="auth-muted">{t('common:loading')}</p>}
+                {clients.error && !clients.data && (
+                  <FieldErrorLine>{getApiErrorMessage(clients.error, t('dialog.clientsFailed'))}</FieldErrorLine>
+                )}
+                {clients.data && listedClients.length === 0 && !keepsSavedClient && (
+                  <p className="auth-hint">{t('dialog.noClients')}</p>
+                )}
+              </div>
             </div>
 
             <div className="auth-field">
               <label htmlFor={categoryFieldId} className="ui-label">
-                {folders ? t('dialog.folder') : t('dialog.category')}
+                {byKind(t('dialog.folder'), t('dialog.category'), t('dialog.savesTo'))}
               </label>
               <select
                 id={categoryFieldId}
@@ -311,7 +322,9 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
                 aria-describedby={categoryDescribedBy || undefined}
                 onChange={(event) => setKey(event.target.value)}
               >
-                <option value="" disabled>{folders ? t('dialog.folderPlaceholder') : t('dialog.categoryPlaceholder')}</option>
+                <option value="" disabled>
+                  {byKind(t('dialog.folderPlaceholder'), t('dialog.categoryPlaceholder'), t('dialog.savesToPlaceholder'))}
+                </option>
                 {/* MAM-30 — a folder the client can't see can't be picked (D5); the saved one stays
                     choosable, as an edit that keeps it asks nobody. */}
                 {offered.map((category) => (
@@ -379,15 +392,4 @@ export function DestinationDialog({ destination, onClose }: DestinationDialogPro
       </DialogContent>
     </Dialog>
   )
-}
-
-// ── helpers ──
-
-/**
- * MAM-30 — the kind of destination every listed client has, for the field's words before one is
- * picked; null when they differ, when none is listed, or when their type isn't registered.
- */
-function sharedKindOf(clients: IntegrationSummary[]) {
-  const kinds = new Set(clients.map((client) => client.destinationKind))
-  return kinds.size === 1 ? [...kinds][0] : null
 }

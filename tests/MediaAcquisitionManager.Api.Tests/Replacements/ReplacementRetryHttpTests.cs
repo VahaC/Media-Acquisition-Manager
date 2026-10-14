@@ -196,7 +196,7 @@ public sealed class ReplacementRetryHttpTests : IClassFixture<MediaAcquisitionMa
                 new PlantedName(ReplacementNameKind.Companion, SubtitlePath, TestMedia.File(inode: 2, sizeBytes: 98_304), ReplacementNameState.Deleted),
             ],
             quarantineCheckedUtc: _factory.Time.GetUtcNow().UtcDateTime,
-            reason: "The app stopped while deleting the old copies for good: 2 of 2 names are deleted.");
+            reason: "The app stopped while deleting the old copies permanently: 2 of 2 names are deleted.");
         await RetryAsync(planted.Replacement.Id);
         var qbittorrentBefore = _factory.QBittorrentHttp.Requests.Count;
 

@@ -2,9 +2,27 @@
    settings-dialog.css) don't have — the service and address cells, the connection test line and the
    path mapping rows. Tokens only, so dark mode needs nothing of its own. */
 
-/* The mapping rows need the width: two paths and an arrow side by side. */
+/* The mapping rows need the width: two paths and an arrow side by side. MAM-31 — 48rem, from 36rem, as
+   the owner asked in the live check: each path of a mapping gets about 20rem where it got 14rem, and
+   Jackett's feed address in the Address field fits its line. Three classes, so it wins over
+   `.ui-dialog-content.settings-dialog` whichever sheet loads first (the reason of .search-details-dialog).
+   A cap only: below it the dialog is the screen's width, so a phone keeps its own. */
 .ui-dialog-content.settings-dialog.integrations-dialog {
-  max-width: 36rem;
+  max-width: 48rem;
+}
+
+/* MAM-31 — two short fields side by side where two 16rem columns fit, as at the dialog's full width:
+   the service beside the name, the user name beside the password. 16rem, not the destination dialog's
+   14rem: three of those would fit at 48rem and split a pair. `auto-fit`, so a lone field — Jellyfin's
+   API key — takes the whole row, as the Address above it does. `min(…, 100%)`: where two don't fit, as
+   on a phone, the one column is no wider than the dialog. `align-items: start`: a field stretched to
+   its neighbour's height would stretch its own grid rows and push its input down from beside the
+   other's, the service's hint or the password's "Remove the stored password" box being taller. */
+.integrations-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  align-items: start;
+  gap: 1rem;
 }
 
 /* One block for the service name and its kind under it: a phone card lays a cell's children out in

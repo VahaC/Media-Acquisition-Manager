@@ -11,8 +11,9 @@ import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
-import { useDeleteDestination, useDestinations } from '@/lib/queries'
-import type { Destination, DestinationList } from '@/lib/types'
+import { DOWNLOAD_CLIENTS, sharedKindOf } from '@/lib/download-clients'
+import { useDeleteDestination, useDestinations, useIntegrations } from '@/lib/queries'
+import type { Destination, DestinationList, DownloadDestinationKind } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { useLoadRetry } from '@/lib/use-load-retry'
 import { PAGE_SIZES, usePageSize } from '@/lib/use-page-size'
@@ -35,6 +36,12 @@ const SEARCH_DEBOUNCE_MS = 300
  * category says Folder when every row on the page is a folder, and "Category or folder" when they
  * are mixed, while each phone card names its own; the removal says the folder and label of torrents
  * already sent stay as they are.
+ *
+ * MAM-31 — the lead and the empty state speak of what the installation's download clients save to:
+ * a category when every one has categories, a folder when every one saves to folders, and neither
+ * while they differ or aren't known (on their way, none, failed, or a non-owner's page), as the live
+ * check found "category" said with Transmission alone. The clients are the destination dialog's own
+ * query, so the dialog opens on them in the same words.
  *
  * A non-owner who opens the address gets the API's 403 sentence in place of the list.
  */
@@ -63,6 +70,9 @@ export function DestinationsPage() {
   const destinations = useDestinations({ search: appliedSearch || undefined, page, pageSize })
   const { data, error, isLoading, isPlaceholderData } = destinations
   const load = useLoadRetry(destinations)
+  // MAM-31 — asked for the owner only: the API refuses a non-owner the clients as it does the list.
+  const clients = useIntegrations(DOWNLOAD_CLIENTS, { enabled: isOwner })
+  const words = wordsOf(clients.data ? sharedKindOf(clients.data.items) : null)
   const pages = data ? Math.max(1, Math.ceil(data.totalCount / pageSize)) : 1
 
   const goToPage = (next: number) => setPaging({ search: appliedSearch, page: next })
@@ -101,7 +111,7 @@ export function DestinationsPage() {
       <div className="settings-header">
         <div className="settings-intro">
           <h1 className="settings-title">{t('title')}</h1>
-          <p className="settings-lead">{t('lead')}</p>
+          <p className="settings-lead">{t(`lead${words}`)}</p>
         </div>
         {isOwner && (
           <Button type="button" onClick={() => setDialog({})}>
@@ -152,7 +162,7 @@ export function DestinationsPage() {
         </div>
       ) : data && data.items.length === 0 ? (
         <div className="settings-empty">
-          <p>{t('empty')}</p>
+          <p>{t(`empty${words}`)}</p>
         </div>
       ) : data ? (
         <>
@@ -288,6 +298,16 @@ function FolderPath({ path }: { path: string }) {
 }
 
 // ── helpers ──
+
+/**
+ * MAM-31 — which of a sentence's wordings the clients' kind takes: the category's (the key with no
+ * suffix, as every destination was one before), the folder's, or the neutral one while the kind isn't
+ * known.
+ */
+function wordsOf(kind: DownloadDestinationKind | null) {
+  if (kind === 'Category') return '' as const
+  return kind === 'Folder' ? 'Folder' as const : 'Neutral' as const
+}
 
 /**
  * MAM-30 — the name of the column that holds each row's key, from the rows on the page: Folder when

@@ -10,7 +10,17 @@ import { replacementsApi } from '@/lib/replacements-api'
 import type { DownloadJob, ReplacementCopyUnavailableReason, ReplacementOptions, ReplacementUnavailableReason, SearchRelease } from '@/lib/types'
 import { apiError } from '@/test/api-error'
 import { owner, signInAs } from '@/test/auth-session'
-import { cartoonsOption, jobOf, localClient, moviesOption, optionsOf, seedboxClient, suggestedOf, transmissionClient } from '@/test/downloads'
+import {
+  cartoonsOption,
+  jobOf,
+  localClient,
+  moviesOption,
+  optionsOf,
+  overwriteOf,
+  seedboxClient,
+  suggestedOf,
+  transmissionClient,
+} from '@/test/downloads'
 import { aliens } from '@/test/library'
 import {
   aliensWorkOf,
@@ -43,7 +53,7 @@ const CONFIRM_HINT = 'Matched by title and year only. Your tick lets the app sch
 const NOT_CHECKED = 'The app can\'t check this destination\'s folder for files already there, and a replacement is sent only after that check. Pick another destination, or Keep both.'
 /** MAM-30 — a folder its download client can't see, which no send goes to (D5), Keep both's included. */
 const NOT_SEEN = 'This destination\'s download client can\'t see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu.'
-const CONDITIONS = 'Conditions: the old copy moves into the quarantine only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in Local qBittorrent. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy\'s work. The old copy stays in the quarantine until you restore it or delete it for good on the job\'s page.'
+const CONDITIONS = 'Conditions: the old copy moves into the quarantine only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in Local qBittorrent. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy\'s work. The old copy stays in the quarantine until you restore it or delete it permanently on the job\'s page.'
 
 /** The Theatrical Cut's and the Special Edition's names, the ends of their paths that tell them apart. */
 const THEATRICAL = splitPath(theatricalCopy.file.appPath!).name
@@ -100,7 +110,7 @@ describe('DownloadDialog — replacing existing copies', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: null })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf(null))
     vi.mocked(downloadsApi.send).mockResolvedValue(jobOf({}))
     vi.mocked(replacementsApi.schedule).mockResolvedValue(jobOf({ replacement: replacementOf() }))
     answering(replacementOptionsOf([aliensWorkOf()]))
@@ -595,7 +605,7 @@ describe('DownloadDialog — replacing existing copies', () => {
 
   it('says in Replace mode that a replacement waits for the folder check, and holds Send, where the folder can\'t be checked', async () => {
     // Arrange
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderOutsideMediaFolders' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderOutsideMediaFolders'))
     const { dialog, user } = renderDialog()
     await copiesLoaded(dialog)
     const underKeepBoth = within(dialog).getByText(/A release sent there goes without that check\./)
@@ -619,7 +629,7 @@ describe('DownloadDialog — replacing existing copies', () => {
     // Arrange
     // MAM-30 — Local Transmission can't see the folder, which refuses any send, Keep both's included (D5).
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderNotSeen' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderNotSeen'))
     const { dialog, user } = renderDialog()
     await copiesLoaded(dialog)
 
@@ -638,7 +648,7 @@ describe('DownloadDialog — replacing existing copies', () => {
     // Arrange
     // MAM-30 — a folder Local Transmission sees but no mapping brings into the app: Keep both still sends it.
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: 'NotCheckedFolderUnknown' })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown'))
     const { dialog, user } = renderDialog()
     await copiesLoaded(dialog)
 
@@ -648,6 +658,57 @@ describe('DownloadDialog — replacing existing copies', () => {
     // Assert
     expect(within(dialog).getByText(NOT_CHECKED).closest('.ui-banner')).toHaveAttribute('data-tone', 'warning')
     expect(sendReason(dialog)).toBe(NOT_CHECKED)
+  })
+
+  it('names the client it couldn\'t ask, with its own sentence, once, under the destination, and says what that means for Replace', async () => {
+    // Arrange
+    // MAM-31 — the live check stopped Transmission: the warning read "has no path in the app, or its download client
+    // can't say where it is" above the replacement's own "couldn't ask", which named the client and the fix.
+    const unreachable = 'Couldn\'t reach Transmission at http://192.168.1.10:9091: nothing accepted the connection. Check the address and port, and that Transmission is running.'
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown', {
+      folderUnknownCause: 'ClientNotAsked',
+      clientName: 'Local Transmission',
+      clientError: unreachable,
+    }))
+    answering(optionsUnavailable('DestinationNotUsable', `The app couldn't ask “Local Transmission” where this destination saves: ${unreachable}`))
+    const { dialog } = renderDialog()
+
+    // Act
+    await copiesLoaded(dialog)
+
+    // Assert
+    const warning = `The app couldn't ask “Local Transmission” where this destination saves, so a release sent there goes without the check for files it would write over. ${unreachable}`
+    expect(within(dialog).getByText(warning).closest('.ui-banner')).toHaveAttribute('data-tone', 'warning')
+    expect(sendButton(dialog)).toHaveAccessibleDescription(warning)
+    expect(within(dialog).queryByText(/has no path in the app, or its download client can't say where it is/)).not.toBeInTheDocument()
+    expect(within(dialog).getAllByText(/nothing accepted the connection/)).toHaveLength(1)
+    expect(replaceRadio(dialog)).toBeDisabled()
+    expect(replaceRadio(dialog)).toHaveAccessibleDescription(NOT_CHECKED)
+    expect(sendButton(dialog)).toBeEnabled()
+  })
+
+  it('keeps the server\'s own sentence for Replace where the warning names a cause without the client\'s words', async () => {
+    // Arrange
+    // MAM-31 — no path mapping brings the folder in: the warning names the client and the fix, the reason Replace
+    // can't be picked the folder the client gave, as before.
+    const problem = 'No path mapping of this integration covers “/scratch”, so automatic replacement stays off for this destination.'
+    vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(transmissionClient))
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf('NotCheckedFolderUnknown', {
+      folderUnknownCause: 'NoPathMapping',
+      clientName: 'Local Transmission',
+    }))
+    answering(optionsUnavailable('DestinationNotUsable', problem))
+    const { dialog } = renderDialog()
+
+    // Act
+    await copiesLoaded(dialog)
+
+    // Assert
+    expect(within(dialog).getByText(
+      'No path mapping of “Local Transmission” brings this destination\'s folder into the app, so a release sent there goes without the check for files it would write over. The owner adds one under Integrations, “Local Transmission”, Path mappings.',
+    ).closest('.ui-banner')).toHaveAttribute('data-tone', 'warning')
+    expect(replaceRadio(dialog)).toHaveAccessibleDescription(problem)
   })
 
   it('warns, read with Send, of the clients whose torrents couldn\'t be read for the held marks', async () => {

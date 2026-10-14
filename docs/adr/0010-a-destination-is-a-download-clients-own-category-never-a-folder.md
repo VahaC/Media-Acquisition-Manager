@@ -248,3 +248,18 @@ or other control characters."
 folder on, a 421, a refused `session-get`, two 409s, an unreachable Transmission, a 503) pin it, with
 `DownloadClientContractTests.Every_call_with_refused_credentials_is_authentication_failed_and_the_next_sends_nothing`
 for both clients.
+
+## A missing key in the client's words (added 0.4.0, MAM-31)
+
+The live check on a clean installation with Transmission alone got "Pick the category or folder of the
+download client this destination saves to." for a destination saved without a folder. That rule is now
+read once the client is found, after the name and the client picked and still before the sections, and
+asks in the words of what the client's destinations are, by its name: "Pick the folder of “Transmission”
+this destination saves to." or "Pick the category of “qBittorrent” this destination saves to." The
+sentence naming both stays for a client whose type this build doesn't register, and for a caller that
+knows no client (an adapter reading its own list, a submission). The length and control-character
+rules still name both: a key past them can't be picked in the dialog, only typed into a request.
+`DestinationRulesTests.ValidateClientDestinationKey_of_a_known_client_asks_for_a_missing_key_in_the_words_of_its_kind`,
+`DestinationsFolderSaveHttpTests.Create_without_a_folder_is_400_asking_for_the_clients_folder_and_asks_no_client`
+and `DestinationsCreateHttpTests.Create_without_a_category_for_a_client_whose_type_is_not_registered_asks_in_words_naming_both`
+pin it.

@@ -128,8 +128,8 @@ describe('DuplicatesPage Removed copies', () => {
     expect(rows[1]).toHaveTextContent(removedSubtitle.originalPath)
     expect(rows[1]).toHaveTextContent(`Quarantine: ${removedSubtitle.quarantinePath}`)
     expect(rows[1]).toHaveTextContent('In the quarantine.')
-    expect(within(shown).getAllByRole('button').map((button) => button.textContent)).toEqual(['Restore', 'Delete for good'])
-    expect(within(shown).getByRole('button', { name: 'Delete for good' })).toHaveClass('ui-button-danger')
+    expect(within(shown).getAllByRole('button').map((button) => button.textContent)).toEqual(['Restore', 'Delete permanently'])
+    expect(within(shown).getByRole('button', { name: 'Delete permanently' })).toHaveClass('ui-button-danger')
     expect(within(shown).queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -155,7 +155,7 @@ describe('DuplicatesPage Removed copies', () => {
 
   it.each([
     ['Restore', { canRestore: false }],
-    ['Delete for good', { canDeleteForGood: false }],
+    ['Delete permanently', { canDeleteForGood: false }],
   ])('shows %s disabled with the reason, as a line too, when the server says it can\'t be done now', async (label, changes) => {
     // Arrange
     serverWith(removalOf(changes))
@@ -185,7 +185,7 @@ describe('DuplicatesPage Removed copies', () => {
     await user.click(restore)
 
     // Assert
-    for (const label of ['Restore', 'Delete for good']) {
+    for (const label of ['Restore', 'Delete permanently']) {
       const button = within(shown).getByRole('button', { name: label })
       expect(button).toBeDisabled()
       expect(button.parentElement).toHaveAttribute('title', switchedOffReason)
@@ -210,7 +210,7 @@ describe('DuplicatesPage Removed copies', () => {
     const shown = await card()
     expect(within(shown).getByRole('button', { name: 'Restore' }).parentElement)
       .toHaveAttribute('title', 'Not now: something of it is still under way, or nothing of it is in the quarantine to act on.')
-    expect(within(shown).getByRole('button', { name: 'Delete for good' }).parentElement).toHaveAttribute('title', switchedOffReason)
+    expect(within(shown).getByRole('button', { name: 'Delete permanently' }).parentElement).toHaveAttribute('title', switchedOffReason)
   })
 
   it('leaves out the switched-off line when no removal on the page could act with the switch on', async () => {
@@ -233,7 +233,7 @@ describe('DuplicatesPage Removed copies', () => {
     renderPage()
 
     // Assert
-    expect(await screen.findByText('No removed copy is in the quarantine. A copy you remove on its group\'s card waits here until you restore it or delete it for good.'))
+    expect(await screen.findByText('No removed copy is in the quarantine. A copy you remove on its group\'s card waits here until you restore it or delete it permanently.'))
       .toBeInTheDocument()
     expect(screen.queryByText(/The quarantine holds/)).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: 'Pages' })).not.toBeInTheDocument()
@@ -326,10 +326,10 @@ describe('DuplicatesPage Removed copies', () => {
     const { user } = renderPage()
 
     // Act
-    await user.click(within(await card()).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(await card()).getByRole('button', { name: 'Delete permanently' }))
 
     // Assert
-    const dialog = await screen.findByRole('dialog', { name: `Delete “${fileName}” for good?` })
+    const dialog = await screen.findByRole('dialog', { name: `Delete “${fileName}” permanently?` })
     expect(dialog).toHaveTextContent('These 2 files are deleted from the quarantine, and can\'t be restored afterwards:')
     expect(within(dialog).getAllByRole('listitem').map((item) => [
       item.querySelector('.jobs-file-path')?.textContent,
@@ -341,7 +341,7 @@ describe('DuplicatesPage Removed copies', () => {
     expect(dialog).toHaveTextContent(`Frees ${formatFileSize(61_440)}.`)
     expect(dialog).toHaveTextContent('1 file has another name (a hardlink), so deleting it frees no space.')
     const buttons = footerButtons(dialog)
-    expect(buttons.map((button) => button.textContent)).toEqual(['Delete for good', 'Cancel'])
+    expect(buttons.map((button) => button.textContent)).toEqual(['Delete permanently', 'Cancel'])
     expect(buttons[0]).toHaveClass('ui-button-destructive')
     expect(dialog).toHaveClass('confirm-dialog', 'confirm-dialog-wide')
   })
@@ -350,20 +350,20 @@ describe('DuplicatesPage Removed copies', () => {
     // Arrange
     serverWith(removalOf())
     const { user } = renderPage()
-    await user.click(within(await card()).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(await card()).getByRole('button', { name: 'Delete permanently' }))
 
     // Act
-    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete permanently' }))
 
     // Assert
-    expect(await screen.findByRole('status')).toHaveTextContent(`Deleted “${fileName}” for good.`)
+    expect(await screen.findByRole('status')).toHaveTextContent(`Deleted “${fileName}” permanently.`)
     expect(copyRemovalsApi.deleteForGood).toHaveBeenCalledExactlyOnceWith(REMOVAL_ID)
     expect(await screen.findByText(/^No removed copy is in the quarantine/)).toBeInTheDocument()
   })
 
   it.each([
     ['Restore', `Restored “${fileName}”: it is back where it was.`],
-    ['Delete for good', `Deleted “${fileName}” for good.`],
+    ['Delete permanently', `Deleted “${fileName}” permanently.`],
   ])('moves the focus from the card %s took away to what it did, above the removals left', async (action, done) => {
     // Arrange
     serverWith(removalOf(), otherRemoval)
@@ -380,7 +380,7 @@ describe('DuplicatesPage Removed copies', () => {
     expect(result).toHaveFocus()
   })
 
-  it.each(['Restore', 'Delete for good'])('moves the focus to the empty state when %s leaves no removed copy', async (action) => {
+  it.each(['Restore', 'Delete permanently'])('moves the focus to the empty state when %s leaves no removed copy', async (action) => {
     // Arrange
     serverWith(removalOf())
     const { user } = renderPage()
@@ -397,7 +397,7 @@ describe('DuplicatesPage Removed copies', () => {
   it.each([
     ['Restore', apiError(409, 'Nothing of this removal is in the quarantine, so there\'s nothing to put back.'),
       'Nothing of this removal is in the quarantine, so there\'s nothing to put back.'],
-    ['Delete for good', apiError(409, 'This removal holds nothing in the quarantine to delete.'),
+    ['Delete permanently', apiError(409, 'This removal holds nothing in the quarantine to delete.'),
       'This removal holds nothing in the quarantine to delete.'],
     ['Restore', apiError(404), 'This removal has ended meanwhile: the list shows the removed copies as they are now.'],
   ])('says above the list why %s failed once the list, asked for again, no longer has the card, and moves the focus there', async (action, failure, sentence) => {
@@ -421,9 +421,9 @@ describe('DuplicatesPage Removed copies', () => {
     ['Restore', 'Restore', apiError(409, 'Replacement is switched off on the Media folders page: nothing is put back while it is off.'),
       'Replacement is switched off on the Media folders page: nothing is put back while it is off.'],
     ['Restore', 'Restore', apiError(500), 'Could not put the copy back. Reload the page and try again.'],
-    ['Delete for good', 'Delete for good', apiError(409, 'A file changed in the quarantine: nothing was deleted.'),
+    ['Delete permanently', 'Delete permanently', apiError(409, 'A file changed in the quarantine: nothing was deleted.'),
       'A file changed in the quarantine: nothing was deleted.'],
-    ['Delete for good', 'Delete for good', apiError(500), 'Could not delete the copy. Reload the page and try again.'],
+    ['Delete permanently', 'Delete permanently', apiError(500), 'Could not delete the copy. Reload the page and try again.'],
   ])('says on the card why %s failed, the server\'s sentence first, and keeps the card', async (action, confirmLabel, failure, sentence) => {
     // Arrange
     serverWith(removalOf())
@@ -455,7 +455,7 @@ describe('DuplicatesPage Removed copies', () => {
 
     // Assert
     expect(await within(shown).findByRole('button', { name: 'Restoring…' })).toBeDisabled()
-    expect(within(shown).getByRole('button', { name: 'Delete for good' })).toBeDisabled()
+    expect(within(shown).getByRole('button', { name: 'Delete permanently' })).toBeDisabled()
   })
 
   it('keeps the same cards on screen under a banner when a refresh fails', async () => {

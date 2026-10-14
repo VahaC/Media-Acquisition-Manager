@@ -7,7 +7,9 @@ import type {
   DownloadJobFilesQuery,
   DownloadJobList,
   DownloadJobsQuery,
+  DownloadFolderNotCheckedReason,
   DownloadOptions,
+  DownloadOverwriteCheckAnswer,
 } from '@/lib/types'
 import { cartoons, filmsFolder, movies } from '@/test/destinations'
 import { localQbittorrent, localTransmission } from '@/test/integrations'
@@ -83,6 +85,17 @@ export function optionsOf(...clients: DownloadClientOption[]): DownloadOptions {
 /** MAM-32 — the options of `clients` with `destinationId` suggested: a mapped section's, or null for none. */
 export function suggestedOf(destinationId: string | null, ...clients: DownloadClientOption[]): DownloadOptions {
   return { clients, suggestedDestinationId: destinationId }
+}
+
+/**
+ * MAM-38 — the answer about a destination's folder: `notCheckedReason`, null when it can be checked;
+ * MAM-31 — `changes` sets why a folder is unknown, its client and the client's sentence.
+ */
+export function overwriteOf(
+  notCheckedReason: DownloadFolderNotCheckedReason | null,
+  changes: Partial<DownloadOverwriteCheckAnswer> = {},
+): DownloadOverwriteCheckAnswer {
+  return { notCheckedReason, folderUnknownCause: null, clientName: null, clientError: null, ...changes }
 }
 
 /** The job a send of the Toloka release to Local qBittorrent's Movies makes; `changes` sets the outcome. */

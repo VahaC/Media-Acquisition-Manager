@@ -129,3 +129,12 @@ export function dropLeavesOthers(details: ReplacementDetails): boolean {
 export function quarantinedNames(details: ReplacementDetails): ReplacementName[] {
   return details.names.filter((name) => name.state === 'Quarantined')
 }
+
+/**
+ * The old copies the replacement holds in the quarantine now — its videos there —: what Restore's and
+ * Delete's labels, titles and confirmations are counted by ("Restore old copy", "Delete old copies
+ * permanently").
+ */
+export function quarantinedCopies(details: ReplacementDetails): number {
+  return quarantinedNames(details).filter((name) => name.kind === 'Video').length
+}

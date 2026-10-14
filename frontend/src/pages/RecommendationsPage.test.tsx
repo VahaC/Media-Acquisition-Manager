@@ -265,6 +265,56 @@ describe('RecommendationsPage', () => {
     expect(screen.queryByRole('link', { name: 'Open Integrations' })).not.toBeInTheDocument()
   })
 
+  it('names a release source whose last call for the lists failed, with its own sentence for the owner', async () => {
+    // Arrange
+    // MAM-31 — the live check gave Jackett a wrong key: the Search page said so, this page showed its old counts.
+    const refused = 'The Torznab feed refused the API key (error 100: Invalid API Key). Copy the API key from the dashboard of the service that serves this feed, such as Jackett or Prowlarr, into this integration under Integrations.'
+    const failedUtc = new Date(Date.now() - 12 * 60_000).toISOString()
+    vi.mocked(recommendationsApi.list).mockImplementation(async (query) => listOf(query, [guardians], {
+      failedSources: [{ name: 'Toloka', status: 'AuthenticationFailed', error: refused, failedUtc }],
+    }))
+
+    // Act
+    renderPage({ signedIn: owner })
+
+    // Assert
+    const sources = await screen.findByRole('list', { name: 'Release sources' })
+    expect(within(sources).getAllByRole('listitem').map((line) => line.textContent)).toEqual([
+      `Toloka · Last asked for these lists 12 minutes ago: Refused the API key. ${refused}`,
+    ])
+    expect(within(sources).getByRole('listitem')).toHaveAttribute('data-status', 'Failed')
+    expect(await screen.findByRole('heading', { level: 2, name: guardians.title })).toBeInTheDocument()
+  })
+
+  it('names a failed release source to anyone else with its status, and tells them to ask the owner', async () => {
+    // Arrange
+    // The API keeps the source's sentence, which can name its address, for the owner.
+    const failedUtc = new Date(Date.now() - 2 * 60_000).toISOString()
+    vi.mocked(recommendationsApi.list).mockImplementation(async (query) => listOf(query, [guardians], {
+      failedSources: [{ name: 'Toloka', status: 'Unreachable', error: null, failedUtc }],
+    }))
+
+    // Act
+    renderPage({ signedIn: member })
+
+    // Assert
+    const sources = await screen.findByRole('list', { name: 'Release sources' })
+    expect(sources).toHaveTextContent(
+      'Toloka · Last asked for these lists 2 minutes ago: Couldn\'t be reached. Ask the owner to check “Toloka” under Integrations.')
+  })
+
+  it('says nothing of the release sources while each answered its last call', async () => {
+    // Arrange
+    vi.mocked(recommendationsApi.list).mockImplementation(async (query) => listOf(query, [guardians]))
+
+    // Act
+    renderPage()
+
+    // Assert
+    expect(await screen.findByRole('heading', { level: 2, name: guardians.title })).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Release sources' })).not.toBeInTheDocument()
+  })
+
   it('says nothing is recommended yet in a tab without works, with no filters to offer', async () => {
     // Arrange
     vi.mocked(recommendationsApi.list).mockImplementation(async (query) => listOf(query, []))

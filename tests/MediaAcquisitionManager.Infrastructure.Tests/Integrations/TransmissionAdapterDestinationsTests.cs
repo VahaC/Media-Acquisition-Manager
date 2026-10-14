@@ -199,7 +199,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
                     downloadDir,
                     downloadDir,
                     IsClientDefaultFolder: true,
-                    Problem: $"Transmission's download folder “{downloadDir}” isn't a full path the app can use. In Transmission's web interface open Edit Preferences, Torrents, give “Download to” a full path such as /downloads, then look again."),
+                    Problem: $"Transmission's download folder “{downloadDir}” isn't a full path the app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a full path such as /downloads, then look again."),
                 new ClientDestination("/downloads/movies", "/downloads/movies", "/downloads/movies"),
             ],
             result.Value);
@@ -341,7 +341,7 @@ public sealed class TransmissionAdapterDestinationsTests : IDisposable
         // D6 — every call, not only the test.
         Assert.Equal(IntegrationCallStatus.Refused, result.Status);
         Assert.Equal(
-            "Transmission keeps unfinished downloads in its temporary folder “/downloads/.incomplete”, where the app can't follow them. In Transmission's web interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again.",
+            "Transmission keeps unfinished downloads in its temporary folder “/downloads/.incomplete”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again.",
             result.Error);
         Assert.Equal(["session-get"], _transmission.Calls.Select(call => call.Method));
     }

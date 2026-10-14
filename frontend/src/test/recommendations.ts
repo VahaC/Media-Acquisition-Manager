@@ -192,6 +192,7 @@ export function listOf(
     facets: movieFacets,
     catalogConnected: true,
     lastRun: runOf(),
+    failedSources: [],
     ...changes,
   }
 }

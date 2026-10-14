@@ -208,7 +208,7 @@ internal sealed partial class TransmissionAdapter(IHttpClientFactory httpClients
             var temporaryFolder = RemoteText.Clean(Text(arguments, "incomplete-dir"), FolderMaximumLength, secrets);
             return (null, ConnectionTestResult.Failed(
                 IntegrationCallStatus.Refused,
-                $"Transmission keeps unfinished downloads in its temporary folder “{temporaryFolder}”, where the app can't follow them. In Transmission's web interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again."));
+                $"Transmission keeps unfinished downloads in its temporary folder “{temporaryFolder}”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again."));
         }
 
         var cleansByOperatingSystem = IsAtLeast(arguments, CleansNamesByOperatingSystemSemver, CleansNamesByOperatingSystemRpcVersion) == true;

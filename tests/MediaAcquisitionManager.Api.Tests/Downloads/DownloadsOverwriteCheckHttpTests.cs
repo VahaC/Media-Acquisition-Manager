@@ -13,7 +13,9 @@ namespace MediaAcquisitionManager.Api.Tests.Downloads;
 // files a download would write over: no reason when the category's folder lies inside the Media folders, else why
 // not — outside them, or no path in the app (a mapping that covers none of the client's folders, a client switched
 // off, a client that can't list its categories or no longer lists this one). Every signed-in user's, as the dialog
-// is; a reason, never a path; the destination's client is asked where its category saves.
+// is; a reason, never a path; the destination's client is asked where its category saves. MAM-31 — a folder that is
+// unknown says why, with the client's name: it couldn't be asked (with its own sentence, for the owner alone), it has
+// no such category, or no path mapping brings its folder in.
 public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/downloads/overwrite-check";
@@ -56,8 +58,10 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        Assert.Equal(["notCheckedReason"], document.RootElement.EnumerateObject().Select(property => property.Name));
-        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("notCheckedReason").ValueKind);
+        Assert.Equal(
+            ["notCheckedReason", "folderUnknownCause", "clientName", "clientError"],
+            document.RootElement.EnumerateObject().Select(property => property.Name));
+        Assert.All(document.RootElement.EnumerateObject(), property => Assert.Equal(JsonValueKind.Null, property.Value.ValueKind));
     }
 
     [Fact]
@@ -75,10 +79,12 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
         Assert.Equal("NotCheckedFolderOutsideMediaFolders", await ReasonAsync(owners, cancellationToken));
         Assert.Equal("NotCheckedFolderOutsideMediaFolders", await ReasonAsync(members, cancellationToken));
+        // MAM-31 — a cause and a client only for a folder that is unknown.
+        Assert.Equal(((string?)null, (string?)null, (string?)null), await CauseAsync(owners, cancellationToken));
     }
 
     [Fact]
-    public async Task OverwriteCheck_of_a_category_folder_without_a_path_in_the_app_says_it_is_unknown()
+    public async Task OverwriteCheck_of_a_category_folder_without_a_path_in_the_app_says_no_path_mapping_of_its_client_brings_it_in()
     {
         //Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -92,6 +98,32 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("NotCheckedFolderUnknown", await ReasonAsync(response, cancellationToken));
+        // MAM-31 — qBittorrent saves Movies in /downloads/movies, which /elsewhere doesn't cover: the dialog names the
+        // client whose mappings to fix, and no path.
+        Assert.Equal(("NoPathMapping", "qBittorrent elsewhere", (string?)null), await CauseAsync(response, cancellationToken));
+    }
+
+    [Fact]
+    public async Task OverwriteCheck_of_a_category_folder_two_path_mappings_send_to_different_places_gives_no_cause()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        // What an older build or a hand-edited database can hold: /downloads/movies lands in /media/movies and in
+        // /elsewhere/movies.
+        var client = await CreateClientAsync(
+            "qBittorrent twice",
+            [new PathMappingPair("/downloads", "/media"), new PathMappingPair("/downloads/movies", "/elsewhere/movies")]);
+        var films = await new DestinationMappingSeeder(_factory.Scope).Create(client, "Films", "Movies");
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}?destinationId={films.Id}", _owner.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("NotCheckedFolderUnknown", await ReasonAsync(response, cancellationToken));
+        // MAM-31 — adding a mapping wouldn't fix it, so the dialog says nothing of adding one: no cause, its general line.
+        Assert.Equal(((string?)null, (string?)null, (string?)null), await CauseAsync(response, cancellationToken));
     }
 
     [Fact]
@@ -116,6 +148,10 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("NotCheckedFolderUnknown", await ReasonAsync(response, cancellationToken));
+        // MAM-31 — not asked, and the owner reads why, with what to do.
+        Assert.Equal(
+            ("ClientNotAsked", "qBittorrent off", "“qBittorrent off” is switched off. Switch it on under Integrations to use it for destinations."),
+            await CauseAsync(response, cancellationToken));
         Assert.Empty(_factory.QBittorrentHttp.Requests);
     }
 
@@ -136,6 +172,34 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         // A question the client can't answer is still an answer to the dialog: the folder is unknown, never a 5xx.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("NotCheckedFolderUnknown", await ReasonAsync(response, cancellationToken));
+        // MAM-31 — a member reads which client couldn't be asked, never its own sentence.
+        Assert.Equal(("ClientNotAsked", "qBittorrent", (string?)null), await CauseAsync(response, cancellationToken));
+    }
+
+    [Fact]
+    public async Task OverwriteCheck_when_qbittorrent_is_unreachable_gives_the_owner_its_sentence_and_a_member_its_name_alone()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await new AllowedRootSeeder(_factory.Scope).Allow("/media");
+        _qbittorrent.Intercept = _ => throw new HttpRequestException(HttpRequestError.ConnectionError, "refused");
+
+        //Act
+        var owners = await _factory.GetHttpRequest($"{BaseUrl}?destinationId={_movies.Id}", _owner.AccessToken);
+        var members = await _factory.GetHttpRequest($"{BaseUrl}?destinationId={_movies.Id}", _member.AccessToken);
+
+        //Assert
+        // MAM-31 — the live check's case with qBittorrent: the sentence names the client, its address and the fix.
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
+        Assert.Equal("NotCheckedFolderUnknown", await ReasonAsync(owners, cancellationToken));
+        Assert.Equal(
+            (
+                "ClientNotAsked",
+                "qBittorrent",
+                $"Couldn't reach qBittorrent at {_qbittorrent.BaseUrl}: nothing accepted the connection. Check the address and port, and that qBittorrent is running."
+            ),
+            await CauseAsync(owners, cancellationToken));
+        Assert.Equal(("ClientNotAsked", "qBittorrent", (string?)null), await CauseAsync(members, cancellationToken));
     }
 
     [Fact]
@@ -152,6 +216,8 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("NotCheckedFolderUnknown", await ReasonAsync(response, cancellationToken));
+        // MAM-31 — qBittorrent keeps "category".
+        Assert.Equal(("CategoryMissing", "qBittorrent", (string?)null), await CauseAsync(response, cancellationToken));
     }
 
     [Theory]
@@ -213,5 +279,13 @@ public sealed class DownloadsOverwriteCheckHttpTests : IClassFixture<MediaAcquis
     {
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         return document.RootElement.GetProperty("notCheckedReason").GetString();
+    }
+
+    /// <summary>MAM-31 — why a folder is unknown, the client named, and the client's own sentence.</summary>
+    private static async Task<(string? Cause, string? Client, string? Error)> CauseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var root = document.RootElement;
+        return (root.GetProperty("folderUnknownCause").GetString(), root.GetProperty("clientName").GetString(), root.GetProperty("clientError").GetString());
     }
 }

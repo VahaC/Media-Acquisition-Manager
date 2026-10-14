@@ -103,16 +103,18 @@ public sealed class DestinationService(
 
     public async Task<DestinationChangeResult> CreateAsync(CreateDestinationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
     {
-        // MAM-11 — checked in this order: the name, the client picked, the category's name, (MAM-32) the
-        // sections, whether the client is a download client the app has, (MAM-30) whether the name can be the
-        // client's label, (MAM-32) whether the sections' sources are release sources it has, whether the name is free
-        // for the client, then whether the client confirms the category — one sentence per answer, the first rule
-        // broken, and the live call last, so a request the rules refuse never reaches a client.
-        if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey, request.Sections) is { } error)
+        // MAM-11 — checked in this order: the name, the client picked, whether the client is a download client the app
+        // has, (MAM-31) the category's or folder's name in the words of that client, (MAM-32) the sections, (MAM-30)
+        // whether the name can be the client's label, (MAM-32) whether the sections' sources are release sources it has,
+        // whether the name is free for the client, then whether the client confirms the category — one sentence per
+        // answer, the first rule broken, and the live call last, so a request the rules refuse never reaches a client.
+        if (Validate(request.Name, request.DownloadClientId) is { } error)
             return DestinationChangeResult.Invalid(error);
         var client = await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken);
         if (client is null)
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        if (Validate(client, request.ClientDestinationKey, request.Sections) is { } fieldError)
+            return DestinationChangeResult.Invalid(fieldError);
         if (LabelError(client, request.Name!) is { } labelError)
             return DestinationChangeResult.Invalid(labelError);
         // A new destination has no sections of its own to take off: none picked is nothing to map.
@@ -175,11 +177,13 @@ public sealed class DestinationService(
             return DestinationChangeResult.NotFound;
 
         // The create order, against the destination as the save would leave it.
-        if (Validate(request.Name, request.DownloadClientId, request.ClientDestinationKey, request.Sections) is { } error)
+        if (Validate(request.Name, request.DownloadClientId) is { } error)
             return DestinationChangeResult.Invalid(error);
         var client = await FindDownloadClientAsync(request.DownloadClientId!.Value, cancellationToken);
         if (client is null)
             return DestinationChangeResult.DownloadClientMissing(DownloadClientGoneError);
+        if (Validate(client, request.ClientDestinationKey, request.Sections) is { } fieldError)
+            return DestinationChangeResult.Invalid(fieldError);
         // MAM-30 — a rename alone too: it asks no client, but the client shows the new name all the same.
         if (LabelError(client, request.Name!) is { } labelError)
             return DestinationChangeResult.Invalid(labelError);
@@ -331,15 +335,22 @@ public sealed class DestinationService(
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
-    // The rules a create and an update share, in their order: the name, the client picked, the category's
-    // name, then (MAM-32) each section picked.
-    private static string? Validate(string? name, Guid? downloadClientId, string? clientDestinationKey, IReadOnlyList<DestinationSectionRequest?>? sections)
+    // The rules a create and an update share before the client is read, in their order: the name, then the client
+    // picked. MAM-31 — the rest wait for the client (the overload below).
+    private static string? Validate(string? name, Guid? downloadClientId)
     {
         if (DestinationRules.ValidateName(name) is { } nameError)
             return nameError;
-        if (downloadClientId is null)
-            return DownloadClientMissingError;
-        if (DestinationRules.ValidateClientDestinationKey(clientDestinationKey) is { } keyError)
+        return downloadClientId is null ? DownloadClientMissingError : null;
+    }
+
+    // MAM-31 — the rules a create and an update share once the client is found, in their order: the category's or
+    // folder's name, a missing one asked for in the words of what the client's destinations are (the live check showed
+    // "Pick the category or folder" with Transmission alone), then (MAM-32) each section picked — the destination's
+    // own fields still before its sections.
+    private string? Validate(IntegrationConnectionEntity client, string? clientDestinationKey, IReadOnlyList<DestinationSectionRequest?>? sections)
+    {
+        if (DestinationRules.ValidateClientDestinationKey(clientDestinationKey, DestinationKindOf(client.AdapterType), client.Name) is { } keyError)
             return keyError;
         foreach (var section in sections ?? [])
         {

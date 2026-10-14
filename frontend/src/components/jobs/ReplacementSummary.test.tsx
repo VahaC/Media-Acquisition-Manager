@@ -40,7 +40,7 @@ describe('ReplacementSummary', () => {
     ['in the quarantine, one copy', { state: 'Quarantined', copyCount: 1, quarantinedCopyCount: 1 }, '1 old copy in the quarantine', plain],
     ['in the quarantine, counted by the copies there now', { state: 'Quarantined', copyCount: 5, quarantinedCopyCount: 3 }, '3 old copies in the quarantine', plain],
     ['being put back', { state: 'Restoring' }, 'Putting back…', underWay],
-    ['being deleted for good', { state: 'Deleting' }, 'Deleting for good…', underWay],
+    ['being deleted permanently', { state: 'Deleting' }, 'Deleting permanently…', underWay],
     ['undone by a restore', { state: 'Restored', copyCount: 1 }, 'Undone: the old copy is back', plain],
     ['undone by a restore, of several copies', { state: 'Restored', copyCount: 2 }, 'Undone: the old copies are back', plain],
     ['completed', { state: 'Completed', copyCount: 1 }, 'Replaced: old copy deleted', green],

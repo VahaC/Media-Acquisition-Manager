@@ -172,3 +172,10 @@
     display: none;
   }
 }
+
+/* MAM-31 — the release sources whose last call for the lists failed, above the cards: one line each,
+   as the Search page lists its sources. */
+.recommendation-sources {
+  display: grid;
+  gap: 0.25rem;
+}

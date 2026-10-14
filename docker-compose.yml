@@ -2,7 +2,9 @@
 #
 #   docker compose up -d
 #
-# and open http://localhost:8118. To build from this checkout instead, use docker-compose.build.yml.
+# and open http://localhost:8118 on this machine. A server with no browser of its own, such as an
+# LXC, is reached through an SSH tunnel or APP_BIND_ADDRESS (MAM-31): README.md, "Quick start", says
+# how. To build from this checkout instead, use docker-compose.build.yml.
 # Every variable below is optional; put overrides in a .env file next to this one. .env.example
 # lists them all with their trade-offs.
 services:
@@ -46,7 +48,7 @@ services:
       # Media folders, read-only by default: with :ro nothing the app does can write to them. To
       # turn replacement on (0.3.0) drop :ro — its moves rename an old copy into .mam-quarantine at
       # the top of each allowed folder, and back out, and delete from there what the owner deletes
-      # for good —, set PUID and PGID to the media's owner (environment, above), then switch it on
+      # permanently —, set PUID and PGID to the media's owner (environment, above), then switch it on
       # and tick its folders under Media folders. Mount each allowed folder as one mount that
       # holds its libraries, with nothing mounted inside it: a move into the quarantine across two
       # mounts would be a copy, and the app refuses it. Quarantined files stay here, outside the

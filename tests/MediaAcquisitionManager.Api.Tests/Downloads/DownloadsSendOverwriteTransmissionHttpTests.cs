@@ -24,8 +24,9 @@ namespace MediaAcquisitionManager.Api.Tests.Downloads;
 // in Windows-1251 bytes with no UTF-8 beside it — and a magnet in the folder still fetching its metadata, whose files
 // nobody can tell yet, send it unchecked, said so on the job. The Download dialog's question
 // before Send tells a folder Transmission can't see by a reason of its own: nothing is sent there at all. Each sentence
-// names the destination, never its folder (D13). The guard's rules over a stand-in client are
-// DownloadsSendOverwriteFolderClientHttpTests'.
+// names the destination, never its folder (D13). MAM-31 — a folder that is unknown says why, naming Transmission: it
+// couldn't be reached (its sentence for the owner alone), or no path mapping brings the folder in. The guard's rules
+// over a stand-in client are DownloadsSendOverwriteFolderClientHttpTests'.
 public sealed class DownloadsSendOverwriteTransmissionHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/downloads";
@@ -216,6 +217,58 @@ public sealed class DownloadsSendOverwriteTransmissionHttpTests : IClassFixture<
         Assert.Empty(_transmission.Writes);
     }
 
+    [Fact]
+    public async Task OverwriteCheck_while_transmission_is_unreachable_names_it_with_its_sentence_for_the_owner_and_without_for_a_member()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var owner = await new UserSeeder(_factory.Scope).CreateAuthorizedOwner("owner");
+        // MAM-31 — the live check stopped Transmission's container.
+        _transmission.Unreachable = true;
+
+        //Act
+        var owners = await _factory.GetHttpRequest($"{BaseUrl}/overwrite-check?destinationId={_movies.Id}", owner.AccessToken);
+        var members = await _factory.GetHttpRequest($"{BaseUrl}/overwrite-check?destinationId={_movies.Id}", _member.AccessToken);
+
+        //Assert
+        // The dialog's warning says Transmission couldn't be asked, and the owner reads Transmission's own sentence, with
+        // the fix: never "has no path in the app, or its download client can't say where it is".
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (owners.StatusCode, members.StatusCode));
+        var ownersAnswer = await ReadCheckAsync(owners, cancellationToken);
+        Assert.Equal(
+            new DownloadOverwriteCheckResponse(
+                DownloadOverwriteCheck.NotCheckedFolderUnknown,
+                DownloadFolderUnknownCause.ClientNotAsked,
+                "Transmission",
+                "Couldn't reach Transmission at http://transmission.test:9091: nothing accepted the connection. Check the address and port, and that Transmission is running."),
+            ownersAnswer);
+        Assert.Equal(
+            new DownloadOverwriteCheckResponse(DownloadOverwriteCheck.NotCheckedFolderUnknown, DownloadFolderUnknownCause.ClientNotAsked, "Transmission"),
+            await ReadCheckAsync(members, cancellationToken));
+    }
+
+    [Fact]
+    public async Task OverwriteCheck_of_a_folder_no_path_mapping_brings_in_says_so_naming_transmission()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // Transmission's own download folder, which /downloads → /media doesn't cover.
+        _transmission.AddFolder("/scratch");
+        var scratch = await new DestinationMappingSeeder(_factory.Scope).Create(_client, "Scratch", "/scratch");
+
+        //Act
+        var response = await _factory.GetHttpRequest($"{BaseUrl}/overwrite-check?destinationId={scratch.Id}", _member.AccessToken);
+
+        //Assert
+        // MAM-31 — the folder Transmission sees has no path in the app: the dialog says which client's mappings to fix,
+        // and no path, to anyone.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            new DownloadOverwriteCheckResponse(DownloadOverwriteCheck.NotCheckedFolderUnknown, DownloadFolderUnknownCause.NoPathMapping, "Transmission"),
+            await ReadCheckAsync(response, cancellationToken));
+        Assert.Empty(_transmission.Writes);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     private Task<ReleaseEntity> FindReleaseAsync() => new ReleaseSeeder(_factory.Scope).CreateFound(_member.User, _toloka, "Film (2001) BDRip 1080p");
@@ -259,4 +312,7 @@ public sealed class DownloadsSendOverwriteTransmissionHttpTests : IClassFixture<
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
         return document.RootElement.GetProperty("notCheckedReason").GetString();
     }
+
+    private static async Task<DownloadOverwriteCheckResponse> ReadCheckAsync(HttpResponseMessage response, CancellationToken cancellationToken) =>
+        (await response.Content.ReadFromJsonAsync<DownloadOverwriteCheckResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken))!;
 }

@@ -8,15 +8,17 @@ import { qk } from './keys'
  * previous page stays on screen while the next one loads, so typing a search doesn't blank the table.
  *
  * MAM-7 — it always runs, like useUsers: a non-owner who opens the address sees the API's 403
- * sentence in place of the list, rather than an empty page.
+ * sentence in place of the list, rather than an empty page. MAM-31 — unless `enabled` is false: the
+ * Destinations page reads the download clients for its words only for the owner, whom the API answers.
  */
-export const useIntegrations = (query: IntegrationsQuery) =>
+export const useIntegrations = (query: IntegrationsQuery, { enabled = true }: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: qk.settings.integrations.list(query),
     queryFn: () => integrationsApi.list(query),
     placeholderData: keepPreviousData,
     // A 403 for a non-owner or a 400 for a bad page won't change on a second try.
     retry: false,
+    enabled,
   })
 
 /**

@@ -173,6 +173,26 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
   const replaceNotChecked = folderNotSeen
     ? t('overwrite.NotCheckedFolderNotSeen')
     : t('replace.notChecked')
+  // MAM-31 — a folder that is unknown names its client and why: the live check stopped Transmission
+  // and read "has no path in the app, or its download client can't say where it is" above the
+  // replacement's own "couldn't ask “Transmission”". The client's own sentence, with the fix, is the
+  // owner's (the server sends it to the owner alone); anyone else is told to ask the owner.
+  const folderUnknown = notCheckedReason === 'NotCheckedFolderUnknown' ? overwrite.data : undefined
+  const unknownCause = folderUnknown?.folderUnknownCause && folderUnknown.clientName
+    ? { cause: folderUnknown.folderUnknownCause, client: folderUnknown.clientName, error: folderUnknown.clientError }
+    : null
+  const keepBothWarning = (() => {
+    if (notCheckedReason === null) return null
+    if (unknownCause === null) return t(`overwrite.${notCheckedReason}`)
+    const why = t(`overwrite.folderUnknown.${unknownCause.cause}`, { client: unknownCause.client })
+    if (unknownCause.cause !== 'ClientNotAsked') return why
+    const fix = unknownCause.error ?? (isOwner ? null : t('overwrite.askOwner', { client: unknownCause.client }))
+    return fix === null ? why : `${why} ${fix}`
+  })()
+  // MAM-31 — under Keep both the warning above already carries the client's own sentence, which the
+  // reason Replace can't be picked would repeat word for word: that reason says what it means for a
+  // replacement instead.
+  const warningHasClientError = !replace && unknownCause?.cause === 'ClientNotAsked' && unknownCause.error !== null
 
   // MAM-24 — the owner's copies through the destination picked; never asked for a member, whose route
   // it isn't. The held marks (every client's torrents) only once Replace is picked.
@@ -217,6 +237,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
           ),
         }
       case 'DestinationNotUsable':
+        if (warningHasClientError) return plain(t('replace.notChecked'))
         return plain(answer.destinationProblem ?? t('replace.unavailable.DestinationNotUsable'))
       default:
         return plain(t(`replace.unavailable.${answer.unavailable}`))
@@ -475,7 +496,7 @@ export function DownloadDialog({ release, onClose }: DownloadDialogProps) {
               check, so in Replace mode it says so rather than that the release goes without it. */}
           {notCheckedReason && (
             <Banner tone="warning" id={warningId}>
-              {replace ? replaceNotChecked : t(`overwrite.${notCheckedReason}`)}
+              {replace ? replaceNotChecked : keepBothWarning}
             </Banner>
           )}
         </div>

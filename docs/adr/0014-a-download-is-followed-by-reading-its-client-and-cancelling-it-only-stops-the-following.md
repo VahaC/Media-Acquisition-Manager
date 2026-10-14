@@ -312,7 +312,8 @@ opened ([ADR
 MAM-41 section). **Copies** left the Actions column, as it acts on nothing — Vasyl's word: the copies
 are details, not an action —, so Actions hold verbs only: **Retry**, **Keep both**, **Restore**,
 **Delete for good** and **Cancel job**, **Restore** and **Delete for good** joining the row from the
-job's page (ADR 0030's MAM-41 section).
+job's page (ADR 0030's MAM-41 section). Since 0.4.0 those two read **Restore old copy** and **Delete
+old copy permanently**, "copies" for more than one, as on the job's page (ADR 0030's MAM-31 section).
 
 | Rejected option | Why not |
 | --- | --- |

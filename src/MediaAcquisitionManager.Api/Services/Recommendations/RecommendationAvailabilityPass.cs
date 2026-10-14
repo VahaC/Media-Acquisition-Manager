@@ -30,6 +30,7 @@ public sealed partial class RecommendationAvailabilityPass(
     ApplicationDbContext db,
     IReleaseSources sources,
     IRecommendationSettingsReader settingsReader,
+    RecommendationSourceFailures failures,
     TimeProvider time,
     ILogger<RecommendationAvailabilityPass> logger) : IRecommendationAvailabilityPass
 {
@@ -142,6 +143,8 @@ public sealed partial class RecommendationAvailabilityPass(
     private async Task<CheckOutcome> CheckAsync(UserBudget budget, DueWork work, DateTime now, CancellationToken cancellationToken)
     {
         var outcomes = await sources.SearchKindAsync(work.QueryText, work.QueryYear, work.ReleaseKind, cancellationToken);
+        // MAM-31 — a source that refused or failed is said on the Recommendations page, as on the Search page.
+        failures.Record(outcomes);
 
         // MAM-33 — not one source was asked (each was left out: no search of this kind, a type this build can't use, a
         // key it can't read): no search was sent, so there is nothing to count against the budget, nor to store.

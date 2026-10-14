@@ -1,5 +1,5 @@
 /* MAM-34 — a library work's TMDb link: what the shared sheets don't have for the TMDb dialog. The
-   dialog itself takes the Release details dialog's classes (search.css: 60rem, two columns on a wide
+   dialog itself takes the Release details dialog's classes (search.css: 64rem, two columns on a wide
    screen, the facts and headings), so the two read as one family; this sheet adds the items, the
    picked-from candidates and the paste and search forms. Imported by each component that uses it.
    Tokens only, so dark mode needs nothing of its own. */

@@ -100,12 +100,28 @@ export type DownloadFolderNotCheckedReason =
   | 'NotCheckedFolderNotSeen'
 
 /**
+ * MAM-31 — why a destination's folder is unknown (`NotCheckedFolderUnknown`), so the Download dialog's
+ * warning names the client and the fix: the client couldn't be asked where it saves, no longer has the
+ * destination's category (a client of categories), or none of its path mappings brings the folder in.
+ */
+export type DownloadFolderUnknownCause = 'ClientNotAsked' | 'CategoryMissing' | 'NoPathMapping'
+
+/**
  * MAM-38 — `GET /api/downloads/overwrite-check?destinationId=`: whether a release sent to the
  * destination is checked for files it would write over.
  */
 export interface DownloadOverwriteCheckAnswer {
   /** Why the destination's folder can't be checked; null when it can. A reason, never a path. */
   notCheckedReason: DownloadFolderNotCheckedReason | null
+  /** MAM-31 — why a folder is unknown; null for every other reason, and when the app can't tell. */
+  folderUnknownCause: DownloadFolderUnknownCause | null
+  /** MAM-31 — the destination's download client, whenever `folderUnknownCause` is given. */
+  clientName: string | null
+  /**
+   * MAM-31 — for `ClientNotAsked`, the client's own sentence with what to do. The owner's alone, as
+   * it can name the client's address; null for everyone else.
+   */
+  clientError: string | null
 }
 
 /**

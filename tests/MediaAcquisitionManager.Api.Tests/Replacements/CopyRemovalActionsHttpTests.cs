@@ -38,7 +38,7 @@ public sealed class CopyRemovalActionsHttpTests : IClassFixture<MediaAcquisition
         "Replacing and removing copies is switched off on the Media folders page, so nothing can be put back. Turn on “Replace copies after verification”, then press Restore again.";
     private const string NothingToRestoreError = "Nothing of this removal is in the quarantine, so there's nothing to put back.";
     private const string VideoDeletedError =
-        "This copy's video was deleted for good, so nothing is put back without it. Delete for good what the quarantine still holds.";
+        "This copy's video was deleted permanently, so nothing is put back without it. Delete permanently what the quarantine still holds.";
     private const string BeingWorkedOnError = "This removal is being worked on right now. Try again in a moment.";
     private const string SrtNotAllowed = "The app may not write in the folder of “/media/movies/Alien (1979)/Alien (1979) 2160p.uk.srt”.";
     private const string NothingToDeleteError = "This removal holds nothing in the quarantine to delete.";

@@ -1,3 +1,5 @@
+import type { IntegrationCallStatus } from './integrations'
+
 /**
  * MAM-33 — the four lists the Recommendations page offers, in the order it shows them (Vasyl's
  * decision 2). A work goes to one of them by its genres: Documentary first, then Animation, else
@@ -199,6 +201,23 @@ export interface RecommendationList {
   catalogConnected: boolean
   /** The latest computation; null before the first. */
   lastRun: RecommendationRun | null
+  /** MAM-31 — the switched-on release sources whose last call for the lists failed, by name. */
+  failedSources: RecommendationSourceFailure[]
+}
+
+/**
+ * MAM-31 — a release source whose last call for the lists failed — the availability check's search or
+ * the newest releases' read —, said beside the cards whose counts it couldn't refresh, as the Search
+ * page says a failed source.
+ */
+export interface RecommendationSourceFailure {
+  /** The source's name now. */
+  name: string
+  /** How the call went: never `Succeeded`. */
+  status: Exclude<IntegrationCallStatus, 'Succeeded'>
+  /** The source's sentence with what to do, every secret masked; the owner's alone, null for anyone else. */
+  error: string | null
+  failedUtc: string
 }
 
 /**

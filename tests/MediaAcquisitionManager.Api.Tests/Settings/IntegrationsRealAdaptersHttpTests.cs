@@ -380,7 +380,7 @@ public sealed class IntegrationsRealAdaptersHttpTests : IClassFixture<MediaAcqui
         Assert.Equal(
             new ConnectionTestResponse(
                 IntegrationCallStatus.Refused,
-                "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit Preferences, Torrents, untick “Use temporary folder”, then test again."),
+                "Transmission keeps unfinished downloads in its temporary folder “/downloads/incomplete”, where the app can't follow them. In Transmission's web interface open Edit preferences, Torrents, untick “Use temporary folder”, then test again."),
             await ReadTestResponseAsync(response, cancellationToken));
     }
 

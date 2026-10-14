@@ -364,7 +364,7 @@ describe('MediaFoldersPage', () => {
 
   // MAM-24 — the replacement gates of ADR 0033, saved by the same Save as the folders.
   describe('replacing copies', () => {
-    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, and the Duplicates page offers Remove this copy for files in them, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine, as a removed copy does at once, and stays there until you restore it or delete it for good. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.'
+    const switchHint = 'Off by default. When on, the Download dialog offers Replace after verification for copies in the folders ticked below, and the Duplicates page offers Remove this copy for files in them, to you alone. Once the new file is verified, the old copy moves into its media folder\'s quarantine, as a removed copy does at once, and stays there until you restore it or delete it permanently. Moving needs the media folders mounted read-write and the app running as their owner, set with PUID and PGID.'
     const outside = 'Outside the Media folders.'
     const outsideTicked = 'Outside the Media folders: this tick has no effect until the folder is inside one.'
     const noLonger = 'No longer a library folder the app knows, so a tick here has no effect. Saved unticked, it leaves this list.'
@@ -1002,7 +1002,7 @@ describe('MediaFoldersPage', () => {
 
     it('shows the server\'s refusal of a Save that would leave a quarantine outside every media folder above Save, keeping what was typed', async () => {
       // Arrange
-      const sentence = '“/media/.mam-quarantine” still holds replaced or removed copies, so its media folder can\'t be taken out of the list. Restore them or delete them for good first.'
+      const sentence = '“/media/.mam-quarantine” still holds replaced or removed copies, so its media folder can\'t be taken out of the list. Restore them or delete them permanently first.'
       storedRoots(allowedRootsOf(['/media'], { quarantines: [quarantineOf()] }))
       vi.mocked(allowedRootsApi.update).mockRejectedValue(apiError(400, sentence))
       const { user } = renderPage()

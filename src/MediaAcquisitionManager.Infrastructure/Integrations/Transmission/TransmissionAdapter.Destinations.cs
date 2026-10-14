@@ -79,7 +79,7 @@ internal sealed partial class TransmissionAdapter
                 shown,
                 downloadDir,
                 IsClientDefaultFolder: true,
-                Problem: $"Transmission's download folder “{shown}” isn't a full path the app can use. In Transmission's web interface open Edit Preferences, Torrents, give “Download to” a full path such as /downloads, then look again."));
+                Problem: $"Transmission's download folder “{shown}” isn't a full path the app can use. In Transmission's web interface open Edit preferences, Torrents, give “Download to” a full path such as /downloads, then look again."));
         }
 
         folders.AddRange(proposed.Where(folder => !folders.Exists(listed => listed.Folder.IsSameAs(folder))).Select(folder => (folder, false)));

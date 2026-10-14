@@ -16,7 +16,7 @@ import { RetryButton } from '@/components/shared/RetryButton'
 import { useAuthStore } from '@/lib/auth-store'
 import { isReplacementBeingChecked } from '@/lib/download-jobs'
 import { formatFileSize, formatNumber } from '@/lib/format'
-import { dropLeavesOthers, quarantinedNames } from '@/lib/replacement-details'
+import { dropLeavesOthers, quarantinedCopies, quarantinedNames } from '@/lib/replacement-details'
 import {
   JOBS_POLL_MS,
   useDeleteReplacementForGood,
@@ -112,6 +112,10 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
   const retryReason = data !== undefined && data.stop === 'Check' && data.dropOnlyCopyCount > 0
     ? dropLeavesOthers(data) ? t('oldCopies.retry.blockedByDrop') : t('oldCopies.retry.blockedKeepBoth')
     : undefined
+  // Restore and Delete name what they act on — the old copies, never the new release the page is
+  // titled by (Vasyl, MAM-31's live check, 2026-10-14) —, counted by the copies the quarantine holds,
+  // as their confirmations are.
+  const copiesInQuarantine = data === undefined ? 0 : quarantinedCopies(data)
 
   const sendRetry = async (shown: ReplacementDetails) => {
     // The result says what the retry does, by who stopped the replacement as the owner saw it.
@@ -128,9 +132,8 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
   const sendRestore = async (shown: ReplacementDetails) => {
     // What the confirmation is about, as it stands when the owner clicks: the result counts these.
     const quarantined = quarantinedNames(shown)
-    const copies = quarantined.filter((name) => name.kind === 'Video').length
     const confirmed = await confirm({
-      title: t('oldCopies.restore.confirmTitle', { count: copies }),
+      title: t('oldCopies.restore.confirmTitle', { count: quarantinedCopies(shown) }),
       message: t('oldCopies.restore.message'),
       confirmLabel: t('oldCopies.restore.confirm'),
     })
@@ -148,9 +151,8 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
     // The names listed are the names sent: a list that changed meanwhile is the server's 409 to tell,
     // never a reason to delete what the owner wasn't shown.
     const listed = quarantinedNames(shown)
-    const copies = listed.filter((name) => name.kind === 'Video').length
     const confirmed = await confirm({
-      title: t('oldCopies.deleteForGood.confirmTitle', { count: copies }),
+      title: t('oldCopies.deleteForGood.confirmTitle', { count: quarantinedCopies(shown) }),
       message: <DeleteForGoodMessage names={listed} freesBytes={shown.freesBytes} />,
       confirmLabel: t('oldCopies.deleteForGood.confirm'),
       destructive: true,
@@ -231,9 +233,9 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
             {data.canRestore && (
               <ActionButton
                 icon={Undo2}
-                label={t('oldCopies.restore.action')}
+                label={t('oldCopies.restore.action', { count: copiesInQuarantine })}
                 pendingLabel={t('oldCopies.restore.pending')}
-                title={t('oldCopies.restore.title')}
+                title={t('oldCopies.restore.title', { count: copiesInQuarantine })}
                 pending={restore.isPending}
                 disabled={busy}
                 reason={switchedOffReason}
@@ -244,9 +246,9 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
             {data.canDeleteForGood && (
               <ActionButton
                 icon={Trash2}
-                label={t('oldCopies.deleteForGood.action')}
+                label={t('oldCopies.deleteForGood.action', { count: copiesInQuarantine })}
                 pendingLabel={t('oldCopies.deleteForGood.pending')}
-                title={t('oldCopies.deleteForGood.title')}
+                title={t('oldCopies.deleteForGood.title', { count: copiesInQuarantine })}
                 pending={remove.isPending}
                 disabled={busy}
                 reason={switchedOffReason}

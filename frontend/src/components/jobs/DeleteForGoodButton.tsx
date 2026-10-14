@@ -6,7 +6,7 @@ import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { DeleteForGoodMessage } from '@/components/shared/DeleteForGoodMessage'
 import { useDeleteReplacementForGood } from '@/lib/queries'
 import { qk } from '@/lib/queries/keys'
-import { quarantinedNames } from '@/lib/replacement-details'
+import { quarantinedCopies, quarantinedNames } from '@/lib/replacement-details'
 import { replacementsApi } from '@/lib/replacements-api'
 import type { DownloadJobReplacement } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
@@ -31,6 +31,10 @@ interface DeleteForGoodButtonProps {
  * clicks — what the quarantine holds then —, and the names listed are the names sent: a list that changed
  * meanwhile is the server's 409 to tell, never a reason to delete what the owner wasn't shown.
  *
+ * Its label and title name the old copies, counted by the row's `quarantinedCopyCount` — "Delete old copy
+ * permanently", "Delete old copies permanently" —, as on the job's page (Vasyl, MAM-31's live check,
+ * 2026-10-14).
+ *
  * Shown while the server says it can be done (`canDeleteForGood`), and disabled with the reason while
  * replacement is switched off, as the server refuses it then. While it is on its way the row's other
  * actions wait, and it waits while one of theirs is (`busy`); the row's Replacement cell then says the old
@@ -49,9 +53,8 @@ export function DeleteForGoodButton({ replacement, busy, onStart, onError }: Del
         queryFn: () => replacementsApi.get(replacement.id),
       })
       const listed = quarantinedNames(details)
-      const copies = listed.filter((name) => name.kind === 'Video').length
       const confirmed = await confirm({
-        title: t('oldCopies.deleteForGood.confirmTitle', { count: copies }),
+        title: t('oldCopies.deleteForGood.confirmTitle', { count: quarantinedCopies(details) }),
         message: <DeleteForGoodMessage names={listed} freesBytes={details.freesBytes} />,
         confirmLabel: t('oldCopies.deleteForGood.confirm'),
         destructive: true,
@@ -68,9 +71,9 @@ export function DeleteForGoodButton({ replacement, busy, onStart, onError }: Del
   return (
     <ActionButton
       icon={Trash2}
-      label={t('oldCopies.deleteForGood.action')}
+      label={t('oldCopies.deleteForGood.action', { count: replacement.quarantinedCopyCount })}
       pendingLabel={t('oldCopies.deleteForGood.pending')}
-      title={t('oldCopies.deleteForGood.title')}
+      title={t('oldCopies.deleteForGood.title', { count: replacement.quarantinedCopyCount })}
       pending={remove.isPending}
       disabled={busy || remove.isPending}
       reason={replacement.switchedOff ? t('oldCopies.switchedOff') : undefined}

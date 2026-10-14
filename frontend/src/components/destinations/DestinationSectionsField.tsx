@@ -28,7 +28,10 @@ interface DestinationSectionsFieldProps {
  * them («Мультсеріали» → Cartoons). The dialog holds the picks; its one Save sends them.
  *
  * A source is a row that opens to its sections — Toloka lists about 130 — split into its own sections
- * and the standard categories every source shares, as a mapped own section wins over a standard one.
+ * and the standard sections every source shares (Torznab's standard categories), as a mapped own
+ * section wins over a standard one. MAM-31 — headed "Standard sections" beside "Its own sections" and
+ * the field's "Tracker sections", not "Standard categories": the live check showed "categories" with
+ * Transmission, whose destinations have none.
  * A section mapped to another destination names it: ticked, it moves here. A source that couldn't be
  * asked (switched off, unreachable) says why, and still lists the sections mapped of it, so a save
  * never drops one unseen. The list is whole, as the server sends it: a save replaces the

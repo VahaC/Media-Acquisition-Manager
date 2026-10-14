@@ -151,8 +151,8 @@ describe('JobsPage', () => {
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Release', 'Download', 'Actions'])
     const row = within(rowOf(replacing.releaseTitle))
     expect(row.queryByText(/quarantine/)).not.toBeInTheDocument()
-    expect(row.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
-    expect(row.queryByRole('button', { name: 'Delete for good' })).not.toBeInTheDocument()
+    expect(row.queryByRole('button', { name: /restore/i })).not.toBeInTheDocument()
+    expect(row.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument()
   })
 
   it('links each release title to its job\'s details', async () => {

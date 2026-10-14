@@ -11,7 +11,7 @@ import type { CurrentUser, SearchResponse, SearchReleasesQuery } from '@/lib/typ
 import { SearchPage } from '@/pages/SearchPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
-import { localClient, optionsOf } from '@/test/downloads'
+import { localClient, optionsOf, overwriteOf } from '@/test/downloads'
 import { optionsUnavailable } from '@/test/replacements'
 import {
   aliensMatch,
@@ -1143,7 +1143,7 @@ describe('SearchPage', () => {
   it('opens the Download dialog for the release whose Download was clicked, and closes it again', async () => {
     // Arrange
     vi.mocked(downloadsApi.options).mockResolvedValue(optionsOf(localClient))
-    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue({ notCheckedReason: null })
+    vi.mocked(downloadsApi.overwriteCheck).mockResolvedValue(overwriteOf(null))
     const { user } = openStored()
     const row = await screen.findByRole('article', { name: otherUhd.title })
 

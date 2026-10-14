@@ -78,7 +78,8 @@ describe('DestinationDialog tracker sections', () => {
     expect(sourceRow(dialog, 'Toloka')).toHaveAttribute('aria-expanded', 'true')
     expect(sourceRow(dialog, 'Toloka')).toHaveTextContent('Toloka2 picked')
     expect(sectionsUnder(dialog, 'Its own sections')).toEqual(['Українські фільми', 'Мультсеріали · now Cartoons', 'Телесеріали'])
-    expect(sectionsUnder(dialog, 'Standard categories')).toEqual(['Movies/HD', 'TV'])
+    // MAM-31 — "Standard sections", beside "Its own sections": no "categories" with Transmission.
+    expect(sectionsUnder(dialog, 'Standard sections')).toEqual(['Movies/HD', 'TV'])
     expect(box(dialog, 'Українські фільми')).toBeChecked()
     expect(box(dialog, 'Movies/HD')).toBeChecked()
     expect(box(dialog, 'Мультсеріали')).not.toBeChecked()

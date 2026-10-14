@@ -62,7 +62,7 @@ public sealed class ReplacementRestoreHttpTests : IClassFixture<MediaAcquisition
         + "quarantine just before the rename back, and the old copy's own file wasn't found.";
     private const string SwappedReason = "“Alien (1979) Theatrical Cut.uk.srt” couldn't be put back: " + SwappedProblem + " 1 of 2 names is back where it was.";
     private const string VideoDeletedError =
-        "A video of this replacement was deleted for good, so nothing is put back without it. Press Retry, then Delete for good what the quarantine still holds.";
+        "A video of this replacement was deleted permanently, so nothing is put back without it. Press Retry, then delete permanently what the quarantine still holds.";
     private const string NoLongerInMediaFoldersError = "“/media/.mam-quarantine” is no longer inside the Media folders, so nothing was put back.";
     private const string CutRestoreReason = "The app stopped while putting the old copies back: 1 of 2 names is back where it was.";
 

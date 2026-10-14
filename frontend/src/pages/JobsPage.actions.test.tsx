@@ -95,7 +95,7 @@ describe('JobsPage row actions', () => {
 
   it('puts the verbs in the order Retry, Keep both, Restore, Delete for good, Cancel job, and nothing else in the Actions cell', async () => {
     // Arrange
-    const job = replacingJob({ state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true, canCancel: true, canRestore: true, canDeleteForGood: true }, 'Downloading')
+    const job = replacingJob({ state: 'NeedsReview', stop: 'Move', reason: HELD_REASON, canRetry: true, canCancel: true, canRestore: true, canDeleteForGood: true, quarantinedCopyCount: 2 }, 'Downloading')
     listing(job)
 
     // Act
@@ -103,14 +103,14 @@ describe('JobsPage row actions', () => {
 
     // Assert
     await screen.findByText(job.releaseTitle, asTitle)
-    expect(actionsOf(job.releaseTitle)).toEqual(['Retry', 'Keep both', 'Restore', 'Delete for good', 'Cancel job'])
+    expect(actionsOf(job.releaseTitle)).toEqual(['Retry', 'Keep both', 'Restore old copies', 'Delete old copies permanently', 'Cancel job'])
   })
 
   it.each<[string, DownloadJob, string[]]>([
     ['Keep both before Cancel job on a job still downloading', replacingJob({ state: 'Downloading', canCancel: true }, 'Downloading'), ['Keep both', 'Cancel job']],
     ['Retry before Keep both on a replacement the check stopped', stopped({ stop: 'Check', reason: NO_ID_REASON, canCancel: true }), ['Retry', 'Keep both']],
-    ['Retry before Restore on a replacement in review that holds earlier copies in the quarantine', stopped({ canRestore: true }), ['Retry', 'Restore']],
-    ['Restore before Delete for good on a replacement in the quarantine', quarantined(), ['Restore', 'Delete for good']],
+    ['Retry before Restore on a replacement in review that holds earlier copies in the quarantine', stopped({ canRestore: true, quarantinedCopyCount: 1 }), ['Retry', 'Restore old copy']],
+    ['Restore before Delete for good on a replacement in the quarantine', quarantined(), ['Restore old copy', 'Delete old copy permanently']],
   ])('puts %s', async (_, job, buttons) => {
     // Arrange
     listing(job)
@@ -396,7 +396,7 @@ describe('JobsPage row actions', () => {
     /** Opens Restore's confirmation on the row of `job`. */
     async function openRestore(user: ReturnType<typeof userEvent.setup>, job: DownloadJob) {
       await screen.findByText(job.releaseTitle, asTitle)
-      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore' }))
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore old copy' }))
       return screen.findByRole('dialog', { name: 'Put the old copy back?' })
     }
 
@@ -414,7 +414,7 @@ describe('JobsPage row actions', () => {
 
       // Assert
       await screen.findByText(job.releaseTitle, asTitle)
-      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Restore' }) !== null).toBe(offered)
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Restore old copy' }) !== null).toBe(offered)
     })
 
     it('puts the old copies back after the job page\'s plain confirmation, asked for what the quarantine holds then, and the row says they are back', async () => {
@@ -439,7 +439,7 @@ describe('JobsPage row actions', () => {
       expect(confirmation).not.toHaveClass('confirm-dialog-wide')
       expect(replacementsApi.restore).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
       expect(await within(replacementCellOf(job.releaseTitle)).findByText('Undone: the old copy is back')).toBeInTheDocument()
-      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument()
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: /^Restore/ })).not.toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 
@@ -454,7 +454,7 @@ describe('JobsPage row actions', () => {
       await screen.findByText(job.releaseTitle, asTitle)
 
       // Act
-      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore' }))
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore old copies' }))
 
       // Assert
       expect(await screen.findByRole('dialog', { name: 'Put the old copies back?' })).toBeInTheDocument()
@@ -502,7 +502,7 @@ describe('JobsPage row actions', () => {
       await screen.findByText(job.releaseTitle, asTitle)
 
       // Act
-      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore' }))
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore old copy' }))
 
       // Assert
       expect(await screen.findByRole('alert')).toHaveTextContent('Could not put the old copies back. Reload the page and try again.')
@@ -525,8 +525,8 @@ describe('JobsPage row actions', () => {
       const restoring = await within(rowOf(job.releaseTitle)).findByRole('button', { name: 'Restoring…' })
       expect(restoring).toBeDisabled()
       expect(restoring.querySelector('svg')).toHaveClass('animate-spin')
-      expect(restoring).toHaveAttribute('title', 'Put the old copies in the quarantine back where they were')
-      expect(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Delete for good' })).toBeDisabled()
+      expect(restoring).toHaveAttribute('title', 'Put the old copy in the quarantine back where it was')
+      expect(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Delete old copy permanently' })).toBeDisabled()
     })
   })
 
@@ -542,8 +542,8 @@ describe('JobsPage row actions', () => {
     /** Opens Delete for good's confirmation on the row of `job`. */
     async function openDelete(user: ReturnType<typeof userEvent.setup>, job: DownloadJob) {
       await screen.findByText(job.releaseTitle, asTitle)
-      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Delete for good' }))
-      return screen.findByRole('dialog', { name: 'Delete the old copy for good?' })
+      await user.click(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Delete old copy permanently' }))
+      return screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })
     }
 
     it.each<[string, Partial<DownloadJobReplacement>, CurrentUser, boolean]>([
@@ -560,7 +560,7 @@ describe('JobsPage row actions', () => {
 
       // Assert
       await screen.findByText(job.releaseTitle, asTitle)
-      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Delete for good' }) !== null).toBe(offered)
+      expect(within(rowOf(job.releaseTitle)).queryByRole('button', { name: 'Delete old copy permanently' }) !== null).toBe(offered)
     })
 
     it('shows Delete for good in red outline, named in its title for a phone', async () => {
@@ -573,10 +573,32 @@ describe('JobsPage row actions', () => {
 
       // Assert
       await screen.findByText(job.releaseTitle, asTitle)
-      const button = within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Delete for good' })
+      const button = within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Delete old copy permanently' })
       expect(button).toHaveClass('ui-button-danger')
-      expect(button).toHaveAttribute('title', 'Delete the old copies in the quarantine for good')
-      expect(button.querySelector('.label-text')).toHaveTextContent('Delete for good')
+      expect(button).toHaveAttribute('title', 'Delete the old copy in the quarantine permanently')
+      expect(button.querySelector('.label-text')).toHaveTextContent('Delete old copy permanently')
+    })
+
+    // MAM-31's live check (Vasyl, 2026-10-14) — as on the job's page, the row's Restore and Delete name the
+    // old copies they act on, counted by the copies its replacement holds in the quarantine.
+    it.each<[number, string[], string[]]>([
+      [1, ['Restore old copy', 'Delete old copy permanently'],
+        ['Put the old copy in the quarantine back where it was', 'Delete the old copy in the quarantine permanently']],
+      [9, ['Restore old copies', 'Delete old copies permanently'],
+        ['Put the old copies in the quarantine back where they were', 'Delete the old copies in the quarantine permanently']],
+    ])('names what Restore and Delete act on for %i old copies in the quarantine', async (copies, labels, titles) => {
+      // Arrange
+      const job = quarantined({ copyCount: copies, quarantinedCopyCount: copies })
+      listing(job)
+
+      // Act
+      renderPage()
+
+      // Assert
+      await screen.findByText(job.releaseTitle, asTitle)
+      const buttons = [...rowOf(job.releaseTitle).querySelectorAll<HTMLElement>('td.settings-actions-cell button')]
+      expect(buttons.map((button) => button.querySelector('.label-text')?.textContent)).toEqual(labels)
+      expect(buttons.map((button) => button.getAttribute('title'))).toEqual(titles)
     })
 
     it('asks in the wide confirmation, listing every path in the quarantine with its size and the room it frees, then deletes exactly those, and the row says they were deleted', async () => {
@@ -595,14 +617,14 @@ describe('JobsPage row actions', () => {
       listing(completed)
 
       // Act
-      await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+      await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
 
       // Assert
       expect(confirmation).toHaveClass('confirm-dialog', 'confirm-dialog-wide')
       expect(confirmation).toHaveTextContent('These 2 files are deleted from the quarantine, and can\'t be restored afterwards:')
       expect(listed).toEqual([[alienVideo.originalPath, '40 GiB'], [alienSubtitle.originalPath, '50 KiB']])
       expect(confirmation).toHaveTextContent('Frees 40 GiB.')
-      expect(buttons.map((button) => button.textContent)).toEqual(['Delete for good', 'Cancel'])
+      expect(buttons.map((button) => button.textContent)).toEqual(['Delete permanently', 'Cancel'])
       expect(buttons[0]).toHaveClass('ui-button-destructive')
       expect(replacementsApi.deleteForGood).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, [alienVideo.id, alienSubtitle.id])
       expect(await within(replacementCellOf(job.releaseTitle)).findByText('Replaced: old copy deleted')).toBeInTheDocument()
@@ -620,7 +642,7 @@ describe('JobsPage row actions', () => {
       await client.refetchQueries()
 
       // Act
-      await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+      await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
 
       // Assert
       expect(replacementsApi.deleteForGood).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, [alienVideo.id, alienSubtitle.id])
@@ -642,7 +664,7 @@ describe('JobsPage row actions', () => {
     })
 
     it.each<[string, ReturnType<typeof apiError>, string]>([
-      ['the server sentence when the list changed meanwhile', apiError(409, 'What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.'), 'What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.'],
+      ['the server sentence when the list changed meanwhile', apiError(409, 'What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.'), 'What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.'],
       ['its own sentence when a deletion fails and the API gives none', apiError(500), 'Could not delete the old copies. Reload the page and try again.'],
     ])('shows %s in the page\'s banner', async (_, failure, sentence) => {
       // Arrange
@@ -653,7 +675,7 @@ describe('JobsPage row actions', () => {
       const confirmation = await openDelete(user, job)
 
       // Act
-      await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+      await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
 
       // Assert
       const banner = await screen.findByRole('alert')
@@ -668,7 +690,7 @@ describe('JobsPage row actions', () => {
       listing(job)
       const { user } = renderPage()
       const confirmation = await openDelete(user, job)
-      await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+      await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
       await screen.findByRole('alert')
 
       // Act
@@ -687,13 +709,13 @@ describe('JobsPage row actions', () => {
       const confirmation = await openDelete(user, job)
 
       // Act
-      await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+      await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
 
       // Assert
       const deleting = await within(rowOf(job.releaseTitle)).findByRole('button', { name: 'Deleting…' })
       expect(deleting).toBeDisabled()
       expect(deleting.querySelector('svg')).toHaveClass('animate-spin')
-      expect(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore' })).toBeDisabled()
+      expect(within(rowOf(job.releaseTitle)).getByRole('button', { name: 'Restore old copy' })).toBeDisabled()
     })
   })
 
@@ -701,7 +723,7 @@ describe('JobsPage row actions', () => {
   // to the media, so they stay.
   it('disables Restore and Delete for good with the reason while replacement is switched off, and leaves Retry and Keep both usable', async () => {
     // Arrange
-    const job = stopped({ switchedOff: true, canCancel: true, canRestore: true, canDeleteForGood: true })
+    const job = stopped({ switchedOff: true, canCancel: true, canRestore: true, canDeleteForGood: true, quarantinedCopyCount: 2 })
     listing(job)
 
     // Act
@@ -710,7 +732,7 @@ describe('JobsPage row actions', () => {
     // Assert
     await screen.findByText(job.releaseTitle, asTitle)
     const row = within(rowOf(job.releaseTitle))
-    for (const name of ['Restore', 'Delete for good']) {
+    for (const name of ['Restore old copies', 'Delete old copies permanently']) {
       const button = row.getByRole('button', { name })
       expect(button).toBeDisabled()
       expect(button.closest('.settings-action-reason')).toHaveAttribute('title', SWITCHED_OFF)

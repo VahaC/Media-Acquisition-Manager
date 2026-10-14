@@ -5,7 +5,7 @@ import { ActionButton } from '@/components/shared/ActionButton'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { useRestoreReplacement } from '@/lib/queries'
 import { qk } from '@/lib/queries/keys'
-import { quarantinedNames } from '@/lib/replacement-details'
+import { quarantinedCopies } from '@/lib/replacement-details'
 import { replacementsApi } from '@/lib/replacements-api'
 import type { DownloadJobReplacement } from '@/lib/types'
 import { getApiErrorMessage } from '@/lib/utils'
@@ -28,6 +28,9 @@ interface RestoreButtonProps {
  * (ReplacementSection), with the same plain confirmation, its title counted by the copies the quarantine
  * holds when the owner clicks: the row knows only counts, so the replacement's names are asked for then.
  *
+ * Its label and title name the old copies, counted by the row's `quarantinedCopyCount`, as on the job's
+ * page (Vasyl, MAM-31's live check, 2026-10-14).
+ *
  * Shown while the server says it can be done (`canRestore`) — a replacement in review may hold earlier
  * copies there already —, and disabled with the reason while replacement is switched off, as the server
  * refuses it then. While it is on its way the row's other actions wait, and it waits while one of theirs
@@ -45,9 +48,8 @@ export function RestoreButton({ replacement, busy, onStart, onError }: RestoreBu
         queryKey: qk.replacements.job(replacement.id),
         queryFn: () => replacementsApi.get(replacement.id),
       })
-      const copies = quarantinedNames(details).filter((name) => name.kind === 'Video').length
       const confirmed = await confirm({
-        title: t('oldCopies.restore.confirmTitle', { count: copies }),
+        title: t('oldCopies.restore.confirmTitle', { count: quarantinedCopies(details) }),
         message: t('oldCopies.restore.message'),
         confirmLabel: t('oldCopies.restore.confirm'),
       })
@@ -62,9 +64,9 @@ export function RestoreButton({ replacement, busy, onStart, onError }: RestoreBu
   return (
     <ActionButton
       icon={Undo2}
-      label={t('oldCopies.restore.action')}
+      label={t('oldCopies.restore.action', { count: replacement.quarantinedCopyCount })}
       pendingLabel={t('oldCopies.restore.pending')}
-      title={t('oldCopies.restore.title')}
+      title={t('oldCopies.restore.title', { count: replacement.quarantinedCopyCount })}
       pending={restore.isPending}
       disabled={busy || restore.isPending}
       reason={replacement.switchedOff ? t('oldCopies.switchedOff') : undefined}

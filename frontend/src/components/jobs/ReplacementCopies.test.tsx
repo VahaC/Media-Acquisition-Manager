@@ -71,7 +71,7 @@ describe('ReplacementCopies', () => {
     ['Moving', 'Moving…', 'library-source-status', null],
     ['InQuarantine', 'In the quarantine.', 'library-source-status', null],
     ['Restored', 'Back where it was.', 'library-source-status', null],
-    ['Deleted', 'Deleted for good.', 'library-source-status', null],
+    ['Deleted', 'Deleted permanently.', 'library-source-status', null],
     ['Lost', 'Found neither where it was nor in the quarantine.', 'library-source-warning', null],
     ['Stays', 'Stays where it is.', 'library-source-status', null],
   ])('says where a copy stands: %s', (status, sentence, tone, dataStatus) => {

@@ -45,7 +45,7 @@ vi.mock('@/lib/replacements-api')
 /** The sentences the section says, spelled out rather than read from the locale. */
 const RESTORE_MESSAGE = 'Every file of this replacement in the quarantine goes back where it was, never over a file there now, and no folder is created for it. The new copy stays as it is. Jellyfin lists the old copy again and identifies it afresh, so a TMDb link you set by hand may need Identify again.'
 const SWITCHED_OFF = 'Replacement is switched off on the Media folders page: nothing is put back or deleted while it is off.'
-const CHANGED = 'What this replacement holds in the quarantine changed since you opened it. Open Delete for good again.'
+const CHANGED = 'What this replacement holds in the quarantine changed since you opened it. Press Delete again to see what it holds now.'
 const HELD = 'Still held by the torrent “Alien.1979.1080p” in “Local qBittorrent”: remove that torrent there without its files, then press Retry.'
 const NONE_YET = 'No old copy has moved yet: each moves into the quarantine once the new file is verified.'
 const OTHER_WORK = 'Jellyfin identified “Alien.1979.Directors.Cut.2160p.mkv” as another work (IMDb tt0090605), not Alien (1979).'
@@ -99,6 +99,15 @@ const episodeCopyOf = (episode: number, changes: Parameters<typeof jobCopyOf>[0]
   pairedNewFileId: null,
   status: 'Waiting',
   ...changes,
+})
+
+/** A name of Yellowstone's episode `episode` in the quarantine: its video, or its subtitle. */
+const episodeNameOf = (episode: number, kind: 'Video' | 'Companion') => nameOf({
+  id: `e1a50000-0000-4000-8000-0000000003${episode}${kind === 'Video' ? 1 : 2}`,
+  kind,
+  originalPath: `/media/tv/Yellowstone/Season 2/Yellowstone S02E0${episode}.${kind === 'Video' ? 'mkv' : 'srt'}`,
+  quarantinePath: `/media/.mam-quarantine/${REPLACEMENT_ID}/tv/Yellowstone/Season 2/Yellowstone S02E0${episode}.${kind === 'Video' ? 'mkv' : 'srt'}`,
+  sizeBytes: kind === 'Video' ? 3_221_225_472 : 51_200,
 })
 
 /** Episode 5, which Jellyfin now numbers as episode 6: only dropping it settles it. */
@@ -261,8 +270,8 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     ['Stayed', 'Stayed in its folder.', 'library-source-warning'],
     ['Restoring', 'Being put back…', 'library-source-status'],
     ['Restored', 'Back where it was.', 'library-source-status'],
-    ['Deleting', 'Being deleted for good…', 'library-source-status'],
-    ['Deleted', 'Deleted for good.', 'library-source-status'],
+    ['Deleting', 'Being deleted permanently…', 'library-source-status'],
+    ['Deleted', 'Deleted permanently.', 'library-source-status'],
     ['Lost', 'Found neither where it was nor in the quarantine.', 'library-source-warning'],
   ])('says where a name is now: %s', async (state, sentence, tone) => {
     // Arrange
@@ -432,12 +441,41 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
 
     // Assert
     const actions = section.querySelector<HTMLElement>('.settings-actions')!
-    expect(within(actions).getAllByRole('button').map((button) => button.textContent)).toEqual(['Restore', 'Delete for good'])
-    const remove = within(actions).getByRole('button', { name: 'Delete for good' })
+    expect(within(actions).getAllByRole('button').map((button) => button.textContent)).toEqual(['Restore old copy', 'Delete old copy permanently'])
+    const remove = within(actions).getByRole('button', { name: 'Delete old copy permanently' })
     expect(remove).toHaveClass('ui-button-outline', 'ui-button-danger')
-    expect(remove).toHaveAttribute('title', 'Delete the old copies in the quarantine for good')
-    expect(remove.querySelector('.label-text')).toHaveTextContent('Delete for good')
-    expect(within(actions).getByRole('button', { name: 'Restore' })).toHaveAttribute('title', 'Put the old copies in the quarantine back where they were')
+    expect(remove).toHaveAttribute('title', 'Delete the old copy in the quarantine permanently')
+    expect(remove.querySelector('.label-text')).toHaveTextContent('Delete old copy permanently')
+    expect(within(actions).getByRole('button', { name: 'Restore old copy' })).toHaveAttribute('title', 'Put the old copy in the quarantine back where it was')
+  })
+
+  // MAM-31's live check (Vasyl, 2026-10-14) — under a title that is the new release's name, "Restore"
+  // and "Delete for good" read as acting on the new file: each names the old copies it acts on now,
+  // counted by the videos the quarantine holds, and says "permanently".
+  it.each<[string, ReplacementDetails['names'], string[], string[]]>([
+    ['one old copy, with its subtitle', [alienVideo, alienSubtitle],
+      ['Restore old copy', 'Delete old copy permanently'],
+      ['Put the old copy in the quarantine back where it was', 'Delete the old copy in the quarantine permanently']],
+    ['two old copies, each with its subtitle', [
+      episodeNameOf(5, 'Video'), episodeNameOf(5, 'Companion'), episodeNameOf(6, 'Video'), episodeNameOf(6, 'Companion'),
+    ], ['Restore old copies', 'Delete old copies permanently'],
+    ['Put the old copies in the quarantine back where they were', 'Delete the old copies in the quarantine permanently']],
+    ['two old copies, one of them still in its folder', [episodeNameOf(5, 'Video'), { ...episodeNameOf(6, 'Video'), state: 'Stayed' }],
+      ['Restore old copy', 'Delete old copy permanently'],
+      ['Put the old copy in the quarantine back where it was', 'Delete the old copy in the quarantine permanently']],
+  ])('names what Restore and Delete act on, counted by the copies in the quarantine: %s', async (_, names, labels, titles) => {
+    // Arrange
+    serve(jobWith(), replacementDetailsOf({ names }))
+
+    // Act
+    renderPage()
+
+    // Assert
+    const section = await replacementSection()
+    const buttons = within(section.querySelector<HTMLElement>('.settings-actions')!).getAllByRole('button')
+    expect(buttons.map((button) => button.querySelector('.label-text')?.textContent)).toEqual(labels)
+    expect(buttons.map((button) => button.getAttribute('title'))).toEqual(titles)
+    expect(buttons.map((button) => button.textContent).join(' ')).not.toMatch(/for good/)
   })
 
   // ── Retry ──
@@ -477,7 +515,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const { user } = renderPage()
     const section = await replacementSection()
     vi.mocked(downloadsApi.get).mockResolvedValue(restored)
-    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await user.click(within(section).getByRole('button', { name: 'Restore old copy' }))
     const confirmation = await screen.findByRole('dialog', { name: 'Put the old copy back?' })
     const buttons = footerButtons(confirmation).map((button) => button.textContent)
 
@@ -501,7 +539,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     // Arrange
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await user.click(within(section).getByRole('button', { name: 'Restore old copy' }))
     const confirmation = await screen.findByRole('dialog', { name: 'Put the old copy back?' })
 
     // Act
@@ -526,11 +564,11 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const actions = within(section).getAllByRole('button').map((button) => button.textContent)
 
     // Act
-    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await user.click(within(section).getByRole('button', { name: 'Restore old copy' }))
     await user.click(within(await screen.findByRole('dialog', { name: 'Put the old copy back?' })).getByRole('button', { name: 'Restore' }))
 
     // Assert
-    expect(actions).toEqual(['Retry', 'Restore'])
+    expect(actions).toEqual(['Retry', 'Restore old copy'])
     expect(within(section).getByText(NEXT_MOVE_RESTORE_NO_DROP).closest('p')).toHaveClass('library-source-warning')
     expect(replacementsApi.restore).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID)
     expect(await screen.findByRole('status')).toHaveTextContent('Restored: 1 file is back where it was.')
@@ -542,7 +580,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     vi.mocked(replacementsApi.restore).mockRejectedValue(apiError(409, sentence))
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await user.click(within(section).getByRole('button', { name: 'Restore old copy' }))
 
     // Act
     await user.click(within(await screen.findByRole('dialog', { name: 'Put the old copy back?' })).getByRole('button', { name: 'Restore' }))
@@ -560,7 +598,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     vi.mocked(replacementsApi.restore).mockReturnValue(new Promise(() => {}))
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await user.click(within(section).getByRole('button', { name: 'Restore old copy' }))
 
     // Act
     await user.click(within(await screen.findByRole('dialog', { name: 'Put the old copy back?' })).getByRole('button', { name: 'Restore' }))
@@ -569,7 +607,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const restoring = await within(section).findByRole('button', { name: 'Restoring…' })
     expect(restoring).toBeDisabled()
     expect(restoring.querySelector('svg')).toHaveClass('animate-spin')
-    expect(within(section).getByRole('button', { name: 'Delete for good' })).toBeDisabled()
+    expect(within(section).getByRole('button', { name: 'Delete old copy permanently' })).toBeDisabled()
   })
 
   // ── Delete for good ──
@@ -581,8 +619,8 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const { user } = renderPage()
     const section = await replacementSection()
     vi.mocked(downloadsApi.get).mockResolvedValue(completed)
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })
     const listed = within(confirmation).getAllByRole('listitem').map((item) => [
       item.querySelector('.jobs-file-path')?.textContent,
       item.querySelector('.jobs-quarantine-size')?.textContent,
@@ -590,7 +628,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const buttons = footerButtons(confirmation)
 
     // Act
-    await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
 
     // Assert
     expect(confirmation).toHaveTextContent('These 2 files are deleted from the quarantine, and can\'t be restored afterwards:')
@@ -598,11 +636,11 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     expect(confirmation).not.toHaveTextContent(alienHeldSubtitle.originalPath)
     expect(confirmation).toHaveTextContent('Frees 40 GiB.')
     expect(confirmation).not.toHaveTextContent(/another name/)
-    expect(buttons.map((button) => button.textContent)).toEqual(['Delete for good', 'Cancel'])
+    expect(buttons.map((button) => button.textContent)).toEqual(['Delete permanently', 'Cancel'])
     expect(buttons[0]).toHaveClass('ui-button-destructive')
     expect(confirmation).toHaveClass('confirm-dialog', 'confirm-dialog-wide')
     expect(replacementsApi.deleteForGood).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, [alienVideo.id, alienSubtitle.id])
-    expect(await screen.findByRole('status')).toHaveTextContent('Deleted for good: 2 files.')
+    expect(await screen.findByRole('status')).toHaveTextContent('Deleted permanently: 2 files.')
     expect(replacementsApi.get).toHaveBeenCalledTimes(2)
   })
 
@@ -613,10 +651,10 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const section = await replacementSection()
 
     // Act
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
 
     // Assert
-    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })
+    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })
     expect(confirmation).toHaveTextContent('Frees 50 KiB.')
     expect(confirmation).toHaveTextContent('1 file has another name (a hardlink), so deleting it frees no space.')
   })
@@ -625,8 +663,8 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     // Arrange
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })
 
     // Act
     await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
@@ -641,13 +679,13 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     vi.mocked(replacementsApi.deleteForGood).mockRejectedValue(apiError(409, CHANGED))
     const { client, user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
-    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })
     const another = nameOf({ id: 'e1a50000-0000-4000-8000-000000000104', originalPath: '/media/movies/Alien (1979)/Alien.nfo' })
     act(() => client.setQueryData(qk.replacements.job(REPLACEMENT_ID), replacementDetailsOf({ names: [alienVideo, alienSubtitle, another] })))
 
     // Act
-    await user.click(within(confirmation).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(confirmation).getByRole('button', { name: 'Delete permanently' }))
 
     // Assert
     expect(replacementsApi.deleteForGood).toHaveBeenCalledExactlyOnceWith(REPLACEMENT_ID, [alienVideo.id, alienSubtitle.id])
@@ -661,8 +699,8 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     vi.mocked(replacementsApi.deleteForGood).mockRejectedValue(apiError(409, CHANGED))
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
-    await user.click(within(await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })).getByRole('button', { name: 'Delete permanently' }))
     await screen.findByRole('alert')
 
     // Act
@@ -677,10 +715,10 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     vi.mocked(replacementsApi.deleteForGood).mockRejectedValue(apiError(500))
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
 
     // Act
-    await user.click(within(await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })).getByRole('button', { name: 'Delete permanently' }))
 
     // Assert
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not delete the old copies. Reload the page and try again.')
@@ -691,16 +729,16 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     vi.mocked(replacementsApi.deleteForGood).mockReturnValue(new Promise(() => {}))
     const { user } = renderPage()
     const section = await replacementSection()
-    await user.click(within(section).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(section).getByRole('button', { name: 'Delete old copy permanently' }))
 
     // Act
-    await user.click(within(await screen.findByRole('dialog', { name: 'Delete the old copy for good?' })).getByRole('button', { name: 'Delete for good' }))
+    await user.click(within(await screen.findByRole('dialog', { name: 'Delete the old copy permanently?' })).getByRole('button', { name: 'Delete permanently' }))
 
     // Assert
     const deleting = await within(section).findByRole('button', { name: 'Deleting…' })
     expect(deleting).toBeDisabled()
     expect(deleting.querySelector('svg')).toHaveClass('animate-spin')
-    expect(within(section).getByRole('button', { name: 'Restore' })).toBeDisabled()
+    expect(within(section).getByRole('button', { name: 'Restore old copy' })).toBeDisabled()
   })
 
   // ── switched off ──
@@ -715,10 +753,10 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
     const section = await replacementSection()
 
     // Act
-    await user.click(within(section).getByRole('button', { name: 'Restore' }))
+    await user.click(within(section).getByRole('button', { name: 'Restore old copy' }))
 
     // Assert
-    for (const name of ['Restore', 'Delete for good']) {
+    for (const name of ['Restore old copy', 'Delete old copy permanently']) {
       const button = within(section).getByRole('button', { name })
       expect(button).toBeDisabled()
       expect(button.closest('.settings-action-reason')).toHaveAttribute('title', SWITCHED_OFF)
@@ -763,7 +801,7 @@ describe('JobDetailsPage — the old copies of a replacement', () => {
       expect(unchanged).toBe(1)
       expect(await within(section).findByText('The quarantine holds 40 GiB of this replacement, in 2 files.')).toBeInTheDocument()
       expect(replacementsApi.get).toHaveBeenCalledTimes(2)
-      expect(within(section).getByRole('button', { name: 'Delete for good' })).toBeEnabled()
+      expect(within(section).getByRole('button', { name: 'Delete old copy permanently' })).toBeEnabled()
     })
 
     // MAM-27 — what the check found changes on every pass, with nothing on the job's line changing.
@@ -959,7 +997,7 @@ describe('JobDetailsPage — managing a replacement', () => {
       'a file stayed in its folder',
       replacementDetailsOf(),
       { quarantinedCopyCount: 1, stayedFileCount: 1 },
-      'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it for good. 1 file stayed in its folder.',
+      'Old copy moved into the quarantine: 1 copy, kept until you restore it or delete it permanently. 1 file stayed in its folder.',
     ],
   ])('says in the job\'s own Status fact where the replacement stands when %s, without sending the owner to the job he is on', async (_, details, changes, sentence) => {
     // Arrange
@@ -1265,7 +1303,7 @@ describe('JobDetailsPage — managing a replacement', () => {
     // Assert
     const section = await loadedSection()
     const actions = section.querySelector<HTMLElement>('.settings-header .settings-actions')!
-    expect(within(actions).getAllByRole('button').map((button) => button.textContent)).toEqual(['Retry', 'Keep both', 'Restore', 'Delete for good'])
+    expect(within(actions).getAllByRole('button').map((button) => button.textContent)).toEqual(['Retry', 'Keep both', 'Restore old copies', 'Delete old copies permanently'])
   })
 
   // ── Keep both ──

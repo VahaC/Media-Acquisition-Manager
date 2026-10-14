@@ -145,6 +145,29 @@ describe('IntegrationDialog', () => {
     expect((within(mappings).getByLabelText('Path in Transmission') as HTMLInputElement).value).toBe('/downloads')
   })
 
+  // MAM-31 — the owner asked for the wider dialogs in the live check. The class gives the width
+  // (integrations.css, pinned by downloads.test.ts); each pair sits side by side where two fit.
+  it.each<[string, IntegrationSummary | undefined]>([
+    ['adding', undefined],
+    ['editing', localTransmission],
+  ])('opens as the wider integration dialog when %s, the service beside the name and the user name beside the password', async (_, integration) => {
+    // Arrange
+    const { dialog, user } = renderDialog(integration)
+    await whenReady(dialog)
+
+    // Act
+    if (!integration) await pickService(user, dialog, 'transmission')
+
+    // Assert
+    const pairOf = (label: string) => within(dialog).getByLabelText(label).closest('.integrations-pair')
+    expect(dialog).toHaveClass('settings-dialog', 'integrations-dialog')
+    expect(pairOf('Service')).toContainElement(within(dialog).getByLabelText('Name'))
+    expect(pairOf('User name (optional)')).toContainElement(within(dialog).getByLabelText('Password (optional)'))
+    expect(pairOf('Service')).not.toBe(pairOf('User name (optional)'))
+    // The address keeps the whole row.
+    expect(pairOf('Address')).toBeNull()
+  })
+
   it('marks optional credentials as optional', async () => {
     // Arrange
     const { dialog, user } = renderDialog()

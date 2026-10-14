@@ -20,12 +20,14 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 // client, so it can't hold a comma — on create, on update, and on a rename that asks no client — for a folder client
 // only. And the Destinations page checks each stored folder as itself (D3): a moved library or an edited mapping shows
 // where it is now, a folder the client can't see says so, and one that isn't a full path is that row's problem alone.
+// MAM-31 — a missing folder is asked for as the client's folder, never as a category.
 public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClientApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/destinations";
     private const string JellyfinApiKey = "0123456789abcdef0123456789abcdef";
     private const string CommaError =
         "“Transmission” shows this destination's name as the torrent's label, and a label can't contain a comma. Pick a name without one.";
+    private const string FolderMissingError = "Pick the folder of “Transmission” this destination saves to.";
 
     private readonly FolderClientApiFactory _factory;
     private IIntegrationConnectionSeeder _integrations = null!;
@@ -129,6 +131,44 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
         var body = await response.Content.ReadFromJsonAsync<ErrorBody>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         Assert.Equal(FakeFolderDownloadClient.CantSeeProblem("/downloads/tv-shows"), body!.Error);
         Assert.Null(await StoredKeyAsync(cancellationToken));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task Create_without_a_folder_is_400_asking_for_the_clients_folder_and_asks_no_client(string? folder)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-31 — the live check got "Pick the category or folder of the download client…" with Transmission alone.
+        object body = folder is null
+            ? new { name = "Фільми", downloadClientId = _client.Id }
+            : new CreateDestinationRequest("Фільми", _client.Id, folder);
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _owner.AccessToken, body);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal($$"""{"error":"{{FolderMissingError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Empty(_factory.FolderClient.Calls);
+        Assert.Null(await StoredKeyAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task Create_without_a_folder_and_with_a_comma_in_the_name_asks_for_the_folder_first()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _owner.AccessToken, new CreateDestinationRequest("Movies, 4K", _client.Id, ""));
+
+        //Assert
+        // The destination's own fields before what the client makes of its name, as before MAM-31.
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal($$"""{"error":"{{FolderMissingError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
     [Theory]
@@ -242,6 +282,24 @@ public sealed class DestinationsFolderSaveHttpTests : IClassFixture<FolderClient
         Assert.Equal(
             """{"error":"“Transmission” doesn't offer the folder “/downloads/typed”. Pick one of the folders it lists."}""",
             await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("/downloads/movies", await StoredKeyAsync(cancellationToken));
+    }
+
+    [Fact]
+    public async Task Update_without_a_folder_is_400_asking_for_the_clients_folder_and_keeps_the_stored_one()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var destination = await _destinations.Create(_client, "Фільми", "/downloads/movies");
+        _factory.FolderClient.Reset();
+
+        //Act
+        var response = await _factory.PutHttpRequest($"{BaseUrl}/{destination.Id}", _owner.AccessToken, new UpdateDestinationRequest("Фільми", _client.Id, ""));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal($$"""{"error":"{{FolderMissingError}}"}""", await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Empty(_factory.FolderClient.Calls);
         Assert.Equal("/downloads/movies", await StoredKeyAsync(cancellationToken));
     }
 

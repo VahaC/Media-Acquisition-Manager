@@ -13,7 +13,7 @@ import { useLoadRetry } from '@/lib/use-load-retry'
 import { getApiErrorMessage, retryCanHelp } from '@/lib/utils'
 import '@/styles/settings-list.css' // .settings-muted — the Loading… line
 import '@/styles/settings-dialog.css' // .settings-dialog* — the one scrolling body above the buttons
-import '@/styles/search.css' // .search-details-* — the 60rem dialog, its title and two columns
+import '@/styles/search.css' // .search-details-* — the 64rem dialog, its title and two columns
 
 /** The Save form; the footer's Save button submits it from outside (R24). */
 const PICK_FORM_ID = 'tmdb-link-pick'

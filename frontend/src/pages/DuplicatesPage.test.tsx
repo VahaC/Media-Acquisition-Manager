@@ -55,7 +55,7 @@ const cardTitles = () =>
 
 const everyClass: LibraryDuplicateGroup[] = [sameFileGroup, byteIdenticalGroupOf(), sameWorkGroup, possibleGroupOf()]
 
-const lead = 'The files in your library that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, each group with the evidence behind it. Removing a copy moves it into the quarantine folder of its media folder, where you can restore it or delete it for good under Removed copies; keeping copies as they are, or confirming a possible match, removes nothing.'
+const lead = 'The files in your library that are one file under two names, exact copies, different files of one film or episode, or maybe the same film, each group with the evidence behind it. Removing a copy moves it into the quarantine folder of its media folder, where you can restore it or delete it permanently under Removed copies; keeping copies as they are, or confirming a possible match, removes nothing.'
 
 /** The tabs every signed-in user has, in their order. */
 const memberTabs = ['All', 'One file, two names', 'Exact copies', 'Same film, different files', 'Maybe the same film', 'Kept as they are']

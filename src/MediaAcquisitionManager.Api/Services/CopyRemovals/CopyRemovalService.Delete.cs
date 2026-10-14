@@ -15,7 +15,7 @@ public sealed partial class CopyRemovalService
     private const string NothingToDeleteError = "This removal holds nothing in the quarantine to delete.";
 
     private const string DeleteSwitchedOffError =
-        "Replacing and removing copies is switched off on the Media folders page, so nothing can be deleted. Turn on “Replace copies after verification”, then press Delete for good again.";
+        "Replacing and removing copies is switched off on the Media folders page, so nothing can be deleted. Turn on “Replace copies after verification”, then press Delete permanently again.";
 
     private const string DeleteNotSupportedError = "The app can't write to the media folders on the platform it runs on, so nothing was deleted.";
 

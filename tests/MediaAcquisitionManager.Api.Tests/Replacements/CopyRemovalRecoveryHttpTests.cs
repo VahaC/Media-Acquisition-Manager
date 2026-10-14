@@ -205,7 +205,7 @@ public sealed class CopyRemovalRecoveryHttpTests : IClassFixture<MediaAcquisitio
         //Assert
         var removal = Assert.Single(await _removals.RemovalsAsync(cancellationToken));
         Assert.Equal(
-            (CopyRemovalState.NeedsReview, (string?)"The app stopped while deleting this copy for good: 1 of 2 names is deleted."),
+            (CopyRemovalState.NeedsReview, (string?)"The app stopped while deleting this copy permanently: 1 of 2 names is deleted."),
             (removal.State, removal.Reason));
         Assert.Equal(
             [ReplacementNameState.Deleted, ReplacementNameState.Quarantined],

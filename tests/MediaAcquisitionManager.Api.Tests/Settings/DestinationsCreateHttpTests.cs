@@ -28,7 +28,8 @@ public sealed class DestinationsCreateHttpTests : IClassFixture<MediaAcquisition
     // Spelled out rather than read from the product code: these are what the Add destination dialog shows.
     private const string NameMissingError = "A destination needs a name.";
     private const string ClientMissingError = "Pick the download client this destination belongs to.";
-    private const string KeyMissingError = "Pick the category or folder of the download client this destination saves to.";
+    // MAM-31 — once the client is known, in the words of what its destinations are, by its name.
+    private const string KeyMissingError = "Pick the category of “qBittorrent” this destination saves to.";
     private const string ClientGoneError = "The download client you picked no longer exists. Reload the page and pick one again.";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
@@ -270,6 +271,24 @@ public sealed class DestinationsCreateHttpTests : IClassFixture<MediaAcquisition
         await AssertNothingWrittenAsync(cancellationToken);
     }
 
+    [Fact]
+    public async Task Create_without_a_category_for_a_client_that_is_gone_is_404_with_the_sentence()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-31 — the category is read once the client is found, in that client's words: a client that is gone
+        // has none, so the dialog says it is gone rather than asking for a category (a 400 before MAM-31).
+        var gone = Guid.NewGuid();
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _owner.AccessToken, new CreateDestinationRequest("Movies", gone, ""));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ClientGoneError, await response.ReadErrorAsync(cancellationToken));
+        await AssertNothingWrittenAsync(cancellationToken);
+    }
+
     [Theory]
     [InlineData("Movies")]
     [InlineData("MOVIES")]
@@ -341,6 +360,25 @@ public sealed class DestinationsCreateHttpTests : IClassFixture<MediaAcquisition
         //Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("This version of the app can't send downloads to “retired-client”.", await response.ReadErrorAsync(cancellationToken));
+        await AssertNothingWrittenAsync(cancellationToken);
+    }
+
+    [Fact]
+    public async Task Create_without_a_category_for_a_client_whose_type_is_not_registered_asks_in_words_naming_both()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        // MAM-31 — a type this build doesn't register says nothing of what its destinations are.
+        var client = await _integrations.Create("retired-client", "Old client", kind: IntegrationKind.DownloadClient);
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, _owner.AccessToken, new CreateDestinationRequest("Movies", client.Id, ""));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "Pick the category or folder of the download client this destination saves to.",
+            await response.ReadErrorAsync(cancellationToken));
         await AssertNothingWrittenAsync(cancellationToken);
     }
 

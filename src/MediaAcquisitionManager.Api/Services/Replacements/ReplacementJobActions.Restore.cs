@@ -23,7 +23,7 @@ public sealed partial class ReplacementJobActions
     // back to the library alone, and the job would end saying the old copy is back. Retry settles the job where it rests,
     // and Delete for good takes what is left.
     private const string VideoDeletedError =
-        "A video of this replacement was deleted for good, so nothing is put back without it. Press Retry, then Delete for good what the quarantine still holds.";
+        "A video of this replacement was deleted permanently, so nothing is put back without it. Press Retry, then delete permanently what the quarantine still holds.";
 
     public async Task<ReplacementActionResult> RestoreAsync(Guid replacementJobId, Guid callerUserId, CancellationToken cancellationToken = default)
     {

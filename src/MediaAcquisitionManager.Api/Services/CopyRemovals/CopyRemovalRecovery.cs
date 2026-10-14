@@ -261,5 +261,5 @@ public sealed class CopyRemovalRecovery(
         ReplacementNameTally.AfterColon("The app stopped while putting this copy back", ReplacementNameTally.BackWhereTheyWere(restored.Count, restored.Total));
 
     private static string CutWhileDeletingReason((int Count, int Total) deleted) =>
-        ReplacementNameTally.AfterColon("The app stopped while deleting this copy for good", ReplacementNameTally.Deleted(deleted.Count, deleted.Total));
+        ReplacementNameTally.AfterColon("The app stopped while deleting this copy permanently", ReplacementNameTally.Deleted(deleted.Count, deleted.Total));
 }

@@ -24,7 +24,7 @@
     "replaced": "Replaced after verification:",
     "replacedGroup_one": "{{group}}: {{value}} copy",
     "replacedGroup_other": "{{group}}: {{value}} copies",
-    "conditions": "Conditions: the old copy moves into the quarantine only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in {{client}}. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy's work. The old copy stays in the quarantine until you restore it or delete it for good on the job's page."
+    "conditions": "Conditions: the old copy moves into the quarantine only after the new one is downloaded, checked and shown in Jellyfin as the same work; a copy held by a torrent waits until you remove that torrent in {{client}}. Once the download is done, the app checks that the new file is complete, readable and identified by Jellyfin as the old copy's work. The old copy stays in the quarantine until you restore it or delete it permanently on the job's page."
   },
   "replace": {
     "legend": "Existing copies",
@@ -86,7 +86,13 @@
   "overwrite": {
     "NotCheckedFolderUnknown": "The app can't check whether this release would write over a file already there: the destination's folder has no path in the app, or its download client can't say where it is. A release sent there goes without that check.",
     "NotCheckedFolderOutsideMediaFolders": "The app can't check whether this release would write over a file already there: the destination's folder isn't under Media folders, which the installation owner sets in the user menu. A release sent there goes without that check.",
-    "NotCheckedFolderNotSeen": "This destination's download client can't see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu."
+    "NotCheckedFolderNotSeen": "This destination's download client can't see its folder, so nothing will be sent there until the owner fixes the destination under Destinations in the user menu.",
+    "folderUnknown": {
+      "ClientNotAsked": "The app couldn't ask “{{client}}” where this destination saves, so a release sent there goes without the check for files it would write over.",
+      "CategoryMissing": "“{{client}}” no longer has this destination's category, so a release sent there goes without the check for files it would write over. The owner picks another category under Destinations in the user menu.",
+      "NoPathMapping": "No path mapping of “{{client}}” brings this destination's folder into the app, so a release sent there goes without the check for files it would write over. The owner adds one under Integrations, “{{client}}”, Path mappings."
+    },
+    "askOwner": "Ask the owner to check “{{client}}” under Integrations."
   },
   "send": "Send",
   "sending": "Sending…",

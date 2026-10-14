@@ -48,7 +48,7 @@ public sealed class ReplacementSettingsHttpTests : IClassFixture<MediaAcquisitio
     private const string LinuxTickedTwiceError = "“/media/movies” is ticked twice. Keep one.";
     private const string WindowsTickedTwiceError = "“D:\\media\\movies” is ticked twice. Keep one.";
     private const string StrandedQuarantineError =
-        "“{0}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them for good first.";
+        "“{0}” still holds replaced or removed copies, so its media folder can't be taken out of the list. Restore them or delete them permanently first.";
     private const string TolokaAddress = "http://prowlarr.test:9696/1/api";
     private const string TolokaApiKey = "planted-torznab-key-0026";
 

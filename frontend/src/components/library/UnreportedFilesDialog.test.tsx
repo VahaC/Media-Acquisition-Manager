@@ -271,6 +271,21 @@ describe('UnreportedFilesDialog', () => {
     expect(screen.getByText('Page size must be between 1 and 100.')).toBeInTheDocument()
   })
 
+  // MAM-31 — the owner asked for the wider dialogs in the live check. The dialog's class gives the width
+  // and the list's the columns (unreported-files.css, pinned by downloads.test.ts).
+  it('opens as the wide dialog, each file an item of the list set in columns', async () => {
+    // Arrange
+
+    // Act
+    renderDialog()
+
+    // Assert
+    const row = await rowOf('Adobe Premiere Rush 2.10.0.30.iso')
+    expect(screen.getByRole('dialog')).toHaveClass('settings-dialog', 'unreported-files-dialog')
+    expect(row).toHaveClass('unreported-file')
+    expect(row.parentElement).toHaveClass('unreported-files')
+  })
+
   it('closes on Close, its only button in the footer', async () => {
     // Arrange
     const { user, onClose } = renderDialog()

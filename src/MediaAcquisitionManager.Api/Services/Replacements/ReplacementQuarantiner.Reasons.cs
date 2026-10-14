@@ -72,5 +72,5 @@ public sealed partial class ReplacementQuarantiner
 
     private static string CutWhileDeletingReason((int Count, int Total) deleted) =>
         ReplacementNameTally.AfterColon(
-            "The app stopped while deleting the old copies for good", ReplacementNameTally.Deleted(deleted.Count, deleted.Total));
+            "The app stopped while deleting the old copies permanently", ReplacementNameTally.Deleted(deleted.Count, deleted.Total));
 }

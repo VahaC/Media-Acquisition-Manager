@@ -26,6 +26,8 @@ public static class RecommendationServiceCollectionExtensions
         services.AddScoped<IRecommendationSettingsService, RecommendationSettingsService>();
         // Singleton: the one queue the triggers write to and the worker reads.
         services.AddSingleton<RecommendationRunQueue>();
+        // Singleton (MAM-31): what the two loops last heard from each release source, which the lists read.
+        services.AddSingleton<RecommendationSourceFailures>();
         return services;
     }
 }

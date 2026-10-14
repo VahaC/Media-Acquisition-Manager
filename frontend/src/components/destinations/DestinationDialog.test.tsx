@@ -224,6 +224,64 @@ describe('DestinationDialog', () => {
     expect(optionTexts(clientSelect(dialog))).toEqual(['Choose a download client'])
   })
 
+  // MAM-31 — the live check saw "Pick a category of your download client", "Category" and "Choose a
+  // category" on the first open with Transmission alone, while the clients were on their way.
+  it.each<[string, () => void, string | RegExp]>([
+    ['are on their way', () => vi.mocked(integrationsApi.list).mockReturnValue(new Promise(() => {})), 'Loading…'],
+    ['could not be loaded', () => vi.mocked(integrationsApi.list).mockRejectedValue(networkError()), /^The server could not be reached\./],
+    ['are none', () => vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
+      ({ items: [], totalCount: 0, page: query.page, pageSize: query.pageSize })), 'No download client yet. Add one under Integrations first.'],
+  ])('says neither a category nor a folder while the download clients %s', async (_, clientsListed, clientLine) => {
+    // Arrange
+    clientsListed()
+
+    // Act
+    const { dialog } = renderDialog()
+
+    // Assert
+    await within(dialog).findByText(clientLine)
+    await within(dialog).findByRole('group', { name: 'Standard sections' })
+    const field = within(dialog).getByRole('combobox', { name: 'Saves to' })
+    expect(dialog).toHaveAccessibleDescription(
+      'Pick a download client, then where it saves. The app checks with the client that it can save there.')
+    expect(field).toBeDisabled()
+    expect(optionTexts(field)).toEqual(['Choose where it saves'])
+    expect(field).toHaveAccessibleDescription('Choose a download client first.')
+    expect(dialog).not.toHaveTextContent(/categor|folder/i)
+  })
+
+  it('edits a destination whose client type isn\'t registered in neutral words while its client is being asked', async () => {
+    // Arrange
+    // MAM-31 — neither the clients list nor the destination says what its client saves to.
+    vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
+      ({ items: [{ ...localQbittorrent, destinationKind: null }], totalCount: 1, page: query.page, pageSize: query.pageSize }))
+    vi.mocked(destinationsApi.clientDestinations).mockReturnValue(new Promise(() => {}))
+
+    // Act
+    const { dialog } = renderDialog({ ...movies, destinationKind: null })
+
+    // Assert
+    const field = within(dialog).getByRole('combobox', { name: 'Saves to' })
+    await vi.waitFor(() => expect(field).toHaveAccessibleDescription('Asking Local qBittorrent where it can save…'))
+    expect(dialog).toHaveAccessibleDescription('A new client, or a new place it saves to, is checked with the client before it is saved.')
+  })
+
+  it('edits a destination whose client type isn\'t registered in neutral words when its client can\'t be asked and the API gives no sentence', async () => {
+    // Arrange
+    // MAM-31 — the fallback of the neutral words, as "Could not ask the client for its categories." is the category's.
+    vi.mocked(integrationsApi.list).mockImplementation(async (query) =>
+      ({ items: [{ ...localQbittorrent, destinationKind: null }], totalCount: 1, page: query.page, pageSize: query.pageSize }))
+    vi.mocked(destinationsApi.clientDestinations).mockRejectedValue(apiError(404))
+
+    // Act
+    const { dialog } = renderDialog({ ...movies, destinationKind: null })
+
+    // Assert
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not ask the client where it can save.')
+    expect(within(dialog).getByRole('combobox', { name: 'Saves to' })).toBeInTheDocument()
+    expect(dialog).not.toHaveTextContent(/categor|folder/i)
+  })
+
   it('forgets the category picked for one client when another is picked', async () => {
     // Arrange
     vi.mocked(destinationsApi.clientDestinations).mockImplementation(async (id) =>
@@ -393,6 +451,40 @@ describe('DestinationDialog', () => {
 
     // Assert
     expect(within(footer).getAllByRole('button').map((button) => button.textContent)).toEqual(['Save changes', 'Cancel'])
+  })
+
+  // MAM-31 — the owner asked for at least 1,024 px in the live check. The class gives the width
+  // (destinations.css, pinned by downloads.test.ts); the settings dialog's keeps the scroller and buttons.
+  it.each<[string, Destination | undefined]>([
+    ['adding', undefined],
+    ['editing', movies],
+  ])('opens as the wide destination dialog when %s, laid out as a settings dialog', (_, destination) => {
+    // Arrange
+
+    // Act
+    const { dialog } = renderDialog(destination)
+
+    // Assert
+    expect(dialog).toHaveClass('settings-dialog', 'destinations-dialog')
+  })
+
+  // MAM-31 — the owner asked in the live check for the name beside the download client on a wide screen,
+  // as the integration dialog pairs its short fields; the pair's columns are destinations.css's, pinned by
+  // downloads.test.ts. The category field and the rest keep the whole width.
+  it('pairs the name with the download client, and leaves the category field out of the pair', async () => {
+    // Arrange
+    const { dialog } = renderDialog()
+
+    // Act
+    await vi.waitFor(() => expect(clientSelect(dialog)).toBeEnabled())
+
+    // Assert
+    const pair = within(dialog).getByRole('textbox', { name: 'Name' }).closest('.auth-field:not(label)')!.parentElement!
+    expect(pair).toHaveClass('destinations-pair')
+    expect(pair.children).toHaveLength(2)
+    expect(pair).toContainElement(clientSelect(dialog))
+    expect(pair).not.toContainElement(categorySelect(dialog))
+    expect(pair.parentElement).toHaveClass('settings-dialog-body')
   })
 
   it('closes on Cancel without saving anything', async () => {

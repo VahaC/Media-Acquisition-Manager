@@ -1,4 +1,5 @@
 using System.Globalization;
+using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Downloads;
 
 namespace MediaAcquisitionManager.Core.Tests.Downloads;
@@ -7,7 +8,8 @@ namespace MediaAcquisitionManager.Core.Tests.Downloads;
 // (trimmed, at most 64 characters, no control characters, compared in any letter case), and the client's
 // own category name exactly as the client spells it, never trimmed. Every refusal is pinned with the
 // sentence the Destinations dialog shows. MAM-30 — the key's sentences name a category or a folder (ADR 0039), and a
-// name a folder client shows as the torrent's label can't hold a comma.
+// name a folder client shows as the torrent's label can't hold a comma. MAM-31 — once the client is known, a missing key
+// is asked for as its folder or its category, by its name.
 public sealed class DestinationRulesTests
 {
     // Spelled out rather than read from DestinationRules: they are what the dialog shows.
@@ -118,6 +120,40 @@ public sealed class DestinationRulesTests
 
         //Assert
         Assert.Equal(expected, error);
+    }
+
+    [Theory]
+    [InlineData(DownloadDestinationKind.Folder, "Pick the folder of “Transmission” this destination saves to.")]
+    [InlineData(DownloadDestinationKind.Category, "Pick the category of “Transmission” this destination saves to.")]
+    // A type this build doesn't register says nothing of what its destinations are.
+    [InlineData(null, KeyMissingError)]
+    public void ValidateClientDestinationKey_of_a_known_client_asks_for_a_missing_key_in_the_words_of_its_kind(
+        DownloadDestinationKind? kind, string expected)
+    {
+        //Arrange
+        string?[] missing = [null, "", "   ", "\t"];
+
+        //Act
+        var errors = missing.Select(key => DestinationRules.ValidateClientDestinationKey(key, kind, "Transmission"));
+
+        //Assert
+        Assert.All(errors, error => Assert.Equal(expected, error));
+    }
+
+    [Theory]
+    [InlineData(DownloadDestinationKind.Folder)]
+    [InlineData(DownloadDestinationKind.Category)]
+    [InlineData(null)]
+    public void ValidateClientDestinationKey_of_a_known_client_reads_a_given_key_by_the_same_rules(DownloadDestinationKind? kind)
+    {
+        //Arrange
+        string[] keys = ["/downloads/movies", new string('a', 257), "Movies\n"];
+
+        //Act
+        var errors = keys.Select(key => DestinationRules.ValidateClientDestinationKey(key, kind, "Transmission"));
+
+        //Assert
+        Assert.Equal<string?>([null, KeyTooLongError, KeyControlCharacterError], errors);
     }
 
     [Theory]
