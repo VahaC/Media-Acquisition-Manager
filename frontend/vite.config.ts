@@ -25,6 +25,9 @@ export default defineConfig({
     // on one origin, exactly as in production, where the API serves the SPA itself — so no CORS.
     proxy: {
       '/api': { target: 'http://localhost:5080', ws: true },
+      // MAM-45 — the MCP endpoint lives outside /api; the Profile page's Claude lines point at this
+      // page's origin, so in development they would reach Vite's SPA fallback without it.
+      '/mcp': { target: 'http://localhost:5080' },
     },
   },
   build: {

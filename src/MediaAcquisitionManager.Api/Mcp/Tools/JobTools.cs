@@ -1,0 +1,167 @@
+using System.ComponentModel;
+using System.Globalization;
+using System.Security.Claims;
+using MediaAcquisitionManager.Api.Auth;
+using MediaAcquisitionManager.Api.Contracts;
+using MediaAcquisitionManager.Api.Mcp.Results;
+using MediaAcquisitionManager.Api.Services.Downloads;
+using MediaAcquisitionManager.Api.Services.PersonalAccessTokens;
+using MediaAcquisitionManager.Core.Enums;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+
+namespace MediaAcquisitionManager.Api.Mcp.Tools;
+
+/// <summary>MAM-45 — <c>list_jobs</c>, <c>get_job</c> and <c>cancel_job</c>: the web app's Jobs page, the caller's own
+/// jobs only.</summary>
+/// <remarks>
+/// <see cref="IDownloadService"/> scopes every job to its sender, as for the Jobs page: another user's job answers as a
+/// missing one (<see cref="McpToolErrors.JobNotFound"/>), the owner's to a member too. Nothing here asks the download
+/// client: the jobs are what the poller last read, and a cancel only stops following (ADR 0014). Built per call by the
+/// SDK, with the request's services.
+/// </remarks>
+[McpServerToolType]
+public sealed class JobTools(IDownloadService downloads, IPersonalAccessTokenRefusals personalAccessTokenRefusals, McpToolResults results)
+{
+    /// <summary>The tool a refused cancel is recorded under, as the access gate records a tool's name.</summary>
+    private const string CancelJob = "cancel_job";
+
+    /// <summary>The files <c>get_job</c> lists: the Jobs page's first page of them.</summary>
+    private const int FirstFiles = 25;
+
+    [McpServerTool(
+        Name = "list_jobs",
+        Title = "List download jobs",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true,
+        OutputSchemaType = typeof(DownloadJobListResponse))]
+    [Description(
+        "Lists your download jobs, newest first, as MAM last read them from the download client: each with its status, "
+        + "progress, release, client and destination, and the error or the reason when one stopped. view picks a tab of "
+        + "the web app's Jobs page and status a single status; needsYouCount and inProgressCount count all your jobs "
+        + "whatever the filters. Only your own jobs are listed.")]
+    public async Task<CallToolResult> ListJobsAsync(
+        ClaimsPrincipal user,
+        [Description("NeedsYou: stopped and waiting for someone, such as a download that needs linking; InProgress: MAM "
+            + "is still working on it; Finished: nothing more happens to it.")]
+        DownloadJobView? view = null,
+        [Description("Keep only the jobs in this status.")]
+        DownloadJobStatus? status = null,
+        [Description("The page, from 1.")]
+        int page = 1,
+        [Description("Jobs per page, 1 to 100.")]
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        // By name, as the Jobs page sends them: the service reads a view and a status by name alone.
+        var listed = await downloads.ListAsync(status?.ToString(), view?.ToString(), page, pageSize, user.GetUserId(), cancellationToken);
+        if (listed.List is not { } list)
+            return McpToolResults.Error(listed.Error!);
+
+        var matches = list.TotalCount == 1 ? "1 job matches" : $"{list.TotalCount} jobs match";
+        return results.Success(
+            $"{matches}; this page lists {list.Items.Count}. Among all your jobs, NeedsYou holds {list.NeedsYouCount} and "
+            + $"InProgress {list.InProgressCount}.",
+            list);
+    }
+
+    [McpServerTool(
+        Name = "get_job",
+        Title = "Download job",
+        ReadOnly = true,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true,
+        OutputSchemaType = typeof(JobToolResult))]
+    [Description(
+        "One of your download jobs: where it stands, why it stopped if it did, and its first 25 files with their sizes "
+        + "and progress, as MAM last read them from the download client.")]
+    public async Task<CallToolResult> GetJobAsync(
+        ClaimsPrincipal user,
+        [Description("The job's id, from list_jobs or send_download.")]
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = user.GetUserId();
+        if (await downloads.GetAsync(jobId, userId, cancellationToken) is not { } job)
+            return McpToolResults.Error(McpToolErrors.JobNotFound);
+        // Page 1 of 25 always fits the list's rules, so only a job gone since the read above — its sender's account
+        // removed — answers otherwise, as a missing job.
+        if ((await downloads.ListFilesAsync(jobId, 1, FirstFiles, userId, cancellationToken)).List is not { } files)
+            return McpToolResults.Error(McpToolErrors.JobNotFound);
+
+        return results.Success(JobSummary(job, files), new JobToolResult(job, files));
+    }
+
+    [McpServerTool(
+        Name = CancelJob,
+        Title = "Cancel a download job",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true,
+        OpenWorld = false,
+        UseStructuredContent = true,
+        OutputSchemaType = typeof(DownloadJobDto))]
+    [PersonalAccessTokenWrite]
+    [Description(
+        "Stops MAM following one of your download jobs: it becomes Cancelled, and the release may be sent again. Nothing "
+        + "is sent to the download client — the torrent and its files stay there as they are, for the user to remove "
+        + "there if they want. A job that already ended, or one still being sent, can't be cancelled; a job that also "
+        + "replaces a copy in the library is cancelled in the web app only. Needs an access token with Read and download "
+        + "access.")]
+    public async Task<CallToolResult> CancelJobAsync(
+        ClaimsPrincipal user,
+        [Description("The job's id, from list_jobs or send_download.")]
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = user.GetUserId();
+        // As DownloadsController.Cancel does for a token: a token never touches a replacement (ADR 0040), so a cancel that
+        // would end one too changes nothing, and is refused and recorded the HTTP API's way.
+        var cancelled = await downloads.CancelAsync(jobId, userId, mayEndReplacement: false, cancellationToken);
+        if (cancelled.Status == DownloadCancelStatus.ReplacementNeedsTheWebApp)
+        {
+            // Always a token: /mcp refuses a session before any tool runs.
+            var tokenId = user.GetPersonalAccessTokenId()
+                ?? throw new InvalidOperationException("cancel_job runs on a personal access token only.");
+            await personalAccessTokenRefusals.RecordAsync(
+                tokenId, userId, PersonalAccessTokenRefusalReason.CancelEndsReplacement, McpToolAccessFilter.CallMethod, CancelJob, cancellationToken);
+            return McpToolResults.Error(PersonalAccessTokenErrors.CancelEndsReplacement);
+        }
+
+        return cancelled.Status switch
+        {
+            DownloadCancelStatus.Cancelled => results.Success(
+                $"MAM no longer follows “{cancelled.Job!.ReleaseTitle}”: the job is Cancelled, and the torrent stays in "
+                + $"“{cancelled.Job.DownloadClientName}” as it is.",
+                cancelled.Job),
+            DownloadCancelStatus.NothingToStop or DownloadCancelStatus.StillBeingSent => McpToolResults.Error(cancelled.Error!),
+            _ => McpToolResults.Error(McpToolErrors.JobNotFound),
+        };
+    }
+
+    // ── summaries ───────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Where the job stands, why it stopped if it did, and how many of its files the answer lists.</summary>
+    private static string JobSummary(DownloadJobDto job, DownloadJobFileListResponse files)
+    {
+        // Rounded down: a download at 99.6 % isn't done.
+        var progress = job.Progress is { } done
+            ? $" at {Math.Floor(done * 100).ToString(CultureInfo.InvariantCulture)}%"
+            : "";
+        var listed = files.TotalCount switch
+        {
+            0 => "its download client hasn't listed its files yet",
+            1 => "its 1 file is listed",
+            var total when total <= files.Items.Count => $"its {total} files are listed",
+            var total => $"the first {files.Items.Count} of its {total} files are listed",
+        };
+        // The job's own sentences, each a full one: why it failed, why a followed one isn't moving on.
+        var why = string.Concat(job.Error is { } error ? $" {error}" : "", job.BlockReason is { } blocked ? $" {blocked}" : "");
+        return $"“{job.ReleaseTitle}” in “{job.DownloadClientName}” is {job.Status}{progress}; {listed}.{why}";
+    }
+}

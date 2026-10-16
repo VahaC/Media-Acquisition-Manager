@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Extensions;
 using MediaAcquisitionManager.Api.Health;
 using MediaAcquisitionManager.Api.Http;
+using MediaAcquisitionManager.Api.Mcp;
 using MediaAcquisitionManager.Core.Options;
 using MediaAcquisitionManager.Core.Storage;
 using MediaAcquisitionManager.Infrastructure;
@@ -70,6 +71,7 @@ public class Program
         builder.Services.AddDownloadFeatures();
         builder.Services.AddReplacementFeatures();
         builder.Services.AddRecommendationFeatures();
+        builder.Services.AddMcpFeatures();
         builder.Services.AddMediaAcquisitionManagerHealthChecks();
         // Last: every background service in one place, in the order they start.
         builder.Services.AddMediaAcquisitionManagerHostedServices();
@@ -91,6 +93,8 @@ public class Program
         // instead of falling through to the SPA shell below.
         app.MapControllers();
         app.MapMediaAcquisitionManagerHealthEndpoints();
+        // MAM-45 — before the fallback, which would otherwise answer GET /mcp and /.well-known with the SPA shell.
+        app.MapMediaAcquisitionManagerMcp();
         // Client-side routes (/library, /settings/…) get the SPA shell; React Router takes it from there.
         app.MapFallbackToFile("index.html");
 

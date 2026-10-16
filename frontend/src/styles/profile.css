@@ -1,6 +1,6 @@
 /* MAM-16 — the Profile page: who you are, your password, the theme and this session. A single
    column of cards narrower than the other pages, as the approved design draws it. MAM-5 — and the
-   access tokens, with their create dialog. */
+   access tokens, with their create dialog. MAM-45 — and that dialog's lines for an AI assistant. */
 
 .profile-page {
   display: grid;
@@ -204,11 +204,56 @@
   overflow-wrap: anywhere;
 }
 
+/* MAM-45 — the shown-once step, wider than a settings dialog for the Claude Desktop block: its longest
+   line, the token's under "AUTH_HEADER" (83 characters), fits whole at 48rem, the integration dialog's
+   cap, where 28rem broke it in the middle of the token. Three classes, so it wins over
+   `.ui-dialog-content.settings-dialog` whichever sheet loads first (the reason of .download-dialog-wide).
+   A cap only: below it the dialog is the screen's width, so a phone keeps its own. The form before it
+   keeps 28rem. */
+.ui-dialog-content.settings-dialog.profile-secret-dialog {
+  max-width: 48rem;
+}
+
+/* MAM-45 — Connect an AI assistant, under the script's example: a line above it sets the two apart. */
+.profile-assistant {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* MAM-45 — a command or a configuration to copy: the example's monospaced, smaller type, in a read-only
+   field rather than a <code> block, since Copy on plain HTTP selects a field's text (lib/clipboard.ts).
+   It breaks at a space first and anywhere inside the token, so it never widens the dialog. Its rows fit
+   the lines it is given; where a narrow screen wraps them into more, it grows to its content where the
+   browser can (field-sizing), and elsewhere keeps its rows and scrolls, Copy taking the whole text either
+   way. */
+.ui-textarea.profile-command-field {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+  resize: none;
+  field-sizing: content;
+}
+
+/* MAM-45 — the Claude Desktop block keeps the lines JSON.stringify gave it: a value wrapped onto a second
+   line reads as two. */
+.ui-textarea.profile-config-field {
+  white-space: pre;
+}
+
 @media (max-width: 48rem) {
   /* The token table is one card per token here (settings-list.css), every value at the right of its
      label, as .settings-name puts a name. */
   .profile-token {
     justify-items: end;
+  }
+
+  /* MAM-45 — below its cap the secret step can be narrower than the Claude Desktop block's longest line.
+     The line wraps there instead of scrolling sideways inside the field, where a phone shows no scrollbar
+     and would hide the end of the token. */
+  .ui-textarea.profile-config-field {
+    white-space: pre-wrap;
   }
 }
 

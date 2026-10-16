@@ -41,8 +41,17 @@ public sealed partial class LibraryDuplicateService(
     /// of text shouldn't come back whole (the Library's filter rule).</summary>
     private const int ClassEchoLength = 32;
 
+    /// <summary>MAM-45 — the same for an unknown sort: the longest is 11 characters.</summary>
+    private const int SortEchoLength = 32;
+
     public async Task<LibraryDuplicateListResult> ListAsync(
-        string? duplicateClass, string? decision, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default)
+        string? duplicateClass,
+        string? decision,
+        string? sort,
+        int page,
+        int pageSize,
+        Guid callerUserId,
+        CancellationToken cancellationToken = default)
     {
         if (PagingRules.Validate(page, pageSize) is { } pagingError)
             return LibraryDuplicateListResult.Invalid(pagingError);
@@ -62,6 +71,15 @@ public sealed partial class LibraryDuplicateService(
 
         if (DuplicateDecisionRules.ValidateFilter(decision, out var decisionFilter) is { } decisionError)
             return LibraryDuplicateListResult.Invalid(decisionError);
+        var order = DuplicateSort.Default;
+        if (!string.IsNullOrWhiteSpace(sort))
+        {
+            // By name, never by number, as the class: Enum.TryParse would take "2" for Recoverable.
+            var name = Enum.GetNames<DuplicateSort>().FirstOrDefault(candidate => candidate.Equals(sort.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (name is null)
+                return LibraryDuplicateListResult.Invalid($"“{Echo(sort.Trim(), SortEchoLength)}” is not a sort. Use Default or Recoverable.");
+            order = Enum.Parse<DuplicateSort>(name);
+        }
 
         var forOwner = await db.IsInstallationOwnerAsync(callerUserId, cancellationToken);
         var library = await LoadAsync(forOwner, cancellationToken);
@@ -91,15 +109,22 @@ public sealed partial class LibraryDuplicateService(
         var inForce = allGroups
             .Where(group => decisions.TryGetValue(group.Key, out var row) && DuplicateDecisionRules.IsInForce(group, row.KeptMembers))
             .ToDictionary(group => group.Key, group => decisions[group.Key], StringComparer.Ordinal);
-        var groups = allGroups
+        var listed = allGroups
             .Where(group => classFilter is null || group.Class == classFilter)
             // MAM-21 (Vasyl, 2026-10-07) — a dismissed possible match leaves the list, every class's tab included; the
             // dismissed ones are listed apart, where the decision can be undone. MAM-40 — so do copies kept as they are.
             .Where(group => decisionFilter is null
                 ? inForce.GetValueOrDefault(group.Key)?.Decision != DuplicateMatchDecision.Dismissed
                 : inForce.GetValueOrDefault(group.Key)?.Decision == decisionFilter)
-            .Select(group => (Group: group, Order: OrderOf(group, library)))
-            .OrderBy(group => group.Group.Class)
+            .Select(group => (Group: group, Order: OrderOf(group, library)));
+        // MAM-45 — the most room first, by the estimate alone: a group without one is never ranked by a guess (ADR 0028),
+        // so it waits at the end, and every tie keeps the default order below, which ends in the key.
+        var groups = (order == DuplicateSort.Recoverable
+                ? listed
+                    .OrderBy(group => group.Group.Recoverable?.SizeBytes is null)
+                    .ThenByDescending(group => group.Group.Recoverable?.SizeBytes)
+                    .ThenBy(group => group.Group.Class)
+                : listed.OrderBy(group => group.Group.Class))
             .ThenBy(group => group.Order.Title, LibraryTitleOrder.Comparer)
             .ThenBy(group => group.Order.Title, StringComparer.Ordinal)
             .ThenBy(group => group.Order.SeasonRank)

@@ -25,13 +25,22 @@ public interface ILibraryDuplicateService
     /// with <paramref name="decision"/> (a <c>DuplicateMatchDecision</c> by name, in any letter case) only the groups
     /// the owner decided so — MAM-40: copies kept as they are are dismissed, while no new file has joined them —; when
     /// blank, every group but the dismissed ones; each group with the owner's decision on it, when it holds.
+    /// MAM-45 — <paramref name="sort"/> (a <c>DuplicateSort</c> by name, in any letter case) <c>Recoverable</c> puts the
+    /// largest recoverable room first and the groups without an estimate last, each tie in the order above, which is
+    /// the <c>Default</c> one and the order when blank.
     /// A file's path problem, its inspection problem, the name of who set a link and the name of who decided only when
     /// <paramref name="callerUserId"/> is the installation owner, as on the Library page.
     /// <see cref="LibraryDuplicateListStatus.Invalid"/> for a page below 1, a page size outside 1 to 100, a class that
-    /// isn't one, or a decision that isn't one — checked in that order.
+    /// isn't one, a decision that isn't one, or a sort that isn't one — checked in that order.
     /// </summary>
     Task<LibraryDuplicateListResult> ListAsync(
-        string? duplicateClass, string? decision, int page, int pageSize, Guid callerUserId, CancellationToken cancellationToken = default);
+        string? duplicateClass,
+        string? decision,
+        string? sort,
+        int page,
+        int pageSize,
+        Guid callerUserId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// MAM-21 — the group <paramref name="key"/> names now, worked out as the list does, of any class; <c>null</c> when

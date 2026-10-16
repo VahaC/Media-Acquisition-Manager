@@ -1,17 +1,17 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { isAxiosError } from 'axios'
-import { Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { CopyableField } from '@/components/profile/CopyableField'
 import { Banner } from '@/components/shared/Banner'
 import { Field } from '@/components/shared/Field'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { copyFieldText } from '@/lib/clipboard'
 import { useCreateAccessToken } from '@/lib/queries'
 import type { AccessTokenAccess, AccessTokenLifetime, CreatedAccessToken } from '@/lib/types'
-import { getApiErrorMessage } from '@/lib/utils'
-import '@/styles/profile.css' // .profile-* — the access options and their hints, the secret, the copy row, the example
+import { cn, getApiErrorMessage } from '@/lib/utils'
+import '@/styles/profile.css' // .profile-* — the access options and their hints, the secret, the example, the wider secret step, the assistant's lines
+import '@/styles/search.css' // .search-details-heading — the heading of Connect an AI assistant, as the Download dialog's sections have
 import '@/styles/settings-dialog.css' // .settings-dialog* and .settings-check — the scrolling body, the buttons, the radios
 
 /** The access levels in the order the dialog offers them: the narrower first, and preselected. */
@@ -31,6 +31,9 @@ const DEFAULT_LIFETIME: AccessTokenLifetime = 'Days90'
  * the dialog doesn't close it: one stray click would lose it for good. Escape, the close button and
  * Done still do — those are meant.
  *
+ * MAM-45 — the same step gives the lines that connect Claude Code and Claude Desktop to the app's MCP
+ * endpoint, each with the whole secret and a Copy of its own; it is wider than the form for them.
+ *
  * While the create request is under way nothing closes the dialog: Cancel is disabled, and Escape, the
  * close button and a click outside are ignored. Closing would not stop the request, so the server would
  * still make a working token whose secret nobody ever sees (MAM-5, ADR 0040).
@@ -46,7 +49,8 @@ export function CreateAccessTokenDialog({ onClose }: { onClose: () => void }) {
     // One guard for Escape, the close button and a click outside: each of them asks to close through here.
     <Dialog open onOpenChange={(open) => { if (!open && !creating) onClose() }}>
       <DialogContent
-        className="settings-dialog"
+        // MAM-45 — wider once the secret shows, for the Claude Desktop block; the form keeps a settings dialog's width.
+        className={cn('settings-dialog', created && 'profile-secret-dialog')}
         onInteractOutside={(event) => { if (created || creating) event.preventDefault() }}
       >
         <DialogHeader>
@@ -183,63 +187,91 @@ function CreateForm({ onCreated, onCreatingChange, onCancel }: CreateFormProps) 
 
 // ── the secret, once ──
 
-/** What Copy last did: nothing yet, copied, or failed in both ways (lib/clipboard.ts). */
-type CopyOutcome = 'idle' | 'copied' | 'failed'
-
 /**
  * The new token's secret in a read-only field that selects itself on focus and wraps (51 characters
  * with no space are wider than the dialog), Copy, the warning and an example. On a plain-HTTP LAN
  * address Copy falls back to selecting the field; when that fails too, the line beside it says to
- * press Ctrl+C, with the token already selected.
+ * press Ctrl+C, with the token already selected (CopyableField).
+ *
+ * MAM-45 — then Connect an AI assistant: the Claude Code command and the Claude Desktop configuration,
+ * each copied on its own. Unlike the curl example they carry the whole secret, so either is pasted as it
+ * is (Vasyl, 2026-10-16). Both point at this page's own address, as the example does: the address the
+ * person reached the app at. A Read only token's assistant gets no tool that writes (ADR 0040), which a
+ * line says here rather than the assistant later.
  */
 function SecretView({ created, onDone }: { created: CreatedAccessToken; onDone: () => void }) {
   const { t } = useTranslation('profile')
-  const secretField = useRef<HTMLTextAreaElement>(null)
-  const [copyOutcome, setCopyOutcome] = useState<CopyOutcome>('idle')
-
-  const copy = async () => {
-    if (!secretField.current) return
-    setCopyOutcome((await copyFieldText(secretField.current)) ? 'copied' : 'failed')
-  }
+  const assistantTitle = useId()
+  const origin = window.location.origin
+  const desktopConfig = claudeDesktopConfig(origin, created.secret, window.location.protocol === 'http:')
 
   return (
     <div className="settings-dialog-form">
       <div className="settings-dialog-body">
         <Banner tone="warning">{t('accessTokens.secret.warning')}</Banner>
-        <Field label={t('accessTokens.secret.label')}>
-          {(control) => (
-            <textarea
-              {...control}
-              ref={secretField}
-              className="ui-textarea profile-secret"
-              value={created.secret}
-              readOnly
-              rows={2}
-              spellCheck={false}
-              autoFocus
-              onFocus={(event) => event.currentTarget.select()}
-            />
-          )}
-        </Field>
-        <div className="profile-actions">
-          <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
-            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('accessTokens.secret.copy')}
-          </Button>
-          {copyOutcome === 'copied' && <span role="status" className="profile-muted">{t('accessTokens.secret.copied')}</span>}
-          {copyOutcome === 'failed' && <span role="status">{t('accessTokens.secret.copyFailed')}</span>}
-        </div>
+        <CopyableField
+          label={t('accessTokens.secret.label')}
+          value={created.secret}
+          rows={2}
+          className="profile-secret"
+          copyLabel={t('accessTokens.secret.copyToken')}
+          copyFailed={t('accessTokens.secret.copyFailed')}
+          autoFocus
+        />
         <p className="profile-note">{t('accessTokens.secret.example')}</p>
         <code className="profile-command">
           {t('accessTokens.secret.command', {
             token: t('accessTokens.prefix', { prefix: created.token.prefix }),
-            origin: window.location.origin,
+            origin,
           })}
         </code>
+        <section className="profile-assistant" aria-labelledby={assistantTitle}>
+          <h3 id={assistantTitle} className="search-details-heading">{t('accessTokens.secret.assistant.title')}</h3>
+          {created.token.access === 'ReadOnly' && (
+            <p className="profile-note">{t('accessTokens.secret.assistant.readOnly')}</p>
+          )}
+          <CopyableField
+            label={t('accessTokens.secret.assistant.claudeCode.label')}
+            hint={t('accessTokens.secret.assistant.claudeCode.hint')}
+            value={t('accessTokens.secret.assistant.claudeCode.command', { origin, token: created.secret })}
+            rows={3}
+            className="profile-command-field"
+            copyLabel={t('accessTokens.secret.assistant.claudeCode.copy')}
+            copyFailed={t('accessTokens.secret.assistant.claudeCode.copyFailed')}
+          />
+          <CopyableField
+            label={t('accessTokens.secret.assistant.claudeDesktop.label')}
+            hint={t('accessTokens.secret.assistant.claudeDesktop.hint')}
+            value={desktopConfig}
+            // Every line of the block in view, without scrolling the field: it is read before it is pasted.
+            rows={desktopConfig.split('\n').length}
+            className="profile-command-field profile-config-field"
+            copyLabel={t('accessTokens.secret.assistant.claudeDesktop.copy')}
+            copyFailed={t('accessTokens.secret.assistant.claudeDesktop.copyFailed')}
+          />
+        </section>
       </div>
       <DialogFooter>
         <Button type="button" onClick={onDone}>{t('accessTokens.secret.done')}</Button>
       </DialogFooter>
     </div>
   )
+}
+
+/**
+ * MAM-45 — the Claude Desktop entry for claude_desktop_config.json. Claude Desktop starts local servers
+ * only, so `npx mcp-remote` bridges it to the app's /mcp (`-y`: npx doesn't stop to ask before fetching
+ * it). The header goes as "Authorization:${AUTH_HEADER}" with "Bearer …" in `env`, the form mcp-remote's
+ * README gives: Claude Desktop on Windows doesn't escape the spaces inside `args`, so "Authorization:
+ * Bearer …" would reach mcp-remote broken up. `http-only`: the app speaks Streamable HTTP alone, with no
+ * SSE endpoint for mcp-remote's default http-first to fall back to. `--allow-http` only on a plain-HTTP
+ * address, which mcp-remote connects to only with it. Built as an object and serialised, so no secret
+ * or address can break the JSON.
+ */
+function claudeDesktopConfig(origin: string, secret: string, plainHttp: boolean): string {
+  const args = ['-y', 'mcp-remote', `${origin}/mcp`, '--transport', 'http-only']
+  if (plainHttp) args.push('--allow-http')
+  // A plain string, not a template literal: mcp-remote itself puts the env value in place of ${AUTH_HEADER}.
+  args.push('--header', 'Authorization:${AUTH_HEADER}')
+  return JSON.stringify({ mcpServers: { mam: { command: 'npx', args, env: { AUTH_HEADER: `Bearer ${secret}` } } } }, null, 2)
 }

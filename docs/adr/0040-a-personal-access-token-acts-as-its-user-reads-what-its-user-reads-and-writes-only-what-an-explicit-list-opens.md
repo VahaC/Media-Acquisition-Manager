@@ -228,3 +228,32 @@ This doesn't license opening a write by matching a path, a write mark on any act
 `Controllers/Settings` or `Controllers/Replacements`, or a token acting for anyone but its user. A
 token is no second sign-in: it has no session, no refresh and no cookie. And it relaxes nothing of
 ADR 0002: the check runs on every request, reads included, and is never cached.
+
+## The MCP endpoint (added 0.5.0, MAM-45)
+
+The Consequences above left `/mcp` closed to tokens until it was marked on purpose. MAM-45 marks it
+with a fourth mark, not with either of the two above: one POST there carries any tool call, so
+`[PersonalAccessTokenRead]` would let a `Read only` token's send through and a session with it, and
+`[PersonalAccessTokenWrite]` would shut a `Read only` token out of its reads. **`/mcp` carries
+`[PersonalAccessTokenOnly]`: any token gets in, once `[DenyPersonalAccessToken]` is checked, and a
+signed-in session gets 403 — the one place a session is refused — with "The MCP endpoint takes a
+personal access token, not a web app sign-in. Create a token on your Profile page and connect with
+it; see “Connect an AI assistant (MCP)” in the README." (`SessionNotAccepted`), with no audit row, as
+a session has no token row. The endpoint's own filter then applies this ADR's two levels tool by
+tool:** a tool is a read when it says so (`ReadOnly = true`), a write only when its method carries
+`[PersonalAccessTokenWrite]` — the same mark, the same three writes: `send_download`, `cancel_job`,
+`dismiss_recommendation` —, and a tool that is neither is no token's, deny by default as above. A
+refused call answers this ADR's sentence as the tool's error and is recorded the same way, its
+method `tools/call` and its path the tool's name; `cancel_job` refuses a job whose replacement is
+still followed, as `DownloadsController.Cancel` does. The "who am I" the rejected `GET /api/auth/me`
+left to MAM-45 is its `get_status`, built from what a member reads and no Settings.
+`PersonalAccessTokenRefusalResultHandler` now answers every refusal of the handler and records only
+a token's; one token's requests to `/mcp` are held to 60 a minute.
+
+How the endpoint and its tools are built, and why, is
+[ADR 0041](0041-an-ai-assistant-reaches-the-app-through-one-mcp-endpoint-for-personal-access-tokens-alone-where-each-tool-is-a-read-or-one-of-the-three-writes-judged-per-call.md).
+`PersonalAccessTokenConventionHttpTests.Post_marked_for_tokens_alone_with_a_token_of_either_access_is_2xx`
+and `Post_marked_for_tokens_alone_with_a_session_is_403_with_the_sentence_and_records_nothing` pin the
+mark on a probe endpoint, and
+`McpToolListHttpTests.Discovery_finds_exactly_the_twelve_tools_each_a_read_or_one_of_the_three_writes_and_never_both`
+keeps the tools' list fixed, as `PersonalAccessTokenWritesHttpTests` keeps the HTTP API's.

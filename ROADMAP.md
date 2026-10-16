@@ -114,7 +114,15 @@ the server's sentences (MAM-47) —, checked on production by MAM-48. MAM-5 (bui
 raised the version to 0.5.0: every user creates, lists and revokes their own personal access tokens
 on Profile, `Read only` or `Read and download`, which act as their user and write only what an
 explicit list opens, and the owner counts and revokes each user's on the Users page (ADR 0040); it
-rests on the tests and wasn't tried on production. MAM-45 to MAM-48 aren't built yet.
+rests on the tests and wasn't tried on production. MAM-45 (built on 2026-10-16 for 0.5.0) gives an
+AI assistant the MCP endpoint `/mcp` for such tokens alone — Claude Code directly, Claude Desktop
+through `mcp-remote` —, with twelve tools that search the library and the release sources, give the
+Download dialog's choice, send the release the user confirms, follow and cancel jobs and read the
+duplicates, the recommendations and the sources' state, the three writes for `Read and download`
+alone, and the Profile lines that connect each assistant (ADR 0041); it rests on the tests and a
+live check on canned data (the MCP TypeScript SDK's client and `mcp-remote`, its Profile lines in a
+browser), and wasn't tried with Claude Code, Claude Desktop or on production.
+MAM-46 to MAM-48 aren't built yet.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
@@ -2389,15 +2397,74 @@ app in Ukrainian.
   - *Backup/restore:* one new table, `PersonalAccessTokens` (migration `AddPersonalAccessTokens`, no
     rebuild), in `mam.db`, so the data directory's backup keeps the tokens' hashes; no token can be read
     back from it.
-- **MAM-45 MCP:** a Streamable HTTP endpoint at `/mcp` in the app (`ModelContextProtocol.AspNetCore`
-  1.x), open to personal access tokens only, whose tools call the same services as the controllers:
-  search the library, search releases (the Search page's answer), the download options, the jobs by
-  the Jobs page's tabs, the duplicates, the recommendations and the sources' status, and, for a `Read
-  and download` token, send a release, cancel following a job and Not interested. The clients are
-  Claude Code, directly, and Claude Desktop, through the local `mcp-remote` bridge, on the home
-  network or a VPN (Vasyl's decision of 2026-10-14); the token's "shown once" step gives the line to
-  connect each. Claude.ai and the phone app are out: their connectors call from Anthropic's cloud,
-  which would need the app open to the internet over HTTPS with OAuth sign-in.
+- **MAM-45 MCP** (built on 2026-10-16, release 0.5.0; resting on the tests and a live check on canned
+  data — the MCP TypeScript SDK's client calling every tool, a send included, and `mcp-remote` with
+  the Profile block's arguments, against the app on real Kestrel —, its Profile lines looked at in a
+  browser at desktop and phone width; not tried with Claude Code or Claude Desktop themselves, nor on
+  production): a Streamable
+  HTTP endpoint at `/mcp` in the app, open to personal access tokens only, whose tools call the same
+  services as the controllers: search the library, search releases (the Search page's answer), the
+  download options, the jobs by the Jobs page's tabs, the duplicates, the recommendations and the
+  sources' status, and, for a `Read and download` token, send a release, cancel following a job and
+  Not interested. The clients are Claude Code, directly, and Claude Desktop, through the local
+  `mcp-remote` bridge, on the home network or a VPN (Vasyl's decision of 2026-10-14); the token's
+  "shown once" step gives the line to connect each. Claude.ai and the phone app are out: their
+  connectors call from Anthropic's cloud, which would need the app open to the internet over HTTPS
+  with OAuth sign-in. Vasyl's decisions of 2026-10-16, before the build:
+  `ModelContextProtocol.AspNetCore` 2.2.0 instead of the 1.x first written here, as 1.4.1 is the
+  last 1.x and gets critical fixes only; a twelfth tool, `list_search_releases`, so "show more" or
+  "only Ukrainian audio" pages a stored search instead of asking every source again;
+  `send_download` asking the user before every
+  send, even with the app's tools allowed; and the defaults put to him: (a) 60 requests a minute per
+  token on `/mcp`, then 429 with a sentence of its own; (b) a sign-in's access token refused with 403
+  and a sentence naming the README; (c) a `Read only` token's call of a write answered with ADR
+  0040's read-only sentence and recorded as a refusal; (d) `get_download_options` giving what the
+  Download dialog would preselect and the overwrite check of that destination, and `send_download`
+  refused beforehand where the dialog disables Send; (e) a "most recoverable space first" sort for
+  the duplicates; (f) `get_status` as who you are, the version, the library sources and their last
+  sync and the failed recommendation sources, without Settings' health; (g) the Claude Code line with
+  `--scope user`, both Profile lines carrying the whole token. He was also told that GET, HEAD and
+  DELETE `/mcp` answer 405 and `/.well-known/…` 404. As built:
+  - *The endpoint:* `POST /mcp` (and `/mcp/`), stateless — every JSON-RPC message a POST of its own,
+    with the request's own scope, user and database context, and nothing kept between them —, server
+    `mam`, "Media Acquisition Manager", with the build's informational version, on the `2025-11-25`
+    handshake Claude Code and `mcp-remote` speak or `2026-07-28`, its instructions per access under
+    2,000 characters; the default policy, a new mark, `[PersonalAccessTokenOnly]` — a session 403
+    "The MCP endpoint takes a personal access token, not a web app sign-in. …", either token in —, and
+    the `mcp` limit's 429 "Too many requests with this access token: at most 60 a minute. Wait a
+    minute and try again."; mapped before the web app's fallback, with GET, HEAD and DELETE `/mcp`
+    405 `Allow: POST` and `/.well-known/{**path}` 404 (ADR 0041, ADR 0040's MAM-45 section).
+  - *The tools:* nine reads — `get_status`, `search_library`, `search_releases`,
+    `list_search_releases`, `get_download_options`, `list_jobs`, `get_job`, `list_duplicates`,
+    `list_recommendations` — and three writes marked `[PersonalAccessTokenWrite]`, ADR 0040's three —
+    `send_download`, `cancel_job`, `dismiss_recommendation` —, each with its title, its four hints, an
+    output schema and every parameter described, and lists paged small: 10 works or duplicate groups,
+    20 releases, jobs or recommendations a page. The pages' own services, as the token's user:
+    `search_releases` stores its search as the Search page does, so its releases can be sent;
+    `get_download_options` picks as the dialog does through `DownloadDialogPreselection`, the C# twin
+    of its `preselect()` and `destinationOf()`; `send_download` is always Keep both and carries
+    `anthropic/requiresUserInteraction`; `cancel_job` never ends a replacement.
+  - *What a token may call:* the list leaves out what the token can't call; a call of it anyway
+    answers ADR 0040's sentence as an `isError` result, recorded with `tools/call <tool>`; a tool
+    neither read nor write is no token's; arguments that don't fit get a sentence saying what to fix,
+    and a name no tool has the SDK's "Unknown tool".
+  - *Answers:* a one-sentence English summary and the data as JSON, in a text block and as
+    `structuredContent` — nulls written, instants with `Z`, enums by name, Cyrillic as it is —, and an
+    expected failure an `isError` sentence, never a thrown exception.
+  - *The duplicates' sort:* `GET /api/library/duplicates?sort=` `Default` or `Recoverable`, which
+    `list_duplicates` passes on (ADR 0028's MAM-45 section).
+  - *Profile:* the shown-once step's **Connect an AI assistant**: the Claude Code command and the
+    Claude Desktop configuration through `mcp-remote` (`--transport http-only`, `--allow-http` on
+    plain HTTP alone, the header through `env`), each with the whole token, the page's own address
+    and a **Copy** of its own, a note for a `Read only` token, and the step 48rem wide.
+  - *Registration:* `McpToolRegistration` in place of the SDK's `WithToolsFromAssembly`, whose schema
+    could list the caller as a required argument when hosts are built in parallel, with every instant
+    described as a `date-time` string (the exporter's `true`, which the TypeScript SDK refuses for the
+    whole tool list, was found by the live check), and a fresh
+    `JsonSerializerOptions` per host (`McpJson`), as the SDK's schema cache, keyed by a shared
+    instance, keeps every host alive.
+  - *Backup/restore:* nothing new — no table, column, setting or environment variable; what a tool
+    writes is what the matching page's action writes.
 - **MAM-46 The web app in Ukrainian:** a `Language` on Profile — the browser's (the default),
   English or Українська —, saved with the account; every namespace of `frontend/src/locales/en/`
   translated into `uk` with Ukrainian plural forms, by a glossary settled first
@@ -2442,7 +2509,23 @@ refusing tokens), `UsersTokensHttpTests` (the
 count, **Revoke tokens**), `UsersPasswordHttpTests`, `UsersLifecycleHttpTests` and
 `AuthPasswordHttpTests` (a reset and a disable revoking, the user's own change keeping them),
 `AddPersonalAccessTokensMigrationTests` and `PersonalAccessTokenPersistenceTests`, over tokens planted
-by `PersonalAccessTokenSeeder` and a test-only `PersonalAccessTokenProbeController`.
+by `PersonalAccessTokenSeeder` and a test-only `PersonalAccessTokenProbeController`. MAM-45's, through
+the SDK's own client on Claude Code's protocol and the SDK's latest (`McpHttpExtensions`):
+`McpEndpointHttpTests` (the one 401 byte for byte, a session's 403, 405 and the OAuth discovery's
+404, the trailing slash, the 61st request of a minute, the server's name and version, the
+instructions per access, both protocols, no token in any log line), `McpToolListHttpTests` (the nine
+and the twelve tools for the owner and a member, the hints, `send_download` alone asking the user, the
+schemas, and the twelve found again by reflection, each a read or one of the three writes),
+`McpToolAccessHttpTests` (a `Read only` token's writes refused and recorded, one audit row a minute,
+the arguments' sentence, an unknown tool), `McpStatusToolHttpTests`, `McpLibraryToolHttpTests`,
+`McpReleaseToolsHttpTests`, `McpDownloadToolsHttpTests`, `McpJobToolsHttpTests`,
+`McpDuplicateToolHttpTests` and `McpRecommendationToolsHttpTests` (each tool's JSON against the
+matching page's endpoint for the same user, owner-only fields, the rows and audit rows written and
+those not, every refusal, a member's own jobs and searches, the dialog's preselection, a held send, a
+replayed `requestId`, a refused cancel of a replacement's job, a found release sent through the HTTP
+API), `LibraryDuplicatesSortHttpTests` (the sort), the tokens-alone mark in
+`PersonalAccessTokenConventionHttpTests`, and in the web app `CreateAccessTokenDialog.test.tsx` and
+`CreateAccessTokenDialog.https.test.tsx` (both lines, plain HTTP and HTTPS, each field's Copy).
 
 **Acceptance bar:** on production (MAM-48): a read-only token reads jobs with `curl` and is refused
 a send, and a revoked token answers 401 at once; Claude Code connected by the README's line finds a

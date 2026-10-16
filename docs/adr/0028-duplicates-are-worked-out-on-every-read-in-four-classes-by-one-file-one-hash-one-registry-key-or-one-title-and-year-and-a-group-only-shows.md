@@ -849,3 +849,26 @@ now finds the devices asked for `decision=Dismissed` too.
 `CopyRemovalActionsHttpTests.Restore_puts_every_name_back_tells_jellyfin_they_came_back_and_the_copy_counts_in_its_group_again`,
 `CopyRemovalVerdictsHttpTests` and `LibraryDuplicatesHttpTests` (`removal` on the wire) pin it, and
 `DuplicatesPage.test.tsx` and `DuplicateGroupCard.test.tsx` the names and the lines.
+
+## The most recoverable room first (added 0.5.0, MAM-45)
+
+**The list** above, and the MAM-21 section's order, are now the `Default` sort of
+`GET /api/library/duplicates`, which takes `sort` (Vasyl's decision e of 2026-10-16), so that an AI
+assistant asked what to clean up reads first what frees the most (`list_duplicates`, ADR 0041).
+**`Recoverable` orders by the estimate alone: the groups with one first, the most room first — one
+file's names, at `0`, last of those —, then every group without one, the byte-identical files whose
+estimate isn't sure, the same works and the possible matches; each tie in the default order, which
+ends in the key, so a page never reshuffles between two reads.** A group without an estimate is never
+ranked by a guess: a same work's room recovered is `null` as no copy is ever called redundant (§3.3),
+and a byte-identical group's has no size, only its `gap`, where the estimate couldn't be sure. `sort`
+is read by name in any letter case, never as a number (`DuplicateSort`), and checked after the page,
+the class and the decision: "“x” is not a sort. Use Default or Recoverable.". Left out, the order is
+as before, and the Duplicates page sends none. Nothing else changes: the classes, the groups, their
+estimates and the file systems asked are those of a list without it.
+
+`LibraryDuplicatesSortHttpTests.List_without_a_sort_or_sorted_default_lists_by_class_then_title`,
+`List_sorted_recoverable_puts_the_most_room_first_and_the_groups_without_an_estimate_last`,
+`List_sorted_recoverable_breaks_ties_in_the_default_order_and_pages_every_group_once`,
+`List_sorted_recoverable_orders_within_the_class_asked_for`, `List_takes_a_sort_in_any_letter_case`,
+`List_with_an_unknown_sort_is_400_naming_the_sorts` and
+`List_checks_the_sort_after_the_paging_the_class_and_the_decision` pin it.

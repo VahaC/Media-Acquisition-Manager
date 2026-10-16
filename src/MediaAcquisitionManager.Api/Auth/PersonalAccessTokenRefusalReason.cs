@@ -12,4 +12,8 @@ public enum PersonalAccessTokenRefusalReason
     /// <summary>A cancel that would end the job's replacement too:
     /// <see cref="PersonalAccessTokenErrors.CancelEndsReplacement"/>.</summary>
     CancelEndsReplacement = 3,
+
+    /// <summary>MAM-45 — a signed-in session on an endpoint for tokens alone (MAM-45's <c>/mcp</c>):
+    /// <see cref="PersonalAccessTokenErrors.SessionNotAccepted"/>.</summary>
+    SessionNotAccepted = 4,
 }

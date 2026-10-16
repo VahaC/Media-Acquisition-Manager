@@ -67,14 +67,10 @@ public sealed partial class RecommendationListService(
             await catalogs.HasCatalogAsync(cancellationToken),
             // runs/latest's own rule: the running run, else the newest; its requester and error for the owner only.
             await runs.GetLatestAsync(callerUserId, cancellationToken),
-            await FailedSourcesAsync(callerUserId, cancellationToken)));
+            await ListFailedSourcesAsync(callerUserId, cancellationToken)));
     }
 
-    /// <summary>
-    /// MAM-31 — the release sources whose last call for the recommendations failed, by name: only those still there and
-    /// switched on, named as they are now; the source's sentence for the owner alone, as the Search page gives it.
-    /// </summary>
-    private async Task<IReadOnlyList<RecommendationSourceFailureDto>> FailedSourcesAsync(Guid callerUserId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<RecommendationSourceFailureDto>> ListFailedSourcesAsync(Guid callerUserId, CancellationToken cancellationToken = default)
     {
         var failures = sourceFailures.Read();
         if (failures.Count == 0)

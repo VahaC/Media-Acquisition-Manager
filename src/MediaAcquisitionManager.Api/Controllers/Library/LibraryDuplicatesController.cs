@@ -29,11 +29,13 @@ public class LibraryDuplicatesController(ILibraryDuplicateService duplicates, ID
     private Guid UserId => User.GetUserId();
 
     /// <summary>One page of duplicate groups, of one class or all, worked out from what the app holds now; MAM-21 — the
-    /// dismissed possible matches only on asking for them.</summary>
+    /// dismissed possible matches only on asking for them; MAM-45 — the most recoverable room first on asking for
+    /// it.</summary>
     [HttpGet]
     public async Task<ActionResult<LibraryDuplicateListResponse>> List([FromQuery] LibraryDuplicateListRequest request, CancellationToken cancellationToken)
     {
-        var result = await duplicates.ListAsync(request.Class, request.Decision, request.Page, request.PageSize, UserId, cancellationToken);
+        var result = await duplicates.ListAsync(
+            request.Class, request.Decision, request.Sort, request.Page, request.PageSize, UserId, cancellationToken);
         return result.Status switch
         {
             LibraryDuplicateListStatus.Listed => Ok(result.List),

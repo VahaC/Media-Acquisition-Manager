@@ -42,6 +42,13 @@ public interface IDownloadService
     Task<DownloadSendResult> SendAsync(SendDownloadRequest request, Guid callerUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// MAM-45 — whether the caller's request id <paramref name="requestId"/> already made a job: a send under it is a
+    /// retry, which <see cref="SendAsync"/> answers from that job — or refuses, for another release, client or
+    /// destination — whatever changed since (ADR 0013). Asks no client.
+    /// </summary>
+    Task<bool> IsRetryAsync(Guid requestId, Guid callerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// MAM-24 — sends the release as <see cref="SendAsync"/> does, scheduling the replacement of the old copies the owner
     /// ticked (ADR 0030–0034): the same checks, then the ticks planned against the release's works from the database
     /// and the disk alone (<c>IReplacementPlanner</c>) — <see cref="DownloadSendStatus.ReplacementInvalid"/> or

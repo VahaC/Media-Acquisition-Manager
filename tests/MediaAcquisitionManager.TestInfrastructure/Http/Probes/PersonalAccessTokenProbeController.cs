@@ -33,6 +33,9 @@ public class PersonalAccessTokenProbeController : ControllerBase
     /// <summary>The route of <see cref="Denied"/>, under <see cref="BaseUrl"/>.</summary>
     public const string DeniedUrl = BaseUrl + "/denied";
 
+    /// <summary>The route of <see cref="TokensOnly"/>, under <see cref="BaseUrl"/>.</summary>
+    public const string TokensOnlyUrl = BaseUrl + "/tokens-only";
+
     /// <summary>A read, open to every token.</summary>
     [HttpGet]
     public IActionResult Read() => Ok();
@@ -68,4 +71,10 @@ public class PersonalAccessTokenProbeController : ControllerBase
     [HttpGet("denied")]
     [DenyPersonalAccessToken]
     public IActionResult Denied() => Ok();
+
+    /// <summary>MAM-45 — a POST for tokens alone, as <c>/mcp</c> is: open to a token of either access, refused to a
+    /// session.</summary>
+    [HttpPost("tokens-only")]
+    [PersonalAccessTokenOnly]
+    public IActionResult TokensOnly() => NoContent();
 }

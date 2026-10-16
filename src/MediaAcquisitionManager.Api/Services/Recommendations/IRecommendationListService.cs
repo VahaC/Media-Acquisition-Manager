@@ -28,4 +28,12 @@ public interface IRecommendationListService
     /// <see cref="RecommendationListStatus.TabSwitchedOff"/> for a tab the caller has off.
     /// </summary>
     Task<RecommendationListResult> ListAsync(RecommendationListRequest request, Guid callerUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-31 — the release sources whose last call for the recommendations failed, as <see cref="ListAsync"/> reports
+    /// them: only those still there and switched on, named as they are now; the source's sentence, as the Search page
+    /// gives it, when <paramref name="callerUserId"/> is the installation owner. MAM-45 — on its own for the MCP
+    /// <c>get_status</c>, which reports them without listing a tab.
+    /// </summary>
+    Task<IReadOnlyList<RecommendationSourceFailureDto>> ListFailedSourcesAsync(Guid callerUserId, CancellationToken cancellationToken = default);
 }

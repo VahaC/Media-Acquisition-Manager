@@ -18,4 +18,9 @@ public static class PersonalAccessTokenErrors
     /// <summary>A token's cancel of a job whose replacement is still followed, which the cancel would end too.</summary>
     public const string CancelEndsReplacement =
         "This job also replaces a copy in the library, and an access token never touches a replacement. Cancel it on the Jobs page of the web app; see “Scripts and the API” in the README.";
+
+    /// <summary>MAM-45 — a signed-in session's access token on the MCP endpoint, which takes personal access tokens
+    /// alone.</summary>
+    public const string SessionNotAccepted =
+        "The MCP endpoint takes a personal access token, not a web app sign-in. Create a token on your Profile page and connect with it; see “Connect an AI assistant (MCP)” in the README.";
 }

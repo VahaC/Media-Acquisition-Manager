@@ -9,10 +9,12 @@ namespace MediaAcquisitionManager.Api.Auth;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A signed-in session passes untouched. For a token, in order: <see cref="DenyPersonalAccessTokenAttribute"/> refuses
-/// any token; a GET or HEAD reads, as does a POST marked <see cref="PersonalAccessTokenReadAttribute"/>; a write marked
-/// <see cref="PersonalAccessTokenWriteAttribute"/> is open to Read and download only; everything else — every write
-/// added later included — refuses any token.
+/// A signed-in session passes untouched, except on an endpoint marked <see cref="PersonalAccessTokenOnlyAttribute"/>
+/// (MAM-45's <c>/mcp</c>), which refuses it. For a token, in order: <see cref="DenyPersonalAccessTokenAttribute"/>
+/// refuses any token; <see cref="PersonalAccessTokenOnlyAttribute"/> lets any token in, as that endpoint's own code
+/// applies the access per call; a GET or HEAD reads, as does a POST marked <see cref="PersonalAccessTokenReadAttribute"/>;
+/// a write marked <see cref="PersonalAccessTokenWriteAttribute"/> is open to Read and download only; everything else —
+/// every write added later included — refuses any token.
 /// </para>
 /// <para>
 /// Fail closed: an endpoint with no HTTP-method constraint answers every method, so it counts as a write even when the
@@ -27,16 +29,29 @@ public sealed class PersonalAccessTokenAccessHandler : AuthorizationHandler<Pers
 {
     protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, PersonalAccessTokenAccessRequirement requirement)
     {
+        var httpContext = context.Resource as HttpContext;
+        var metadata = httpContext?.GetEndpoint()?.Metadata;
         if (!context.User.IsPersonalAccessToken())
         {
+            // MAM-45 — /mcp is for tokens (Vasyl's decision b): a sign-in's access token pasted into an assistant would
+            // stop working within its 15 minutes, and carries no access for the tools to judge nor a token row to record
+            // a refusal on. The 403's sentence says to create a token instead.
+            if (metadata?.GetMetadata<PersonalAccessTokenOnlyAttribute>() is not null)
+                return Refuse(context, PersonalAccessTokenRefusalReason.SessionNotAccepted);
+
             context.Succeed(requirement);
             return Task.CompletedTask;
         }
 
-        var httpContext = context.Resource as HttpContext;
-        var metadata = httpContext?.GetEndpoint()?.Metadata;
         if (httpContext is null || metadata is null || metadata.GetMetadata<DenyPersonalAccessTokenAttribute>() is not null)
             return Refuse(context, PersonalAccessTokenRefusalReason.NotForTokens);
+
+        // MAM-45 — either access: one POST carries any tool call, and the MCP tool gate applies the access to each.
+        if (metadata.GetMetadata<PersonalAccessTokenOnlyAttribute>() is not null)
+        {
+            context.Succeed(requirement);
+            return Task.CompletedTask;
+        }
 
         if (IsRead(httpContext.Request.Method, metadata) || metadata.GetMetadata<PersonalAccessTokenReadAttribute>() is not null)
         {

@@ -3,9 +3,10 @@
 # Media Acquisition Manager
 
 **Status: 0.4.0 published; Phase C checked on the reference installation and Phase D on a clean
-installation beside it; Phase E begun, its MAM-5 (personal access tokens) built as 0.5.0, not
-published yet.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05), 0.2.1 (2026-10-07), 0.3.0
-(2026-10-11, published again on 2026-10-13) and 0.4.0 (2026-10-14) are published as Docker images,
+installation beside it; Phase E begun, its MAM-5 (personal access tokens) and MAM-45 (an MCP
+endpoint for AI assistants) built as 0.5.0, not published yet.** Releases 0.1.0 (2026-10-04),
+0.2.0 (2026-10-05), 0.2.1 (2026-10-07), 0.3.0 (2026-10-11, published again on 2026-10-13) and 0.4.0
+(2026-10-14) are published as Docker images,
 and the app now reports 0.5.0; MAM-22 checked Phase B's acceptance bar
 on the reference installation on 2026-10-08, and MAM-28 checked Phase C's there on 2026-10-12, on production running
 the published 0.3.0 image. 0.3.0 is the first published image with MAM-37 (the Duplicates page lists
@@ -81,11 +82,19 @@ planned on 2026-10-14 from Vasyl's request of that day; MAM-5, moved to it from 
 listed and revoked on Profile, each `Read only` or `Read and download`, shown once and kept as a
 hash —, which act as their user and write only what an explicit list opens, while the owner counts
 and revokes each user's on the Users page (see [Scripts and the API](#scripts-and-the-api)); it
-wasn't tried on production. Today
+wasn't tried on production. MAM-45, built the same day for 0.5.0, lets an AI assistant — Claude
+Code directly, Claude Desktop through `mcp-remote`, on the home network or a VPN — reach the app
+with such a token at `/mcp`: twelve tools that search the library and the release sources, say what
+the Download dialog would pick, send the release the user confirms, follow and cancel jobs, and read
+the duplicates, the recommendations and the sources' state, the three writes for `Read and
+download` alone, and the token's shown-once step gives the line that connects each assistant (see
+[Connect an AI assistant (MCP)](#connect-an-ai-assistant-mcp)); it rests on the tests and a live
+check on canned data through the MCP TypeScript SDK's client and `mcp-remote`, and wasn't tried with
+Claude Code, Claude Desktop or on production. Today
 the app is an API and a web app that report their own health, with accounts,
 integration settings and the library: the installation owner created on first run, the users the owner manages, sign-in,
 and a Profile page where everyone changes their own password and creates personal access tokens for
-scripts; the owner connects Jellyfin, a Torznab
+scripts and AI assistants; the owner connects Jellyfin, a Torznab
 source such as Prowlarr or Jackett and a download client, qBittorrent or Transmission, tests each
 connection, and imports the Jellyfin library —
 its movies, series and episodes — which every signed-in user can browse, with what each file really
@@ -139,7 +148,7 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
 
 | Layer | Choice |
 | --- | --- |
-| API | ASP.NET Core on .NET 10, controllers, JWT bearer access tokens and personal access tokens |
+| API | ASP.NET Core on .NET 10, controllers, JWT bearer access tokens and personal access tokens; an MCP endpoint through `ModelContextProtocol.AspNetCore` 2.2.0 |
 | Data | EF Core + SQLite in WAL mode; migrations applied on startup |
 | Tests | xunit.v3, Moq, `WebApplicationFactory` over real HTTP with a throwaway SQLite database |
 | Web app | React 19, React Router 7, TanStack Query 5, zustand, axios, Radix Dialog, lucide-react, react-i18next |
@@ -155,7 +164,9 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   with the user name and password the owner gave them. A session lasts 30 days from its last use,
   and signing out, disabling a user, or resetting or changing a password takes effect at once. A
   script or another tool signs in with a personal access token instead (0.5.0, MAM-5); see
-  [Scripts and the API](#scripts-and-the-api). See [Security](#security).
+  [Scripts and the API](#scripts-and-the-api). An AI assistant connects to the app's MCP endpoint with
+  one (MAM-45); see [Connect an AI assistant (MCP)](#connect-an-ai-assistant-mcp). See
+  [Security](#security).
 - **User management for the owner.** The Users page (**Users** in the owner's user menu) searches
   and pages through the users on the server, adds a user, disables or enables one, resets a
   password, and deletes one after a confirmation. The owner's own account can't be disabled or
@@ -173,6 +184,10 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
   expired one marked **Expired** — and creates one with **Create token**: a name, `Read only` or
   `Read and download`, and an expiry of 30 days, 90 days, a year or never; the token is shown once,
   with **Copy**, and **Revoke** ends one at once (see [Scripts and the API](#scripts-and-the-api)).
+  The step that shows it also gives, under **Connect an AI assistant** (MAM-45), the command that
+  connects Claude Code and the configuration that connects Claude Desktop, each with the whole token,
+  the page's own address and a **Copy** of its own, and says so when the token is `Read only` and its
+  assistant can't send (see [Connect an AI assistant (MCP)](#connect-an-ai-assistant-mcp)).
   The **Recommendations** card switches each of the user's four recommendation lists on or off and
   sets how many release-source searches the app may run for them a day, with how many it ran in the
   last 24 hours; each user changes only their own. The theme can be picked there too, and **Sign
@@ -2197,7 +2212,11 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   up, every request from it with a token to an endpoint that needs a signed-in user answers the same
   429 with `Retry-After`, without the token being looked up, so guessing can't go on; a good token
   counts nothing. A lookup under way counts against the attempts left until it ends, so guesses sent
-  all at once get no more lookups than guesses sent one after the other.
+  all at once get no more lookups than guesses sent one after the other. The MCP endpoint allows 60
+  requests a minute per personal access token (MAM-45), then answers 429 `{ "error": "Too many
+  requests with this access token: at most 60 a minute. Wait a minute and try again." }` with
+  `Retry-After`: an assistant gone into a loop, or a leaked token, is stopped within the minute
+  without holding up the user's other tokens or anyone behind the same router.
 - **Owner-only settings.** Every action of a controller under `Controllers/Settings` that changes
   something is owner-only because of where the controller lives, not because someone remembered an
   attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users, Integrations and
@@ -2214,6 +2233,22 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   other write of the API as the owner, and every refused read, with a token of each kind, and
   `PersonalAccessTokenConventionHttpTests` proves the rule on an endpoint added later
   ([ADR 0040](docs/adr/0040-a-personal-access-token-acts-as-its-user-reads-what-its-user-reads-and-writes-only-what-an-explicit-list-opens.md)).
+- **The MCP endpoint takes tokens alone and judges every tool call.** `POST /mcp` (MAM-45) carries
+  the default policy and a mark of its own, `[PersonalAccessTokenOnly]`: a signed-in session's access
+  token gets 403 with a sentence, and a token of either access gets in, as one POST can call any
+  tool. The tools then apply the token rule one by one: a tool marked read only is every token's, a
+  tool whose method carries `[PersonalAccessTokenWrite]` — `send_download`, `cancel_job`,
+  `dismiss_recommendation` — is `Read and download`'s alone, and any other tool no token's. A token
+  is never offered a tool it can't call, and a call of one anyway answers the read-only sentence,
+  recorded as a refused request. Each call runs as the token's user through the services the web
+  app's pages use, so a member's assistant reads only that member's jobs and searches; no tool exists
+  for a replacement, the quarantine, a setting, a user or a token, and a send is always Keep both.
+  Stateless: each POST is checked as any request is (ADR 0002), and nothing — no session, no event
+  stream — outlives a revoked token. At most 60 requests a minute per token. Claude Code asks the
+  user before every `send_download`, whatever its permission rules say, as the tool asks it to.
+  `McpToolListHttpTests` fixes the tool lists and finds every tool again by reflection, so a tool
+  added later fails until it is listed on purpose
+  ([ADR 0041](docs/adr/0041-an-ai-assistant-reaches-the-app-through-one-mcp-endpoint-for-personal-access-tokens-alone-where-each-tool-is-a-read-or-one-of-the-three-writes-judged-per-call.md)).
 - **The library is everyone's to read; syncing it is the owner's.** Every signed-in user reads the
   Library's works, libraries, sources and sync runs, which carry no address or key. Starting a sync
   is owner-only, as it sends the stored Jellyfin key to the server and replaces what everyone reads.
@@ -2426,7 +2461,10 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   match given again or an undo of none. A request a personal access token may not make writes
   `PersonalAccessTokenRefused` in its user's name, the token its target, at most once a minute per
   token, and a warning with its method and path each time; **Revoke tokens** on a user with none
-  writes nothing (MAM-5). There is no screen for it yet.
+  writes nothing (MAM-5). A refused MCP tool call writes the same, its warning naming
+  `tools/call <tool>`; a tool call writes what the matching page's action writes — a send its
+  `DownloadRequested`, a cancel its `DownloadCancelled`, Not interested none —, and a signed-in
+  session refused on `/mcp` writes nothing (MAM-45). There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys, TMDb's API Read Access Token and
   the qBittorrent and Transmission passwords are stored encrypted with AES-256-GCM under
   `Encryption:Key`, each sealed
@@ -2721,7 +2759,9 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 ## Scripts and the API
 
 A script, a cron job or another tool calls the API with a personal access token (0.5.0, MAM-5)
-instead of signing in. Every signed-in user creates their own:
+instead of signing in; an AI assistant takes the same token to the MCP endpoint (see
+[Connect an AI assistant (MCP)](#connect-an-ai-assistant-mcp)). Every signed-in user creates
+their own:
 
 1. User menu → **Profile** → **Access tokens** → **Create token**.
 2. **Name** says what it is for, such as "Claude on the laptop" (at most 100 characters); **Access**
@@ -2840,6 +2880,173 @@ token keeps the household from signing in: fix or stop the script.
 and whoever reads the traffic can use it until it is revoked or expires: use it on a network you
 trust or behind a proxy that adds HTTPS, give each script its own, and prefer `Read only`.
 
+## Connect an AI assistant (MCP)
+
+An AI assistant reaches the app through its MCP endpoint, `POST /mcp` (0.5.0, MAM-45), with a
+personal access token, and acts as the token's user: it searches the library and the release
+sources, says what the Download dialog would pick, sends the release you confirm and follows its
+job, through the same services the web app's pages use. Claude Code connects to it directly, and
+Claude Desktop through [`mcp-remote`](https://github.com/geelen/mcp-remote), a small bridge Node.js
+runs on the same computer. Either needs to reach the app's address, so it works on the home network
+or over a VPN into it. claude.ai and the Claude phone app can't connect: their connectors call from
+Anthropic's cloud, which would need the app on the internet with HTTPS and an OAuth sign-in, neither
+of which it has
+([ADR 0041](docs/adr/0041-an-ai-assistant-reaches-the-app-through-one-mcp-endpoint-for-personal-access-tokens-alone-where-each-tool-is-a-read-or-one-of-the-three-writes-judged-per-call.md)).
+
+1. Create a token as [Scripts and the API](#scripts-and-the-api) says: user menu → **Profile** →
+   **Access tokens** → **Create token**, a **Name** such as "Claude on the laptop", and **Access**
+   `Read only` — the assistant reads and searches — or `Read and download` — it also sends
+   downloads, cancels following and marks Not interested.
+2. The step that shows the token once also shows, under **Connect an AI assistant**, the **Claude
+   Code** command and the **Claude Desktop** configuration, each with the whole token in it and its
+   own **Copy**. Copy the one you need before **Done**: like the token, neither is shown again.
+
+Both lines point at the address the Profile page is open at, so open the app at the address the
+assistant's computer reaches it by, such as `http://192.168.1.10:8118`; opened through an SSH
+tunnel at `http://localhost:8118`, the lines say localhost, which only that computer reaches. On an
+HTTPS address the lines use it, and the Claude Desktop block leaves out `--allow-http`.
+
+**Claude Code.** Run the command once in a terminal:
+
+```bash
+claude mcp add --transport http --scope user mam http://<mam>:8118/mcp --header "Authorization: Bearer mam_pat_…"
+```
+
+`--scope user` keeps the server in your own `~/.claude.json`, for every project. Without `--scope`
+it is only in the folder you ran it in; never use `--scope project`, which writes the token into that
+project's `.mcp.json`, a file meant to be committed. `/mcp` in Claude Code then shows `mam` connected,
+with 9 tools for a `Read only` token and 12 for `Read and download`; in Claude Code's permission rules
+they are `mcp__mam__<tool>`.
+
+**Claude Desktop.** Claude Desktop starts local servers only, so its configuration runs
+`mcp-remote`, which forwards to the app's `/mcp`:
+
+```json
+{
+  "mcpServers": {
+    "mam": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://<mam>:8118/mcp",
+        "--transport",
+        "http-only",
+        "--allow-http",
+        "--header",
+        "Authorization:${AUTH_HEADER}"
+      ],
+      "env": {
+        "AUTH_HEADER": "Bearer mam_pat_…"
+      }
+    }
+  }
+}
+```
+
+- **Where it goes.** Into `claude_desktop_config.json`, which **Settings** → **Developer** → **Edit
+  Config** in Claude Desktop opens: `%APPDATA%\Claude\claude_desktop_config.json` on Windows,
+  `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS. Claude Desktop
+  installed from the Microsoft Store (MSIX) reads
+  `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+  instead, while **Edit Config** may open the other file, where `mam` silently does nothing: put it
+  in the one under `Packages`. A file that already has `mcpServers` gets `"mam": { … }` inside it,
+  beside the servers already there.
+- **What it needs.** Node.js 18 or later: `npx -y` fetches `mcp-remote` the first time without
+  asking. Then quit Claude Desktop completely and start it again; it reads the file only as it
+  starts.
+- **Why it reads so.** `--allow-http` is there only when the Profile page is on plain HTTP, as
+  `mcp-remote` refuses an `http://` address without it; `--transport http-only`, as the app speaks
+  Streamable HTTP alone. The header goes as `Authorization:${AUTH_HEADER}` with `Bearer mam_pat_…` in
+  `env`, the form `mcp-remote`'s README gives: Claude Desktop on Windows doesn't escape the space
+  inside `args`.
+
+**What the assistant can do.** Twelve tools, each answering a one-sentence summary and its data as
+JSON — for a list, what the matching page's endpoint gives; sizes in bytes, times in UTC —, with what
+only the owner reads left out for a member, as on that page:
+
+| Tool | What it does | Access |
+| --- | --- | --- |
+| `get_status` | Who the token acts as — the user, owner or member, and the token's name, access and expiry —, the app's version, how each library source last synced, the latest recommendations run and the release sources whose last recommendations call failed. No settings and no download clients | any token |
+| `search_library` | The Library page's list: the works matching words of a title, a year, an IMDb or TMDb id or part of a path, with their versions and files; `kind` `Movie` or `Series`, the page's orders, 10 a page | any token |
+| `search_releases` | The Search page's search: asks every enabled release source — it can take a minute —, keeps the search for a day, and answers it with its library matches and the first page of its releases, 20 by default, most seeders first; the year, an IMDb or TMDb id or a season narrow it | any token |
+| `list_search_releases` | One of your searches of the last day again, filtered by source, kind, audio language, resolution and size, sorted and paged, without asking the sources again | any token |
+| `get_download_options` | For one release, the Download dialog's clients and destinations, what it would preselect, and the overwrite check of that destination or of one you name; `sendHeld` when its client can't see the folder | any token |
+| `send_download` | Sends the release to a client's destination, always Keep both, and answers its job; the same `requestId` again answers that job instead of sending twice. Refused beforehand where the dialog holds Send | `Read and download` |
+| `list_jobs` | Your jobs, newest first, by the Jobs page's tab (`NeedsYou`, `InProgress`, `Finished`) or by status, with the Needs you and In progress counts; 20 a page | any token |
+| `get_job` | One of your jobs and its first 25 files | any token |
+| `cancel_job` | Stops following one of your jobs; the torrent and its files stay in the client. A job that also replaces a copy is refused: cancel it on the Jobs page | `Read and download` |
+| `list_duplicates` | The Duplicates page's groups, by class and the owner's decision; `sort` `Recoverable` puts the most room a removal would free first; 10 a page | any token |
+| `list_recommendations` | One tab of your recommendations, with the page's filters and orders; 20 a page | any token |
+| `dismiss_recommendation` | Marks a recommended film or series Not interested; the web app undoes it | `Read and download` |
+
+**What no tool does,** whatever the token's access: schedule a replacement, remove a copy into the
+quarantine, restore, delete permanently, confirm or dismiss a possible match, start a sync, a scan,
+an inspection or a recomputation, read or change a setting (Users, Integrations, Media folders,
+Destinations), undo Not interested, or touch the password, sessions or tokens. No tool exists for
+them, so no request, however it is worded, reaches them. A tool is listed only when the token may
+call it — a `Read only` token's assistant has no `send_download`, `cancel_job` or
+`dismiss_recommendation` at all —, and a call of one anyway, by a client that kept an older list,
+answers the read-only sentence of [Scripts and the API](#scripts-and-the-api) and is recorded as a
+refusal, as on the HTTP API.
+
+**Claude asks first.** Claude Code asks before each tool call unless you allowed `mam`'s tools
+(`mcp__mam__*` in its permission rules), and asks before every `send_download` even then, in every
+permission mode: the tool carries the `anthropic/requiresUserInteraction` mark (Claude Code 2.1.214
+or later), as a download takes disk space and bandwidth and the model must never decide it alone.
+Claude Desktop asks before a tool call too; leave its **Allow always** off for `send_download`. The
+app's instructions to the assistant say to send only the release, client and destination you
+confirmed, and to answer in your language.
+
+**Limits and refusals.**
+
+- At most 60 requests a minute per token. Every message is a POST of its own — connecting, listing
+  the tools, each call —, so a conversation's few dozen calls fit; beyond that, 429 `{ "error": "Too
+  many requests with this access token: at most 60 a minute. Wait a minute and try again." }` with
+  `Retry-After`, while the user's other tokens go on.
+- No token, or a wrong, revoked or expired one, or one whose user is disabled or deleted: the API's
+  one 401 `{ "error": "Sign in to continue." }` with `WWW-Authenticate: Bearer`. A refused token
+  counts against the address's sign-in limit as in [Scripts and the API](#scripts-and-the-api); no
+  token doesn't.
+- From an address whose sign-in limit is used up (10 attempts a minute, shared with sign-in and
+  setup), every token, a good one included: 429 `{ "error": "Too many attempts. Wait a minute and
+  try again." }` with `Retry-After`, as in [Scripts and the API](#scripts-and-the-api). Behind a
+  reverse proxy that is every assistant in the household: stop the script or `mcp-remote` bridge that
+  keeps sending a revoked token.
+- A web app sign-in's access token, copied from the browser: 403 `{ "error": "The MCP endpoint takes
+  a personal access token, not a web app sign-in. Create a token on your Profile page and connect
+  with it; see “Connect an AI assistant (MCP)” in the README." }`, with no audit row.
+- Within a connection a tool's failure is an error result the assistant reads and can act on: a
+  service's own sentence, a refusal's, "There is no download job with this id among yours; list_jobs
+  lists them with their ids.", or, for arguments that don't fit, "The arguments don't fit get_job:
+  … Check them against the tool's input schema and call it again."
+- `GET`, `HEAD` and `DELETE /mcp` answer 405 `Allow: POST`, as the app keeps no session and no event
+  stream between requests, and `/.well-known/…` a bare 404, as it has no OAuth sign-in to discover.
+
+**When it fails.**
+
+- **A revoked or expired token,** or one ended by the owner's **Revoke tokens**, a password reset or
+  a disable, answers every request 401. Claude Code's `/mcp` shows `mam` failed to connect, with the
+  401 and "Sign in to continue."; Claude Desktop shows the server failed — `mcp-remote` may first try
+  an OAuth sign-in after a 401, which the app doesn't offer —, and its log, `mcp-server-mam.log` in
+  Claude Desktop's `logs` folder (`%APPDATA%\Claude\logs` on Windows), has the answer. Create a new
+  token and replace the old one: for Claude Code `claude mcp remove --scope user mam`, then the new
+  command; for Claude Desktop the `AUTH_HEADER` value, then restart it. Revoke the old token on
+  Profile if it still works.
+- **403 with the sentence above:** the header holds a sign-in's access token, which would stop
+  working within 15 minutes anyway; create a personal access token.
+- **No connection at all:** the address in the line isn't one that computer reaches (see above), or
+  Claude Desktop reads another configuration file, lacks Node.js or wasn't restarted.
+- **A search that ends in a timeout in Claude Code:** `search_releases` asks every source, each
+  request cut off after 15 seconds, and MAM starts its answer at once, so Claude Code's 60-second
+  wait for a server's first byte isn't reached. Should Claude Code report a timeout anyway, start it
+  with `MCP_TOOL_TIMEOUT=180000` in its environment.
+
+**Keep it like a password.** Unlike the `curl` example, both lines hold the whole token:
+`~/.claude.json` and `claude_desktop_config.json` keep it in plain text, and the command stays in
+your shell's history. Give each assistant its own token, so **Revoke** ends one alone, prefer `Read
+only`, and remember that on plain HTTP the token crosses the network as it is.
+
 ## API surface
 
 | Request | Answer |
@@ -2881,7 +3088,7 @@ trust or behind a proxy that adds HTTPS, give each script its own, and prefer `R
 | `GET /api/library/works?search=&locationId=&identifiers=&kind=&sort=&page=1&pageSize=25` | 200 `{ items, totalCount, page, pageSize }`, each work `{ id, kind, title, originalTitle, year, identifiers: [{ scheme, value, sourceName, sourceKind, setUtc }], missingIdentifiers, versions: [{ id, sourceName, sourceItemId, editionLabel, observedUtc, files: [{ id, servicePath, appPath, pathStatus, pathProblem, sizeBytes, locationName, inspection }] }], episode, seasons, link, posterUrl }`, ordered by `sort` — `Title` by default, in Ukrainian alphabetical order (Latin titles after Cyrillic ones), `TitleDescending`, `Newest` or `Oldest` by the year the card shows (a work with none last either way), `Largest` by the sizes of its files added up (a series' episodes' files too; a work with no size last) or `Added` by when the app first saw it (a series by its latest episode), each read by name in any letter case and each falling back to the title order, so the order is total (MAM-8); a value no library reported is `null`. A work is a `Movie`, a `Series` — listed once, when at least one of its stored episodes passes the search and filters, with no versions and its `seasons` `[{ number, episodeCount }]`: regular seasons, then the specials (`0`), then the episodes without one (`null`), counting the episodes the list keeps — or an `Episode` of no series, with its `episode` `{ seriesId, seasonNumber, episodeNumber }`; an episode of a series is listed only through its series (ADR 0019). `missingIdentifiers` names the schemes of the work's kind it lacks: `Imdb` and `Tmdb` for a movie, `Imdb`, `TmdbTv` and `Tvdb` for a series, `Imdb` and `Tvdb` for an episode; none for a work the owner linked to TMDb (MAM-34). An identifier's `sourceKind` is `MediaLibrary` for what Jellyfin reported, `Person` for an id the owner linked — its `sourceName` the name of who set it for the owner, `null` for everyone else, and `setUtc` when — or `Metadata` for the IMDb id TMDb gave the link, listed only where Jellyfin gives none; an id a link replaces isn't listed until Jellyfin holds the link. `link` is `null` without one, else `{ target, catalogKind, catalogId, catalogTitle, seasonNumber, episodeNumber, imdbId, setByUserName, setUtc, writeState, writeError, conflictingValue, identified, underWay }`, the state the worst of its items' links (see `GET /api/library/works/{id}/tmdb`), `setByUserName` and `writeError` for the owner only, `identified` true when the work has an item `Written` or `InLibrary` and every such item has an `identifiedUtc`, and `underWay` true when any item's link is `Queued` or `Writing` (the page asks again while it is), both everyone's. `posterUrl` (MAM-35) is `/api/library/posters/{itemId}-{tag}.jpg`, the poster of the item whose title the work shows, else of the next item that has one, or `null` when Jellyfin holds no picture of any of them (ADR 0027). `inspection` is `null` until the app has looked at the file, then `{ status, problem, inspectedUtc, media }`: `status` is `Inspected`, `MediaUnreadable`, `NoAppPath`, `OutsideAllowedRoots`, `NotFound`, `NotARegularFile`, `Unreadable`, `IdentityUnknown` or `InspectorUnavailable`, `problem` the sentence why the file wasn't read (owner only), and `media` only when it was `{ durationMilliseconds, bitRate, tracks: [{ kind, codec, profile, width, height, dynamicRange, channels, channelLayout, language, isDefault, isForced, isHearingImpaired }] }`, `kind` being `Video`, `Audio` or `Subtitle` and `dynamicRange` `Sdr`, `Hdr10`, `Hlg` or `DolbyVision`; whatever the file didn't give is `null`. `search` matches part of a title or original title in any letter case, part of an IMDb, TMDb or TVDB id — a linked one and the IMDb id TMDb gave it included —, a year, or part of a file path; `locationId` is a library from `locations`; `identifiers=Missing` keeps the works lacking an id of their kind and with no TMDb link, an episode of a linked series left out too; `kind` is `Movie` or `Series` in any letter case, `Series` taking the episodes of no series too. A search or `identifiers=Missing` that a series itself answers keeps all its episodes, otherwise only those that pass, and `locationId` goes by the episodes' files. `appPath` is worked out through the integration's current path mappings; `pathProblem` only for the owner, `null` for everyone else. 400 for a page below 1, a page size outside 1–100, a `locationId` that isn't an id, another `identifiers` value, an unknown kind ("“x” is not a kind filter. Use Movie or Series.") or an unknown sort ("“x” is not a sort. Use Title, TitleDescending, Newest, Oldest, Largest or Added."). |
 | `GET /api/library/works/{id}/episodes?season=&search=&locationId=&identifiers=&page=1&pageSize=25` | A series' episodes, a season at a time (ADR 0019): 200 as for the works, each item an episode with its `episode`, versions and files, in the order of the series' seasons, then by episode number (a missing one last), then by title. `season` is a number up to 9999, `0` for the specials, `None` for the episodes without one, or blank for every season; `search`, `locationId` and `identifiers` as for the works, so a search the series itself answers lists every episode, and else the episodes that match. A bare 404 for an id that isn't a series', checked before anything else; 400 as for the works, or "“x” is not a season. Use a season number, or None for the episodes without one." |
 | `GET /api/library/posters/{fileName}` | Every signed-in user. A library work's own poster, as a work's `posterUrl` names it — `{itemId}-{tag}.jpg`, each half 1 to 64 letters and digits: 200 with the bytes, `image/jpeg`, and `Cache-Control: private, max-age=2592000, immutable`, only for an item id and tag a sync stored. The first request fetches it from the Jellyfin that reported it — `GET /Items/{id}/Images/Primary?tag=…&format=Jpg&maxWidth=342&quality=90`, the key in the header — and keeps it in `<data>/library-posters/`, which is never pruned; later ones read it from there, whatever the library's state (ADR 0027). A bare 404 for a name that is no poster file name, one no library reported (a removed library's included), one not kept while its library is switched off or of a type that can't read a library, and one Jellyfin has no image for or no longer knows. 502 when Jellyfin couldn't send it — its sentence, masked of the key, for the owner, and "The media library couldn't send this poster." for everyone else —, nothing kept. The web app fetches it with the access token and shows it as a `data:` URL. |
-| `GET /api/library/duplicates?class=&decision=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028; MAM-21, ADR 0029). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree, runningTimes: { shortestMilliseconds, longestMilliseconds } }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }], removal }], space, recoverable, decision }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more; never, since MAM-37, two episodes of one show at different places, whatever ids they share, an episode's files whose names carry different segment letters glued to their `SxxEyy` — its "a" and "b" files —, a film's copies whose file names claim years more than one apart, each alone in brackets, or copies whose names say different editions, a labelled one beside an unlabelled one included: a work's copies are split by their letters, then a film's by their years, then by their editions, each part with two copies or more a group, under a key of its own when its copies carry segment letters or a split by years or editions made it, and one file's names and byte-identical files are grouped whatever their names say) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows — an episode's group by its series' title, then its season (the specials after the numbered seasons, a place without a season last) and its number (MAM-21) —, then by `key`, 32 hex characters that name the group while what makes it one stays. `decision` is `Confirmed` or `Dismissed`, read in any letter case, never as a number, and lists only the groups the owner decided so — since MAM-40 (ADR 0029) also the `SameWork` and `ByteIdentical` groups he kept as they are, `Dismissed`, while no new file has joined them —; without it every group is listed but the dismissed possible matches and the kept copies, which leave every class and the totals. A group's `decision` is `null` while undecided, kept copies a new file joined included, and always for `SameFile`, else `{ decision, decidedUtc, decidedByUserName }`, the name the owner's only; `needsReview` stays true on a decided group. `removal` (MAM-40, ADR 0037) is, on `ByteIdentical` and `SameWork` groups, `{ allowed, reason }`: whether the owner's **Remove this copy** may take the file by what the app has stored — replacement switched on, the file inside the Media folders and in a ticked library folder, inspected and read as media, no disc folder's clip, held by no work outside the group, by no open replacement and by no open removal, and another file of the group read as media —, `reason` the first rule's sentence when not, naming no path; worked out for every signed-in user, `null` on `SameFile` and `Possible`. A name a replacement or a removal took into the quarantine and hasn't put back counts in no group (MAM-40). `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `Edition` (`Possible` only since MAM-37), `DynamicRange` and `RunningTimes` (MAM-37, `SameWork` only: the shortest measured copy runs under three quarters of the longest, beside any other distinction), and `needsReview` is true with any, and always for `Possible`. `runningTimes` (MAM-37) is, for `SameWork`, the running times of the shortest and the longest copy whenever two copies or more have one, flagged or not — a copy is what one version holds, its running time the sum of its files' measured durations, and a copy with a file not measured has none —; `null` otherwise and for every other class. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100.", "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible." or "“x” is not a decision. Use Confirmed or Dismissed.", checked in that order (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client; the file systems are asked only for a list of every class, of `ByteIdentical`, or (MAM-40) of `decision=Dismissed`. |
+| `GET /api/library/duplicates?class=&decision=&sort=&page=1&pageSize=25` | Every signed-in user (MAM-20, ADR 0028; MAM-21, ADR 0029). The library's file names in the four duplicate classes of the specification, worked out from what the app holds now and stored nowhere: 200 `{ items, totalCount, page, pageSize }`, each group `{ key, class, needsReview, distinctions: [{ kind, scheme, ofSeries }], evidence: { identity: { deviceId, inode, linkCount, nameCount }, sha256, identifiers: [{ scheme, value, seasonNumber, episodeNumber }], titles: [{ text, year }], durationsAgree, runningTimes: { shortestMilliseconds, longestMilliseconds } }, files: [{ file, readSizeBytes, deviceId, inode, linkCount, sha256, editions, works: [{ id, kind, title, year, episode, seriesTitle, versionId, editionLabel, sourceName, identifiers }], removal }], space, recoverable, decision }`. `class` is `SameFile` (the names of one device and inode), `ByteIdentical` (files of two identities or more with one SHA-256), `SameWork` (film and episode works of any library sharing a registry key — an IMDb id, a TMDb or TVDB id within the work's kind, a series' id with the season and episode, an episode-to-show link with its numbers — in two copies or more; never, since MAM-37, two episodes of one show at different places, whatever ids they share, an episode's files whose names carry different segment letters glued to their `SxxEyy` — its "a" and "b" files —, a film's copies whose file names claim years more than one apart, each alone in brackets, or copies whose names say different editions, a labelled one beside an unlabelled one included: a work's copies are split by their letters, then a film's by their years, then by their editions, each part with two copies or more a group, under a key of its own when its copies carry segment letters or a split by years or editions made it, and one file's names and byte-identical files are grouped whatever their names say) or `Possible` (works or scan-found names sharing a title key with its year that no kind, id or episode place keeps apart), read in any letter case, never as a number. Groups come by class in that order, then by the title the Library card of their first work shows — an episode's group by its series' title, then its season (the specials after the numbered seasons, a place without a season last) and its number (MAM-21) —, then by `key`, 32 hex characters that name the group while what makes it one stays. `decision` is `Confirmed` or `Dismissed`, read in any letter case, never as a number, and lists only the groups the owner decided so — since MAM-40 (ADR 0029) also the `SameWork` and `ByteIdentical` groups he kept as they are, `Dismissed`, while no new file has joined them —; without it every group is listed but the dismissed possible matches and the kept copies, which leave every class and the totals. `sort` (MAM-45, Vasyl's decision of 2026-10-16) is `Default`, the order above and the one when it is left out, or `Recoverable`: the groups with an estimate first, the most room `recoverable` names first — one file's names, at 0, last of them —, then the groups without one — byte-identical files with a `gap`, same works and possible matches —, each tie in the default order; read by name in any letter case, never as a number. A group's `decision` is `null` while undecided, kept copies a new file joined included, and always for `SameFile`, else `{ decision, decidedUtc, decidedByUserName }`, the name the owner's only; `needsReview` stays true on a decided group. `removal` (MAM-40, ADR 0037) is, on `ByteIdentical` and `SameWork` groups, `{ allowed, reason }`: whether the owner's **Remove this copy** may take the file by what the app has stored — replacement switched on, the file inside the Media folders and in a ticked library folder, inspected and read as media, no disc folder's clip, held by no work outside the group, by no open replacement and by no open removal, and another file of the group read as media —, `reason` the first rule's sentence when not, naming no path; worked out for every signed-in user, `null` on `SameFile` and `Possible`. A name a replacement or a removal took into the quarantine and hasn't put back counts in no group (MAM-40). `distinctions` are `IdentifierConflict` (with its `scheme`; `ofSeries` for two shows), `Edition` (`Possible` only since MAM-37), `DynamicRange` and `RunningTimes` (MAM-37, `SameWork` only: the shortest measured copy runs under three quarters of the longest, beside any other distinction), and `needsReview` is true with any, and always for `Possible`. `runningTimes` (MAM-37) is, for `SameWork`, the running times of the shortest and the longest copy whenever two copies or more have one, flagged or not — a copy is what one version holds, its running time the sum of its files' measured durations, and a copy with a file not measured has none —; `null` otherwise and for every other class. `file` is the file as `GET /api/library/works` gives it, `editions` what its names say (`Theatrical`, `DirectorsCut`, `Extended`, `Unrated`, `Uncut`, `Remastered`, `SpecialEdition`, `Imax`, `OpenMatte`, `FinalCut`, `Redux`, `International`, `Alternate`, `Assembly`, `Widescreen`, `FullScreen`), and each work's `identifiers` its ids as the Library counts them, links applied. `space` is as in `GET /api/library/sources`; `recoverable` `{ sizeBytes, gap }` is `0` for `SameFile`, `null` for `SameWork` and `Possible`, and for `ByteIdentical` every copy's size but the largest's, or no size with `gap` `SharingFileSystem`, `UnknownFileSystem` or `UnlistedNames`. `pathProblem`, the inspection's `problem` and the `sourceName` of a linked id (who set it) only for the owner, `null` for everyone else. 400 "Page must be 1 or more.", "Page size must be between 1 and 100.", "“x” is not a duplicate class. Use SameFile, ByteIdentical, SameWork or Possible.", "“x” is not a decision. Use Confirmed or Dismissed." or "“x” is not a sort. Use Default or Recoverable.", checked in that order (the value cut to 32 characters and "…"); a page past the end is empty with the total. Writes nothing and asks no download client; the file systems are asked only for a list of every class, of `ByteIdentical`, or (MAM-40) of `decision=Dismissed`. |
 | `PUT /api/library/duplicates/{key}/decision` with `{ decision }` | Owner only (MAM-21, ADR 0029). Confirms or dismisses the possible match `key` names now — worked out as the list does —, `decision` being `Confirmed` or `Dismissed` by name, in any letter case, never a number: one row per group key with who decided and when, and an audit row `DuplicateMatchConfirmed` or `DuplicateMatchDismissed` whose target is the key, named by the first title and year the group was offered by. Since MAM-40 it also keeps a `SameWork` or `ByteIdentical` group as it is — **Keep both**, `Dismissed` alone —, its row keeping the group's members by path (the `KeptMembers` column, in force while no new file joins them) and its audit row `DuplicateCopiesKept`, named by the group's first work ("Alien (1979)", "Clarkson's Farm S02E03"). 204, also when it was already decided so, which writes nothing; a change of decision rewrites the row with its own audit row, and so does keeping again copies a new file has joined. 400 "A decision is needed: Confirmed or Dismissed.", "“x” is not a decision. Use Confirmed or Dismissed." (the value cut to 32 characters and "…") or, for a body that isn't JSON with a decision as text, "The body must be JSON with a decision, such as { "decision": "Confirmed" }.", checked first; then a bare 404 for a key that isn't 32 lowercase hex characters or that no group has now — a group whose members changed has another key —, and 400 "These files are copies by their bytes or registry ids, which no one has to confirm: keep them as they are, or remove a copy." for `Confirmed` on a `SameWork` or `ByteIdentical` group, or "These are names of one file, not copies of it: removing a name frees nothing, so there is nothing to keep or remove." for any decision on a `SameFile` group (MAM-40). A decision never joins the works, changes `needsReview` or touches the library, a file or a download client. |
 | `DELETE /api/library/duplicates/{key}/decision` | Owner only (MAM-21, ADR 0029). **Undo**: forgets the decision on the possible match, or (MAM-40) the kept copies, `key` names now, deleting its row with an audit row `DuplicateMatchDecisionUndone` or `DuplicateCopiesKeptUndone` in one transaction, so the group is undecided and back on the list. 204, also when there was none — for kept copies, none in force since a new file joined them —, which writes nothing; a bare 404 as for `PUT`, and 400 with the one-file sentence for a `SameFile` group. |
 | `GET /api/library/locations` | 200 `{ items }`, each `{ id, name, sourceName }`: the Jellyfin libraries that hold a file, by name. |
@@ -2948,6 +3155,9 @@ trust or behind a proxy that adds HTTPS, give each script its own, and prefer `R
 | `GET /api/profile/tokens` | Every signed-in user, for themselves (MAM-5). 200 `{ items }`, the caller's personal access tokens that aren't revoked, newest first and unpaged, as they are one person's: each `{ id, name, prefix, access, createdUtc, lastUsedUtc, expiresUtc, isExpired }` — `prefix` the token's first 14 characters (`mam_pat_` and six more), `access` `ReadOnly` or `ReadAndDownload`, `lastUsedUtc` written at most once a minute and `null` before the first use, `expiresUtc` `null` for a token that never expires, and an expired token listed with `isExpired` `true` until it is revoked. Refuses a personal access token (403). |
 | `POST /api/profile/tokens` with `{ name, access, lifetime }` | Every signed-in user, for themselves (MAM-5). Creates a token: `access` `ReadOnly` or `ReadAndDownload`, `lifetime` `Days30`, `Days90`, `OneYear` or `Never`, the name trimmed. 201 `{ token, secret }` — `token` as the list has it and `secret` the whole `mam_pat_…` value, which no other answer ever carries again —, with a `PersonalAccessTokenCreated` audit row. 400 with "Give the token a name, such as “Claude on the laptop”.", "A token's name can be at most 100 characters.", "Choose the token's access: Read only or Read and download." or "Choose when the token expires.", or, for a body that isn't a token — not JSON, or an access or lifetime that isn't one of the names —, "Send the token as JSON: a name, access ReadOnly or ReadAndDownload, and lifetime Days30, Days90, OneYear or Never.", creating nothing. The caller's session is checked again as the token is stored, so a create racing the owner's reset, disable or delete of the user answers the 401 `{ "error": "Sign in to continue." }` the session's next request gets, storing nothing. Refuses a personal access token (403). |
 | `DELETE /api/profile/tokens/{id}` | Every signed-in user, for their own tokens (MAM-5). 204; the token stops with its next request, with a `PersonalAccessTokenRevoked` audit row. A bare 404 for another user's token, one already revoked — so a second click writes nothing — or one that doesn't exist. Refuses a personal access token (403). |
+| `POST /mcp` (or `/mcp/`), a JSON-RPC message | The MCP endpoint for AI assistants (MAM-45, ADR 0041; see [Connect an AI assistant (MCP)](#connect-an-ai-assistant-mcp)): Streamable HTTP, stateless — every message a POST of its own, answered as `text/event-stream`, no session kept —, the server named `mam` with the build's version, protocol `2025-11-25` (Claude Code, `mcp-remote`) or `2026-07-28`. A personal access token only: none, or a wrong, revoked or expired one, the one 401 below; a sign-in's access token 403 `{ "error": "The MCP endpoint takes a personal access token, not a web app sign-in. Create a token on your Profile page and connect with it; see “Connect an AI assistant (MCP)” in the README." }`; at most 60 requests a minute per token, then 429 `{ "error": "Too many requests with this access token: at most 60 a minute. Wait a minute and try again." }` with `Retry-After`. `tools/list` gives any token the nine reads — `get_status`, `search_library`, `search_releases`, `list_search_releases`, `get_download_options`, `list_jobs`, `get_job`, `list_duplicates`, `list_recommendations` — and a `Read and download` token also `send_download`, `cancel_job` and `dismiss_recommendation`; the instructions sent on connecting say which. A tool answers a one-sentence summary and its data as JSON, both as text and as `structuredContent` — the matching endpoint's JSON for a list —, or, for an expected failure, `isError` with a sentence: a service's own, a not-found one the same for another user's row, a `Read only` token's call of a write (the read-only sentence above, recorded as a refused request with `tools/call <tool>`), or "The arguments don't fit `<tool>`: `<reason>` Check them against the tool's input schema and call it again."; a name no tool has is the JSON-RPC error "Unknown tool". |
+| `GET`, `HEAD` or `DELETE /mcp` | 405 with `Allow: POST` and no body, with a token or without (MAM-45): the endpoint keeps no session and no event stream, and the web app's page would read as one. |
+| `GET /.well-known/...` | A bare 404 (MAM-45): an MCP client looks there for an OAuth sign-in after a 401, and the app has none. |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -2966,6 +3176,7 @@ installation owner can do this." }`. A request a personal access token may not m
 the token's sentence, before any owner check: everything under `/api/settings`, `GET /api/auth/me`,
 `POST /api/auth/password` and `/api/profile/tokens` for every token, every other write but the three
 of `Read and download`, and those three for `Read only` (see [Scripts and the API](#scripts-and-the-api)).
+`POST /mcp` takes a personal access token only, and applies its access tool by tool (MAM-45).
 The refresh cookie is sent only to `/api/auth`. Instants are UTC with a trailing `Z`.
 
 ### Health endpoints
@@ -3879,6 +4090,39 @@ shown once, **Copy** on a plain-HTTP page and a dialog that can't be closed whil
 created, `ProfilePage.test.tsx` the cards' order and `UsersPage.test.tsx` the count, **Revoke tokens**
 and **Disable** asking first, with the count, only for a user with active tokens.
 
+The MCP endpoint (MAM-45) is tested with the SDK's own MCP client over the test host's HTTP —
+`McpHttpExtensions.ConnectMcpAsync`, on Claude Code's protocol `2025-11-25` by default or the SDK's
+latest, `2026-07-28` —, with planted tokens of either access, the owner's and a member's, against
+the same seeders, fakes and canned data as the pages' tests. `McpEndpointHttpTests` covers the
+endpoint: no token, a wrong one and a revoked one getting the API's 401 byte for byte, a session's
+token 403 with its sentence and no audit row, GET, HEAD and DELETE 405 with `Allow: POST`, OAuth
+discovery a bare 404, `/mcp` and `/mcp/` both reaching the handler, the 61st request of a minute
+429 while another token goes on, the server's name, title and version, instructions that differ
+by access and stay under 2,000 characters, both protocols, and no log line holding a token.
+`McpToolListHttpTests` pins the nine tools of a `Read only` token and the twelve of `Read and
+download` for the owner and a member, every tool's hints and title, `send_download` alone asking
+for the user's interaction, a description and an object output schema on every tool with no
+caller among the parameters, and, by reflection over the app's tool classes, exactly those twelve,
+each a read or one of the three writes, never both. `McpToolAccessHttpTests` covers a `Read only`
+token's call of each write — the read-only sentence, nothing written or sent, a warning each and one
+audit row a minute —, a read passing the gate, arguments that don't fit and an unknown tool.
+`McpStatusToolHttpTests`, `McpLibraryToolHttpTests`, `McpReleaseToolsHttpTests`,
+`McpDownloadToolsHttpTests`, `McpJobToolsHttpTests`, `McpDuplicateToolHttpTests` and
+`McpRecommendationToolsHttpTests` then call each tool: its JSON against what the matching page's
+endpoint answers the same user, what only the owner reads left out for a member, the persisted
+rows and audit rows — a search stored as the Search page stores it, a send's job, its
+`DownloadRequested` row and its one add to the fake Transmission, a cancel's row, Not interested
+with none —, what is never written, every refusal's sentence, a member's jobs and searches only,
+the Download dialog's preselection in each case it has, a send held for a folder the client can't
+see before anything is written, a `requestId` replayed, a cancel that would end a replacement
+refused and recorded, a search older than a day not found, and a release found by a tool sent
+through `POST /api/downloads` by a token of the same user. `LibraryDuplicatesSortHttpTests` covers
+`GET /api/library/duplicates?sort=`, and `PersonalAccessTokenConventionHttpTests` the new mark on a
+probe endpoint: a token of either access let in, a session refused with nothing recorded. In the
+web app, `CreateAccessTokenDialog.test.tsx` covers the Claude Code command and the Claude Desktop
+configuration on a plain-HTTP page, the `Read only` note and each field's **Copy**, and
+`CreateAccessTokenDialog.https.test.tsx` both lines on an HTTPS address, without `--allow-http`.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -3926,7 +4170,8 @@ src/
                                                Keep both, the check's Retry and Drop, the
                                                owner's removal of a duplicate copy into the
                                                quarantine with its Restore and Delete
-                                               permanently,
+                                               permanently, the MCP endpoint and its tools for
+                                               AI assistants,
                                                audit trail, health checks, security headers,
                                                EF Core migrations
   MediaAcquisitionManager.Core/                entities of the accounts, the media model and
@@ -3974,8 +4219,9 @@ tests/
   MediaAcquisitionManager.TestInfrastructure/  test harness: API factory, test databases, clock,
                                                seeders, vendor samples, a fake Jellyfin, a fake
                                                Torznab feed, a fake qBittorrent, a fake
-                                               Transmission, a fake TMDb, a fake file inventory
-                                               and a fake write contract for the quarantine
+                                               Transmission, a fake TMDb, a fake file inventory,
+                                               a fake write contract for the quarantine and an
+                                               MCP client for the MCP endpoint's tests
   MediaAcquisitionManager.Api.Tests/           endpoint tests over real HTTP
   MediaAcquisitionManager.Core.Tests/
   MediaAcquisitionManager.Infrastructure.Tests/
@@ -4067,7 +4313,8 @@ MAM-45 to MAM-48).
    MAM-48): personal access tokens, created, listed and revoked on Profile, `Read only` or `Read and
    download`, acting as their user and writing only what an explicit list opens, the owner counting
    and revoking each user's (built, 0.5.0, MAM-5, moved from Phase A); an MCP endpoint through which
-   an AI assistant searches, sends downloads and follows jobs with such a token (MAM-45); the web app
+   an AI assistant searches, sends downloads and follows jobs with such a token, Claude Code directly
+   and Claude Desktop through `mcp-remote` (built, 0.5.0, MAM-45); the web app
    in Ukrainian (MAM-46) and the server's sentences in the user's language (MAM-47); and a check on
    production (MAM-48).
 

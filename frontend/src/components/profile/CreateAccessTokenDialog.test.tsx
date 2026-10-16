@@ -13,6 +13,24 @@ vi.mock('@/lib/profile-api')
 const formTitle = 'Create an access token'
 const secretTitle = 'Your new access token'
 
+/** MAM-45 — the lines that connect an AI assistant, spelled out rather than read from the locale. */
+const ASSISTANT_TITLE = 'Connect an AI assistant'
+const READ_ONLY_NOTE = 'This token is read only: the assistant reads what you can, but can\'t send downloads, cancel following or mark Not interested.'
+const CLAUDE_CODE_HINT = 'Run it once in a terminal; Claude Code then has the app in all your projects.'
+const CLAUDE_DESKTOP_HINT = 'Paste it into claude_desktop_config.json (into its mcpServers, if it has one already), then restart Claude Desktop. It needs Node.js 18 or later.'
+/** jsdom's page address, http://localhost:3000: plain HTTP. CreateAccessTokenDialog.https.test.tsx has the HTTPS one. */
+const ORIGIN = window.location.origin
+/** The whole secret, unlike the curl example's prefix, so the line runs as it is pasted (Vasyl, 2026-10-16). */
+const CLAUDE_CODE_LINE =
+  `claude mcp add --transport http --scope user mam ${ORIGIN}/mcp --header "Authorization: Bearer ${createdToken.secret}"`
+
+/** The three texts the shown-once step offers to copy: the field, its Copy, and what a failed copy says. */
+const COPYABLE = [
+  { field: 'Token', copy: 'Copy the token', failed: 'Select the token and press Ctrl+C.' },
+  { field: 'Claude Code', copy: 'Copy the Claude Code command', failed: 'Select the command and press Ctrl+C.' },
+  { field: 'Claude Desktop', copy: 'Copy the Claude Desktop configuration', failed: 'Select the configuration and press Ctrl+C.' },
+]
+
 function renderDialog() {
   signInAs(member)
   const onClose = vi.fn()
@@ -72,6 +90,8 @@ describe('CreateAccessTokenDialog', () => {
 
     // Assert
     expect(screen.getByRole('dialog', { name: formTitle })).toBeInTheDocument()
+    // MAM-45 — a settings dialog's width: only the shown-once step widens.
+    expect(screen.getByRole('dialog', { name: formTitle })).not.toHaveClass('profile-secret-dialog')
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveFocus()
     expect(readOnly).toBeChecked()
     expect(readOnly).toHaveAccessibleDescription('Reads the library, searches, jobs, duplicates and recommendations.')
@@ -122,54 +142,150 @@ describe('CreateAccessTokenDialog', () => {
       .toBeInTheDocument()
     expect(within(dialog).queryByRole('button', { name: 'Create token' })).not.toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    // MAM-45 — wider than the form, for the Claude Desktop block.
+    expect(dialog).toHaveClass('profile-secret-dialog')
   })
 
-  it('copies the secret through the clipboard in a secure context, and says so', async () => {
+  it('gives the Claude Code command with the whole token, to run once in a terminal', async () => {
+    // Arrange
+    const { user } = renderDialog()
+
+    // Act
+    const dialog = await createWithDefaults(user)
+
+    // Assert
+    const assistant = within(dialog).getByRole('region', { name: ASSISTANT_TITLE })
+    const field = within(assistant).getByRole('textbox', { name: 'Claude Code' })
+    expect(field).toHaveValue(CLAUDE_CODE_LINE)
+    expect(field).toHaveAttribute('readonly')
+    expect(field).toHaveAccessibleDescription(CLAUDE_CODE_HINT)
+    expect(within(assistant).getByRole('button', { name: 'Copy the Claude Code command' })).toHaveTextContent('Copy')
+  })
+
+  it('gives the Claude Desktop configuration through mcp-remote, the header without spaces and --allow-http on a plain-HTTP address', async () => {
+    // Arrange
+    const { user } = renderDialog()
+
+    // Act
+    const dialog = await createWithDefaults(user)
+
+    // Assert
+    const assistant = within(dialog).getByRole('region', { name: ASSISTANT_TITLE })
+    const field = within(assistant).getByRole('textbox', { name: 'Claude Desktop' }) as HTMLTextAreaElement
+    expect(JSON.parse(field.value)).toEqual({
+      mcpServers: {
+        mam: {
+          command: 'npx',
+          args: ['-y', 'mcp-remote', `${ORIGIN}/mcp`, '--transport', 'http-only', '--allow-http', '--header', 'Authorization:${AUTH_HEADER}'],
+          env: { AUTH_HEADER: `Bearer ${createdToken.secret}` },
+        },
+      },
+    })
+    // Laid out two spaces a level, one value a line, and every line in view.
+    expect(field.value).toContain('\n  "mcpServers": {\n    "mam": {\n')
+    expect(field).toHaveAttribute('rows', String(field.value.split('\n').length))
+    expect(field).toHaveAttribute('readonly')
+    expect(field).toHaveAccessibleDescription(CLAUDE_DESKTOP_HINT)
+    expect(within(assistant).getByRole('button', { name: 'Copy the Claude Desktop configuration' })).toHaveTextContent('Copy')
+  })
+
+  it('says a Read only token\'s assistant reads but can\'t send', async () => {
+    // Arrange
+    const { user } = renderDialog()
+
+    // Act
+    const dialog = await createWithDefaults(user)
+
+    // Assert
+    expect(createdToken.token.access).toBe('ReadOnly')
+    expect(within(within(dialog).getByRole('region', { name: ASSISTANT_TITLE })).getByText(READ_ONLY_NOTE)).toBeInTheDocument()
+  })
+
+  it('says nothing of the kind for a Read and download token, whose lines are the same', async () => {
+    // Arrange
+    vi.mocked(profileApi.createAccessToken).mockResolvedValue(
+      { ...createdToken, token: { ...createdToken.token, access: 'ReadAndDownload' } })
+    const { user } = renderDialog()
+
+    // Act
+    const dialog = await createWithDefaults(user)
+
+    // Assert
+    const assistant = within(dialog).getByRole('region', { name: ASSISTANT_TITLE })
+    expect(within(assistant).queryByText(READ_ONLY_NOTE)).not.toBeInTheDocument()
+    expect(within(assistant).getByRole('textbox', { name: 'Claude Code' })).toHaveValue(CLAUDE_CODE_LINE)
+  })
+
+  it.each(COPYABLE)('copies $field through the clipboard in a secure context, and says so beside its own Copy', async ({ field, copy }) => {
+    // Arrange
+    const { user } = renderDialog()
+    Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true })
+    const dialog = await createWithDefaults(user)
+    const button = within(dialog).getByRole('button', { name: copy })
+
+    // Act
+    await user.click(button)
+
+    // Assert
+    expect(await navigator.clipboard.readText()).toBe((within(dialog).getByRole('textbox', { name: field }) as HTMLTextAreaElement).value)
+    const copied = await within(dialog).findByText('Copied.')
+    expect(copied).toHaveAttribute('role', 'status')
+    // Each text has its own line: the other two Copy buttons say nothing.
+    expect(button.parentElement).toContainElement(copied)
+    expect(within(dialog).getAllByText('Copied.')).toHaveLength(1)
+  })
+
+  it.each(COPYABLE)('copies $field by selecting it on a plain-HTTP address, where there is no clipboard API', async ({ field, copy }) => {
+    // Arrange
+    const { user } = renderDialog()
+    const dialog = await createWithDefaults(user)
+    onPlainHttp()
+    const execCommand = execCommandAnswering(true)
+    const button = within(dialog).getByRole('button', { name: copy })
+
+    // Act
+    await user.click(button)
+
+    // Assert
+    const text = within(dialog).getByRole('textbox', { name: field }) as HTMLTextAreaElement
+    expect(execCommand).toHaveBeenCalledExactlyOnceWith('copy')
+    expect(text).toHaveFocus()
+    expect(selectedText(text)).toBe(text.value)
+    expect(button.parentElement).toContainElement(await within(dialog).findByText('Copied.'))
+  })
+
+  it.each(COPYABLE)('says to press Ctrl+C, with $field selected, when the browser copies neither way', async ({ field, copy, failed }) => {
+    // Arrange
+    const { user } = renderDialog()
+    const dialog = await createWithDefaults(user)
+    onPlainHttp()
+    execCommandAnswering(false)
+    const button = within(dialog).getByRole('button', { name: copy })
+
+    // Act
+    await user.click(button)
+
+    // Assert
+    const line = await within(dialog).findByText(failed)
+    expect(line).toHaveAttribute('role', 'status')
+    expect(button.parentElement).toContainElement(line)
+    expect(within(dialog).queryByText('Copied.')).not.toBeInTheDocument()
+    const text = within(dialog).getByRole('textbox', { name: field }) as HTMLTextAreaElement
+    expect(text).toHaveFocus()
+    expect(selectedText(text)).toBe(text.value)
+  })
+
+  it('copies the whole secret with the token\'s Copy', async () => {
     // Arrange
     const { user } = renderDialog()
     Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true })
     const dialog = await createWithDefaults(user)
 
     // Act
-    await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Copy the token' }))
 
     // Assert
     expect(await navigator.clipboard.readText()).toBe(createdToken.secret)
-    expect(await within(dialog).findByText('Copied.')).toHaveAttribute('role', 'status')
-  })
-
-  it('copies by selecting the token on a plain-HTTP address, where there is no clipboard API', async () => {
-    // Arrange
-    const { user } = renderDialog()
-    const dialog = await createWithDefaults(user)
-    onPlainHttp()
-    const execCommand = execCommandAnswering(true)
-
-    // Act
-    await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
-
-    // Assert
-    expect(execCommand).toHaveBeenCalledExactlyOnceWith('copy')
-    expect(selectedText(within(dialog).getByRole('textbox', { name: 'Token' }) as HTMLTextAreaElement)).toBe(createdToken.secret)
-    expect(await within(dialog).findByText('Copied.')).toBeInTheDocument()
-  })
-
-  it('says to press Ctrl+C, with the token selected, when the browser copies neither way', async () => {
-    // Arrange
-    const { user } = renderDialog()
-    const dialog = await createWithDefaults(user)
-    onPlainHttp()
-    execCommandAnswering(false)
-
-    // Act
-    await user.click(within(dialog).getByRole('button', { name: 'Copy' }))
-
-    // Assert
-    expect(await within(dialog).findByText('Select the token and press Ctrl+C.')).toHaveAttribute('role', 'status')
-    expect(within(dialog).queryByText('Copied.')).not.toBeInTheDocument()
-    const field = within(dialog).getByRole('textbox', { name: 'Token' }) as HTMLTextAreaElement
-    expect(field).toHaveFocus()
-    expect(selectedText(field)).toBe(createdToken.secret)
   })
 
   it('puts a refused name under Name, in the server\'s words, and stays on the form', async () => {

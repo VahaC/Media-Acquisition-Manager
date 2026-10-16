@@ -20,6 +20,14 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
   </ItemGroup>
 
+  <!-- Pinned exactly. MAM-45 — the MCP endpoint (/mcp) for AI assistants: 2.x, as 1.4.1 is the last 1.x and gets
+       critical fixes only; 2.x speaks both the initialize handshake Claude Code and mcp-remote use (2025-11-25) and
+       the 2026-07-28 revision. Its Microsoft.Extensions.* dependencies are below the 10.0.12 pins, so nothing is
+       downgraded. -->
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+  </ItemGroup>
+
   <!-- Design-time only (dotnet ef): PrivateAssets keeps Roslyn and the scaffolder out of the app's
        runtime dependencies. Same exact version as every other EF Core package. -->
   <ItemGroup>

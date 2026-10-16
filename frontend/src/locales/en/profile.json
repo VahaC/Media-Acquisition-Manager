@@ -85,10 +85,28 @@
       "label": "Token",
       "warning": "Copy it now: it won't be shown again.",
       "copy": "Copy",
+      "copyToken": "Copy the token",
       "copied": "Copied.",
       "copyFailed": "Select the token and press Ctrl+C.",
       "example": "A script sends it in the Authorization header, for example:",
       "command": "curl -H \"Authorization: Bearer {{token}}\" {{origin}}/api/downloads",
+      "assistant": {
+        "title": "Connect an AI assistant",
+        "readOnly": "This token is read only: the assistant reads what you can, but can't send downloads, cancel following or mark Not interested.",
+        "claudeCode": {
+          "label": "Claude Code",
+          "hint": "Run it once in a terminal; Claude Code then has the app in all your projects.",
+          "command": "claude mcp add --transport http --scope user mam {{origin}}/mcp --header \"Authorization: Bearer {{token}}\"",
+          "copy": "Copy the Claude Code command",
+          "copyFailed": "Select the command and press Ctrl+C."
+        },
+        "claudeDesktop": {
+          "label": "Claude Desktop",
+          "hint": "Paste it into claude_desktop_config.json (into its mcpServers, if it has one already), then restart Claude Desktop. It needs Node.js 18 or later.",
+          "copy": "Copy the Claude Desktop configuration",
+          "copyFailed": "Select the configuration and press Ctrl+C."
+        }
+      },
       "done": "Done"
     }
   },

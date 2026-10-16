@@ -80,6 +80,98 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   a reset or a disable —, one row per token) and `PersonalAccessTokenRefused` (actor the token's user),
   at most one refused row per token a minute, while every refusal logs a warning with its method and
   path; target kind `PersonalAccessToken`.
+- **An AI assistant reaches the app through its MCP endpoint, `POST /mcp`, with a personal access
+  token (MAM-45, ADR 0041, ADR 0040's MAM-45 section, Vasyl's decisions of 2026-10-14 and
+  2026-10-16).** Streamable HTTP in stateless mode through `ModelContextProtocol.AspNetCore` 2.2.0,
+  pinned in its own item group — the ticket said 1.x, whose last release, 1.4.1, gets critical fixes
+  only. Claude Code connects directly and Claude Desktop through `mcp-remote`, on the home network or
+  a VPN; claude.ai and the phone app can't, as their connectors call from Anthropic's cloud. Each
+  JSON-RPC message is a POST of its own, served with the request's own scope, user and database
+  context, and nothing is kept between them. The server introduces itself as `mam`, "Media
+  Acquisition Manager", with the build's informational version, speaks the `2025-11-25` handshake
+  Claude Code and `mcp-remote` use as well as `2026-07-28`, and sends instructions that differ by the
+  token's access — under 2,000 characters, in English, asking the model to reply in the user's
+  language —: the order the tools go in, sending only what the user confirmed, what a `Read only`
+  token can't do, and that replacing, quarantining, restoring and deleting copies and every setting
+  are the web app's. Personal access tokens only: no token or a refused one gets the API's one 401
+  byte for byte, a refused one taking a sign-in attempt of its address as on the API — with the ten
+  used up, every token from it gets 429 "Too many attempts. Wait a minute and try again." —, and a
+  sign-in's access token 403 "The MCP endpoint takes a personal access token, not a web app sign-in.
+  Create a token on your Profile page and connect with it; see “Connect an AI assistant (MCP)” in the
+  README." with no audit row (a default put to Vasyl). At most 60 requests a minute per token, then
+  429 "Too many requests with this access token: at most 60 a minute. Wait a minute and try again."
+  with `Retry-After` (a default put to Vasyl). `tools/list` gives every token the nine reads and a
+  `Read and download` token the three writes too; a `Read only` token's call of a write anyway
+  answers ADR 0040's read-only sentence as an `isError` result, recorded as the HTTP API records a
+  refusal — a warning each naming `tools/call <tool>`, one `PersonalAccessTokenRefused` row a minute
+  (a default put to Vasyl). Arguments that don't fit a tool answer "The arguments don't fit
+  `<tool>`: `<the binder's reason>` Check them against the tool's input schema and call it again."
+  instead of the SDK's "An error occurred invoking …", and aren't logged as an error; the same
+  exceptions thrown by a tool itself, past its arguments, stay the SDK's error, logged at Error as a
+  bug should be. Every answer is a one-sentence English summary and its data as JSON, in a text
+  block and as `structuredContent` matching the tool's output schema — nulls written, instants with
+  a trailing `Z`, enums by name, Cyrillic as it is —, and every expected failure an `isError`
+  sentence, never a thrown exception. The tools are registered by `McpToolRegistration` rather than
+  the SDK's `WithToolsFromAssembly`, which, with hosts built in parallel, could list the caller as a
+  required argument; it also describes every instant as a `date-time` string, where the schema
+  exporter wrote `true`, which the MCP TypeScript SDK of Claude Code and `mcp-remote` refuses for the
+  whole tool list (found by the live check against a local app, 2026-10-16). The SDK's log category is `Warning` in `appsettings.json`, as it writes three
+  Information lines per call. `Mcp/McpEndpointHttpTests`, `Mcp/McpToolListHttpTests` and
+  `Mcp/McpToolAccessHttpTests` pin it.
+- **Twelve tools, each calling the service its web app page calls, as the token's user (MAM-45, ADR
+  0041).** For any token: `get_status` — the user, owner or member, the calling token's name, access
+  and expiry, the version, the library sources as `GET /api/library/sources` gives them, the latest
+  recommendations run and the release sources whose last recommendations call failed, their
+  sentences for the owner only, and no Settings health (a default put to Vasyl); `search_library` —
+  the Library page's list, 10 a page; `search_releases` — the Search page's stored search, asking
+  every enabled source, with its first page of releases, 20 by default and most seeders first, the
+  page size and filters checked before any source is asked; `list_search_releases`, Vasyl's twelfth
+  tool — one of the caller's searches of the last day filtered, sorted and paged without asking a
+  source again, and "There is no search with this id among yours from the last day; run
+  search_releases again." for another user's, an older or an unknown one; `get_download_options` —
+  the Download dialog's choices, the client and destination it would preselect
+  (`DownloadDialogPreselection`, the twin of the dialog's `preselect()` and `destinationOf()`), and
+  the overwrite check of that destination or of one asked for, with `sendHeld` where its client
+  can't see the folder (a default put to Vasyl), and "This destination isn't one of this release's
+  download options; give one of the destinations get_download_options lists for it." for one the
+  dialog doesn't offer; `list_jobs` — by the Jobs page's view or a status, with both counts, 20 a
+  page; `get_job` — a job with its first 25 files, and "There is no download job with this id among
+  yours; list_jobs lists them with their ids." for another user's or an unknown one;
+  `list_duplicates` — the Duplicates page's list with the new `sort`, 10 a page;
+  `list_recommendations` — one tab with the page's filters, a tab switched off answering its
+  sentence, 20 a page. For `Read and download`: `send_download` — a new send refused beforehand,
+  nothing written, where the Download dialog disables Send, with the dialog's own sentence "This
+  destination's download client can't see its folder, so nothing will be sent there until the owner
+  fixes the destination under Destinations in the user menu." (a default put to Vasyl), else the
+  HTTP API's send — always Keep both, a `requestId` given again answering the same job, even once
+  the folder is out of sight and without asking the client, a Failed job a success whose summary
+  says why and that a new send needs a new `requestId` —, listed with
+  `anthropic/requiresUserInteraction`, so Claude Code asks before every send whatever its rules
+  allow (Vasyl's decision of 2026-10-16); `cancel_job` — stops following, the torrent left in the
+  client, a job whose replacement is still followed refused with the HTTP API's sentence, recorded
+  and changing nothing; `dismiss_recommendation` — Not interested, answering the mark as it is kept,
+  with no audit row, as the page writes none. No tool reaches a replacement, the quarantine, a
+  copy's removal, Settings, users or tokens. `Mcp/McpStatusToolHttpTests`,
+  `Mcp/McpLibraryToolHttpTests`, `Mcp/McpReleaseToolsHttpTests`, `Mcp/McpDownloadToolsHttpTests`,
+  `Mcp/McpJobToolsHttpTests`, `Mcp/McpDuplicateToolHttpTests` and
+  `Mcp/McpRecommendationToolsHttpTests` pin them.
+- **The token's shown-once step gives the lines that connect Claude Code and Claude Desktop (MAM-45,
+  Vasyl's decision of 2026-10-16).** Under the `curl` example, **Connect an AI assistant** shows the
+  **Claude Code** command, `claude mcp add --transport http --scope user mam <address>/mcp --header
+  "Authorization: Bearer <token>"`, with "Run it once in a terminal; Claude Code then has the app in
+  all your projects.", and the **Claude Desktop** configuration for `claude_desktop_config.json`,
+  running `npx -y mcp-remote <address>/mcp --transport http-only`, with `--allow-http` on a
+  plain-HTTP address only and the header as `Authorization:${AUTH_HEADER}` with `Bearer <token>` in
+  `env`, as Claude Desktop on Windows doesn't escape the spaces inside `args`, and a hint to paste it
+  into `mcpServers`, restart Claude Desktop and have Node.js 18 or later. Both carry the whole token,
+  unlike the `curl` example, and the page's own address, each in a read-only field with a **Copy** and
+  a line of its own saying how it went; a `Read only` token adds "This token is read only: the
+  assistant reads what you can, but can't send downloads, cancel following or mark Not interested."
+  The step is 48rem wide once the token shows, so the configuration's longest line fits whole, and
+  the block wraps on a phone. Each **Copy** still reads "Copy", named "Copy the token", "Copy the
+  Claude Code command" and "Copy the Claude Desktop configuration" for a screen reader. The
+  development server proxies `/mcp` to the API as it does `/api`. `CreateAccessTokenDialog.test.tsx`
+  and `CreateAccessTokenDialog.https.test.tsx` pin it.
 
 ### Changed
 
@@ -108,6 +200,32 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   way counts against the attempts left until it ends, so guesses sent at once get no more lookups
   than guesses sent one after the other; a good token takes nothing, and sign-in and setup count as
   before, every attempt, successful or not.
+- **`GET /api/library/duplicates` takes `sort`, `Default` or `Recoverable` (MAM-45, ADR 0028's MAM-45
+  section, Vasyl's decision of 2026-10-16).** `Recoverable` lists first the groups whose removal
+  would free the most room, by the `recoverable` estimate alone — one file's names, at 0, last of
+  those —, then the groups with none — byte-identical files with a `gap`, same works and possible
+  matches —, each tie in the default order, so a page never reshuffles; read by name in any letter
+  case, never as a number, and checked after the paging, the class and the decision: 400 "“x” is not
+  a sort. Use Default or Recoverable.". Left out, the order is as before. The Duplicates page doesn't
+  send it; `list_duplicates` does. `Library/LibraryDuplicatesSortHttpTests` pins it.
+- **GET, HEAD and DELETE `/mcp` answer 405 `Allow: POST`, and `/.well-known/…` a bare 404, instead of
+  the web app's page (MAM-45).** Stateless `MapMcp` maps POST alone, so the web app's fallback
+  answered `GET /mcp` with 200 HTML, which an MCP client opening its event stream after connecting
+  would read as events; and an MCP client looks under `/.well-known/` for an OAuth sign-in after a
+  401, where it would try to parse the page. Both answer with a token or without, as the routing 405
+  they stand in for would. `Mcp/McpEndpointHttpTests` pins them.
+- **A fourth token mark, for an endpoint for personal access tokens alone (MAM-45, ADR 0040's MAM-45
+  section).** `[PersonalAccessTokenOnly]` is endpoint metadata, as the other marks are:
+  `PersonalAccessTokenAccessHandler` refuses a signed-in session there with 403 and the new
+  `PersonalAccessTokenRefusalReason.SessionNotAccepted`, and lets a token of either access in after
+  the deny, as the endpoint applies the access itself; `/mcp` alone carries it.
+  `PersonalAccessTokenRefusalResultHandler` now writes the 403 `{ error }` for every refusal of the
+  handler and records only a token's, as a session has no token row, and `[PersonalAccessTokenWrite]`
+  on an MCP tool's method makes it a write. The rate limiter's 429 says the MCP sentence on the
+  endpoint whose policy is `mcp`, and "Too many attempts" everywhere else, as before; an address whose
+  sign-in limit is used up still gets "Too many attempts" on `/mcp` too, from the token's
+  authentication, before the `mcp` limit is reached.
+  `Conventions/PersonalAccessTokenConventionHttpTests` pins the mark on a probe endpoint.
 
 ### Notes for upgraders
 
@@ -125,11 +243,18 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 - **Rotating `MAM_Jwt__Secret` leaves personal access tokens working (MAM-5).** They aren't signed
   with it. Revoke a token on Profile, or all of a user's on Users; a reset or a disable of the user
   revokes them too.
-- **0.5.0 adds Phase E's MAM-5 to the 0.4.0 image published on 2026-10-14.** Vasyl published 0.4.0
-  on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built after commit 6ef689b,
-  so that image holds all of 0.4.0 below, the Recommendations page's Description dialog and layout
-  included. From MAM-5, `frontend/package.json` says 0.5.0 (the ticket's version, Vasyl's decision
-  of 2026-10-14), so the next image published from `main` is 0.5.0, never 0.4.0 again.
+- **Nothing to turn on for an AI assistant but a token (MAM-45).** `/mcp` answers a personal access
+  token alone, so an installation where nobody connects an assistant sees no change but `GET /mcp`
+  answering 405 instead of the web app's page. MAM-45 adds no table, column, setting or environment
+  variable. An assistant needs a token from Profile and the app's address reachable from its
+  computer — behind a reverse proxy, `/mcp` has to reach the app as `/api` does —, as the README's
+  "Connect an AI assistant (MCP)" says.
+- **0.5.0 adds Phase E's MAM-5 and MAM-45 to the 0.4.0 image published on 2026-10-14.** Vasyl
+  published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built after
+  commit 6ef689b, so that image holds all of 0.4.0 below, the Recommendations page's Description
+  dialog and layout included. From MAM-5, `frontend/package.json` says 0.5.0 (the ticket's version,
+  Vasyl's decision of 2026-10-14), so the next image published from `main` is 0.5.0, never 0.4.0
+  again; MAM-45 keeps that number.
 
 ## [0.4.0] — 2026-10-13
 

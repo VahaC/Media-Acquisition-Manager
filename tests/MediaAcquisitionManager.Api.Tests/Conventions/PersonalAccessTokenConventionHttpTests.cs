@@ -13,7 +13,7 @@ namespace MediaAcquisitionManager.Api.Tests.Conventions;
 // PersonalAccessTokenProbeController: a plain [Authorize] controller as one added tomorrow would be, outside every
 // convention. The app's own writes each carry a mark or sit under a convention, so PersonalAccessTokenWritesHttpTests
 // would stay green with deny by default inverted for unmarked endpoints; here nothing but the check decides. A session
-// is let through everywhere, so each 403 below is the token's.
+// is let through everywhere but on an endpoint for tokens alone (MAM-45's /mcp), so each other 403 below is the token's.
 public sealed class PersonalAccessTokenConventionHttpTests : IClassFixture<PipelineProbeApiFactory>, IAsyncLifetime
 {
     // Spelled out rather than read from PersonalAccessTokenErrors: these are what a script's author reads.
@@ -22,6 +22,9 @@ public sealed class PersonalAccessTokenConventionHttpTests : IClassFixture<Pipel
 
     private const string ReadOnlyError =
         "This access token is read only. To send downloads, cancel following or mark Not interested from a script, create a token with “Read and download” access on your Profile page; see “Scripts and the API” in the README.";
+
+    private const string SessionNotAcceptedError =
+        "The MCP endpoint takes a personal access token, not a web app sign-in. Create a token on your Profile page and connect with it; see “Connect an AI assistant (MCP)” in the README.";
 
     private readonly PipelineProbeApiFactory _factory;
     private AuthorizedUser _member = null!;
@@ -187,6 +190,41 @@ public sealed class PersonalAccessTokenConventionHttpTests : IClassFixture<Pipel
         //Assert
         // The mark is about tokens only: the web app's own session calls the endpoint as before.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await AssertNoRefusalAsync(cancellationToken);
+    }
+
+    // MAM-45 — the mark of an endpoint that applies a token's access itself, call by call: either access passes here.
+    [Theory]
+    [InlineData(PersonalAccessTokenAccess.ReadOnly)]
+    [InlineData(PersonalAccessTokenAccess.ReadAndDownload)]
+    public async Task Post_marked_for_tokens_alone_with_a_token_of_either_access_is_2xx(PersonalAccessTokenAccess access)
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var response = await SendAsync("POST", PersonalAccessTokenProbeController.TokensOnlyUrl, TokenWith(access).Secret);
+
+        //Assert
+        Assert.True(response.IsSuccessStatusCode, $"The endpoint for tokens alone answered {(int)response.StatusCode}.");
+        await AssertNoRefusalAsync(cancellationToken);
+    }
+
+    [Fact]
+    public async Task Post_marked_for_tokens_alone_with_a_session_is_403_with_the_sentence_and_records_nothing()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        //Act
+        var response = await SendAsync("POST", PersonalAccessTokenProbeController.TokensOnlyUrl, _member.AccessToken);
+
+        //Assert
+        // The one place a session is refused: the endpoint judges a token's access call by call, and a session has none.
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(SessionNotAcceptedError, await response.ReadErrorAsync(cancellationToken));
+        // A session has no token row to record a refusal against.
         await AssertNoRefusalAsync(cancellationToken);
     }
 

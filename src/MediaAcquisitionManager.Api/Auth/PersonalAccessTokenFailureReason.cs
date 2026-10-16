@@ -19,6 +19,7 @@ public sealed class PersonalAccessTokenFailureReason(IAuthorizationHandler handl
     {
         PersonalAccessTokenRefusalReason.ReadOnly => PersonalAccessTokenErrors.ReadOnly,
         PersonalAccessTokenRefusalReason.CancelEndsReplacement => PersonalAccessTokenErrors.CancelEndsReplacement,
+        PersonalAccessTokenRefusalReason.SessionNotAccepted => PersonalAccessTokenErrors.SessionNotAccepted,
         _ => PersonalAccessTokenErrors.NotForTokens,
     };
 }

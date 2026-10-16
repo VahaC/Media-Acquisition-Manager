@@ -180,6 +180,10 @@ public sealed class DownloadService(
         return SendAsync(request, callerUserId, replacement: null, cancellationToken);
     }
 
+    // The lookup the send makes first, so a retry is recognised by the one rule.
+    public async Task<bool> IsRetryAsync(Guid requestId, Guid callerUserId, CancellationToken cancellationToken = default) =>
+        await FindRequestAsync(callerUserId, requestId, cancellationToken) is not null;
+
     public Task<DownloadSendResult> ScheduleReplacementAsync(
         ScheduleReplacementRequest request, Guid callerUserId, CancellationToken cancellationToken = default)
     {
