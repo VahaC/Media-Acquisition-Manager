@@ -12,7 +12,8 @@ namespace MediaAcquisitionManager.Api.Tests.Auth;
 
 // MAM-16 — any signed-in user changing their own password, giving the current one. Every other
 // session of theirs ends at once and the one they changed it from stays (ADR 0016). A refusal is a
-// 400 with a sentence, never a 401, and changes nothing.
+// 400 with a sentence, never a 401, and changes nothing. MAM-5 — their personal access tokens keep
+// working: changing one's own password is no lockout (ADR 0016 amended).
 public sealed class AuthPasswordHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/auth/password";
@@ -20,6 +21,7 @@ public sealed class AuthPasswordHttpTests : IClassFixture<MediaAcquisitionManage
     private const string RefreshUrl = "/api/auth/refresh";
     private const string MeUrl = "/api/auth/me";
     private const string UsersUrl = "/api/settings/users";
+    private const string DownloadsUrl = "/api/downloads";
     private const string NewPassword = "brand-new-password";
     private const string CurrentPasswordIncorrect = "The current password is incorrect.";
     private const string CurrentPasswordRequired = "Enter your current password.";
@@ -149,6 +151,34 @@ public sealed class AuthPasswordHttpTests : IClassFixture<MediaAcquisitionManage
         Assert.Equal(HttpStatusCode.OK, bobsMe.StatusCode);
         await _factory.WithDbAsync(async db =>
             Assert.Equal(0, await db.UserSessions.CountAsync(s => s.UserId != _laptop.User.Id && s.RevokedUtc != null, cancellationToken)));
+    }
+
+    // MAM-5 — unlike the owner's reset, which is how a leaked password is shut out (UsersPasswordHttpTests): the user
+    // just proved who they are, and their scripts carry on.
+    [Fact]
+    public async Task ChangePassword_keeps_the_users_personal_access_tokens_working()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var tokens = new PersonalAccessTokenSeeder(_factory.Scope);
+        var script = await tokens.Create(_laptop.User, PersonalAccessTokenAccess.ReadAndDownload);
+        var report = await tokens.Create(_laptop.User);
+
+        //Act
+        var response = await ChangePasswordAsync(_laptop, UserSeeder.DefaultPassword, NewPassword);
+        var scriptAfterwards = await _factory.GetHttpRequest(DownloadsUrl, script.Secret);
+        var reportAfterwards = await _factory.GetHttpRequest(DownloadsUrl, report.Secret);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, scriptAfterwards.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, reportAfterwards.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal(0, await db.PersonalAccessTokens.CountAsync(token => token.RevokedUtc != null, cancellationToken));
+            // The change's own row, and no "revoked" row beside it.
+            Assert.Equal(AuditAction.UserPasswordChanged, (await db.AuditEvents.AsNoTracking().SingleAsync(cancellationToken)).Action);
+        });
     }
 
     [Fact]

@@ -53,6 +53,8 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         Assert.Contains("AuthController.ChangePassword", actions);
         Assert.Contains("SetupController.Complete", actions);
         Assert.Contains("UsersController.Delete", actions);
+        // MAM-5 — the owner's revoke of all of a user's personal access tokens, owner-only with the rest of Users.
+        Assert.Contains("UsersController.RevokeTokens", actions);
         Assert.Contains("IntegrationsController.Create", actions);
         Assert.Contains("IntegrationsController.TestDraft", actions);
         Assert.Contains("LibraryController.Works", actions);
@@ -96,6 +98,10 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         // The signed-in user's own preferences, by the token: outside Controllers/Settings, every user's.
         Assert.Contains("ProfileController.GetRecommendationSettings", actions);
         Assert.Contains("ProfileController.UpdateRecommendationSettings", actions);
+        // MAM-5 — the signed-in user's own personal access tokens, beside the Profile's settings; refused to tokens.
+        Assert.Contains("PersonalAccessTokensController.List", actions);
+        Assert.Contains("PersonalAccessTokensController.Create", actions);
+        Assert.Contains("PersonalAccessTokensController.Revoke", actions);
         // MAM-34 — under Controllers/Library/Links: the owner's alone, every action, by the namespace's convention (R19).
         Assert.Contains("LibraryLinksController.Dialog", actions);
         Assert.Contains("LibraryLinksController.Set", actions);

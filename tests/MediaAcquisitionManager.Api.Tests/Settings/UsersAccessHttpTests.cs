@@ -36,6 +36,8 @@ public sealed class UsersAccessHttpTests : IClassFixture<MediaAcquisitionManager
         { "POST", "/{id}/enable" },
         { "POST", "/{id}/password" },
         { "DELETE", "/{id}" },
+        // MAM-5
+        { "DELETE", "/{id}/tokens" },
     };
 
     public async ValueTask InitializeAsync()

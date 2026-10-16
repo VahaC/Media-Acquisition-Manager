@@ -55,6 +55,8 @@ public sealed class SettingsWritesAreOwnerOnlyHttpTests : IClassFixture<MediaAcq
                 "POST api/settings/users/{id:guid}/enable",
                 "POST api/settings/users/{id:guid}/password",
                 "DELETE api/settings/users/{id:guid}",
+                // MAM-5
+                "DELETE api/settings/users/{id:guid}/tokens",
                 "POST api/settings/integrations",
                 "PUT api/settings/integrations/{id:guid}",
                 "DELETE api/settings/integrations/{id:guid}",

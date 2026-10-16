@@ -400,4 +400,18 @@ public enum AuditAction
     /// <summary>MAM-42 — the owner's Stop ignoring: a file in no library counts again. Its actor the owner, its target the
     /// file's name.</summary>
     UnreportedFileIgnoreUndone = 76,
+
+    /// <summary>MAM-5 — a user created a personal access token on their Profile page. Its actor the user, its target the
+    /// token, named by its name.</summary>
+    PersonalAccessTokenCreated = 77,
+
+    /// <summary>MAM-5 — a personal access token was revoked. Its actor whoever revoked it: the user on their Profile page,
+    /// or the owner revoking all of a user's tokens, resetting their password or disabling them — one row per token. Its
+    /// target the token.</summary>
+    PersonalAccessTokenRevoked = 78,
+
+    /// <summary>MAM-5 — a personal access token was refused something its access doesn't allow (a 403). At most one row
+    /// per token a minute, so a script refused in a loop can't flood the trail; the log has a line for every refusal. Its
+    /// actor the token's user, its target the token.</summary>
+    PersonalAccessTokenRefused = 79,
 }

@@ -17,4 +17,10 @@ public enum DownloadCancelStatus
     /// (<see cref="DownloadJobPoller.InterruptedSendAge"/>): its send may still be under way, so it can't be
     /// cancelled yet; nothing changed.</summary>
     StillBeingSent = 4,
+
+    /// <summary>MAM-5 — the job could be cancelled, but it carries a replacement still followed, which its cancel would
+    /// end too, and the caller may not end one — a personal access token, which never touches a replacement (ADR 0040);
+    /// nothing changed. A job that couldn't be cancelled anyway gets <see cref="NothingToStop"/> or
+    /// <see cref="StillBeingSent"/> instead.</summary>
+    ReplacementNeedsTheWebApp = 5,
 }

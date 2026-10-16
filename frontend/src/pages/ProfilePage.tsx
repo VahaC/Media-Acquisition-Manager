@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ThemeSwitch } from '@/components/ThemeSwitch'
+import { AccessTokensCard } from '@/components/profile/AccessTokensCard'
 import { ChangePasswordCard } from '@/components/profile/ChangePasswordCard'
 import { RecommendationSettingsCard } from '@/components/profile/RecommendationSettingsCard'
 import { Banner } from '@/components/shared/Banner'
@@ -28,6 +29,9 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  *
  * MAM-33 — and their Recommendations: the lists they want and their daily search budget, a card with
  * its own Save (RecommendationSettingsCard).
+ *
+ * MAM-5 — and their personal access tokens, for scripts and AI assistants, right after the password:
+ * both are how the account is reached (AccessTokensCard).
  */
 export function ProfilePage() {
   const { t } = useTranslation(['profile', 'auth', 'common'])
@@ -109,6 +113,8 @@ export function ProfilePage() {
       </section>
 
       <ChangePasswordCard onChanged={() => setPasswordChanged(true)} />
+
+      <AccessTokensCard />
 
       <section className="ui-card" aria-labelledby="profile-appearance-title">
         <div className="ui-card-header">

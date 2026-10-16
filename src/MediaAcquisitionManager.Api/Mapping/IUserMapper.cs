@@ -19,6 +19,7 @@ public interface IUserMapper
     SignInResponse ToSignInResponse(UserEntity user, bool isOwner, AccessToken accessToken);
 
     /// <summary>The user as the owner's user management shows them; the caller supplies whether they
-    /// own the installation, as for <see cref="ToCurrentUser"/>.</summary>
-    UserDto ToDto(UserEntity user, bool isOwner);
+    /// own the installation, as for <see cref="ToCurrentUser"/>, and (MAM-5) how many active personal
+    /// access tokens they hold, which the user row doesn't carry either.</summary>
+    UserDto ToDto(UserEntity user, bool isOwner, int activeTokenCount);
 }

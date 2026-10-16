@@ -58,6 +58,7 @@ public class Program
         builder.Services.AddMediaAcquisitionManagerAudit();
         builder.Services.AddSetupFeatures();
         builder.Services.AddAccountFeatures();
+        builder.Services.AddPersonalAccessTokenFeatures();
         builder.Services.AddIntegrationFeatures();
         builder.Services.AddLibraryFeatures();
         builder.Services.AddLibraryLinkFeatures();

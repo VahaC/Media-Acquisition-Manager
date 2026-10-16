@@ -86,3 +86,47 @@ mechanism above is unchanged: every device and browser holding one of the other 
 with its next request, and so is its refresh.
 `AuthPasswordHttpTests.ChangePassword_keeps_the_calling_session_and_ends_the_users_other_sessions_at_once`
 asserts it with a token issued a moment before and valid in itself.
+
+## Personal access tokens (added 0.5.0, MAM-5)
+
+The Anti-consequence above left MAM-5's personal access tokens out, as a different credential. MAM-5
+gives them the same rule by a check of their own: **no request is let in on a personal access
+token without looking its row up — the token not revoked and not expired, and its user not disabled
+— and every failure answers the same 401 `{ "error": "Sign in to continue." }`, byte for byte, as a
+missing or ended sign-in.** A token names no session, so the check is the token's row instead of a
+session's: one query per request in `PersonalAccessTokenAuthenticationHandler` — the token by its
+hash, joined to its user —, never cached, reads included, as above; "last used" is then updated only
+when the row just read shows it due, at most once a minute. Two kinds of token request are refused
+without a lookup, and neither lets anything in: a value without a token's shape, and any token sent
+while its address has used up its sign-in attempts, answered 429 wherever a signed-in user is needed
+(ADR 0040, "Guessing shares the sign-in limit").
+
+**What ends a token.** Its user's **Revoke** on Profile and the owner's **Revoke tokens** on Users.
+Disable revokes every token of the user, as it does every session, so Enable brings none back, and
+the check refuses a disabled user's token even before that. The owner's password reset of a user
+revokes every token of that user, the owner's reset of his own password included: unlike a session,
+no token is the device he is working on. Delete takes the tokens with the user (a cascade). A user's
+own password change ends none of them (ADR 0016's MAM-5 section). Rotating `Jwt:Secret` doesn't
+touch them either: they aren't signed with it, so it stays no lockout for them too.
+
+**A token is created only from a live session.** The check above lets the create request in before
+its action runs, so an owner's reset, disable or delete could commit in between and leave a token
+that revocation never saw — one an Enable would bring back. `PersonalAccessTokenService.CreateAsync`
+therefore asks this ADR's question of the creating session again, with the same condition, inside
+its write transaction (BEGIN IMMEDIATE on SQLite, the lock those changes take too): a session ended
+meanwhile stores nothing (`PersonalAccessTokenCreateStatus.SessionEnded`) and gets the same 401 its
+next request would, never a 500 for a user deleted meanwhile.
+
+What a token may do, and why, is
+[ADR 0040](0040-a-personal-access-token-acts-as-its-user-reads-what-its-user-reads-and-writes-only-what-an-explicit-list-opens.md).
+`PersonalAccessTokenAuthenticationHttpTests.Get_with_a_refused_token_is_the_same_401_a_refused_session_gets`
+asserts the 401 for a revoked token, one at the instant it expires, a disabled and a deleted user's
+and every malformed or unknown value, byte for byte against a refused session token's.
+`PersonalAccessTokensHttpTests.Revoke_is_204_and_the_token_stops_working_with_its_next_request`
+asserts that a token answering 200 is refused with its next request once revoked, and
+`UsersPasswordHttpTests.ResetPassword_revokes_every_personal_access_token_of_the_user_with_a_revoked_audit_row_each`,
+`UsersLifecycleHttpTests.Disable_revokes_the_users_personal_access_tokens_at_once_with_a_revoked_audit_row_each`
+and `UsersLifecycleHttpTests.Delete_removes_the_users_personal_access_tokens_with_them_and_stops_them_at_once`
+that a reset, a disable and a delete stop the user's active tokens with their next request.
+`PersonalAccessTokensHttpTests.Create_racing_the_owners_reset_disable_or_delete_of_the_user_is_401_and_stores_no_token`
+asserts the create that races them.

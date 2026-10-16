@@ -9,8 +9,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Http;
 /// The app plus <see cref="PipelineProbeController"/>: endpoints that exist only to push the
 /// shared pipeline (the exception handler, the JSON options, the security headers) into a state no
 /// production endpoint reaches on demand — and <c>SettingsProbeController</c>, a settings controller
-/// only the settings convention guards. The base factory doesn't load them, so they can never
-/// shadow a real route in the other suites.
+/// only the settings convention guards, and (MAM-5) <c>PersonalAccessTokenProbeController</c>, a
+/// controller only the default policy's token check guards. The base factory doesn't load them, so
+/// they can never shadow a real route in the other suites.
 /// </summary>
 public sealed class PipelineProbeApiFactory : MediaAcquisitionManagerApiFactory
 {

@@ -6,14 +6,20 @@ namespace MediaAcquisitionManager.Api.Extensions;
 
 public static class RateLimitingServiceCollectionExtensions
 {
-    private const string TooManyAttempts = "Too many attempts. Wait a minute and try again.";
+    /// <summary>The sentence of every refusal over a limit. MAM-5 — public, as the personal access token handler answers
+    /// with it too while an address's sign-in attempts are used up.</summary>
+    public const string TooManyAttempts = "Too many attempts. Wait a minute and try again.";
 
     /// <summary>
     /// The rate-limit policies endpoints opt into, and the answer to a refused request:
     /// 429 <c>{ "error": "…" }</c> with <c>Retry-After</c>.
     /// </summary>
-    public static IServiceCollection AddMediaAcquisitionManagerRateLimiting(this IServiceCollection services) =>
-        services.AddRateLimiter(options =>
+    public static IServiceCollection AddMediaAcquisitionManagerRateLimiting(this IServiceCollection services)
+    {
+        // MAM-5 — one per process: the sign-in attempts per address, which the sign-in policy's partitions and the
+        // personal access token handler both count against.
+        services.AddSingleton<SignInAttemptLimiter>();
+        return services.AddRateLimiter(options =>
         {
             SignInRateLimitPolicy.Add(options);
             PasswordChangeRateLimitPolicy.Add(options);
@@ -35,4 +41,5 @@ public static class RateLimitingServiceCollectionExtensions
                 await context.HttpContext.Response.WriteAsJsonAsync(new { error = TooManyAttempts }, cancellationToken);
             };
         });
+    }
 }

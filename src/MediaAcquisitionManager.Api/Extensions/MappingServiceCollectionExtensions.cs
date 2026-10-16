@@ -8,6 +8,8 @@ public static class MappingServiceCollectionExtensions
     public static IServiceCollection AddMediaAcquisitionManagerMappers(this IServiceCollection services)
     {
         services.AddSingleton<IUserMapper, UserMapper>();
+        // MAM-5 — a user's personal access tokens on their Profile page.
+        services.AddSingleton<IPersonalAccessTokenMapper, PersonalAccessTokenMapper>();
         services.AddSingleton<IIntegrationMapper, IntegrationMapper>();
         services.AddSingleton<ILibraryMapper, LibraryMapper>();
         // MAM-20 — the Duplicates list's groups, through the Library's own file and ids mapping.

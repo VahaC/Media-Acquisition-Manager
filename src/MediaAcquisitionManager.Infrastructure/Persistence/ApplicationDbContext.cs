@@ -18,6 +18,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<UserSessionEntity> UserSessions => Set<UserSessionEntity>();
 
+    public DbSet<PersonalAccessTokenEntity> PersonalAccessTokens => Set<PersonalAccessTokenEntity>();
+
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
 
     public DbSet<IntegrationConnectionEntity> IntegrationConnections => Set<IntegrationConnectionEntity>();
@@ -181,6 +183,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             e.HasOne<UserEntity>().WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PersonalAccessTokenEntity>(e =>
+        {
+            // MAM-5 — every request on a token looks it up by the presented token's hash, and a hash must name exactly
+            // one token.
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            // The Profile page lists a user's own tokens newest first; leading with the user, so it also serves the
+            // foreign key and the Users page's count per user.
+            e.HasIndex(x => new { x.UserId, x.CreatedUtc });
+            // Cascade: deleting a user ends their tokens with them (ADR 0040).
+            e.HasOne<UserEntity>().WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Stored by name, as every enum here is (the AuditAction reason).
+            e.Property(x => x.Access).HasConversion<string>().HasMaxLength(32);
         });
 
         modelBuilder.Entity<AuditEventEntity>(e =>

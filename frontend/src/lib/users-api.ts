@@ -22,7 +22,8 @@ export const usersApi = {
 
   /**
    * `POST /api/settings/users/{id}/disable`. 200 with the user; their sessions end at once, not when
-   * their access token expires. 409 for the installation owner; a bare 404 when the user is gone.
+   * their access token expires. MAM-5 — their personal access tokens are revoked with them, so Enable
+   * doesn't bring them back. 409 for the installation owner; a bare 404 when the user is gone.
    */
   disable: async (id: string): Promise<UserSummary> =>
     (await api.post<UserSummary>(`${BASE_URL}/${id}/disable`)).data,
@@ -33,15 +34,24 @@ export const usersApi = {
 
   /**
    * `POST /api/settings/users/{id}/password`. 204; every session of that user ends except the
-   * caller's own, so an owner resetting their own password stays signed in here. 400 `{ error }`
-   * names the password rule that failed; a bare 404 when the user is gone.
+   * caller's own, so an owner resetting their own password stays signed in here. MAM-5 — every
+   * personal access token of that user is revoked, the owner's own on their own reset too. 400
+   * `{ error }` names the password rule that failed; a bare 404 when the user is gone.
    */
   resetPassword: async (id: string, password: string): Promise<void> => {
     await api.post(`${BASE_URL}/${id}/password`, { password })
   },
 
   /**
-   * `DELETE /api/settings/users/{id}`. 204; the user's sessions go with them. 409 for the
+   * MAM-5 — `DELETE /api/settings/users/{id}/tokens`. 204; every personal access token of that user
+   * stops working at once — 204 too when they had none. A bare 404 when the user is gone.
+   */
+  revokeTokens: async (id: string): Promise<void> => {
+    await api.delete(`${BASE_URL}/${id}/tokens`)
+  },
+
+  /**
+   * `DELETE /api/settings/users/{id}`. 204; the user's sessions and access tokens go with them. 409 for the
    * installation owner; a bare 404 when the user is already gone.
    */
   remove: async (id: string): Promise<void> => {

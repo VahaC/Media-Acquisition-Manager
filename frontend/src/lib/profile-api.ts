@@ -1,5 +1,11 @@
 import { api } from './api'
-import type { RecommendationSettings, RecommendationSettingsRequest } from './types'
+import type {
+  AccessTokenList,
+  CreateAccessTokenRequest,
+  CreatedAccessToken,
+  RecommendationSettings,
+  RecommendationSettingsRequest,
+} from './types'
 
 const BASE_URL = '/api/profile'
 
@@ -22,4 +28,28 @@ export const profileApi = {
    */
   saveRecommendationSettings: async (request: RecommendationSettingsRequest): Promise<RecommendationSettings> =>
     (await api.put<RecommendationSettings>(`${BASE_URL}/recommendations`, request)).data,
+
+  /**
+   * MAM-5 — `GET /api/profile/tokens`. 200 with the user's personal access tokens that aren't revoked,
+   * expired ones included and flagged, newest first; never a secret. A request made with a token is
+   * refused 403 `{ error }`: tokens are managed in the web app only.
+   */
+  accessTokens: async (): Promise<AccessTokenList> =>
+    (await api.get<AccessTokenList>(`${BASE_URL}/tokens`)).data,
+
+  /**
+   * MAM-5 — `POST /api/profile/tokens`. 201 with the token and its secret, which no later answer
+   * carries again. 400 `{ error }` for a blank name or one over 100 characters, or a missing access or
+   * lifetime.
+   */
+  createAccessToken: async (request: CreateAccessTokenRequest): Promise<CreatedAccessToken> =>
+    (await api.post<CreatedAccessToken>(`${BASE_URL}/tokens`, request)).data,
+
+  /**
+   * MAM-5 — `DELETE /api/profile/tokens/{id}`. 204; the token stops working at once. A bare 404 for a
+   * token already revoked or another user's.
+   */
+  revokeAccessToken: async (id: string): Promise<void> => {
+    await api.delete(`${BASE_URL}/tokens/${id}`)
+  },
 }

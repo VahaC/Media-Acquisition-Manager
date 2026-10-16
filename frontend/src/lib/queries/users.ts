@@ -28,11 +28,18 @@ export const useCreateUser = () => {
   })
 }
 
+/**
+ * MAM-5 — disabling also revokes the user's access tokens, so the Profile page's list (the owner's
+ * own, should it be on screen) is asked for again with the users.
+ */
 export const useDisableUser = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => usersApi.disable(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.settings.users.all }),
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.settings.users.all }),
+      queryClient.invalidateQueries({ queryKey: qk.profile.accessTokens }),
+    ]),
   })
 }
 
@@ -44,11 +51,35 @@ export const useEnableUser = () => {
   })
 }
 
-/** Nothing on the list changes with a password, so this one invalidates nothing. */
-export const useResetUserPassword = () =>
-  useMutation({
+/**
+ * MAM-5 — a reset revokes the user's access tokens, so their count on the list drops to 0; the owner's
+ * reset of their own password empties the Profile page's list too.
+ */
+export const useResetUserPassword = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
     mutationFn: ({ id, password }: { id: string; password: string }) => usersApi.resetPassword(id, password),
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.settings.users.all }),
+      queryClient.invalidateQueries({ queryKey: qk.profile.accessTokens }),
+    ]),
   })
+}
+
+/**
+ * MAM-5 — the owner revokes every access token of one user, their own included, so the Profile page's
+ * list is asked for again with the users.
+ */
+export const useRevokeUserTokens = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => usersApi.revokeTokens(id),
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.settings.users.all }),
+      queryClient.invalidateQueries({ queryKey: qk.profile.accessTokens }),
+    ]),
+  })
+}
 
 export const useDeleteUser = () => {
   const queryClient = useQueryClient()

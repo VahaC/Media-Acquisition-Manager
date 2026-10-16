@@ -46,4 +46,7 @@ public enum AuditTargetKind
     /// <summary>MAM-42 — a name the scan of the media folders stored that no library reported (its <c>PhysicalFiles</c>
     /// row), named by the file's own name.</summary>
     UnreportedFile = 12,
+
+    /// <summary>MAM-5 — a user's personal access token (its <c>PersonalAccessTokens</c> row), named by its name.</summary>
+    PersonalAccessToken = 13,
 }

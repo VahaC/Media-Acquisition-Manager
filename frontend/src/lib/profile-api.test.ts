@@ -1,6 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api'
 import { profileApi } from '@/lib/profile-api'
+import { createdToken, laptopToken } from '@/test/access-tokens'
 import { allTabsOn } from '@/test/recommendations'
 
 /**
@@ -56,5 +57,57 @@ describe('profileApi', () => {
     expect(requests[0].method).toBe('put')
     expect(requests[0].url).toBe('/api/profile/recommendations')
     expect(JSON.parse(requests[0].data as string)).toEqual(request)
+  })
+
+  it('reads the user\'s access tokens', async () => {
+    // Arrange
+    const requests = respondWith(200, { items: [laptopToken] })
+
+    // Act
+    const list = await profileApi.accessTokens()
+
+    // Assert
+    expect(list).toEqual({ items: [laptopToken] })
+    expect(requests[0].method).toBe('get')
+    expect(requests[0].url).toBe('/api/profile/tokens')
+  })
+
+  it('creates an access token with a POST of its name, access and lifetime, and returns the secret', async () => {
+    // Arrange
+    const request = { name: 'Claude on the NAS', access: 'ReadOnly', lifetime: 'Days90' } as const
+    const requests = respondWith(201, createdToken)
+
+    // Act
+    const created = await profileApi.createAccessToken(request)
+
+    // Assert
+    expect(created).toEqual(createdToken)
+    expect(requests[0].method).toBe('post')
+    expect(requests[0].url).toBe('/api/profile/tokens')
+    expect(JSON.parse(requests[0].data as string)).toEqual(request)
+  })
+
+  it('revokes an access token with a DELETE of its address', async () => {
+    // Arrange
+    const requests = respondWith(204, '')
+
+    // Act
+    await profileApi.revokeAccessToken(laptopToken.id)
+
+    // Assert
+    expect(requests[0].method).toBe('delete')
+    expect(requests[0].url).toBe(`/api/profile/tokens/${laptopToken.id}`)
+  })
+
+  it('rejects with the server\'s sentence when a token is refused', async () => {
+    // Arrange
+    respondWith(400, { error: 'Give the token a name, such as “Claude on the laptop”.' })
+
+    // Act
+    const failure = await profileApi.createAccessToken({ name: '', access: 'ReadOnly', lifetime: 'Days30' }).catch((e: unknown) => e)
+
+    // Assert
+    expect(failure).toBeInstanceOf(AxiosError)
+    expect((failure as AxiosError).response?.data).toEqual({ error: 'Give the token a name, such as “Claude on the laptop”.' })
   })
 })

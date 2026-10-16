@@ -60,6 +60,8 @@ describe('App', () => {
     vi.mocked(authApi.refresh).mockResolvedValue(sessionFor(owner))
     // MAM-33 — the header reads the user's recommendation tabs once someone is signed in.
     vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOn)
+    // MAM-5 — the Profile page lists the user's access tokens.
+    vi.mocked(profileApi.accessTokens).mockResolvedValue({ items: [] })
   })
 
   afterEach(() => {

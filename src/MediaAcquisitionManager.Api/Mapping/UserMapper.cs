@@ -16,6 +16,6 @@ public sealed class UserMapper : IUserMapper
     public SignInResponse ToSignInResponse(UserEntity user, bool isOwner, AccessToken accessToken) =>
         new(accessToken.Token, accessToken.ExpiresUtc, ToCurrentUser(user, isOwner));
 
-    public UserDto ToDto(UserEntity user, bool isOwner) =>
-        new(user.Id, user.UserName, isOwner, user.IsDisabled, user.CreatedUtc, user.LastSignInUtc);
+    public UserDto ToDto(UserEntity user, bool isOwner, int activeTokenCount) =>
+        new(user.Id, user.UserName, isOwner, user.IsDisabled, user.CreatedUtc, user.LastSignInUtc, activeTokenCount);
 }

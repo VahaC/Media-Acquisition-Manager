@@ -55,10 +55,9 @@ public sealed class SessionCheckingJwtBearerEvents(ApplicationDbContext db, Time
     {
         // The default challenge is an empty 401 whose WWW-Authenticate header explains why (expired,
         // bad signature). The SPA needs a sentence in the shape every other failure has, and a
-        // caller probing tokens gets no hint which check failed.
+        // caller probing tokens gets no hint which check failed. MAM-5 — written by the one writer
+        // the personal access token's challenge uses too, so both 401s are the same bytes.
         context.HandleResponse();
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        context.Response.Headers.WWWAuthenticate = JwtBearerDefaults.AuthenticationScheme;
-        await context.Response.WriteAsJsonAsync(new { error = SignInRequired }, context.HttpContext.RequestAborted);
+        await SignInRequiredResponse.WriteAsync(context.HttpContext);
     }
 }

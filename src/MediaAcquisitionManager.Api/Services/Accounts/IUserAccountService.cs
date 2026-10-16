@@ -17,8 +17,9 @@ public interface IUserAccountService
 {
     /// <summary>
     /// One page of the users whose name contains <paramref name="search"/> in any letter case (every
-    /// user when it is blank), ordered by name, with how many match in all.
-    /// <see cref="UserListStatus.Invalid"/> for a page below 1 or a page size outside 1 to 100.
+    /// user when it is blank), ordered by name, with how many match in all and (MAM-5) how many active
+    /// personal access tokens each holds. <see cref="UserListStatus.Invalid"/> for a page below 1 or a
+    /// page size outside 1 to 100.
     /// </summary>
     Task<UserListResult> ListAsync(string? search, int page, int pageSize, CancellationToken cancellationToken = default);
 
@@ -34,27 +35,32 @@ public interface IUserAccountService
 
     /// <summary>
     /// Disables the user and ends every session they hold, so their access token stops working with
-    /// its next request. Disabling a disabled user changes nothing and records nothing;
-    /// <see cref="UserAccountStatus.OwnerProtected"/> for the owner.
+    /// its next request. MAM-5 — and revokes their personal access tokens, a "revoked" audit row each,
+    /// so enabling them later brings none back. Disabling a disabled user changes nothing and records
+    /// nothing; <see cref="UserAccountStatus.OwnerProtected"/> for the owner.
     /// </summary>
     Task<UserAccountResult> DisableAsync(Guid userId, AccountCaller caller, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Lets a disabled user sign in again. Their old sessions stay ended. Enabling an enabled user
-    /// changes nothing and records nothing.
+    /// Lets a disabled user sign in again. Their old sessions stay ended, and their personal access
+    /// tokens revoked (MAM-5). Enabling an enabled user changes nothing and records nothing.
     /// </summary>
     Task<UserAccountResult> EnableAsync(Guid userId, AccountCaller caller, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sets a new password and ends every session of the user except <paramref name="caller"/>'s own,
-    /// so an owner resetting their own password stays signed in where they did it.
+    /// so an owner resetting their own password stays signed in where they did it. MAM-5 — and revokes
+    /// every personal access token of the user, a "revoked" audit row each: the owner's own too, when
+    /// he resets his own password.
     /// </summary>
     Task<UserAccountResult> ResetPasswordAsync(Guid userId, string password, AccountCaller caller, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// MAM-16 — the caller sets a new password for their own account, proving it is them with
     /// <paramref name="currentPassword"/>, and every session of theirs ends except the one the call
-    /// came through (ADR 0016). <see cref="UserAccountStatus.Invalid"/>, with nothing written, for a
+    /// came through (ADR 0016). Their personal access tokens keep working (MAM-5, ADR 0016 amended): they
+    /// proved who they are, and a script's token isn't a session someone else may hold.
+    /// <see cref="UserAccountStatus.Invalid"/>, with nothing written, for a
     /// blank current password, a new password that breaks a rule, or a current password that is wrong —
     /// also when the owner reset the password, disabled or deleted the account while it was being
     /// checked. <see cref="UserAccountStatus.NotFound"/> when the caller's account no longer exists.
@@ -62,8 +68,16 @@ public interface IUserAccountService
     Task<UserAccountResult> ChangeOwnPasswordAsync(AccountCaller caller, string currentPassword, string newPassword, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes the user; their sessions go with them. Their audit rows stay, with their name.
-    /// <see cref="UserAccountStatus.OwnerProtected"/> for the owner.
+    /// Deletes the user; their sessions and (MAM-5) personal access tokens go with them. Their audit rows
+    /// stay, with their name. <see cref="UserAccountStatus.OwnerProtected"/> for the owner.
     /// </summary>
     Task<UserAccountResult> DeleteAsync(Guid userId, AccountCaller caller, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// MAM-5 — revokes every personal access token of the user, a "revoked" audit row each naming the
+    /// caller (<paramref name="callerUserId"/>, the owner); they stop working with their next request.
+    /// Succeeds, recording nothing, when the user holds none; <see cref="UserAccountStatus.NotFound"/>
+    /// when there is no such user.
+    /// </summary>
+    Task<UserAccountResult> RevokeTokensAsync(Guid userId, Guid callerUserId, CancellationToken cancellationToken = default);
 }

@@ -376,7 +376,7 @@ public sealed class DownloadService(
             new DownloadJobFileListResponse([.. items.Select(mapper.ToDto)], totalCount, page, pageSize));
     }
 
-    public async Task<DownloadCancelResult> CancelAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default)
+    public async Task<DownloadCancelResult> CancelAsync(Guid jobId, Guid callerUserId, bool mayEndReplacement, CancellationToken cancellationToken = default)
     {
         if (await JobRows(job => job.Id == jobId && job.RequestedByUserId == callerUserId).SingleOrDefaultAsync(cancellationToken) is not { } row)
             return DownloadCancelResult.NotFound;
@@ -394,6 +394,21 @@ public sealed class DownloadService(
             var now = time.GetUtcNow().UtcDateTime;
             if (await db.DownloadJobs.Where(job => job.RequestedByUserId == callerUserId).CancelAsync(jobId, now) == 1)
             {
+                // MAM-5 — a personal access token never touches a replacement (ADR 0040), and this cancel, having taken
+                // the job, would end the job's replacement too, below. Asked only once the job is taken, so a cancel that
+                // would change nothing (a Downloaded job whose replacement waits in review, say) gets the answer a
+                // session gets, not a refusal; and inside the transaction, which holds SQLite's write lock, so an owner's
+                // Retry can't bring an ended replacement back between the question and the cancel. Leaving the block
+                // without a commit rolls the job's cancel back: nothing changes, and nothing is recorded.
+                if (!mayEndReplacement
+                    && row.Replacement is { } followedReplacement
+                    && await db.ReplacementJobs.AnyAsync(
+                        replacement => replacement.Id == followedReplacement.Id && EF.Constant(ReplacementJobStates.Followed).Contains(replacement.State),
+                        cancellationToken))
+                {
+                    return DownloadCancelResult.ReplacementNeedsTheWebApp;
+                }
+
                 var actor = await ActorAsync(callerUserId, cancellationToken);
                 auditTrail.Record(AuditAction.DownloadCancelled, actor, AuditTarget.DownloadJob(row.Job, row.ReleaseTitle));
                 // MAM-24, R6 — its replacement ends with it, in the same transaction and with a row of its own, from any

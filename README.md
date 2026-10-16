@@ -2,10 +2,11 @@
 
 # Media Acquisition Manager
 
-**Status: 0.3.0 published; Phase C checked on the reference installation; Phase D built as 0.4.0
-and checked on a clean installation beside it, not published yet.** Releases 0.1.0 (2026-10-04),
-0.2.0 (2026-10-05), 0.2.1 (2026-10-07) and 0.3.0 (2026-10-11, published again on 2026-10-13) are
-published as Docker images, and the app now reports 0.4.0; MAM-22 checked Phase B's acceptance bar
+**Status: 0.4.0 published; Phase C checked on the reference installation and Phase D on a clean
+installation beside it; Phase E begun, its MAM-5 (personal access tokens) built as 0.5.0, not
+published yet.** Releases 0.1.0 (2026-10-04), 0.2.0 (2026-10-05), 0.2.1 (2026-10-07), 0.3.0
+(2026-10-11, published again on 2026-10-13) and 0.4.0 (2026-10-14) are published as Docker images,
+and the app now reports 0.5.0; MAM-22 checked Phase B's acceptance bar
 on the reference installation on 2026-10-08, and MAM-28 checked Phase C's there on 2026-10-12, on production running
 the published 0.3.0 image. 0.3.0 is the first published image with MAM-37 (the Duplicates page lists
 only real copies of one film or episode — never two episodes of one show, an episode's "a" and "b"
@@ -73,10 +74,18 @@ was fixed the same day under 0.4.0, after that image: the dialogs with a long li
 Transmission's destinations say "folder", the Download dialog and the Recommendations page name the
 client or source that failed, the job page's buttons name the old copy and "for good" reads
 "permanently", and this README's install steps say what the clean installation needed. Production
-stayed on 0.3.0, untouched. MAM-5 (personal access tokens, Phase A) is still to do. Today
+stayed on 0.3.0 through that check, untouched. Vasyl published 0.4.0 on 2026-10-14 at 20:41 UTC
+(Docker Hub's `0.4.0`, `0.4` and `latest`), built after commit 6ef689b. Phase E (release 0.5.0) was
+planned on 2026-10-14 from Vasyl's request of that day; MAM-5, moved to it from Phase A and built on
+2026-10-16 for 0.5.0, gives every user personal access tokens for scripts and other tools — created,
+listed and revoked on Profile, each `Read only` or `Read and download`, shown once and kept as a
+hash —, which act as their user and write only what an explicit list opens, while the owner counts
+and revokes each user's on the Users page (see [Scripts and the API](#scripts-and-the-api)); it
+wasn't tried on production. Today
 the app is an API and a web app that report their own health, with accounts,
 integration settings and the library: the installation owner created on first run, the users the owner manages, sign-in,
-and a Profile page where everyone changes their own password; the owner connects Jellyfin, a Torznab
+and a Profile page where everyone changes their own password and creates personal access tokens for
+scripts; the owner connects Jellyfin, a Torznab
 source such as Prowlarr or Jackett and a download client, qBittorrent or Transmission, tests each
 connection, and imports the Jellyfin library —
 its movies, series and episodes — which every signed-in user can browse, with what each file really
@@ -130,7 +139,7 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
 
 | Layer | Choice |
 | --- | --- |
-| API | ASP.NET Core on .NET 10, controllers, JWT bearer access tokens |
+| API | ASP.NET Core on .NET 10, controllers, JWT bearer access tokens and personal access tokens |
 | Data | EF Core + SQLite in WAL mode; migrations applied on startup |
 | Tests | xunit.v3, Moq, `WebApplicationFactory` over real HTTP with a throwaway SQLite database |
 | Web app | React 19, React Router 7, TanStack Query 5, zustand, axios, Radix Dialog, lucide-react, react-i18next |
@@ -144,17 +153,26 @@ Prowlarr's; see [Connecting the services](#connecting-the-services).
 
 - **Accounts and sign-in.** The first visit creates the installation owner; everyone else signs in
   with the user name and password the owner gave them. A session lasts 30 days from its last use,
-  and signing out, disabling a user, or resetting or changing a password takes effect at once. See
-  [Security](#security).
+  and signing out, disabling a user, or resetting or changing a password takes effect at once. A
+  script or another tool signs in with a personal access token instead (0.5.0, MAM-5); see
+  [Scripts and the API](#scripts-and-the-api). See [Security](#security).
 - **User management for the owner.** The Users page (**Users** in the owner's user menu) searches
   and pages through the users on the server, adds a user, disables or enables one, resets a
   password, and deletes one after a confirmation. The owner's own account can't be disabled or
-  deleted.
+  deleted. Its **Access tokens** column counts each user's active personal access tokens, and
+  **Revoke tokens** ends all of a user's at once, after a confirmation; a password reset and a
+  disable end them too (MAM-5), so **Disable** of a user with active tokens asks first, saying how
+  many it revokes, while a user without any is disabled at once, as before.
 - **Your profile.** Every signed-in user opens the Profile page from their user menu (**Profile**,
   or their name at the top of the menu): their user name, role, when the account was created and
   last signed in, and when this session ends unless it is used again. **Change password** asks for
   the current password and the new one twice, ends the user's other sessions and keeps this one
-  ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
+  ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md));
+  the user's personal access tokens keep working. The **Access tokens** card (MAM-5) lists the
+  user's personal access tokens — name, first characters, access, created, last used and expires, an
+  expired one marked **Expired** — and creates one with **Create token**: a name, `Read only` or
+  `Read and download`, and an expiry of 30 days, 90 days, a year or never; the token is shown once,
+  with **Copy**, and **Revoke** ends one at once (see [Scripts and the API](#scripts-and-the-api)).
   The **Recommendations** card switches each of the user's four recommendation lists on or off and
   sets how many release-source searches the app may run for them a day, with how many it ran in the
   last 24 hours; each user changes only their own. The theme can be picked there too, and **Sign
@@ -2125,8 +2143,10 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   answers 409. Every API endpoint but health, setup, sign-in, refresh and sign-out needs a
   signed-in user, and every page of the web app but setup and sign-in leads to sign-in without one.
   The Docker Compose file publishes the port on `127.0.0.1` unless `APP_BIND_ADDRESS` says
-  otherwise. Personal access tokens for scripts arrive with MAM-5.
-- **Plain HTTP only.** The app serves no TLS, so passwords and tokens cross the network as they are.
+  otherwise. A personal access token stands in for a signed-in user from a script (MAM-5); see
+  [Scripts and the API](#scripts-and-the-api).
+- **Plain HTTP only.** The app serves no TLS, so passwords and tokens, personal access tokens
+  included, cross the network as they are.
   Open it only on a network you trust, or put a reverse proxy that terminates HTTPS in front of it.
 - **Passwords.** User names are 3–32 ASCII letters, digits, `.`, `-` and `_`, in any letter case;
   passwords are 8–128 characters with no composition rules, and there is no email reset and no
@@ -2139,6 +2159,12 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   session ends 30 days after its last use. Every refresh rotates the cookie, and the database keeps
   only its SHA-256 hash; a replaced cookie presented again more than 30 seconds later revokes the
   session, since that is what a copied cookie looks like.
+- **Personal access tokens for scripts.** A token (MAM-5) is `mam_pat_` and 32 random bytes in
+  base64url, 51 characters, made on its user's Profile and shown once; the database keeps only its
+  SHA-256 hash and its first 14 characters, as 256 random bits need no slow hash. It lives 30 days,
+  90 days, a year or for ever, as its user chose, and acts as its user, never as more: it has no
+  session, no refresh and no cookie
+  ([ADR 0040](docs/adr/0040-a-personal-access-token-acts-as-its-user-reads-what-its-user-reads-and-writes-only-what-an-explicit-list-opens.md)).
 - **Every request checks its session.** A valid token is not enough: its session must still be live
   and its user enabled, so signing out, disabling or deleting a user and resetting or changing a
   password take effect on the next request, not when the token expires. Disable and delete end every
@@ -2146,21 +2172,48 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   was made from
   ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
   Rotating `Jwt:Secret` signs nobody out — to lock someone out, disable them or reset their password
-  ([ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)).
+  ([ADR 0002](docs/adr/0002-every-authenticated-request-checks-its-session.md)). No request is let
+  in on a personal access token without looking its row up the same way: revoked, expired, or its
+  user disabled or deleted, it stops at once. Its user's **Revoke**, the owner's **Revoke tokens**, a
+  disable and the owner's password reset of the user — of the owner himself too — revoke it, and a
+  delete takes it with the user; a user's own password change keeps it, and rotating `Jwt:Secret`
+  doesn't touch it, as it isn't signed (ADR 0002's and ADR 0016's MAM-5 sections). A token is
+  created only from a session still live when it is stored: a create racing the owner's reset,
+  disable or delete of its user answers the same 401 as the session's next request and stores
+  nothing, so no token outlives the revocation it raced.
 - **One answer to every failed sign-in.** An unknown user, a wrong password, a disabled account and
   a blank field all get the same 401 `{ "error": "The user name or password is incorrect." }` after
   the same single password hash, so neither the answer nor its timing tells which user names exist.
+  A personal access token that is wrong, unknown, malformed, revoked or expired, or whose user is
+  disabled or deleted, gets exactly the 401 of a missing sign-in — `WWW-Authenticate: Bearer` and
+  `{ "error": "Sign in to continue." }`, written by the same code —, which never says which it was.
 - **Rate limit.** Sign-in and setup allow 10 attempts a minute per client address; more get 429
   `{ "error": "Too many attempts. Wait a minute and try again." }` with `Retry-After: 60`. A user
   changing their own password gets 10 attempts a minute per user, from whatever address and counted
   apart from sign-in, then the same 429: a stolen access token can't spread its guesses for the
   current password over many addresses, and a mistyped one doesn't use up the sign-ins of everyone
-  behind the same router. Refresh isn't limited: its cookie holds 256 random bits.
+  behind the same router. Refresh isn't limited: its cookie holds 256 random bits. A failed personal
+  access token counts against its address's sign-in limit (MAM-5): while that address's 10 are used
+  up, every request from it with a token to an endpoint that needs a signed-in user answers the same
+  429 with `Retry-After`, without the token being looked up, so guessing can't go on; a good token
+  counts nothing. A lookup under way counts against the attempts left until it ends, so guesses sent
+  all at once get no more lookups than guesses sent one after the other.
 - **Owner-only settings.** Every action of a controller under `Controllers/Settings` that changes
   something is owner-only because of where the controller lives, not because someone remembered an
   attribute; `SettingsWritesAreOwnerOnlyConventionHttpTests` pins it. The Users, Integrations and
   Destinations endpoints are owner-only for reading as well. Anyone else gets 403
-  `{ "error": "Only the installation owner can do this." }`, logged as a warning.
+  `{ "error": "Only the installation owner can do this." }`, logged as a warning. The same convention
+  closes every action there, reads included, to personal access tokens, the owner's too (MAM-5).
+- **A token writes only what an explicit list opens.** The token rule is the default authorization
+  policy, so every endpoint that needs a signed-in user applies it: a token reads, a POST marked as a
+  read (the two searches) passes, a write marked for tokens passes for `Read and download` only (a
+  send, a cancel, Not interested), and everything else — an endpoint added later included — answers
+  403 with a sentence naming "Scripts and the API", logged as a warning. `GET /api/auth/me`,
+  `POST /api/auth/password` and the token management refuse every token. Keep both is the route
+  itself: a send's body has no replacement field. `PersonalAccessTokenWritesHttpTests` sends every
+  other write of the API as the owner, and every refused read, with a token of each kind, and
+  `PersonalAccessTokenConventionHttpTests` proves the rule on an endpoint added later
+  ([ADR 0040](docs/adr/0040-a-personal-access-token-acts-as-its-user-reads-what-its-user-reads-and-writes-only-what-an-explicit-list-opens.md)).
 - **The library is everyone's to read; syncing it is the owner's.** Every signed-in user reads the
   Library's works, libraries, sources and sync runs, which carry no address or key. Starting a sync
   is owner-only, as it sends the stored Jellyfin key to the server and replaces what everyone reads.
@@ -2323,7 +2376,10 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   couldn't hash, which quotes a path, goes to the owner only
   ([ADR 0022](docs/adr/0022-a-file-is-hashed-only-when-a-file-of-another-identity-shares-its-size-and-could-be-its-copy-as-the-last-step-of-the-inspection-one-at-a-time.md)).
 - **Audit trail.** Setup, every change to a user (create, disable, enable, password reset, delete),
-  every user's change of their own password (`UserPasswordChanged`), every change to an integration
+  every user's change of their own password (`UserPasswordChanged`), every personal access token
+  created (`PersonalAccessTokenCreated`) and revoked (`PersonalAccessTokenRevoked`, in the name of who
+  revoked it — its user, or the owner for **Revoke tokens**, a reset or a disable —, one row per
+  token, MAM-5), every change to an integration
   (add, edit, remove), every save of the media folders, every change to a destination (add, edit,
   remove), every download sent (`DownloadRequested`, written with its job before anything is fetched
   or sent), every job cancelled (`DownloadCancelled`), every TMDb link set, replaced or removed
@@ -2367,7 +2423,10 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   settings, which are that user's own preferences, nor a check of the release sources for a
   recommended work, nor a preparation of the TMDb suggestions or the owner's "none fits"; reading
   the duplicate groups writes none, nor anything else, and neither does a decision on a possible
-  match given again or an undo of none. There is no screen for it yet.
+  match given again or an undo of none. A request a personal access token may not make writes
+  `PersonalAccessTokenRefused` in its user's name, the token its target, at most once a minute per
+  token, and a warning with its method and path each time; **Revoke tokens** on a user with none
+  writes nothing (MAM-5). There is no screen for it yet.
 - **Integration credentials.** The Jellyfin and Torznab API keys, TMDb's API Read Access Token and
   the qBittorrent and Transmission passwords are stored encrypted with AES-256-GCM under
   `Encryption:Key`, each sealed
@@ -2421,8 +2480,10 @@ A direct Toloka adapter is an option if the gateway proves unsuitable.
   and a connection Docker's own proxy relays (one from the host itself to a port published on
   `127.0.0.1`, or any connection on Docker Desktop) comes from Docker's gateway. All those clients
   then share one sign-in limit: ten failed attempts a minute from anyone keep everyone from signing
-  in for as long as they keep at it. The app also sees plain HTTP behind a TLS-terminating proxy, so
-  the refresh cookie is not marked `Secure` there; `HttpOnly` and `SameSite=Strict` still apply.
+  in for as long as they keep at it, and so do a script's wrong or revoked personal access tokens,
+  which count as failed attempts (MAM-5). The app also sees plain HTTP behind a TLS-terminating
+  proxy, so the refresh cookie is not marked `Secure` there; `HttpOnly` and `SameSite=Strict` still
+  apply.
 - **The app runs unprivileged.** It runs as user `mam` (uid 10001) by default, its own files belong
   to root and are read-only to it, and the only persistent place it can write is `/data` (besides the
   usual scratch space in `/tmp`). The media mounts in the compose file's examples are read-only.
@@ -2628,7 +2689,7 @@ underscore separates sections: `MAM_Storage__DataDirectory` sets `Storage:DataDi
 | --- | --- | --- |
 | `MAM_Storage__DataDirectory` | `Data` (`/data` in the Docker image) | Directory for the SQLite database `mam.db` and the `.secrets/` directory. A relative path resolves against the API's content root. The Docker Compose file pins it to `/data`, the volume. |
 | `MAM_Encryption__Key` | generated on first run | Base64 of 32 random bytes. Encrypts the stored integration credentials (AES-256-GCM). A value that isn't base64 of exactly 32 bytes makes saving a credential, or testing with a stored one, fail with a trace id, and the log names this variable; changing it makes every stored credential unreadable until it is entered again. |
-| `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes (at least 32). Signs the 15-minute access tokens. Rotating it signs nobody out: the tokens already issued stop working, and open tabs quietly get new ones through their refresh cookie, which this key doesn't sign. |
+| `MAM_Jwt__Secret` | generated on first run | Base64 of 64 random bytes (at least 32). Signs the 15-minute access tokens. Rotating it signs nobody out: the tokens already issued stop working, and open tabs quietly get new ones through their refresh cookie, which this key doesn't sign. Personal access tokens aren't signed with it either and keep working; revoke one on Profile, or all of a user's on Users (MAM-5). |
 
 The standard ASP.NET Core variables apply as usual (`ASPNETCORE_URLS`, `ASPNETCORE_ENVIRONMENT`).
 The folders the app may read files in are not configuration: the owner sets them on the **Media
@@ -2657,6 +2718,128 @@ a value in development without committing it, the Api project has a `UserSecrets
 dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisitionManager.Api
 ```
 
+## Scripts and the API
+
+A script, a cron job or another tool calls the API with a personal access token (0.5.0, MAM-5)
+instead of signing in. Every signed-in user creates their own:
+
+1. User menu → **Profile** → **Access tokens** → **Create token**.
+2. **Name** says what it is for, such as "Claude on the laptop" (at most 100 characters); **Access**
+   is `Read only` or `Read and download`; **Expires** is 30 days, 90 days (the default), 1 year or
+   never. Press **Create token**.
+3. Copy the token — `mam_pat_` and 43 more letters, digits, `-` and `_` — and press **Done**. It is
+   shown once: the app keeps only its SHA-256 hash and its first characters, so a lost token is
+   revoked and replaced, never shown again. On a plain-HTTP address, where the browser keeps the
+   clipboard from the page, **Copy** copies the selected text instead, or asks you to press Ctrl+C.
+
+Send it as a bearer token. This lists your jobs as the Jobs page does (`GET /api/downloads`; the
+[API surface](#api-surface) has every endpoint):
+
+```bash
+curl -H "Authorization: Bearer mam_pat_…" http://<mam>:8118/api/downloads
+```
+
+It answers 200 `{ items, totalCount, page, pageSize, needsYouCount, inProgressCount }`, newest first;
+`?view=InProgress` lists what the Jobs page's **In progress** tab does, and `GET /api/downloads/{id}`
+reads one job.
+
+A script searches, sends and cancels the way the Search and Jobs pages do; each answer gives the ids
+the next request takes. Steps 1 to 3 work with either access, steps 4 and 5 need `Read and download`:
+
+```bash
+MAM=http://<mam>:8118
+AUTH="Authorization: Bearer mam_pat_…"
+
+# 1. Search the library and every enabled release source. 201 with the search, stored for a day:
+#    { id, text, year, …, library, libraryUnlistedCount, sources, facets } — library is what the
+#    library already holds of it, sources how each source answered. Every field is a string.
+curl -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "text": "Interstellar", "year": "2014" }' "$MAM/api/searches"
+
+# 2. The releases it found, most seeders first. 200 { items, totalCount, page, pageSize }, each
+#    release's id in items[].id.
+curl -H "$AUTH" "$MAM/api/searches/<search id>/releases?sort=seeders&pageSize=10"
+
+# 3. Where that release can go. 200 { clients, suggestedDestinationId }, each client
+#    { id, name, destinations: [{ id, name, … }], … }.
+curl -H "$AUTH" "$MAM/api/downloads/options?releaseId=<release id>"
+
+# 4. Send it, always Keep both. requestId is a new GUID per send (uuidgen), sent again only to
+#    retry that send. 201 with the job; 200 with the same job when the same requestId comes again.
+curl -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "requestId": "<new GUID>", "releaseId": "<release id>", "downloadClientId": "<client id>", "destinationId": "<destination id>" }' \
+  "$MAM/api/downloads"
+
+# 5. Stop following the job; the client keeps the torrent. 200 with the job, now Cancelled; 409 with
+#    a sentence when it has already ended or is still being sent.
+curl -X POST -H "$AUTH" "$MAM/api/downloads/<job id>/cancel"
+```
+
+A request the app can't carry out answers 400, 404 or 409 `{ "error": "…" }` with a sentence that
+says what to change, such as "This release isn't available any more: a search keeps what it found
+for a day. Search again." for a release whose search has been removed; the [API surface](#api-surface)
+lists every sentence.
+
+**What each access opens.** A token acts as its user, with no more than the user may, and its user's
+name is on every audit row it causes:
+
+| Access | Opens |
+| --- | --- |
+| `Read only` | Every GET its user may make — the library, its sources and duplicates, the user's stored searches, jobs and their files, the Download dialog's choices (`GET /api/downloads/options`) and the recommendations — and the two searches, which are POSTs marked as reads: `POST /api/searches` (the Search page's, stored for a day) and `POST /api/releases/search` |
+| `Read and download` | All of that, and three writes: `POST /api/downloads` (a release of one of the user's own searches of the last day, always Keep both — the request has no replacement field), `POST /api/downloads/{id}/cancel` (stop following one of the user's jobs) and `PUT /api/recommendations/dismissals/{kind}/{catalogId}` (Not interested) |
+
+**What no token ever does,** whatever its access: schedule a replacement, remove a copy into the
+quarantine, restore, delete permanently, start a sync, a scan, an inspection or a recomputation, call
+anything under `/api/settings` — reads included: Users, Integrations, Media folders, Destinations —,
+read the account's session (`GET /api/auth/me`), change the password (`POST /api/auth/password`), or
+list, create or revoke tokens (`/api/profile/tokens`). Undoing Not interested and saving the Profile's
+recommendation settings stay in the web app too. A write is open to a token only when it is on the
+list above, so an endpoint added later stays closed until it is opened on purpose
+([ADR 0040](docs/adr/0040-a-personal-access-token-acts-as-its-user-reads-what-its-user-reads-and-writes-only-what-an-explicit-list-opens.md)).
+A refused request answers 403 with one of three sentences, and its user's audit trail gets a
+`PersonalAccessTokenRefused` row, at most one a minute per token:
+
+- a `Read only` token's send, cancel or Not interested: `{ "error": "This access token is read only.
+  To send downloads, cancel following or mark Not interested from a script, create a token with “Read
+  and download” access on your Profile page; see “Scripts and the API” in the README." }`;
+- anything no token may do: `{ "error": "An access token can't do this. A token reads, and with “Read
+  and download” access also sends downloads, cancels following and marks Not interested; everything
+  else is done in the web app. See “Scripts and the API” in the README." }`;
+- a cancel of a job whose replacement is still followed, which would end the replacement too: `{
+  "error": "This job also replaces a copy in the library, and an access token never touches a
+  replacement. Cancel it on the Jobs page of the web app; see “Scripts and the API” in the README." }`.
+  A `Read and download` token's cancel that would change nothing — the job already ended, or still
+  being sent — answers the 409 a session gets instead, whatever replacement the job carries.
+
+**Whose data it reads.** A member's token reads that member's own jobs and searches only — another
+user's is the same bare 404 as one that doesn't exist —, and an owner-only read answers it 403
+`{ "error": "Only the installation owner can do this." }`. An owner's token reads what the owner
+reads outside `/api/settings`, the replacements' and the TMDb links' reads included.
+
+**Ending a token.** **Revoke** on Profile stops it with its next request; an expired token stays in
+the list, marked **Expired**, until revoked. The owner sees each user's number of active tokens on
+the Users page and ends them all with **Revoke tokens** (`DELETE /api/settings/users/{id}/tokens`),
+but never sees a token. Disabling a user and the owner's password reset of a user — of the owner
+himself too — revoke the user's tokens, so enabling the user again brings none back, and deleting a
+user deletes them; **Disable** of a user with active tokens asks first, saying how many it revokes.
+A user's own **Change password** keeps their tokens, and rotating `MAM_Jwt__Secret` doesn't touch
+them.
+
+**When it fails.** A wrong, unknown, malformed, revoked or expired token, or one whose user is
+disabled or deleted, answers 401 `{ "error": "Sign in to continue." }` with `WWW-Authenticate:
+Bearer`, the same answer as no token, whichever it was. Each failure counts against the sign-in limit
+of its address, 10 attempts a minute shared with sign-in and setup — every sign-in counts there,
+successful or not —, and so does each lookup still under way; while it is used up, every request
+from that address with a token to an endpoint that needs a signed-in user answers 429 `{ "error":
+"Too many attempts. Wait a minute and try again." }` with `Retry-After`, a good token included. The
+health endpoints, refresh and sign-out answer with a token, wrong or not, as they do without one.
+Behind a reverse proxy every client shares one address, so a script left looping with a revoked
+token keeps the household from signing in: fix or stop the script.
+
+**Keep it like a password.** The app speaks plain HTTP, so the token crosses the network as it is,
+and whoever reads the traffic can use it until it is revoked or expires: use it on a network you
+trust or behind a proxy that adds HTTPS, give each script its own, and prefer `Read only`.
+
 ## API surface
 
 | Request | Answer |
@@ -2668,15 +2851,16 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/auth/sign-in` with `{ userName, password }` | 200 `{ accessToken, accessTokenExpiresUtc, user: { id, userName, isOwner } }` and the `mam_refresh` cookie. Any failure: 401 `{ "error": "The user name or password is incorrect." }`; 429 over the rate limit. Anonymous. |
 | `POST /api/auth/refresh` with the cookie | 200 as for sign-in, with the cookie rotated. 401 `{ "error": "Your session has ended. Sign in again." }` and the cookie deleted; 409 when a refresh with the same cookie won a moment ago (retry). Anonymous. |
 | `POST /api/auth/sign-out` with the cookie | 204; ends the cookie's session and deletes the cookie. Needs no access token. |
-| `GET /api/auth/me` | 200 `{ id, userName, isOwner, createdUtc, lastSignInUtc, sessionExpiresUtc }`: `lastSignInUtc` is the user's latest sign-in on any device, `null` before the first, and `sessionExpiresUtc` the end of the session the access token belongs to, which each refresh moves to 30 days later. |
-| `POST /api/auth/password` with `{ currentPassword, newPassword }` | Every signed-in user, for their own account. 204; every other session of the user ends at once and the caller's stays ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)), with an audit row. 400 `{ error }`, changing nothing: "Enter your current password." for a blank one, the broken rule's sentence for the new one, "The current password is incorrect." for a wrong one (never 401, and also when an owner's reset, disable or delete lands while it is being checked). 429 over the rate limit, counted per user. |
-| `GET /api/settings/users?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, userName, isOwner, isDisabled, createdUtc, lastSignInUtc }`, ordered by user name; `search` matches part of the name in any letter case. 400 for a page below 1 or a page size outside 1–100. |
+| `GET /api/auth/me` | 200 `{ id, userName, isOwner, createdUtc, lastSignInUtc, sessionExpiresUtc }`: `lastSignInUtc` is the user's latest sign-in on any device, `null` before the first, and `sessionExpiresUtc` the end of the session the access token belongs to, which each refresh moves to 30 days later. A personal access token is refused with 403, as it has no session (MAM-5). |
+| `POST /api/auth/password` with `{ currentPassword, newPassword }` | Every signed-in user, for their own account. 204; every other session of the user ends at once and the caller's stays ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)), with an audit row. 400 `{ error }`, changing nothing: "Enter your current password." for a blank one, the broken rule's sentence for the new one, "The current password is incorrect." for a wrong one (never 401, and also when an owner's reset, disable or delete lands while it is being checked). 429 over the rate limit, counted per user. A personal access token is refused with 403 (MAM-5); the user's own change keeps their personal access tokens. |
+| `GET /api/settings/users?search=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, userName, isOwner, isDisabled, createdUtc, lastSignInUtc, activeTokenCount }`, ordered by user name — `activeTokenCount` (MAM-5) the user's personal access tokens neither revoked nor expired, also in every other answer with a user —; `search` matches part of the name in any letter case. 400 for a page below 1 or a page size outside 1–100. |
 | `GET /api/settings/users/{id}` | Owner only. 200 with the user; 404. |
 | `POST /api/settings/users` with `{ userName, password }` | Owner only. 201 with the user and its `Location`; 400 with the broken rule's sentence; 409 when the name exists in any letter case. |
-| `POST /api/settings/users/{id}/disable` | Owner only. 200 with the user, whose sessions all end. 409 for the owner; 404. |
+| `POST /api/settings/users/{id}/disable` | Owner only. 200 with the user, whose sessions all end and whose personal access tokens are revoked, each with a `PersonalAccessTokenRevoked` row in the owner's name (MAM-5). 409 for the owner; 404. |
 | `POST /api/settings/users/{id}/enable` | Owner only. 200 with the user; the sessions the disable ended stay ended. 404. |
-| `POST /api/settings/users/{id}/password` with `{ password }` | Owner only. 204; every session of the user ends except the caller's own. 400 with the rule's sentence; 404. |
-| `DELETE /api/settings/users/{id}` | Owner only. 204; the user's sessions go with it. 409 for the owner; 404. |
+| `POST /api/settings/users/{id}/password` with `{ password }` | Owner only. 204; every session of the user ends except the caller's own, and every personal access token of the user is revoked, the owner's own when he resets his own password (MAM-5). 400 with the rule's sentence; 404. |
+| `DELETE /api/settings/users/{id}` | Owner only. 204; the user's sessions and personal access tokens go with it. 409 for the owner; 404. |
+| `DELETE /api/settings/users/{id}/tokens` | Owner only (**Revoke tokens**, MAM-5). 204; every personal access token of the user that isn't revoked yet is revoked at once, each with a `PersonalAccessTokenRevoked` row in the owner's name, and 204 with no row when there is none. A bare 404 for a user that doesn't exist. |
 | `GET /api/settings/integrations?search=&kind=&page=1&pageSize=25` | Owner only. 200 `{ items, totalCount, page, pageSize }`, each item `{ id, name, adapterType, adapterDisplayName, kind, isEnabled, baseUrl, userName, hasPassword, hasApiKey, pathMappings: [{ servicePrefix, appPrefix }], createdUtc, destinationKind }`, ordered by name; `adapterDisplayName` is `null` when this version no longer connects to the type, and `destinationKind` (MAM-30) what a download client's destinations are, `Category` or `Folder`, `null` for any other kind or a type this version doesn't know. `search` matches part of the name in any letter case; `kind` is `MediaLibrary`, `ReleaseSearch`, `DownloadClient` or `Metadata`. 400 for a page below 1, a page size outside 1–100 or an unknown kind ("“x” is not a kind of integration. Use MediaLibrary, ReleaseSearch, DownloadClient or Metadata."). |
 | `GET /api/settings/integrations/adapter-types` | Owner only. 200 `{ items }`, each `{ typeId, displayName, kind, userName, password, apiKey, reportsFilePaths, destinationKind }`, a credential being `NotUsed`, `Optional` or `Required` and `destinationKind` as for the integrations; the types are `jellyfin`, `torznab`, `qbittorrent`, `transmission` (MAM-30: a user name and password both optional, no API key, `destinationKind` `Folder`) and `tmdb` (kind `Metadata`: an API key required, which is TMDb's API Read Access Token, no user name or password, and `reportsFilePaths` `false`). |
 | `GET /api/settings/integrations/{id}` | Owner only. 200 with the integration; 404. |
@@ -2761,6 +2945,9 @@ dotnet user-secrets set "Jwt:Secret" "<base64 value>" --project src/MediaAcquisi
 | `POST /api/recommendations/runs` | Owner only (**Recompute now**). 202 with the queued computation, or with the one already waiting, which the request joins; one asked for while a run runs is queued behind it, and the run reads the library, the catalog and every enabled user's tabs as they are when it starts. 409 `{ "error": "Connect a metadata catalog under Integrations first." }` without a switched-on metadata catalog of a type this version serves; 503 `{ "error": "Too many recommendation runs are waiting. Try again in a minute." }`, the run kept as failed with it. |
 | `GET /api/profile/recommendations` | Every signed-in user, for themselves. 200 `{ movies, series, cartoons, documentaries, dailySearchLimit, searchesLast24Hours }`: which of their four lists are on, how many release-source searches the app may run for their lists in 24 hours, and how many it ran for them in the last 24 hours. A user who never saved gets every list on and 60 (ADR 0024). |
 | `PUT /api/profile/recommendations` with `{ movies, series, cartoons, documentaries, dailySearchLimit }` | Every signed-in user, for themselves. 200 with the settings as saved; writes no audit row. Switching on a tab no other enabled user has on — a user who never saved has them all on — queues a computation of the recommendations (`TabEnabled`, in the saver's name) or joins the one waiting; a full queue never fails the save. Every field is required: 400 with "Say whether the Movies tab is on." (and so for Series, Cartoons and Documentaries), "The daily search limit is a whole number from 0 to 500.", or for a body that isn't the settings "Send the settings as JSON: movies, series, cartoons and documentaries true or false, and dailySearchLimit a whole number from 0 to 500.", saving nothing. |
+| `GET /api/profile/tokens` | Every signed-in user, for themselves (MAM-5). 200 `{ items }`, the caller's personal access tokens that aren't revoked, newest first and unpaged, as they are one person's: each `{ id, name, prefix, access, createdUtc, lastUsedUtc, expiresUtc, isExpired }` — `prefix` the token's first 14 characters (`mam_pat_` and six more), `access` `ReadOnly` or `ReadAndDownload`, `lastUsedUtc` written at most once a minute and `null` before the first use, `expiresUtc` `null` for a token that never expires, and an expired token listed with `isExpired` `true` until it is revoked. Refuses a personal access token (403). |
+| `POST /api/profile/tokens` with `{ name, access, lifetime }` | Every signed-in user, for themselves (MAM-5). Creates a token: `access` `ReadOnly` or `ReadAndDownload`, `lifetime` `Days30`, `Days90`, `OneYear` or `Never`, the name trimmed. 201 `{ token, secret }` — `token` as the list has it and `secret` the whole `mam_pat_…` value, which no other answer ever carries again —, with a `PersonalAccessTokenCreated` audit row. 400 with "Give the token a name, such as “Claude on the laptop”.", "A token's name can be at most 100 characters.", "Choose the token's access: Read only or Read and download." or "Choose when the token expires.", or, for a body that isn't a token — not JSON, or an access or lifetime that isn't one of the names —, "Send the token as JSON: a name, access ReadOnly or ReadAndDownload, and lifetime Days30, Days90, OneYear or Never.", creating nothing. The caller's session is checked again as the token is stored, so a create racing the owner's reset, disable or delete of the user answers the 401 `{ "error": "Sign in to continue." }` the session's next request gets, storing nothing. Refuses a personal access token (403). |
+| `DELETE /api/profile/tokens/{id}` | Every signed-in user, for their own tokens (MAM-5). 204; the token stops with its next request, with a `PersonalAccessTokenRevoked` audit row. A bare 404 for another user's token, one already revoked — so a second click writes nothing — or one that doesn't exist. Refuses a personal access token (403). |
 | Any other `/api/...` path, any method | 404 with `{ "error": "No API endpoint matches <METHOD> <path>." }`, signed in or not |
 | Everything else | The web app's `index.html`, so client-side routes survive a reload |
 
@@ -2771,10 +2958,15 @@ page, so a mistyped API call can't look like a success. A 404 for an id in the p
 exist has no body at all.
 
 Health, setup, sign-in, refresh and sign-out need no access token; every other endpoint needs
-`Authorization: Bearer <access token>`, and answers 401 `{ "error": "Sign in to continue." }`
-without one or when the token's session has ended. An owner-only request from anyone else answers
-403 `{ "error": "Only the installation owner can do this." }`. The refresh cookie is sent only to
-`/api/auth`. Instants are UTC with a trailing `Z`.
+`Authorization: Bearer <access token>` — a sign-in's access token or a personal access token,
+`mam_pat_…` —, and answers 401 `{ "error": "Sign in to continue." }` without one, when the access
+token's session has ended, or when the personal access token is wrong, revoked or expired or its user
+is disabled or deleted. An owner-only request from anyone else answers 403 `{ "error": "Only the
+installation owner can do this." }`. A request a personal access token may not make answers 403 with
+the token's sentence, before any owner check: everything under `/api/settings`, `GET /api/auth/me`,
+`POST /api/auth/password` and `/api/profile/tokens` for every token, every other write but the three
+of `Read and download`, and those three for `Read only` (see [Scripts and the API](#scripts-and-the-api)).
+The refresh cookie is sent only to `/api/auth`. Instants are UTC with a trailing `Z`.
 
 ### Health endpoints
 
@@ -3645,6 +3837,48 @@ and `IntegrationsPage.test.tsx` Transmission's address, its mappings' help and i
 `destinations-api.test.ts` the Edit dialog's `destinationId`, and `ReleaseDetailsDialog.test.tsx` what
 a release's description was read as.
 
+Personal access tokens (MAM-5) are tested over HTTP with tokens planted in any state by
+`PersonalAccessTokenSeeder` and `PersonalAccessTokenDataFactory` — any access, name, expiry, revoked,
+last used — and `PersonalAccessTokenProbeController`, a test-only controller with a GET, unmarked
+writes, a write with no method, and each mark, so the rule is proved on endpoints that change nothing.
+`PersonalAccessTokenAuthenticationHttpTests` covers who a token is: its user's answers — a member's
+token reading only that member's jobs —, the one 401 for a wrong, unknown, malformed, revoked and
+expired token and a disabled and a deleted user's, byte for byte against a refused session token's
+(the writer a missing sign-in gets too), "last used" written at most once a minute and not even sent
+within the minute, so a token request answers while another connection holds SQLite's write lock, a
+failed attempt taking from the sign-in limit, the 429 with `Retry-After` for every token from an
+address while its limit is used up, and thirty guesses sent at once getting no more than ten lookups.
+`PersonalAccessTokenWritesHttpTests` discovers every endpoint of the API and sends every write but
+the explicit list as the owner — so no owner filter can hide a missing token rule — and every
+Settings read, `GET /api/auth/me` and the token list, with a token of each kind: each answers 403
+with the token's sentence and changes nothing; the list, the two reading POSTs and the refusals are
+fixed in the test so it guards itself, the three writes are refused to a `Read only` token with its
+sentence, one token's refusals write one audit row a minute, and a refusal within the minute answers
+while another connection holds the write lock.
+`PersonalAccessTokenConventionHttpTests` proves the rule on `PersonalAccessTokenProbeController`, an
+unmarked write standing for an endpoint added later. `DownloadsPersonalAccessTokenHttpTests` covers a
+send with extra replacement fields that still schedules no replacement, a cancel, the cancel of a
+job whose replacement is followed, refused with nothing changed, and the cancel of a job no cancel
+can take, the 409 a session gets whatever its replacement;
+`RecommendationDismissalsPersonalAccessTokenHttpTests` Not interested and its undo, refused.
+`PersonalAccessTokensHttpTests` covers creating, listing and revoking on Profile — every 400 sentence,
+the secret only in the create answer, the hash stored, a create racing the owner's reset, disable or
+delete of its user answering 401 and storing nothing, an expired token listed and a revoked one gone,
+another user's token a bare 404, the audit rows —, `PersonalAccessTokenCreateSessionTests` the
+create's second look at the session for every way a session ends,
+`PersonalAccessTokensAccessHttpTests` the token management, `GET /api/auth/me` and
+`POST /api/auth/password` refusing every token, and
+`UsersTokensHttpTests` the Users page's count and **Revoke tokens** with its 204 and 404;
+`UsersPasswordHttpTests` and `UsersLifecycleHttpTests` a reset and a disable revoking the user's
+tokens, and `AuthPasswordHttpTests` the user's own password change keeping them.
+`AddPersonalAccessTokensMigrationTests` proves the migration creates one table and rebuilds none, and
+`PersonalAccessTokenPersistenceTests` the cascade and the unique hash. In
+the web app, `AccessTokensCard.test.tsx` covers the card's list, its empty state, a new token listed
+without its secret and **Revoke**, `CreateAccessTokenDialog.test.tsx` the form, its 400s, the secret
+shown once, **Copy** on a plain-HTTP page and a dialog that can't be closed while the token is being
+created, `ProfilePage.test.tsx` the cards' order and `UsersPage.test.tsx` the count, **Revoke tokens**
+and **Disable** asking first, with the count, only for a user with active tokens.
+
 The frontend checks, in `frontend/` (`npm run build` also type-checks with `tsc -b`):
 
 ```bash
@@ -3668,7 +3902,8 @@ Jenkinsfile.publish                            a release, started by hand: tests
 tools/check-image-user.sh                      checks whom a built image runs the app as
 src/
   MediaAcquisitionManager.Api/                 ASP.NET Core host: Program.cs, controllers, sign-in
-                                               and sessions, user management, integration
+                                               and sessions, personal access tokens and what
+                                               each may reach, user management, integration
                                                settings, the library and its background sync,
                                                the media folders, the file inspection with its
                                                hashing, the room the files take, the duplicate
@@ -3769,10 +4004,11 @@ no known context), the startup skips both.
 
 ## Planned features
 
-Work is planned in four phases. [ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar
-of each, and the tickets of Phase A (MAM-1 to MAM-16), Phase B (MAM-17 to MAM-22, MAM-32 to
-MAM-38 and MAM-42 to MAM-44), Phase C (MAM-23 to MAM-28 and MAM-39 to MAM-41) and Phase D (MAM-29 to
-MAM-31).
+Work is planned in five phases: the specification's four, and Phase E, Vasyl's own (2026-10-14).
+[ROADMAP.md](ROADMAP.md) has the scope, tests and acceptance bar of each, and the tickets of Phase A
+(MAM-1 to MAM-16 but MAM-5), Phase B (MAM-17 to MAM-22, MAM-32 to MAM-38 and MAM-42 to MAM-44),
+Phase C (MAM-23 to MAM-28 and MAM-39 to MAM-41), Phase D (MAM-29 to MAM-31) and Phase E (MAM-5 and
+MAM-45 to MAM-48).
 
 1. **Phase A: a vertical slice with no removal (release 0.1.0).** Build configuration, a local UI,
    Jellyfin inventory with ffprobe facts of its files, one Torznab search adapter, qBittorrent
@@ -3826,6 +4062,14 @@ MAM-31).
    destinations, Jackett's feed, and the Search page reading a release's description (built, 0.4.0,
    MAM-30); and try the whole flow on a clean installation with Jellyfin, Jackett and Transmission
    (done on 2026-10-14, MAM-31, whose fixes are in 0.4.0). Add other media servers when needed.
+5. **Phase E: scripts, AI assistants and languages (release 0.5.0).** Reach the app without the web
+   page and use it in Ukrainian (Vasyl's request of 2026-10-14; tickets MAM-5 and MAM-45 to
+   MAM-48): personal access tokens, created, listed and revoked on Profile, `Read only` or `Read and
+   download`, acting as their user and writing only what an explicit list opens, the owner counting
+   and revoking each user's (built, 0.5.0, MAM-5, moved from Phase A); an MCP endpoint through which
+   an AI assistant searches, sends downloads and follows jobs with such a token (MAM-45); the web app
+   in Ukrainian (MAM-46) and the server's sentences in the user's language (MAM-47); and a check on
+   production (MAM-48).
 
 ## Project documentation
 

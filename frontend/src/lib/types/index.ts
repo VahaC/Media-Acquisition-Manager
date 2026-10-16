@@ -1,3 +1,4 @@
+export type * from './access-tokens'
 export type * from './allowed-roots'
 export type * from './auth'
 export type * from './copy-removals'

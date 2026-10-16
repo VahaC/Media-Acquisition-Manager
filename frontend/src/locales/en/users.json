@@ -10,19 +10,26 @@
     "userName": "User name",
     "created": "Created",
     "lastSignIn": "Last sign-in",
+    "tokens": "Access tokens",
     "actions": "Actions"
   },
   "owner": "Owner",
   "disabled": "Disabled",
   "never": "Never",
+  "tokens": {
+    "count_one": "{{value}} token",
+    "count_other": "{{value}} tokens"
+  },
   "actions": {
     "enable": "Enable",
     "disable": "Disable",
     "resetPassword": "Reset password",
+    "revokeTokens": "Revoke tokens",
     "delete": "Delete"
   },
   "ownerCannotBeDisabled": "The installation owner can't be disabled.",
   "ownerCannotBeDeleted": "The installation owner can't be deleted.",
+  "noTokens": "No active tokens.",
   "actionFailed": "Could not change this user. Reload the page and try again.",
   "loadFailed": "Could not load the users.",
   "refreshFailed": "Refresh failed, showing the last loaded users.",
@@ -35,15 +42,28 @@
     "submitting": "Adding…",
     "failed": "Could not add the user."
   },
+  "disable": {
+    "title": "Disable {{name}}?",
+    "message_one": "{{name}} is signed out on every device and can't sign in until enabled again. Their active access token is revoked: scripts and AI assistants that use it are refused, and Enable won't bring it back.",
+    "message_other": "{{name}} is signed out on every device and can't sign in until enabled again. Their {{value}} active access tokens are revoked: scripts and AI assistants that use them are refused, and Enable won't bring them back.",
+    "confirm": "Disable"
+  },
   "reset": {
     "title": "Reset the password of {{name}}",
-    "description": "{{name}} is signed out on every device and signs in again with the new password.",
-    "descriptionSelf": "Your other devices are signed out. This one stays signed in.",
+    "description": "{{name}} is signed out on every device and signs in again with the new password. Their access tokens stop working.",
+    "descriptionSelf": "Your other devices are signed out. This one stays signed in. Your access tokens stop working.",
     "newPassword": "New password",
     "submit": "Reset password",
     "submitting": "Saving…",
     "failed": "Could not reset the password.",
     "done": "The password of {{name}} was reset."
+  },
+  "revokeTokens": {
+    "title": "Revoke the access tokens of {{name}}?",
+    "message_one": "The active access token of {{name}} stops working at once: scripts and AI assistants that use it are refused. This can't be undone.",
+    "message_other": "The {{value}} active access tokens of {{name}} stop working at once: scripts and AI assistants that use them are refused. This can't be undone.",
+    "confirm": "Revoke tokens",
+    "done": "The access tokens of {{name}} were revoked."
   },
   "delete": {
     "title": "Delete {{name}}?",

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
+import { KeyRound, ShieldOff, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Banner } from '@/components/shared/Banner'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input'
 import { CreateUserDialog } from '@/components/users/CreateUserDialog'
 import { ResetPasswordDialog } from '@/components/users/ResetPasswordDialog'
 import { useAuthStore } from '@/lib/auth-store'
-import { formatDateTime } from '@/lib/format'
-import { useDeleteUser, useDisableUser, useEnableUser, useUsers } from '@/lib/queries'
+import { formatDateTime, formatNumber } from '@/lib/format'
+import { useDeleteUser, useDisableUser, useEnableUser, useRevokeUserTokens, useUsers } from '@/lib/queries'
 import type { UserSummary } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
 import { useLoadRetry } from '@/lib/use-load-retry'
@@ -32,6 +32,10 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  * user, disable or enable one, reset a password, delete one after a confirmation. The owner's own
  * row can't be disabled or deleted, and says why.
  *
+ * MAM-5 — each row counts the user's active personal access tokens, and Revoke tokens ends them all
+ * after a confirmation, the owner's own included. Disable ends them too, so it asks first when there
+ * are any.
+ *
  * A non-owner who opens the address gets the API's 403 sentence in place of the list.
  */
 export function UsersPage() {
@@ -41,6 +45,7 @@ export function UsersPage() {
   const disable = useDisableUser()
   const enable = useEnableUser()
   const remove = useDeleteUser()
+  const revokeTokens = useRevokeUserTokens()
   const [search, setSearch] = useState('')
   const [pageSize, setPageSize] = usePageSize(PAGE_SIZE_STORAGE_KEY)
   // The page remembers the search it belongs to, so a different search starts again at page 1
@@ -51,6 +56,8 @@ export function UsersPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   // MAM-16 — whose password was just reset: the dialog has closed, so the page says it went through.
   const [resetDone, setResetDone] = useState<string | null>(null)
+  // MAM-5 — whose access tokens were just revoked: the row's count drops to 0, which is easy to miss.
+  const [tokensRevoked, setTokensRevoked] = useState<string | null>(null)
 
   // Typing waits for a pause; emptying the box shows every user at once.
   const debouncedSearch = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS)
@@ -79,6 +86,7 @@ export function UsersPage() {
   const changeUser = async (action: () => Promise<unknown>) => {
     setActionError(null)
     setResetDone(null)
+    setTokensRevoked(null)
     try {
       await action()
     } catch (e: unknown) {
@@ -86,8 +94,27 @@ export function UsersPage() {
     }
   }
 
-  const setDisabled = (user: UserSummary, disabled: boolean) =>
-    void changeUser(() => (disabled ? disable : enable).mutateAsync(user.id))
+  /**
+   * MAM-5 (ADR 0040) — Disable also revokes the user's access tokens, and Enable brings back the
+   * account, not the tokens: every script would need a new one. So Disable asks first when there are
+   * tokens to lose, like Revoke tokens; without any, and for Enable, it stays instant.
+   */
+  const setDisabled = async (user: UserSummary, disabled: boolean) => {
+    if (disabled && user.activeTokenCount > 0) {
+      const confirmed = await confirm({
+        title: t('disable.title', { name: user.userName }),
+        message: t('disable.message', {
+          name: user.userName,
+          count: user.activeTokenCount,
+          value: formatNumber(user.activeTokenCount),
+        }),
+        confirmLabel: t('disable.confirm'),
+        destructive: true,
+      })
+      if (!confirmed) return
+    }
+    await changeUser(() => (disabled ? disable : enable).mutateAsync(user.id))
+  }
 
   const deleteUser = async (user: UserSummary) => {
     const confirmed = await confirm({
@@ -104,14 +131,33 @@ export function UsersPage() {
     })
   }
 
+  const revokeUserTokens = async (user: UserSummary) => {
+    const confirmed = await confirm({
+      title: t('revokeTokens.title', { name: user.userName }),
+      message: t('revokeTokens.message', {
+        name: user.userName,
+        count: user.activeTokenCount,
+        value: formatNumber(user.activeTokenCount),
+      }),
+      confirmLabel: t('revokeTokens.confirm'),
+      destructive: true,
+    })
+    if (!confirmed) return
+    await changeUser(async () => {
+      await revokeTokens.mutateAsync(user.id)
+      setTokensRevoked(user.userName)
+    })
+  }
+
   /** A reset refused stays in its dialog; one that went through is the only news above the list. */
   const passwordReset = (user: UserSummary) => {
     setActionError(null)
+    setTokensRevoked(null)
     setResetDone(user.userName)
   }
 
   const busyWith = (user: UserSummary) =>
-    [disable, enable, remove].some((mutation) => mutation.isPending && mutation.variables === user.id)
+    [disable, enable, remove, revokeTokens].some((mutation) => mutation.isPending && mutation.variables === user.id)
 
   return (
     <div className="settings-page">
@@ -153,6 +199,11 @@ export function UsersPage() {
           {t('reset.done', { name: resetDone })}
         </Banner>
       )}
+      {tokensRevoked && (
+        <Banner tone="ok" onDismiss={() => setTokensRevoked(null)}>
+          {t('revokeTokens.done', { name: tokensRevoked })}
+        </Banner>
+      )}
 
       {/* A member's 403 is the server's lasting answer: no Try again for it (retryCanHelp). */}
       {load.error ? (
@@ -181,6 +232,7 @@ export function UsersPage() {
                   <th scope="col">{t('columns.userName')}</th>
                   <th scope="col">{t('columns.created')}</th>
                   <th scope="col">{t('columns.lastSignIn')}</th>
+                  <th scope="col">{t('columns.tokens')}</th>
                   <th scope="col">{t('columns.actions')}</th>
                 </tr>
               </thead>
@@ -190,8 +242,9 @@ export function UsersPage() {
                     key={user.id}
                     user={user}
                     busy={busyWith(user)}
-                    onSetDisabled={(disabled) => setDisabled(user, disabled)}
+                    onSetDisabled={(disabled) => void setDisabled(user, disabled)}
                     onResetPassword={() => setResetting(user)}
+                    onRevokeTokens={() => void revokeUserTokens(user)}
                     onDelete={() => void deleteUser(user)}
                   />
                 ))}
@@ -231,14 +284,17 @@ interface UserRowProps {
   busy: boolean
   onSetDisabled: (disabled: boolean) => void
   onResetPassword: () => void
+  onRevokeTokens: () => void
   onDelete: () => void
 }
 
 /**
  * A table row on a wide screen, a card on a phone: every cell carries its column name in
- * `data-label` for the stacked layout. Disable/Enable is instant — it is undone by the other one.
+ * `data-label` for the stacked layout. Enable is instant, and so is Disable of a user without active
+ * access tokens — the other one undoes it. Disable of a user with tokens asks first (MAM-5): it revokes
+ * them, and Enable doesn't bring them back.
  */
-function UserRow({ user, busy, onSetDisabled, onResetPassword, onDelete }: UserRowProps) {
+function UserRow({ user, busy, onSetDisabled, onResetPassword, onRevokeTokens, onDelete }: UserRowProps) {
   const { t } = useTranslation('users')
 
   return (
@@ -253,6 +309,9 @@ function UserRow({ user, busy, onSetDisabled, onResetPassword, onDelete }: UserR
       <td data-label={t('columns.created')}>{formatDateTime(user.createdUtc, INSTANT_FORMAT)}</td>
       <td data-label={t('columns.lastSignIn')}>
         {user.lastSignInUtc ? formatDateTime(user.lastSignInUtc, INSTANT_FORMAT) : t('never')}
+      </td>
+      <td data-label={t('columns.tokens')}>
+        {t('tokens.count', { count: user.activeTokenCount, value: formatNumber(user.activeTokenCount) })}
       </td>
       <td className="settings-actions-cell">
         <div className="settings-actions">
@@ -294,6 +353,21 @@ function UserRow({ user, busy, onSetDisabled, onResetPassword, onDelete }: UserR
             <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="label-text">{t('actions.resetPassword')}</span>
           </Button>
+          {/* Disabled with the reason rather than hidden: the column beside it says 0. */}
+          <DisabledReason reason={user.activeTokenCount === 0 ? t('noTokens') : undefined}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ui-button-danger"
+              title={t('actions.revokeTokens')}
+              disabled={user.activeTokenCount === 0 || busy}
+              onClick={onRevokeTokens}
+            >
+              <ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="label-text">{t('actions.revokeTokens')}</span>
+            </Button>
+          </DisabledReason>
           <DisabledReason reason={user.isOwner ? t('ownerCannotBeDeleted') : undefined}>
             <Button
               type="button"

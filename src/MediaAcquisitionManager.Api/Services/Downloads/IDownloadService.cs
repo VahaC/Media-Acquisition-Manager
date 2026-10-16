@@ -85,7 +85,10 @@ public interface IDownloadService
     /// they are (ADR 0014) — and the release may be sent again. <see cref="DownloadCancelStatus.NotFound"/> when
     /// there is no such job or it is another user's; <see cref="DownloadCancelStatus.NothingToStop"/>, changing
     /// nothing, when it already ended; <see cref="DownloadCancelStatus.StillBeingSent"/>, changing nothing, when
-    /// it is <c>Created</c> and its send may still be under way.
+    /// it is <c>Created</c> and its send may still be under way. MAM-5 — a job's replacement still followed ends with it,
+    /// unless <paramref name="mayEndReplacement"/> is false (a personal access token's cancel): then
+    /// <see cref="DownloadCancelStatus.ReplacementNeedsTheWebApp"/>, changing nothing — only when the cancel would
+    /// really take the job, though; a job that can't be cancelled gets the same status a session's cancel gets.
     /// </summary>
-    Task<DownloadCancelResult> CancelAsync(Guid jobId, Guid callerUserId, CancellationToken cancellationToken = default);
+    Task<DownloadCancelResult> CancelAsync(Guid jobId, Guid callerUserId, bool mayEndReplacement, CancellationToken cancellationToken = default);
 }

@@ -19,6 +19,7 @@ const vasyl: UserSummary = {
   isDisabled: false,
   createdUtc: '2026-09-01T08:00:00Z',
   lastSignInUtc: '2026-09-28T09:30:00Z',
+  activeTokenCount: 2,
 }
 const olena: UserSummary = {
   id: member.id,
@@ -27,6 +28,7 @@ const olena: UserSummary = {
   isDisabled: false,
   createdUtc: '2026-09-10T08:00:00Z',
   lastSignInUtc: null,
+  activeTokenCount: 1,
 }
 const taras: UserSummary = {
   id: '0b6f2c1e-4a1d-4f7a-9c1e-000000000003',
@@ -35,7 +37,10 @@ const taras: UserSummary = {
   isDisabled: true,
   createdUtc: '2026-09-12T08:00:00Z',
   lastSignInUtc: '2026-09-20T18:45:00Z',
+  activeTokenCount: 0,
 }
+/** olena before she created an access token: her Disable has nothing to revoke, so it doesn't ask (MAM-5). */
+const olenaWithoutTokens: UserSummary = { ...olena, activeTokenCount: 0 }
 
 /** The page the server answers `query` with, out of `total` users. */
 function pageOf(query: UsersQuery, items: UserSummary[], total = items.length): UserList {
@@ -204,12 +209,13 @@ describe('UsersPage', () => {
     expect(screen.queryByText('No users match “zz”.')).not.toBeInTheDocument()
   })
 
-  it('disables a user at once, without asking, and shows the refreshed row', async () => {
+  it('disables a user without an active access token at once, without asking, and shows the refreshed row', async () => {
     // Arrange
+    vi.mocked(usersApi.list).mockImplementation(async (query) => pageOf(query, [vasyl, olenaWithoutTokens, taras]))
     vi.mocked(usersApi.disable).mockImplementation(async () => {
       vi.mocked(usersApi.list).mockImplementation(async (query) =>
-        pageOf(query, [vasyl, { ...olena, isDisabled: true }, taras]))
-      return { ...olena, isDisabled: true }
+        pageOf(query, [vasyl, { ...olenaWithoutTokens, isDisabled: true }, taras]))
+      return { ...olenaWithoutTokens, isDisabled: true }
     })
     const { user } = renderPage()
     await screen.findByText('olena')
@@ -238,8 +244,73 @@ describe('UsersPage', () => {
     await vi.waitFor(() => expect(usersApi.list).toHaveBeenCalledTimes(2))
   })
 
+  it('asks before disabling a user with an active access token, and disables them only once it is accepted', async () => {
+    // Arrange
+    vi.mocked(usersApi.disable).mockImplementation(async () => {
+      vi.mocked(usersApi.list).mockImplementation(async (query) =>
+        pageOf(query, [vasyl, { ...olena, isDisabled: true, activeTokenCount: 0 }, taras]))
+      return { ...olena, isDisabled: true, activeTokenCount: 0 }
+    })
+    const { user } = renderPage()
+    await screen.findByText('olena')
+    await user.click(within(rowOf('olena')).getByRole('button', { name: 'Disable' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Disable olena?' })
+    const confirmDisable = within(confirmation).getByRole('button', { name: 'Disable' })
+    const calledBeforeConfirming = vi.mocked(usersApi.disable).mock.calls.length
+
+    // Act
+    await user.click(confirmDisable)
+
+    // Assert
+    expect(await within(rowOf('olena')).findByRole('button', { name: 'Enable' })).toBeInTheDocument()
+    expect(calledBeforeConfirming).toBe(0)
+    expect(usersApi.disable).toHaveBeenCalledExactlyOnceWith(olena.id)
+    // MAM-5 (ADR 0040) — Disable revokes the tokens for good: the confirmation says so before anything is lost.
+    expect(confirmation).toHaveTextContent(
+      'olena is signed out on every device and can\'t sign in until enabled again. Their active access token is revoked: '
+      + 'scripts and AI assistants that use it are refused, and Enable won\'t bring it back.')
+    expect(confirmDisable).toHaveClass('ui-button-destructive')
+    expect(rowOf('olena').querySelector('td[data-label="Access tokens"]')).toHaveTextContent('0 tokens')
+  })
+
+  it('counts the access tokens a Disable revokes in its confirmation', async () => {
+    // Arrange
+    vi.mocked(usersApi.list).mockImplementation(async (query) =>
+      pageOf(query, [vasyl, { ...olena, activeTokenCount: 3 }, taras]))
+    const { user } = renderPage()
+    await screen.findByText('olena')
+
+    // Act
+    await user.click(within(rowOf('olena')).getByRole('button', { name: 'Disable' }))
+
+    // Assert
+    const confirmation = await screen.findByRole('dialog', { name: 'Disable olena?' })
+    expect(confirmation).toHaveTextContent(
+      'Their 3 active access tokens are revoked: scripts and AI assistants that use them are refused, and Enable won\'t bring them back.')
+    expect(usersApi.disable).not.toHaveBeenCalled()
+  })
+
+  it('does not disable a user with an active access token when the confirmation is cancelled', async () => {
+    // Arrange
+    const { user } = renderPage()
+    await screen.findByText('olena')
+    await user.click(within(rowOf('olena')).getByRole('button', { name: 'Disable' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Disable olena?' })
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(usersApi.disable).not.toHaveBeenCalled()
+    expect(usersApi.enable).not.toHaveBeenCalled()
+    expect(within(rowOf('olena')).getByRole('button', { name: 'Disable' })).toBeEnabled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('shows the API sentence above the list when an action is refused', async () => {
     // Arrange
+    vi.mocked(usersApi.list).mockImplementation(async (query) => pageOf(query, [vasyl, olenaWithoutTokens, taras]))
     vi.mocked(usersApi.disable).mockRejectedValue(apiError(409, 'The installation owner can\'t be disabled.'))
     const { user } = renderPage()
     await screen.findByText('olena')
@@ -254,6 +325,7 @@ describe('UsersPage', () => {
 
   it('takes a refused action\'s banner away on Dismiss', async () => {
     // Arrange
+    vi.mocked(usersApi.list).mockImplementation(async (query) => pageOf(query, [vasyl, olenaWithoutTokens, taras]))
     vi.mocked(usersApi.disable).mockRejectedValue(apiError(409, 'The installation owner can\'t be disabled.'))
     const { user } = renderPage()
     await screen.findByText('olena')
@@ -501,6 +573,7 @@ describe('UsersPage', () => {
 
   it('takes the reset\'s banner away with the next action, which reports only its own outcome', async () => {
     // Arrange
+    vi.mocked(usersApi.list).mockImplementation(async (query) => pageOf(query, [vasyl, olenaWithoutTokens, taras]))
     vi.mocked(usersApi.resetPassword).mockResolvedValue()
     vi.mocked(usersApi.disable).mockRejectedValue(apiError(409, 'The installation owner can\'t be disabled.'))
     const { user } = renderPage()
@@ -528,5 +601,125 @@ describe('UsersPage', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not reset the password.')
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('shows each user\'s count of active access tokens in its own column', async () => {
+    // Arrange
+    renderPage()
+
+    // Act
+    await screen.findByText('olena')
+
+    // Assert
+    expect(screen.getByRole('columnheader', { name: 'Access tokens' })).toBeInTheDocument()
+    expect(rowOf('vasyl').querySelector('td[data-label="Access tokens"]')).toHaveTextContent(/^2 tokens$/)
+    expect(rowOf('olena').querySelector('td[data-label="Access tokens"]')).toHaveTextContent(/^1 token$/)
+    expect(rowOf('taras').querySelector('td[data-label="Access tokens"]')).toHaveTextContent(/^0 tokens$/)
+  })
+
+  it('keeps Revoke tokens disabled for a user without an active token, and says why', async () => {
+    // Arrange
+    renderPage()
+
+    // Act
+    await screen.findByText('taras')
+
+    // Assert
+    const revoke = within(rowOf('taras')).getByRole('button', { name: 'Revoke tokens' })
+    expect(revoke).toBeDisabled()
+    expect(revoke).toHaveClass('ui-button-danger')
+    expect(revoke.parentElement).toHaveAttribute('title', 'No active tokens.')
+    expect(within(rowOf('olena')).getByRole('button', { name: 'Revoke tokens' })).toBeEnabled()
+    expect(within(rowOf('vasyl')).getByRole('button', { name: 'Revoke tokens' })).toBeEnabled()
+  })
+
+  it('does not revoke a user\'s tokens when the confirmation is cancelled', async () => {
+    // Arrange
+    const { user } = renderPage()
+    await screen.findByText('olena')
+    await user.click(within(rowOf('olena')).getByRole('button', { name: 'Revoke tokens' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Revoke the access tokens of olena?' })
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+
+    // Assert
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(usersApi.revokeTokens).not.toHaveBeenCalled()
+  })
+
+  it('revokes a user\'s tokens only once the confirmation is accepted, says so above the list and shows the new count', async () => {
+    // Arrange
+    vi.mocked(usersApi.revokeTokens).mockImplementation(async () => {
+      vi.mocked(usersApi.list).mockImplementation(async (query) =>
+        pageOf(query, [vasyl, { ...olena, activeTokenCount: 0 }, taras]))
+    })
+    const { user } = renderPage()
+    await screen.findByText('olena')
+    await user.click(within(rowOf('olena')).getByRole('button', { name: 'Revoke tokens' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Revoke the access tokens of olena?' })
+    const calledBeforeConfirming = vi.mocked(usersApi.revokeTokens).mock.calls.length
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Revoke tokens' }))
+
+    // Assert
+    expect(await screen.findByRole('status')).toHaveTextContent('The access tokens of olena were revoked.')
+    expect(calledBeforeConfirming).toBe(0)
+    expect(usersApi.revokeTokens).toHaveBeenCalledExactlyOnceWith(olena.id)
+    expect(confirmation).toHaveTextContent(
+      'The active access token of olena stops working at once: scripts and AI assistants that use it are refused. This can\'t be undone.')
+    expect(rowOf('olena').querySelector('td[data-label="Access tokens"]')).toHaveTextContent('0 tokens')
+    expect(within(rowOf('olena')).getByRole('button', { name: 'Revoke tokens' })).toBeDisabled()
+  })
+
+  it('lets the owner revoke their own tokens, counting them in the confirmation', async () => {
+    // Arrange
+    vi.mocked(usersApi.revokeTokens).mockResolvedValue()
+    const { user } = renderPage()
+    await screen.findByText('vasyl')
+    await user.click(within(rowOf('vasyl')).getByRole('button', { name: 'Revoke tokens' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Revoke the access tokens of vasyl?' })
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Revoke tokens' }))
+
+    // Assert
+    expect(confirmation).toHaveTextContent('The 2 active access tokens of vasyl stop working at once')
+    expect(await screen.findByRole('status')).toHaveTextContent('The access tokens of vasyl were revoked.')
+    expect(usersApi.revokeTokens).toHaveBeenCalledExactlyOnceWith(vasyl.id)
+  })
+
+  it('shows a refused Revoke tokens above the list, in the app\'s words for a bare 404', async () => {
+    // Arrange
+    vi.mocked(usersApi.revokeTokens).mockRejectedValue(apiError(404))
+    const { user } = renderPage()
+    await screen.findByText('olena')
+    await user.click(within(rowOf('olena')).getByRole('button', { name: 'Revoke tokens' }))
+    const confirmation = await screen.findByRole('dialog', { name: 'Revoke the access tokens of olena?' })
+
+    // Act
+    await user.click(within(confirmation).getByRole('button', { name: 'Revoke tokens' }))
+
+    // Assert
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not change this user. Reload the page and try again.')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('asks for the list again after a password reset, which revokes the user\'s tokens', async () => {
+    // Arrange
+    vi.mocked(usersApi.resetPassword).mockImplementation(async () => {
+      vi.mocked(usersApi.list).mockImplementation(async (query) =>
+        pageOf(query, [vasyl, { ...olena, activeTokenCount: 0 }, taras]))
+    })
+    const { user } = renderPage()
+
+    // Act
+    await resetPassword(user, 'olena')
+
+    // Assert
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(rowOf('olena').querySelector('td[data-label="Access tokens"]')).toHaveTextContent('0 tokens')
+    expect(usersApi.list).toHaveBeenCalledTimes(2)
   })
 })

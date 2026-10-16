@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Mapping;
 using MediaAcquisitionManager.Api.Services.Audit;
 using MediaAcquisitionManager.Api.Services.Auth;
+using MediaAcquisitionManager.Api.Services.PersonalAccessTokens;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Entities;
@@ -18,6 +19,7 @@ public sealed class UserAccountService(
     IPasswordHasher hasher,
     IAuditTrail auditTrail,
     ISessionService sessions,
+    IPersonalAccessTokenService personalAccessTokens,
     IUserMapper mapper,
     TimeProvider time,
     ILogger<UserAccountService> logger) : IUserAccountService
@@ -56,14 +58,15 @@ public sealed class UserAccountService(
                 .ToListAsync(cancellationToken);
 
         var ownerUserId = await db.Installations.Select(installation => (Guid?)installation.OwnerUserId).SingleOrDefaultAsync(cancellationToken);
-        var items = rows.Select(user => mapper.ToDto(user, user.Id == ownerUserId)).ToList();
+        var tokenCounts = await CountActiveTokensAsync([.. rows.Select(user => user.Id)], cancellationToken);
+        var items = rows.Select(user => mapper.ToDto(user, user.Id == ownerUserId, tokenCounts.GetValueOrDefault(user.Id))).ToList();
         return UserListResult.Listed(new UserListResponse(items, totalCount, page, pageSize));
     }
 
     public async Task<UserDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == userId, cancellationToken);
-        return user is null ? null : mapper.ToDto(user, await IsOwnerAsync(user.Id, cancellationToken));
+        return user is null ? null : await ToDtoAsync(user, await IsOwnerAsync(user.Id, cancellationToken), cancellationToken);
     }
 
     public async Task<UserAccountResult> CreateAsync(string userName, string password, AccountCaller caller, CancellationToken cancellationToken = default)
@@ -107,7 +110,8 @@ public sealed class UserAccountService(
         }
 
         logger.LogInformation("{ActorUserName} created the user {UserName}.", actor.UserName, user.UserName);
-        return UserAccountResult.Succeeded(mapper.ToDto(user, isOwner: false));
+        // A user created a moment ago holds no token yet.
+        return UserAccountResult.Succeeded(mapper.ToDto(user, isOwner: false, activeTokenCount: 0));
     }
 
     public async Task<UserAccountResult> DisableAsync(Guid userId, AccountCaller caller, CancellationToken cancellationToken = default)
@@ -132,6 +136,10 @@ public sealed class UserAccountService(
                 // The session check already refuses a disabled user's tokens; ending the sessions too
                 // means enabling the user later doesn't bring back a device signed in before.
                 await sessions.RevokeAllForUserAsync(user.Id, cancellationToken: cancellationToken);
+                // MAM-5 — likewise their personal access tokens, which the token check already refuses
+                // too: an enable must not bring back a script given a token before (ADR 0040). In this
+                // transaction, with a "revoked" row each naming the owner.
+                await personalAccessTokens.RevokeAllForUserAsync(user.Id, actor, cancellationToken);
                 logger.LogInformation("{ActorUserName} disabled the user {UserName}.", actor.UserName, user.UserName);
             }
 
@@ -139,7 +147,7 @@ public sealed class UserAccountService(
         }
 
         user.IsDisabled = true;
-        return UserAccountResult.Succeeded(mapper.ToDto(user, isOwner: false));
+        return UserAccountResult.Succeeded(await ToDtoAsync(user, isOwner: false, cancellationToken));
     }
 
     public async Task<UserAccountResult> EnableAsync(Guid userId, AccountCaller caller, CancellationToken cancellationToken = default)
@@ -164,7 +172,7 @@ public sealed class UserAccountService(
         }
 
         user.IsDisabled = false;
-        return UserAccountResult.Succeeded(mapper.ToDto(user, await IsOwnerAsync(user.Id, cancellationToken)));
+        return UserAccountResult.Succeeded(await ToDtoAsync(user, await IsOwnerAsync(user.Id, cancellationToken), cancellationToken));
     }
 
     public async Task<UserAccountResult> ResetPasswordAsync(Guid userId, string password, AccountCaller caller, CancellationToken cancellationToken = default)
@@ -189,6 +197,11 @@ public sealed class UserAccountService(
             // Profile that asks for it), and stays signed in on the device they did it from. For any
             // other user the caller's session isn't theirs anyway.
             await sessions.RevokeAllForUserAsync(user.Id, caller.SessionId, cancellationToken);
+            // MAM-5 — and every personal access token of the user, the owner's own too when he resets his
+            // own password: a reset is the tool for a leaked password, and a token is no device he is
+            // working on (ADR 0016 amended, ADR 0040). In this transaction, with a "revoked" row each
+            // naming the owner. A user's own change of their password keeps their tokens.
+            await personalAccessTokens.RevokeAllForUserAsync(user.Id, actor, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
 
@@ -264,8 +277,8 @@ public sealed class UserAccountService(
         // The audit row copies the name: it has to say whom it was about after the user is gone.
         auditTrail.Record(AuditAction.UserDeleted, actor, AuditTarget.User(user));
         // A tracked delete rather than ExecuteDelete, so it commits in the same save as its audit row.
-        // The database does the rest: the user's sessions cascade, and the audit rows they acted in
-        // keep their name with the actor id set to null.
+        // The database does the rest: the user's sessions and (MAM-5) personal access tokens cascade,
+        // and the audit rows they acted in keep their name with the actor id set to null.
         db.Users.Remove(user);
 
         try
@@ -284,6 +297,16 @@ public sealed class UserAccountService(
         return UserAccountResult.Succeeded();
     }
 
+    public async Task<UserAccountResult> RevokeTokensAsync(Guid userId, Guid callerUserId, CancellationToken cancellationToken = default)
+    {
+        if (!await db.Users.AnyAsync(user => user.Id == userId, cancellationToken))
+            return UserAccountResult.NotFound;
+
+        // MAM-5 — by the caller's user id, not an AccountCaller: revoking tokens keeps no session, so it needs no sid.
+        await personalAccessTokens.RevokeAllForUserAsync(userId, await ActorAsync(callerUserId, cancellationToken), cancellationToken);
+        return UserAccountResult.Succeeded();
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     // Tracked, so the change the caller makes to it is what the next save writes.
@@ -295,10 +318,32 @@ public sealed class UserAccountService(
 
     // Read from the database rather than the token: the audit row carries the name the account has.
     private Task<AuditActor> ActorAsync(AccountCaller caller, CancellationToken cancellationToken) =>
+        ActorAsync(caller.UserId, cancellationToken);
+
+    private Task<AuditActor> ActorAsync(Guid userId, CancellationToken cancellationToken) =>
         db.Users
-            .Where(user => user.Id == caller.UserId)
+            .Where(user => user.Id == userId)
             .Select(user => new AuditActor(user.Id, user.UserName))
             .SingleAsync(cancellationToken);
+
+    private async Task<UserDto> ToDtoAsync(UserEntity user, bool isOwner, CancellationToken cancellationToken) =>
+        mapper.ToDto(user, isOwner, (await CountActiveTokensAsync([user.Id], cancellationToken)).GetValueOrDefault(user.Id));
+
+    // MAM-5 — the active personal access tokens of every user on a page in one grouped query, not one per row; active
+    // exactly as the token check has it (PersonalAccessTokenRules.IsActive). A user with none is missing from the map.
+    private async Task<Dictionary<Guid, int>> CountActiveTokensAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken)
+    {
+        if (userIds.Count == 0)
+            return [];
+
+        var now = time.GetUtcNow().UtcDateTime;
+        return await db.PersonalAccessTokens
+            .Where(PersonalAccessTokenRules.IsActive(now))
+            .Where(token => userIds.Contains(token.UserId))
+            .GroupBy(token => token.UserId)
+            .Select(group => new { UserId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(row => row.UserId, row => row.Count, cancellationToken);
+    }
 
     private static UserAccountResult NameTaken(string userName) =>
         UserAccountResult.NameTaken($"A user named “{userName}” already exists.");

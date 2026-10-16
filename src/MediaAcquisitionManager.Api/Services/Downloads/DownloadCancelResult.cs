@@ -17,4 +17,8 @@ public sealed record DownloadCancelResult(DownloadCancelStatus Status, DownloadJ
     public static DownloadCancelResult NothingToStop(string error) => new(DownloadCancelStatus.NothingToStop, null, error);
 
     public static DownloadCancelResult StillBeingSent(string error) => new(DownloadCancelStatus.StillBeingSent, null, error);
+
+    /// <summary>MAM-5 — the caller may not end the job's replacement, which the cancel would; the caller answers with
+    /// its own sentence.</summary>
+    public static DownloadCancelResult ReplacementNeedsTheWebApp { get; } = new(DownloadCancelStatus.ReplacementNeedsTheWebApp, null, null);
 }

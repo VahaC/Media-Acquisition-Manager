@@ -5,6 +5,132 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
 [semantic versioning](https://semver.org/) — released as tags of the Docker image
 `vahac/media-acquisition-manager`.
 
+## [0.5.0] — 2026-10-16
+
+### Added
+
+- **Every user creates, lists and revokes their own personal access tokens on Profile, for scripts
+  and other tools (MAM-5, ADR 0040, Vasyl's decisions of 2026-10-14 and 2026-10-16).** Profile's new
+  **Access tokens** card, after **Password**, lists the user's tokens newest first — name, first
+  characters (`mam_pat_AbC123…`), access, created, last used and expires, an expired one muted with an
+  **Expired** badge until revoked, a revoked one gone — with **Revoke** behind a confirmation and
+  **Create token**. Its dialog asks for a **Name** (at most 100 characters), the **Access** —
+  **Read only** or **Read and download**, each with a hint — and **Expires**: 30 days, 90 days (the
+  default), 1 year or never. It then shows the token once, with **Copy** (on a plain-HTTP address,
+  where the browser has no clipboard API, a selected-text copy, else "Select the token and press
+  Ctrl+C."), the warning "Copy it now: it won't be shown again.", a `curl` line and **Done**, and
+  doesn't close on an outside click meanwhile; while the token is being created it can't be closed at
+  all — Escape, the X, an outside click and a disabled Cancel do nothing —, so a token it makes always
+  shows its secret. A token is `mam_pat_` and 32 random bytes in base64url
+  (51 characters); the database keeps its SHA-256 hash in hex under a unique index and its first 14
+  characters, never the value. `GET /api/profile/tokens` lists the caller's tokens that aren't revoked,
+  unpaged, as they are one person's; `POST /api/profile/tokens` with `{ name, access, lifetime }`
+  answers 201 `{ token, secret }`, or 400 "Give the token a name, such as “Claude on the laptop”.",
+  "A token's name can be at most 100 characters.", "Choose the token's access: Read only or Read and
+  download." or "Choose when the token expires.", or, for a body that isn't a token — not JSON, or an
+  access or lifetime that isn't one of the names —, "Send the token as JSON: a name, access ReadOnly or
+  ReadAndDownload, and lifetime Days30, Days90, OneYear or Never."; the create checks the caller's
+  session again inside its write transaction, so one racing the owner's reset, disable or delete of
+  the user answers the 401 the session's next request gets and stores nothing — no token outlives the
+  revocation it raced (ADR 0002's MAM-5 section); `DELETE /api/profile/tokens/{id}` answers 204, and a
+  bare 404 for another user's token or one already revoked, so a double click writes one audit row.
+  `Profile/PersonalAccessTokensHttpTests`, `Profile/PersonalAccessTokenCreateSessionTests` and
+  `Profile/PersonalAccessTokensAccessHttpTests` pin them.
+- **A token acts as its user, reads what that user reads, and writes only what an explicit list opens
+  (MAM-5, ADR 0040).** A request with `Authorization: Bearer mam_pat_…` is answered as its user — a
+  member's token reads only that member's jobs and searches, and an owner-only read refuses it as it
+  refuses the member. **Read only** opens every GET the user can reach and the two searches, POSTs
+  marked as reads (`POST /api/searches`, `POST /api/releases/search`); **Read and download** adds
+  exactly `POST /api/downloads` — always Keep both, as `SendDownloadRequest` has no replacement
+  field —, `POST /api/downloads/{id}/cancel` and `PUT /api/recommendations/dismissals/{kind}/{catalogId}`.
+  Every other write refuses any token, an endpoint added later included, and so do `GET /api/auth/me`,
+  `POST /api/auth/password`, the whole of `/api/profile/tokens` and every endpoint under
+  `Controllers/Settings`, reads included (a default put to Vasyl): 403 "An access token can't do this. A
+  token reads, and with “Read and download” access also sends downloads, cancels following and marks
+  Not interested; everything else is done in the web app. See “Scripts and the API” in the README.", or,
+  for a **Read only** token on the three writes, "This access token is read only. To send downloads,
+  cancel following or mark Not interested from a script, create a token with “Read and download”
+  access on your Profile page; see “Scripts and the API” in the README." A token's cancel that takes
+  a job whose replacement is still followed is refused and rolled back, nothing changed (a default
+  put to Vasyl): "This job also replaces a copy in the library, and an access token never touches a
+  replacement. Cancel it on the Jobs page of the web app; see “Scripts and the API” in the README.";
+  a cancel that takes nothing — the job already ended, or still being sent — answers the token the
+  409 a session gets, whatever replacement the job carries. Undoing Not interested stays closed (a
+  default put to Vasyl). The rule is the default authorization policy,
+  read from endpoint metadata (`[PersonalAccessTokenRead]`, `[PersonalAccessTokenWrite]`,
+  `[DenyPersonalAccessToken]`), and `SettingsWritesAreOwnerOnlyConvention` adds the deny to every
+  Settings action's endpoint metadata.
+  `Conventions/PersonalAccessTokenWritesHttpTests` keeps the list fixed and sends every other write of
+  the API as the owner, and every refused read, with a token of each kind;
+  `Conventions/PersonalAccessTokenConventionHttpTests` proves the rule on test-only endpoints, an
+  unmarked one standing for an endpoint added later; `Downloads/DownloadsPersonalAccessTokenHttpTests`
+  and `Recommendations/RecommendationDismissalsPersonalAccessTokenHttpTests` the three writes, the
+  refused cancel, the 409 of a cancel that takes nothing and the refused undo.
+- **The owner sees each user's active tokens and revokes them all (MAM-5, ADR 0040).** The
+  Users page has an **Access tokens** column with each user's number of tokens neither revoked nor
+  expired, and a **Revoke tokens** action behind a destructive confirmation, waiting with "No active
+  tokens." at none. **Disable**, which now revokes the user's tokens, asks first for a user with
+  active tokens, saying how many it revokes and that Enable won't bring them back, and disables a
+  user without any at once, as before (`UsersPage.test.tsx`). `DELETE /api/settings/users/{id}/tokens`
+  answers 204, also when the user has none — then with no audit row —, and a bare 404 for an unknown
+  user; it lives under `/api/settings/users`, owner-only by folder, where the ticket wrote
+  `/api/users/…`, which doesn't exist. `Settings/UsersTokensHttpTests` pins it.
+- **Three audit actions (MAM-5).** `PersonalAccessTokenCreated` (actor the user, target the token by
+  its name), `PersonalAccessTokenRevoked` (actor whoever revoked — the user, or the owner for revoke-all,
+  a reset or a disable —, one row per token) and `PersonalAccessTokenRefused` (actor the token's user),
+  at most one refused row per token a minute, while every refusal logs a warning with its method and
+  path; target kind `PersonalAccessToken`.
+
+### Changed
+
+- **Every request with a token checks it, and every failure answers the one 401 (MAM-5, ADR 0002's
+  MAM-5 section).** A wrong, unknown, malformed, revoked or expired token, and a disabled or deleted
+  user's, answer 401 with `WWW-Authenticate: Bearer` and `{ "error": "Sign in to continue." }`, the
+  same bytes as a missing or ended sign-in, now written by one shared writer for both. "Last used" is
+  written at most once a minute, and within the minute no update is even sent — nor a refusal's
+  audit claim —, since in SQLite an update that matches no row still waits for the one write lock.
+  `Auth/PersonalAccessTokenAuthenticationHttpTests` pins it.
+- **The owner's password reset and Disable revoke the user's tokens; a user's own password change
+  keeps them (MAM-5, ADR 0016's MAM-5 section, defaults put to Vasyl).** A reset revokes every token of
+  the user, the owner's reset of his own password included; a disable revokes them in the same
+  transaction as the sessions, so Enable brings none back; a delete takes them with the user. Profile's
+  Password card adds "Your access tokens keep working.", and the Users page's Reset password dialog
+  says the user's access tokens stop working. `UserDto` — the Users list and every user answer —
+  carries `activeTokenCount`, read for a whole page in one grouped query.
+  `Settings/UsersPasswordHttpTests`, `Settings/UsersLifecycleHttpTests` and `Auth/AuthPasswordHttpTests`
+  pin it.
+- **Failed token attempts count against the sign-in limit of their address (MAM-5, ADR 0040).**
+  `SignInRateLimitPolicy` keeps its name, numbers and partition, and draws from one shared store,
+  `SignInAttemptLimiter`, which a failed token attempt also takes from. While an address's ten a
+  minute are used up, every token request from it to an endpoint that needs a signed-in user answers
+  429 "Too many attempts. Wait a minute and try again." with `Retry-After`, without the token being
+  looked up — the health endpoints, refresh and sign-out answer as without a token —; a lookup under
+  way counts against the attempts left until it ends, so guesses sent at once get no more lookups
+  than guesses sent one after the other; a good token takes nothing, and sign-in and setup count as
+  before, every attempt, successful or not.
+
+### Notes for upgraders
+
+- **Applying `AddPersonalAccessTokens` rebuilds no table, so it logs no warning 20410 (MAM-5).** It
+  creates one table, `PersonalAccessTokens` — `Id`, `UserId`, `Name`, `Prefix`, `TokenHash`, `Access`
+  (stored by name), `ExpiresUtc`, `LastUsedUtc`, `LastRefusedUtc`, `RevokedUtc` and `CreatedUtc` —,
+  with a unique index on `TokenHash`, an index on `(UserId, CreatedUtc)` and a foreign key to `Users`
+  that deletes a user's tokens with them (`AddPersonalAccessTokensMigrationTests`).
+- **Nothing of it is used until someone creates a token (MAM-5).** The web app's requests are
+  answered as before; the Users page shows the new column, every count 0; Profile shows the empty card.
+- **A script with a wrong token uses up its address's sign-ins (MAM-5).** Behind a reverse proxy, or
+  Docker's own proxy, every client shares one address, so a script left looping with a revoked or
+  mistyped token keeps everyone there from signing in, as ten sign-in attempts a minute already did:
+  fix or stop the script.
+- **Rotating `MAM_Jwt__Secret` leaves personal access tokens working (MAM-5).** They aren't signed
+  with it. Revoke a token on Profile, or all of a user's on Users; a reset or a disable of the user
+  revokes them too.
+- **0.5.0 adds Phase E's MAM-5 to the 0.4.0 image published on 2026-10-14.** Vasyl published 0.4.0
+  on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built after commit 6ef689b,
+  so that image holds all of 0.4.0 below, the Recommendations page's Description dialog and layout
+  included. From MAM-5, `frontend/package.json` says 0.5.0 (the ticket's version, Vasyl's decision
+  of 2026-10-14), so the next image published from `main` is 0.5.0, never 0.4.0 again.
+
 ## [0.4.0] — 2026-10-13
 
 ### Added

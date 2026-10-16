@@ -5,7 +5,8 @@ namespace MediaAcquisitionManager.Api.Auth;
 /// <summary>
 /// Makes every write in the <c>Controllers.Settings</c> namespace owner-only: each action of a
 /// controller there, or in a namespace below it, that isn't limited to GET or HEAD gets
-/// <see cref="InstallationOwnerFilter"/>.
+/// <see cref="InstallationOwnerFilter"/>. MAM-5 — and closes every action there, reads included, to
+/// personal access tokens (<see cref="DenyPersonalAccessTokenAttribute"/>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,6 +22,14 @@ namespace MediaAcquisitionManager.Api.Auth;
 /// included, so it counts as a write. Reads are left to the controller: some settings may be read by
 /// everyone, and the ones that may not carry <see cref="RequireInstallationOwnerAttribute"/>.
 /// </para>
+/// <para>
+/// MAM-5 — settings are never a token's, not even to read (ADR 0040): the users list is personal data,
+/// integrations show addresses and user names, and the destination reads call the download clients.
+/// Nothing a script needs lives here — the sources' status and the destinations a release can go to have
+/// their own reads. The deny goes into each selector's endpoint metadata, not into the action's filters:
+/// <see cref="PersonalAccessTokenAccessHandler"/> runs in the authorization middleware and sees only
+/// endpoint metadata, and a filter added here never becomes any.
+/// </para>
 /// </remarks>
 public sealed class SettingsWritesAreOwnerOnlyConvention : IControllerModelConvention
 {
@@ -34,6 +43,10 @@ public sealed class SettingsWritesAreOwnerOnlyConvention : IControllerModelConve
 
         foreach (var action in controller.Actions.Where(action => !IsReadOnly(action) && !IsGated(controller, action)))
             action.Filters.Add(new RequireInstallationOwnerAttribute());
+
+        // Every action, every route of it: a selector left out would be an endpoint left open.
+        foreach (var selector in controller.Actions.SelectMany(action => action.Selectors))
+            selector.EndpointMetadata.Add(new DenyPersonalAccessTokenAttribute());
     }
 
     private static bool IsSettingsController(ControllerModel controller) =>

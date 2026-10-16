@@ -50,7 +50,7 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
     }
 
     /// <summary>Ends every session the user holds at once; their access token stops working with its
-    /// next request, not when it expires.</summary>
+    /// next request, not when it expires. MAM-5 — and revokes their personal access tokens.</summary>
     [HttpPost("{id:guid}/disable")]
     public async Task<ActionResult<UserDto>> Disable(Guid id, CancellationToken cancellationToken)
     {
@@ -75,7 +75,8 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
     }
 
     /// <summary>Ends every session of the user except the caller's own, so an owner resetting their
-    /// own password stays signed in here.</summary>
+    /// own password stays signed in here. MAM-5 — and revokes every personal access token of the user,
+    /// the owner's own included.</summary>
     [HttpPost("{id:guid}/password")]
     public async Task<IActionResult> ResetPassword(Guid id, [FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
     {
@@ -98,6 +99,22 @@ public class UsersController(IUserAccountService accounts) : ControllerBase
             UserAccountStatus.Succeeded => NoContent(),
             UserAccountStatus.NotFound => NotFound(),
             _ => this.ConflictError(result.Error),
+        };
+    }
+
+    /// <summary>
+    /// MAM-5 — revokes every personal access token of the user: 204, also when they hold none; a bare 404 for a user
+    /// that doesn't exist. Their scripts stop with their next request (ADR 0040). Needs no session id, so it reads the
+    /// caller by their user id, not <see cref="Caller"/>; a token never gets here (the Settings convention).
+    /// </summary>
+    [HttpDelete("{id:guid}/tokens")]
+    public async Task<IActionResult> RevokeTokens(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await accounts.RevokeTokensAsync(id, User.GetUserId(), cancellationToken);
+        return result.Status switch
+        {
+            UserAccountStatus.Succeeded => NoContent(),
+            _ => NotFound(),
         };
     }
 }

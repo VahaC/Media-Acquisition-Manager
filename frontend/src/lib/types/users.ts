@@ -8,6 +8,8 @@ export interface UserSummary {
   createdUtc: string
   /** UTC with a trailing `Z`; null until the first sign-in. */
   lastSignInUtc: string | null
+  /** MAM-5 — the user's personal access tokens that still work: neither revoked nor expired. */
+  activeTokenCount: number
 }
 
 /** One page of `GET /api/settings/users`. */

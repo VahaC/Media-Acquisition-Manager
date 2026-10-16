@@ -71,7 +71,7 @@ describe('ChangePasswordCard', () => {
     expect(newField()).toHaveAccessibleDescription('8–128 characters.')
     expect(newField()).toHaveAttribute('autocomplete', 'new-password')
     expect(confirmField()).toHaveAttribute('autocomplete', 'new-password')
-    expect(screen.getByText('Your other devices are signed out. This one stays signed in.')).toBeInTheDocument()
+    expect(screen.getByText('Your other devices are signed out. This one stays signed in. Your access tokens keep working.')).toBeInTheDocument()
     // Primary first, Cancel last.
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual(['Change password', 'Cancel'])
     expect(screen.queryByText('••••••••••')).not.toBeInTheDocument()

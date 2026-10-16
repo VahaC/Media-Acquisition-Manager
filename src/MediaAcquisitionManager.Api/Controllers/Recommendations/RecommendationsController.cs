@@ -54,8 +54,10 @@ public class RecommendationsController(
     }
 
     /// <summary>"Not interested": 204, also when the work was already marked; 400 for a kind or an id a mark doesn't
-    /// take. A PUT: the mark is a state, and a repeat changes nothing.</summary>
+    /// take. A PUT: the mark is a state, and a repeat changes nothing. MAM-5 — open to a personal access token with Read
+    /// and download access; its undo below is not (ADR 0040).</summary>
     [HttpPut("dismissals/{kind}/{catalogId}")]
+    [PersonalAccessTokenWrite]
     public async Task<IActionResult> Dismiss(string kind, string catalogId, CancellationToken cancellationToken)
     {
         var result = await dismissals.DismissAsync(kind, catalogId, UserId, cancellationToken);

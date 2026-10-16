@@ -11,18 +11,22 @@ namespace MediaAcquisitionManager.Api.Tests.Settings;
 
 // The owner setting a new password for a user — their own included, without giving the current one
 // (changing it on Profile asks for it: AuthPasswordHttpTests). Every session opened with the old
-// password must end, except the one the owner is resetting from.
+// password must end, except the one the owner is resetting from. MAM-5 — and every personal access
+// token of the user, the owner's own too, one "revoked" audit row each naming the owner (ADR 0016
+// amended, ADR 0040).
 public sealed class UsersPasswordHttpTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string BaseUrl = "/api/settings/users";
     private const string SignInUrl = "/api/auth/sign-in";
     private const string RefreshUrl = "/api/auth/refresh";
     private const string MeUrl = "/api/auth/me";
+    private const string DownloadsUrl = "/api/downloads";
     private const string NewPassword = "brand-new-password";
     private const string InvalidCredentialsBody = """{"error":"The user name or password is incorrect."}""";
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private IUserSeeder _users = null!;
+    private IPersonalAccessTokenSeeder _tokens = null!;
     private AuthorizedUser _owner = null!;
 
     public UsersPasswordHttpTests(MediaAcquisitionManagerApiFactory factory) => _factory = factory;
@@ -31,6 +35,7 @@ public sealed class UsersPasswordHttpTests : IClassFixture<MediaAcquisitionManag
     {
         await _factory.ResetAsync();
         _users = new UserSeeder(_factory.Scope);
+        _tokens = new PersonalAccessTokenSeeder(_factory.Scope);
         _owner = await _users.CreateAuthorizedOwner("owner");
     }
 
@@ -152,6 +157,79 @@ public sealed class UsersPasswordHttpTests : IClassFixture<MediaAcquisitionManag
             Assert.Equal(member.Id, audit.TargetId);
             Assert.Equal("member", audit.TargetName);
             Assert.Equal(now, audit.CreatedUtc);
+        });
+    }
+
+    // MAM-5 — a reset is the tool for a leaked password, and whoever had it may have made a token with it.
+    [Fact]
+    public async Task ResetPassword_revokes_every_personal_access_token_of_the_user_with_a_revoked_audit_row_each()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        var member = await _users.Create("member");
+        var laptop = await _tokens.Create(member, PersonalAccessTokenAccess.ReadAndDownload, name: "Laptop");
+        var nas = await _tokens.Create(member, name: "NAS script");
+        var ownersOwn = await _tokens.Create(_owner.User, name: "Owner's script");
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{member.Id}/password", _owner.AccessToken, new ResetPasswordRequest(NewPassword));
+        var laptopAfterwards = await _factory.GetHttpRequest(DownloadsUrl, laptop.Secret);
+        var nasAfterwards = await _factory.GetHttpRequest(DownloadsUrl, nas.Secret);
+        var ownersAfterwards = await _factory.GetHttpRequest(DownloadsUrl, ownersOwn.Secret);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, laptopAfterwards.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, nasAfterwards.StatusCode);
+        // Resetting someone else's password leaves the owner's tokens alone.
+        Assert.Equal(HttpStatusCode.OK, ownersAfterwards.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            var revokedUtc = await db.PersonalAccessTokens.AsNoTracking().ToDictionaryAsync(token => token.Id, token => token.RevokedUtc, cancellationToken);
+            Assert.Equal(now, revokedUtc[laptop.Token.Id]);
+            Assert.Equal(now, revokedUtc[nas.Token.Id]);
+            Assert.Null(revokedUtc[ownersOwn.Token.Id]);
+            // Ordinal by name, as SQLite sorts text: capitals first.
+            var rows = await db.AuditEvents.AsNoTracking().OrderBy(audit => audit.TargetName).ToListAsync(cancellationToken);
+            Assert.Equal(
+                [
+                    (AuditAction.PersonalAccessTokenRevoked, (Guid?)_owner.User.Id, (AuditTargetKind?)AuditTargetKind.PersonalAccessToken, (Guid?)laptop.Token.Id, (string?)"Laptop", now),
+                    (AuditAction.PersonalAccessTokenRevoked, (Guid?)_owner.User.Id, (AuditTargetKind?)AuditTargetKind.PersonalAccessToken, (Guid?)nas.Token.Id, (string?)"NAS script", now),
+                    (AuditAction.UserPasswordReset, (Guid?)_owner.User.Id, (AuditTargetKind?)AuditTargetKind.User, (Guid?)member.Id, (string?)"member", now),
+                ],
+                rows.Select(audit => (audit.Action, audit.ActorUserId, audit.TargetKind, audit.TargetId, audit.TargetName, audit.CreatedUtc)));
+        });
+    }
+
+    // MAM-5 — the owner's reset of his own password too: a token is no device he is working on (ADR 0016 amended).
+    [Fact]
+    public async Task ResetPassword_of_the_owners_own_password_revokes_the_owners_tokens_and_keeps_the_calling_session()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var now = _factory.Time.GetUtcNow().UtcDateTime;
+        var ownersOwn = await _tokens.Create(_owner.User, PersonalAccessTokenAccess.ReadAndDownload, name: "Owner's Claude");
+        var member = await _users.Create("member");
+        var membersOwn = await _tokens.Create(member, name: "Member's script");
+
+        //Act
+        var response = await _factory.PostHttpRequest($"{BaseUrl}/{_owner.User.Id}/password", _owner.AccessToken, new ResetPasswordRequest(NewPassword));
+        var tokenAfterwards = await _factory.GetHttpRequest(DownloadsUrl, ownersOwn.Secret);
+        var here = await _factory.GetHttpRequest(BaseUrl, _owner.AccessToken);
+        var membersAfterwards = await _factory.GetHttpRequest(DownloadsUrl, membersOwn.Secret);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, tokenAfterwards.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, here.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, membersAfterwards.StatusCode);
+        await _factory.WithDbAsync(async db =>
+        {
+            Assert.Equal(now, (await db.PersonalAccessTokens.AsNoTracking().SingleAsync(token => token.Id == ownersOwn.Token.Id, cancellationToken)).RevokedUtc);
+            Assert.Null((await db.PersonalAccessTokens.AsNoTracking().SingleAsync(token => token.Id == membersOwn.Token.Id, cancellationToken)).RevokedUtc);
+            var revoked = await db.AuditEvents.AsNoTracking().SingleAsync(audit => audit.Action == AuditAction.PersonalAccessTokenRevoked, cancellationToken);
+            Assert.Equal(((Guid?)_owner.User.Id, (Guid?)ownersOwn.Token.Id), (revoked.ActorUserId, revoked.TargetId));
         });
     }
 

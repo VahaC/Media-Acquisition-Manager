@@ -16,6 +16,7 @@ const olena: UserSummary = {
   isDisabled: false,
   createdUtc: '2026-09-10T08:00:00Z',
   lastSignInUtc: null,
+  activeTokenCount: 0,
 }
 
 function renderDialog(target: UserSummary = olena) {
@@ -42,7 +43,7 @@ describe('ResetPasswordDialog', () => {
     vi.resetAllMocks()
   })
 
-  it('warns that the user is signed out on every device', () => {
+  it('warns that the user is signed out on every device and their access tokens stop working', () => {
     // Arrange
     const target = olena
 
@@ -50,10 +51,11 @@ describe('ResetPasswordDialog', () => {
     const { dialog } = renderDialog(target)
 
     // Assert
-    expect(dialog).toHaveTextContent('olena is signed out on every device and signs in again with the new password.')
+    expect(dialog).toHaveTextContent(
+      'olena is signed out on every device and signs in again with the new password. Their access tokens stop working.')
   })
 
-  it('tells the owner resetting their own password that this device stays signed in', () => {
+  it('tells the owner resetting their own password that this device stays signed in and their access tokens stop working', () => {
     // Arrange
     const ownRow: UserSummary = { ...olena, id: owner.id, userName: 'vasyl', isOwner: true }
 
@@ -61,7 +63,7 @@ describe('ResetPasswordDialog', () => {
     const { dialog } = renderDialog(ownRow)
 
     // Assert
-    expect(dialog).toHaveTextContent('Your other devices are signed out. This one stays signed in.')
+    expect(dialog).toHaveTextContent('Your other devices are signed out. This one stays signed in. Your access tokens stop working.')
   })
 
   it('refuses two different passwords under Confirm password, without asking the server', async () => {

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { authApi } from '@/lib/auth-api'
 import { useAuthStore } from '@/lib/auth-store'
 import { formatDateTime } from '@/lib/format'
@@ -11,6 +12,7 @@ import { queryClient as appQueryClient } from '@/lib/query-client'
 import { useThemeStore } from '@/lib/theme-store'
 import type { CurrentUser, CurrentUserProfile } from '@/lib/types'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { laptopToken } from '@/test/access-tokens'
 import { apiError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { allTabsOn } from '@/test/recommendations'
@@ -40,7 +42,10 @@ function renderPage(user: CurrentUser, client = new QueryClient({ defaultOptions
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <ProfilePage />
+        {/* The Access tokens card confirms a Revoke; App mounts this provider around every route. */}
+        <ConfirmProvider>
+          <ProfilePage />
+        </ConfirmProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -57,6 +62,7 @@ describe('ProfilePage', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOn)
+    vi.mocked(profileApi.accessTokens).mockResolvedValue({ items: [] })
   })
 
   afterEach(() => {
@@ -147,6 +153,7 @@ describe('ProfilePage', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('vasyl')
     expect(within(screen.getByRole('region', { name: 'Account' })).getByText('Loading…')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change password' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Access tokens' })).toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'Theme' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
@@ -238,7 +245,7 @@ describe('ProfilePage', () => {
     await user.click(within(banner).getByRole('button', { name: 'Dismiss' }))
 
     // Assert
-    expect(said).toBe('Password changed. Your other devices are signed out; this one stays signed in.')
+    expect(said).toBe('Password changed. Your other devices are signed out; this one stays signed in. Your access tokens keep working.')
     expect(aboveTheCards).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(banner).not.toBeInTheDocument()
     expect(screen.getByText('••••••••••')).toBeInTheDocument()
@@ -254,7 +261,24 @@ describe('ProfilePage', () => {
     // Assert
     expect(await screen.findByRole('textbox', { name: 'Daily search limit' })).toHaveValue('60')
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(['Account', 'Password', 'Appearance', 'Recommendations', 'Session'])
+      .toEqual(['Account', 'Password', 'Access tokens', 'Appearance', 'Recommendations', 'Session'])
     expect(within(screen.getByRole('region', { name: 'Recommendations' })).getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  })
+
+  it('shows the Access tokens card right after Password, with the user\'s tokens and Create token', async () => {
+    // Arrange
+    vi.mocked(authApi.me).mockResolvedValue(memberProfile)
+    vi.mocked(profileApi.accessTokens).mockResolvedValue({ items: [laptopToken] })
+
+    // Act
+    renderPage(member)
+
+    // Assert
+    const card = screen.getByRole('region', { name: 'Access tokens' })
+    expect(await within(card).findByText(laptopToken.name)).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'Create token' })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent).slice(0, 3))
+      .toEqual(['Account', 'Password', 'Access tokens'])
+    expect(profileApi.accessTokens).toHaveBeenCalledOnce()
   })
 })

@@ -89,6 +89,13 @@ public sealed record AuditTarget(AuditTargetKind Kind, Guid Id, string Name)
     public static AuditTarget UnreportedFile(PhysicalFileEntity file) =>
         new(AuditTargetKind.UnreportedFile, file.Id, Cut(ReplacementText.FileNameOf(file.ServicePath)));
 
+    /// <summary>
+    /// MAM-5 — a user's personal access token, named by the name its user gave it ("Claude on the laptop"); never by its
+    /// secret, of which the row keeps only a hash. Cut to the column with an ellipsis, though a name stops at 100.
+    /// </summary>
+    public static AuditTarget PersonalAccessToken(PersonalAccessTokenEntity token) =>
+        new(AuditTargetKind.PersonalAccessToken, token.Id, Cut(token.Name));
+
     /// <summary>The audit row's <c>TargetName</c> column. MAM-24 — read by the replacement's confirmation words, which keep
     /// what tells two works apart within it.</summary>
     public const int TargetNameMaximumLength = 200;

@@ -8,10 +8,13 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// ended.</param>
 /// <param name="CreatedUtc">When the account was created.</param>
 /// <param name="LastSignInUtc">The last successful sign-in; <c>null</c> until the first one.</param>
+/// <param name="ActiveTokenCount">MAM-5 — how many of the user's personal access tokens are active: neither revoked nor
+/// expired. A disabled user's are revoked, so theirs is 0.</param>
 public sealed record UserDto(
     Guid Id,
     string UserName,
     bool IsOwner,
     bool IsDisabled,
     DateTime CreatedUtc,
-    DateTime? LastSignInUtc);
+    DateTime? LastSignInUtc,
+    int ActiveTokenCount);

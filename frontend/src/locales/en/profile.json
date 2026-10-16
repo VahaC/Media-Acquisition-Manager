@@ -22,12 +22,75 @@
     "current": "Current password",
     "new": "New password",
     "newHint": "8–128 characters.",
-    "note": "Your other devices are signed out. This one stays signed in.",
+    "note": "Your other devices are signed out. This one stays signed in. Your access tokens keep working.",
     "currentRequired": "Enter your current password.",
     "tooShort": "A password is at least 8 characters.",
     "tooLong": "A password is at most 128 characters.",
     "failed": "Could not change the password.",
-    "changed": "Password changed. Your other devices are signed out; this one stays signed in."
+    "changed": "Password changed. Your other devices are signed out; this one stays signed in. Your access tokens keep working."
+  },
+  "accessTokens": {
+    "title": "Access tokens",
+    "description": "A token lets a script or an AI assistant use the app as you, without your password. It reads what you can read, and with “Read and download” access it also sends downloads.",
+    "empty": "No access tokens yet. Click Create token to give a script or an AI assistant one of its own.",
+    "create": "Create token",
+    "loadFailed": "Could not load your access tokens.",
+    "refreshFailed": "Refresh failed, showing your access tokens as last loaded.",
+    "columns": {
+      "token": "Token",
+      "created": "Created",
+      "lastUsed": "Last used",
+      "expires": "Expires",
+      "actions": "Actions"
+    },
+    "access": {
+      "ReadOnly": "Read only",
+      "ReadAndDownload": "Read and download"
+    },
+    "prefix": "{{prefix}}…",
+    "expired": "Expired",
+    "never": "Never",
+    "revoke": "Revoke",
+    "revokeFailed": "Could not revoke the token. Reload the page and try again.",
+    "revokeConfirm": {
+      "title": "Revoke {{name}}?",
+      "message": "Scripts and AI assistants that use {{name}} are refused from now on. This can't be undone: to let them in again, create a new token.",
+      "confirm": "Revoke"
+    },
+    "dialog": {
+      "title": "Create an access token",
+      "description": "The token acts as you. Its secret is shown once, right after you create it.",
+      "name": "Name",
+      "nameHint": "What uses it, such as “Claude on the laptop”.",
+      "access": "Access",
+      "accessHint": {
+        "ReadOnly": "Reads the library, searches, jobs, duplicates and recommendations.",
+        "ReadAndDownload": "Also sends downloads (Keep both), cancels following and marks Not interested."
+      },
+      "lifetime": "Expires",
+      "lifetimes": {
+        "Days30": "In 30 days",
+        "Days90": "In 90 days",
+        "OneYear": "In 1 year",
+        "Never": "Never"
+      },
+      "lifetimeHint": "After that the token stops working. You can revoke it here at any time.",
+      "submit": "Create token",
+      "submitting": "Creating…",
+      "failed": "Could not create the token."
+    },
+    "secret": {
+      "title": "Your new access token",
+      "description": "“{{name}}” is ready. Keep it like a password: anyone who has it can use the app as you.",
+      "label": "Token",
+      "warning": "Copy it now: it won't be shown again.",
+      "copy": "Copy",
+      "copied": "Copied.",
+      "copyFailed": "Select the token and press Ctrl+C.",
+      "example": "A script sends it in the Authorization header, for example:",
+      "command": "curl -H \"Authorization: Bearer {{token}}\" {{origin}}/api/downloads",
+      "done": "Done"
+    }
   },
   "appearance": {
     "title": "Appearance",

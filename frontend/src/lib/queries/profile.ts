@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { profileApi } from '../profile-api'
-import type { RecommendationSettings, RecommendationSettingsRequest } from '../types'
+import type { CreateAccessTokenRequest, RecommendationSettings, RecommendationSettingsRequest } from '../types'
 import { qk } from './keys'
 
 /**
@@ -28,5 +28,46 @@ export const useSaveRecommendationSettings = () => {
       queryClient.setQueryData<RecommendationSettings>(qk.profile.recommendations, settings)
       void queryClient.invalidateQueries({ queryKey: qk.recommendations.latestRun })
     },
+  })
+}
+
+/** MAM-5 — the signed-in user's personal access tokens, for the Profile page's Access tokens card. */
+export const useAccessTokens = () =>
+  useQuery({
+    queryKey: qk.profile.accessTokens,
+    queryFn: () => profileApi.accessTokens(),
+  })
+
+/**
+ * MAM-5 — creates a token. The answer carries the secret, so it is never written into the query cache:
+ * the list is asked for again instead, and `gcTime: 0` drops the mutation (and the secret in its
+ * result) from the mutation cache as soon as the form that sent it unmounts, which it does to show the
+ * secret. The list's refetch is not waited for, so the secret shows at once. The owner's own count on
+ * the Users page changes too.
+ */
+export const useCreateAccessToken = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: CreateAccessTokenRequest) => profileApi.createAccessToken(request),
+    gcTime: 0,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.profile.accessTokens })
+      void queryClient.invalidateQueries({ queryKey: qk.settings.users.all })
+    },
+  })
+}
+
+/**
+ * MAM-5 — revokes one of the user's tokens. It refetches the list before it resolves, so the Revoke
+ * button settles onto a list without the row rather than onto the old one for a moment.
+ */
+export const useRevokeAccessToken = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => profileApi.revokeAccessToken(id),
+    onSuccess: () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: qk.profile.accessTokens }),
+      queryClient.invalidateQueries({ queryKey: qk.settings.users.all }),
+    ]),
   })
 }

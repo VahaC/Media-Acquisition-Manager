@@ -49,6 +49,11 @@ export const qk = {
   profile: {
     /** MAM-33 — the user's recommendation tabs and daily search limit: the header, the page and the Profile card. */
     recommendations: ['profile', 'recommendations'] as const,
+    /**
+     * MAM-5 — the user's personal access tokens on the Profile page. Never their secrets: a new
+     * token's secret stays in the create dialog's state.
+     */
+    accessTokens: ['profile', 'tokens'] as const,
   },
   recommendations: {
     /** MAM-33 — every page and filter of every tab: what a finished computation invalidates. */

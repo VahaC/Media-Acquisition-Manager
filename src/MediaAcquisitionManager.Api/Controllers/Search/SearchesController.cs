@@ -27,9 +27,11 @@ public class SearchesController(ISearchService searches) : ControllerBase
     /// Asks the library and every enabled release source at once and stores what they answered. 201
     /// whatever the sources answered — each says how it went, so a failing one never hides the others;
     /// 400 only for a search the app doesn't take, with nothing stored. A POST: every release found is
-    /// stored, so a refetch must not repeat it.
+    /// stored, so a refetch must not repeat it. MAM-5 — open to every personal access token, as a read: a token has to
+    /// search before it can send (ADR 0040).
     /// </summary>
     [HttpPost]
+    [PersonalAccessTokenRead]
     public async Task<ActionResult<SearchResponse>> Create(
         // An empty body reaches the rules' "enter the title" sentence instead of a validation body.
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] SearchRequest? request,

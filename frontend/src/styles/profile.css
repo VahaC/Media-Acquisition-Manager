@@ -1,5 +1,6 @@
 /* MAM-16 — the Profile page: who you are, your password, the theme and this session. A single
-   column of cards narrower than the other pages, as the approved design draws it. */
+   column of cards narrower than the other pages, as the approved design draws it. MAM-5 — and the
+   access tokens, with their create dialog. */
 
 .profile-page {
   display: grid;
@@ -151,6 +152,64 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* MAM-5 — the Access tokens card: a token's name with its badges, and its prefix on a line of its own
+   under them. A grid rather than two inline pieces: on a phone the cell is a flex row beside its
+   data-label (settings-list.css), which would put the prefix beside the name instead of under it. */
+.profile-token {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* MAM-5 — a token's dates on one line each: beside the token's name the table squeezed them, and
+   "Oct 1," over "2026" reads as two values. The name's cell wraps instead. */
+.profile-date {
+  white-space: nowrap;
+}
+
+/* MAM-5 — an option of the create dialog's Access: the radio and its name, and under them the hint,
+   lined up with the name rather than the radio (a browser's radio is 13px, then the 0.5rem gap of
+   .settings-check). The hint sits outside the label so it doesn't join the radio's name. */
+.profile-option {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.profile-option-hint {
+  padding-inline-start: calc(13px + 0.5rem);
+}
+
+/* MAM-5 — a new token's secret, shown once: 51 characters with no space, wider than the dialog, so it
+   breaks anywhere. Monospaced so an O and a 0, an l and a 1 can be told apart if it is copied by hand.
+   Read-only, so there is nothing to resize. */
+.ui-textarea.profile-secret {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  resize: none;
+}
+
+/* MAM-5 — the example command under it, as it would be typed; a long address breaks anywhere rather
+   than widening the dialog past a phone's screen. */
+.profile-command {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  /* The token table is one card per token here (settings-list.css), every value at the right of its
+     label, as .settings-name puts a name. */
+  .profile-token {
+    justify-items: end;
+  }
 }
 
 @media (max-width: 480px) {

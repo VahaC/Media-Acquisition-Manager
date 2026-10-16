@@ -1,8 +1,9 @@
 # Roadmap
 
 **Status:** Release 0.1.0, published on 2026-10-04, holds all of Phase A but MAM-5 (personal
-access tokens), which is still to do: MAM-1 (the scaffold), MAM-2 (UI localisation), MAM-3 (the
-Docker image and CI), MAM-4 (accounts and sign-in), MAM-6 (the live environment facts), MAM-7 (the
+access tokens), which moved to Phase E on 2026-10-14 and was built there on 2026-10-16 for 0.5.0:
+MAM-1 (the scaffold), MAM-2 (UI localisation), MAM-3 (the Docker image and CI),
+MAM-4 (accounts and sign-in), MAM-6 (the live environment facts), MAM-7 (the
 core model and integration settings), MAM-8 (the Jellyfin library inventory), MAM-9 (the ffprobe
 inspection of the library's files), MAM-10 (the Torznab release search), MAM-11 (qBittorrent's
 categories and the download destinations), MAM-12 (the search page of library copies and
@@ -103,25 +104,38 @@ failed, the job page's buttons naming the old copy with "permanently" for "for g
 README's install steps —, and looked at again on an image built with the fixes, but for the new
 sentences and button names, which rest on the tests; the findings left are open, not tickets yet, as
 Vasyl decides (MAM-31's line below). Phase D's heading below is left for Vasyl to mark shipped.
+Vasyl published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built
+after commit 6ef689b, so that image holds Phase D with MAM-31's fixes and the Recommendations page's
+Description dialog.
+Phase E (release 0.5.0) was planned on 2026-10-14 from Vasyl's request of that day: personal access
+tokens (MAM-5, moved from Phase A), an MCP endpoint through which an AI assistant searches, sends
+downloads and follows jobs (MAM-45), and the app in Ukrainian — the web app's own text (MAM-46) and
+the server's sentences (MAM-47) —, checked on production by MAM-48. MAM-5 (built on 2026-10-16)
+raised the version to 0.5.0: every user creates, lists and revokes their own personal access tokens
+on Profile, `Read only` or `Read and download`, which act as their user and write only what an
+explicit list opens, and the owner counts and revokes each user's on the Users page (ADR 0040); it
+rests on the tests and wasn't tried on production. MAM-45 to MAM-48 aren't built yet.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
-[development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria);
+[development specification](docs/Media_Acquisition_Manager_Spec.md#6-implementation-phases-and-acceptance-criteria),
+but for Phase E, which is Vasyl's own (2026-10-14);
 this file adds the ticket breakdown, the tests and the acceptance bar. Phase A is tracked as tickets
-MAM-1 to MAM-16 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
-MAM-42 to MAM-44, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41, Phase D as MAM-29 to MAM-31.
+MAM-1 to MAM-16 but MAM-5 in the Kaneo project `MAM`, Phase B as MAM-17 to MAM-22, MAM-32 to MAM-38 and
+MAM-42 to MAM-44, Phase C as MAM-23 to MAM-28 and MAM-39 to MAM-41, Phase D as MAM-29 to MAM-31,
+Phase E as MAM-5 and MAM-45 to MAM-48.
 Release 0.3.0 holds MAM-24 to MAM-27, and
 MAM-37 and MAM-38, built while 0.2.1 was the version; MAM-28's fixes and MAM-39 to MAM-44 are
 in 0.3.0 as published again, under the same number, on 2026-10-13. Phase D is release 0.4.0,
 the version since MAM-30, with
 Transmission instead of qBittorrent and Jackett instead of Prowlarr (Vasyl's decisions of
-2026-10-13, MAM-29).
+2026-10-13, MAM-29). Phase E is release 0.5.0, the version since MAM-5.
 
 ## Phases
 
 ### Phase A — Vertical slice without deletion
 
-**Release:** 0.1.0. **Tickets:** MAM-1 to MAM-16.
+**Release:** 0.1.0. **Tickets:** MAM-1 to MAM-16 (MAM-5 moved to Phase E on 2026-10-14).
 
 **Complexity:** High
 **Value:** search once and see the copies you already own beside the releases you could download,
@@ -156,7 +170,9 @@ existing file untouched.
   their other sessions and keeps the one it was made from
   ([ADR 0016](docs/adr/0016-a-users-own-password-change-keeps-the-session-it-was-made-from-and-ends-the-others.md)).
   Two-factor sign-in and password reset by email are out of scope.
-- **MAM-5 Personal access tokens** for scripts and other tools.
+- **MAM-5 Personal access tokens** for scripts and other tools: moved to
+  [Phase E](#phase-e--scripts-ai-assistants-and-languages) on 2026-10-14 (Vasyl's decision), and
+  built there on 2026-10-16 for release 0.5.0.
 - **MAM-6 Live environment facts** (built): the specification's open questions (§7) answered
   against the real installation. One folder on one ext4 filesystem holds every media library and
   every download; Jellyfin and the app see it as `/media`, qBittorrent as `/downloads`, so each
@@ -2301,3 +2317,137 @@ offers, with Prowlarr too (accepted by Vasyl on 2026-10-14). A copy a Transmissi
 Transmission 4.0.x, its lock-out after wrong passwords and Phase C's other cases with Transmission
 rest on the tests, as the **Tests** paragraph above and the README's
 [Tested with](README.md#tested-with) list.
+
+### Phase E — Scripts, AI assistants and languages
+
+**Release:** 0.5.0. **Tickets:** MAM-5 and MAM-45 to MAM-48. Not one of specification §6's phases:
+Vasyl asked for it on 2026-10-14 — take MAM-5 (personal access tokens) out of Phase A, add MCP, and
+make the app multilingual.
+
+**Complexity:** High
+**Value:** reach the app without the web page — a script with its own token, or an AI assistant
+asked in plain words ("find this film in 4K with Ukrainian audio and send it") —, and use the whole
+app in Ukrainian.
+
+**Scope:**
+
+- **MAM-5 Personal access tokens** (moved from Phase A; built on 2026-10-16, release 0.5.0; resting
+  on the tests, not tried on production): a Profile section to create, list and
+  revoke one's own tokens — a name, `Read only` or `Read and download`, an expiry of 30 days, 90 days,
+  a year or never —, the token shown once and stored as a hash; the owner sees each user's number of
+  tokens on the Users page and revokes them. A token acts as its user. `Read only` reads everything a
+  user reads, the library and release searches included, which are POSTs and so marked as reads;
+  `Read and download` may also send a release (Keep both only), cancel following a job and mark a
+  recommendation Not interested. No token ever schedules a replacement, removes a copy into the
+  quarantine, restores, deletes for good, writes a setting, or touches the account's password,
+  sessions or tokens (Vasyl's decision of 2026-10-14); a write is open to a token only when it is on
+  an explicit list, so a new endpoint stays closed to tokens until opened on purpose. A disabled or
+  deleted user's tokens stop at once, and the owner's password reset of a user revokes them. This
+  ticket raises the version to 0.5.0, after 0.4.0 is published. Vasyl's defaults of 2026-10-16, stated
+  to him before the build: the owner's revoke-all at `DELETE /api/settings/users/{id}/tokens`, as the
+  ticket's `/api/users/…` doesn't exist and Settings is owner-only by folder; `GET /api/auth/me`
+  closed to tokens; the owner's reset of his own password revokes his tokens too; at most one refused
+  audit row per token a minute; every token request from an address answering 429 while its sign-in
+  limit is used up; expired tokens listed, revoked ones not, 90 days by default; and a Copy that works
+  on plain HTTP. As built:
+  - *The token:* `mam_pat_` and 32 random bytes in base64url, 51 characters, shown once in the create
+    answer; the database keeps its SHA-256 hash in hex (unique) and its first 14 characters, which the
+    list shows as `mam_pat_AbC123…`. A name of at most 100 characters, `Read only` or `Read and
+    download`, and 30 days, 90 days, a year or never (ADR 0040).
+  - *Profile:* the **Access tokens** card after **Password** lists the user's tokens newest first —
+    name, first characters, access, created, last used, expires —, an expired one muted with an
+    **Expired** badge until revoked, a revoked one gone, with **Revoke** behind a confirmation; **Create
+    token** opens a dialog that then shows the token once with **Copy** — a selected-text copy on plain
+    HTTP, where the browser has no clipboard API, else "Select the token and press Ctrl+C." —, a `curl`
+    line and **Done**, and can't be closed while the token is being created. `GET`,
+    `POST /api/profile/tokens` and `DELETE /api/profile/tokens/{id}`; a create racing the owner's
+    reset, disable or delete of its user answers 401 and stores nothing, as the create checks its
+    session again inside its write transaction (ADR 0002's MAM-5 section).
+  - *What a token may do:* the default authorization policy reads the endpoint's marks:
+    `[PersonalAccessTokenRead]` on the two searches, `[PersonalAccessTokenWrite]` on the send, the
+    cancel and Not interested, `[DenyPersonalAccessToken]` on `GET /api/auth/me`, `POST
+    /api/auth/password` and the token management; every other write refuses any token, and the
+    Settings convention closes every action under `Controllers/Settings` to tokens, reads included
+    (a default put to Vasyl). A token's cancel that takes a job whose replacement is still followed is
+    refused and rolled back, nothing changed, while a cancel that takes nothing answers the 409 a
+    session gets; undoing Not interested stays closed (both defaults put to Vasyl).
+    Each refusal is a 403 with one of three sentences naming the README's "Scripts and the API".
+  - *Ending a token:* its user's **Revoke**; the owner's **Revoke tokens** on the Users page, beside each
+    user's count of active tokens; a disable (so Enable brings none back) and the owner's password
+    reset (his own included), each with a revoked row per token in the owner's name — the Users page
+    asks before a **Disable** that revokes tokens, with how many —; a delete, whose rows go with the
+    user. A user's own password change keeps them (ADR 0016's and ADR 0002's MAM-5 sections).
+  - *Failures:* one 401, byte for byte a missing sign-in's, for a wrong, unknown, malformed, revoked or
+    expired token and a disabled or deleted user's; each failure takes from its address's sign-in limit
+    (10 a minute, shared with sign-in and setup), a lookup under way counting until it ends, so a burst
+    of guesses gets no more than ten lookups; while it is used up every token request from that address
+    to an endpoint that needs a signed-in user answers 429 with `Retry-After`, unread.
+  - *Audit and last use:* `PersonalAccessTokenCreated`, `PersonalAccessTokenRevoked` and
+    `PersonalAccessTokenRefused`, at most one refused row per token a minute, every refusal logged as a
+    warning with its method and path; "last used" written at most once a minute; within the minute
+    neither is even sent as an update, so a token request takes no write lock.
+  - *Backup/restore:* one new table, `PersonalAccessTokens` (migration `AddPersonalAccessTokens`, no
+    rebuild), in `mam.db`, so the data directory's backup keeps the tokens' hashes; no token can be read
+    back from it.
+- **MAM-45 MCP:** a Streamable HTTP endpoint at `/mcp` in the app (`ModelContextProtocol.AspNetCore`
+  1.x), open to personal access tokens only, whose tools call the same services as the controllers:
+  search the library, search releases (the Search page's answer), the download options, the jobs by
+  the Jobs page's tabs, the duplicates, the recommendations and the sources' status, and, for a `Read
+  and download` token, send a release, cancel following a job and Not interested. The clients are
+  Claude Code, directly, and Claude Desktop, through the local `mcp-remote` bridge, on the home
+  network or a VPN (Vasyl's decision of 2026-10-14); the token's "shown once" step gives the line to
+  connect each. Claude.ai and the phone app are out: their connectors call from Anthropic's cloud,
+  which would need the app open to the internet over HTTPS with OAuth sign-in.
+- **MAM-46 The web app in Ukrainian:** a `Language` on Profile — the browser's (the default),
+  English or Українська —, saved with the account; every namespace of `frontend/src/locales/en/`
+  translated into `uk` with Ukrainian plural forms, by a glossary settled first
+  (`docs/i18n/glossary-uk.md`), and a test that the two have the same keys, placeholders and the
+  plural forms each needs. The TMDb integration gets a `Catalog language`, the owner's setting for
+  the installation, in place of the hard-coded `uk-UA` (Vasyl's decision of 2026-10-14); production
+  keeps Українська. Release notes stay English only (his decision the same day).
+- **MAM-47 The server's sentences in the user's language:** every sentence the server writes —
+  warnings, reasons, refusals, errors, about 800 of them — in the language of whoever asks (the
+  user's, else `Accept-Language`, else English), from JSON files like the web app's. The database
+  keeps no sentence in any language, only a reason's key and its values; the migration converts the
+  English sentences it already holds by the templates they were built from, so old jobs read in
+  Ukrainian too, and keeps a service's own words as they are (Vasyl's decisions of 2026-10-14). API
+  errors carry the key as well. A new ADR amends ADR 0001.
+- **MAM-48 Verify Phase E against the live installation.**
+
+**Out of scope:** OAuth sign-in and an endpoint open to the internet for claude.ai's connectors;
+any token or MCP tool that replaces, quarantines, restores or deletes a copy, or writes a setting;
+languages other than Ukrainian and English; translated release notes; translating a service's own
+error text or the titles the media server reports.
+
+**Tests:** over real HTTP, each token access level against a read, an allowed write, a refused write
+and every endpoint no token may call; revoked, expired, disabled and deleted users' tokens; one
+identical 401. The SDK's own MCP client against the real host: the tool list per access level, each
+tool on canned data, a send refused for a read-only token, a member seeing only their own jobs. The
+`uk` resources of the web app and of the server against the English ones (keys, placeholders,
+plural forms); a pseudo-language run proving every server sentence goes through the files; the
+migration of stored sentences on a copy of production's database. MAM-5's:
+`PersonalAccessTokenAuthenticationHttpTests` (who a token is, a member's token reading its own jobs
+only, the one 401 byte for byte against a refused session token's, "last used" and no write lock
+within the minute, the shared sign-in limit and its 429, a burst of guesses held to ten lookups),
+`PersonalAccessTokenWritesHttpTests` (every other write of the API and every refused read sent as the
+owner with a token of each kind, the explicit list fixed in the test, one refused audit row a
+minute), `PersonalAccessTokenConventionHttpTests` (the rule on test-only endpoints, an endpoint added
+later included), `DownloadsPersonalAccessTokenHttpTests` and
+`RecommendationDismissalsPersonalAccessTokenHttpTests` (the three writes, a send with replacement
+fields scheduling none, the refused cancel, the 409 of a cancel that takes nothing, the refused
+undo), `PersonalAccessTokensHttpTests`, `PersonalAccessTokenCreateSessionTests` and
+`PersonalAccessTokensAccessHttpTests` (Profile's create, list and revoke, a create racing a reset,
+disable or delete, another user's token, the management, `GET /api/auth/me` and the password change
+refusing tokens), `UsersTokensHttpTests` (the
+count, **Revoke tokens**), `UsersPasswordHttpTests`, `UsersLifecycleHttpTests` and
+`AuthPasswordHttpTests` (a reset and a disable revoking, the user's own change keeping them),
+`AddPersonalAccessTokensMigrationTests` and `PersonalAccessTokenPersistenceTests`, over tokens planted
+by `PersonalAccessTokenSeeder` and a test-only `PersonalAccessTokenProbeController`.
+
+**Acceptance bar:** on production (MAM-48): a read-only token reads jobs with `curl` and is refused
+a send, and a revoked token answers 401 at once; Claude Code connected by the README's line finds a
+film, shows the library's copies and the releases, and sends the one Vasyl confirms, which the Jobs
+page shows with the destination the Download dialog would have picked; with a read-only token Claude
+has no send tool; Vasyl's account in Українська shows every page, the server's sentences included —
+a job stopped before the update too —, at desktop and phone width, and a member in English sees
+English.

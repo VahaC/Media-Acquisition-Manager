@@ -94,3 +94,31 @@ their own sessions, the owner's reset of that user (which keeps none of theirs) 
 This does not let an owner's reset of another user keep any of that user's sessions: the caller's
 session is never theirs. Nor does a valid token stand in for the current password. And the refresh
 cookie stays a credential for refresh and sign-out only.
+
+## Personal access tokens (added 0.5.0, MAM-5)
+
+MAM-5 adds personal access tokens, which a user creates on Profile for scripts and other tools
+([ADR 0040](0040-a-personal-access-token-acts-as-its-user-reads-what-its-user-reads-and-writes-only-what-an-explicit-list-opens.md)).
+**A user's own password change keeps every personal access token of that user; the owner's password
+reset of a user revokes every one of them, the owner's reset of his own password included.**
+
+A token is a credential the user made on purpose, for one script, and revokes one by one on the same
+Profile page. A change of one's own password is routine; ending the tokens with it would stop every
+script of the user at each change, while a user who thinks a token leaked revokes that token there.
+A reset is the owner's lockout (ADR 0002), so it takes everything: every session but the caller's own,
+and every token, his own too, since no token is the device he is working on. Profile's Password card
+says "Your access tokens keep working.", and the owner's Reset password dialog that the user's access
+tokens stop working.
+
+The gap left on purpose: whoever holds one of the user's sessions can create a token on Profile, and
+that token outlives the user's own password change. The user sees it in the Profile's list and
+revokes it, and the owner's reset or disable of the user revokes it too — a create racing that reset
+or disable included, which stores nothing (ADR 0002's MAM-5 section). A token can't create a token,
+nor change the password: both refuse every token (ADR 0040).
+`UsersPasswordHttpTests.ResetPassword_revokes_every_personal_access_token_of_the_user_with_a_revoked_audit_row_each`
+and `ResetPassword_of_the_owners_own_password_revokes_the_owners_tokens_and_keeps_the_calling_session`
+assert that a reset revokes the user's tokens, the owner's reset of his own password included;
+`AuthPasswordHttpTests.ChangePassword_keeps_the_users_personal_access_tokens_working` that a user's
+own change keeps them; and
+`PersonalAccessTokensAccessHttpTests.ChangePassword_with_a_token_is_403_runs_no_hash_and_changes_nothing`
+that a token can't change the password.

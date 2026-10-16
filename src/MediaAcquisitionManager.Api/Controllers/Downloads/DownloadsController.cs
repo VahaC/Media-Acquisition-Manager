@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Http;
 using MediaAcquisitionManager.Api.Services.Downloads;
+using MediaAcquisitionManager.Api.Services.PersonalAccessTokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -26,7 +27,7 @@ namespace MediaAcquisitionManager.Api.Controllers.Downloads;
 [ApiController]
 [Authorize]
 [Route("api/downloads")]
-public class DownloadsController(IDownloadService downloads) : ControllerBase
+public class DownloadsController(IDownloadService downloads, IPersonalAccessTokenRefusals personalAccessTokenRefusals) : ControllerBase
 {
     private Guid UserId => User.GetUserId();
 
@@ -64,9 +65,12 @@ public class DownloadsController(IDownloadService downloads) : ControllerBase
 
     /// <summary>
     /// Sends the release once per request id: 201 with the new job, 200 with the job the same request made
-    /// before. A POST: it writes a job and sends a download, so nothing may repeat it but the request id.
+    /// before. A POST: it writes a job and sends a download, so nothing may repeat it but the request id. MAM-5 — open to a
+    /// personal access token with Read and download access: the request has no replacement field, so a token's send is
+    /// Keep both by construction (ADR 0040).
     /// </summary>
     [HttpPost]
+    [PersonalAccessTokenWrite]
     public async Task<ActionResult<DownloadJobDto>> Create(
         // An empty body reaches the rules' "request id" sentence instead of a validation body.
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] SendDownloadRequest? request,
@@ -124,12 +128,23 @@ public class DownloadsController(IDownloadService downloads) : ControllerBase
     /// MAM-14 — stops following the caller's job: 200 with the job, now <c>Cancelled</c>; 409 when it already
     /// ended, or is still being sent; a bare 404 for another user's, like a missing one. Nothing is sent to the
     /// client, which keeps the torrent and its files (ADR 0014). A POST, not a DELETE: the job stays, as
-    /// history.
+    /// history. MAM-5 — open to a personal access token with Read and download access, except for a job whose
+    /// replacement is still followed, which the cancel would end too: 403, as a token never touches a replacement
+    /// (ADR 0040).
     /// </summary>
     [HttpPost("{id:guid}/cancel")]
+    [PersonalAccessTokenWrite]
     public async Task<ActionResult<DownloadJobDto>> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        var result = await downloads.CancelAsync(id, UserId, cancellationToken);
+        var tokenId = User.GetPersonalAccessTokenId();
+        var result = await downloads.CancelAsync(id, UserId, mayEndReplacement: tokenId is null, cancellationToken);
+        if (result.Status == DownloadCancelStatus.ReplacementNeedsTheWebApp)
+        {
+            await personalAccessTokenRefusals.RecordAsync(
+                tokenId!.Value, UserId, PersonalAccessTokenRefusalReason.CancelEndsReplacement, Request.Method, Request.Path, cancellationToken);
+            return this.ForbiddenError(PersonalAccessTokenErrors.CancelEndsReplacement);
+        }
+
         return result.Status switch
         {
             DownloadCancelStatus.Cancelled => Ok(result.Job),

@@ -54,11 +54,11 @@ public sealed class UsersHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
         var body = await response.Content.ReadFromJsonAsync<UserListResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         Assert.Equal(
             [
-                new UserDto(alice.Id, "Alice", IsOwner: false, IsDisabled: false, alice.CreatedUtc, LastSignInUtc: null),
-                new UserDto(bob.Id, "bob", IsOwner: false, IsDisabled: false, bob.CreatedUtc, LastSignInUtc: null),
-                new UserDto(charlie.Id, "charlie", IsOwner: false, IsDisabled: false, charlie.CreatedUtc, LastSignInUtc: null),
-                new UserDto(dave.Id, "Dave", IsOwner: false, IsDisabled: true, dave.CreatedUtc, LastSignInUtc: null),
-                new UserDto(_owner.User.Id, "owner", IsOwner: true, IsDisabled: false, _owner.User.CreatedUtc, LastSignInUtc: null),
+                new UserDto(alice.Id, "Alice", IsOwner: false, IsDisabled: false, alice.CreatedUtc, LastSignInUtc: null, ActiveTokenCount: 0),
+                new UserDto(bob.Id, "bob", IsOwner: false, IsDisabled: false, bob.CreatedUtc, LastSignInUtc: null, ActiveTokenCount: 0),
+                new UserDto(charlie.Id, "charlie", IsOwner: false, IsDisabled: false, charlie.CreatedUtc, LastSignInUtc: null, ActiveTokenCount: 0),
+                new UserDto(dave.Id, "Dave", IsOwner: false, IsDisabled: true, dave.CreatedUtc, LastSignInUtc: null, ActiveTokenCount: 0),
+                new UserDto(_owner.User.Id, "owner", IsOwner: true, IsDisabled: false, _owner.User.CreatedUtc, LastSignInUtc: null, ActiveTokenCount: 0),
             ],
             body!.Items);
         Assert.Equal(5, body.TotalCount);
@@ -277,7 +277,7 @@ public sealed class UsersHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<UserDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equal(new UserDto(alice.Id, "alice", IsOwner: false, IsDisabled: true, alice.CreatedUtc, LastSignInUtc: null), body);
+        Assert.Equal(new UserDto(alice.Id, "alice", IsOwner: false, IsDisabled: true, alice.CreatedUtc, LastSignInUtc: null, ActiveTokenCount: 0), body);
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class UsersHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
         //Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<UserDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
-        Assert.Equal(new UserDto(body!.Id, "New.User", IsOwner: false, IsDisabled: false, now, LastSignInUtc: null), body);
+        Assert.Equal(new UserDto(body!.Id, "New.User", IsOwner: false, IsDisabled: false, now, LastSignInUtc: null, ActiveTokenCount: 0), body);
         Assert.Equal($"/api/settings/users/{body.Id}", response.Headers.Location?.AbsolutePath);
         var read = await _factory.GetHttpRequest(response.Headers.Location!.AbsolutePath, _owner.AccessToken);
         Assert.Equal(body, await read.Content.ReadFromJsonAsync<UserDto>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken));

@@ -86,6 +86,7 @@ describe('CreateUserDialog', () => {
       isDisabled: false,
       createdUtc: '2026-09-28T12:00:00Z',
       lastSignInUtc: null,
+      activeTokenCount: 0,
     })
     const { dialog, onClose, user } = renderDialog()
     await fillIn(user, dialog, 'correct horse battery', 'correct horse battery')

@@ -77,8 +77,10 @@ public class AuthController(
 
     /// <summary>MAM-16 — the signed-in user, with when the account was created, when it last signed
     /// in and when this session ends, for the Profile page. The web app can't read the session's end
-    /// from the refresh cookie, which is <c>HttpOnly</c>.</summary>
+    /// from the refresh cookie, which is <c>HttpOnly</c>. MAM-5 — refused to personal access tokens, a GET though it is:
+    /// it describes the account's session, which a token has none of (ADR 0040).</summary>
     [HttpGet("me")]
+    [DenyPersonalAccessToken]
     public async Task<ActionResult<CurrentUserProfileResponse>> Me(CancellationToken cancellationToken)
     {
         var userId = User.GetUserId();
@@ -110,6 +112,9 @@ public class AuthController(
     /// </remarks>
     [HttpPost("password")]
     [EnableRateLimiting(PasswordChangeRateLimitPolicy.Name)]
+    // MAM-5 — the account's password is never a personal access token's (ADR 0040). On the actions, not the class:
+    // sign-in, refresh and sign-out are anonymous and read no token.
+    [DenyPersonalAccessToken]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
     {
         // A missing field is a blank one: the checks answer both with the same sentence.
