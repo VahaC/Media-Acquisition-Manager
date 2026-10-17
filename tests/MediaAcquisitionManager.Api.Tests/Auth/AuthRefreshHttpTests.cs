@@ -50,13 +50,32 @@ public sealed class AuthRefreshHttpTests : IClassFixture<MediaAcquisitionManager
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(new CurrentUserResponse(signedIn.User.Id, "owner", IsOwner: true), body.User);
+        Assert.Equal(new CurrentUserResponse(signedIn.User.Id, "owner", IsOwner: true, Language: null), body.User);
         Assert.Equal(now.AddMinutes(15), body.AccessTokenExpiresUtc);
         var cookie = response.ReadSetCookie(RefreshCookieName);
         Assert.NotNull(cookie);
         Assert.NotEmpty(cookie.Value);
         Assert.NotEqual(signedIn.RefreshToken, cookie.Value);
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+    }
+
+    // MAM-46 — every start of the web app goes through a refresh, so the account's language comes with it, not only with
+    // the Profile's /me.
+    [Fact]
+    public async Task Refresh_carries_the_language_the_user_saved()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var signedIn = await _users.CreateAuthorizedOwner("owner");
+        await _users.SetLanguage(signedIn.User, "en");
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, cookie: signedIn.RefreshCookie);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<SignInResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equal(new CurrentUserResponse(signedIn.User.Id, "owner", IsOwner: true, Language: "en"), body!.User);
     }
 
     [Fact]

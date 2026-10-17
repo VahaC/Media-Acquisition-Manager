@@ -144,12 +144,16 @@ function WorkCopies({ work, name, ticked, confirmed, readOnly, onTick, onConfirm
         <p key={holdKey(torrent)} id={`${id}-held-${at}`} className="library-source-warning">
           <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
           <span>
-            {t('replace.heldBy', {
-              count: torrent.count,
-              value: formatNumber(torrent.count),
-              torrent: torrent.torrentName,
-              client: torrent.clientName,
-            })}
+            {/* MAM-46 — exactly one copy has a sentence of its own: a plural form can't say "this copy",
+                as Ukrainian's singular form also counts 21 and 31. */}
+            {torrent.count === 1
+              ? t('replace.heldByOneCopy', { torrent: torrent.torrentName, client: torrent.clientName })
+              : t('replace.heldBy', {
+                count: torrent.count,
+                value: formatNumber(torrent.count),
+                torrent: torrent.torrentName,
+                client: torrent.clientName,
+              })}
           </span>
         </p>
       ))}

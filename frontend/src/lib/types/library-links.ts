@@ -51,8 +51,11 @@ export type LinkBatchOutcome = 'Linked' | 'Skipped'
 /** Where a preparation of the suggestions is. Queued and Running are under way; the other two are final. */
 export type LibraryLinkSuggestionRunStatus = 'Queued' | 'Running' | 'Succeeded' | 'Failed'
 
-/** What queued a preparation: a finished sync, a catalog connected, or the owner's request. */
-export type LibraryLinkSuggestionRunTrigger = 'LibrarySynced' | 'CatalogConnected' | 'Requested'
+/**
+ * What queued a preparation: a finished sync, a catalog connected, or the owner's request. MAM-46 — or
+ * the metadata catalog's language changed: the stored candidates' details are read again in it.
+ */
+export type LibraryLinkSuggestionRunTrigger = 'LibrarySynced' | 'CatalogConnected' | 'Requested' | 'CatalogLanguageChanged'
 
 /**
  * The TMDb page's lists of links: those whose item is gone, those waiting for Jellyfin, those whose

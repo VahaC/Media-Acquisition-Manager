@@ -44,7 +44,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                $"{segment}/{id}?append_to_response=credits,recommendations,alternative_titles,external_ids&language={CatalogLanguage}",
+                $"{segment}/{id}?append_to_response=credits,recommendations,alternative_titles,external_ids&language={LanguageAskedBy(settings)}",
                 WorkNotFoundError(kind, id),
                 (root, secrets) => ReadWork(root, kind, secrets),
                 token),
@@ -108,7 +108,7 @@ internal sealed partial class TmdbAdapter
                 sessionSecrets,
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"tv/{showId}/season/{seasonNumber}/episode/{episodeNumber}?append_to_response=external_ids&language={CatalogLanguage}"),
+                    $"tv/{showId}/season/{seasonNumber}/episode/{episodeNumber}?append_to_response=external_ids&language={LanguageAskedBy(settings)}"),
                 string.Create(CultureInfo.InvariantCulture, $"TMDb has no episode {episodeNumber} of season {seasonNumber} of the show {showId}."),
                 ReadEpisode,
                 token),
@@ -128,7 +128,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                $"collection/{id}?language={CatalogLanguage}",
+                $"collection/{id}?language={LanguageAskedBy(settings)}",
                 $"TMDb has no collection with the id {id}.",
                 ReadCollection,
                 token),
@@ -156,7 +156,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                $"person/{id}/combined_credits?language={CatalogLanguage}",
+                $"person/{id}/combined_credits?language={LanguageAskedBy(settings)}",
                 $"TMDb has no person with the id {id}.",
                 (root, secrets) => ReadPerson(root, id, secrets),
                 token),
@@ -197,8 +197,8 @@ internal sealed partial class TmdbAdapter
 
     /// <summary>
     /// MAM-34 — an episode as TMDb answers it: its numbers — an answer without them isn't TMDb's —, its title (TMDb's
-    /// own fallback when it has none in Ukrainian), air date and runtime, and its IMDb id from <c>external_ids</c>, as a
-    /// show's is read (an episode's details have no <c>imdb_id</c> of their own).
+    /// own fallback when it has none in the language asked), air date and runtime, and its IMDb id from
+    /// <c>external_ids</c>, as a show's is read (an episode's details have no <c>imdb_id</c> of their own).
     /// </summary>
     private static CatalogEpisode? ReadEpisode(JsonElement root, string?[] secrets)
     {

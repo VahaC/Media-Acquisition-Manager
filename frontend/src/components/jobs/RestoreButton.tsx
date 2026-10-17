@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Undo2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { oldCopiesWords } from '@/components/jobs/old-copies-words'
 import { ActionButton } from '@/components/shared/ActionButton'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { useRestoreReplacement } from '@/lib/queries'
@@ -49,7 +50,7 @@ export function RestoreButton({ replacement, busy, onStart, onError }: RestoreBu
         queryFn: () => replacementsApi.get(replacement.id),
       })
       const confirmed = await confirm({
-        title: t('oldCopies.restore.confirmTitle', { count: quarantinedCopies(details) }),
+        title: oldCopiesWords(t, 'restore', 'confirmTitle', quarantinedCopies(details)),
         message: t('oldCopies.restore.message'),
         confirmLabel: t('oldCopies.restore.confirm'),
       })
@@ -64,9 +65,9 @@ export function RestoreButton({ replacement, busy, onStart, onError }: RestoreBu
   return (
     <ActionButton
       icon={Undo2}
-      label={t('oldCopies.restore.action', { count: replacement.quarantinedCopyCount })}
+      label={oldCopiesWords(t, 'restore', 'action', replacement.quarantinedCopyCount)}
       pendingLabel={t('oldCopies.restore.pending')}
-      title={t('oldCopies.restore.title', { count: replacement.quarantinedCopyCount })}
+      title={oldCopiesWords(t, 'restore', 'title', replacement.quarantinedCopyCount)}
       pending={restore.isPending}
       disabled={busy || restore.isPending}
       reason={replacement.switchedOff ? t('oldCopies.switchedOff') : undefined}

@@ -1,4 +1,4 @@
-import { FALLBACK_LANGUAGE, i18n, pickLanguage, resources } from './i18n'
+import { applyAccountLanguage, FALLBACK_LANGUAGE, i18n, isUiLanguage, pickLanguage, resources, UI_LANGUAGES, uiLanguageFor } from './i18n'
 
 /** Every leaf of a resource tree as `[dotted.key, value]`. */
 function leaves(tree: object, prefix = ''): [string, unknown][] {
@@ -65,9 +65,97 @@ describe('pickLanguage', () => {
   })
 })
 
+describe('uiLanguageFor', () => {
+  it.each<[string, string | null, string[], string]>([
+    ['a Ukrainian browser gets Ukrainian when the account follows the browser', null, ['uk-UA', 'en-US'], 'uk-UA'],
+    ['an English browser gets its own English when the account follows the browser', null, ['en-GB', 'uk'], 'en-GB'],
+    ['a browser in no shipped language gets English when the account follows the browser', null, ['de-DE', 'fr'], 'en'],
+    ['English keeps the browser\'s first English locale, and its formats', 'en', ['uk-UA', 'en-GB', 'en-US'], 'en-GB'],
+    ['English on a browser with no English locale is plain English', 'en', ['uk-UA', 'de-DE'], 'en'],
+    ['Ukrainian keeps the browser\'s Ukrainian locale', 'uk', ['en-US', 'uk-UA'], 'uk-UA'],
+    ['Ukrainian on a browser with no Ukrainian locale is plain Ukrainian', 'uk', ['en-US', 'en'], 'uk'],
+    ['a language this build doesn\'t ship follows the browser', 'de', ['uk-UA', 'en-US'], 'uk-UA'],
+  ])('%s', (_label, account, preferred, expected) => {
+    // Act
+    const locale = uiLanguageFor(account, preferred)
+
+    // Assert
+    expect(locale).toBe(expected)
+  })
+
+  it('reads the browser\'s own preferences when it is given none', () => {
+    // Arrange
+    const browser = [...navigator.languages]
+
+    // Act
+    const locale = uiLanguageFor(null)
+
+    // Assert
+    expect(browser).toEqual(['en-US', 'en'])
+    expect(locale).toBe('en-US')
+  })
+
+  it('knows the shipped languages, English and Ukrainian, and nothing else', () => {
+    // Act
+    const known = ['en', 'uk', 'de', 'en-GB', '', null, undefined].map(isUiLanguage)
+
+    // Assert
+    expect(UI_LANGUAGES).toEqual(['en', 'uk'])
+    expect(known).toEqual([true, true, false, false, false, false, false])
+  })
+})
+
 describe('i18n', () => {
   afterEach(async () => {
     await i18n.changeLanguage('en-US')
+  })
+
+  it('registers every namespace in Ukrainian too', () => {
+    // Arrange
+    const namespaces = Object.keys(resources.en)
+
+    // Act
+    const registered = namespaces.filter((namespace) => i18n.hasResourceBundle('uk', namespace))
+
+    // Assert
+    expect(Object.keys(resources)).toEqual(['en', 'uk'])
+    expect(registered).toEqual(namespaces)
+  })
+
+  it('reads the Ukrainian resources for a regional Ukrainian locale', async () => {
+    // Act
+    await i18n.changeLanguage('uk-UA')
+
+    // Assert
+    expect(i18n.language).toBe('uk-UA')
+    expect(i18n.resolvedLanguage).toBe('uk')
+    expect(document.documentElement.lang).toBe('uk-UA')
+  })
+
+  it('runs the UI in the account\'s language, and back in the browser\'s without one', async () => {
+    // Act
+    await applyAccountLanguage('uk')
+    const ukrainian = i18n.language
+    await applyAccountLanguage(null)
+    const browser = i18n.language
+
+    // Assert
+    expect(ukrainian).toBe('uk')
+    expect(browser).toBe('en-US')
+  })
+
+  it('leaves the UI alone when it already runs in the account\'s language', async () => {
+    // Arrange
+    const changed = vi.fn()
+    i18n.on('languageChanged', changed)
+
+    // Act
+    await applyAccountLanguage('en')
+    i18n.off('languageChanged', changed)
+
+    // Assert
+    expect(i18n.language).toBe('en-US')
+    expect(changed).not.toHaveBeenCalled()
   })
 
   it('reads the English resources for a regional English locale', async () => {

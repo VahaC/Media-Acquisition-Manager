@@ -5,6 +5,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { refreshSession } from '@/lib/api'
 import { authApi } from '@/lib/auth-api'
 import { useAuthStore } from '@/lib/auth-store'
+import { i18n } from '@/lib/i18n'
 import { queryClient } from '@/lib/query-client'
 import type { SignInResponse } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
@@ -29,6 +30,20 @@ function renderAt(path: string) {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+/** A page with a half-typed field, which only a fresh mount empties. */
+function renderFormPage() {
+  render(
+    <MemoryRouter initialEntries={['/profile']}>
+      <Routes>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/profile" element={<input aria-label="Draft" />} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  )
+  return { user: userEvent.setup(), draft: () => screen.getByRole<HTMLInputElement>('textbox', { name: 'Draft' }) }
 }
 
 describe('ProtectedRoute', () => {
@@ -82,6 +97,39 @@ describe('ProtectedRoute', () => {
     // Assert
     expect(screen.getByText('Users page')).toBeInTheDocument()
     expect(authApi.refresh).not.toHaveBeenCalled()
+  })
+
+  it('mounts the page afresh when the UI language changes, so it is worked out again in the new language', async () => {
+    // Arrange
+    signInAs(owner)
+    const { user, draft } = renderFormPage()
+    await user.type(draft(), 'half typed')
+
+    // Act
+    let draftAfter: string
+    try {
+      await act(() => useAuthStore.getState().setLanguage('uk'))
+      draftAfter = draft().value
+    } finally {
+      await act(() => i18n.changeLanguage('en-US'))
+    }
+
+    // Assert
+    expect(draftAfter).toBe('')
+  })
+
+  it('keeps the page as it is when a refresh brings the language it already runs in', async () => {
+    // Arrange
+    signInAs(owner)
+    const { user, draft } = renderFormPage()
+    await user.type(draft(), 'half typed')
+
+    // Act
+    act(() => useAuthStore.getState().setSession(sessionFor({ ...owner, language: 'en' }, 'token-2')))
+
+    // Assert
+    expect(i18n.language).toBe('en-US')
+    expect(draft()).toHaveValue('half typed')
   })
 
   it('sends a visitor without a session to sign-in, remembering where they were going', () => {

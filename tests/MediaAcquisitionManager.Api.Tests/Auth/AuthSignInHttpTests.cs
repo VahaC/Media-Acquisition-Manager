@@ -49,9 +49,27 @@ public sealed class AuthSignInHttpTests : IClassFixture<MediaAcquisitionManagerA
 
         //Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(new CurrentUserResponse(user.Id, "alice", IsOwner: false), body.User);
+        Assert.Equal(new CurrentUserResponse(user.Id, "alice", IsOwner: false, Language: null), body.User);
         Assert.Equal(now.AddMinutes(15), body.AccessTokenExpiresUtc);
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+    }
+
+    // MAM-46 — the web app switches to the account's language as soon as the session is set.
+    [Fact]
+    public async Task SignIn_carries_the_language_the_user_saved()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var user = await _users.Create("alice");
+        await _users.SetLanguage(user, "uk");
+
+        //Act
+        var response = await _factory.PostHttpRequest(BaseUrl, body: new SignInRequest("alice", UserSeeder.DefaultPassword));
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<SignInResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
+        Assert.Equal(new CurrentUserResponse(user.Id, "alice", IsOwner: false, Language: "uk"), body!.User);
     }
 
     [Fact]
@@ -160,7 +178,7 @@ public sealed class AuthSignInHttpTests : IClassFixture<MediaAcquisitionManagerA
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<SignInResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         // The name as it was created, whatever the sign-in typed.
-        Assert.Equal(new CurrentUserResponse(user.Id, "Alice", IsOwner: false), body!.User);
+        Assert.Equal(new CurrentUserResponse(user.Id, "Alice", IsOwner: false, Language: null), body!.User);
     }
 
     [Theory]

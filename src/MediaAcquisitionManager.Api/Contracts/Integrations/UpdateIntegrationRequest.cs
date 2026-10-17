@@ -9,9 +9,10 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <c>error</c> in it.
 /// </para>
 /// <para>
-/// No adapter type: a type never changes, and one sent anyway is ignored. <paramref name="IsEnabled"/>
-/// and <paramref name="PathMappings"/> left out keep what is stored rather than resetting it, so a
-/// client that doesn't know a field can't switch an integration back on or delete its mappings.
+/// No adapter type: a type never changes, and one sent anyway is ignored. <paramref name="IsEnabled"/>,
+/// <paramref name="PathMappings"/> and — MAM-46 — <paramref name="CatalogLanguage"/> left out keep what is stored
+/// rather than resetting it, so a client that doesn't know a field can't switch an integration back on, delete its
+/// mappings or change the language its catalog is read in.
 /// </para>
 /// </remarks>
 /// <param name="Name">Its display name, unique in any letter case.</param>
@@ -22,6 +23,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="IsEnabled">Whether the app uses it; left out keeps the switch as it is.</param>
 /// <param name="PathMappings">Every path mapping, in order, replacing the stored ones; <c>[]</c> removes
 /// them all, left out keeps them.</param>
+/// <param name="CatalogLanguage">MAM-46 — for a metadata catalog, the language to ask it in from now on: one of its
+/// type's <c>catalogLanguages</c>, in any letter case; left out keeps it. A change reads the catalog again in it at the
+/// next computation. Refused for any other type.</param>
 public sealed record UpdateIntegrationRequest(
     string? Name,
     string? BaseUrl,
@@ -29,4 +33,5 @@ public sealed record UpdateIntegrationRequest(
     SecretValueUpsert? Password = null,
     SecretValueUpsert? ApiKey = null,
     bool? IsEnabled = null,
-    IReadOnlyList<PathMappingRequest>? PathMappings = null);
+    IReadOnlyList<PathMappingRequest>? PathMappings = null,
+    string? CatalogLanguage = null);

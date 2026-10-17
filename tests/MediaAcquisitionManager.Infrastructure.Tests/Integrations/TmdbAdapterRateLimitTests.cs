@@ -18,7 +18,10 @@ public sealed class TmdbAdapterRateLimitTests : IDisposable
     private const string TooManyRequestsError =
         "TMDb is asking the app to slow down (429 Too Many Requests), and still was after three retries. Try again in a minute.";
 
-    private static readonly IntegrationConnectionSettings Settings = new(null, FakeTmdbServer.BaseUrl, null, null, FakeTmdbServer.Token);
+    // MAM-46 — the language an upgraded installation's TMDb keeps, which every exact URL below was recorded with.
+    private const string CatalogLanguage = "uk-UA";
+
+    private static readonly IntegrationConnectionSettings Settings = new(null, FakeTmdbServer.BaseUrl, null, null, FakeTmdbServer.Token, CatalogLanguage);
 
     private readonly IntegrationAdapterHarness _harness = new();
     private readonly FakeTmdbServer _tmdb;

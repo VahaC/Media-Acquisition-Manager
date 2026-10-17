@@ -7,6 +7,7 @@ using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
 using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,13 +17,23 @@ namespace MediaAcquisitionManager.Api.Tests.Catalog;
 // alternative titles and a show's IMDb id, and come back from the rows as they came from the catalog; details an older
 // reading stored (DetailsVersion below CatalogStore.CurrentDetailsVersion) are read again however young (R22); and a
 // search or a find by IMDb id stores every work it lists — so a suggestion is a row whose poster is served — answers in
-// the catalog's order, and asks the catalog every time. The store is resolved from the app's own container, one scope a
-// call, as the suggestions use it, against TMDb faked at the network; the poster is asked over HTTP.
+// the catalog's order, and asks the catalog every time. MAM-46 — a connection built before the owner changed the
+// catalog's language (a run under way) still gets its answers but changes no stored row, and stores a work not stored yet
+// in its own language, so it is read again in the new one; a lookup by a title is asked again in another language, one by
+// an IMDb id is not. The store is resolved from the app's own container, one scope a call, as the suggestions use it,
+// against TMDb faked at the network; the poster is asked over HTTP.
 public sealed class CatalogStoreTests : IClassFixture<MediaAcquisitionManagerApiFactory>, IAsyncLifetime
 {
     private const string PostersUrl = "/api/recommendations/posters";
     private const string PlanetEarthPoster = "ajNcvf2fvOmus8rxPdpoGrdL4OI.jpg";
     private const string PlanetEarthOverview = "Документальний серіал BBC про природу Землі.";
+
+    /// <summary>MAM-46 — Planet Earth's name by the language TMDb is asked in.</summary>
+    private static readonly Dictionary<string, string> PlanetEarthTitles = new(StringComparer.Ordinal)
+    {
+        ["uk-UA"] = "Планета Земля",
+        ["en-US"] = "Planet Earth",
+    };
 
     private readonly MediaAcquisitionManagerApiFactory _factory;
     private AuthorizedUser _owner = null!;
@@ -249,6 +260,115 @@ public sealed class CatalogStoreTests : IClassFixture<MediaAcquisitionManagerApi
             .Select(work => (work.Kind, work.Title, work.PosterPath!))));
     }
 
+    // ── MAM-46: the catalog's language ───────────────────────────────────────
+
+    [Fact]
+    public async Task Connection_built_before_a_language_change_gets_its_answers_but_changes_no_stored_row()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth", "Planet Erde"]) with { TitlesByLanguage = PlanetEarthTitles });
+        _tmdb.AddSearch(MediaWorkKind.Series, "Planet Earth", null, 1044);
+        // Read in English yesterday, by a run that started after the owner chose English.
+        var readUtc = _factory.Time.GetUtcNow().UtcDateTime.AddDays(-1);
+        var stored = await new CatalogWorkSeeder(_factory.Scope).Create(
+            MediaWorkKind.Series, "1044", "Planet Earth", new DateOnly(2006, 3, 5), [99],
+            detailsUtc: readUtc, catalog: _catalog, posterPath: "/english.jpg", detailsLanguage: "en-US");
+
+        //Act
+        var (asked, found, work) = await WithOutdatedStoreAsync(async (store, catalog) => (
+            catalog.Language,
+            (await store.SearchAsync(catalog, MediaWorkKind.Series, "Planet Earth", null, cancellationToken)).Value!,
+            (await store.GetWorkAsync(catalog, MediaWorkKind.Series, "1044", cancellationToken)).Value!));
+
+        //Assert
+        // The run that was under way asks in Ukrainian and gets Ukrainian answers: the English row is no answer to it.
+        Assert.Equal("uk-UA", asked);
+        Assert.Equal(["Планета Земля"], found.Select(summary => summary.Title));
+        Assert.Equal(("Планета Земля", (int?)53), (work.Summary.Title, work.RuntimeMinutes));
+        Assert.Equal(["uk-UA"], LanguagesOf("/3/tv/1044"));
+        // The row the new language's run read stays as it was: its title, poster, details and their language.
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.CatalogWorks.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(
+                ("Planet Earth", "/english.jpg", "en-US", (DateTime?)readUtc, (int?)null, stored.ObservedUtc),
+                (row.Title, row.PosterPath, row.DetailsLanguage, row.DetailsUtc, row.RuntimeMinutes, row.ObservedUtc));
+            Assert.Equal(0, await db.CatalogWorkAlternativeTitles.CountAsync(cancellationToken));
+        });
+    }
+
+    [Fact]
+    public async Task Connection_built_before_a_language_change_stores_a_new_work_in_its_own_language_which_is_read_again_in_the_new_one()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(PlanetEarth(53, ["Planet Earth"]) with { TitlesByLanguage = PlanetEarthTitles });
+        _tmdb.AddFind("tt0795176", MediaWorkKind.Series, 1044);
+        await WithOutdatedStoreAsync(async (store, catalog) =>
+        {
+            await store.GetWorkAsync(catalog, MediaWorkKind.Series, "1044", cancellationToken);
+            return await store.LookupAsync(catalog, CatalogLookupQuery.ByImdbId(MediaWorkKind.Series, "tt0795176"), cancellationToken);
+        });
+        (string Title, string Language) added = default;
+        await _factory.WithDbAsync(async db => added = await db.CatalogWorks.AsNoTracking()
+            .Select(row => ValueTuple.Create(row.Title, row.DetailsLanguage))
+            .SingleAsync(cancellationToken));
+
+        //Act
+        var work = await GetWorkAsync(MediaWorkKind.Series, "1044", cancellationToken);
+
+        //Assert
+        // A work no row held is added, stamped in the language it was read in; the next read in English reads it again.
+        Assert.Equal(("Планета Земля", "uk-UA"), added);
+        Assert.Equal("Planet Earth", work.Summary.Title);
+        Assert.Equal(["uk-UA", "en-US"], LanguagesOf("/3/tv/1044"));
+        await _factory.WithDbAsync(async db =>
+        {
+            var row = await db.CatalogWorks.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(("Planet Earth", "en-US"), (row.Title, row.DetailsLanguage));
+            // A lookup by an IMDb id holds ids alone: stored whatever the language it was asked in.
+            var lookup = await db.CatalogLookups.AsNoTracking().SingleAsync(cancellationToken);
+            Assert.Equal(("Series|imdb|tt0795176", "1044", "uk-UA"), (lookup.QueryKey, lookup.ResultCatalogId, lookup.Language));
+        });
+    }
+
+    [Fact]
+    public async Task Lookup_by_a_title_is_asked_again_in_another_language_and_one_by_an_imdb_id_is_not()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        _tmdb.AddWork(new FakeTmdbWork(MediaWorkKind.Movie, 129, "Віднесені привидами", "千と千尋の神隠し", "2001-07-20", ImdbId: "tt0245429")
+        {
+            TitlesByLanguage = new Dictionary<string, string>(StringComparer.Ordinal) { ["uk-UA"] = "Віднесені привидами", ["en-US"] = "Spirited Away" },
+        });
+        _tmdb.AddSearch(MediaWorkKind.Movie, "Віднесені привидами", 2001, 129);
+        _tmdb.AddFind("tt0245429", MediaWorkKind.Movie, 129);
+        var byTitle = CatalogLookupQuery.ByTitle(MediaWorkKind.Movie, "Віднесені привидами", 2001);
+        var byImdbId = CatalogLookupQuery.ByImdbId(MediaWorkKind.Movie, "tt0245429");
+        var inUkrainian = await LookupAsync(byTitle, cancellationToken);
+        await LookupAsync(byImdbId, cancellationToken);
+
+        //Act
+        await SetCatalogLanguageAsync("en-US");
+        var inEnglish = await LookupAsync(byTitle, cancellationToken);
+        var imdbInEnglish = await LookupAsync(byImdbId, cancellationToken);
+        await SetCatalogLanguageAsync("uk-UA");
+        var backInUkrainian = await LookupAsync(byTitle, cancellationToken);
+
+        //Assert
+        // TMDb keeps a result by its title in the language asked, or its original: asked in English, the film is "Spirited
+        // Away", so the Ukrainian title finds nothing; asked in Ukrainian again, it finds the film again.
+        Assert.Equal(("129", false, "129"), (inUkrainian.CatalogId, inEnglish.IsFound, backInUkrainian.CatalogId));
+        Assert.Equal(["uk-UA", "en-US", "uk-UA"], LanguagesOf("/3/search/movie"));
+        Assert.Equal("129", imdbInEnglish.CatalogId);
+        Assert.Equal(1, Count("/3/find/tt0245429"));
+        await _factory.WithDbAsync(async db => Assert.Equal(
+            [("Movie|imdb|tt0245429", "uk-UA"), (byTitle.Key, "uk-UA")],
+            (await db.CatalogLookups.AsNoTracking().OrderBy(lookup => lookup.QueryKey).ToListAsync(cancellationToken))
+            .Select(lookup => (lookup.QueryKey, lookup.Language))));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /// <summary>Planet Earth (2006) as TMDb lists it: its latest episode of <paramref name="runtimeMinutes"/>, its IMDb id
@@ -274,5 +394,30 @@ public sealed class CatalogStoreTests : IClassFixture<MediaAcquisitionManagerApi
         return await action(scope.ServiceProvider.GetRequiredService<ICatalogStore>(), connected.Connection!);
     }
 
+    /// <summary>MAM-46 — runs <paramref name="action"/> with a connection built while the catalog was asked in Ukrainian, the
+    /// owner having chosen English since: a run that was under way when the language changed.</summary>
+    private async Task<T> WithOutdatedStoreAsync<T>(Func<ICatalogStore, CatalogConnection, Task<T>> action)
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var connected = await scope.ServiceProvider.GetRequiredService<ICatalogConnector>().ConnectAsync();
+        await SetCatalogLanguageAsync("en-US");
+        return await action(scope.ServiceProvider.GetRequiredService<ICatalogStore>(), connected.Connection!);
+    }
+
+    private async Task<CatalogLookupResult> LookupAsync(CatalogLookupQuery query, CancellationToken cancellationToken) =>
+        await WithStoreAsync(async (store, catalog) => (await store.LookupAsync(catalog, query, cancellationToken)).Value!);
+
+    /// <summary>The owner's change of the catalog's language, as the integration's row holds it.</summary>
+    private Task SetCatalogLanguageAsync(string language) =>
+        _factory.WithDbAsync(db => db.IntegrationConnections.ExecuteUpdateAsync(setters => setters.SetProperty(integration => integration.CatalogLanguage, language)));
+
     private int Count(string path) => _factory.TmdbHttp.Requests.Count(request => request.Uri.AbsolutePath == path);
+
+    /// <summary>The <c>language</c> of every request to <paramref name="path"/>, in the order they were sent.</summary>
+    private List<string> LanguagesOf(string path) =>
+    [
+        .. _factory.TmdbHttp.Requests
+            .Where(request => request.Uri.AbsolutePath == path)
+            .Select(request => QueryHelpers.ParseQuery(request.Uri.Query)["language"].ToString()),
+    ];
 }

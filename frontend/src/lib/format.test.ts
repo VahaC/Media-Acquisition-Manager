@@ -1,4 +1,15 @@
-import { formatBitRate, formatDate, formatDateTime, formatDaysAgo, formatDuration, formatFileSize, formatNumber, formatProgress, formatTimeAgo } from './format'
+import {
+  capitalizeFirst,
+  formatBitRate,
+  formatDate,
+  formatDateTime,
+  formatDaysAgo,
+  formatDuration,
+  formatFileSize,
+  formatNumber,
+  formatProgress,
+  formatTimeAgo,
+} from './format'
 import { i18n } from './i18n'
 
 // A fixed zone, so the expected strings don't depend on the machine running the tests.
@@ -284,5 +295,31 @@ describe('format', () => {
 
     // Assert
     expect(text).toBe(expected)
+  })
+
+  it.each([
+    ['english', 'en-US', 'English'],
+    ['already Capital', 'en-US', 'Already Capital'],
+    ['', 'en-US', ''],
+    ['42 things', 'en-US', '42 things'],
+    // Turkish capitalises a dotted i with its dot: the UI locale's own rule, not English's.
+    ['istanbul', 'tr', 'İstanbul'],
+  ])('capitalises the first letter of %j the way %s does', (text, locale, expected) => {
+    // Act
+    const capitalised = capitalizeFirst(text, locale)
+
+    // Assert
+    expect(capitalised).toBe(expected)
+  })
+
+  it('capitalises in the UI locale when it is given none', async () => {
+    // Arrange
+    await i18n.changeLanguage('tr-TR')
+
+    // Act
+    const capitalised = capitalizeFirst('izmir')
+
+    // Assert
+    expect(capitalised).toBe('İzmir')
   })
 })

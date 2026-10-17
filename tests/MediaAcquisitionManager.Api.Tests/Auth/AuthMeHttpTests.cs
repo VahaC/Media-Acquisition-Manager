@@ -68,7 +68,8 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         Assert.Equal(
-            new CurrentUserProfileResponse(signedIn.User.Id, "alice", IsOwner: false, CreatedUtc: now, LastSignInUtc: null, SessionExpiresUtc: now + IdleLifetime),
+            new CurrentUserProfileResponse(
+                signedIn.User.Id, "alice", IsOwner: false, CreatedUtc: now, LastSignInUtc: null, SessionExpiresUtc: now + IdleLifetime, Language: null),
             body);
     }
 
@@ -87,8 +88,44 @@ public sealed class AuthMeHttpTests : IClassFixture<MediaAcquisitionManagerApiFa
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         Assert.Equal(
-            new CurrentUserProfileResponse(owner.User.Id, "owner", IsOwner: true, CreatedUtc: now, LastSignInUtc: null, SessionExpiresUtc: now + IdleLifetime),
+            new CurrentUserProfileResponse(
+                owner.User.Id, "owner", IsOwner: true, CreatedUtc: now, LastSignInUtc: null, SessionExpiresUtc: now + IdleLifetime, Language: null),
             body);
+    }
+
+    // MAM-46 — the Profile page's Language card shows the saved language.
+    [Fact]
+    public async Task Me_carries_the_language_the_user_saved()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var signedIn = await _users.CreateAuthorized("alice");
+        await _users.SetLanguage(signedIn.User, "uk");
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, signedIn.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal("uk", document.RootElement.GetProperty("language").GetString());
+    }
+
+    // MAM-46 — "as in the browser" is a null the web app reads, not a missing property.
+    [Fact]
+    public async Task Me_of_a_user_who_saved_no_language_carries_a_null_language()
+    {
+        //Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var signedIn = await _users.CreateAuthorized("alice");
+
+        //Act
+        var response = await _factory.GetHttpRequest(BaseUrl, signedIn.AccessToken);
+
+        //Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("language").ValueKind);
     }
 
     // MAM-16 — the Profile page's Created and Last sign-in rows.

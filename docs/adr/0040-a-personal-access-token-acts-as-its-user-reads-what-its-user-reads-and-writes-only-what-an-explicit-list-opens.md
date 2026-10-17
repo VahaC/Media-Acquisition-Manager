@@ -257,3 +257,18 @@ and `Post_marked_for_tokens_alone_with_a_session_is_403_with_the_sentence_and_re
 mark on a probe endpoint, and
 `McpToolListHttpTests.Discovery_finds_exactly_the_twelve_tools_each_a_read_or_one_of_the_three_writes_and_never_both`
 keeps the tools' list fixed, as `PersonalAccessTokenWritesHttpTests` keeps the HTTP API's.
+
+## The language on Profile (added 0.5.0, MAM-46)
+
+**`PUT /api/profile/language`, the web app's language saved with the account, is refused to every
+token, as the Profile's recommendation settings are.** It carries no mark, so the rule above refuses
+it by default with 403 and the "An access token can't do this. …" sentence, nothing saved: the
+language is how the web app speaks to a person, not something a script or an assistant changes for
+them, and nothing was opened on purpose. A token reads the language nowhere either: it comes with the
+session answers and with `GET /api/auth/me`, which a token can't call. A TMDb integration's catalog
+language is a setting under `Controllers/Settings`, closed to tokens, reads included, as every
+setting is. `PersonalAccessTokenWritesHttpTests` lists `PUT api/profile/language` among the writes
+it sends with a token of each access, and
+`UserLanguageHttpTests.Update_with_a_personal_access_token_is_403_with_the_sentence_and_saves_nothing`
+pins the refusal; `ControllerAccessDeclarationTests` keeps the action open to every signed-in user,
+outside `Controllers/Settings`.

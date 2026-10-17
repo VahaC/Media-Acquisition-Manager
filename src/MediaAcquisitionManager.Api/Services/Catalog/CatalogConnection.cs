@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
+using MediaAcquisitionManager.Core.Integrations;
 
 namespace MediaAcquisitionManager.Api.Services.Catalog;
 
@@ -20,4 +21,13 @@ public sealed record CatalogConnection(
     IntegrationConnectionSettings Settings,
     IIntegrationAdapter Adapter,
     IMetadataCatalog Catalog,
-    IMetadataResolver Resolver);
+    IMetadataResolver Resolver)
+{
+    /// <summary>
+    /// MAM-46 — the language the catalog is asked in: the integration's own, or <see cref="CatalogLanguageRules.Fallback"/>
+    /// for a row stored without one, the language its adapter then asks in too. The catalog store stamps every row it
+    /// writes with it and counts a row as fresh only while it matches, so a change of language reads the catalog again
+    /// (ADR 0025).
+    /// </summary>
+    public string Language => Settings.CatalogLanguage ?? CatalogLanguageRules.Fallback;
+}

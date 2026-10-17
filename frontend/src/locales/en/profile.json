@@ -50,6 +50,7 @@
     "prefix": "{{prefix}}…",
     "expired": "Expired",
     "never": "Never",
+    "expiresNever": "Never",
     "revoke": "Revoke",
     "revokeFailed": "Could not revoke the token. Reload the page and try again.",
     "revokeConfirm": {
@@ -113,6 +114,14 @@
   "appearance": {
     "title": "Appearance",
     "description": "Saved in this browser."
+  },
+  "language": {
+    "title": "Language",
+    "description": "Saved with your account, so it follows you to other browsers and devices. Before you sign in, the browser's language is used.",
+    "label": "Language",
+    "browser": "As in the browser",
+    "saved": "Saved.",
+    "failed": "Could not save your language."
   },
   "recommendations": {
     "title": "Recommendations",

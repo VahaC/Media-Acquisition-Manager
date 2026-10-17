@@ -17,10 +17,13 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// necessarily this session's; <c>null</c> until the first one.</param>
 /// <param name="SessionExpiresUtc">When the session this request came through ends unless it is used
 /// again: every refresh moves it to 30 days later.</param>
+/// <param name="Language">MAM-46 — the language the user saved for the web app (<c>en</c>, <c>uk</c>), which the Profile
+/// page's Language card shows; <c>null</c> when the user follows the browser's.</param>
 public sealed record CurrentUserProfileResponse(
     Guid Id,
     string UserName,
     bool IsOwner,
     DateTime CreatedUtc,
     DateTime? LastSignInUtc,
-    DateTime SessionExpiresUtc);
+    DateTime SessionExpiresUtc,
+    string? Language);

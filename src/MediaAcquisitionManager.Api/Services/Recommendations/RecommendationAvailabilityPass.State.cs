@@ -15,7 +15,7 @@ public sealed partial class RecommendationAvailabilityPass
     /// <param name="NeverChecked">Whether no check of it was ever stored.</param>
     /// <param name="Kind">A film or a show.</param>
     /// <param name="CatalogId">Its catalog id, of its kind's numbering.</param>
-    /// <param name="Title">Its catalog (Ukrainian) title.</param>
+    /// <param name="Title">Its catalog title, in the catalog's language (MAM-46).</param>
     /// <param name="OriginalTitle">Its original title, when the catalog gives one.</param>
     /// <param name="ReleaseDate">A film's release or a show's first air date.</param>
     /// <param name="ImdbId">A film's IMDb id, when its details were read.</param>

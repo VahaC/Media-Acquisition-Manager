@@ -26,8 +26,18 @@ export type RecommendationReasonKind =
 /** MAM-33 — where a computation of the lists is. Queued and Running are under way; the other two are final. */
 export type RecommendationRunStatus = 'Queued' | 'Running' | 'Succeeded' | 'Failed'
 
-/** MAM-33 — what queued a computation. */
-export type RecommendationRunTrigger = 'LibrarySynced' | 'Requested' | 'TabEnabled' | 'CatalogConnected' | 'FeedRead'
+/**
+ * MAM-33 — what queued a computation. MAM-34 — a TMDb link set, replaced or removed (`LinkChanged`).
+ * MAM-46 — the metadata catalog's language changed (`CatalogLanguageChanged`).
+ */
+export type RecommendationRunTrigger =
+  | 'LibrarySynced'
+  | 'Requested'
+  | 'TabEnabled'
+  | 'CatalogConnected'
+  | 'FeedRead'
+  | 'LinkChanged'
+  | 'CatalogLanguageChanged'
 
 /**
  * MAM-33 — what a running computation is doing, in the order it does it: reading the library, looking

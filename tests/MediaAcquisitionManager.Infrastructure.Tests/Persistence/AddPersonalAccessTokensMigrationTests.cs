@@ -1,5 +1,4 @@
 using MediaAcquisitionManager.Core.Enums;
-using MediaAcquisitionManager.Infrastructure.Security;
 using MediaAcquisitionManager.TestInfrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -58,8 +57,8 @@ public sealed class AddPersonalAccessTokensMigrationTests : DatabaseTestBase
         await using (var db = CreateContext())
         {
             await db.GetService<IMigrator>().MigrateAsync(PreviousMigration, cancellationToken);
-            // The Users table this upgrade leaves as it is: its factory writes it.
-            userId = (await new UserDataFactory(db, new Pbkdf2PasswordHasher(1_000), TimeProvider.System).Create("owner", "P@ssword1")).Id;
+            // Raw SQL since MAM-46: today's user has a Language column the Users table of that schema hasn't.
+            userId = await MigrationUserRows.InsertAsync(db, "owner", cancellationToken);
         }
 
         //Act

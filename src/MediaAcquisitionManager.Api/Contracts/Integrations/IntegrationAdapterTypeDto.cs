@@ -14,6 +14,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="ReportsFilePaths">Whether the service reports file paths, so path mappings apply.</param>
 /// <param name="DestinationKind">MAM-30 — for a type of download client, what its destinations are: its own categories
 /// or the folders it can reach (ADR 0039); <c>null</c> for any other type.</param>
+/// <param name="CatalogLanguages">MAM-46 — for a type of metadata catalog, every language an integration of it can be
+/// asked in, as the tags it takes (<c>uk-UA</c>, <c>en-US</c>…), in the catalog's own order; <c>null</c> for any other
+/// type.</param>
 public sealed record IntegrationAdapterTypeDto(
     string TypeId,
     string DisplayName,
@@ -22,4 +25,5 @@ public sealed record IntegrationAdapterTypeDto(
     CredentialRequirement Password,
     CredentialRequirement ApiKey,
     bool ReportsFilePaths,
-    DownloadDestinationKind? DestinationKind = null);
+    DownloadDestinationKind? DestinationKind = null,
+    IReadOnlyList<string>? CatalogLanguages = null);

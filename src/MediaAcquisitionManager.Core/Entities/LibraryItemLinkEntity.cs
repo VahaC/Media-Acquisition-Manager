@@ -74,7 +74,10 @@ public class LibraryItemLinkEntity : AuditableEntity
     /// <summary>The episode of <see cref="SeasonNumber"/>; never without a season.</summary>
     public int? EpisodeNumber { get; set; }
 
-    /// <summary>TMDb's title of the film or show (in Ukrainian) when it was linked, copied for display.</summary>
+    /// <summary>
+    /// TMDb's title of the film or show when it was linked, in the catalog's language of then, copied for display. MAM-46 —
+    /// a snapshot: a later change of the catalog's language leaves it as it was until the link is set again.
+    /// </summary>
     [MaxLength(TitleMaximumLength)]
     public string? CatalogTitle { get; set; }
 

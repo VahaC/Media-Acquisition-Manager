@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { createInstance } from 'i18next'
+import { I18nextProvider } from 'react-i18next'
 import { AccessTokensCard } from '@/components/profile/AccessTokensCard'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { formatDate, formatDateTime } from '@/lib/format'
+import { resources } from '@/lib/i18n'
 import { profileApi } from '@/lib/profile-api'
 import { qk } from '@/lib/queries'
 import { apiError, networkError } from '@/test/api-error'
@@ -74,6 +77,43 @@ describe('AccessTokensCard', () => {
     expect(within(row).getByText('Read only')).toBeInTheDocument()
     expect(cellOf(row, 'Last used')).toHaveTextContent('Never')
     expect(cellOf(row, 'Expires')).toHaveTextContent('Never')
+  })
+
+  // MAM-46 — English says Never in both cells; Ukrainian says "never" under Last used but "indefinitely"
+  // under Expires, so the Expires cell reads a key of its own.
+  it('says in Ukrainian that a token not used yet was never used and one that never expires is valid indefinitely', async () => {
+    // Arrange
+    const expected = backupToken
+    const words = resources.uk.profile.accessTokens
+    const ukrainian = createInstance()
+    void ukrainian.init({
+      lng: 'uk',
+      fallbackLng: 'en',
+      resources,
+      ns: Object.keys(resources.en),
+      defaultNS: 'common',
+      interpolation: { escapeValue: false },
+      initAsync: false,
+    })
+    signInAs(member)
+
+    // Act
+    render(
+      <I18nextProvider i18n={ukrainian}>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ConfirmProvider>
+            <AccessTokensCard />
+          </ConfirmProvider>
+        </QueryClientProvider>
+      </I18nextProvider>,
+    )
+
+    // Assert
+    await screen.findByText(expected.name)
+    const row = rowOf(expected.name)
+    expect(cellOf(row, words.columns.lastUsed)).toHaveTextContent(words.never)
+    expect(cellOf(row, words.columns.expires)).toHaveTextContent(words.expiresNever)
+    expect(words.expiresNever).not.toBe(words.never)
   })
 
   it('marks an expired token and mutes its row, keeping it listed until it is revoked', async () => {

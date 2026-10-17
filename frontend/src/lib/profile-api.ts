@@ -3,6 +3,7 @@ import type {
   AccessTokenList,
   CreateAccessTokenRequest,
   CreatedAccessToken,
+  LanguageSetting,
   RecommendationSettings,
   RecommendationSettingsRequest,
 } from './types'
@@ -28,6 +29,14 @@ export const profileApi = {
    */
   saveRecommendationSettings: async (request: RecommendationSettingsRequest): Promise<RecommendationSettings> =>
     (await api.put<RecommendationSettings>(`${BASE_URL}/recommendations`, request)).data,
+
+  /**
+   * MAM-46 — `PUT /api/profile/language`, body `{ language }`: `"en"`, `"uk"`, or null to follow the
+   * browser. 200 with the language as saved; 400 `{ error }` for a language the app isn't shown in. A
+   * request made with a personal access token is refused 403 `{ error }`.
+   */
+  saveLanguage: async (request: LanguageSetting): Promise<LanguageSetting> =>
+    (await api.put<LanguageSetting>(`${BASE_URL}/language`, request)).data,
 
   /**
    * MAM-5 — `GET /api/profile/tokens`. 200 with the user's personal access tokens that aren't revoked,

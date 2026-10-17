@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Api.Auth;
 using MediaAcquisitionManager.Api.Contracts;
 using MediaAcquisitionManager.Api.Http;
+using MediaAcquisitionManager.Api.Services.Accounts;
 using MediaAcquisitionManager.Api.Services.Recommendations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,8 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace MediaAcquisitionManager.Api.Controllers.Profile;
 
-/// <summary>MAM-33 — the signed-in user's own preferences: their recommendation settings (Vasyl's decision 5).</summary>
+/// <summary>MAM-33 — the signed-in user's own preferences: their recommendation settings (Vasyl's decision 5) and —
+/// MAM-46 — the language the web app speaks to them.</summary>
 /// <remarks>
 /// Every signed-in user's, each their own and nobody else's — by the token, never by an id in the URL, so there is no
 /// one else's to ask for. Outside <c>Controllers/Settings</c> and <c>Controllers/Library</c> on purpose: both make every
@@ -17,7 +19,7 @@ namespace MediaAcquisitionManager.Api.Controllers.Profile;
 [ApiController]
 [Authorize]
 [Route("api/profile")]
-public class ProfileController(IRecommendationSettingsService recommendationSettings) : ControllerBase
+public class ProfileController(IRecommendationSettingsService recommendationSettings, IUserLanguageService languages) : ControllerBase
 {
     private Guid UserId => User.GetUserId();
 
@@ -43,6 +45,27 @@ public class ProfileController(IRecommendationSettingsService recommendationSett
         return result.Status switch
         {
             RecommendationSettingsSaveStatus.Saved => Ok(result.Settings),
+            _ => this.BadRequestError(result.Error),
+        };
+    }
+
+    /// <summary>
+    /// MAM-46 — saves the language the web app speaks to the caller, on every browser and device they sign in from: 200
+    /// with <c>{ language }</c> as saved; 400 with the sentence for a value that is no language of the app, or a body
+    /// without the <c>language</c> property (<c>null</c> is a value: "as in the browser"). A per-user preference, so no
+    /// audit row. A write no list opens to personal access tokens, so a token is refused (ADR 0040).
+    /// </summary>
+    [HttpPut("language")]
+    [UnreadableBodyError(UserLanguageService.UnreadableBodyError)]
+    public async Task<ActionResult<UserLanguageDto>> UpdateLanguage([FromBody] UserLanguageRequest request, CancellationToken cancellationToken)
+    {
+        var result = await languages.SaveAsync(request, UserId, cancellationToken);
+        return result.Status switch
+        {
+            UserLanguageSaveStatus.Saved => Ok(result.Language),
+            // The /me rule: the user was deleted after the token's session check, which to the caller is a session that has
+            // ended.
+            UserLanguageSaveStatus.UserGone => Challenge(),
             _ => this.BadRequestError(result.Error),
         };
     }

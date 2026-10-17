@@ -20,6 +20,10 @@ public static class TmdbSamples
     /// <summary><c>GET /3/configuration</c>: the image host and its sizes.</summary>
     public const string ConfigurationFile = "Tmdb/configuration.json";
 
+    /// <summary>MAM-46 — <c>GET /3/configuration/primary_translations</c> (recorded live on 2026-10-17): the 144 language
+    /// tags TMDb keeps translations in, <c>uk-UA</c> and <c>en-US</c> among them.</summary>
+    public const string ConfigurationPrimaryTranslationsFile = "Tmdb/configuration-primary-translations.json";
+
     /// <summary><c>GET /3/movie/118340?append_to_response=credits,recommendations</c>: Guardians of the
     /// Galaxy (2014), in collection 284433, directed by James Gunn, with 20 recommendations.</summary>
     public const string MovieDetailsFile = "Tmdb/movie-details.json";
@@ -163,6 +167,7 @@ public static class TmdbSamples
     private static readonly Lazy<string> SearchTvPlanetEarthText = new(() => Read(SearchTvPlanetEarthFile));
     private static readonly Lazy<string> TvDetailsPlanetEarthText = new(() => Read(TvDetailsPlanetEarthFile));
     private static readonly Lazy<string> TvEpisodeWwiiText = new(() => Read(TvEpisodeWwiiFile));
+    private static readonly Lazy<string> ConfigurationPrimaryTranslationsText = new(() => Read(ConfigurationPrimaryTranslationsFile));
 
     /// <summary>The <see cref="MovieDetailsFile"/> sample, as TMDb sent it.</summary>
     public static string MovieDetails() => MovieDetailsText.Value;
@@ -211,6 +216,9 @@ public static class TmdbSamples
 
     /// <summary>The <see cref="TvEpisodeWwiiFile"/> sample, as TMDb sent it.</summary>
     public static string TvEpisodeWwii() => TvEpisodeWwiiText.Value;
+
+    /// <summary>The <see cref="ConfigurationPrimaryTranslationsFile"/> sample, as TMDb sent it but indented.</summary>
+    public static string ConfigurationPrimaryTranslations() => ConfigurationPrimaryTranslationsText.Value;
 
     private static string Read(string relativePath) => File.ReadAllText(Path.Combine(RepositoryPaths.VendorSamples, relativePath));
 }

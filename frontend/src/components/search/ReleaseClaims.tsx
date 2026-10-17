@@ -1,6 +1,6 @@
 import { Captions, Film, Volume2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { codecName, languageName } from '@/lib/media-labels'
+import { codecName, languageLabel, languageName } from '@/lib/media-labels'
 import { claimedEpisodeRange, claimedSeasons } from '@/lib/release-claims'
 import type { ClaimedEpisodes, ClaimedReleaseQuality, ReleaseKind } from '@/lib/types'
 import '@/styles/search.css' // .release-claims* — the line and its groups
@@ -39,7 +39,9 @@ export function ReleaseClaims({ claimed, kind, episodes }: {
 
   if (picture.length === 0 && audio.length === 0 && subtitles.length === 0) return null
 
-  const names = (codes: string[]) => codes.map(languageName).join(t('claimed.languageSeparator'))
+  // MAM-46 — the first name starts the line, so it is capitalised; the rest are running text.
+  const names = (codes: string[]) =>
+    codes.map((code, index) => (index === 0 ? languageLabel(code) : languageName(code))).join(t('claimed.languageSeparator'))
 
   return (
     <ul className="release-claims" aria-label={t('claimed.label')} title={t('claimed.hint')}>

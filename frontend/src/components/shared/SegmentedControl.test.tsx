@@ -141,4 +141,22 @@ describe('SegmentedControl', () => {
     expect(secondTable).not.toBeChecked()
     expect(screen.getAllByRole('radio', { name: 'Rows' })[1]).toBeChecked()
   })
+
+  it('shows a pill of text alone for an option without an icon, its label marked with its language', () => {
+    // Arrange
+    const languages = [
+      { value: 'en', label: 'English', lang: 'en' },
+      { value: 'de', label: 'Deutsch', lang: 'de' },
+    ] as const
+
+    // Act
+    render(<SegmentedControl label="Language" options={languages} value="de" onChange={() => {}} showLabels />)
+
+    // Assert
+    const german = screen.getByRole('radio', { name: 'Deutsch' })
+    expect(german).toBeChecked()
+    expect(german.closest('label')?.querySelector('svg')).toBeNull()
+    expect(screen.getByText('Deutsch')).toHaveAttribute('lang', 'de')
+    expect(screen.getByText('English')).toHaveAttribute('lang', 'en')
+  })
 })

@@ -58,6 +58,8 @@ export function ReplacementSummary({ replacement }: { replacement: DownloadJobRe
  * The short line of each state. While replacement is switched off a replacement that hasn't moved
  * anything yet says only that, as ReplacementLine does: nothing moves until it is on. Counted by the
  * copies ticked, as ReplacementLine counts, but in the quarantine by the copies it holds there now.
+ * MAM-46 — undone or replaced, exactly one copy has a line of its own: Ukrainian's `_one` form also
+ * counts 21, 31 and 101, so a counted line can't say "the old copy" without its number.
  */
 function summarize(replacement: DownloadJobReplacement, t: TFunction<'jobs'>): Summary {
   const { state, switchedOff, copyCount, quarantinedCopyCount, stop, checkStage, checkWaitsUntilUtc } = replacement
@@ -91,9 +93,9 @@ function summarize(replacement: DownloadJobReplacement, t: TFunction<'jobs'>): S
     case 'Deleting':
       return { icon: Loader2, text: t('summary.deleting'), tone: undefined, spinning: true }
     case 'Restored':
-      return { icon: Undo2, text: t('summary.restored', copies), tone: undefined }
+      return { icon: Undo2, text: copyCount === 1 ? t('summary.restoredOneCopy') : t('summary.restored', copies), tone: undefined }
     case 'Completed':
-      return { icon: CircleCheck, text: t('summary.completed', copies), tone: 'Succeeded' }
+      return { icon: CircleCheck, text: copyCount === 1 ? t('summary.completedOneCopy') : t('summary.completed', copies), tone: 'Succeeded' }
     case 'NeedsReview':
       return { icon: TriangleAlert, text: t(`summary.needsReview.${stop ?? 'None'}`), tone: 'warning' }
     case 'Failed':

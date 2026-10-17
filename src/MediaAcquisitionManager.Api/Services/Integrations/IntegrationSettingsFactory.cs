@@ -21,8 +21,9 @@ public sealed class IntegrationSettingsFactory(IEncryptionService encryption, IL
         if (!TryReadSecret(integration, IntegrationSecretField.ApiKey, out var apiKey, out var apiKeyError))
             return IntegrationSettingsResult.SecretUnreadable(apiKeyError);
 
+        // MAM-46 — a metadata catalog's language travels with every call, so its adapter asks in it.
         return IntegrationSettingsResult.Built(
-            new IntegrationConnectionSettings(integration.Id, integration.BaseUrl, integration.UserName, password, apiKey));
+            new IntegrationConnectionSettings(integration.Id, integration.BaseUrl, integration.UserName, password, apiKey, integration.CatalogLanguage));
     }
 
     // Decrypted with the purpose it was sealed for, so a value copied from another row or column fails

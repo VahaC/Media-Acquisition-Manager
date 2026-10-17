@@ -50,7 +50,7 @@
     "releaseEditions": "Its title names the edition: {{editions}}.",
     "workIn": "{{work}} in {{libraries}}",
     "workCopy": "{{work}} (the copy “{{file}}”)",
-    "workPlace": "{{work}} ({{place}} of {{count}})",
+    "workPlace": "{{work}} ({{place}} of {{total}})",
     "seasonOf": "{{work}}, {{season}}",
     "workUnavailable": {
       "TitleOnly": "Matched by title alone, which never allows a replacement.",
@@ -70,7 +70,7 @@
       "SharedWithUnavailableWork": "This file is also a copy of another work this release matched, which can't be replaced.",
       "HeldByRemoval": "A removal under Removed copies on the Duplicates page holds this copy."
     },
-    "heldBy_one": "Held by the torrent “{{torrent}}” in “{{client}}”: before this copy can move you'll remove that torrent there without its files — which also stops seeding its other files.",
+    "heldByOneCopy": "Held by the torrent “{{torrent}}” in “{{client}}”: before this copy can move you'll remove that torrent there without its files — which also stops seeding its other files.",
     "heldBy_other": "Held by the torrent “{{torrent}}” in “{{client}}” ({{value}} of these copies): before these copies can move you'll remove that torrent there without its files — which also stops seeding its other files.",
     "heldMark": "Held by “{{torrent}}”",
     "otherNames": "This file has another name, so moving it frees no space.",

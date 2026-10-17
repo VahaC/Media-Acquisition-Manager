@@ -3,8 +3,9 @@ import axios, { isAxiosError, type InternalAxiosRequestConfig } from 'axios'
 // the store, the store refreshes through the client. That is safe because none of them touches
 // another's exports while it loads, only later inside functions.
 import { authApi } from './auth-api'
-import { signOutGeneration, useAuthStore } from './auth-store'
+import { languageGeneration, sessionWithLanguageSince, signOutGeneration, useAuthStore } from './auth-store'
 import { useConnectionStore } from './connection-store'
+import { i18n } from './i18n'
 import { isServerUnreachable } from './utils'
 
 /**
@@ -44,6 +45,9 @@ type RetriableRequestConfig = InternalAxiosRequestConfig & { mamRetriedAfterRefr
 api.interceptors.request.use((config) => {
   const { accessToken } = useAuthStore.getState()
   if (accessToken) config.headers.set('Authorization', `Bearer ${accessToken}`)
+  // MAM-46 — the locale the UI runs in, on every request: a new TMDb integration's catalog language
+  // starts from it, and the server's sentences (MAM-47) follow it.
+  config.headers.set('Accept-Language', i18n.language)
   return config
 })
 
@@ -113,13 +117,16 @@ async function refreshUnlessRefreshed(tokenSent: string | null): Promise<string>
   if (accessToken !== null && accessToken !== tokenSent) return accessToken
 
   const signOutsBefore = signOutGeneration()
+  const languageBefore = languageGeneration()
   try {
     const session = await refreshWithConflictRetries()
     // MAM-4 — the user signed out, here or in another tab, while this refresh was on the way.
     // Installing its answer would sign them straight back in, and the request waiting on it would
     // go out again under a session they have just left; rejecting drops both.
     if (signOutGeneration() !== signOutsBefore) throw new Error('Signed out while the session was being refreshed.')
-    useAuthStore.getState().setSession(session)
+    // MAM-46 — a language this tab followed meanwhile (its own Profile save, another tab's) is newer
+    // than the one the server may have read before it, which would switch the tab back.
+    useAuthStore.getState().setSession(sessionWithLanguageSince(languageBefore, session))
     return session.accessToken
   } catch (error: unknown) {
     if (isAxiosError(error) && error.response?.status === 401) {

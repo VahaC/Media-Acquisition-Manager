@@ -34,6 +34,8 @@ public sealed class UserSeeder(IServiceProvider services) : SeederBase(services)
 
     public Task<AuthorizedUser> CreateSession(UserEntity user) => StartSession(user);
 
+    public Task SetLanguage(UserEntity user, string? language) => Users.SetLanguage(user.Id, language);
+
     // The app's own session service, so the token, the cookie value and the session row are exactly
     // what a real sign-in produces.
     private async Task<AuthorizedUser> StartSession(UserEntity user)

@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Persistence;
+using MediaAcquisitionManager.TestInfrastructure.Seeders;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -23,7 +24,8 @@ public sealed class CatalogWorkDataFactory(ApplicationDbContext db, TimeProvider
         Guid? sourceConnectionId = null,
         string? sourceName = null,
         string? originalTitle = null,
-        string? posterPath = null)
+        string? posterPath = null,
+        string detailsLanguage = IntegrationConnectionSeeder.CatalogLanguage)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var work = new CatalogWorkEntity
@@ -41,6 +43,7 @@ public sealed class CatalogWorkDataFactory(ApplicationDbContext db, TimeProvider
             DetailsUtc = detailsUtc,
             // MAM-34 — details planted as read are today's reading of them, as a read now leaves them (R22).
             DetailsVersion = detailsUtc is null ? 0 : CatalogStore.CurrentDetailsVersion,
+            DetailsLanguage = detailsLanguage,
             SourceKind = ProvenanceSourceKind.Metadata,
             SourceConnectionId = sourceConnectionId,
             SourceName = sourceName,

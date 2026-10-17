@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ReplacementCopies } from '@/components/jobs/ReplacementCopies'
 import { ReplacementNewFiles } from '@/components/jobs/ReplacementNewFiles'
 import { ReplacementNextSteps } from '@/components/jobs/ReplacementNextSteps'
+import { oldCopiesWords } from '@/components/jobs/old-copies-words'
 import { useDropCopy } from '@/components/jobs/use-drop-copy'
 import { useKeepBoth } from '@/components/jobs/use-keep-both'
 import { ActionButton } from '@/components/shared/ActionButton'
@@ -133,7 +134,7 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
     // What the confirmation is about, as it stands when the owner clicks: the result counts these.
     const quarantined = quarantinedNames(shown)
     const confirmed = await confirm({
-      title: t('oldCopies.restore.confirmTitle', { count: quarantinedCopies(shown) }),
+      title: oldCopiesWords(t, 'restore', 'confirmTitle', quarantinedCopies(shown)),
       message: t('oldCopies.restore.message'),
       confirmLabel: t('oldCopies.restore.confirm'),
     })
@@ -152,7 +153,7 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
     // never a reason to delete what the owner wasn't shown.
     const listed = quarantinedNames(shown)
     const confirmed = await confirm({
-      title: t('oldCopies.deleteForGood.confirmTitle', { count: quarantinedCopies(shown) }),
+      title: oldCopiesWords(t, 'deleteForGood', 'confirmTitle', quarantinedCopies(shown)),
       message: <DeleteForGoodMessage names={listed} freesBytes={shown.freesBytes} />,
       confirmLabel: t('oldCopies.deleteForGood.confirm'),
       destructive: true,
@@ -233,9 +234,9 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
             {data.canRestore && (
               <ActionButton
                 icon={Undo2}
-                label={t('oldCopies.restore.action', { count: copiesInQuarantine })}
+                label={oldCopiesWords(t, 'restore', 'action', copiesInQuarantine)}
                 pendingLabel={t('oldCopies.restore.pending')}
-                title={t('oldCopies.restore.title', { count: copiesInQuarantine })}
+                title={oldCopiesWords(t, 'restore', 'title', copiesInQuarantine)}
                 pending={restore.isPending}
                 disabled={busy}
                 reason={switchedOffReason}
@@ -246,9 +247,9 @@ export function ReplacementSection({ job, replacement, onStart, onDone, onError 
             {data.canDeleteForGood && (
               <ActionButton
                 icon={Trash2}
-                label={t('oldCopies.deleteForGood.action', { count: copiesInQuarantine })}
+                label={oldCopiesWords(t, 'deleteForGood', 'action', copiesInQuarantine)}
                 pendingLabel={t('oldCopies.deleteForGood.pending')}
-                title={t('oldCopies.deleteForGood.title', { count: copiesInQuarantine })}
+                title={oldCopiesWords(t, 'deleteForGood', 'title', copiesInQuarantine)}
                 pending={remove.isPending}
                 disabled={busy}
                 reason={switchedOffReason}

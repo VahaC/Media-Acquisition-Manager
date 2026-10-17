@@ -17,6 +17,10 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="IsEnabled">Whether the app uses it; left out means on.</param>
 /// <param name="PathMappings">How the service's paths map onto this app's, in order; left out means
 /// none.</param>
+/// <param name="CatalogLanguage">MAM-46 — for a metadata catalog, the language to ask it in: one of its type's
+/// <c>catalogLanguages</c>, in any letter case. Left out, the owner's own language for the web app, else the browser's
+/// (<c>Accept-Language</c>), else <c>en-US</c>, each brought to the closest language of the list. Refused for any other
+/// type.</param>
 public sealed record CreateIntegrationRequest(
     string? AdapterType,
     string? Name,
@@ -25,4 +29,5 @@ public sealed record CreateIntegrationRequest(
     SecretValueUpsert? Password = null,
     SecretValueUpsert? ApiKey = null,
     bool? IsEnabled = null,
-    IReadOnlyList<PathMappingRequest>? PathMappings = null);
+    IReadOnlyList<PathMappingRequest>? PathMappings = null,
+    string? CatalogLanguage = null);

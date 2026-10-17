@@ -142,6 +142,21 @@ describe('PageTabs', () => {
     expect(screen.getByRole('tablist').scrollLeft).toBe(200)
   })
 
+  it('scrolls the row again when the labels change and push the current tab out of view', () => {
+    // Arrange
+    // The first render fits the row (no layout yet), as the Jobs page does before its counts arrive.
+    const props = { label: 'Kinds of duplicate', current: 'SameWork' as Tab, panelId: 'panel', tabId: (tab: Tab) => `tab-${tab}`, onSelect: vi.fn() }
+    const { rerender } = render(<PageTabs {...props} tabs={TABS} />)
+    expect(screen.getByRole('tablist').scrollLeft).toBe(0)
+    laidOutAsAPhone()
+
+    // Act
+    rerender(<PageTabs {...props} tabs={TABS.map((tab) => (tab.value === 'All' ? { ...tab, label: 'All (3)' } : tab))} />)
+
+    // Assert
+    expect(screen.getByRole('tablist').scrollLeft).toBe(200)
+  })
+
   it('leaves the row where it is when the current tab is already in view', () => {
     // Arrange
     laidOutAsAPhone()

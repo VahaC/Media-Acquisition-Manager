@@ -10,7 +10,8 @@ public interface IIntegrationConnectionDataFactory
     /// <summary>
     /// A saved integration with its path mappings, each secret sealed for this row and field exactly
     /// as the app seals it (<c>IntegrationSecretPurpose</c>). Values are stored as given — the address
-    /// and the mapping paths too — so a test can plant a row the API would have refused.
+    /// and the mapping paths too — so a test can plant a row the API would have refused. MAM-46 —
+    /// <paramref name="catalogLanguage"/> is stored as given too.
     /// </summary>
     Task<IntegrationConnectionEntity> Create(
         string name,
@@ -21,7 +22,8 @@ public interface IIntegrationConnectionDataFactory
         string? password = null,
         string? apiKey = null,
         bool isEnabled = true,
-        IReadOnlyList<PathMappingPair>? pathMappings = null);
+        IReadOnlyList<PathMappingPair>? pathMappings = null,
+        string? catalogLanguage = null);
 
     /// <summary>Overwrites the stored API key column with <paramref name="ciphertext"/> as is:
     /// a value sealed under another key or copied from another row, or <c>null</c>.</summary>

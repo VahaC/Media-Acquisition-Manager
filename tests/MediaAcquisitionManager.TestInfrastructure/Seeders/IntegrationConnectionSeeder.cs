@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
@@ -25,6 +26,13 @@ public sealed class IntegrationConnectionSeeder(IServiceProvider services) : See
     /// <summary>The API key <see cref="CreateWithUnreadableApiKey"/> seals under the other key.</summary>
     public const string UnreadableApiKey = "sealed-under-another-key";
 
+    /// <summary>
+    /// MAM-46 — the language a seeded metadata catalog is asked in unless a test names one: Ukrainian, the language every
+    /// catalog call asked in before MAM-46 and the one an upgraded installation's TMDb keeps, so the tests written before
+    /// it see the same requests. The catalog rows the data factories plant are stamped with it too.
+    /// </summary>
+    public const string CatalogLanguage = "uk-UA";
+
     private IIntegrationConnectionDataFactory Integrations =>
         new IntegrationConnectionDataFactory(Db, Resolve<IEncryptionService>(), Resolve<TimeProvider>());
 
@@ -37,7 +45,8 @@ public sealed class IntegrationConnectionSeeder(IServiceProvider services) : See
         string? apiKey = null,
         bool isEnabled = true,
         IReadOnlyList<PathMappingPair>? pathMappings = null,
-        IntegrationKind? kind = null) =>
+        IntegrationKind? kind = null,
+        string? catalogLanguage = null) =>
         Integrations.Create(
             name ?? NewName(),
             adapterType,
@@ -47,7 +56,8 @@ public sealed class IntegrationConnectionSeeder(IServiceProvider services) : See
             password,
             apiKey,
             isEnabled,
-            pathMappings);
+            pathMappings,
+            catalogLanguage ?? CatalogLanguageOf(adapterType));
 
     public async Task<IntegrationConnectionEntity> CreateWithUnreadableApiKey(string adapterType = "jellyfin", string? name = null)
     {
@@ -70,6 +80,10 @@ public sealed class IntegrationConnectionSeeder(IServiceProvider services) : See
         await Integrations.SetApiKeyCiphertext(integration.Id, integration.ApiKeyEncrypted);
         return integration;
     }
+
+    // MAM-46 — as the API would store it: a language for a metadata catalog only.
+    private string? CatalogLanguageOf(string adapterType) =>
+        Resolve<IIntegrationAdapterRegistry>().Find<IMetadataCatalog>(adapterType) is null ? null : CatalogLanguage;
 
     // As the API would store it: the kind of the registered type, whatever the caller says.
     private IntegrationKind KindOf(string adapterType, IntegrationKind? kind) =>

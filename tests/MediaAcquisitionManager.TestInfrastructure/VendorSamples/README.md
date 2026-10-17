@@ -23,7 +23,9 @@ id Jellyfin doesn't know — every one recorded, none made by hand. MAM-25 adds,
 holds as a hidden alternate version, read by its id — recorded, not made by hand. MAM-29 adds, for Phase D, the
 answers of Transmission 4.1.3, of a temporary Transmission 4.0.6 and of Jackett v0.24.2830 with its Toloka.to indexer,
 recorded on 2026-10-13 by the scripts in `tools/mam29`, which Vasyl ran on his PC against containers set up for it on
-the media host — every one recorded, none made by hand.
+the media host — every one recorded, none made by hand. MAM-46 adds TMDb's list of the languages it keeps
+translations in, read on 2026-10-17 through the app's own TMDb integration and key, from a scratch program that opened
+the development database read-only — recorded, not made by hand.
 `RepositoryPaths.VendorSamples` points here.
 
 | Service | Version |
@@ -32,7 +34,7 @@ the media host — every one recorded, none made by hand.
 | qBittorrent | 5.2.3, Web API 2.15.1 (`lscr.io/linuxserver/qbittorrent`) |
 | Prowlarr | 2.6.5.5623, serving the Toloka.to indexer as Torznab |
 | ffprobe | jellyfin-ffmpeg inside the Jellyfin image |
-| TMDb | API v3 at `api.themoviedb.org`, read on 2026-10-05 with `language=uk-UA` |
+| TMDb | API v3 at `api.themoviedb.org`, read on 2026-10-05 with `language=uk-UA`; the primary translations on 2026-10-17 (MAM-46) |
 | Transmission | 4.1.3 (838877323f), `rpc-version` 19, `rpc-version-semver` 6.0.1 (`lscr.io/linuxserver/transmission:4.1.3-r0-ls363`); 4.0.6 (38c164933e), `rpc-version` 17, `rpc-version-semver` 5.3.0 (`4.0.6-r6-ls326`) for the files whose names begin with `4.0.6-`. Both read through the legacy RPC dialect |
 | Jackett | v0.24.2830, the pinned image's version, not typed during the run (`lscr.io/linuxserver/jackett:v0.24.2830-ls3`, no auto-update), serving the Toloka.to indexer as Torznab with "Strip Cyrillic Letters" ticked, Jackett's default |
 
@@ -188,6 +190,7 @@ the same way, or `VendorSamplesTests` fails the build:
 | `Torznab/jackett-download-response.txt` | The download link of "Interstellar (2014) BDRemux 1080p Ukr/Eng \| Sub Eng [IMAX Edition]" | `200 OK`, `application/x-bittorrent`, 350,636 bytes, a `Content-Disposition` naming the file with `/` turned into `_`. The status line and headers only: the .torrent was read in memory and not kept |
 | `Tmdb/authentication.json` | `GET /3/authentication` with the token | `{"success":true}`: the connection test's answer |
 | `Tmdb/configuration.json` | `GET /3/configuration` | The image host (`https://image.tmdb.org/t/p/`) and its sizes, `w342` among the poster sizes |
+| `Tmdb/configuration-primary-translations.json` | `GET /3/configuration/primary_translations` with the token (2026-10-17, MAM-46) | `200 OK`, a JSON array of 144 language tags, each a language and a region (`uk-UA`, `en-US`, `en-GB`, `pt-BR`…), sorted, 22 of them English; compact as TMDb sent it, indented here. The catalog languages the TMDb adapter offers (`TmdbAdapter.PrimaryTranslations`) |
 | `Tmdb/movie-details.json` | `GET /3/movie/118340?append_to_response=credits,recommendations` | Guardians of the Galaxy (2014): in collection 284433, directed by James Gunn, with its IMDb id `tt2015381`, its whole cast and crew and 20 recommendations |
 | `Tmdb/tv-details.json` | `GET /3/tv/73586?append_to_response=credits,recommendations` | Yellowstone (2018): five seasons with their air dates and episode counts, created by Taylor Sheridan and John Linson, 20 recommendations |
 | `Tmdb/collection.json` | `GET /3/collection/284433` | The three Guardians of the Galaxy films, each with its release date |
@@ -437,7 +440,13 @@ The four movies in `movies-page.json`:
   TMDb answers its Ukrainian title where it has one and the original otherwise: for 12 of the 640
   movies the two were the same. A show's fields are `name`, `original_name` and `first_air_date`, a
   film's `title`, `original_title` and `release_date`; `vote_average` is `0` for a work nobody rated,
-  which the adapter reads as no rating.
+  which the adapter reads as no rating. Since MAM-46 the adapter asks in the TMDb integration's
+  catalog language, `en-US` when it names none; the tests that replay these samples ask in `uk-UA`,
+  the language they were read in.
+- **TMDb's languages are language-and-region tags** (MAM-46). `primary_translations` lists 144, from
+  `af-ZA` to `zu-ZA` in alphabetical order, 22 of them English, the first of those `en-AG`, so the
+  default for English is `en-US` by name, never the list's first English. `cn-CN`, TMDb's own tag for
+  Cantonese, names no language Intl knows, so the web app shows it as it is.
 - **TMDb finds most of the library's id-less works, not all** (MAM-33). Of the 10 movies with only an
   IMDb id, TMDb's find named 8; a search by title and year found exactly one film for 23 of 25 Tom &
   Jerry shorts, and nothing for the Planet Earth episodes Jellyfin lists as movies.

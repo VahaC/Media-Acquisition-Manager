@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { i18n as I18n } from 'i18next'
+import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { formatDateTime } from '@/lib/format'
+import { i18n } from '@/lib/i18n'
 import { libraryLinksApi } from '@/lib/library-links-api'
 import type { CurrentUser } from '@/lib/types'
 import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
@@ -20,6 +23,7 @@ import {
   queueOf,
   suggestionRunOf,
 } from '@/test/library-links'
+import { pluralFormProbe } from '@/test/plural-probe'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
@@ -34,21 +38,24 @@ function Address() {
   return <output aria-label="Address">{location.pathname + location.search}</output>
 }
 
-function renderPage(path = '/library/tmdb', signedIn: CurrentUser = owner) {
+/** `translations`: the i18n instance the page reads its text from, the app's own unless a test brings one. */
+function renderPage(path = '/library/tmdb', signedIn: CurrentUser = owner, translations: I18n = i18n) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <QueryClientProvider client={client}>
-      <ConfirmProvider>
-        <MemoryRouter initialEntries={[path]}>
-          <Routes>
-            <Route path="/library/tmdb" element={<LibraryTmdbPage />} />
-            <Route path="/library" element={<p>Library page</p>} />
-          </Routes>
-          <Address />
-        </MemoryRouter>
-      </ConfirmProvider>
-    </QueryClientProvider>,
+    <I18nextProvider i18n={translations}>
+      <QueryClientProvider client={client}>
+        <ConfirmProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <Routes>
+              <Route path="/library/tmdb" element={<LibraryTmdbPage />} />
+              <Route path="/library" element={<p>Library page</p>} />
+            </Routes>
+            <Address />
+          </MemoryRouter>
+        </ConfirmProvider>
+      </QueryClientProvider>
+    </I18nextProvider>,
   )
   return { client, user: userEvent.setup() }
 }
@@ -219,6 +226,19 @@ describe('LibraryTmdbPage', () => {
 
     // Assert
     expect(libraryLinksApi.latestRun).toHaveBeenCalledTimes(2)
+  })
+
+  // MAM-46 — Ukrainian words "of N works" by N's plural form: 22 takes another form than 25 or 21.
+  it.each([[21, 'one'], [22, 'few'], [25, 'many']])('picks the plural form of a preparation under way by its %i works', async (total, form) => {
+    // Arrange
+    vi.mocked(libraryLinksApi.latestRun).mockResolvedValue(suggestionRunOf({ status: 'Running', finishedUtc: null, worksDone: 3, worksTotal: total }))
+    const probe = pluralFormProbe('libraryLinks', 'run.runningCounts', (name) => `${name}: {{done}}/{{total}}`)
+
+    // Act
+    renderPage('/library/tmdb', owner, probe)
+
+    // Assert
+    expect(await screen.findByText(`${form}: 3/${total}`)).toBeInTheDocument()
   })
 
   it('asks for the queue again when a preparation it followed has ended', async () => {

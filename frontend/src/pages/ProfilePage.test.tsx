@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
 import { authApi } from '@/lib/auth-api'
 import { useAuthStore } from '@/lib/auth-store'
 import { formatDateTime } from '@/lib/format'
+import { i18n } from '@/lib/i18n'
 import { profileApi } from '@/lib/profile-api'
 import { qk } from '@/lib/queries'
 import { queryClient as appQueryClient } from '@/lib/query-client'
@@ -14,7 +15,7 @@ import type { CurrentUser, CurrentUserProfile } from '@/lib/types'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { laptopToken } from '@/test/access-tokens'
 import { apiError } from '@/test/api-error'
-import { member, owner, signInAs } from '@/test/auth-session'
+import { member, owner, resetAuthStore, signInAs } from '@/test/auth-session'
 import { allTabsOn } from '@/test/recommendations'
 
 vi.mock('@/lib/auth-api')
@@ -251,7 +252,7 @@ describe('ProfilePage', () => {
     expect(screen.getByText('••••••••••')).toBeInTheDocument()
   })
 
-  it('shows the Recommendations card after Appearance and before Session, with its own Save', async () => {
+  it('shows the Language card after Appearance and the Recommendations card before Session, with its own Save', async () => {
     // Arrange
     vi.mocked(authApi.me).mockResolvedValue(ownerProfile)
 
@@ -261,7 +262,7 @@ describe('ProfilePage', () => {
     // Assert
     expect(await screen.findByRole('textbox', { name: 'Daily search limit' })).toHaveValue('60')
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent))
-      .toEqual(['Account', 'Password', 'Access tokens', 'Appearance', 'Recommendations', 'Session'])
+      .toEqual(['Account', 'Password', 'Access tokens', 'Appearance', 'Language', 'Recommendations', 'Session'])
     expect(within(screen.getByRole('region', { name: 'Recommendations' })).getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 
@@ -280,5 +281,71 @@ describe('ProfilePage', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent).slice(0, 3))
       .toEqual(['Account', 'Password', 'Access tokens'])
     expect(profileApi.accessTokens).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ProfilePage and the account\'s language', () => {
+  // MAM-46 — the session's user carries the language from its last sign-in or refresh; the page's fresh
+  // GET /api/auth/me carries the one the account holds now, saved on another device perhaps.
+  const radio = (name: string) => within(screen.getByRole('radiogroup', { name: i18n.t('profile:language.label') })).getByRole('radio', { name })
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(profileApi.recommendationSettings).mockResolvedValue(allTabsOn)
+    vi.mocked(profileApi.accessTokens).mockResolvedValue({ items: [] })
+    vi.mocked(profileApi.saveLanguage).mockImplementation(async (request) => request)
+  })
+
+  afterEach(async () => {
+    appQueryClient.clear()
+    resetAuthStore()
+    // The app's one i18n instance: a test that switched it to Ukrainian must not leave it there.
+    await act(() => i18n.changeLanguage('en-US'))
+  })
+
+  it('takes the language the account holds from the profile it loads, when it changed on another device', async () => {
+    // Arrange
+    vi.mocked(authApi.me).mockResolvedValue({ ...memberProfile, language: 'uk' })
+
+    // Act
+    renderPage({ ...member, language: 'en' })
+
+    // Assert
+    await vi.waitFor(() => expect(i18n.language).toBe('uk'))
+    expect(useAuthStore.getState().user?.language).toBe('uk')
+    expect(radio('Українська')).toBeChecked()
+  })
+
+  it('keeps a language saved here over a profile asked for before the save', async () => {
+    // Arrange
+    let answer!: (profile: CurrentUserProfile) => void
+    vi.mocked(authApi.me).mockReturnValue(new Promise<CurrentUserProfile>((resolve) => { answer = resolve }))
+    const { user } = renderPage({ ...member, language: 'en' })
+    await user.click(radio('Українська'))
+    await vi.waitFor(() => expect(i18n.language).toBe('uk'))
+
+    // Act
+    // The server read the account before the save reached it.
+    await act(async () => answer({ ...memberProfile, language: 'en' }))
+
+    // Assert
+    expect(await screen.findByText(formatDateTime(memberProfile.createdUtc, format))).toBeInTheDocument()
+    expect(useAuthStore.getState().user?.language).toBe('uk')
+    expect(i18n.language).toBe('uk')
+    expect(radio('Українська')).toBeChecked()
+  })
+
+  it('takes no language from a profile of another user', async () => {
+    // Arrange
+    vi.mocked(authApi.me).mockResolvedValue({ ...ownerProfile, language: 'uk' })
+
+    // Act
+    renderPage({ ...member, language: 'en' })
+
+    // Assert
+    expect(await screen.findByText(formatDateTime(ownerProfile.createdUtc, format))).toBeInTheDocument()
+    expect(useAuthStore.getState().user?.language).toBe('en')
+    expect(i18n.language).toBe('en-US')
+    expect(radio('English')).toBeChecked()
   })
 })

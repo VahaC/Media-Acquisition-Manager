@@ -219,6 +219,8 @@ public sealed class PersonalAccessTokenWritesHttpTests : IClassFixture<MediaAcqu
                 "POST api/profile/tokens",
                 "DELETE api/profile/tokens/{id:guid}",
                 "PUT api/profile/recommendations",
+                // MAM-46 — the user's own language for the web app.
+                "PUT api/profile/language",
                 "DELETE api/recommendations/dismissals/{kind}/{catalogId}",
                 "POST api/recommendations/runs",
                 "POST api/library/scans",
@@ -596,7 +598,7 @@ public sealed class PersonalAccessTokenWritesHttpTests : IClassFixture<MediaAcqu
         {
             var users = await db.Users.AsNoTracking()
                 .OrderBy(user => user.UserName)
-                .Select(user => new { user.Id, user.UserName, user.PasswordHash, user.IsDisabled, user.LastSignInUtc })
+                .Select(user => new { user.Id, user.UserName, user.PasswordHash, user.IsDisabled, user.LastSignInUtc, user.Language })
                 .ToListAsync(cancellationToken);
             var sessions = await db.UserSessions.AsNoTracking()
                 .OrderBy(session => session.CreatedUtc).ThenBy(session => session.RefreshTokenHash)

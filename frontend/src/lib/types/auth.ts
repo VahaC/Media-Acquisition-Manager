@@ -1,9 +1,17 @@
+/** MAM-46 — a language the web app is shown in: its language code, without a region. */
+export type UiLanguage = 'en' | 'uk'
+
 /** The signed-in user, as every sign-in, setup and refresh answer describes them. */
 export interface CurrentUser {
   id: string
   userName: string
   /** The installation owner manages users and settings; there is exactly one. */
   isOwner: boolean
+  /**
+   * MAM-46 — the language the user chose in their Profile, saved with the account; null follows the
+   * browser's. lib/i18n.ts `uiLanguageFor` turns it into the locale the UI runs in.
+   */
+  language: UiLanguage | null
 }
 
 /**
@@ -16,6 +24,12 @@ export interface CurrentUserProfile extends CurrentUser {
   lastSignInUtc: string | null
   /** When this session ends unless it is used again; every refresh moves it 30 days on. */
   sessionExpiresUtc: string
+}
+
+/** MAM-46 — the body of `PUT /api/profile/language`, and of its answer: the language as saved. */
+export interface LanguageSetting {
+  /** Null follows the browser's language. */
+  language: UiLanguage | null
 }
 
 /** MAM-16 — the body of `POST /api/auth/password`. */

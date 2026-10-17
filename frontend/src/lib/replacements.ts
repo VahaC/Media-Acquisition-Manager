@@ -1,3 +1,4 @@
+import { formatNumber } from './format'
 import { i18n } from './i18n'
 import { episodePlace, seasonName } from './library-episodes'
 import { splitPath } from './library-versions'
@@ -79,7 +80,7 @@ export function workNames(works: readonly ReplacementWork[]): string[] {
     const files = twins.map((index) => firstFileName(works[index]))
     return files.every((file) => file !== null) && new Set(files).size === files.length
       ? i18n.t('downloads:replace.workCopy', { work: name, file: files[twins.indexOf(at)] })
-      : i18n.t('downloads:replace.workPlace', { work: name, place: twins.indexOf(at) + 1, count: twins.length })
+      : i18n.t('downloads:replace.workPlace', { work: name, place: formatNumber(twins.indexOf(at) + 1), total: formatNumber(twins.length) })
   })
 }
 

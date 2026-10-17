@@ -16,9 +16,12 @@ public sealed class TmdbAdapterLookupTests : IDisposable
     private const string BaseUrl = "https://api.themoviedb.test";
     private const string Token = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJsb29rdXAifQ.c2lnbmF0dXJlLW9mLWxvb2t1cA";
 
-    private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, Token);
+    // MAM-46 — the language an upgraded installation's TMDb keeps, which every exact URL below was recorded with.
+    private const string CatalogLanguage = "uk-UA";
 
-    private static readonly IntegrationConnectionSettings FakeSettings = new(null, FakeTmdbServer.BaseUrl, null, null, FakeTmdbServer.Token);
+    private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, Token, CatalogLanguage);
+
+    private static readonly IntegrationConnectionSettings FakeSettings = new(null, FakeTmdbServer.BaseUrl, null, null, FakeTmdbServer.Token, CatalogLanguage);
 
     /// <summary>Queries no caller should make, by what is wrong with them.</summary>
     private static readonly Dictionary<string, MetadataQuery> MistakenQueries = new(StringComparer.Ordinal)

@@ -289,7 +289,7 @@ function AcceptedRows({ accepted, onDone }: { accepted: Accepted; onDone: () => 
           : <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />}
         <span>
           {underWay
-            ? t('confident.identifying', { done: formatNumber(finished), total: formatNumber(links.length) })
+            ? t('confident.identifying', { count: links.length, done: formatNumber(finished), total: formatNumber(links.length) })
             : t('confident.summary', { count: accepted.rows.length, value: formatNumber(accepted.rows.length), linked: formatNumber(linked) })}
         </span>
         {!underWay && refused > 0 && <span>{t('confident.refused', { count: refused, value: formatNumber(refused) })}</span>}

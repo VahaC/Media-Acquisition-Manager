@@ -2,7 +2,7 @@
 
 **Version:** 0.1, 27 September 2026  
 **Status:** draft technical specification; implementation has not started.  
-**UI language:** to be decided during development; this document is in English.
+**UI language:** decided during development: English from 0.1.0 with every string in a locale resource (ADR 0001), and English or Ukrainian from 0.5.0, as each user chooses on Profile (MAM-46); this document is in English.
 
 ## 1. Purpose and context
 

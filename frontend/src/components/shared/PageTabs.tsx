@@ -34,6 +34,9 @@ interface PageTabsProps<T extends string> {
  */
 export function PageTabs<T extends string>({ label, tabs, current, panelId, tabId, onSelect }: PageTabsProps<T>) {
   const list = useRef<HTMLDivElement>(null)
+  // MAM-46 — a label that changes width moves the tabs: the Jobs page's counts arrive after the first
+  // render, and in Ukrainian they push its last tab, when it is the current one, partly out of the row.
+  const labels = tabs.map((tab) => tab.label).join('\n')
 
   // The row's own scroll is moved, not the page's: scrollIntoView would also drag the page to the tabs on
   // every load.
@@ -44,7 +47,7 @@ export function PageTabs<T extends string>({ label, tabs, current, panelId, tabI
     const hiddenLeft = active.offsetLeft < row.scrollLeft
     const hiddenRight = active.offsetLeft + active.offsetWidth > row.scrollLeft + row.clientWidth
     if (hiddenLeft || hiddenRight) row.scrollLeft = active.offsetLeft - (row.clientWidth - active.offsetWidth) / 2
-  }, [current])
+  }, [current, labels])
 
   const move = (event: KeyboardEvent<HTMLDivElement>) => {
     const values = tabs.map((tab) => tab.value)

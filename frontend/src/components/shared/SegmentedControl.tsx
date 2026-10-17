@@ -8,7 +8,13 @@ interface SegmentedOption<T extends string> {
   label: string
   /** A tooltip that says more than the label ("Versions as rows" for Rows); icons alone show the label. */
   title?: string
-  icon: LucideIcon
+  /** MAM-46 — none for a pill of text only, which needs `showLabels`: without them the icon is all there is. */
+  icon?: LucideIcon
+  /**
+   * MAM-46 — the label's own language when it isn't the page's, as for a language named in itself
+   * (Українська on an English page), so a screen reader pronounces it right.
+   */
+  lang?: string
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -41,7 +47,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div className="segmented-control" role="radiogroup" aria-label={label} data-icon-only={showLabels ? undefined : ''}>
-      {options.map(({ value: optionValue, label: optionLabel, title, icon: Icon }) => (
+      {options.map(({ value: optionValue, label: optionLabel, title, icon: Icon, lang }) => (
         <label key={optionValue} className="segmented-control-option" title={title ?? (showLabels ? undefined : optionLabel)}>
           <input
             type="radio"
@@ -52,8 +58,8 @@ export function SegmentedControl<T extends string>({
             onChange={() => onChange(optionValue)}
           />
           <span className="segmented-control-pill">
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className={showLabels ? undefined : 'sr-only'}>{optionLabel}</span>
+            {Icon && <Icon className="h-3.5 w-3.5" aria-hidden="true" />}
+            <span className={showLabels ? undefined : 'sr-only'} lang={lang}>{optionLabel}</span>
           </span>
         </label>
       ))}

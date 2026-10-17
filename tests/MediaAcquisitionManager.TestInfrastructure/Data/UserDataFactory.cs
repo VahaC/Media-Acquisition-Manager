@@ -2,6 +2,7 @@ using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Accounts;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -25,4 +26,7 @@ public sealed class UserDataFactory(ApplicationDbContext db, IPasswordHasher has
         db.ChangeTracker.Clear();
         return user;
     }
+
+    public Task SetLanguage(Guid userId, string? language) =>
+        db.Users.Where(user => user.Id == userId).ExecuteUpdateAsync(setters => setters.SetProperty(user => user.Language, language));
 }

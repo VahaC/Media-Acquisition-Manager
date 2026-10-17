@@ -1,8 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { i18n as I18n } from 'i18next'
+import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
+import { i18n } from '@/lib/i18n'
 import { libraryLinksApi } from '@/lib/library-links-api'
 import { qk } from '@/lib/queries'
 import type { CurrentUser } from '@/lib/types'
@@ -19,6 +22,7 @@ import {
   queueOf,
   suggestionRunOf,
 } from '@/test/library-links'
+import { pluralFormProbe } from '@/test/plural-probe'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
@@ -36,20 +40,23 @@ function Address() {
   return <output aria-label="Address">{location.pathname + location.search}</output>
 }
 
-function renderPage(signedIn: CurrentUser = owner) {
+/** `translations`: the i18n instance the page reads its text from, the app's own unless a test brings one. */
+function renderPage(signedIn: CurrentUser = owner, translations: I18n = i18n) {
   signInAs(signedIn)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <QueryClientProvider client={client}>
-      <ConfirmProvider>
-        <MemoryRouter initialEntries={['/library/tmdb']}>
-          <Routes>
-            <Route path="/library/tmdb" element={<LibraryTmdbPage />} />
-          </Routes>
-          <Address />
-        </MemoryRouter>
-      </ConfirmProvider>
-    </QueryClientProvider>,
+    <I18nextProvider i18n={translations}>
+      <QueryClientProvider client={client}>
+        <ConfirmProvider>
+          <MemoryRouter initialEntries={['/library/tmdb']}>
+            <Routes>
+              <Route path="/library/tmdb" element={<LibraryTmdbPage />} />
+            </Routes>
+            <Address />
+          </MemoryRouter>
+        </ConfirmProvider>
+      </QueryClientProvider>
+    </I18nextProvider>,
   )
   return { client, user: userEvent.setup() }
 }
@@ -293,6 +300,19 @@ describe('LibraryTmdbPage Update Jellyfin', () => {
 
     // Assert
     expect(invalidated).toHaveBeenCalledWith({ queryKey: qk.library.worksAll })
+  })
+
+  // MAM-46 — Ukrainian words "of N links" by N's plural form: 22 takes another form than 25 or 21.
+  it.each([[21, 'one'], [22, 'few'], [25, 'many']])('picks the plural form of a batch under way by its %i links', async (total, form) => {
+    // Arrange
+    vi.mocked(libraryLinksApi.catchUp).mockResolvedValue(catchUpOf({ toIdentify: 0, progress: progressOf({ total, done: 3 }) }))
+    const probe = pluralFormProbe('libraryLinks', 'catchUp.progress', (name) => `${name}: {{done}}/{{total}}`)
+
+    // Act
+    renderPage(owner, probe)
+
+    // Assert
+    expect(await within(panel()).findByText(`${form}: 3/${total}`)).toBeInTheDocument()
   })
 
   it('finds a batch still under way after a reload, with the button off, and follows it', async () => {

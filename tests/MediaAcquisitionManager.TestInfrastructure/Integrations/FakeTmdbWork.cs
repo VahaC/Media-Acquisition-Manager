@@ -37,6 +37,9 @@ namespace MediaAcquisitionManager.TestInfrastructure.Integrations;
 /// <param name="OverviewsByLanguage">Its details' <c>overview</c> by the <c>language</c> they are asked in (<c>en</c>,
 /// <c>uk-UA</c>); a language not in it answers TMDb's <c>""</c>, as TMDb does for one it has no overview in. When
 /// <c>null</c>, <paramref name="Overview"/> answers whatever the language.</param>
+/// <param name="TitlesByLanguage">MAM-46 — its <c>title</c> (a show's <c>name</c>) by the <c>language</c> a request asks
+/// in (<c>uk-UA</c>, <c>en-US</c>), in its details and in every list; a language not in it, or a request without one,
+/// answers <paramref name="Title"/>.</param>
 public sealed record FakeTmdbWork(
     MediaWorkKind Kind,
     int Id,
@@ -55,4 +58,5 @@ public sealed record FakeTmdbWork(
     int? RuntimeMinutes = null,
     string? Overview = null,
     string[]? AlternativeTitles = null,
-    IReadOnlyDictionary<string, string>? OverviewsByLanguage = null);
+    IReadOnlyDictionary<string, string>? OverviewsByLanguage = null,
+    IReadOnlyDictionary<string, string>? TitlesByLanguage = null);

@@ -188,3 +188,25 @@ The budget limits only what the app asks by itself: a person's own search on the
 against nothing and is never refused for it. A work found is not downloaded, picked or queued: the
 card says what the sources have, and **Releases** opens the Search page
 ([ADR 0023](0023-a-recommendation-only-proposes-explains-every-reason-and-never-sends.md)).
+
+## The catalog's title in its language (added 0.5.0, MAM-46)
+
+**Nothing here changes but the language of the catalog's title.** The TMDb integration's catalog
+language is the owner's setting now
+([ADR 0025](0025-the-catalog-is-kept-apart-from-the-library.md)'s MAM-46 section), `uk-UA` for every
+integration stored before 0.5.0. So the Decision's "else the catalog's Ukrainian title" reads "else
+the catalog's title, in the catalog's language": `RecommendationQueryTitle` still sends the original
+title when every letter of it is Latin, and the catalog's title otherwise, and a release still counts
+by an id, or by its title and year matched against the work's titles, the original among them. With
+a catalog language other than Ukrainian, Toloka's Ukrainian part of a name matches no catalog title,
+so a match rests on the original part, which Toloka's names carry beside it; a work whose original
+title is in another script is searched by its title in the catalog's language. "Resolved once"
+gains one exception: a save that changes the catalog's language marks unresolved again the entries
+first seen within the last 14 days that were resolved to no work, so the next pass resolves them in
+the new language, through title lookups that are fresh only in the language they were asked in
+(ADR 0025's MAM-46 section); an entry resolved to a work keeps it. The budget, the pacing and the
+rows are unchanged. `RecommendationQueryTitleTests` is unchanged, and
+`RecommendationAvailabilityHttpTests` runs as before on a catalog seeded in `uk-UA`;
+`CatalogLanguageChangeHttpTests.Language_change_resolves_again_a_newest_release_the_old_language_matched_to_no_work`
+and `IntegrationsCatalogLanguageHttpTests.Update_that_changes_the_language_has_the_newest_releases_matched_to_no_work_lately_resolved_again`
+pin the exception.

@@ -241,3 +241,108 @@ Only a code of the shape TMDb takes reaches the request, and only a work the cat
 about, so the endpoint is no open proxy to TMDb.
 
 `RecommendationOverviewsHttpTests` and `TmdbAdapterOverviewTests` pin it.
+
+## The catalog's language (added 0.5.0, MAM-46)
+
+Until MAM-46 every call asked TMDb in Ukrainian, a constant of the adapter. Vasyl's decision of
+2026-10-14 makes it the owner's setting for the installation, the TMDb integration's **Catalog
+language**, and his decision 1 of 2026-10-17 offers every language TMDb keeps translations in
+(ADR 0005's MAM-46 section). A new installation starts in the owner's language; production keeps
+Українська. The cache above was fresh for 30 days whatever language it held, so a change would have
+shown the old language for a month. **Every cached row that holds the catalog's words says which
+language it was read in, and is fresh only in the catalog's language of now: after a change each
+answer is read again in the new one the next time a run needs it, through `CatalogStore`, nothing
+emptied. The Description dialog keeps the reader's language, and a link's title stays as it was
+when the link was set.** So the Decision's "its title in Ukrainian" and the Consequences' "in
+Ukrainian where TMDb has a translation" now read: in the catalog's language, Ukrainian on every
+installation that had TMDb before 0.5.0.
+
+**The stamps.** `CatalogWorks.DetailsLanguage`, `CatalogGenres.Language`, `CatalogCollections.Language`
+and `CatalogPeople.Language`, non-null, written by every `Stage*` write with `CatalogConnection.Language`
+— the integration's `CatalogLanguage`, else `en-US`, the language the adapter then asks in too. A
+work's details are fresh by `DetailsUtc`, `DetailsVersion` and now `DetailsLanguage`; a collection or
+a person by `ObservedUtc` and its language; a genre list only when every genre of it was read in the
+language. `CatalogLookups.Language` stamps a lookup too: one by a title is fresh only in the
+language it was asked in, as the catalog matches a title by the work's title in that language or its
+original one, found or not; one by an IMDb id holds ids alone and stays fresh in any for its 30 days.
+`CatalogWorkOverviews` were per language already. The migration `AddLanguages` stamps every row
+cached before it `uk-UA`, the lookups included, and gives every TMDb integration `uk-UA`, as every
+call before it asked in Ukrainian, so an upgrade reads nothing again.
+
+**A run under way when the language changes.** A run builds its catalog connection once, when it
+starts, so after a change it may still ask in the old language. Before each save of the catalog's
+words the store reads the integration's language again, one read by key (`SaveInLanguageAsync`); a
+connection no longer in it only adds the rows not stored yet, stamped in its own language so the
+next run that needs one reads it again, and changes no stored row — a work's title, poster or
+details, a genre list, a collection, a person —, which would otherwise pass for the new language for
+a month. It logs that once, not once a call. The run still gets its answers, and the runs the
+change queued read in the new language. A lookup is written with the language it was asked in, so
+one asked in the old language is simply asked again.
+
+**What a change queues.** A save of the TMDb integration that changes an enabled catalog's language
+queues a computation of the recommendations and a preparation of the TMDb suggestions, both with the
+trigger `CatalogLanguageChanged` — also for a save that switches the catalog back on in another
+language —, and asks TMDb nothing itself; the audit row is the usual `IntegrationUpdated`. A change
+on a switched-off catalog is saved and queues nothing: the stamps make the next run read again once
+it is on. Any change of a catalog's language, switched on or off, also opens again the newest
+releases first seen within the last 14 days (`RecommendationRunner.FeedFreshness`) that were
+resolved to no work, so the next read of the newest releases resolves them in the new language; a
+failure there is logged and leaves the save as it is. The computation reads again, through the
+store, what it needs, and nothing more — a work only the newest releases name included: the feed
+resolves an entry once and no other signal lists the work again, so the **New on …** reason reads
+its details again when they were read in another language, and leaves out a work the catalog no
+longer has. The suggestions keep their searches, whose queries the language doesn't change, but **in
+every run**, not only one with that trigger, a search kept from the cache reads again, through the
+store, the details of its stored candidates not stored as read in the catalog's language of now —
+another `DetailsLanguage`, no details, or no row at all, as a run under way during the change leaves
+them —, so the TMDb dialog's titles, overviews and posters, read from `CatalogWorks`, follow the new
+language. A candidate already read in it costs nothing, and the rule also catches a change made
+while the catalog was off, and TMDb removed and added again in another language
+(`CatalogConnected`).
+
+**The reader's Description.** Vasyl's decision 2 of 2026-10-17 keeps the section above: a card's
+**Description** is asked in the reader's UI language — `uk` or `en` now, no longer "`en` today" —
+with English beneath it, whatever the catalog's language (`GetOverviewAsync` keeps its explicit
+language), while the card's titles and the TMDb dialog's overview follow the catalog.
+
+**A link's title is a snapshot.** `LibraryItemLinkEntity.CatalogTitle` is TMDb's title when the link
+was set, in the catalog's language of then; a change of language leaves it until the link is set
+again, as it records what the owner picked.
+
+**Release matching follows the catalog's language.** The availability check and the newest releases
+search and match by the catalog's title, now in the catalog's language, and the original title
+(ADR 0024's MAM-46 section). Toloka's names carry the Ukrainian and the original title, so with
+another catalog language a match rests on the original, and a work whose original title is not in
+Latin letters (a Japanese or Korean film) is searched by its title in the catalog's language, which
+a Ukrainian tracker doesn't carry: such a work shows nothing available. The Catalog language field's
+hint says so, asking for the language the release sources name films in. After a change the title lookups are asked
+again in the new language, and the newest releases of the last 14 days that matched no work are
+matched again in it (above).
+
+| Rejected option | Why not |
+| --- | --- |
+| Empty the catalog's tables on a change | The ids, and a lookup by an IMDb id, hold nothing a language changes, and the next run would read everything at once |
+| A run under way after a change stores nothing | The newest releases' pass and the TMDb dialog's Find and Set read the row the store writes: an entry would be resolved to no work for good, and a poster not served |
+| Read everything again at once on a change | A burst of thousands of calls, many for works no run needs any more |
+| A cache per language | Every work stored twice for one catalog, whose ids don't change with the language |
+| Read the candidates again only on the `CatalogLanguageChanged` trigger | A change made while TMDb was off, or TMDb added again in another language, would keep the old titles for a month |
+| The Description in the catalog's language | A member who reads English would get Ukrainian (decision 2) |
+
+`CatalogLanguageChangeHttpTests.Language_change_reads_the_recommendations_catalog_again_in_it_once_and_shows_its_titles`,
+`Computation_after_the_language_change_finds_the_catalog_fresh_in_it_and_asks_nothing_again`,
+`Language_change_reads_the_suggestions_candidates_again_in_it_without_searching_again`,
+`Suggestions_run_after_the_language_change_reads_no_candidate_again`,
+`Catalog_added_again_in_another_language_reads_the_kept_suggestions_candidates_again_in_it`,
+`Suggestions_run_reads_a_kept_candidate_with_no_details_stored_and_the_dialog_lists_it_again`,
+`Language_change_reads_again_once_a_work_only_a_release_sources_newest_releases_name_and_shows_its_title`
+and `Language_change_resolves_again_a_newest_release_the_old_language_matched_to_no_work` pin the
+re-read; `CatalogStoreTests.Connection_built_before_a_language_change_gets_its_answers_but_changes_no_stored_row`,
+`Connection_built_before_a_language_change_stores_a_new_work_in_its_own_language_which_is_read_again_in_the_new_one`
+and `Lookup_by_a_title_is_asked_again_in_another_language_and_one_by_an_imdb_id_is_not` the store;
+`IntegrationsCatalogLanguageHttpTests.Update_that_changes_an_enabled_catalogs_language_queues_both_runs_asks_tmdb_nothing_and_audits_the_change`,
+`Update_that_changes_a_switched_off_catalogs_language_saves_it_and_queues_nothing`,
+`Update_that_switches_a_catalog_back_on_in_another_language_queues_the_runs_as_a_language_change` and
+`Update_that_changes_the_language_has_the_newest_releases_matched_to_no_work_lately_resolved_again`
+what a save queues and opens again; `AddLanguagesMigrationTests.Upgrade_keeps_every_user_with_no_language_and_every_cached_catalog_row_as_read_in_ukrainian`
+the upgrade; and `TmdbAdapterLanguageTests.GetOverview_asks_in_the_readers_language_whatever_the_catalogs`
+the Description.

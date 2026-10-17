@@ -98,6 +98,8 @@ public sealed class ControllerAccessDeclarationTests : IClassFixture<MediaAcquis
         // The signed-in user's own preferences, by the token: outside Controllers/Settings, every user's.
         Assert.Contains("ProfileController.GetRecommendationSettings", actions);
         Assert.Contains("ProfileController.UpdateRecommendationSettings", actions);
+        // MAM-46 — the user's own language for the web app, every user's; a write, so refused to tokens.
+        Assert.Contains("ProfileController.UpdateLanguage", actions);
         // MAM-5 — the signed-in user's own personal access tokens, beside the Profile's settings; refused to tokens.
         Assert.Contains("PersonalAccessTokensController.List", actions);
         Assert.Contains("PersonalAccessTokensController.Create", actions);

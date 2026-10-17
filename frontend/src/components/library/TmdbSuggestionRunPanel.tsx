@@ -122,7 +122,7 @@ function RunLine({ run }: { run: LibraryLinkSuggestionRun | null }) {
         // The works are counted once the run has read them.
         return run.worksTotal === null
           ? t('run.running')
-          : t('run.runningCounts', { done: formatNumber(run.worksDone), total: formatNumber(run.worksTotal) })
+          : t('run.runningCounts', { count: run.worksTotal, done: formatNumber(run.worksDone), total: formatNumber(run.worksTotal) })
       case 'Succeeded':
         return t('run.succeeded', { time })
       case 'Failed':

@@ -28,4 +28,8 @@ public interface IUserSeeder
     /// <summary>Another live session for an existing <paramref name="user"/> — the same account signed
     /// in on a second browser or device.</summary>
     Task<AuthorizedUser> CreateSession(UserEntity user);
+
+    /// <summary>MAM-46 — saves <paramref name="language"/> (<c>en</c>, <c>uk</c>) as <paramref name="user"/>'s language for
+    /// the web app, as their Profile does; <c>null</c> follows the browser's.</summary>
+    Task SetLanguage(UserEntity user, string? language);
 }

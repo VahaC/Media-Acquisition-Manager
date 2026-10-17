@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Integrations;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -35,4 +36,14 @@ public class CatalogLookupEntity : ProvenancedEntity
 
     /// <summary>What the work found matched by; <c>null</c> when nothing usable was.</summary>
     public MatchEvidence? Evidence { get; set; }
+
+    /// <summary>
+    /// MAM-46 — the catalog language the lookup was asked in (<c>uk-UA</c>, <c>en-US</c>). The catalog matches a title
+    /// by the work's title in that language or its original one, so what a lookup by a title found, or that it found
+    /// nothing, holds in that language only: the catalog store counts it as fresh only while it is the catalog's language
+    /// of now. A lookup by an IMDb id is the same in any language and is never asked again for it. Every lookup cached
+    /// before MAM-46 was asked in Ukrainian, which the migration's default says.
+    /// </summary>
+    [Required, MaxLength(CatalogLanguageRules.MaximumLength)]
+    public string Language { get; set; } = default!;
 }

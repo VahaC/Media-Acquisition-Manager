@@ -122,7 +122,16 @@ duplicates, the recommendations and the sources' state, the three writes for `Re
 alone, and the Profile lines that connect each assistant (ADR 0041); it rests on the tests and a
 live check on canned data (the MCP TypeScript SDK's client and `mcp-remote`, its Profile lines in a
 browser), and wasn't tried with Claude Code, Claude Desktop or on production.
-MAM-46 to MAM-48 aren't built yet.
+MAM-46 (built on 2026-10-17 for 0.5.0) shows the web app in English or Ukrainian as each user
+chooses on Profile — the browser's language until they choose —, saved with the account, every
+namespace translated by the glossary `docs/i18n/glossary-uk.md`, and gives the TMDb integration a
+**Catalog language**, every language TMDb keeps translations in, whose change reads the catalog
+again, an installation that had TMDb keeping Ukrainian (ADR 0001's and ADR 0025's MAM-46 sections);
+it rests on the tests — the key-parity test and every page rendered in Ukrainian among them — and on
+a browser check on a copy of Vasyl's development database on 2026-10-17 (the migration on real data,
+every page in Ukrainian at desktop and phone width, the language switch, and TMDb switched to
+English and read again in about 3 minutes), and wasn't tried on production.
+MAM-47 and MAM-48 aren't built yet.
 This file lists unshipped phases only. When a phase ships, its heading becomes
 `### ✅ Shipped (<release>) Phase …`, and its detail later moves to `HISTORY.md`. The phases
 follow §6 of the
@@ -652,7 +661,8 @@ episode, and how much space could really be recovered — without the app guessi
   0024](docs/adr/0024-release-sources-are-asked-for-recommendations-within-a-per-user-budget.md)). A
   card's **Releases** opens the Search page with the work; nothing is sent by itself. Its **Description**
   opens the catalog's overview of it, in English for now, asked on the click and kept per language
-  (0.4.0, Vasyl, 2026-10-14). "Not interested"
+  (0.4.0, Vasyl, 2026-10-14; in the reader's language, Ukrainian or English, since MAM-46 in 0.5.0).
+  "Not interested"
   is each user's own (Vasyl's decision 3), and each user's Profile switches the tabs and sets the limit,
   every tab on until they save (decision 5). A film Toloka files in TV/Anime or
   TV/Documentary is a movie unless its title or description names seasons or episodes, and the movie
@@ -2465,13 +2475,71 @@ app in Ukrainian.
     instance, keeps every host alive.
   - *Backup/restore:* nothing new — no table, column, setting or environment variable; what a tool
     writes is what the matching page's action writes.
-- **MAM-46 The web app in Ukrainian:** a `Language` on Profile — the browser's (the default),
-  English or Українська —, saved with the account; every namespace of `frontend/src/locales/en/`
-  translated into `uk` with Ukrainian plural forms, by a glossary settled first
-  (`docs/i18n/glossary-uk.md`), and a test that the two have the same keys, placeholders and the
-  plural forms each needs. The TMDb integration gets a `Catalog language`, the owner's setting for
-  the installation, in place of the hard-coded `uk-UA` (Vasyl's decision of 2026-10-14); production
-  keeps Українська. Release notes stay English only (his decision the same day).
+- **MAM-46 The web app in Ukrainian** (built on 2026-10-17, release 0.5.0; resting on the tests —
+  the key-parity test and every page rendered in Ukrainian among them — and a browser check on a copy
+  of Vasyl's development database; not tried on production): a
+  `Language` on Profile — the browser's (the default), English or Українська —, saved with the
+  account; every namespace of `frontend/src/locales/en/` translated into `uk` with Ukrainian plural
+  forms, by a glossary settled first (`docs/i18n/glossary-uk.md`), and a test that the two have the
+  same keys, placeholders and the plural forms each needs. The TMDb integration gets a `Catalog
+  language`, the owner's setting for the installation, in place of the hard-coded `uk-UA` (Vasyl's
+  decision of 2026-10-14); production keeps Українська. Release notes stay English only (his
+  decision the same day). Vasyl's decisions of 2026-10-17, before the build: (1) the catalog
+  language offers every language TMDb keeps translations in; (2) a recommendation card's
+  **Description** keeps the reader's UI language, while the titles and the TMDb link dialog's
+  overview follow the catalog's; (3) folder is «тека» and library «медіатека»; (4) work is «твір»
+  and episode «серія». As built:
+  - *The choice:* `Users.Language` — `en`, `uk`, or `null` for the browser's —, answered as
+    `user.language` by sign-in, setup and refresh and as `language` by `GET /api/auth/me`, and saved
+    by `PUT /api/profile/language` (the property required, 400 sentences for anything else, no audit
+    row, refused to tokens: ADR 0040's MAM-46 section). Profile's **Language** card, after
+    **Appearance**, saves a choice at once, with no Save button, its two languages named in
+    themselves (ADR 0001's MAM-46 section).
+  - *Which locale runs:* the browser's first locale the app has a language for when the account
+    says none, so a Ukrainian browser now gets Ukrainian; the browser's first locale of the chosen
+    language otherwise (`en-GB` keeps British dates), else the bare code. Applied on sign-in, setup,
+    refresh and a Profile save, and when Profile reads the account (`GET /api/auth/me`), back to the
+    browser's on sign-out, before sign-in the browser's; the browser's other tabs of the same user
+    follow over the `mam-auth` channel; the signed-in pages mount afresh on a change, held while a
+    new token's secret is on screen. Every request sends `Accept-Language`, for MAM-47.
+  - *The translation:* 18 namespaces in `locales/uk/`, in the glossary's words and style; counted
+    English keys given plural forms and `count`, an "exactly one" given a key of its own where
+    Ukrainian's `_one` (also 21, 31…) can't say it, and language names capitalised where they start
+    an option or a label.
+  - *The checks:* `src/locales/locales.test.ts` holds every `uk` namespace to its English one — keys,
+    the four plural forms, placeholders, `<Trans>` tags, whitespace and the glossary's typography —,
+    and `src/test/ukrainian-pages.test.tsx` renders every route in Ukrainian with no English
+    fallback, failing on a missing or raw key, an unresolved placeholder or English on screen.
+  - *The catalog language:* `IntegrationConnections.CatalogLanguage`, for a metadata catalog only, one
+    of `IMetadataCatalog.Languages` — TMDb's 144 primary translations, recorded on 2026-10-17 —,
+    offered by the TMDb dialog's **Catalog language** select (Ukrainian and English first) and shown
+    under the TMDb row; a new TMDb starts in the owner's language, else the browser's
+    `Accept-Language`, else `en-US`, and every call asks in it, `en-US` when none is stored (ADR
+    0005's MAM-46 section).
+  - *Reading again:* the catalog's cached details, genres, collections, people and title lookups say
+    which language they were read in and are fresh only in the catalog's of now (a lookup by an IMDb
+    id in any); a run under way during a change adds only rows not stored yet and changes none; a
+    change of a switched-on TMDb's language queues both runs with `CatalogLanguageChanged`, which
+    read again only what was read in another — a **New on …** work included —, the TMDb suggestions
+    keeping their searches and reading their candidates again, in every run; any change marks the
+    newest releases of the last 14 days that matched no work unresolved again; the Description keeps the reader's language and a link's title stays a snapshot (ADR
+    0025's MAM-46 section). With another language than Ukrainian, release matching for
+    recommendations rests on the original title (ADR 0024's MAM-46 section).
+  - *What stays English:* the server's sentences until MAM-47, the release notes, and data as its
+    source wrote it.
+  - *Settled while building, accepted by Vasyl on 2026-10-17:* `en` maps to `en-US`, not to
+    TMDb's first English (`en-AG`); a blank catalog language counts as left out; a language change on a
+    switched-off TMDb queues nothing; the suggestions' candidates are read again in every run, not
+    only one the change queued; the integrations list names the catalog language under TMDb's row;
+    the Profile language is compared exactly (`UK` and `uk-UA` refused); and, in the review's fixes,
+    a run under way during a change still adds the rows not stored yet rather than skipping the
+    store, a change marks the newest releases of the last 14 days that matched no work unresolved
+    again, and the stored catalog language sent back counts as unchanged even when TMDb no longer
+    lists it; TMDB's attribution notice is translated like any other text.
+  - *Backup/restore:* the migration `AddLanguages` adds seven columns in place, no rebuild —
+    `Users.Language`, `IntegrationConnections.CatalogLanguage` (`uk-UA` on every TMDb row) and the
+    five catalog tables' language stamps (`uk-UA` on every cached row) —, all in `mam.db`, so the
+    data directory's backup keeps them.
 - **MAM-47 The server's sentences in the user's language:** every sentence the server writes —
   warnings, reasons, refusals, errors, about 800 of them — in the language of whoever asks (the
   user's, else `Accept-Language`, else English), from JSON files like the web app's. The database
@@ -2483,8 +2551,9 @@ app in Ukrainian.
 
 **Out of scope:** OAuth sign-in and an endpoint open to the internet for claude.ai's connectors;
 any token or MCP tool that replaces, quarantines, restores or deletes a copy, or writes a setting;
-languages other than Ukrainian and English; translated release notes; translating a service's own
-error text or the titles the media server reports.
+UI languages other than Ukrainian and English (TMDb's catalog language, by Vasyl's decision 1 of
+2026-10-17, takes any TMDb keeps translations in); translated release notes; translating a service's
+own error text or the titles the media server reports.
 
 **Tests:** over real HTTP, each token access level against a read, an allowed write, a refused write
 and every endpoint no token may call; revoked, expired, disabled and deleted users' tokens; one
@@ -2526,6 +2595,26 @@ replayed `requestId`, a refused cancel of a replacement's job, a found release s
 API), `LibraryDuplicatesSortHttpTests` (the sort), the tokens-alone mark in
 `PersonalAccessTokenConventionHttpTests`, and in the web app `CreateAccessTokenDialog.test.tsx` and
 `CreateAccessTokenDialog.https.test.tsx` (both lines, plain HTTP and HTTPS, each field's Copy).
+MAM-46's: `UserLanguageHttpTests` (the save for the owner and a member, `null`, what `/me` and the
+next sign-in carry, no audit row, both 400 sentences, a token's 403), the `language` in
+`AuthSignInHttpTests`, `AuthRefreshHttpTests`, `AuthMeHttpTests` and `SetupHttpTests`,
+`IntegrationsCatalogLanguageHttpTests` (a create's default from the owner's language, the browser's
+or `en-US`, one sent kept, the 400s, the order of the checks, an update keeping, changing and
+resending it with the runs it queues or doesn't, a stored tag TMDb no longer lists, the newest
+releases opened again, the list's field), the adapter types' list in `IntegrationsHttpTests`,
+`CatalogLanguageChangeHttpTests` (the catalog read again once in the new language with the new
+titles shown, a **New on …** work included, the suggestions' candidates read again without
+searching, also after TMDb is added again in another language and with no details or no row stored,
+a newest release resolved again in the new language), `CatalogStoreTests` (a run under way during a
+change, a title lookup asked again in another language), `TmdbAdapterLanguageTests` (every call's language,
+`en-US` without one, the reader's Description, the recorded list), `CatalogLanguageRulesTests`,
+`UiLanguagesTests`, `AddLanguagesMigrationTests` (seven columns in place, `uk-UA` on the TMDb rows
+and the cached rows), the new write in `PersonalAccessTokenWritesHttpTests`; and in the web app
+`i18n.test.ts`, `auth-store.test.ts`, `ProfilePage.test.tsx`, `ProtectedRoute.test.tsx`,
+`api.test.ts`, `LanguageCard.test.tsx`, `RecommendationTabs.test.tsx`, `IntegrationDialog.test.tsx`, `IntegrationsPage.test.tsx`,
+`catalog-languages.test.ts`, `src/locales/locales.test.ts` (every Ukrainian namespace against the
+English one) and `src/test/ukrainian-pages.test.tsx` (every route in Ukrainian, nothing English or
+unresolved on screen), with `src/test/plural-probe.ts`'s Ukrainian counts.
 
 **Acceptance bar:** on production (MAM-48): a read-only token reads jobs with `curl` and is refused
 a send, and a revoked token answers 401 at once; Claude Code connected by the README's line finds a

@@ -154,6 +154,15 @@
   gap: 8px;
 }
 
+/* MAM-46 — the Language card's "Saved.": on a line of its own under the label and the pills, at the row's
+   end (under the pills' end where they sit beside the label). Beside them it made the row wider the moment
+   it appeared, which moved the pills, or on a narrow screen wrapped them under the label, right under the
+   finger that had just tapped one. Checked in Chrome from 320px to 1024px, in English and Ukrainian: the
+   pills stay where they were. */
+.profile-language-status {
+  justify-self: end;
+}
+
 /* MAM-5 — the Access tokens card: a token's name with its badges, and its prefix on a line of its own
    under them. A grid rather than two inline pieces: on a phone the cell is a flex row beside its
    data-label (settings-list.css), which would put the prefix beside the name instead of under it. */
@@ -254,6 +263,16 @@
      and would hide the end of the token. */
   .ui-textarea.profile-config-field {
     white-space: pre-wrap;
+  }
+
+  /* MAM-46 — a date never wraps (.profile-date), so on a phone its label does instead: «Востаннє
+     використано» (124px) beside a date and time (133px) is wider than a 320px phone's token card, and the
+     label inherited the cell's nowrap, which widened the card and scrolled the page sideways. Three
+     classes and an attribute plus the pseudo-element (0,3,2), so it wins over settings-list.css's
+     `.settings-table td[data-label]::before` (0,2,2) whichever sheet loads first. */
+  .settings-table td.profile-date[data-label]::before {
+    white-space: normal;
+    flex-shrink: 1;
   }
 }
 

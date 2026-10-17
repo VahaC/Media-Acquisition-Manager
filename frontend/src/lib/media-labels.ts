@@ -1,3 +1,4 @@
+import { capitalizeFirst } from './format'
 import { i18n } from './i18n'
 import type { MediaTrack } from './types'
 
@@ -66,6 +67,14 @@ export function languageName(tag: string): string {
 }
 
 /**
+ * MAM-46 — a language's name where it starts an option or a label (a filter's option, an audio track's
+ * line): capitalised, as Intl writes some languages' names in lower case (Ukrainian's, for one).
+ */
+export function languageLabel(tag: string): string {
+  return capitalizeFirst(languageName(tag))
+}
+
+/**
  * MAM-16 — a language tag as the short code a version's row lists its audio by: the language part,
  * upper-cased (`ukr` → UKR, `en-us` → EN). Files are tagged with three letters or two, so the code
  * is whichever the file has rather than a guess at the other.
@@ -111,8 +120,9 @@ function describe(parts: (string | false | null)[]): string {
   return parts.filter((part) => typeof part === 'string').join(i18n.t('common:separator'))
 }
 
+/** The language a track's line starts with, so capitalised. */
 function languageOf(track: MediaTrack): string {
-  return track.language === null ? i18n.t('library:media.unknownLanguage') : languageName(track.language)
+  return track.language === null ? i18n.t('library:media.unknownLanguage') : languageLabel(track.language)
 }
 
 function flagsOf(track: MediaTrack): (string | false)[] {

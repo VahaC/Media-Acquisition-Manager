@@ -351,3 +351,55 @@ describe('the dialogs widened after the destination dialog', () => {
     expect(declared('integrations.css', '.integrations-pair', '(max-width: 560px)')).toEqual({})
   })
 })
+
+// MAM-46 — what the Ukrainian text needs of the sheets: its labels are longer than the English ones the
+// widths were measured with. Each was measured in Chrome with the app's sheets and the Ukrainian strings.
+describe('the room the Ukrainian text takes', () => {
+  it('lets a token date\'s label wrap on a phone, the date beside it on one line, whichever sheet loads first', () => {
+    // Act
+    const label = declared('profile.css', '.settings-table td.profile-date[data-label]::before', '(max-width: 48rem)')
+    const dateCell = declared('profile.css', '.profile-date')
+
+    // Assert
+    // «Востаннє використано» beside a date and time is wider than a 320px phone's token card. Three classes
+    // and an attribute, over settings-list.css's `.settings-table td[data-label]::before` (two and one).
+    expect(label).toEqual({ 'white-space': 'normal', 'flex-shrink': '1' })
+    expect(declared('settings-list.css', '.settings-table td[data-label]::before', '(max-width: 48rem)'))
+      .toMatchObject({ 'flex-shrink': '0' })
+    expect(dateCell).toEqual({ 'white-space': 'nowrap' })
+  })
+
+  it('gives the search form\'s year 7rem, room for «(необов’язково)» on a line of its own', () => {
+    // Act
+    const fields = declared('search.css', '.search-form-fields')
+
+    // Assert
+    expect(fields['grid-template-columns'])
+      .toBe('minmax(0, 7rem) minmax(0, 7.5rem) minmax(0, 11rem) minmax(0, 11rem) auto')
+  })
+
+  it('lets the sign-in and setup forms\' full-width button wrap, as tall as before on one line', () => {
+    // Act
+    const button = declared('auth.css', '.auth-form .ui-button.w-full')
+    const size = declared('ui-primitives.css', '.ui-button-size-default')
+
+    // Assert
+    expect(button).toEqual({ height: 'auto', 'min-height': '2.25rem', 'line-height': '1.25rem', 'white-space': 'normal', 'text-align': 'center' })
+    // One line: the size's padding above and below a 1.25rem line makes its 2.25rem.
+    expect(2 * parseFloat(size.padding.split(' ')[0]) + parseFloat(button['line-height'])).toBe(parseFloat(size.height))
+  })
+
+  it('keeps the header\'s links icons in Ukrainian up to 77.5rem, beyond the 76rem English needs', () => {
+    // Act
+    const english = declared('app-layout.css', '.app-nav-link .label-text', '(max-width: 76rem)')
+    const ukrainian = declared('app-layout.css', 'html:lang(uk) .app-nav-link .label-text', '(max-width: 77.5rem)')
+
+    // Assert
+    expect(english).toEqual({ display: 'none' })
+    expect(ukrainian).toEqual({ display: 'none' })
+    expect(declared('app-layout.css', 'html:lang(uk) .app-header', '(max-width: 77.5rem)'))
+      .toEqual(declared('app-layout.css', '.app-header', '(max-width: 76rem)'))
+    expect(declared('app-layout.css', 'html:lang(uk) .app-nav', '(max-width: 77.5rem)'))
+      .toEqual(declared('app-layout.css', '.app-nav', '(max-width: 76rem)'))
+  })
+})

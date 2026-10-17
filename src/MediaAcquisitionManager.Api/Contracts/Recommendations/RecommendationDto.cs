@@ -7,7 +7,7 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="Kind"><c>Movie</c> or <c>Series</c>; with <paramref name="CatalogId"/>, what "Not interested" is kept
 /// by.</param>
 /// <param name="CatalogId">The catalog's id of the work (<c>603</c>).</param>
-/// <param name="Title">The catalog's title, in its language (Ukrainian).</param>
+/// <param name="Title">The catalog's title, in its language (MAM-46: the TMDb integration's, Ukrainian before).</param>
 /// <param name="OriginalTitle">The title in the work's original language; <c>null</c> when the catalog gives
 /// none.</param>
 /// <param name="Year">The year of its release or first air date; <c>null</c> when the catalog has no date.</param>

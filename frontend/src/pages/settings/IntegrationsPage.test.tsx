@@ -10,7 +10,7 @@ import { IntegrationsPage } from '@/pages/settings/IntegrationsPage'
 import { apiError, networkError } from '@/test/api-error'
 import { member, owner, signInAs } from '@/test/auth-session'
 import { destinationsPage, movies, sampleCategories } from '@/test/destinations'
-import { adapterTypes, homeJellyfin, localQbittorrent, localTransmission, retiredClient, toloka } from '@/test/integrations'
+import { adapterTypes, homeJellyfin, localQbittorrent, localTransmission, retiredClient, tmdbCatalog, toloka } from '@/test/integrations'
 import { aliens, locations, sourceOf, sourcesOf, worksPage } from '@/test/library'
 
 vi.mock('@/lib/integrations-api')
@@ -71,6 +71,21 @@ describe('IntegrationsPage', () => {
     expect(within(rowOf('Toloka')).getByText('Disabled')).toBeInTheDocument()
     expect(rowOf('Toloka')).toHaveAttribute('data-disabled')
     expect(screen.getByText('1–3 of 3')).toBeInTheDocument()
+  })
+
+  it('names a metadata catalog\'s language under its kind, and no other integration\'s', async () => {
+    // Arrange
+    vi.mocked(integrationsApi.list).mockImplementation(async (query) => pageOf(query, [homeJellyfin, tmdbCatalog]))
+
+    // Act
+    renderPage()
+
+    // Assert
+    await screen.findByText('https://api.themoviedb.org')
+    const tmdb = within(rowOf('https://api.themoviedb.org'))
+    expect(tmdb.getByText('Catalog language: Ukrainian (Ukraine)')).toHaveClass('integrations-service-kind')
+    expect(tmdb.getByText('Metadata catalog')).toBeInTheDocument()
+    expect(within(rowOf('Home Jellyfin')).queryByText(/^Catalog language/)).not.toBeInTheDocument()
   })
 
   it('says in its lead that a metadata catalog feeds the Recommendations page', async () => {

@@ -16,7 +16,10 @@ public sealed class TmdbAdapterListsTests : IDisposable
     private const string BaseUrl = "https://api.themoviedb.test";
     private const string Token = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJsaXN0cyJ9.c2lnbmF0dXJlLW9mLWxpc3Rz";
 
-    private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, Token);
+    // MAM-46 — the language an upgraded installation's TMDb keeps, which every exact URL below was recorded with.
+    private const string CatalogLanguage = "uk-UA";
+
+    private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, Token, CatalogLanguage);
 
     private readonly IntegrationAdapterHarness _harness = new();
 

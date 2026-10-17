@@ -25,6 +25,9 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <param name="DestinationKind">MAM-30 — for a download client, what its destinations are: its own categories or the
 /// folders it can reach (ADR 0039); <c>null</c> for any other integration, and for one whose type this version of the
 /// app no longer connects to.</param>
+/// <param name="CatalogLanguage">MAM-46 — for a metadata catalog, the language its titles, overviews, names and posters
+/// are asked in (<c>uk-UA</c>, <c>en-US</c>, one of its type's <c>catalogLanguages</c>); <c>null</c> for any other
+/// integration.</param>
 public sealed record IntegrationDto(
     Guid Id,
     string Name,
@@ -38,4 +41,5 @@ public sealed record IntegrationDto(
     bool HasApiKey,
     IReadOnlyList<PathMappingDto> PathMappings,
     DateTime CreatedUtc,
-    DownloadDestinationKind? DestinationKind = null);
+    DownloadDestinationKind? DestinationKind = null,
+    string? CatalogLanguage = null);

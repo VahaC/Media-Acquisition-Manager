@@ -42,16 +42,17 @@ public sealed class AddReplacementVerificationMigrationTests : DatabaseTestBase
             await db.GetService<IMigrator>().MigrateAsync(PreviousMigration, cancellationToken);
             // The users and releases this upgrade leaves as they are: their factories write them. The download job by hand, in
             // the columns it had then (InsertDownloadJobAsync).
-            var owner = await new UserDataFactory(db, new Pbkdf2PasswordHasher(1_000), TimeProvider.System).Create("owner", "P@ssword1");
+            // MAM-46 — raw SQL: today's user has a Language column the old Users table hasn't.
+            var ownerId = await MigrationUserRows.InsertAsync(db, "owner", cancellationToken);
             var release = await new ReleaseDataFactory(db, Encryption, TimeProvider.System).Create(sourceConnectionId: null);
-            var download = await InsertDownloadJobAsync(db, release.Id, owner.Id, cancellationToken);
+            var download = await InsertDownloadJobAsync(db, release.Id, ownerId, cancellationToken);
             await db.Database.ExecuteSqlRawAsync(
                 """
                 INSERT INTO "ReplacementJobs" ("Id", "DownloadJobId", "RequestedByUserId", "RequestedByUserName", "State", "StateChangedUtc", "Reason",
                     "ReleaseEditions", "CreatedUtc")
                 VALUES ({0}, {1}, {2}, 'owner', 'Downloaded', {3}, NULL, 'DirectorsCut', {3})
                 """,
-                [Text(jobId), Text(download), Text(owner.Id), Text(scheduledUtc)],
+                [Text(jobId), Text(download), Text(ownerId), Text(scheduledUtc)],
                 cancellationToken);
             await db.Database.ExecuteSqlRawAsync(
                 """

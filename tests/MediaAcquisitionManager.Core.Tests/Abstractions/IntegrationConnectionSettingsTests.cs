@@ -20,7 +20,7 @@ public sealed class IntegrationConnectionSettingsTests
         //Assert
         Assert.Equal(
             "IntegrationConnectionSettings { ConnectionId = 3f2504e0-4f89-41d3-9a0c-0305e82c3301, BaseUrl = http://127.0.0.1:9, " +
-            "UserName = admin, Password = ***, ApiKey = *** }",
+            "UserName = admin, Password = ***, ApiKey = ***, CatalogLanguage =  }",
             text);
         Assert.DoesNotContain(Password, text);
         Assert.DoesNotContain(ApiKey, text);
@@ -51,8 +51,24 @@ public sealed class IntegrationConnectionSettingsTests
 
         //Assert
         Assert.Equal(
-            "IntegrationConnectionSettings { ConnectionId = , BaseUrl = http://127.0.0.1:9, UserName = , Password = null, ApiKey = null }",
+            "IntegrationConnectionSettings { ConnectionId = , BaseUrl = http://127.0.0.1:9, UserName = , Password = null, ApiKey = null, CatalogLanguage =  }",
             text);
+    }
+
+    [Fact]
+    public void ToString_shows_the_catalog_language_which_is_no_secret()
+    {
+        //Arrange
+        var settings = new IntegrationConnectionSettings(null, "http://127.0.0.1:9", null, null, ApiKey, "uk-UA");
+
+        //Act
+        var text = settings.ToString();
+
+        //Assert
+        Assert.Equal(
+            "IntegrationConnectionSettings { ConnectionId = , BaseUrl = http://127.0.0.1:9, UserName = , Password = null, ApiKey = ***, CatalogLanguage = uk-UA }",
+            text);
+        Assert.DoesNotContain(ApiKey, text);
     }
 
     [Fact]

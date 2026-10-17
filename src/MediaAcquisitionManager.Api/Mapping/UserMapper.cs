@@ -8,10 +8,10 @@ namespace MediaAcquisitionManager.Api.Mapping;
 public sealed class UserMapper : IUserMapper
 {
     public CurrentUserResponse ToCurrentUser(UserEntity user, bool isOwner) =>
-        new(user.Id, user.UserName, isOwner);
+        new(user.Id, user.UserName, isOwner, user.Language);
 
     public CurrentUserProfileResponse ToProfile(UserEntity user, bool isOwner, DateTime sessionExpiresUtc) =>
-        new(user.Id, user.UserName, isOwner, user.CreatedUtc, user.LastSignInUtc, sessionExpiresUtc);
+        new(user.Id, user.UserName, isOwner, user.CreatedUtc, user.LastSignInUtc, sessionExpiresUtc, user.Language);
 
     public SignInResponse ToSignInResponse(UserEntity user, bool isOwner, AccessToken accessToken) =>
         new(accessToken.Token, accessToken.ExpiresUtc, ToCurrentUser(user, isOwner));

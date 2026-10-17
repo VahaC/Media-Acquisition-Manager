@@ -13,6 +13,7 @@ export const jellyfinType: IntegrationAdapterType = {
   apiKey: 'Required',
   reportsFilePaths: true,
   destinationKind: null,
+  catalogLanguages: null,
 }
 
 export const torznabType: IntegrationAdapterType = {
@@ -24,6 +25,7 @@ export const torznabType: IntegrationAdapterType = {
   apiKey: 'Required',
   reportsFilePaths: false,
   destinationKind: null,
+  catalogLanguages: null,
 }
 
 export const qbittorrentType: IntegrationAdapterType = {
@@ -35,6 +37,7 @@ export const qbittorrentType: IntegrationAdapterType = {
   apiKey: 'NotUsed',
   reportsFilePaths: true,
   destinationKind: 'Category',
+  catalogLanguages: null,
 }
 
 /**
@@ -50,7 +53,14 @@ export const transmissionType: IntegrationAdapterType = {
   apiKey: 'NotUsed',
   reportsFilePaths: true,
   destinationKind: 'Folder',
+  catalogLanguages: null,
 }
+
+/**
+ * MAM-46 — a few of TMDb's primary translations, in TMDb's own order (alphabetical by tag), as the
+ * adapter types list carries them for the catalog.
+ */
+export const tmdbLanguages = ['de-DE', 'en-AU', 'en-GB', 'en-US', 'es-ES', 'fr-FR', 'pl-PL', 'pt-BR', 'uk-UA']
 
 /** MAM-33 — the metadata catalog: its API Read Access Token goes in the API key field. */
 export const tmdbType: IntegrationAdapterType = {
@@ -62,6 +72,7 @@ export const tmdbType: IntegrationAdapterType = {
   apiKey: 'Required',
   reportsFilePaths: false,
   destinationKind: null,
+  catalogLanguages: tmdbLanguages,
 }
 
 /** In the server's order: by kind, then name. */
@@ -81,6 +92,7 @@ export const homeJellyfin: IntegrationSummary = {
   pathMappings: [{ servicePrefix: '/data/movies', appPrefix: '/media/movies' }],
   createdUtc: '2026-09-20T08:00:00Z',
   destinationKind: null,
+  catalogLanguage: null,
 }
 
 export const toloka: IntegrationSummary = {
@@ -97,6 +109,7 @@ export const toloka: IntegrationSummary = {
   pathMappings: [],
   createdUtc: '2026-09-21T08:00:00Z',
   destinationKind: null,
+  catalogLanguage: null,
 }
 
 export const localQbittorrent: IntegrationSummary = {
@@ -113,6 +126,7 @@ export const localQbittorrent: IntegrationSummary = {
   pathMappings: [{ servicePrefix: '/downloads', appPrefix: '/media' }],
   createdUtc: '2026-09-22T08:00:00Z',
   destinationKind: 'Category',
+  catalogLanguage: null,
 }
 
 /** MAM-30 — a Transmission whose destinations are folders, with the same mapping as localQbittorrent. */
@@ -130,6 +144,7 @@ export const localTransmission: IntegrationSummary = {
   pathMappings: [{ servicePrefix: '/downloads', appPrefix: '/media' }],
   createdUtc: '2026-09-24T08:00:00Z',
   destinationKind: 'Folder',
+  catalogLanguage: null,
 }
 
 /**
@@ -151,4 +166,23 @@ export const retiredClient: IntegrationSummary = {
   createdUtc: '2026-09-23T08:00:00Z',
   // A type this build doesn't register has no kind the app can tell.
   destinationKind: null,
+  catalogLanguage: null,
+}
+
+/** MAM-46 — a saved TMDb, whose catalog answers in Ukrainian (what the migration gives an existing one). */
+export const tmdbCatalog: IntegrationSummary = {
+  id: '5d1c7a90-0000-4000-8000-000000000009',
+  name: 'TMDb',
+  adapterType: 'tmdb',
+  adapterDisplayName: 'TMDb',
+  kind: 'Metadata',
+  isEnabled: true,
+  baseUrl: 'https://api.themoviedb.org',
+  userName: null,
+  hasPassword: false,
+  hasApiKey: true,
+  pathMappings: [],
+  createdUtc: '2026-10-01T08:00:00Z',
+  destinationKind: null,
+  catalogLanguage: 'uk-UA',
 }

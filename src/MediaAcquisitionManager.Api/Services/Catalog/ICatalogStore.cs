@@ -14,8 +14,12 @@ namespace MediaAcquisitionManager.Api.Services.Catalog;
 /// <para>
 /// A cached answer is served while younger than <see cref="CatalogStore.RefreshAge"/> — a work's details by
 /// when they were read, everything else by when the catalog last reported it — and read again from the
-/// catalog after that. The answers come back in the catalog contract's own records, rebuilt from the rows,
-/// so a caller can't tell a cached answer from a fresh one.
+/// catalog after that. MAM-46 — and, but for a lookup by an IMDb id, only while it was read in the catalog's language
+/// of now (<see cref="CatalogConnection.Language"/>): after the owner changes it, each answer is read again in the new
+/// one the next time it is needed. A connection built before the change — a run that was under way — still gets its
+/// answers, but stores them only as rows not stored yet, stamped in its own language, and changes no stored row. The
+/// answers come back in the catalog contract's own records, rebuilt from the rows, so a caller can't tell a cached
+/// answer from a fresh one.
 /// </para>
 /// <para>
 /// Expected failures are the catalog's results, passed on as they came (<see cref="IntegrationCallStatus.NotFound"/>
@@ -56,7 +60,8 @@ public interface ICatalogStore
     /// (<see cref="MatchEvidence.TitleAndYear"/>); MAM-33 — by a title up to a year
     /// (<see cref="CatalogLookupQuery.ByTitleUpTo"/>), the one work of the title begun by then, reported as
     /// <see cref="MatchEvidence.TitleAndYear"/> too. None, or two it can't choose between, is
-    /// <see cref="CatalogLookupResult.Nothing"/> — cached like a work found.
+    /// <see cref="CatalogLookupResult.Nothing"/> — cached like a work found. MAM-46 — a lookup by a title is cached in the
+    /// language it was asked in, as the catalog matches the title in that language.
     /// </summary>
     Task<IntegrationCallResult<CatalogLookupResult>> LookupAsync(
         CatalogConnection catalog, CatalogLookupQuery query, CancellationToken cancellationToken = default);

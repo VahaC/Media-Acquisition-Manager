@@ -1,8 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { i18n as I18n } from 'i18next'
+import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/shared/ConfirmDialog'
+import { i18n } from '@/lib/i18n'
 import { libraryLinksApi } from '@/lib/library-links-api'
 import { qk } from '@/lib/queries'
 import { LibraryTmdbPage } from '@/pages/LibraryTmdbPage'
@@ -24,6 +27,7 @@ import {
   queueOf,
   suggestionRunOf,
 } from '@/test/library-links'
+import { pluralFormProbe } from '@/test/plural-probe'
 
 vi.mock('@/lib/library-links-api')
 vi.mock('@/lib/recommendations-api')
@@ -38,19 +42,22 @@ vi.mock('@/lib/recommendations-api')
 /** The series and its confident show. */
 const confidentPenguins = { work: penguins, candidate: { ...penguinsShow, isConfident: true } }
 
-function renderPage() {
+/** `translations`: the i18n instance the page reads its text from, the app's own unless a test brings one. */
+function renderPage(translations: I18n = i18n) {
   signInAs(owner)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <QueryClientProvider client={client}>
-      <ConfirmProvider>
-        <MemoryRouter initialEntries={['/library/tmdb?tab=Confident']}>
-          <Routes>
-            <Route path="/library/tmdb" element={<LibraryTmdbPage />} />
-          </Routes>
-        </MemoryRouter>
-      </ConfirmProvider>
-    </QueryClientProvider>,
+    <I18nextProvider i18n={translations}>
+      <QueryClientProvider client={client}>
+        <ConfirmProvider>
+          <MemoryRouter initialEntries={['/library/tmdb?tab=Confident']}>
+            <Routes>
+              <Route path="/library/tmdb" element={<LibraryTmdbPage />} />
+            </Routes>
+          </MemoryRouter>
+        </ConfirmProvider>
+      </QueryClientProvider>
+    </I18nextProvider>,
   )
   return { client, user: userEvent.setup() }
 }
@@ -177,6 +184,31 @@ describe('LibraryTmdbPage Confident tab', () => {
     // The rows as they were clicked: the list wasn't asked for again under them.
     expect(libraryLinksApi.confident).toHaveBeenCalledOnce()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  // MAM-46 — Ukrainian words "of N links" by N's plural form: 2 takes another form than 5 or 1.
+  it('picks the plural form of the identifications under way by the count of links', async () => {
+    // Arrange
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.mocked(libraryLinksApi.confident).mockImplementation(async (query) => confidentPage(query, [confidentStripling, confidentPenguins]))
+    vi.mocked(libraryLinksApi.acceptConfident).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Queued'),
+      batchItemOf(penguins, 'Queued'),
+    ]))
+    vi.mocked(libraryLinksApi.batch).mockResolvedValue(batchOf([
+      batchItemOf(confidentStripling.work, 'Written'),
+      batchItemOf(penguins, 'Writing'),
+    ]))
+    const probe = pluralFormProbe('libraryLinks', 'confident.identifying', (form) => `${form}: {{done}}/{{total}}`)
+    const { user } = renderPage(probe)
+    await screen.findByRole('button', { name: 'Link 2 works' })
+
+    // Act
+    await user.click(screen.getByRole('button', { name: 'Link 2 works' }))
+    await nextPoll()
+
+    // Assert
+    expect(await screen.findByText('few: 1/2')).toBeInTheDocument()
   })
 
   it('shows a series linked in the same click like a film, queued then identified', async () => {

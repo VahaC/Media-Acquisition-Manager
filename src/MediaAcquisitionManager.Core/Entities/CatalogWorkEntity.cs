@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Integrations;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -39,7 +40,8 @@ public class CatalogWorkEntity : ProvenancedEntity
     [Required, MaxLength(CatalogIdMaximumLength)]
     public string CatalogId { get; set; } = default!;
 
-    /// <summary>The title in the catalog's language (Ukrainian), or the catalog's fallback.</summary>
+    /// <summary>The title in the catalog's language (MAM-46: the integration's <c>CatalogLanguage</c>; Ukrainian
+    /// before), or the catalog's fallback — as the list or the details that last named the work gave it.</summary>
     [Required, MaxLength(TitleMaximumLength)]
     public string Title { get; set; } = default!;
 
@@ -103,4 +105,15 @@ public class CatalogWorkEntity : ProvenancedEntity
     /// no hand-written migration statement to clear them (R22).
     /// </summary>
     public int DetailsVersion { get; set; }
+
+    /// <summary>
+    /// MAM-46 — the catalog language the details were read in (<c>uk-UA</c>, <c>en-US</c>): the catalog store counts them
+    /// as fresh only while it is the catalog's language of now, so after the owner changes it every work is read again in
+    /// the new one on its next use — the <see cref="DetailsVersion"/> mechanism, with no statement written into a
+    /// migration by hand (R22). Every row cached before MAM-46 was read in Ukrainian, which the migration's default
+    /// says. A work known from lists only holds the language of the list that added it, which means nothing until its
+    /// details are read.
+    /// </summary>
+    [Required, MaxLength(CatalogLanguageRules.MaximumLength)]
+    public string DetailsLanguage { get; set; } = default!;
 }

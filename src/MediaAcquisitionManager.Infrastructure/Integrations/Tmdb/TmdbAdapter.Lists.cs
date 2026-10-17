@@ -36,7 +36,7 @@ internal sealed partial class TmdbAdapter
         IntegrationConnectionSettings settings, MediaWorkKind kind, string title, int? year, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        var pathAndQuery = SearchPathAndQuery(kind, title, year);
+        var pathAndQuery = SearchPathAndQuery(kind, title, year, LanguageAskedBy(settings));
 
         return CallAsync<IReadOnlyList<CatalogWorkSummary>>(
             settings,
@@ -67,7 +67,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                FindPathAndQuery(imdbId),
+                FindPathAndQuery(imdbId, LanguageAskedBy(settings)),
                 notFoundError: null,
                 ReadFound,
                 token),
@@ -105,7 +105,7 @@ internal sealed partial class TmdbAdapter
         parameters.Add("sort_by=vote_average.desc");
         parameters.Add(string.Create(CultureInfo.InvariantCulture, $"vote_count.gte={DiscoverMinimumVoteCount}"));
         parameters.Add("include_adult=false");
-        parameters.Add($"language={CatalogLanguage}");
+        parameters.Add($"language={LanguageAskedBy(settings)}");
         parameters.Add(string.Create(CultureInfo.InvariantCulture, $"page={page}"));
         var pathAndQuery = $"discover/{segment}?{string.Join('&', parameters)}";
 
@@ -136,7 +136,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                $"genre/{segment}/list?language={CatalogLanguage}",
+                $"genre/{segment}/list?language={LanguageAskedBy(settings)}",
                 notFoundError: null,
                 ReadGenres,
                 token),
@@ -148,7 +148,7 @@ internal sealed partial class TmdbAdapter
     /// of its own. Throws for a search no caller should make: an episode, a blank title, a year no work
     /// has.
     /// </summary>
-    private static string SearchPathAndQuery(MediaWorkKind kind, string title, int? year)
+    private static string SearchPathAndQuery(MediaWorkKind kind, string title, int? year, string language)
     {
         var segment = KindSegment(kind);
         ArgumentNullException.ThrowIfNull(title);
@@ -162,11 +162,11 @@ internal sealed partial class TmdbAdapter
         var yearPart = year is { } value
             ? string.Create(CultureInfo.InvariantCulture, $"&{yearParameter}={value}")
             : "";
-        return $"search/{segment}?query={Uri.EscapeDataString(title.Trim())}{yearPart}&language={CatalogLanguage}";
+        return $"search/{segment}?query={Uri.EscapeDataString(title.Trim())}{yearPart}&language={language}";
     }
 
-    private static string FindPathAndQuery(string imdbId) =>
-        $"find/{imdbId}?external_source=imdb_id&language={CatalogLanguage}";
+    private static string FindPathAndQuery(string imdbId, string language) =>
+        $"find/{imdbId}?external_source=imdb_id&language={language}";
 
     /// <summary>
     /// Throws unless <paramref name="imdbId"/> is an IMDb title id (<see cref="MediaIdentifierRules.IsImdbId"/>):

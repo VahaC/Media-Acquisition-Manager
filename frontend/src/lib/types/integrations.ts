@@ -60,6 +60,11 @@ export interface IntegrationSummary {
   createdUtc: string
   /** MAM-30 — a download client's destinations: categories or folders; null for any other kind or an unregistered type. */
   destinationKind: DownloadDestinationKind | null
+  /**
+   * MAM-46 — a metadata catalog's language (TMDb's tag, such as `uk-UA`): the titles, overviews and
+   * posters it answers with. Null for every other kind.
+   */
+  catalogLanguage: string | null
 }
 
 /** One page of `GET /api/settings/integrations`. */
@@ -95,6 +100,11 @@ export interface IntegrationAdapterType {
   reportsFilePaths: boolean
   /** MAM-30 — a download client's destinations: categories or folders; null for any other kind. */
   destinationKind: DownloadDestinationKind | null
+  /**
+   * MAM-46 — the languages a metadata catalog can answer in (TMDb's primary translations: `uk-UA`,
+   * `en-US`, `pt-BR`…), in the catalog's order; null for every other kind.
+   */
+  catalogLanguages: string[] | null
 }
 
 /** `GET /api/settings/integrations/adapter-types`, ordered by kind, then name. */
@@ -115,6 +125,12 @@ export interface CreateIntegrationRequest {
   apiKey?: SecretValueUpsert
   isEnabled: boolean
   pathMappings?: PathMapping[]
+  /**
+   * MAM-46 — a metadata catalog's language, one of its type's `catalogLanguages`; left out for every
+   * other type. Left out on a new catalog, the server picks the owner's language; on an edit, it keeps
+   * the stored one.
+   */
+  catalogLanguage?: string
 }
 
 /**

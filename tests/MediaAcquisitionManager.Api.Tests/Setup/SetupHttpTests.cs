@@ -101,10 +101,12 @@ public sealed class SetupHttpTests : IClassFixture<MediaAcquisitionManagerApiFac
         Assert.Equal(now.AddMinutes(15), body.AccessTokenExpiresUtc);
         Assert.Equal(OwnerName, body.User.UserName);
         Assert.True(body.User.IsOwner);
+        // MAM-46 — a new owner has saved no language: the web app follows the browser's.
+        Assert.Null(body.User.Language);
         Assert.Equal(HttpStatusCode.OK, me.StatusCode);
         var current = await me.Content.ReadFromJsonAsync<CurrentUserProfileResponse>(MediaAcquisitionManagerApiFactory.JsonOptions, cancellationToken);
         // The setup is the owner's first sign-in, and its session is the one /me asks from.
-        Assert.Equal(new CurrentUserProfileResponse(body.User.Id, OwnerName, IsOwner: true, now, now, now.AddDays(30)), current);
+        Assert.Equal(new CurrentUserProfileResponse(body.User.Id, OwnerName, IsOwner: true, now, now, now.AddDays(30), Language: null), current);
     }
 
     [Fact]

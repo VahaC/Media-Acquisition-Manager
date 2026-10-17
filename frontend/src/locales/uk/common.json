@@ -1,0 +1,62 @@
+{
+  "appName": "Media Acquisition Manager",
+  "version": "v{{version}}",
+  "versionTitle": "Версія застосунку, яку ви використовуєте",
+  "loading": "Зачекайте…",
+  "close": "Закрити",
+  "cancel": "Скасувати",
+  "retry": "Повторити",
+  "retrying": "Повторна спроба…",
+  "tryAgain": "Спробувати ще раз",
+  "dismiss": "Закрити",
+  "posterAlt": "Постер «{{title}}»",
+  "nav": {
+    "label": "Основне меню",
+    "profile": "Профіль",
+    "search": "Пошук",
+    "library": "Медіатека",
+    "libraryTmdb": "TMDb",
+    "duplicates": "Дублікати",
+    "recommendations": "Рекомендації",
+    "jobs": "Завдання",
+    "integrations": "Інтеграції",
+    "destinations": "Місця збереження",
+    "mediaFolders": "Теки з медіафайлами",
+    "users": "Користувачі"
+  },
+  "headerSearch": {
+    "placeholder": "Пошук фільму чи серіалу за назвою, наприклад Інтерстеллар (2014)",
+    "hint": "Натисніть /, щоб перейти до пошуку",
+    "key": "/"
+  },
+  "theme": {
+    "label": "Тема",
+    "light": "Світла",
+    "dark": "Темна",
+    "system": "Як у системі"
+  },
+  "pager": {
+    "label": "Сторінки",
+    "status": "Сторінка {{page}} з {{pages}}",
+    "range": "{{from}}–{{to}} з {{total}}",
+    "page": "Сторінка {{page}}",
+    "gap": "…",
+    "pageSize": "На сторінці",
+    "previous": "Попередня сторінка",
+    "next": "Наступна сторінка"
+  },
+  "fileSize": {
+    "B": "{{value}} Б",
+    "KiB": "{{value}} КіБ",
+    "MiB": "{{value}} МіБ",
+    "GiB": "{{value}} ГіБ",
+    "TiB": "{{value}} ТіБ"
+  },
+  "bitRate": {
+    "bps": "{{value}} біт/с",
+    "kbps": "{{value}} кбіт/с",
+    "Mbps": "{{value}} Мбіт/с",
+    "Gbps": "{{value}} Гбіт/с"
+  },
+  "separator": " · "
+}

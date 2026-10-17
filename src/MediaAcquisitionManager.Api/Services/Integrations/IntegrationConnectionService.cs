@@ -7,6 +7,7 @@ using MediaAcquisitionManager.Api.Services.Recommendations;
 using MediaAcquisitionManager.Core.Abstractions;
 using MediaAcquisitionManager.Core.Abstractions.Downloads;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Integrations;
@@ -97,7 +98,8 @@ public sealed partial class IntegrationConnectionService(
     }
 
     public IntegrationAdapterTypeListResponse ListAdapterTypes() =>
-        new([.. adapters.Descriptors.Select(descriptor => mapper.ToDto(descriptor, DestinationKindOf(descriptor.TypeId)))]);
+        new([.. adapters.Descriptors.Select(descriptor =>
+            mapper.ToDto(descriptor, DestinationKindOf(descriptor.TypeId), CatalogLanguagesOf(descriptor.TypeId)))]);
 
     public async Task<IntegrationDto?> GetAsync(Guid integrationId, CancellationToken cancellationToken = default)
     {
@@ -108,10 +110,12 @@ public sealed partial class IntegrationConnectionService(
         return integration is null ? null : ToDto(integration);
     }
 
-    public async Task<IntegrationChangeResult> CreateAsync(CreateIntegrationRequest request, Guid actorUserId, CancellationToken cancellationToken = default)
+    public async Task<IntegrationChangeResult> CreateAsync(
+        CreateIntegrationRequest request, Guid actorUserId, string? acceptLanguage = null, CancellationToken cancellationToken = default)
     {
         // MAM-7 — checked in this order: type, name, address, user name, secrets, credentials, path
-        // mappings, then whether the name is free — one sentence per answer, the first rule broken.
+        // mappings, MAM-46's catalog language, then whether the name is free — one sentence per answer, the first
+        // rule broken.
         var (adapter, adapterError) = FindRequestedAdapter(request.AdapterType);
         if (adapter is null)
             return IntegrationChangeResult.Invalid(adapterError!);
@@ -125,6 +129,9 @@ public sealed partial class IntegrationConnectionService(
         var pathMappings = ToPairs(request.PathMappings ?? []);
         if (PathMappingRules.Validate(pathMappings, descriptor) is { } pathMappingError)
             return IntegrationChangeResult.Invalid(pathMappingError);
+        var catalogLanguages = CatalogLanguagesOf(descriptor.TypeId);
+        if (CatalogLanguageRules.Validate(request.CatalogLanguage, catalogLanguages, descriptor.DisplayName, out var catalogLanguage) is { } languageError)
+            return IntegrationChangeResult.Invalid(languageError);
 
         var name = request.Name!.Trim();
         var normalizedName = IntegrationConnectionRules.NormalizeName(name);
@@ -132,6 +139,10 @@ public sealed partial class IntegrationConnectionService(
             return NameTaken(name);
 
         var actor = await ActorAsync(actorUserId, cancellationToken);
+        // MAM-46 — a catalog left without a language starts in the one the owner reads the app in: their saved language,
+        // else their browser's, else English — each brought to the closest one the catalog has.
+        if (catalogLanguages is not null && catalogLanguage is null)
+            catalogLanguage = CatalogLanguageRules.PickDefault(catalogLanguages, await LanguageOfAsync(actorUserId, cancellationToken), acceptLanguage);
         var integration = new IntegrationConnectionEntity
         {
             Name = name,
@@ -143,6 +154,7 @@ public sealed partial class IntegrationConnectionService(
             IsEnabled = request.IsEnabled ?? true,
             BaseUrl = IntegrationConnectionRules.NormalizeBaseUrl(request.BaseUrl!),
             UserName = NormalizeUserName(request.UserName),
+            CatalogLanguage = catalogLanguage,
             CreatedUtc = time.GetUtcNow().UtcDateTime,
         };
         // The row's id exists from construction, so each secret is sealed for this row and field
@@ -175,8 +187,8 @@ public sealed partial class IntegrationConnectionService(
             "{ActorUserName} added the integration {IntegrationName} ({AdapterType}).", actor.UserName, integration.Name, integration.AdapterType);
         if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled)
         {
-            await QueueRecommendationsAsync(integration.Id, cancellationToken);
-            await QueueLinkSuggestionsAsync(integration.Id, cancellationToken);
+            await QueueRecommendationsAsync(integration.Id, RecommendationRunTrigger.CatalogConnected, cancellationToken);
+            await QueueLinkSuggestionsAsync(integration.Id, LibraryLinkSuggestionRunTrigger.CatalogConnected, cancellationToken);
         }
         return IntegrationChangeResult.Succeeded(mapper.ToDto(integration, descriptor, DestinationKindOf(integration.AdapterType)));
     }
@@ -207,6 +219,15 @@ public sealed partial class IntegrationConnectionService(
         var pathMappings = request.PathMappings is null ? null : ToPairs(request.PathMappings);
         if (pathMappings is not null && PathMappingRules.Validate(pathMappings, descriptor) is { } pathMappingError)
             return IntegrationChangeResult.Invalid(pathMappingError);
+        // MAM-46 — left out keeps the stored language, as every field does; so does the stored one sent back, in any letter
+        // case, even when the adapter no longer lists it (a tag the catalog has dropped since, a row edited by hand): the
+        // edit dialog sends it with every save, and a rename must not be refused for it.
+        var requestedLanguage = string.Equals(request.CatalogLanguage?.Trim(), integration.CatalogLanguage, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : request.CatalogLanguage;
+        if (CatalogLanguageRules.Validate(requestedLanguage, CatalogLanguagesOf(integration.AdapterType), descriptor.DisplayName, out var catalogLanguage)
+            is { } languageError)
+            return IntegrationChangeResult.Invalid(languageError);
 
         var name = request.Name!.Trim();
         var normalizedName = IntegrationConnectionRules.NormalizeName(name);
@@ -214,6 +235,7 @@ public sealed partial class IntegrationConnectionService(
             return NameTaken(name);
 
         var wasEnabled = integration.IsEnabled;
+        var languageBefore = integration.CatalogLanguage;
         integration.Name = name;
         integration.NormalizedName = normalizedName;
         integration.BaseUrl = IntegrationConnectionRules.NormalizeBaseUrl(request.BaseUrl!);
@@ -225,6 +247,8 @@ public sealed partial class IntegrationConnectionService(
         integration.ApiKeyEncrypted = Seal(apiKey, integration.ApiKeyEncrypted, integration.Id, IntegrationSecretField.ApiKey);
         if (pathMappings is not null)
             ReplacePathMappings(integration, PathMappingRules.Normalize(pathMappings));
+        if (catalogLanguage is not null)
+            integration.CatalogLanguage = catalogLanguage;
 
         // MAM-4's rule: a save that changes nothing records nothing. Asked before the audit row is
         // added, which is a change itself. A Set always counts: a fresh nonce seals even the same
@@ -258,10 +282,22 @@ public sealed partial class IntegrationConnectionService(
         }
 
         logger.LogInformation("{ActorUserName} changed the integration {IntegrationName}.", actor.UserName, integration.Name);
-        if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled && !wasEnabled)
+        // MAM-46 — a catalog read in another language from now on is read again in it without waiting for the next sync:
+        // its cached rows say which language they were read in, so the runs read again only what they need. Switched
+        // back on in the same save, the language change names the runs: it covers the switch too.
+        var languageChanged = !string.Equals(languageBefore, integration.CatalogLanguage, StringComparison.Ordinal);
+        if (integration.Kind == IntegrationKind.Metadata && languageChanged)
+            await ReopenUnmatchedFeedEntriesAsync(integration.Id, cancellationToken);
+        if (integration.Kind == IntegrationKind.Metadata && integration.IsEnabled && (!wasEnabled || languageChanged))
         {
-            await QueueRecommendationsAsync(integration.Id, cancellationToken);
-            await QueueLinkSuggestionsAsync(integration.Id, cancellationToken);
+            await QueueRecommendationsAsync(
+                integration.Id,
+                languageChanged ? RecommendationRunTrigger.CatalogLanguageChanged : RecommendationRunTrigger.CatalogConnected,
+                cancellationToken);
+            await QueueLinkSuggestionsAsync(
+                integration.Id,
+                languageChanged ? LibraryLinkSuggestionRunTrigger.CatalogLanguageChanged : LibraryLinkSuggestionRunTrigger.CatalogConnected,
+                cancellationToken);
         }
         return IntegrationChangeResult.Succeeded();
     }
@@ -316,14 +352,16 @@ public sealed partial class IntegrationConnectionService(
 
     /// <summary>
     /// MAM-33 — with a metadata catalog just connected, or switched back on, the recommendations can be computed (again)
-    /// without waiting for the next library sync: a computation is queued (or the waiting one joined). The save has happened and stands: a full queue or a failure here is
-    /// logged, never the save's answer, and the queuing writes no audit row of its own — the run row records it.
+    /// without waiting for the next library sync: a computation is queued (or the waiting one joined). MAM-46 — likewise
+    /// when its language changed (<paramref name="trigger"/> says which). The save has happened and stands: a full queue
+    /// or a failure here is logged, never the save's answer, and the queuing writes no audit row of its own — the run row
+    /// records it.
     /// </summary>
-    private async Task QueueRecommendationsAsync(Guid integrationId, CancellationToken cancellationToken)
+    private async Task QueueRecommendationsAsync(Guid integrationId, RecommendationRunTrigger trigger, CancellationToken cancellationToken)
     {
         try
         {
-            await recommendations.EnsureQueuedAsync(RecommendationRunTrigger.CatalogConnected, cancellationToken: cancellationToken);
+            await recommendations.EnsureQueuedAsync(trigger, cancellationToken: cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -334,20 +372,57 @@ public sealed partial class IntegrationConnectionService(
     /// <summary>
     /// MAM-34 — with a metadata catalog just connected, or switched back on, the library works without a TMDb id can get
     /// their TMDb suggestions without waiting for the next library sync: a preparation is queued (or the waiting one
-    /// joined), as the recommendations' run is. The save has happened and stands: a failure here is logged, never the
-    /// save's answer.
+    /// joined), as the recommendations' run is. MAM-46 — likewise when its language changed, so the stored candidates
+    /// are read again in it (<paramref name="trigger"/> says which). The save has happened and stands: a failure here is
+    /// logged, never the save's answer.
     /// </summary>
-    private async Task QueueLinkSuggestionsAsync(Guid integrationId, CancellationToken cancellationToken)
+    private async Task QueueLinkSuggestionsAsync(Guid integrationId, LibraryLinkSuggestionRunTrigger trigger, CancellationToken cancellationToken)
     {
         try
         {
-            await linkSuggestions.EnsureQueuedAsync(LibraryLinkSuggestionRunTrigger.CatalogConnected, cancellationToken);
+            await linkSuggestions.EnsureQueuedAsync(trigger, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Metadata integration {IntegrationId} was saved, but no TMDb suggestion run could be queued after it.", integrationId);
         }
     }
+
+    /// <summary>
+    /// MAM-46 — the releases a release source published lately that the catalog matched to no work are resolved again at
+    /// the next read of the newest releases, in the catalog's new language: the catalog matches a title by the work's
+    /// title in the language it is asked in or its original one, so a release named in the new language may be found
+    /// now (and the title lookups cached in the old one are asked again, ADR 0025). Only those still new
+    /// (<see cref="RecommendationRunner.FeedFreshness"/>), as an older one recommends nothing either way. The save has
+    /// happened and stands: a failure here is logged, never the save's answer.
+    /// </summary>
+    private async Task ReopenUnmatchedFeedEntriesAsync(Guid integrationId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var since = time.GetUtcNow().UtcDateTime - RecommendationRunner.FeedFreshness;
+            var reopened = await db.SourceFeedEntries
+                .Where(entry => entry.ResolvedUtc != null && entry.CatalogWorkId == null && entry.CreatedUtc >= since)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.ResolvedUtc, (DateTime?)null), cancellationToken);
+            if (reopened > 0)
+            {
+                logger.LogInformation(
+                    "Metadata integration {IntegrationId} changed its language: {Count} newest releases matched to no work will be resolved again.",
+                    integrationId,
+                    reopened);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(
+                exception, "Metadata integration {IntegrationId} was saved, but the newest releases matched to no work could not be resolved again.", integrationId);
+        }
+    }
+
+    // MAM-46 — the languages a metadata catalog type can be asked in, asked of the registry by contract (ADR 0005), the
+    // DestinationKindOf way; null for any other type and for one this build doesn't register.
+    private IReadOnlyList<string>? CatalogLanguagesOf(string? adapterType) =>
+        adapters.Find<IMetadataCatalog>(adapterType)?.Languages;
 
     private IntegrationDto ToDto(IntegrationConnectionEntity integration) =>
         mapper.ToDto(integration, adapters.Find(integration.AdapterType)?.Descriptor, DestinationKindOf(integration.AdapterType));
@@ -428,6 +503,10 @@ public sealed partial class IntegrationConnectionService(
         db.PathMappings.RemoveRange(integration.PathMappings);
         db.PathMappings.AddRange(ToEntities(integration.Id, pathMappings));
     }
+
+    // MAM-46 — the owner's own language for the web app (en, uk), or null when they follow the browser's.
+    private Task<string?> LanguageOfAsync(Guid userId, CancellationToken cancellationToken) =>
+        db.Users.Where(user => user.Id == userId).Select(user => user.Language).SingleOrDefaultAsync(cancellationToken);
 
     // Read from the database rather than the token: the audit row carries the name the account has.
     private Task<AuditActor> ActorAsync(Guid actorUserId, CancellationToken cancellationToken) =>

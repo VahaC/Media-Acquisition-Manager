@@ -22,7 +22,9 @@ namespace MediaAcquisitionManager.Api.Services.Recommendations;
 /// Every catalog answer goes through <see cref="ICatalogStore"/>, one call at a time — the catalog's adapter
 /// paces itself, and a cached answer costs no call at all. No call is made per candidate: a candidate comes with
 /// its summary from the list that named it (a recommendation, a collection, a person's works, a discovery page),
-/// so the calls grow with the library, not with what it recommends.
+/// so the calls grow with the library, not with what it recommends. MAM-46 — but for a work a release source's newest
+/// releases name whose row was read in another language than the catalog's of now: no list re-reads it, so it is read
+/// again once, after the owner changes the language.
 /// </para>
 /// <para>
 /// Logs carry ids and counts only, never a title or an address.

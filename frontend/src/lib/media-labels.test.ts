@@ -5,6 +5,7 @@ import {
   channelLayoutName,
   codecName,
   languageCode,
+  languageLabel,
   languageName,
   resolutionClass,
   subtitleTrackLabel,
@@ -143,6 +144,29 @@ describe('media labels', () => {
     // Assert
     expect(english).toBe('Ukrainian')
     expect(german).toBe('Ukrainisch')
+  })
+
+  it('capitalises a language name that starts an option or a label, in a UI language that writes it in lower case', async () => {
+    // Arrange
+    await i18n.changeLanguage('uk')
+    const plain = languageName('eng')
+
+    // Act
+    const label = languageLabel('eng')
+    const track = audioTrackLabel(trackOf('Audio', { language: 'eng', codec: 'ac3', channelLayout: '5.1(side)' }))
+
+    // Assert
+    expect(plain.charAt(0)).not.toBe(plain.charAt(0).toLocaleUpperCase('uk'))
+    expect(label).toBe(plain.charAt(0).toLocaleUpperCase('uk') + plain.slice(1))
+    expect(track.startsWith(label)).toBe(true)
+  })
+
+  it('leaves an English language name as Intl gives it', () => {
+    // Act
+    const label = languageLabel('ukr')
+
+    // Assert
+    expect(label).toBe('Ukrainian')
   })
 
   it.each([

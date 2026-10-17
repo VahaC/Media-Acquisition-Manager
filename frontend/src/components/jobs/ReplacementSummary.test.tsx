@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react'
+import { I18nextProvider } from 'react-i18next'
 import { ReplacementSummary } from '@/components/jobs/ReplacementSummary'
 import { formatDateTime } from '@/lib/format'
-import type { DownloadJobReplacement } from '@/lib/types'
+import type { DownloadJobReplacement, ReplacementJobState } from '@/lib/types'
+import { pluralFormProbe } from '@/test/plural-probe'
 import { replacementOf } from '@/test/replacements'
 
 // MAM-41 — the Replacement cell of an owner's Jobs row, alone: where the replacement stands in a few words
@@ -81,5 +83,31 @@ describe('ReplacementSummary', () => {
     expect(screen.getByText('No replacement')).toHaveClass('sr-only')
     expect(container.firstElementChild).toHaveClass('settings-muted')
     expect(container.querySelector('svg')).toBeNull()
+  })
+
+  // MAM-46 — Ukrainian's singular form also counts 21, 31 and 101, so a line that says "the old copy"
+  // without its number has a key of its own for exactly one copy. The probe holds only the counted key's
+  // Ukrainian forms, so one copy reads the exactly-one key in English.
+  it.each<[ReplacementJobState, string, string]>([
+    ['Restored', 'summary.restored', 'Undone: the old copy is back'],
+    ['Completed', 'summary.completed', 'Replaced: old copy deleted'],
+  ])('reads exactly one copy\'s own line, and a plural form for 21, 3 and 5 copies: %s', (state, key, oneCopy) => {
+    // Arrange
+    const probe = pluralFormProbe('jobs', key, (form) => `form: ${form}`)
+
+    // Act
+    const lines = [1, 21, 3, 5].map((copyCount) => {
+      const { container, unmount } = render(
+        <I18nextProvider i18n={probe}>
+          <ReplacementSummary replacement={replacementOf({ state, copyCount })} />
+        </I18nextProvider>,
+      )
+      const text = container.textContent
+      unmount()
+      return text
+    })
+
+    // Assert
+    expect(lines).toEqual([oneCopy, 'form: one', 'form: few', 'form: many'])
   })
 })

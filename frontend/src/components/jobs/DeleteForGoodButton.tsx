@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { oldCopiesWords } from '@/components/jobs/old-copies-words'
 import { ActionButton } from '@/components/shared/ActionButton'
 import { useConfirm } from '@/components/shared/ConfirmDialog'
 import { DeleteForGoodMessage } from '@/components/shared/DeleteForGoodMessage'
@@ -54,7 +55,7 @@ export function DeleteForGoodButton({ replacement, busy, onStart, onError }: Del
       })
       const listed = quarantinedNames(details)
       const confirmed = await confirm({
-        title: t('oldCopies.deleteForGood.confirmTitle', { count: quarantinedCopies(details) }),
+        title: oldCopiesWords(t, 'deleteForGood', 'confirmTitle', quarantinedCopies(details)),
         message: <DeleteForGoodMessage names={listed} freesBytes={details.freesBytes} />,
         confirmLabel: t('oldCopies.deleteForGood.confirm'),
         destructive: true,
@@ -71,9 +72,9 @@ export function DeleteForGoodButton({ replacement, busy, onStart, onError }: Del
   return (
     <ActionButton
       icon={Trash2}
-      label={t('oldCopies.deleteForGood.action', { count: replacement.quarantinedCopyCount })}
+      label={oldCopiesWords(t, 'deleteForGood', 'action', replacement.quarantinedCopyCount)}
       pendingLabel={t('oldCopies.deleteForGood.pending')}
-      title={t('oldCopies.deleteForGood.title', { count: replacement.quarantinedCopyCount })}
+      title={oldCopiesWords(t, 'deleteForGood', 'title', replacement.quarantinedCopyCount)}
       pending={remove.isPending}
       disabled={busy || remove.isPending}
       reason={replacement.switchedOff ? t('oldCopies.switchedOff') : undefined}

@@ -32,13 +32,19 @@ public interface IIntegrationConnectionService
     /// <summary>
     /// Adds an integration, each secret set in <paramref name="request"/> sealed for the new row.
     /// <see cref="IntegrationChangeStatus.NameTaken"/> when the name exists in any letter case — also
-    /// when another request added it between the check and the save.
+    /// when another request added it between the check and the save. MAM-46 — a metadata catalog the request names no
+    /// language for starts in the actor's own language for the web app, else in the first of
+    /// <paramref name="acceptLanguage"/> (the request's <c>Accept-Language</c>), else in <c>en-US</c>, each brought to
+    /// the closest language the catalog has (<see cref="Core.Integrations.CatalogLanguageRules.PickDefault"/>).
     /// </summary>
-    Task<IntegrationChangeResult> CreateAsync(CreateIntegrationRequest request, Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<IntegrationChangeResult> CreateAsync(
+        CreateIntegrationRequest request, Guid actorUserId, string? acceptLanguage = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Replaces the integration's settings; a secret kept or left out stays exactly as stored, never
-    /// decrypted. A save that changes nothing records nothing.
+    /// decrypted. A save that changes nothing records nothing. MAM-46 — a change of an enabled metadata catalog's
+    /// language queues a computation of the recommendations and a preparation of the TMDb suggestions
+    /// (<c>CatalogLanguageChanged</c>), which read the catalog again in it.
     /// <see cref="IntegrationChangeStatus.AdapterUnavailable"/> when this version of the app no longer
     /// connects to its type.
     /// </summary>

@@ -2,10 +2,10 @@ import { useAuthStore } from '@/lib/auth-store'
 import type { CurrentUser, SignInResponse } from '@/lib/types'
 
 /** The installation owner. */
-export const owner: CurrentUser = { id: '0b6f2c1e-4a1d-4f7a-9c1e-000000000001', userName: 'vasyl', isOwner: true }
+export const owner: CurrentUser = { id: '0b6f2c1e-4a1d-4f7a-9c1e-000000000001', userName: 'vasyl', isOwner: true, language: null }
 
 /** A user who is not the owner. */
-export const member: CurrentUser = { id: '0b6f2c1e-4a1d-4f7a-9c1e-000000000002', userName: 'olena', isOwner: false }
+export const member: CurrentUser = { id: '0b6f2c1e-4a1d-4f7a-9c1e-000000000002', userName: 'olena', isOwner: false, language: null }
 
 /** What a sign-in, setup or refresh answers for `user`. */
 export function sessionFor(user: CurrentUser, accessToken = `token-of-${user.userName}`): SignInResponse {

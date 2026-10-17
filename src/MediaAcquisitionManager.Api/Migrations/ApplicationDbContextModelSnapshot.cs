@@ -129,6 +129,11 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -205,6 +210,11 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -255,6 +265,11 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<string>("Evidence")
                         .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ObservedUtc")
@@ -311,6 +326,11 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
@@ -422,6 +442,11 @@ namespace MediaAcquisitionManager.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetailsLanguage")
+                        .IsRequired()
+                        .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("DetailsUtc")
@@ -1252,6 +1277,10 @@ namespace MediaAcquisitionManager.Api.Migrations
                     b.Property<string>("BaseUrl")
                         .IsRequired()
                         .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CatalogLanguage")
+                        .HasMaxLength(16)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedUtc")
@@ -3245,6 +3274,10 @@ namespace MediaAcquisitionManager.Api.Migrations
 
                     b.Property<bool>("IsDisabled")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(8)
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("LastSignInUtc")
                         .HasColumnType("TEXT");

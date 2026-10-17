@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useState, type FormEvent } from 'react'
 import { isAxiosError } from 'axios'
 import { useTranslation } from 'react-i18next'
 import { CopyableField } from '@/components/profile/CopyableField'
@@ -7,6 +7,7 @@ import { Field } from '@/components/shared/Field'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { holdLanguage } from '@/lib/auth-store'
 import { useCreateAccessToken } from '@/lib/queries'
 import type { AccessTokenAccess, AccessTokenLifetime, CreatedAccessToken } from '@/lib/types'
 import { cn, getApiErrorMessage } from '@/lib/utils'
@@ -198,10 +199,15 @@ function CreateForm({ onCreated, onCreatingChange, onCancel }: CreateFormProps) 
  * is (Vasyl, 2026-10-16). Both point at this page's own address, as the example does: the address the
  * person reached the app at. A Read only token's assistant gets no tool that writes (ADR 0040), which a
  * line says here rather than the assistant later.
+ *
+ * MAM-46 — while it shows, a language this tab follows from elsewhere (another tab's Profile, a refresh
+ * carrying one saved on another device) waits until it closes: the signed-in pages mount afresh in a new
+ * language, which would take the secret with them (auth-store `holdLanguage`).
  */
 function SecretView({ created, onDone }: { created: CreatedAccessToken; onDone: () => void }) {
   const { t } = useTranslation('profile')
   const assistantTitle = useId()
+  useEffect(() => holdLanguage(), [])
   const origin = window.location.origin
   const desktopConfig = claudeDesktopConfig(origin, created.secret, window.location.protocol === 'http:')
 

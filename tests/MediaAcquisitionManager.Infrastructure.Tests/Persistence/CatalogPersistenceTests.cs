@@ -233,10 +233,10 @@ public sealed class CatalogPersistenceTests : DatabaseTestBase
     /// </summary>
     private static async Task PlantReportedRowsAsync(ApplicationDbContext db, IntegrationConnectionEntity catalog, Guid workId)
     {
-        var collection = Stamp(new CatalogCollectionEntity { CatalogId = "8091", Name = "Чужий (Колекція)" }, catalog, "collection/8091");
-        var person = Stamp(new CatalogPersonEntity { CatalogId = "66633", Name = "Vince Gilligan" }, catalog, "person/66633");
+        var collection = Stamp(new CatalogCollectionEntity { CatalogId = "8091", Name = "Чужий (Колекція)", Language = "uk-UA" }, catalog, "collection/8091");
+        var person = Stamp(new CatalogPersonEntity { CatalogId = "66633", Name = "Vince Gilligan", Language = "uk-UA" }, catalog, "person/66633");
         db.CatalogGenres.Add(Stamp(
-            new CatalogGenreEntity { Kind = MediaWorkKind.Series, GenreId = 16, Name = "Мультфільм", Role = CatalogGenreRole.Animation },
+            new CatalogGenreEntity { Kind = MediaWorkKind.Series, GenreId = 16, Name = "Мультфільм", Role = CatalogGenreRole.Animation, Language = "uk-UA" },
             catalog,
             "genre/tv/16"));
         db.CatalogCollections.Add(collection);
@@ -250,6 +250,7 @@ public sealed class CatalogPersistenceTests : DatabaseTestBase
                 ResultKind = MediaWorkKind.Movie,
                 ResultCatalogId = "1290001",
                 Evidence = MatchEvidence.TitleAndYear,
+                Language = "uk-UA",
             },
             catalog,
             "Movie|title|перевізник|2026"));

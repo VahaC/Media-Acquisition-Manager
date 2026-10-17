@@ -179,7 +179,7 @@ function CatchUpLines({ counts, needsReview }: { counts: LibraryLinkCatchUp; nee
         <>
           <p className="library-source-status">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-            <span>{t('catchUp.progress', { done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
+            <span>{t('catchUp.progress', { count: progress.total, done: formatNumber(progress.done), total: formatNumber(progress.total) })}</span>
           </p>
           <p className="settings-muted">{t('catchUp.progressNote')}</p>
         </>

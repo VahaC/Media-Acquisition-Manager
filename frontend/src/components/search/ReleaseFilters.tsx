@@ -4,7 +4,7 @@ import { FieldErrorLine } from '@/components/shared/FieldErrorLine'
 import { FilterBar } from '@/components/shared/FilterBar'
 import { SortSelect } from '@/components/shared/SortSelect'
 import { Input } from '@/components/ui/input'
-import { languageName } from '@/lib/media-labels'
+import { languageLabel } from '@/lib/media-labels'
 import { bytesFromGibibytes } from '@/lib/size-input'
 import type { ReleaseKind, SearchFacets, SearchReleaseSort, SearchSource } from '@/lib/types'
 import '@/styles/settings-list.css' // .settings-filter — the filters' selects
@@ -98,7 +98,7 @@ export function ReleaseFilters({ sources, facets, values, onChange }: ReleaseFil
           onChange={(event) => change({ language: event.target.value })}
         >
           <option value="">{t('filters.allLanguages')}</option>
-          {facets.audioLanguages.map((code) => <option key={code} value={code}>{languageName(code)}</option>)}
+          {facets.audioLanguages.map((code) => <option key={code} value={code}>{languageLabel(code)}</option>)}
           {facets.hasUnknownAudioLanguage && <option value="unknown">{t('filters.unknownLanguage')}</option>}
         </select>
         <select

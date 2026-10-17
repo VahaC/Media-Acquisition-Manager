@@ -21,7 +21,10 @@ public sealed class TmdbAdapterWorksTests : IDisposable
     private const string NotTmdbError =
         "The service at this address answered, but not the way TMDb's API does. Check the address: TMDb's is https://api.themoviedb.org.";
 
-    private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, Token);
+    // MAM-46 — the language an upgraded installation's TMDb keeps, which every exact URL below was recorded with.
+    private const string CatalogLanguage = "uk-UA";
+
+    private static readonly IntegrationConnectionSettings Settings = new(null, BaseUrl, null, null, Token, CatalogLanguage);
 
     private readonly IntegrationAdapterHarness _harness = new();
 

@@ -6,7 +6,7 @@ import { integrationsApi } from '@/lib/integrations-api'
 import { qk } from '@/lib/queries'
 import type { IntegrationSummary } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
-import { adapterTypes, homeJellyfin, localQbittorrent, localTransmission } from '@/test/integrations'
+import { adapterTypes, homeJellyfin, localQbittorrent, localTransmission, tmdbCatalog } from '@/test/integrations'
 import { locations, sourceOf, sourcesOf } from '@/test/library'
 
 vi.mock('@/lib/integrations-api')
@@ -593,6 +593,114 @@ describe('IntegrationDialog', () => {
     expect(password).toBe('new-password')
     expect(apiKey).toHaveAttribute('autocomplete', 'new-password')
     expect(apiKey).toHaveAttribute('type', 'password')
+  })
+
+  describe('catalog language', () => {
+    const catalogLanguage = (dialog: HTMLElement) => within(dialog).getByRole<HTMLSelectElement>('combobox', { name: 'Catalog language' })
+    const optionNames = (select: HTMLSelectElement) => [...select.options].map((option) => option.textContent)
+
+    it('offers a new TMDb its languages, Ukrainian and English first, starting at the UI language\'s', async () => {
+      // Arrange
+      const { dialog, user } = renderDialog()
+      await whenReady(dialog)
+
+      // Act
+      await pickService(user, dialog, 'tmdb')
+
+      // Assert
+      const select = catalogLanguage(dialog)
+      expect(optionNames(select)).toEqual([
+        'Ukrainian (Ukraine)',
+        'English (United States)',
+        'English (Australia)',
+        'English (United Kingdom)',
+        'French (France)',
+        'German (Germany)',
+        'Polish (Poland)',
+        'Portuguese (Brazil)',
+        'Spanish (Spain)',
+      ])
+      // The tests' browser runs the UI in en-US.
+      expect(select).toHaveValue('en-US')
+      expect(select).toHaveAccessibleDescription(
+        'Titles, overviews and posters on the Recommendations page and in the TMDb link dialog come in this language where TMDb has them, otherwise in the original. The release sources are searched by these titles too, so pick the language your trackers name films in. After a change, the app reads the catalog again at its next computation.')
+    })
+
+    it('sends the language picked for a new TMDb', async () => {
+      // Arrange
+      vi.mocked(integrationsApi.create).mockResolvedValue(tmdbCatalog)
+      const { dialog, onClose, user } = renderDialog()
+      await whenReady(dialog)
+      await pickService(user, dialog, 'tmdb')
+      await user.type(within(dialog).getByLabelText('Name'), 'TMDb')
+      await user.type(within(dialog).getByLabelText('Address'), 'https://api.themoviedb.org')
+      await user.type(within(dialog).getByLabelText('API key'), 'read-access-token')
+
+      // Act
+      await user.selectOptions(catalogLanguage(dialog), 'uk-UA')
+      await user.click(within(dialog).getByRole('button', { name: 'Add integration' }))
+
+      // Assert
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(integrationsApi.create).toHaveBeenCalledExactlyOnceWith({
+        adapterType: 'tmdb',
+        name: 'TMDb',
+        baseUrl: 'https://api.themoviedb.org',
+        apiKey: { mode: 'Set', value: 'read-access-token' },
+        isEnabled: true,
+        catalogLanguage: 'uk-UA',
+      })
+    })
+
+    it('starts a saved TMDb at its stored language and saves a change with the rest', async () => {
+      // Arrange
+      vi.mocked(integrationsApi.update).mockResolvedValue()
+      const { dialog, onClose, user } = renderDialog(tmdbCatalog)
+      await whenReady(dialog)
+      const stored = catalogLanguage(dialog).value
+
+      // Act
+      await user.selectOptions(catalogLanguage(dialog), 'de-DE')
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+      // Assert
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(stored).toBe('uk-UA')
+      expect(lastUpdate()).toMatchObject({ name: 'TMDb', catalogLanguage: 'de-DE' })
+    })
+
+    it('keeps a stored language the catalog no longer lists, so a save changes nothing', async () => {
+      // Arrange
+      vi.mocked(integrationsApi.update).mockResolvedValue()
+      const { dialog, onClose, user } = renderDialog({ ...tmdbCatalog, catalogLanguage: 'it-IT' })
+      await whenReady(dialog)
+
+      // Act
+      await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+
+      // Assert
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(optionNames(catalogLanguage(dialog))).toContain('Italian (Italy)')
+      expect(lastUpdate()?.catalogLanguage).toBe('it-IT')
+    })
+
+    it.each(['jellyfin', 'torznab', 'qbittorrent', 'transmission'])('has no language for %s, which is no catalog', async (typeId) => {
+      // Arrange
+      vi.mocked(integrationsApi.create).mockResolvedValue(homeJellyfin)
+      const { dialog, onClose, user } = renderDialog()
+      await whenReady(dialog)
+      await pickService(user, dialog, 'tmdb')
+
+      // Act
+      await pickService(user, dialog, typeId)
+      const shown = within(dialog).queryByRole('combobox', { name: 'Catalog language' })
+      await user.click(within(dialog).getByRole('button', { name: 'Add integration' }))
+
+      // Assert
+      await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(shown).not.toBeInTheDocument()
+      expect(lastCreate()?.catalogLanguage).toBeUndefined()
+    })
   })
 
   it('closes on Cancel without saving anything', async () => {

@@ -121,3 +121,15 @@ export function formatBitRate(bitsPerSecond: number): string {
   const number = formatNumber(value, { maximumFractionDigits: unit === 0 ? 0 : 2 })
   return i18n.t(`bitRate.${BIT_RATE_UNITS[unit]}`, { value: number })
 }
+
+/**
+ * MAM-46 — `text` with its first letter capitalised the UI locale's way, for a name Intl writes in
+ * lower case in some languages (Ukrainian writes every language's name so) where it starts an option
+ * or a label, such as an audio track's line. In running text such a name stays as Intl gives it.
+ */
+export function capitalizeFirst(text: string, locale: string = i18n.language): string {
+  const first = text.codePointAt(0)
+  if (first === undefined) return text
+  const letter = String.fromCodePoint(first)
+  return letter.toLocaleUpperCase(locale) + text.slice(letter.length)
+}

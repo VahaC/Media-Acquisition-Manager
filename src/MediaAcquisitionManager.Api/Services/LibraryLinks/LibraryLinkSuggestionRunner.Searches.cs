@@ -56,6 +56,8 @@ public sealed partial class LibraryLinkSuggestionRunner
             {
                 // Searched lately by the same queries: TMDb would answer the same.
                 run.Kept++;
+                if (await ReadCandidatesAgainAsync(run, cached.Id, cancellationToken) is { } candidateFailure)
+                    return candidateFailure;
             }
             else if (await SearchAsync(run, work, plan, cancellationToken) is { } failure)
             {
@@ -89,6 +91,42 @@ public sealed partial class LibraryLinkSuggestionRunner
         foreach (var key in sample)
         {
             var details = await store.GetWorkAsync(run.Catalog, key.Kind, key.CatalogId, cancellationToken);
+            if (!details.IsSuccess && details.Status != IntegrationCallStatus.NotFound)
+                return Failure.Of(details);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// MAM-46 — reads again, through the cache, the details of a kept search's candidates that are not stored as read in
+    /// the catalog's language of now: the search stays as it was, but the TMDb dialog shows its candidates' titles and
+    /// overviews from the rows, which then speak the language the owner chose. Keyed on the rows' own language, not on
+    /// what queued the run, so a language changed while the catalog was switched off, or a catalog added again in
+    /// another language, is caught up too; a candidate read in the language already costs nothing, and one the catalog
+    /// no longer has is left as it is (the search is what drops it). A candidate with no details stored, or no row at
+    /// all, is read too: a run that was under way when the language changed keeps the candidates it found but stores no
+    /// details over a row (<see cref="ICatalogStore"/>), and the dialog lists a candidate only from its row and ranks it
+    /// by its details. A candidate kept by a run in the catalog's language has its details stored in it, so that costs
+    /// no call.
+    /// </summary>
+    private async Task<Failure?> ReadCandidatesAgainAsync(Preparation run, Guid searchId, CancellationToken cancellationToken)
+    {
+        var language = run.Catalog.Language;
+        var stale = await db.LibraryLinkCandidates
+            .AsNoTracking()
+            .Where(candidate => candidate.LibraryLinkSearchId == searchId)
+            .Where(candidate => !db.CatalogWorks.Any(work =>
+                work.Kind == candidate.CatalogKind
+                && work.CatalogId == candidate.CatalogId
+                && work.DetailsUtc != null
+                && work.DetailsLanguage == language))
+            .OrderBy(candidate => candidate.Position)
+            .Select(candidate => new { candidate.CatalogKind, candidate.CatalogId })
+            .ToListAsync(cancellationToken);
+        foreach (var candidate in stale)
+        {
+            var details = await store.GetWorkAsync(run.Catalog, candidate.CatalogKind, candidate.CatalogId, cancellationToken);
             if (!details.IsSuccess && details.Status != IntegrationCallStatus.NotFound)
                 return Failure.Of(details);
         }

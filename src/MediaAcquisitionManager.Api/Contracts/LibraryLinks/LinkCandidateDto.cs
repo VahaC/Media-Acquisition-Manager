@@ -5,7 +5,8 @@ namespace MediaAcquisitionManager.Api.Contracts;
 /// <summary>MAM-34 — a TMDb film or show suggested for a library work, with what speaks for and against it.</summary>
 /// <param name="CatalogKind">A film (<c>Movie</c>) or a show (<c>Series</c>).</param>
 /// <param name="CatalogId">TMDb's id of it.</param>
-/// <param name="Title">Its title in Ukrainian, or TMDb's fallback.</param>
+/// <param name="Title">Its title in the catalog's language (MAM-46: the TMDb integration's, Ukrainian before), or TMDb's
+/// fallback.</param>
 /// <param name="OriginalTitle">Its title in its original language.</param>
 /// <param name="Year">Its year.</param>
 /// <param name="Overview">What it is about.</param>

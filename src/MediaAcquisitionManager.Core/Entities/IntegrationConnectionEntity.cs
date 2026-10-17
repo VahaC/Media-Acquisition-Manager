@@ -78,4 +78,13 @@ public class IntegrationConnectionEntity : AuditableEntity
     /// property of the model: the mappings are part of the connection and replaced by its one Save.
     /// </summary>
     public List<PathMappingEntity> PathMappings { get; set; } = [];
+
+    /// <summary>
+    /// MAM-46 — for a metadata catalog (an adapter that is an <see cref="Abstractions.Metadata.IMetadataCatalog"/>), the
+    /// language its titles, overviews, names and posters are asked in: one of the catalog's own
+    /// <see cref="Abstractions.Metadata.IMetadataCatalog.Languages"/>, such as <c>uk-UA</c>. <c>null</c> for every other
+    /// type. A column of its own rather than a settings bag, for the reason the credential slots have one (ADR 0005).
+    /// </summary>
+    [MaxLength(CatalogLanguageRules.MaximumLength)]
+    public string? CatalogLanguage { get; set; }
 }

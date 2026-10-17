@@ -29,6 +29,7 @@
     "actions": "Actions"
   },
   "disabled": "Disabled",
+  "catalogLanguage": "Catalog language: {{language}}",
   "actions": {
     "test": "Test",
     "testing": "Testing…",
@@ -80,6 +81,8 @@
       "tmdb": "TMDb's API address, https://api.themoviedb.org. In the API key field, enter TMDb's API Read Access Token from themoviedb.org → Settings → API, not the shorter API key."
     },
     "tmdbAttribution": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+    "catalogLanguage": "Catalog language",
+    "catalogLanguageHint": "Titles, overviews and posters on the Recommendations page and in the TMDb link dialog come in this language where TMDb has them, otherwise in the original. The release sources are searched by these titles too, so pick the language your trackers name films in. After a change, the app reads the catalog again at its next computation.",
     "userName": "User name",
     "password": "Password",
     "apiKey": "API key",

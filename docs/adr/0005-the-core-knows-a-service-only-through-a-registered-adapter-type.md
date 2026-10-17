@@ -751,3 +751,61 @@ replacement offers, for every client and every Torznab source, Prowlarr included
 [ADR 0012](0012-a-search-or-a-release-matches-a-library-work-by-identifier-then-title-and-year-then-title-alone-and-every-match-is-listed.md)'s
 MAM-30 section, accepted by Vasyl on 2026-10-14). So the states, transitions and gates are unchanged,
 and "wording only" holds for the core files and the transitions, not for the whole folder.
+
+## A catalog's languages (added 0.5.0, MAM-46)
+
+**The language a metadata catalog is asked in is the integration's setting, chosen from the
+languages its adapter lists; the core offers, checks and defaults it by comparing tags, never by
+knowing which catalog it is.** Vasyl's decisions of 2026-10-14 (a TMDb **Catalog language** in
+place of the hard-coded Ukrainian) and of 2026-10-17 (every language TMDb keeps translations in).
+
+- **The contract.** `IMetadataCatalog` gains `Languages`: every language the catalog can be asked
+  in, as the tags its calls take (`uk-UA`, `en-US`, `pt-BR`…), each once, in the source's own order.
+  `IntegrationConnectionSettings` gains a trailing optional `CatalogLanguage`, which
+  `IntegrationSettingsFactory` fills from `IntegrationConnectionEntity.CatalogLanguage` (at most 16
+  characters), a column set only for a type the registry finds as a catalog
+  (`Find<IMetadataCatalog>`) and `null` for every other. `IntegrationAdapterTypeDto.CatalogLanguages`
+  carries the list for a catalog type and `null` otherwise, found the way `DestinationKind` is, so
+  the web app shows its **Catalog language** select by that alone, never by the type id.
+- **The rules.** Core's `CatalogLanguageRules` takes a tag of the list in any letter case and stores
+  it as the list spells it, reads a blank one as left out, and refuses a tag the list lacks or any
+  tag for a type that is no catalog, with a sentence naming the type's display name.
+  `IntegrationConnectionService` counts an update that sends back the stored tag, in any letter
+  case, as leaving it out, even when the list no
+  longer has it (a tag the catalog dropped since, a row edited by hand), as the edit dialog sends it
+  with every save and a rename must not be refused for it. A catalog added
+  without one starts in the owner's saved UI language, else the request's first `Accept-Language`
+  tag, else `en-US`, brought to the list by `Map`: the tag itself, else its language's own country
+  (`de` → `de-DE`), else `en-US` for English — TMDb's list starts its Englishes with `en-AG` —, else
+  the language's first entry (`uk` → `uk-UA`), else `en-US`. `CoreIsVendorNeutralTests` still finds
+  no product word in a Core name.
+- **TMDb's adapter.** `Languages` is `PrimaryTranslations`, TMDb's
+  `GET /3/configuration/primary_translations` recorded on 2026-10-17: 144 tags, kept as a constant
+  with its VendorSample, as the list is offered when the owner adds TMDb, before any token could read
+  it, and changes as rarely as TMDb's languages do. Every catalog call asks in
+  `settings.CatalogLanguage ?? "en-US"` (`DefaultLanguage`, what TMDb answers in when no language is
+  sent), escaped, so a row edited by hand adds no parameter of its own; the public
+  `CatalogLanguage = "uk-UA"` constant is gone. `GetOverviewAsync` keeps its explicit language, the
+  reader's (ADR 0025's MAM-46 section), and the connection test, `GET /3/authentication`, takes none.
+
+So "Every call is a GET in Ukrainian (`language=uk-UA`)" in the MAM-33 section and the episode's
+`language=uk-UA` in the MAM-34 section now read: in the integration's catalog language — `uk-UA` for
+every TMDb integration stored before 0.5.0, which the migration `AddLanguages` gives it. The kinds,
+the registry and `CatalogConnector` are unchanged.
+
+`TmdbAdapterLanguageTests.Every_catalog_call_asks_in_the_settings_catalog_language`,
+`Every_catalog_call_without_a_catalog_language_asks_in_tmdbs_own_en_us`,
+`GetWork_answers_the_title_tmdb_gives_in_the_language_asked`,
+`A_catalog_language_edited_into_the_row_by_hand_adds_no_parameter_of_its_own` and
+`Languages_are_tmdbs_recorded_primary_translations_in_its_order` pin the adapter;
+`CatalogLanguageRulesTests.Map_brings_a_tag_to_the_closest_language_of_the_list`,
+`PickDefault_is_the_owners_language_else_the_browsers_else_english`,
+`Validate_of_a_language_for_a_type_that_is_no_catalog_is_the_sentence` and
+`Recorded_list_is_tmdbs_144_language_and_region_tags_each_once` the rules;
+`IntegrationsHttpTests.AdapterTypes_is_200_with_jellyfin_torznab_qbittorrent_transmission_and_tmdb_and_what_each_takes_and_the_test_hosts_own_two`
+the list on TMDb's type alone; and `IntegrationsCatalogLanguageHttpTests` the create and update rules
+over HTTP, `Create_of_an_integration_that_is_no_catalog_stores_no_language_whatever_the_owners` and
+`Update_that_sends_back_a_stored_language_tmdb_no_longer_lists_keeps_it_and_saves_the_rest` among
+them. The adapter's other tests pass `uk-UA` in their settings, the language their recorded
+samples were read in, and `IntegrationConnectionSeeder` gives a seeded catalog `uk-UA` unless a test
+names another, so the tests written before MAM-46 send the same requests.

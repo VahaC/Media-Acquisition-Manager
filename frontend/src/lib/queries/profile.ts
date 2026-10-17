@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { languageSaveSettled, languageSaveStarted, useAuthStore } from '../auth-store'
 import { profileApi } from '../profile-api'
-import type { CreateAccessTokenRequest, RecommendationSettings, RecommendationSettingsRequest } from '../types'
+import type { CreateAccessTokenRequest, RecommendationSettings, RecommendationSettingsRequest, UiLanguage } from '../types'
 import { qk } from './keys'
 
 /**
@@ -30,6 +31,23 @@ export const useSaveRecommendationSettings = () => {
     },
   })
 }
+
+/**
+ * MAM-46 — saves the language the signed-in user chose (null: the browser's). Once the server has it,
+ * this tab and the user's other tabs here run in it (auth-store `setLanguage`), which mounts the
+ * signed-in pages afresh when the UI's language changes. One scope: choices made in quick succession
+ * go out one after another, so the last one chosen is the one that stays. While one is under way, an
+ * account `GET /api/auth/me` answered with is not taken (auth-store `adoptAccountLanguage`): it may be
+ * from before the save.
+ */
+export const useSaveLanguage = () =>
+  useMutation({
+    mutationFn: (language: UiLanguage | null) => profileApi.saveLanguage({ language }),
+    scope: { id: 'profile-language' },
+    onMutate: () => languageSaveStarted(),
+    onSuccess: (saved) => useAuthStore.getState().setLanguage(saved.language),
+    onSettled: () => languageSaveSettled(),
+  })
 
 /** MAM-5 — the signed-in user's personal access tokens, for the Profile page's Access tokens card. */
 export const useAccessTokens = () =>

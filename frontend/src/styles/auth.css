@@ -33,6 +33,19 @@
   color: var(--muted-foreground);
 }
 
+/* MAM-46 — a form's full-width submit wraps where its words don't fit, as a button elsewhere never does
+   (.ui-button is nowrap): the Ukrainian «Створити обліковий запис власника» (about 270px with its
+   padding) is wider than the card on a 320px phone and pushed it into the page's side padding. One line
+   where it fits, as tall as before (2.25rem: its padding and a 1.25rem line). Three classes, so it wins
+   over .ui-button and its size classes. */
+.auth-form .ui-button.w-full {
+  height: auto;
+  min-height: 2.25rem;
+  line-height: 1.25rem;
+  white-space: normal;
+  text-align: center;
+}
+
 /* A phone has no height to spare above the card; the content column already pads the sides. */
 @media (max-width: 480px) {
   .auth-page {

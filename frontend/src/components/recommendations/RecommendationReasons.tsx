@@ -60,9 +60,12 @@ function reasonText(reason: RecommendationReason, t: TFunction<'recommendations'
     case 'Recommended':
       return recommendedText(reason, t)
     case 'MissingSeasons':
-      return reason.seasons.length === 0
-        ? kindName
-        : t('reasons.missingSeasons', { count: reason.seasons.length, seasons: seasonRanges(reason.seasons) })
+      // MAM-46 — one season or several, not a plural form: the seasons are listed, not counted, and
+      // Ukrainian's singular form would also take 21 of them.
+      if (reason.seasons.length === 0) return kindName
+      return reason.seasons.length === 1
+        ? t('reasons.missingSeason', { seasons: seasonRanges(reason.seasons) })
+        : t('reasons.missingSeasons', { seasons: seasonRanges(reason.seasons) })
     case 'TopRated':
       return t('reasons.topRated')
     case 'NewAtSource':
@@ -78,6 +81,9 @@ function reasonText(reason: RecommendationReason, t: TFunction<'recommendations'
  * "Because you have Alien", "… Alien and Prometheus", "… Alien, Prometheus and Aliens", and from four
  * on two titles and the count of the rest: "… Alien, Prometheus and 3 more". The server keeps at most
  * five titles and counts every recommending work in `held`.
+ *
+ * MAM-46 — each shape is a whole sentence of its own key, so a translation puts its own list words and
+ * commas between the titles; "N more" takes N's plural form (Ukrainian has four).
  */
 function recommendedText(reason: RecommendationReason, t: TFunction<'recommendations'>): string {
   const { titles } = reason
@@ -85,8 +91,8 @@ function recommendedText(reason: RecommendationReason, t: TFunction<'recommendat
   const [first, second, third] = titles
   if (first === undefined) return t('reasons.recommendedCount', { count: total, value: formatNumber(total) })
   if (total === 1) return t('reasons.recommendedOne', { first })
-  if (second === undefined) return t('reasons.recommendedOneMore', { first, more: formatNumber(total - 1) })
+  if (second === undefined) return t('reasons.recommendedOneMore', { first, count: total - 1, more: formatNumber(total - 1) })
   if (total === 2) return t('reasons.recommendedTwo', { first, second })
   if (total === 3 && third !== undefined) return t('reasons.recommendedThree', { first, second, third })
-  return t('reasons.recommendedMore', { first, second, more: formatNumber(total - 2) })
+  return t('reasons.recommendedMore', { first, second, count: total - 2, more: formatNumber(total - 2) })
 }

@@ -22,7 +22,7 @@ The owner approved `ui_kits/current` as the target design, and the app implement
 One product: the web app (React 19, plain CSS tokens, Radix Dialog, lucide-react). Pages: Setup, Sign in, Home (service status), **Search** (primary), **Library**, **Jobs**, **Profile**, and owner-only settings: Integrations, Destinations, Media folders, Users. **Duplicates** (MAM-21, `/library/duplicates`) exists in the app but is not covered by this design system: underline tabs, one card per group reusing the Library's version rows and table. Jobs, Job details and the Download dialog exist in the app but are not covered by this design system yet.
 
 ## Content fundamentals
-- English only, every string from a locale file (ADR 0001). Sentence case everywhere: "Sync now", "Add integration", "Media folders".
+- English and Ukrainian (since 0.5.0, MAM-46: each user picks on Profile), every string from a locale file (ADR 0001); the examples here are the English text, and the Ukrainian follows `docs/i18n/glossary-uk.md`. Sentence case everywhere, in both: "Sync now", "Add integration", "Media folders".
 - Plain, literal, complete sentences that say what happened: "Synced 1 Oct 2026, 09:12: read 870 movies into 812 works…", "Refresh failed, showing the last loaded movies."
 - Second person for the user's things ("your library", "In your library"); the app calls itself "this app" / "the app". No "we", no "I".
 - Never guesses: missing values are named — "Year unknown", "HDR unknown", "Not inspected yet". Claims are marked as claims ("Claimed"), verified facts aren't.

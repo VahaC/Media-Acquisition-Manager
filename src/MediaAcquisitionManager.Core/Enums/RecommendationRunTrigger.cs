@@ -23,4 +23,10 @@ public enum RecommendationRunTrigger
     /// may have changed.
     /// </summary>
     LinkChanged = 6,
+
+    /// <summary>
+    /// MAM-46 — the owner changed the metadata catalog's language: every title, genre, collection and name is read again
+    /// in it, as the catalog's rows say which language they were read in.
+    /// </summary>
+    CatalogLanguageChanged = 7,
 }

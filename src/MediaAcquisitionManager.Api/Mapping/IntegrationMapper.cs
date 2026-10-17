@@ -26,9 +26,11 @@ public sealed class IntegrationMapper : IIntegrationMapper
                 .OrderBy(mapping => mapping.Position)
                 .Select(mapping => new PathMappingDto(mapping.ServicePrefix, mapping.AppPrefix))],
             connection.CreatedUtc,
-            destinationKind);
+            destinationKind,
+            connection.CatalogLanguage);
 
-    public IntegrationAdapterTypeDto ToDto(IntegrationAdapterDescriptor adapter, DownloadDestinationKind? destinationKind) =>
+    public IntegrationAdapterTypeDto ToDto(
+        IntegrationAdapterDescriptor adapter, DownloadDestinationKind? destinationKind, IReadOnlyList<string>? catalogLanguages) =>
         new(
             adapter.TypeId,
             adapter.DisplayName,
@@ -37,7 +39,8 @@ public sealed class IntegrationMapper : IIntegrationMapper
             adapter.Password,
             adapter.ApiKey,
             adapter.ReportsFilePaths,
-            destinationKind);
+            destinationKind,
+            catalogLanguages);
 
     public ConnectionTestResponse ToResponse(ConnectionTestResult result) => new(result.Status, result.Message);
 }

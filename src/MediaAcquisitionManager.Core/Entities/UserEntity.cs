@@ -30,4 +30,12 @@ public class UserEntity : AuditableEntity
 
     /// <summary>The last successful sign-in; <c>null</c> until the first one.</summary>
     public DateTime? LastSignInUtc { get; set; }
+
+    /// <summary>
+    /// MAM-46 — the language the web app speaks to the user, one of <see cref="UiLanguages.Supported"/>, saved on their
+    /// Profile so it follows them to every browser and device; <c>null</c> until they choose one, which means "as in the
+    /// browser".
+    /// </summary>
+    [MaxLength(UiLanguages.MaximumLength)]
+    public string? Language { get; set; }
 }

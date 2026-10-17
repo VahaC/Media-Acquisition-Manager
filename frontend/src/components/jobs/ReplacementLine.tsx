@@ -25,6 +25,17 @@ const UNDER_WAY_KEYS = {
 } as const
 
 /**
+ * MAM-46 — those sentences for exactly one copy, which has keys of its own (Restored's and Completed's
+ * too): Ukrainian's `_one` form also counts 21, 31 and 101, so a counted sentence can't say "the old
+ * copy" without its number (docs/i18n/glossary-uk.md, Counted words).
+ */
+const UNDER_WAY_ONE_COPY_KEYS = {
+  Quarantining: 'replacement.quarantiningOneCopy',
+  Restoring: 'replacement.restoringOneCopy',
+  Deleting: 'replacement.deletingOneCopy',
+} as const
+
+/**
  * MAM-24 — the replacement a download job carries, as one short line (Vasyl's decision of
  * 2026-10-09): scheduled while its download goes on, or stopped, with the server's reason. MAM-25 —
  * once the download is done, its new file being checked, then verified (green, like a downloaded
@@ -131,7 +142,7 @@ export function ReplacementLine({ replacement, client, downloadFailed, onJobPage
     return (
       <p className="library-source-status">
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-        <span>{told(t(UNDER_WAY_KEYS[state], { count: copyCount }))}</span>
+        <span>{told(copyCount === 1 ? t(UNDER_WAY_ONE_COPY_KEYS[state]) : t(UNDER_WAY_KEYS[state], { count: copyCount }))}</span>
       </p>
     )
   }
@@ -153,7 +164,7 @@ export function ReplacementLine({ replacement, client, downloadFailed, onJobPage
     return (
       <p className="library-source-status">
         <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>{told(t('replacement.restored', { count: copyCount }))}</span>
+        <span>{told(copyCount === 1 ? t('replacement.restoredOneCopy') : t('replacement.restored', { count: copyCount }))}</span>
       </p>
     )
   }
@@ -161,7 +172,7 @@ export function ReplacementLine({ replacement, client, downloadFailed, onJobPage
     return (
       <p className="library-source-status" data-status="Succeeded">
         <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>{told(t('replacement.completed', { count: copyCount }))}</span>
+        <span>{told(copyCount === 1 ? t('replacement.completedOneCopy') : t('replacement.completed', { count: copyCount }))}</span>
       </p>
     )
   }

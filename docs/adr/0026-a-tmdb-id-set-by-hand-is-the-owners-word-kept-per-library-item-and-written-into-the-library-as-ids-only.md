@@ -728,3 +728,21 @@ link.
 `LibraryDuplicatesSameWorkHttpTests.List_groups_copies_by_a_linked_id_in_place_of_the_wrong_one_a_library_gave`
 and `LibraryDuplicatesSameWorkHttpTests.List_groups_a_film_item_linked_as_an_episode_with_the_librarys_own_episode`
 pin it.
+
+## The catalog's language (added 0.5.0, MAM-46)
+
+**The TMDb side of a link is read in the TMDb integration's catalog language, and nothing a link
+writes depends on it.** The owner chooses that language under **Integrations** (ADR 0005's and ADR
+0025's MAM-46 sections); every TMDb integration stored before 0.5.0 keeps `uk-UA`. So the episode's
+lookup above, `GET /3/tv/{id}/season/{s}/episode/{e}?append_to_response=external_ids&language=uk-UA`,
+now carries the integration's language, and the TMDb dialog's and the TMDb page's candidates show
+their titles, overviews and posters in it, read again in a new language by the next preparation of
+the suggestions. What is written does not change: the ids, and an episode's IMDb id, are the same in
+every language, and the title, overview and images Identify gives an item are Jellyfin's, in the
+language of the item's library, as the Identify section says. A link's `CatalogTitle` is a snapshot
+of TMDb's title when the link was set, left as it is when the language changes until the link is
+set again.
+
+`TmdbAdapterEpisodesTests` keeps asking in `uk-UA`, the language of its recorded sample, and
+`TmdbAdapterLanguageTests.Every_catalog_call_asks_in_the_settings_catalog_language` pins the language
+on every catalog call, the episode's included.

@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/shared/ErrorState'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { catalogLanguageOptions, defaultCatalogLanguage } from '@/lib/catalog-languages'
 import { toSecretUpsert } from '@/lib/integration-secrets'
 import { newPathMappingDraft } from '@/lib/path-mapping-drafts'
 import {
@@ -51,9 +52,12 @@ interface IntegrationDialogProps {
  *
  * MAM-31 — up to 768 px wide, as the owner asked in the live check, with the service beside the name and
  * the user name beside the password where two fit (integrations.css).
+ *
+ * MAM-46 — a metadata catalog (TMDb) also has the language its titles and overviews come in, from the
+ * type's `catalogLanguages`, named in the UI language; it is sent with the rest on Save.
  */
 export function IntegrationDialog({ integration, onClose }: IntegrationDialogProps) {
-  const { t } = useTranslation(['integrations', 'common'])
+  const { t, i18n } = useTranslation(['integrations', 'common'])
   const types = useIntegrationAdapterTypes()
   const typesLoad = useLoadRetry(types)
   const create = useCreateIntegration()
@@ -63,6 +67,8 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
   const serviceHintId = useId()
   const addressHintId = useId()
   const enabledHintId = useId()
+  const catalogLanguageId = useId()
+  const catalogLanguageHintId = useId()
   const [adapterType, setAdapterType] = useState(integration?.adapterType ?? '')
   const [name, setName] = useState(integration?.name ?? '')
   const [baseUrl, setBaseUrl] = useState(integration?.baseUrl ?? '')
@@ -70,6 +76,8 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
   const [password, setPassword] = useState(NO_SECRET)
   const [apiKey, setApiKey] = useState(NO_SECRET)
   const [isEnabled, setIsEnabled] = useState(integration?.isEnabled ?? true)
+  // MAM-46 — null until the owner picks one: the stored language, or a new catalog's default.
+  const [pickedCatalogLanguage, setPickedCatalogLanguage] = useState<string | null>(null)
   const [mappings, setMappings] = useState<PathMappingDraft[]>(
     () => (integration?.pathMappings ?? []).map((mapping) => newPathMappingDraft(mapping)))
   const [testResult, setTestResult] = useState<ConnectionTestOutcome | null>(null)
@@ -82,6 +90,12 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
   const takesCredentials = adapter !== undefined
     && [adapter.userName, adapter.password, adapter.apiKey].some((requirement) => requirement !== 'NotUsed')
   const saving = create.isPending || update.isPending
+  // MAM-46 — only a metadata catalog has a language. A new one starts at the UI language's default,
+  // the one the server would pick for it; an edit at the stored one.
+  const catalogLanguages = adapter?.catalogLanguages ?? null
+  const catalogLanguage = catalogLanguages === null
+    ? undefined
+    : pickedCatalogLanguage ?? integration?.catalogLanguage ?? defaultCatalogLanguage(catalogLanguages, i18n.language)
 
   /** Another type takes other credentials and paths: what was typed for the last one goes. */
   const pickType = (next: string) => {
@@ -90,6 +104,7 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
     setPassword(NO_SECRET)
     setApiKey(NO_SECRET)
     setMappings([])
+    setPickedCatalogLanguage(null)
     setTestResult(null)
   }
 
@@ -125,6 +140,7 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
       pathMappings: adapter?.reportsFilePaths
         ? mappings.map(({ servicePrefix, appPrefix }) => ({ servicePrefix, appPrefix }))
         : undefined,
+      catalogLanguage,
     }
     try {
       if (integration) await update.mutateAsync({ id: integration.id, request: fields })
@@ -266,6 +282,25 @@ export function IntegrationDialog({ integration, onClose }: IntegrationDialogPro
                     onChange={setApiKey}
                   />
                 )}
+              </div>
+            )}
+
+            {/* MAM-46 — a catalog's language, under its API key. */}
+            {catalogLanguages !== null && catalogLanguage !== undefined && (
+              <div className="auth-field">
+                <label htmlFor={catalogLanguageId} className="ui-label">{t('dialog.catalogLanguage')}</label>
+                <select
+                  id={catalogLanguageId}
+                  className="ui-input"
+                  value={catalogLanguage}
+                  aria-describedby={catalogLanguageHintId}
+                  onChange={(event) => setPickedCatalogLanguage(event.target.value)}
+                >
+                  {catalogLanguageOptions(catalogLanguages, i18n.language, integration?.catalogLanguage).map((option) => (
+                    <option key={option.tag} value={option.tag}>{option.name}</option>
+                  ))}
+                </select>
+                <p id={catalogLanguageHintId} className="auth-hint">{t('dialog.catalogLanguageHint')}</p>
               </div>
             )}
 

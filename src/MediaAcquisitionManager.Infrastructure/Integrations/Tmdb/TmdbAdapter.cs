@@ -47,11 +47,36 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
     public const string HttpClientName = TypeId;
 
     /// <summary>
-    /// The language every catalog call asks for: the owner's library is Ukrainian, so titles, genre names
-    /// and collection names come in Ukrainian where TMDb has them, and in the original otherwise (TMDb's
-    /// own fallback). The original title always comes beside it.
+    /// MAM-46 — the language a catalog call asks in when the settings name none (a draft, or a row stored without one):
+    /// TMDb's own default, which it answers in when no <c>language</c> is sent. Every call of a saved integration asks in
+    /// its <see cref="IntegrationConnectionSettings.CatalogLanguage"/> instead — <c>uk-UA</c> on an installation from
+    /// before MAM-46, whose every call asked in Ukrainian —, so titles, genre names and collection names come in that
+    /// language where TMDb has them, and in the original otherwise (TMDb's own fallback). The original title always comes
+    /// beside it.
     /// </summary>
-    public const string CatalogLanguage = "uk-UA";
+    public const string DefaultLanguage = "en-US";
+
+    /// <summary>
+    /// MAM-46 — every language TMDb keeps translations in: <c>GET /3/configuration/primary_translations</c>, recorded on
+    /// 2026-10-17 (VendorSamples/Tmdb/configuration-primary-translations.json), 144 tags in TMDb's order. Vendor data
+    /// kept as a constant, like the image host: the list is offered when the owner adds TMDb, before any key could
+    /// read it, and it changes as rarely as TMDb's languages do.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> PrimaryTranslations =
+    [
+        "af-ZA", "ar-AE", "ar-BH", "ar-EG", "ar-IQ", "ar-JO", "ar-LY", "ar-MA", "ar-QA", "ar-SA", "ar-TD", "ar-YE",
+        "be-BY", "bg-BG", "bn-BD", "bn-IN", "br-FR", "ca-AD", "ca-ES", "ch-GU", "cs-CZ", "cy-GB", "da-DK", "de-AT",
+        "de-CH", "de-DE", "el-CY", "el-GR", "en-AG", "en-AU", "en-BB", "en-BZ", "en-CA", "en-CM", "en-GB", "en-GG",
+        "en-GH", "en-GI", "en-GY", "en-IE", "en-JM", "en-KE", "en-LC", "en-MW", "en-NZ", "en-PG", "en-TC", "en-US",
+        "en-ZM", "en-ZW", "eo-EO", "es-AR", "es-CL", "es-DO", "es-EC", "es-ES", "es-GQ", "es-GT", "es-HN", "es-MX",
+        "es-NI", "es-PA", "es-PE", "es-PY", "es-SV", "es-UY", "et-EE", "eu-ES", "fa-IR", "fi-FI", "fr-BF", "fr-CA",
+        "fr-CD", "fr-CI", "fr-FR", "fr-GF", "fr-GP", "fr-MC", "fr-ML", "fr-MU", "fr-PF", "ga-IE", "gd-GB", "gl-ES",
+        "he-IL", "hi-IN", "hr-HR", "hu-HU", "hy-AM", "id-ID", "it-IT", "it-VA", "ja-JP", "ka-GE", "kk-KZ", "kn-IN",
+        "ko-KR", "ku-TR", "ky-KG", "lt-LT", "lv-LV", "ml-IN", "mr-IN", "ms-MY", "ms-SG", "nb-NO", "ne-NP", "nl-BE",
+        "nl-NL", "no-NO", "oc-FR", "pa-IN", "pl-PL", "pt-AO", "pt-BR", "pt-MZ", "pt-PT", "ro-MD", "ro-RO", "ru-RU",
+        "si-LK", "sk-SK", "sl-SI", "so-SO", "sq-AL", "sq-XK", "sr-ME", "sr-RS", "sv-SE", "sw-TZ", "ta-IN", "te-IN",
+        "th-TH", "tl-PH", "tr-TR", "uk-UA", "ur-PK", "uz-UZ", "vi-VN", "zh-CN", "zh-HK", "zh-SG", "zh-TW", "zu-ZA",
+    ];
 
     /// <summary>
     /// TMDb's documented secure image base (<c>images.secure_base_url</c> of <c>/3/configuration</c>,
@@ -117,6 +142,9 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
         // A catalog lists works, never files.
         ReportsFilePaths: false);
 
+    /// <inheritdoc/>
+    public IReadOnlyList<string> Languages => PrimaryTranslations;
+
     /// <summary>
     /// TMDb's API root for an address: the address itself when its last path segment is <c>3</c> (an
     /// address copied with the version), and otherwise the address with <c>/3</c> appended — a fixed rule
@@ -181,6 +209,15 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
             response.Dispose();
         }
     }
+
+    /// <summary>
+    /// MAM-46 — the <c>language</c> value a catalog call sends: the integration's catalog language, or
+    /// <see cref="DefaultLanguage"/> when the settings name none. Escaped, as it goes into the query: the integration
+    /// rules only ever store a tag of <see cref="PrimaryTranslations"/>, but a row edited by hand must not add a
+    /// parameter of its own.
+    /// </summary>
+    private static string LanguageAskedBy(IntegrationConnectionSettings settings) =>
+        Uri.EscapeDataString(settings.CatalogLanguage ?? DefaultLanguage);
 
     /// <summary>A GET of <paramref name="pathAndQuery"/> under the API root, with the token and JSON
     /// asked for.</summary>
@@ -306,7 +343,7 @@ internal sealed partial class TmdbAdapter(IHttpClientFactory httpClients, TimePr
         var isShow = kind == MediaWorkKind.Series;
         var original = TextProperty(element, isShow ? "original_name" : "original_title", TitleMaximumLength, secrets);
         var title = TextProperty(element, isShow ? "name" : "title", TitleMaximumLength, secrets);
-        // TMDb already falls back to the original title for a work without a Ukrainian one; a list that
+        // TMDb already falls back to the original title for a work without one in the language asked; a list that
         // gives no title at all still has the original to show.
         if (title.Length == 0)
             title = original;

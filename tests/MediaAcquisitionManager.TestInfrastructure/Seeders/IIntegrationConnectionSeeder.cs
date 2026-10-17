@@ -15,7 +15,9 @@ public interface IIntegrationConnectionSeeder
     /// <summary>
     /// A saved integration of <paramref name="adapterType"/>. Its kind is the registered type's;
     /// for a type this build doesn't register, <paramref name="kind"/> or else a media library. Values
-    /// are stored as given, so a test can plant a row the API would refuse.
+    /// are stored as given, so a test can plant a row the API would refuse. MAM-46 — a metadata catalog's language is
+    /// <paramref name="catalogLanguage"/>, or <see cref="IntegrationConnectionSeeder.CatalogLanguage"/> when it is
+    /// <c>null</c>; any other type has none.
     /// </summary>
     Task<IntegrationConnectionEntity> Create(
         string adapterType = FakeIntegrationAdapter.TypeId,
@@ -26,7 +28,8 @@ public interface IIntegrationConnectionSeeder
         string? apiKey = null,
         bool isEnabled = true,
         IReadOnlyList<PathMappingPair>? pathMappings = null,
-        IntegrationKind? kind = null);
+        IntegrationKind? kind = null,
+        string? catalogLanguage = null);
 
     /// <summary>
     /// A saved integration whose API key was sealed, for this row and field, under another encryption

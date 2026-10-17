@@ -8,6 +8,7 @@ using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Paths;
 using MediaAcquisitionManager.TestInfrastructure.Auth;
 using MediaAcquisitionManager.TestInfrastructure.Http;
+using MediaAcquisitionManager.TestInfrastructure.Integrations;
 using MediaAcquisitionManager.TestInfrastructure.Seeders;
 
 namespace MediaAcquisitionManager.Api.Tests.Settings;
@@ -75,12 +76,14 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
                 CredentialRequirement.Optional, CredentialRequirement.Optional, CredentialRequirement.NotUsed, ReportsFilePaths: true,
                 DownloadDestinationKind.Folder),
             types["transmission"]);
-        // MAM-33 — the catalog: its API Read Access Token in the API key field, and no paths of its own.
+        // MAM-33 — the catalog: its API Read Access Token in the API key field, and no paths of its own; MAM-46 — and the
+        // languages it can be asked in, TMDb's recorded primary translations in TMDb's order. No other type has any.
         Assert.Equal(
             new IntegrationAdapterTypeDto(
                 "tmdb", "TMDb", IntegrationKind.Metadata,
                 CredentialRequirement.NotUsed, CredentialRequirement.NotUsed, CredentialRequirement.Required, ReportsFilePaths: false),
-            types["tmdb"]);
+            types["tmdb"] with { CatalogLanguages = null });
+        Assert.Equal(JsonSerializer.Deserialize<string[]>(TmdbSamples.ConfigurationPrimaryTranslations()), types["tmdb"].CatalogLanguages);
         // The test host's own types, registered beside the real ones: one with no capability beyond listing, and — MAM-34 —
         // one that identifies items, for the flows above the library adapter.
         Assert.Equal(
@@ -98,6 +101,7 @@ public sealed class IntegrationsHttpTests : IClassFixture<MediaAcquisitionManage
         Assert.Contains("\"apiKey\":\"Required\"", raw, StringComparison.Ordinal);
         Assert.Contains("\"destinationKind\":\"Category\"", raw, StringComparison.Ordinal);
         Assert.Contains("\"destinationKind\":\"Folder\"", raw, StringComparison.Ordinal);
+        Assert.Contains("\"catalogLanguages\":[\"af-ZA\",\"ar-AE\",", raw, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Infrastructure.Persistence;
+using MediaAcquisitionManager.TestInfrastructure.Seeders;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -16,6 +17,8 @@ public sealed class CatalogGenreDataFactory(ApplicationDbContext db, TimeProvide
             GenreId = genreId,
             Name = name,
             Role = role,
+            // MAM-46 — the language a seeded catalog is asked in, so the planted list is fresh for it.
+            Language = IntegrationConnectionSeeder.CatalogLanguage,
             SourceKind = ProvenanceSourceKind.Metadata,
             SourceItemId = $"genre/{(kind == MediaWorkKind.Series ? "tv" : "movie")}/{genreId}",
             CreatedUtc = now,

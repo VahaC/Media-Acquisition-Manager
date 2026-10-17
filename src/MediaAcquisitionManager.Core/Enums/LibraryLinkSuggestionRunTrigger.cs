@@ -11,4 +11,11 @@ public enum LibraryLinkSuggestionRunTrigger
 
     /// <summary>The installation owner asked for it; every work is searched again, the cache bypassed.</summary>
     Requested = 3,
+
+    /// <summary>
+    /// MAM-46 — the owner changed the metadata catalog's language: the searches are kept, but every stored candidate's
+    /// details are read again in it (through the cache, so only the ones not read in it yet), so the TMDb dialog shows
+    /// their titles and overviews in the new language.
+    /// </summary>
+    CatalogLanguageChanged = 4,
 }

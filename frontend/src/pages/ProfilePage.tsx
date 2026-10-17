@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ThemeSwitch } from '@/components/ThemeSwitch'
 import { AccessTokensCard } from '@/components/profile/AccessTokensCard'
 import { ChangePasswordCard } from '@/components/profile/ChangePasswordCard'
+import { LanguageCard } from '@/components/profile/LanguageCard'
 import { RecommendationSettingsCard } from '@/components/profile/RecommendationSettingsCard'
 import { Banner } from '@/components/shared/Banner'
 import { ErrorState } from '@/components/shared/ErrorState'
@@ -32,6 +33,10 @@ const INSTANT_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeSt
  *
  * MAM-5 — and their personal access tokens, for scripts and AI assistants, right after the password:
  * both are how the account is reached (AccessTokensCard).
+ *
+ * MAM-46 — and the language the app is shown in, after the theme: saved with the account rather than
+ * in this browser, so a card of its own (LanguageCard), and Appearance's "Saved in this browser." stays
+ * true of everything in it.
  */
 export function ProfilePage() {
   const { t } = useTranslation(['profile', 'auth', 'common'])
@@ -126,6 +131,8 @@ export function ProfilePage() {
           <ThemeSwitch showLabels />
         </div>
       </section>
+
+      <LanguageCard />
 
       <RecommendationSettingsCard />
 

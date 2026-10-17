@@ -42,10 +42,12 @@ public class IntegrationsController(IIntegrationConnectionService integrations) 
     public async Task<ActionResult<IntegrationDto>> Get(Guid id, CancellationToken cancellationToken) =>
         await integrations.GetAsync(id, cancellationToken) is { } integration ? Ok(integration) : NotFound();
 
+    /// <summary>Adds an integration. MAM-46 — a metadata catalog sent without a language starts in the owner's, else in
+    /// the browser's (<c>Accept-Language</c>), else in English.</summary>
     [HttpPost]
     public async Task<ActionResult<IntegrationDto>> Create([FromBody] CreateIntegrationRequest request, CancellationToken cancellationToken)
     {
-        var result = await integrations.CreateAsync(request, UserId, cancellationToken);
+        var result = await integrations.CreateAsync(request, UserId, Request.Headers.AcceptLanguage.ToString(), cancellationToken);
         return result.Status switch
         {
             IntegrationChangeStatus.Succeeded => CreatedAtAction(nameof(Get), new { id = result.Integration!.Id }, result.Integration),

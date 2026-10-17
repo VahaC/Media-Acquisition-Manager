@@ -1,5 +1,6 @@
 using MediaAcquisitionManager.Core.Entities;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.TestInfrastructure.Seeders;
 
 namespace MediaAcquisitionManager.TestInfrastructure.Data;
 
@@ -14,7 +15,7 @@ public interface ICatalogWorkDataFactory
     /// today's reading (MAM-34: <c>CatalogStore.CurrentDetailsVersion</c>) — none are planted as child rows — and
     /// <paramref name="imdbId"/> what they gave. Its original title is
     /// <paramref name="originalTitle"/>, or <paramref name="title"/> when that is <c>null</c>; its poster path is
-    /// <paramref name="posterPath"/>.
+    /// <paramref name="posterPath"/>. MAM-46 — its details are stamped as read in <paramref name="detailsLanguage"/>.
     /// </summary>
     Task<CatalogWorkEntity> Create(
         MediaWorkKind kind,
@@ -30,5 +31,6 @@ public interface ICatalogWorkDataFactory
         Guid? sourceConnectionId = null,
         string? sourceName = null,
         string? originalTitle = null,
-        string? posterPath = null);
+        string? posterPath = null,
+        string detailsLanguage = IntegrationConnectionSeeder.CatalogLanguage);
 }

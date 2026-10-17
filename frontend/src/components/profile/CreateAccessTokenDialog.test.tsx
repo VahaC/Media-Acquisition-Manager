@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CreateAccessTokenDialog } from '@/components/profile/CreateAccessTokenDialog'
+import { useAuthStore } from '@/lib/auth-store'
+import { i18n } from '@/lib/i18n'
 import { profileApi } from '@/lib/profile-api'
 import type { CreatedAccessToken } from '@/lib/types'
 import { apiError, networkError } from '@/test/api-error'
-import { member, signInAs } from '@/test/auth-session'
+import { member, resetAuthStore, signInAs } from '@/test/auth-session'
 import { createdToken } from '@/test/access-tokens'
 
 vi.mock('@/lib/profile-api')
@@ -429,5 +431,40 @@ describe('CreateAccessTokenDialog', () => {
     // Assert
     expect(onClose).toHaveBeenCalledOnce()
     expect(profileApi.createAccessToken).not.toHaveBeenCalled()
+  })
+})
+
+describe('CreateAccessTokenDialog and the UI language', () => {
+  // MAM-46 — the signed-in pages mount afresh when the UI's language changes, which would take the
+  // shown-once secret with them: a language followed from another tab waits until the secret step closes.
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.mocked(profileApi.createAccessToken).mockResolvedValue(createdToken)
+  })
+
+  afterEach(async () => {
+    resetAuthStore()
+    // The app's one i18n instance: a test that switched it to Ukrainian must not leave it there.
+    await act(() => i18n.changeLanguage('en-US'))
+  })
+
+  it('keeps the UI in its language while the secret shows, and takes another tab\'s language once it closes', async () => {
+    // Arrange
+    const { user } = renderDialog()
+    const dialog = await createWithDefaults(user)
+    const otherTab = new BroadcastChannel('mam-auth')
+
+    // Act
+    otherTab.postMessage({ type: 'language', userId: member.id, language: 'uk' })
+    await vi.waitFor(() => expect(useAuthStore.getState().user?.language).toBe('uk'))
+    otherTab.close()
+    const languageWhileShown = i18n.language
+    const secretStillShown = within(dialog).getByRole('textbox', { name: 'Token' })
+    cleanup()
+
+    // Assert
+    expect(languageWhileShown).toBe('en-US')
+    expect(secretStillShown).toHaveValue(createdToken.secret)
+    await vi.waitFor(() => expect(i18n.language).toBe('uk'))
   })
 })

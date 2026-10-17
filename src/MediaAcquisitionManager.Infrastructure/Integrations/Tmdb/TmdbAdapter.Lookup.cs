@@ -54,7 +54,7 @@ internal sealed partial class TmdbAdapter
 
         if (query.Title is null || TitleMatchKey.For(query.Title).Length == 0)
             throw new ArgumentException("A lookup needs a TMDb or IMDb id, or a title with a letter or a digit.", nameof(query));
-        var pathAndQuery = SearchPathAndQuery(query.Kind, query.Title, query.Year);
+        var pathAndQuery = SearchPathAndQuery(query.Kind, query.Title, query.Year, LanguageAskedBy(settings));
         return LookupByTitleAsync(settings, query, pathAndQuery, cancellationToken);
     }
 
@@ -69,7 +69,7 @@ internal sealed partial class TmdbAdapter
                 client,
                 settings,
                 sessionSecrets,
-                $"{segment}/{id}?language={CatalogLanguage}",
+                $"{segment}/{id}?language={LanguageAskedBy(settings)}",
                 WorkNotFoundError(kind, id),
                 (root, secrets) => ReadWork(root, kind, secrets),
                 token),
@@ -90,7 +90,7 @@ internal sealed partial class TmdbAdapter
         var found = await CallAsync<IReadOnlyList<CatalogWorkSummary>>(
             settings,
             (client, sessionSecrets, token) => GetJsonAsync<IReadOnlyList<CatalogWorkSummary>>(
-                client, settings, sessionSecrets, FindPathAndQuery(imdbId), notFoundError: null, ReadFound, token),
+                client, settings, sessionSecrets, FindPathAndQuery(imdbId, LanguageAskedBy(settings)), notFoundError: null, ReadFound, token),
             cancellationToken);
 
         return found.IsSuccess

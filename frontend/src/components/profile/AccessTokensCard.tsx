@@ -152,7 +152,8 @@ function TokenRow({ token, busy, onRevoke }: TokenRowProps) {
         {token.lastUsedUtc ? formatDateTime(token.lastUsedUtc, INSTANT_FORMAT) : t('accessTokens.never')}
       </td>
       <td data-label={t('accessTokens.columns.expires')} className="profile-date">
-        {token.expiresUtc ? formatDate(token.expiresUtc, DATE_FORMAT) : t('accessTokens.never')}
+        {/* MAM-46 — a key of its own: under Expires Ukrainian says "indefinitely", not Last used's "never". */}
+        {token.expiresUtc ? formatDate(token.expiresUtc, DATE_FORMAT) : t('accessTokens.expiresNever')}
       </td>
       <td className="settings-actions-cell">
         <div className="settings-actions">

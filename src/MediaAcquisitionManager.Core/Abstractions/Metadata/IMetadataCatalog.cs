@@ -26,6 +26,15 @@ namespace MediaAcquisitionManager.Core.Abstractions.Metadata;
 public interface IMetadataCatalog
 {
     /// <summary>
+    /// MAM-46 — every language the catalog can be asked in, as the tags its calls take (<c>uk-UA</c>, <c>en-US</c>,
+    /// <c>pt-BR</c>…), each once: the choices of a catalog integration's language
+    /// (<see cref="IntegrationConnectionSettings.CatalogLanguage"/>). The source's own list, so the core offers and checks
+    /// a language without knowing which source it is (ADR 0005). Where the source has no translation of a work in the
+    /// language, it answers in the original.
+    /// </summary>
+    IReadOnlyList<string> Languages { get; }
+
+    /// <summary>
     /// A film's or a show's details in one call: its genres, collection, directors or creators, seasons
     /// and the works the source recommends beside it. <see cref="IntegrationCallStatus.NotFound"/> when the
     /// source knows no such work.

@@ -21,7 +21,8 @@ public sealed class IntegrationConnectionDataFactory(ApplicationDbContext db, IE
         string? password = null,
         string? apiKey = null,
         bool isEnabled = true,
-        IReadOnlyList<PathMappingPair>? pathMappings = null)
+        IReadOnlyList<PathMappingPair>? pathMappings = null,
+        string? catalogLanguage = null)
     {
         var integration = new IntegrationConnectionEntity
         {
@@ -32,6 +33,7 @@ public sealed class IntegrationConnectionDataFactory(ApplicationDbContext db, IE
             IsEnabled = isEnabled,
             BaseUrl = baseUrl,
             UserName = userName,
+            CatalogLanguage = catalogLanguage,
             CreatedUtc = time.GetUtcNow().UtcDateTime,
         };
         // Sealed with the row's own id, which exists from construction: a test that decrypts through

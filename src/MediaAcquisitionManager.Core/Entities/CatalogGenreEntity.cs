@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using MediaAcquisitionManager.Core.Enums;
+using MediaAcquisitionManager.Core.Integrations;
 
 namespace MediaAcquisitionManager.Core.Entities;
 
@@ -23,4 +24,12 @@ public class CatalogGenreEntity : ProvenancedEntity
     /// <summary>What it makes a work, for the tabs: the catalog's adapter decides, the core never reads its
     /// numbering.</summary>
     public CatalogGenreRole Role { get; set; }
+
+    /// <summary>
+    /// MAM-46 — the catalog language its name was read in (<c>uk-UA</c>, <c>en-US</c>): the catalog store counts the
+    /// row as fresh only while it is the catalog's language of now, so a change of language reads it again on its next
+    /// use. Every row cached before MAM-46 was read in Ukrainian, which the migration's default says.
+    /// </summary>
+    [Required, MaxLength(CatalogLanguageRules.MaximumLength)]
+    public string Language { get; set; } = default!;
 }

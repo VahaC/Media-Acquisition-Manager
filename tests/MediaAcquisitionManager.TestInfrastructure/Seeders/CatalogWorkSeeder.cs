@@ -21,6 +21,22 @@ public sealed class CatalogWorkSeeder(IServiceProvider services) : SeederBase(se
         DateTime? detailsUtc = null,
         IntegrationConnectionEntity? catalog = null,
         string? originalTitle = null,
-        string? posterPath = null) =>
-        Works.Create(kind, catalogId, title, releaseDate, genreIds, rating, voteCount, imdbId, detailsUtc, null, catalog?.Id, catalog?.Name, originalTitle, posterPath);
+        string? posterPath = null,
+        string? detailsLanguage = null) =>
+        Works.Create(
+            kind,
+            catalogId,
+            title,
+            releaseDate,
+            genreIds,
+            rating,
+            voteCount,
+            imdbId,
+            detailsUtc,
+            null,
+            catalog?.Id,
+            catalog?.Name,
+            originalTitle,
+            posterPath,
+            detailsLanguage ?? catalog?.CatalogLanguage ?? IntegrationConnectionSeeder.CatalogLanguage);
 }

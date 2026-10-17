@@ -18,7 +18,7 @@ const RETRY_INTERVAL_MS = 3_000
  * signing the user out would lose the page, and showing it would only fill it with errors.
  */
 export function ProtectedRoute() {
-  const { t } = useTranslation('auth')
+  const { t, i18n } = useTranslation('auth')
   const status = useAuthStore((state) => state.status)
   const userId = useAuthStore((state) => state.user?.id)
   const deliberateSignOut = useAuthStore((state) => state.deliberateSignOut)
@@ -60,7 +60,9 @@ export function ProtectedRoute() {
       )
     case 'authenticated':
       // Keyed by the user, so a different account in this tab mounts every page afresh instead of
-      // keeping the last user's filters, dialogs and half-typed forms.
-      return <Outlet key={userId} />
+      // keeping the last user's filters, dialogs and half-typed forms. MAM-46 — and by the locale:
+      // dates, numbers and sentences a page worked out once (memoised by the React Compiler on their
+      // data alone) are worked out again in the new language when it changes.
+      return <Outlet key={`${userId}:${i18n.language}`} />
   }
 }

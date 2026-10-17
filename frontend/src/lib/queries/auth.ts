@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { authApi } from '../auth-api'
-import { useAuthStore } from '../auth-store'
+import { adoptAccountLanguage, languageGeneration, useAuthStore } from '../auth-store'
 import { setupApi } from '../setup-api'
 import type { ChangePasswordRequest, SetupRequest, SetupStatus, SignInRequest } from '../types'
 import { qk } from './keys'
@@ -46,11 +46,22 @@ export const useSignIn = () =>
  * MAM-16 — the signed-in user's profile: when the account was created and last signed in, and when
  * this session ends. Asked on every visit to the Profile page, as each refresh moves the session's
  * end.
+ *
+ * MAM-46 — and the account's language, which this tab takes from the answer (auth-store
+ * `adoptAccountLanguage`): a language saved on another device reaches it when its Profile page loads,
+ * so the Language card shows what the account holds, not what the session began with. Taken in the
+ * query function, so only an answer fresh from the server counts, never a cached one shown again; one
+ * asked before a language change here (or answered while a save is under way) is not taken.
  */
 export const useProfile = () =>
   useQuery({
     queryKey: qk.auth.me,
-    queryFn: () => authApi.me(),
+    queryFn: async () => {
+      const generationBefore = languageGeneration()
+      const profile = await authApi.me()
+      adoptAccountLanguage(profile.id, profile.language, generationBefore)
+      return profile
+    },
   })
 
 /**

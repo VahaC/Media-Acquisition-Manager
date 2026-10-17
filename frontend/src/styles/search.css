@@ -50,10 +50,12 @@
 /* The year narrow, the ids beside it, the button at the end — one row on a wide screen, as wide as
    its fields rather than the page. The fields line up at their inputs (`end`), so a label that wraps
    never pushes its input below the others. MAM-32 — the season beside the year, a little wider so
-   "Season (optional)" stays on one line. */
+   "Season (optional)" stays on one line. MAM-46 — the year 7rem (112px), from 6rem: the Ukrainian
+   «Рік (необов’язково)» wraps, and «(необов’язково)», one word of about 105–107px at 14px/500, ran past a
+   96px column into the Season label. */
 .search-form-fields {
   display: grid;
-  grid-template-columns: minmax(0, 6rem) minmax(0, 7.5rem) minmax(0, 11rem) minmax(0, 11rem) auto;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 7.5rem) minmax(0, 11rem) minmax(0, 11rem) auto;
   justify-content: start;
   align-items: end;
   gap: 0.75rem;

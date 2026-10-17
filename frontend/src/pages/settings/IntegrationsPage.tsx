@@ -11,6 +11,7 @@ import { RetryButton } from '@/components/shared/RetryButton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/auth-store'
+import { catalogLanguageName } from '@/lib/catalog-languages'
 import { useDeleteIntegration, useIntegrations, useTestIntegration } from '@/lib/queries'
 import type { IntegrationKind, IntegrationSummary } from '@/lib/types'
 import { useDebounced } from '@/lib/use-debounced'
@@ -278,7 +279,7 @@ interface IntegrationRowProps {
  * `data-label` for the stacked layout. Test answers above the list, in the page's banner.
  */
 function IntegrationRow({ integration, testing, removing, onTest, onEdit, onRemove }: IntegrationRowProps) {
-  const { t } = useTranslation('integrations')
+  const { t, i18n } = useTranslation('integrations')
   // null: this build no longer registers the type, so it can neither test nor edit it.
   const unknownType = integration.adapterDisplayName === null
     ? t('unknownType', { type: integration.adapterType })
@@ -297,6 +298,12 @@ function IntegrationRow({ integration, testing, removing, onTest, onEdit, onRemo
         <span className="integrations-service">
           <span>{integration.adapterDisplayName ?? integration.adapterType}</span>
           <span className="integrations-service-kind">{t(`kinds.${integration.kind}`)}</span>
+          {/* MAM-46 — a catalog's language, under its kind. */}
+          {integration.catalogLanguage !== null && (
+            <span className="integrations-service-kind">
+              {t('catalogLanguage', { language: catalogLanguageName(integration.catalogLanguage, i18n.language) })}
+            </span>
+          )}
         </span>
       </td>
       <td data-label={t('columns.address')}>

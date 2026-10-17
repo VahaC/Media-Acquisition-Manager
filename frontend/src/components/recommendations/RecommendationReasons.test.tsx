@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
+import { I18nextProvider } from 'react-i18next'
 import { RecommendationReasons } from '@/components/recommendations/RecommendationReasons'
 import type { RecommendationReason } from '@/lib/types'
+import { pluralFormProbe } from '@/test/plural-probe'
 import { daysAgo, reasonOf } from '@/test/recommendations'
 
 /** The chips on screen, as their text. */
@@ -51,6 +53,27 @@ describe('RecommendationReasons', () => {
 
     // Act
     render(<RecommendationReasons reasons={reasons} />)
+
+    // Assert
+    expect(chips()).toEqual([expected])
+  })
+
+  // MAM-46 — Ukrainian words "and N more" by N's plural form, which English never shows: 21 takes the
+  // singular, 3 another form than 5.
+  it.each<[string, RecommendationReason, string]>([
+    ['21 more after two titles', reasonOf('Recommended', { held: 23, titles: ['Alien', 'Prometheus', 'Aliens'] }), 'one: 21'],
+    ['3 more after two titles', reasonOf('Recommended', { held: 5, titles: ['Alien', 'Prometheus', 'Aliens'] }), 'few: 3'],
+    ['5 more after two titles', reasonOf('Recommended', { held: 7, titles: ['Alien', 'Prometheus', 'Aliens'] }), 'many: 5'],
+    ['1 more after one title', reasonOf('Recommended', { held: 2, titles: ['Alien'] }), 'one: 1'],
+    ['2 more after one title', reasonOf('Recommended', { held: 3, titles: ['Alien'] }), 'few: 2'],
+    ['11 more after one title', reasonOf('Recommended', { held: 12, titles: ['Alien'] }), 'many: 11'],
+  ])('picks the plural form of the titles left out by their count: %s', (_, reason, expected) => {
+    // Arrange
+    const key = reason.titles.length === 1 ? 'reasons.recommendedOneMore' : 'reasons.recommendedMore'
+    const probe = pluralFormProbe('recommendations', key, (form) => `${form}: {{more}}`)
+
+    // Act
+    render(<I18nextProvider i18n={probe}><RecommendationReasons reasons={[reason]} /></I18nextProvider>)
 
     // Assert
     expect(chips()).toEqual([expected])

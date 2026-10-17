@@ -276,6 +276,26 @@ html:has(.app-offline) {
   }
 }
 
+/* MAM-46 — the Ukrainian labels are wider: measured the same way, Медіатека +23px, Дублікати 0,
+   Рекомендації −30px and Завдання +34px, so the owner's five labelled links take 575px, not 549px, and
+   left the owner's field 201px at 1217px. In Ukrainian they stay icons up to 77.5rem (1240px); labelled
+   from 1241px, the owner's field gets width − 1016px, 225px there. A member's four (483px) would have
+   left 293px; they follow the same breakpoint. `:lang(uk)` matches the `uk` and `uk-UA` that lib/i18n.ts
+   puts on <html lang>. */
+@media (max-width: 77.5rem) {
+  html:lang(uk) .app-header {
+    gap: 0.75rem;
+  }
+
+  html:lang(uk) .app-nav {
+    gap: 0.25rem;
+  }
+
+  html:lang(uk) .app-nav-link .label-text {
+    display: none;
+  }
+}
+
 /* MAM-16 — narrow screens: the logo without the name and version, so the centre column keeps its
    room; the links are icons already (above). MAM-21 — up to 53rem, from 48rem: with five link icons
    the owner's field had 148px at 769px beside the name and version, and has 342px there without them. */

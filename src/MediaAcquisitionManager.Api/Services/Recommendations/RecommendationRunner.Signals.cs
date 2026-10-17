@@ -1,6 +1,7 @@
 using System.Globalization;
 using MediaAcquisitionManager.Api.Services.Catalog;
 using MediaAcquisitionManager.Core.Abstractions.Integrations;
+using MediaAcquisitionManager.Core.Abstractions.Metadata;
 using MediaAcquisitionManager.Core.Enums;
 using MediaAcquisitionManager.Core.Recommendations;
 using Microsoft.EntityFrameworkCore;
@@ -128,7 +129,11 @@ public sealed partial class RecommendationRunner
 
     /// <summary>
     /// NewAtSource: the works the newest releases of a release source were resolved to, first seen within
-    /// <see cref="FeedFreshness"/> — one reason per source, dated by its latest release of the work.
+    /// <see cref="FeedFreshness"/> — one reason per source, dated by its latest release of the work. Each work's summary is
+    /// its row's; MAM-46 — a row stamped in another language than the catalog's of now (resolved before the owner changed
+    /// it) has its details read again through the store, once, so its card shows the title and poster of the catalog's
+    /// language too: the feed resolves an entry once, and no other signal may list the work again. A work the catalog no
+    /// longer has is left out.
     /// </summary>
     private async Task<Failure?> CollectNewAtSourceAsync(Computation run, CancellationToken cancellationToken)
     {
@@ -148,15 +153,29 @@ public sealed partial class RecommendationRunner
                 .Where(genre => EF.Parameter(workIds).Contains(genre.CatalogWorkId))
                 .ToListAsync(cancellationToken))
             .ToLookup(genre => genre.CatalogWorkId, genre => genre.GenreId);
-        var byId = rows.ToDictionary(row => row.Id);
+        // Each work once, before its sources: a work two sources published costs one read at most.
+        var summaries = new Dictionary<Guid, CatalogWorkSummary>();
+        foreach (var row in rows.Where(row => run.Wants(row.Kind)).OrderBy(row => row.Id))
+        {
+            if (row.DetailsLanguage == run.Catalog.Language)
+            {
+                summaries[row.Id] = CatalogStore.ToSummary(row, genres[row.Id]);
+                continue;
+            }
+
+            var answer = await store.GetWorkAsync(run.Catalog, row.Kind, row.CatalogId, cancellationToken);
+            if (answer.Status == IntegrationCallStatus.NotFound)
+                continue;
+            if (!answer.IsSuccess)
+                return Failure.Of(answer);
+            summaries[row.Id] = answer.Value!.Summary;
+        }
+
         foreach (var source in entries
                      .GroupBy(entry => (entry.CatalogWorkId, entry.SourceName))
                      .OrderBy(group => group.Key.SourceName, StringComparer.Ordinal))
         {
-            if (!byId.TryGetValue(source.Key.CatalogWorkId, out var row) || !run.Wants(row.Kind))
-                continue;
-            var work = CatalogStore.ToSummary(row, genres[row.Id]);
-            if (!run.IsReleased(work))
+            if (!summaries.TryGetValue(source.Key.CatalogWorkId, out var work) || !run.IsReleased(work))
                 continue;
 
             run.CandidateFor(work).Reasons.Add(new Reason(

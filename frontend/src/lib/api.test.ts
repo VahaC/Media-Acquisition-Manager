@@ -2,6 +2,7 @@ import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRe
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
 import { useConnectionStore } from '@/lib/connection-store'
+import { i18n } from '@/lib/i18n'
 import { queryClient } from '@/lib/query-client'
 import { owner, sessionFor, signInAs } from '@/test/auth-session'
 import { resetConnectionStore } from '@/test/connection'
@@ -73,6 +74,26 @@ describe('api', () => {
 
     // Assert
     expect(bearersSentTo(adapter, '/api/things')).toEqual(['Bearer token-1'])
+  })
+
+  it('sends the UI locale as Accept-Language on every request', async () => {
+    // Arrange
+    const adapter = serve(() => ({ status: 200 }))
+
+    // Act
+    await api.get('/api/things')
+    await i18n.changeLanguage('uk-UA')
+    try {
+      await api.put('/api/other-things', {})
+    } finally {
+      await i18n.changeLanguage('en-US')
+    }
+
+    // Assert
+    expect(adapter.mock.calls.map(([config]) => [config.url, config.headers.get('Accept-Language')])).toEqual([
+      ['/api/things', 'en-US'],
+      ['/api/other-things', 'uk-UA'],
+    ])
   })
 
   it('refreshes once and retries once with the new token when a request is refused with 401', async () => {

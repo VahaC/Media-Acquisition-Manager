@@ -189,8 +189,8 @@ public sealed class FakeTmdbServer
                 ["movie", var id] => Details(MediaWorkKind.Movie, id, query),
                 ["tv", var id] => Details(MediaWorkKind.Series, id, query),
                 ["tv", var id, "season", var season, "episode", var episode] => Episode(id, season, episode, query),
-                ["collection", var id] => Collection(id),
-                ["person", var id, "combined_credits"] => CombinedCredits(id),
+                ["collection", var id] => Collection(id, query),
+                ["person", var id, "combined_credits"] => CombinedCredits(id, query),
                 ["search", var type] when KindOf(type) is { } kind => Search(kind, query),
                 ["find", var imdbId] => Find(imdbId, query),
                 ["discover", var type] when KindOf(type) is { } kind => Discover(kind, query),
@@ -208,15 +208,16 @@ public sealed class FakeTmdbServer
         if (!int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var number) || !_works.TryGetValue((kind, number), out var work))
             return NotFound();
 
-        var details = kind == MediaWorkKind.Series ? ShowDetails(work) : MovieDetails(work);
+        var language = LanguageOf(query);
+        var details = kind == MediaWorkKind.Series ? ShowDetails(work, language) : MovieDetails(work, language);
         // In the language asked, when the work has its overview by language: TMDb's "" for one it has none in.
         if (work.OverviewsByLanguage is { } overviews)
-            details["overview"] = query.TryGetValue("language", out var language) && overviews.TryGetValue(language, out var overview) ? overview : "";
+            details["overview"] = language is not null && overviews.TryGetValue(language, out var overview) ? overview : "";
         var appended = query.TryGetValue("append_to_response", out var append) ? append.Split(',') : [];
         if (appended.Contains("credits"))
             details["credits"] = Credits(work);
         if (appended.Contains("recommendations"))
-            details["recommendations"] = Page(1, Entries(kind, work.RecommendationIds ?? [], $"{KindName(kind)} {work.Id}'s recommendations", withMediaType: true), 1);
+            details["recommendations"] = Page(1, Entries(kind, work.RecommendationIds ?? [], $"{KindName(kind)} {work.Id}'s recommendations", withMediaType: true, language), 1);
         // MAM-34 — in the shapes the live check recorded (VendorSamples/Tmdb/movie-details-short.json,
         // tv-details-planet-earth.json): a film's titles under "titles", a show's under "results".
         if (appended.Contains("alternative_titles"))
@@ -268,7 +269,7 @@ public sealed class FakeTmdbServer
         return JsonAnswer(details);
     }
 
-    private HttpResponseMessage Collection(string id)
+    private HttpResponseMessage Collection(string id, Dictionary<string, string> query)
     {
         if (!int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var number) || !_collections.TryGetValue(number, out var collection))
             return NotFound();
@@ -282,11 +283,11 @@ public sealed class FakeTmdbServer
             ["overview"] = "",
             ["poster_path"] = null,
             ["backdrop_path"] = null,
-            ["parts"] = Entries(MediaWorkKind.Movie, collection.MovieIds, $"collection {number}", withMediaType: true),
+            ["parts"] = Entries(MediaWorkKind.Movie, collection.MovieIds, $"collection {number}", withMediaType: true, LanguageOf(query)),
         });
     }
 
-    private HttpResponseMessage CombinedCredits(string id)
+    private HttpResponseMessage CombinedCredits(string id, Dictionary<string, string> query)
     {
         if (!int.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var number) || !_people.ContainsKey(number))
             return NotFound();
@@ -294,7 +295,7 @@ public sealed class FakeTmdbServer
         var crew = new JsonArray();
         foreach (var work in _works.Values.Where(work => (work.DirectorIds ?? []).Contains(number)).OrderBy(work => work.Kind).ThenBy(work => work.Id))
         {
-            var entry = Entry(work, withMediaType: true);
+            var entry = Entry(work, withMediaType: true, LanguageOf(query));
             entry["credit_id"] = CreditId(work, number);
             // TMDb files a show's creators in a department of their own.
             entry["department"] = work.Kind == MediaWorkKind.Series ? "Creator" : "Directing";
@@ -311,7 +312,7 @@ public sealed class FakeTmdbServer
         var yearParameter = kind == MediaWorkKind.Series ? "first_air_date_year" : "year";
         int? year = query.TryGetValue(yearParameter, out var yearText) ? int.Parse(yearText, CultureInfo.InvariantCulture) : null;
         var ids = _searches.TryGetValue((kind, text, year), out var found) ? found : [];
-        return JsonAnswer(Page(1, Entries(kind, ids, $"the search for “{value}”", withMediaType: false), 1));
+        return JsonAnswer(Page(1, Entries(kind, ids, $"the search for “{value}”", withMediaType: false, LanguageOf(query)), 1));
     }
 
     private HttpResponseMessage Find(string imdbId, Dictionary<string, string> query)
@@ -325,9 +326,11 @@ public sealed class FakeTmdbServer
         var found = _finds.TryGetValue(imdbId, out var works) ? works : [];
         return JsonAnswer(new JsonObject
         {
-            ["movie_results"] = Entries(MediaWorkKind.Movie, [.. found.Where(work => work.Kind == MediaWorkKind.Movie).Select(work => work.Id)], imdbId, withMediaType: true),
+            ["movie_results"] = Entries(
+                MediaWorkKind.Movie, [.. found.Where(work => work.Kind == MediaWorkKind.Movie).Select(work => work.Id)], imdbId, withMediaType: true, LanguageOf(query)),
             ["person_results"] = new JsonArray(),
-            ["tv_results"] = Entries(MediaWorkKind.Series, [.. found.Where(work => work.Kind == MediaWorkKind.Series).Select(work => work.Id)], imdbId, withMediaType: true),
+            ["tv_results"] = Entries(
+                MediaWorkKind.Series, [.. found.Where(work => work.Kind == MediaWorkKind.Series).Select(work => work.Id)], imdbId, withMediaType: true, LanguageOf(query)),
             ["tv_episode_results"] = new JsonArray(),
             ["tv_season_results"] = new JsonArray(),
         });
@@ -338,7 +341,7 @@ public sealed class FakeTmdbServer
         var page = query.TryGetValue("page", out var pageText) ? int.Parse(pageText, CultureInfo.InvariantCulture) : 1;
         var ids = _discoveries.TryGetValue((kind, page), out var found) ? found : [];
         var pages = _discoveries.Keys.Where(key => key.Kind == kind).Select(key => key.Page).DefaultIfEmpty(1).Max();
-        return JsonAnswer(Page(page, Entries(kind, ids, $"discovery page {page}", withMediaType: false), pages));
+        return JsonAnswer(Page(page, Entries(kind, ids, $"discovery page {page}", withMediaType: false, LanguageOf(query)), pages));
     }
 
     private static HttpResponseMessage Poster(Uri uri) =>
@@ -351,7 +354,7 @@ public sealed class FakeTmdbServer
 
     // ── the works, in TMDb's shapes ──────────────────────────────────────────
 
-    private JsonObject MovieDetails(FakeTmdbWork work)
+    private JsonObject MovieDetails(FakeTmdbWork work, string? language)
     {
         var details = Common(work);
         details["belongs_to_collection"] = work.CollectionId is { } collectionId
@@ -375,14 +378,14 @@ public sealed class FakeTmdbServer
         details["runtime"] = work.RuntimeMinutes ?? 0;
         details["status"] = "Released";
         details["tagline"] = "";
-        details["title"] = work.Title;
+        details["title"] = TitleIn(work, language);
         details["video"] = false;
         details["vote_average"] = work.Rating;
         details["vote_count"] = work.VoteCount;
         return details;
     }
 
-    private JsonObject ShowDetails(FakeTmdbWork work)
+    private JsonObject ShowDetails(FakeTmdbWork work, string? language)
     {
         var seasons = work.Seasons ?? [];
         var details = Common(work);
@@ -420,7 +423,7 @@ public sealed class FakeTmdbServer
                 ["show_id"] = work.Id,
             }
             : null;
-        details["name"] = work.Title;
+        details["name"] = TitleIn(work, language);
         details["number_of_episodes"] = seasons.Sum(season => season.EpisodeCount);
         details["number_of_seasons"] = seasons.Count(season => season.Number > 0);
         details["original_name"] = work.OriginalTitle ?? work.Title;
@@ -488,21 +491,24 @@ public sealed class FakeTmdbServer
             ]),
     };
 
-    /// <summary>The works <paramref name="ids"/> of <paramref name="kind"/> as a list lists them; an id
-    /// no <see cref="AddWork"/> added fails the request, naming <paramref name="listedBy"/>.</summary>
-    private JsonArray Entries(MediaWorkKind kind, int[] ids, string listedBy, bool withMediaType) =>
+    /// <summary>The works <paramref name="ids"/> of <paramref name="kind"/> as a list lists them, titled in
+    /// <paramref name="language"/>; an id no <see cref="AddWork"/> added fails the request, naming
+    /// <paramref name="listedBy"/>.</summary>
+    private JsonArray Entries(MediaWorkKind kind, int[] ids, string listedBy, bool withMediaType, string? language) =>
         new(
         [
             .. ids.Select(id => (JsonNode)Entry(
                 _works.TryGetValue((kind, id), out var work)
                     ? work
                     : throw new InvalidOperationException($"FakeTmdbServer: {listedBy} lists the {KindName(kind)} {id}, which no AddWork added."),
-                withMediaType)),
+                withMediaType,
+                language)),
         ]);
 
     /// <summary>One work as TMDb lists it among others: <c>genre_ids</c>, not <c>genres</c>, and its
-    /// <c>media_type</c> where TMDb gives one (recommendations, collections, finds, credits).</summary>
-    private static JsonObject Entry(FakeTmdbWork work, bool withMediaType)
+    /// <c>media_type</c> where TMDb gives one (recommendations, collections, finds, credits); titled in
+    /// <paramref name="language"/>.</summary>
+    private static JsonObject Entry(FakeTmdbWork work, bool withMediaType, string? language)
     {
         var isShow = work.Kind == MediaWorkKind.Series;
         var entry = new JsonObject
@@ -521,11 +527,11 @@ public sealed class FakeTmdbServer
             entry["popularity"] = 10.0;
             entry["poster_path"] = work.PosterPath;
             entry["first_air_date"] = work.ReleaseDate ?? "";
-            entry["name"] = work.Title;
+            entry["name"] = TitleIn(work, language);
         }
         else
         {
-            entry["title"] = work.Title;
+            entry["title"] = TitleIn(work, language);
             entry["original_language"] = "en";
             entry["original_title"] = work.OriginalTitle ?? work.Title;
             entry["overview"] = work.Overview ?? "";
@@ -594,6 +600,12 @@ public sealed class FakeTmdbServer
         string.Create(CultureInfo.InvariantCulture, $"{(int)work.Kind:x2}{work.Id:x10}{personId:x12}");
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    // MAM-46 — the work's title in the language asked, else its one title.
+    private static string TitleIn(FakeTmdbWork work, string? language) =>
+        language is not null && work.TitlesByLanguage?.TryGetValue(language, out var title) == true ? title : work.Title;
+
+    private static string? LanguageOf(Dictionary<string, string> query) => query.GetValueOrDefault("language");
 
     private static MediaWorkKind? KindOf(string type) => type switch
     {

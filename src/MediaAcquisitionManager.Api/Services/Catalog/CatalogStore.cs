@@ -13,7 +13,12 @@ namespace MediaAcquisitionManager.Api.Services.Catalog;
 /// <remarks>
 /// Split by facet: this file answers from the rows or asks the catalog (read-through); <c>CatalogStore.Writes.cs</c>
 /// stores what the catalog said. The cache is keyed by the catalog's own ids, whichever metadata integration
-/// reported them: one catalog type exists, and its ids don't change with the key it is reached by.
+/// reported them: one catalog type exists, and its ids don't change with the key it is reached by. MAM-46 — a row
+/// that holds text in the catalog's language (a work's details, a genre list, a collection, a person) says which
+/// language it was read in, and is fresh only in that one (<see cref="CatalogConnection.Language"/>); so is a lookup by
+/// a title, as the catalog matches a title in the language it is asked in, while a lookup by an IMDb id holds ids alone
+/// and is fresh in any. A connection built before the owner changed the language stores nothing over a row
+/// (<see cref="SaveInLanguageAsync"/>).
 /// </remarks>
 public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider time, ILogger<CatalogStore> logger) : ICatalogStore
 {
@@ -40,15 +45,16 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
     {
         ArgumentNullException.ThrowIfNull(catalog);
         var rows = await db.CatalogGenres.AsNoTracking().Where(genre => genre.Kind == kind).ToListAsync(cancellationToken);
-        // A list is read whole, so it is as old as its oldest row.
-        if (rows.Count > 0 && rows.Min(genre => genre.ObservedUtc) >= Cutoff())
+        // A list is read whole, so it is as old as its oldest row; MAM-46 — and in the catalog's language only when every
+        // row was read in it.
+        if (rows.Count > 0 && rows.Min(genre => genre.ObservedUtc) >= Cutoff() && rows.All(genre => genre.Language == catalog.Language))
             return Succeeded<IReadOnlyList<CatalogGenre>>([.. rows.OrderBy(genre => genre.GenreId).Select(ToGenre)]);
 
         var answer = await catalog.Catalog.GetGenresAsync(catalog.Settings, kind, cancellationToken);
         if (!answer.IsSuccess)
             return answer;
 
-        await SaveAsync(() => StageGenresAsync(catalog, kind, answer.Value!, cancellationToken), cancellationToken);
+        await SaveInLanguageAsync(catalog, current => StageGenresAsync(catalog, kind, answer.Value!, current, cancellationToken), cancellationToken);
         return Succeeded<IReadOnlyList<CatalogGenre>>([.. answer.Value!.OrderBy(genre => genre.Id)]);
     }
 
@@ -59,14 +65,18 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         ArgumentNullException.ThrowIfNull(catalogId);
         var row = await db.CatalogWorks.AsNoTracking()
             .SingleOrDefaultAsync(work => work.Kind == kind && work.CatalogId == catalogId, cancellationToken);
-        if (row?.DetailsUtc is { } detailsUtc && detailsUtc >= Cutoff() && row.DetailsVersion >= CurrentDetailsVersion)
+        // MAM-46 — details read in another language than the catalog's of now are read again in it.
+        if (row?.DetailsUtc is { } detailsUtc
+            && detailsUtc >= Cutoff()
+            && row.DetailsVersion >= CurrentDetailsVersion
+            && row.DetailsLanguage == catalog.Language)
             return Succeeded(await ReadDetailsAsync(row, cancellationToken));
 
         var answer = await catalog.Catalog.GetWorkAsync(catalog.Settings, kind, catalogId, cancellationToken);
         if (!answer.IsSuccess)
             return answer;
 
-        await SaveAsync(() => StageDetailsAsync(catalog, answer.Value!, cancellationToken), cancellationToken);
+        await SaveInLanguageAsync(catalog, current => StageDetailsAsync(catalog, answer.Value!, current, cancellationToken), cancellationToken);
         return answer;
     }
 
@@ -77,7 +87,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         ArgumentNullException.ThrowIfNull(collection);
         var row = await db.CatalogCollections.AsNoTracking()
             .SingleOrDefaultAsync(stored => stored.CatalogId == collection.Id, cancellationToken);
-        if (row is not null && row.ObservedUtc >= Cutoff())
+        if (row is not null && row.ObservedUtc >= Cutoff() && row.Language == catalog.Language)
         {
             var parts = await db.CatalogCollectionParts.AsNoTracking()
                 .Where(part => part.CatalogCollectionId == row.Id)
@@ -93,7 +103,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
             return answer;
 
         var named = answer.Value! with { Name = NameOr(answer.Value!.Name, collection.Name) };
-        await SaveAsync(() => StageCollectionAsync(catalog, named, cancellationToken), cancellationToken);
+        await SaveInLanguageAsync(catalog, current => StageCollectionAsync(catalog, named, current, cancellationToken), cancellationToken);
         return Succeeded(named);
     }
 
@@ -104,7 +114,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         ArgumentNullException.ThrowIfNull(person);
         var row = await db.CatalogPeople.AsNoTracking()
             .SingleOrDefaultAsync(stored => stored.CatalogId == person.Id, cancellationToken);
-        if (row is not null && row.ObservedUtc >= Cutoff())
+        if (row is not null && row.ObservedUtc >= Cutoff() && row.Language == catalog.Language)
         {
             var works = await db.CatalogPersonWorks.AsNoTracking()
                 .Where(work => work.CatalogPersonId == row.Id)
@@ -122,7 +132,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         // The catalog's list of a person's works carries no name (TMDb's combined credits), so the name the
         // work's details gave stands in for it.
         var named = answer.Value! with { Name = NameOr(answer.Value!.Name, person.Name) };
-        await SaveAsync(() => StagePersonAsync(catalog, named, cancellationToken), cancellationToken);
+        await SaveInLanguageAsync(catalog, current => StagePersonAsync(catalog, named, current, cancellationToken), cancellationToken);
         return Succeeded(named);
     }
 
@@ -133,7 +143,10 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         ArgumentNullException.ThrowIfNull(query);
         var key = query.Key;
         var row = await db.CatalogLookups.AsNoTracking().SingleOrDefaultAsync(lookup => lookup.QueryKey == key, cancellationToken);
-        if (row is not null && row.ObservedUtc >= Cutoff())
+        // MAM-46 — a lookup by a title answers what the catalog matched in the language it was asked in (a work is kept by
+        // its title in that language or its original one), found or not, so it is fresh only in that language; one by an
+        // IMDb id is the same in any.
+        if (row is not null && row.ObservedUtc >= Cutoff() && (query.ImdbId is not null || row.Language == catalog.Language))
             return Succeeded(new CatalogLookupResult(row.ResultKind, row.ResultCatalogId, row.Evidence));
 
         var metadataQuery = query.ImdbId is { } imdbId
@@ -209,7 +222,7 @@ public sealed partial class CatalogStore(ApplicationDbContext db, TimeProvider t
         ArgumentNullException.ThrowIfNull(works);
         return works.Count == 0
             ? Task.CompletedTask
-            : SaveAsync(async () => await StageSummariesAsync(catalog, works, cancellationToken), cancellationToken);
+            : SaveInLanguageAsync(catalog, async current => await StageSummariesAsync(catalog, works, current, cancellationToken), cancellationToken);
     }
 
     // ── reading the rows back ───────────────────────────────────────────────────────────────────

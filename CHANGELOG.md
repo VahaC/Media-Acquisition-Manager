@@ -172,6 +172,85 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   Claude Code command" and "Copy the Claude Desktop configuration" for a screen reader. The
   development server proxies `/mcp` to the API as it does `/api`. `CreateAccessTokenDialog.test.tsx`
   and `CreateAccessTokenDialog.https.test.tsx` pin it.
+- **Every user chooses the web app's language on Profile — As in the browser, English or
+  Українська —, saved with the account (MAM-46, ADR 0001's MAM-46 section, Vasyl's decisions of
+  2026-10-14 and 2026-10-17).** Profile's new **Language** card, after **Appearance**, says "Saved
+  with your account, so it follows you to other browsers and devices. Before you sign in, the
+  browser's language is used." Its three choices are **As in the browser** (the default, saved as no
+  language), **English** and **Українська**, the two languages named in themselves in either UI
+  language and marked with their `lang`. A choice saves at once, with no Save button, as the theme
+  does: it shows as picked while it saves, and a failed save goes back with the server's reason, or
+  "Could not save your language."; when the UI's language changes the signed-in page mounts afresh in
+  it, and otherwise the card says "Saved.". `PUT /api/profile/language` with
+  `{ "language": "en" | "uk" | null }` answers 200 `{ language }` as saved, with no audit row, as a
+  preference; the property must be there, so a body without it — or one that isn't JSON or whose
+  value isn't text — is 400 "Send the language as JSON: language en, uk, or null to follow the
+  browser.", and a value other than `en` or `uk`, compared exactly (`UK` and `uk-UA` included), is 400
+  "“x” is not a language of the app. Use en, uk, or null to follow the browser.", saving nothing; a
+  personal access token is refused (ADR 0040's MAM-46 section). The web app runs, for no choice, in
+  the browser's first locale whose language it has, now English or Ukrainian, and for English or
+  Ukrainian in the browser's first locale of that language (an `en-GB` browser keeps British dates),
+  else in the bare code. It switches when a session is set (sign-in, setup, refresh) and when Profile
+  saves, and goes back to the browser's language on sign-out; the browser's other tabs signed in as
+  the same user follow at once, over the `mam-auth` channel or the `mam:auth:language` storage key,
+  and a tab on another device with its next refresh or as soon as its Profile page opens, which
+  reads `GET /api/auth/me` and takes the language it answers unless a save or a newer change came
+  meanwhile. While a new token's secret is on screen, a language followed from elsewhere waits until
+  the dialog closes, so the remount can't take the secret away. A choice made with the arrow keys
+  keeps the keyboard focus on the chosen option across the remount, and "Saved." shows under the
+  choices, so they never move. `Profile/UserLanguageHttpTests`, `LanguageCard.test.tsx`,
+  `ProfilePage.test.tsx`, `CreateAccessTokenDialog.test.tsx`, `i18n.test.ts`, `auth-store.test.ts`
+  and `ProtectedRoute.test.tsx` pin it.
+- **The web app speaks Ukrainian (MAM-46, ADR 0001's MAM-46 section, Vasyl's decisions of
+  2026-10-17).** Every namespace of `frontend/src/locales/en/` has its Ukrainian file in
+  `frontend/src/locales/uk/`, registered beside English and translated by the glossary settled
+  first, `docs/i18n/glossary-uk.md`: the style (the user addressed as «ви», infinitives on buttons, «…» quotes,
+  the ’ apostrophe, product names as they are), the counted words in Ukrainian's four plural forms,
+  the units, and the terms, four of them chosen by Vasyl on 2026-10-17 — folder «тека», library
+  «медіатека», work «твір», episode «серія». Dates, numbers and file sizes follow the Ukrainian
+  locale through `lib/format.ts`. For the translation the English side changed too: counted text
+  takes plural forms and `count` (`libraryLinks`' `run.runningCounts`, `catchUp.progress` and
+  `confident.identifying`, `recommendations`' `reasons.recommendedOneMore` and
+  `reasons.recommendedMore`); "exactly one" has a key of its own where Ukrainian's `_one`, which also
+  means 21 or 31, can't say it (`reasons.missingSeason`, `replace.heldByOneCopy`, the Jobs page's
+  `…OneCopy` keys); `replace.workPlace` takes the formatted `{{place}}` and `{{total}}`; and a
+  language name Intl writes in lower case is capitalised where it starts an option or a label
+  (`capitalizeFirst`, `languageLabel`). Every API request sends `Accept-Language` with the UI's
+  locale, for MAM-47. `src/locales/locales.test.ts`, through `src/locales/parity.ts`, holds every
+  Ukrainian namespace to its English one — the same keys, the four forms of each English plural, the
+  same placeholders, `<Trans>` tags and leading and trailing whitespace, no empty value, and no
+  English quotes or ASCII apostrophe in Ukrainian text —; `src/test/ukrainian-pages.test.tsx` renders
+  every route of the web app in Ukrainian on canned answers, with no English fallback, and fails on a
+  missing key, a raw key, an unresolved placeholder or English text on screen;
+  `src/test/plural-probe.ts`'s probes count the changed keys in Ukrainian, and `api.test.ts` pins the
+  header.
+- **The owner chooses the language of the TMDb catalog (MAM-46, ADR 0025's and ADR 0005's MAM-46
+  sections, Vasyl's decisions of 2026-10-14 and 2026-10-17).** The TMDb integration's dialog has a
+  **Catalog language** select under the credentials: "Titles, overviews and posters on the
+  Recommendations page and in the TMDb link dialog come in this language where TMDb has them,
+  otherwise in the original. The release sources are searched by these titles too, so pick the
+  language your trackers name films in. After a change, the app reads the catalog again at its next
+  computation." It offers every language TMDb keeps translations in, 144 tags (decision 1 of
+  2026-10-17), named in the UI language — a tag Intl has no name for, such as TMDb's `cn-CN`, shown
+  as the tag —, Ukrainian and English (United States) first, the other Englishes next, then the rest
+  in the UI language's alphabetical order. A new TMDb starts at the UI language's (`uk-UA` for
+  Ukrainian, the browser's own English such as `en-GB`, else `en-US`), an edit at the stored one, kept
+  in the list even if TMDb no longer lists it — the server takes it back as unchanged, in any letter
+  case, so a rename is never refused for it —, saved with the rest by **Add integration** or **Save
+  changes**. The Integrations list shows "Catalog language: <name>" under the TMDb row's kind.
+  `GET /api/settings/integrations/adapter-types` gives `catalogLanguages`, TMDb's list in its order,
+  for `tmdb` and `null` for every other type; an integration carries `catalogLanguage`, `null` but for
+  a catalog. `POST` and `PUT /api/settings/integrations` take `catalogLanguage` in any letter case and
+  store it as TMDb spells it; a create without one, or with a blank one, starts in the owner's saved
+  language, else in the request's first `Accept-Language` tag, else in `en-US`, each brought to the
+  closest of the list (`uk` → `uk-UA`, `de` → `de-DE`, `en` → `en-US`), and an update without one
+  keeps the stored one. 400, checked after the credentials and path mappings and before the name:
+  "“x” is not one of TMDb's catalog languages. Use one of the tags its adapter type lists, such as
+  en-US or uk-UA." and, for a type that is no catalog, "Jellyfin has no catalog language to choose.
+  Leave catalogLanguage out." (with that type's name). TMDb's list is recorded as a vendor sample,
+  `Tmdb/configuration-primary-translations.json`. `Settings/IntegrationsCatalogLanguageHttpTests`,
+  `Settings/IntegrationsHttpTests`, `TmdbAdapterLanguageTests`, `CatalogLanguageRulesTests`,
+  `IntegrationDialog.test.tsx`, `IntegrationsPage.test.tsx` and `catalog-languages.test.ts` pin it.
 
 ### Changed
 
@@ -226,6 +305,57 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   sign-in limit is used up still gets "Too many attempts" on `/mcp` too, from the token's
   authentication, before the `mcp` limit is reached.
   `Conventions/PersonalAccessTokenConventionHttpTests` pins the mark on a probe endpoint.
+- **TMDb is asked in the integration's catalog language, no longer always in Ukrainian (MAM-46, ADR
+  0005's MAM-46 section).** `TmdbAdapter`'s `CatalogLanguage = "uk-UA"` constant is gone: every
+  catalog call — a work's details, an episode, a collection, a person, a search, a find, discovery,
+  the genre lists and the lookups — sends `language=` the integration's catalog language, escaped, or
+  `en-US`, TMDb's own default, for settings that name none. `IMetadataCatalog` gains `Languages`,
+  the languages a catalog can be asked in, and `IntegrationConnectionSettings` a trailing
+  `CatalogLanguage`. So on Recommendations and in the TMDb dialog the titles, genre, collection and
+  people names, overviews and posters come in the catalog's language; the Description dialog keeps
+  asking in the reader's (Vasyl's decision 2 of 2026-10-17). `TmdbAdapterLanguageTests` pins it.
+- **Sign-in, setup and refresh answer `user.language`, and `GET /api/auth/me` answers `language`
+  (MAM-46).** `en`, `uk`, or `null` for a user who follows the browser, a trailing field of
+  `CurrentUserResponse` and `CurrentUserProfileResponse`; every start of the web app comes through a
+  refresh, so the language arrives with the session. `Auth/AuthSignInHttpTests`,
+  `Auth/AuthRefreshHttpTests`, `Auth/AuthMeHttpTests` and `Setup/SetupHttpTests` pin it.
+- **The catalog's cached rows say which language they were read in, and a change of language reads
+  them again (MAM-46, ADR 0025's MAM-46 section).** `CatalogWorks.DetailsLanguage` and the
+  `Language` of `CatalogGenres`, `CatalogCollections`, `CatalogPeople` and `CatalogLookups` are
+  written with every row; a work's details, a collection, a person, a genre list and a lookup by a
+  title are fresh only in the catalog's language of now, while a lookup by an IMDb id, which holds ids
+  alone, stays fresh in any. A run under way when the language changes still gets its answers, but
+  its old-language answers only add the rows not stored yet, stamped in their language, and change no
+  stored row. Saving a new language for an enabled TMDb queues a computation of the recommendations
+  and a preparation of the TMDb suggestions with a new trigger, `CatalogLanguageChanged`, which
+  `GET /api/recommendations/runs/latest` and `GET /api/library/tmdb/runs/latest` can answer — also
+  when the same save switches TMDb back on —; on a switched-off TMDb it is saved and audited
+  (`IntegrationUpdated`) and queues nothing, the stamps reading again once it is on. Either way the
+  newest releases first seen within the last 14 days that were resolved to no work are marked
+  unresolved again, so their next read resolves them in the new language (ADR 0024's MAM-46
+  section), and a **New on …** card's work, which the newest releases resolved once, has its details
+  read again in it. A link's `catalogTitle` stays TMDb's title of when it was linked.
+  `Catalog/CatalogLanguageChangeHttpTests`, `Catalog/CatalogStoreTests` and
+  `Settings/IntegrationsCatalogLanguageHttpTests` pin it.
+- **A preparation of the TMDb suggestions reads again the candidates read in another language (MAM-46,
+  ADR 0025's MAM-46 section).** In every run, whatever queued it, a work whose search is kept from the
+  cache now reads again, through the cache, the details of its stored candidates not stored as read
+  in the catalog's language — read in another, or with no details or no row, as a run under way
+  during a change leaves them —, so the TMDb dialog shows their titles and overviews in it without
+  searching again; a candidate already read in it costs nothing, and TMDb removed and added again in
+  another language is caught up too. `Catalog/CatalogLanguageChangeHttpTests` pins it.
+- **The Description dialog asks in Ukrainian for a reader of the Ukrainian web app (MAM-46, ADR 0025's
+  MAM-46 section, Vasyl's decision 2 of 2026-10-17).** It sends the UI language's code, now `uk` or
+  `en`, with English beneath it where TMDb has nothing in Ukrainian, whatever the catalog's language.
+- **Room for the longer Ukrainian text (MAM-46).** Measured in Chrome on the Ukrainian strings: the
+  Search form's year column is `minmax(0, 7rem)`; up to 1240 px wide the header keeps its links as
+  icons in Ukrainian, so the search field keeps its room (`html:lang(uk)` rules in
+  `app-layout.css`); the Access tokens card's labels wrap on a 320 px phone with no sideways scroll; a
+  full-width button of the sign-in and setup forms wraps its text instead of overflowing; and the
+  Recommendations page's tabs are the shared `PageTabs`, which scroll the current tab into view on a
+  phone, again whenever a label changes width (the Jobs page's counts arrive after its tabs, and in
+  Ukrainian they pushed a current **Усі** partly out of the row). `styles/downloads.test.ts` ("the room
+  the Ukrainian text takes"), `RecommendationTabs.test.tsx` and `PageTabs.test.tsx` pin it.
 
 ### Notes for upgraders
 
@@ -249,12 +379,40 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   variable. An assistant needs a token from Profile and the app's address reachable from its
   computer — behind a reverse proxy, `/mcp` has to reach the app as `/api` does —, as the README's
   "Connect an AI assistant (MCP)" says.
-- **0.5.0 adds Phase E's MAM-5 and MAM-45 to the 0.4.0 image published on 2026-10-14.** Vasyl
+- **Applying `AddLanguages` rebuilds no table, so it logs no warning 20410 (MAM-46).** It adds seven
+  columns in place: `Users.Language`, null for every existing user, who so follows the browser;
+  `IntegrationConnections.CatalogLanguage`, set to `uk-UA` on every `tmdb` row by EF's own
+  `UpdateData` and null on every other; and `CatalogWorks.DetailsLanguage` and the `Language` of
+  `CatalogGenres`, `CatalogCollections`, `CatalogPeople` and `CatalogLookups`, non-null with the
+  default `uk-UA`, so
+  every row cached before counts as read in Ukrainian, as it was, and the upgrade reads nothing from
+  TMDb again (`AddLanguagesMigrationTests`).
+- **A browser that prefers Ukrainian shows the web app in Ukrainian after the upgrade, with nothing
+  done (MAM-46).** **As in the browser** is every user's choice until they make one, and the browser's
+  `uk-UA`, which 0.4.0 skipped for English, now has its language. The sign-in and setup pages follow
+  the browser too. A user who wants English picks **English** under Profile → **Language**, once, for
+  every browser and device.
+- **An installation's TMDb keeps Ukrainian (MAM-46).** The migration gives every TMDb integration
+  `uk-UA`, the language it was always asked in, so the Recommendations page and the TMDb dialog read
+  as before; production keeps Українська. The owner changes it under Integrations → TMDb → **Catalog
+  language**, and the next computation reads the catalog again. A TMDb added after the upgrade starts
+  in the owner's language.
+- **The server's sentences stay English until MAM-47 (MAM-46, ADR 0001's MAM-46 section).** In the
+  Ukrainian web app the sentences the API writes — an error, a job's or a check's reason, a run's
+  failure — still read in English, a service's own words stay as the service wrote them, and the
+  release notes stay English only (Vasyl's decision of 2026-10-14).
+- **With a catalog language other than Ukrainian, release matching for recommendations leans on the
+  original title (MAM-46, ADR 0024's MAM-46 section).** The availability check and the newest releases
+  match a work by its titles, the catalog's now in that language: Toloka's Ukrainian part of a name
+  then matches nothing, and the original part, which its names carry beside it, decides; a work
+  whose original title isn't in Latin letters (a Japanese or Korean film) is searched by its title in
+  the catalog's language and shows nothing available on Toloka.
+- **0.5.0 adds Phase E's MAM-5, MAM-45 and MAM-46 to the 0.4.0 image published on 2026-10-14.** Vasyl
   published 0.4.0 on 2026-10-14 at 20:41 UTC (Docker Hub's `0.4.0`, `0.4` and `latest`), built after
   commit 6ef689b, so that image holds all of 0.4.0 below, the Recommendations page's Description
   dialog and layout included. From MAM-5, `frontend/package.json` says 0.5.0 (the ticket's version,
   Vasyl's decision of 2026-10-14), so the next image published from `main` is 0.5.0, never 0.4.0
-  again; MAM-45 keeps that number.
+  again; MAM-45 and MAM-46 keep that number.
 
 ## [0.4.0] — 2026-10-13
 
