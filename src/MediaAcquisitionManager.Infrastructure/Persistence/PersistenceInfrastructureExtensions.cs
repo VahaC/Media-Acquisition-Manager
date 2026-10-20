@@ -45,7 +45,9 @@ internal static class PersistenceInfrastructureExtensions
     /// <summary>
     /// Built with the connection-string builder rather than concatenated, so a data directory whose
     /// path contains <c>;</c> or <c>=</c> is quoted instead of silently cutting the string short.
+    /// Internal for the test databases: Microsoft.Data.Sqlite keys its connection pools by this exact
+    /// string, and they close one database's pool by it.
     /// </summary>
-    private static string ConnectionStringFor(string databasePath) =>
+    internal static string ConnectionStringFor(string databasePath) =>
         new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 }

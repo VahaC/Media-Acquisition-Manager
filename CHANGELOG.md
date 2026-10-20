@@ -455,6 +455,16 @@ All notable changes to Media Acquisition Manager are recorded here. The format i
   names, `Conventions/LocaleParityTests` an English file without its Ukrainian one or a Ukrainian
   file that differs from its English one, and `Conventions/ServerLabelsTests` a quoted label that is
   neither the web app's nor a recorded vendor's.
+- **EF Core's SQLite packages go from 10.0.12 to 10.0.13, for a race in the connection pool
+  ([dotnet/efcore#39008](https://github.com/dotnet/efcore/issues/39008)).** In Microsoft.Data.Sqlite
+  10.0.12 a pooled connection that was being opened looked abandoned for an instant, and another
+  thread opening a connection or clearing the pool at that moment could take it back: it closed the
+  connection under its owner, removed the owner's collation, or lent it to a second owner. The app
+  meets it rarely, where several connections open at once (the TMDb link writer's lanes). SQLitePCLRaw
+  comes along at 2.1.13. The test harness no longer calls `SqliteConnection.ClearAllPools()` while
+  tests run: each test database and app factory clears only its own pool (`TestDatabase.ClearPoolOf`),
+  as clearing every pool reached into the classes running beside it, and the suite failed now and then
+  with `ObjectDisposedException` 'SQLitePCL.sqlite3', a link left Writing or a failed class cleanup.
 
 ### Notes for upgraders
 

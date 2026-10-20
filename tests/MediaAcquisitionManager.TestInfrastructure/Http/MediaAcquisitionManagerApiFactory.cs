@@ -476,6 +476,7 @@ public class MediaAcquisitionManagerApiFactory : WebApplicationFactory<Program>
         _scope?.Dispose();
         _scope = null;
         await base.DisposeAsync();
+        TestDatabase.ClearPoolOf(Path.Combine(DataDirectory, StorageLayout.DatabaseFileName));
         TestDatabase.DeleteDirectory(DataDirectory);
         GC.SuppressFinalize(this);
     }

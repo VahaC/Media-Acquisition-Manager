@@ -31,7 +31,7 @@
   <!-- Design-time only (dotnet ef): PrivateAssets keeps Roslyn and the scaffolder out of the app's
        runtime dependencies. Same exact version as every other EF Core package. -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

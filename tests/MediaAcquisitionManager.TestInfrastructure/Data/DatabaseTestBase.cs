@@ -12,6 +12,10 @@ namespace MediaAcquisitionManager.TestInfrastructure.Data;
 /// </summary>
 public abstract class DatabaseTestBase : IDisposable
 {
+    // The connection strings this test's contexts were given beside the app's own (the foreign-keys-off one). Each has a
+    // pool of its own, which keeps the file open until that pool is cleared.
+    private readonly HashSet<string> _otherConnectionStrings = [];
+
     protected DatabaseTestBase()
     {
         DatabasePath = TestDatabase.PathFor(GetType().Name);
@@ -45,13 +49,16 @@ public abstract class DatabaseTestBase : IDisposable
     protected ApplicationDbContext CreateContextWithForeignKeysOffAtOpen()
     {
         var db = CreateContext();
-        db.Database.SetConnectionString(
-            new SqliteConnectionStringBuilder(db.Database.GetConnectionString()) { ForeignKeys = false }.ToString());
+        var connectionString = new SqliteConnectionStringBuilder(db.Database.GetConnectionString()) { ForeignKeys = false }.ToString();
+        db.Database.SetConnectionString(connectionString);
+        _otherConnectionStrings.Add(connectionString);
         return db;
     }
 
     public void Dispose()
     {
+        foreach (var connectionString in _otherConnectionStrings)
+            TestDatabase.ClearPool(connectionString);
         TestDatabase.DeleteDatabase(DatabasePath);
         GC.SuppressFinalize(this);
     }

@@ -42,15 +42,34 @@ public static class TestDatabase
     public static void DeleteDatabase(string databasePath)
     {
         // A pooled connection keeps the file open, and Windows refuses to delete an open file.
-        SqliteConnection.ClearAllPools();
+        ClearPoolOf(databasePath);
         foreach (var suffix in (string[])["", "-wal", "-shm", "-journal"])
             File.Delete(databasePath + suffix);
     }
 
-    /// <summary>Best-effort removal of a directory tree (an app factory's, or this process's).</summary>
+    /// <summary>Closes the pooled connections the app's connection string for <paramref name="databasePath"/> keeps open.</summary>
+    public static void ClearPoolOf(string databasePath) =>
+        ClearPool(PersistenceInfrastructureExtensions.ConnectionStringFor(databasePath));
+
+    /// <summary>
+    /// Closes the pooled connections of <paramref name="connectionString"/>, and only those — never
+    /// <see cref="SqliteConnection.ClearAllPools"/> while tests run. That clears the pools of every class running beside
+    /// this one too, so a class depends on how the library treats its neighbours' connections: in Microsoft.Data.Sqlite
+    /// 10.0.12 a clear that met another thread's open took the connection that open was handing out (dotnet/efcore#39008,
+    /// fixed in 10.0.13) — its native handle closed under it, or its collation removed while it ran a statement —, and the
+    /// suite failed now and then with ObjectDisposedException 'SQLitePCL.sqlite3', a link left Writing, or "database is
+    /// locked" thrown by the clear into the clearing class's cleanup.
+    /// </summary>
+    public static void ClearPool(string connectionString)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        SqliteConnection.ClearPool(connection);
+    }
+
+    /// <summary>Best-effort removal of a directory tree (an app factory's, or this process's). The caller first clears
+    /// the pools of the databases inside it (<see cref="ClearPoolOf"/>).</summary>
     public static void DeleteDirectory(string directory)
     {
-        SqliteConnection.ClearAllPools();
         try
         {
             if (Directory.Exists(directory))
@@ -72,7 +91,12 @@ public static class TestDatabase
         // A process id is reused eventually; whatever a killed earlier run left under this one is stale.
         DeleteDirectory(directory);
         Directory.CreateDirectory(directory);
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => DeleteDirectory(directory);
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            // The one place every pool may go at once: no test runs any more.
+            SqliteConnection.ClearAllPools();
+            DeleteDirectory(directory);
+        };
         return directory;
     }
 
@@ -91,7 +115,7 @@ public static class TestDatabase
             db.Database.Migrate();
 
         // Copied, never opened again: release the pooled handle so no copy can meet a lock.
-        SqliteConnection.ClearAllPools();
+        ClearPoolOf(path);
         return path;
     }
 }
